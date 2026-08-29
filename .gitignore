@@ -34,3 +34,6 @@ go.work.sum
 .idea
 
 bin/
+
+.junie/
+.claude/
