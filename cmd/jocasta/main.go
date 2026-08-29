@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/pushkar-anand/build-with-go/http/server"
 	"github.com/pushkar-anand/build-with-go/logger"
 )
 
@@ -24,7 +25,19 @@ func main() {
 		logger.WithFormat(logger.FormatJSON),
 	)
 
-	log.Info("test")
+	mux := http.NewServeMux()
 
-	fmt.Println("Hello World!")
+	mux.HandleFunc("/livez", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Hello, World"))
+	})
+
+	srv := server.New(
+		mux,
+		server.WithLogger(log),
+	)
+
+	if err := srv.Serve(ctx); err != nil {
+		log.ErrorContext(ctx, "failed", logger.Error(err))
+		return
+	}
 }
