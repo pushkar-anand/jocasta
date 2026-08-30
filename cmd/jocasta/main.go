@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/pushkar-anand/build-with-go/config"
 	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/pushkar-anand/jocasta/internal/server"
@@ -23,20 +24,31 @@ func main() {
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
 	defer cancel()
 
+	cfg, err := config.Load[Config](
+		config.WithDefaults(defaults),
+		config.WithYAML("jocasta.yaml"),
+		config.WithEnvPrefix("JOCASTA_"),
+	)
+	if err != nil {
+		slog.Error("Failed to initialize config", logger.Err(err))
+		os.Exit(1)
+		return
+	}
+
 	log := logger.New(
-		logger.WithLevel(slog.LevelDebug),
-		logger.WithFormat(logger.FormatJSON),
+		logger.WithLevel(cfg.Logger.SlogLevel()),
+		logger.WithFormat(cfg.Logger.FormatValue()),
 	)
 
-	_, err := db.New(&db.Config{Path: "/home/pushkar/Projects/jocasta", Name: "jocasta.db"})
+	_, err = db.New(&db.Config{Path: cfg.DB.Path, Name: cfg.DB.Name})
 	if err != nil {
 		log.ErrorContext(ctx, "failed to initialize database", logger.Err(err))
 		return
 	}
 
 	err = server.Start(ctx, &server.Config{
-		Addr:   "0.0.0.0",
-		Port:   8080,
+		Addr:   cfg.Server.Host,
+		Port:   cfg.Server.Port,
 		Logger: log,
 	})
 	if err != nil {
