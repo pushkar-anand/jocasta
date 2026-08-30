@@ -60,6 +60,9 @@ func NewRenderer(templates *template.Template, logger *slog.Logger) *Renderer {
 
 func (rr *Renderer) Render(w http.ResponseWriter, request *http.Request, templateName string, templateData any) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'")
 
 	err := rr.templates.ExecuteTemplate(w, templateName, templateData)
 	if err != nil {
