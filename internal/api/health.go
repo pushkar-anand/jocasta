@@ -10,14 +10,24 @@ import (
 
 func healthHandler(jw *response.JSONWriter) response.HandlerFunc {
 	info, ok := debug.ReadBuildInfo()
+
+	type healthResponse struct {
+		Version string `json:"version"`
+	}
+
+	var res *healthResponse
+	if ok {
+		res = &healthResponse{
+			Version: info.Main.Version,
+		}
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) error {
 		if !ok {
 			return errors.New("failed to read build info")
 		}
 
-		jw.Ok(w, r, map[string]string{
-			"version": info.Main.Version,
-		})
+		jw.Ok(w, r, res)
 
 		return nil
 	}
