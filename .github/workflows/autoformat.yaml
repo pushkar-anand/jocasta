@@ -1,0 +1,11 @@
+name: Autoformat
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  autoformat:
+    uses: pushkar-anand/.github/.github/workflows/go-autoformat.yml@main
+    permissions:
+      contents: write

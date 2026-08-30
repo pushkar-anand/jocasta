@@ -1,0 +1,16 @@
+name: Coverage
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  coverage:
+    uses: pushkar-anand/.github/.github/workflows/go-coverage.yml@main
+    secrets: inherit
