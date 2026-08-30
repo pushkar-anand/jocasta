@@ -9,11 +9,13 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"net"
 	"net/netip"
 	"slices"
 	"time"
 
 	"github.com/pushkar-anand/jocasta/pkg/cidr"
+	"github.com/pushkar-anand/jocasta/pkg/oui"
 )
 
 // ErrPrefixTooLarge is returned for a range wide enough that sweeping it would
@@ -33,6 +35,12 @@ type Host struct {
 	Hostname string        `json:"hostname,omitempty"`
 	RTT      time.Duration `json:"rtt"`
 	SeenAt   time.Time     `json:"seen_at"`
+
+	// Vendor is the organisation that registered the MAC address, where one
+	// is known. Randomised marks an address the device generated for itself,
+	// which belongs to no vendor and identifies no hardware.
+	Vendor     string `json:"vendor,omitempty"`
+	Randomised bool   `json:"randomised,omitempty"`
 
 	// Self marks an address belonging to the host running the scan, and
 	// Interface names the interface holding it. Both are empty for every other
@@ -214,5 +222,35 @@ func applyHardware(hosts []Host, table map[netip.Addr]string, local map[netip.Ad
 		if mac, ok := table[hosts[i].Addr]; ok {
 			hosts[i].MAC = mac
 		}
+	}
+
+	for i := range hosts {
+		applyVendor(&hosts[i])
+	}
+}
+
+// applyVendor resolves the vendor behind a host's MAC address.
+//
+// A randomised address is recorded as such rather than left blank: it is not a
+// gap in the table that a newer one would close, and treating it as one leads
+// to hunting for a vendor that does not exist.
+func applyVendor(h *Host) {
+	if h.MAC == "" {
+		return
+	}
+
+	hw, err := net.ParseMAC(h.MAC)
+	if err != nil {
+		return
+	}
+
+	if oui.IsLocallyAdministered(hw) {
+		h.Randomised = true
+
+		return
+	}
+
+	if v, ok := oui.Lookup(hw); ok {
+		h.Vendor = v.Short
 	}
 }
