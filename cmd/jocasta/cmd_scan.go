@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -55,49 +56,37 @@ func outputScanResults(w io.Writer, hosts []scanner.Host, asJSON bool) error {
 	}
 
 	if len(hosts) == 0 {
-		fmt.Fprintln(w, "No responsive hosts found.")
-		return nil
+		_, err := fmt.Fprintln(w, "No responsive hosts found.")
+		return err
 	}
 
+	// tabwriter holds every row until Flush, so the single check there reports
+	// any write failure from the rows below.
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "IP\tMAC\tVENDOR\tHOSTNAME\tRTT\tDETAILS")
+	_, _ = fmt.Fprintln(tw, "IP\tMAC\tVENDOR\tHOSTNAME\tRTT\tDETAILS")
 
 	for _, h := range hosts {
-		mac := h.MAC
-		if mac == "" {
-			mac = "-"
-		}
-
-		vendor := h.Vendor
-		if vendor == "" {
-			if h.Randomised {
-				vendor = "[randomised]"
-			} else {
-				vendor = "-"
-			}
-		}
-
-		hostname := h.Hostname
-		if hostname == "" {
-			hostname = "-"
-		}
-
-		rtt := h.RTT.Truncate(time.Microsecond).String()
-		if h.RTT == 0 {
-			rtt = "<1µs"
+		vendor := cmp.Or(h.Vendor, "-")
+		if h.Vendor == "" && h.Randomised {
+			vendor = "[randomised]"
 		}
 
 		details := ""
 		if h.Self {
+			details = "self"
 			if h.Interface != "" {
 				details = fmt.Sprintf("self (%s)", h.Interface)
-			} else {
-				details = "self"
 			}
 		}
 
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n",
-			h.Addr, mac, vendor, hostname, rtt, details,
+		// Truncate alone renders anything under a microsecond as "0s".
+		rtt := h.RTT.Truncate(time.Microsecond).String()
+		if h.RTT < time.Microsecond {
+			rtt = "<1µs"
+		}
+
+		_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n",
+			h.Addr, cmp.Or(h.MAC, "-"), vendor, cmp.Or(h.Hostname, "-"), rtt, details,
 		)
 	}
 
