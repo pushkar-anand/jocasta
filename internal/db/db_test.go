@@ -176,6 +176,21 @@ func TestPragmasApplyToEveryPooledConnection(t *testing.T) {
 	}
 }
 
+func TestDSNEscapesPath(t *testing.T) {
+	t.Parallel()
+
+	// Given a file path with characters that need escaping in a URL (like ? and #)
+	file := "my_db?.sqlite"
+
+	// When we generate the DSN
+	result := dsn(file)
+
+	// Then it should be properly escaped, preventing DSN injection
+	assert.Contains(t, result, "my_db%3F.sqlite")
+	// The pragmas should still be attached correctly as the raw query
+	assert.Contains(t, result, "?_pragma=foreign_keys%281%29")
+}
+
 func BenchmarkDSN(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		dsn("test.db")
