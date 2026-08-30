@@ -1,0 +1,20 @@
+# Everything the build does not need: keeping the context small also keeps
+# .git out, which is what lets `go build` skip VCS stamping.
+.git
+.gitignore
+.github
+.claude
+.idea
+.junie
+bin/
+*.db
+*.out
+coverage.*
+*.coverprofile
+profile.cov
+jocasta.yaml
+.env
+Dockerfile
+.dockerignore
+LICENSE
+README.md
