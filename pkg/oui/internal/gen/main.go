@@ -248,7 +248,7 @@ func clean(s string) string {
 }
 
 func write(table map[string]*entry) error {
-	// go:generate runs with the working directory set to the package being
+	// go generate runs with the working directory set to the package being
 	// generated, which is where the embedded table belongs.
 	const out = "data.txt.gz"
 
@@ -262,6 +262,8 @@ func write(table map[string]*entry) error {
 	if err != nil {
 		return err
 	}
+
+	defer func(zw *gzip.Writer) { err = zw.Close() }(zw)
 
 	for _, key := range slices.Sorted(maps.Keys(table)) {
 		e := table[key]
