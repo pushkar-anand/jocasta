@@ -20,4 +20,4 @@ new_migration: ## Create a new migration file. Usage: make new_migration name=<m
 	go tool migrate create -dir=internal/db/migrations/ -seq -ext sql $(name)
 
 oui: ## Rebuild the embedded MAC vendor table from IEEE and Wireshark.
-	go generate ./pkg/oui/
+	cd pkg/oui && go run ./internal/gen
