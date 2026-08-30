@@ -67,5 +67,10 @@ func New(cfg *Config) (*DB, error) {
 
 // dsn builds a file DSN carrying the pragmas above.
 func dsn(file string) string {
-	return "file:" + file + "?" + pragmaString
+	u := &url.URL{
+		Scheme:   "file",
+		Opaque:   url.PathEscape(file),
+		RawQuery: pragmaString,
+	}
+	return u.String()
 }
