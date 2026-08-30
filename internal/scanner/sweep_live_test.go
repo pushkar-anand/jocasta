@@ -56,7 +56,7 @@ func TestSweepLive(t *testing.T) {
 				prefix, len(hosts), time.Since(start).Round(time.Millisecond), withMAC, withName)
 
 			w := tabwriter.NewWriter(os.Stderr, 0, 0, 2, ' ', 0)
-			_, _ = w.Write([]byte("\nIP\tMAC\tIFACE\tHOSTNAME\tRTT\n"))
+			_, _ = w.Write([]byte("\nIP\tMAC\tVENDOR\tIFACE\tHOSTNAME\tRTT\n"))
 
 			for _, h := range hosts {
 				iface := cmp.Or(h.Interface, "-")
@@ -64,9 +64,15 @@ func TestSweepLive(t *testing.T) {
 					iface += " (self)"
 				}
 
+				vendor := cmp.Or(h.Vendor, "-")
+				if h.Randomised {
+					vendor = "(randomised)"
+				}
+
 				_, _ = w.Write([]byte(strings.Join([]string{
 					h.Addr.String(),
 					cmp.Or(h.MAC, "-"),
+					vendor,
 					iface,
 					cmp.Or(h.Hostname, "-"),
 					h.RTT.Round(time.Microsecond).String(),
