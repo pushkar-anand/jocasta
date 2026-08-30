@@ -17,6 +17,12 @@ import (
 //go:generate go tool sqlc generate -f ./../../sqlc.yaml
 
 func main() {
+	if err := run(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	ctx := context.Background()
 
 	// Create a context that will be canceled when the OS sends a signal to the process.
@@ -31,8 +37,7 @@ func main() {
 	)
 	if err != nil {
 		slog.Error("Failed to initialize config", logger.Err(err))
-		os.Exit(1)
-		return
+		return err
 	}
 
 	log := logger.New(
@@ -43,7 +48,7 @@ func main() {
 	_, err = db.New(&db.Config{Path: cfg.DB.Path, Name: cfg.DB.Name})
 	if err != nil {
 		log.ErrorContext(ctx, "failed to initialize database", logger.Err(err))
-		return
+		return err
 	}
 
 	err = server.Start(ctx, &server.Config{
@@ -53,6 +58,8 @@ func main() {
 	})
 	if err != nil {
 		log.ErrorContext(ctx, "failed to start server", logger.Err(err))
-		return
+		return err
 	}
+
+	return nil
 }
