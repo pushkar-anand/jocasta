@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -32,37 +32,27 @@ func run(args []string) error {
 	defer cancel()
 
 	var cli CLI
-	parser, err := kong.New(&cli,
-		kong.Name("jocasta"),
-		kong.Description("Network discovery and homelab device inventory tool."),
-		kong.UsageOnError(),
-		kong.BindTo(ctx, (*context.Context)(nil)),
-	)
+	parser, err := newParser(&cli, kong.BindTo(ctx, (*context.Context)(nil)))
 	if err != nil {
 		return fmt.Errorf("init cli: %w", err)
 	}
 
 	kCtx, err := parser.Parse(args)
 	if err != nil {
-		parser.Errorf("%s", err)
+		// kong.UsageOnError() only takes effect through FatalIfErrorf, which
+		// exits the process. Print the usage block here instead so main stays
+		// in charge of exiting, and let main report the message once.
+		var parseErr *kong.ParseError
+		if errors.As(err, &parseErr) {
+			_ = parseErr.Context.PrintUsage(false)
+		}
+
 		return err
 	}
 
-	cfg, err := config.Load[Config](
-		config.WithDefaults(defaults),
-		config.WithYAML(cli.ConfigFile),
-		config.WithEnvPrefix("JOCASTA_"),
-	)
+	cfg, err := loadConfig(&cli)
 	if err != nil {
-		slog.Error("Failed to initialize config", logger.Err(err))
 		return err
-	}
-
-	if cli.LogLevel != "" {
-		cfg.Logger.Level = cli.LogLevel
-	}
-	if cli.LogFormat != "" {
-		cfg.Logger.Format = cli.LogFormat
 	}
 
 	log := logger.New(
@@ -71,4 +61,37 @@ func run(args []string) error {
 	)
 
 	return kCtx.Run(cfg, log)
+}
+
+// loadConfig assembles configuration from defaults, the YAML file and the
+// environment, then applies the global CLI overrides.
+//
+// A missing file at defaultConfigFile is fine, but an explicit --config that
+// does not exist is reported: silently falling back to defaults would bind the
+// server to the wrong address or point it at the wrong database.
+func loadConfig(cli *CLI) (*Config, error) {
+	if cli.ConfigFile != defaultConfigFile {
+		if _, err := os.Stat(cli.ConfigFile); err != nil {
+			return nil, fmt.Errorf("config file %q: %w", cli.ConfigFile, err)
+		}
+	}
+
+	cfg, err := config.Load[Config](
+		config.WithDefaults(defaults),
+		config.WithYAML(cli.ConfigFile),
+		config.WithEnvPrefix("JOCASTA_"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	if cli.LogLevel != "" {
+		cfg.Logger.Level = cli.LogLevel
+	}
+
+	if cli.LogFormat != "" {
+		cfg.Logger.Format = cli.LogFormat
+	}
+
+	return cfg, nil
 }
