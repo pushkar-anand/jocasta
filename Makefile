@@ -1,4 +1,4 @@
-.PHONY: tidy fmt build run gen new_migration
+.PHONY: tidy fmt build run gen new_migration docker
 
 fmt:
 	go fmt ./... && go tool goimports -w .
@@ -11,6 +11,9 @@ build: gen
 
 run: build
 	./bin/jocasta
+
+docker: ## Build the container image. Usage: make docker [tag=<image tag>]
+	docker build -t $(or $(tag),jocasta:latest) .
 
 
 new_migration: ## Create a new migration file. Usage: make new_migration name=<migration_name>
