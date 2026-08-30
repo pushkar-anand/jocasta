@@ -8,6 +8,7 @@ import (
 	"github.com/pushkar-anand/build-with-go/http/server"
 	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/jocasta/internal/api"
+	"github.com/pushkar-anand/jocasta/internal/web"
 )
 
 type (
@@ -24,10 +25,12 @@ type (
 
 func Start(ctx context.Context, cfg *Config) error {
 	ap := api.NewHandler(cfg.Logger)
+	wh := web.NewHandler(cfg.Logger)
 
 	mux := http.NewServeMux()
 
 	mux.Handle("/api/", http.StripPrefix("/api", ap))
+	mux.Handle("/", wh)
 
 	h := logger.NewHTTPLogger(cfg.Logger)(mux)
 
