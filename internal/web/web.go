@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"embed"
 	"html/template"
 	"io/fs"
@@ -59,16 +60,20 @@ func NewRenderer(templates *template.Template, logger *slog.Logger) *Renderer {
 }
 
 func (rr *Renderer) Render(w http.ResponseWriter, request *http.Request, templateName string, templateData any) {
+	var buf bytes.Buffer
+	err := rr.templates.ExecuteTemplate(&buf, templateName, templateData)
+	if err != nil {
+		rr.logger.ErrorContext(request.Context(), "error rendering template", logger.Err(err), slog.String("template", templateName))
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("X-Frame-Options", "DENY")
 	w.Header().Set("Content-Security-Policy", "default-src 'self'")
 
-	err := rr.templates.ExecuteTemplate(w, templateName, templateData)
-	if err != nil {
-		rr.logger.ErrorContext(request.Context(), "error rendering template", logger.Err(err), slog.String("template", templateName))
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-	}
+	buf.WriteTo(w)
 }
 
 func (rr *Renderer) HTML(tmpl string, data any) http.HandlerFunc {
