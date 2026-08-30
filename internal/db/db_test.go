@@ -1,7 +1,9 @@
 package db
 
 import (
+	"database/sql"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/pushkar-anand/jocasta/internal/db/models"
@@ -129,4 +131,47 @@ func TestCreateUserRejectsDuplicateUsername(t *testing.T) {
 	_, err = q.CreateUser(ctx, params)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "UNIQUE constraint failed")
+}
+
+// TestNewAppliesPragmas checks the DSN pragmas actually reach the connection.
+// foreign_keys is the one that matters: without it every REFERENCES clause in
+// the schema is decorative.
+func TestNewAppliesPragmas(t *testing.T) {
+	t.Parallel()
+
+	db := newTestDB(t)
+
+	var foreignKeys int
+	require.NoError(t, db.Conn.QueryRow(`PRAGMA foreign_keys`).Scan(&foreignKeys))
+	assert.Equal(t, 1, foreignKeys, "foreign key enforcement is off")
+
+	var journalMode string
+	require.NoError(t, db.Conn.QueryRow(`PRAGMA journal_mode`).Scan(&journalMode))
+	assert.Equal(t, "wal", strings.ToLower(journalMode))
+}
+
+// TestPragmasApplyToEveryPooledConnection is the reason the pragmas live in the
+// DSN. A PRAGMA issued once after Open binds to whichever connection served it,
+// leaving the rest of the pool unconfigured.
+func TestPragmasApplyToEveryPooledConnection(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	db := newTestDB(t)
+
+	first, err := db.Conn.Conn(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = first.Close() })
+
+	// Held at the same time as the first, so the pool has to open a second one
+	// rather than hand back the same connection.
+	second, err := db.Conn.Conn(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = second.Close() })
+
+	for i, conn := range []*sql.Conn{first, second} {
+		var foreignKeys int
+		require.NoError(t, conn.QueryRowContext(ctx, `PRAGMA foreign_keys`).Scan(&foreignKeys))
+		assert.Equal(t, 1, foreignKeys, "foreign keys off on pooled connection %d", i)
+	}
 }
