@@ -24,8 +24,6 @@ import (
 	"sync"
 )
 
-//go:generate go run ./internal/gen
-
 //go:embed data.txt.gz
 var data []byte
 
