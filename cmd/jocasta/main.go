@@ -3,14 +3,13 @@ package main
 import (
 	"context"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/pushkar-anand/build-with-go/http/server"
 	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/jocasta/internal/db"
+	"github.com/pushkar-anand/jocasta/internal/server"
 )
 
 // Link sqlc with go generate, now we need to just run go generate to generate models and functions for DB
@@ -31,23 +30,17 @@ func main() {
 
 	_, err := db.New(&db.Config{Path: "/home/pushkar/Projects/jocasta", Name: "jocasta.db"})
 	if err != nil {
-		log.ErrorContext(ctx, "failed to initialize database", logger.Error(err))
+		log.ErrorContext(ctx, "failed to initialize database", logger.Err(err))
 		return
 	}
 
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("/livez", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("Hello, World"))
+	err = server.Start(ctx, &server.Config{
+		Addr:   "0.0.0.0",
+		Port:   8080,
+		Logger: log,
 	})
-
-	srv := server.New(
-		mux,
-		server.WithLogger(log),
-	)
-
-	if err := srv.Serve(ctx); err != nil {
-		log.ErrorContext(ctx, "failed to start server", logger.Error(err))
+	if err != nil {
+		log.ErrorContext(ctx, "failed to start server", logger.Err(err))
 		return
 	}
 }

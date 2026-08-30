@@ -10,7 +10,7 @@ tool (
 
 require (
 	github.com/golang-migrate/migrate/v4 v4.19.1
-	github.com/pushkar-anand/build-with-go v0.0.18
+	github.com/pushkar-anand/build-with-go v0.1.0
 )
 
 require (
@@ -75,7 +75,7 @@ require (
 	github.com/fatih/structtag v1.2.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/form3tech-oss/jwt-go v3.2.5+incompatible // indirect
-	github.com/gabriel-vasile/mimetype v1.4.10 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.15 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
