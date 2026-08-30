@@ -3,8 +3,9 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/netip"
-	"strings"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -18,10 +19,9 @@ func parseCLI(t *testing.T, args []string) (*CLI, *kong.Context, error) {
 	t.Helper()
 
 	var cli CLI
-	parser, err := kong.New(&cli,
-		kong.Name("jocasta"),
-		kong.Description("Network discovery and homelab device inventory tool."),
+	parser, err := newParser(&cli,
 		kong.Exit(func(int) {}),
+		kong.Writers(io.Discard, io.Discard),
 	)
 	require.NoError(t, err)
 
@@ -197,10 +197,40 @@ func TestScanCmdInvalidTarget(t *testing.T) {
 	cmd := ScanCmd{Target: "invalid-cidr"}
 	err := cmd.Run(t.Context(), nil)
 	require.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "invalid CIDR prefix"))
+	assert.ErrorContains(t, err, "invalid CIDR prefix")
 }
 
-func TestRunScan(t *testing.T) {
-	err := run([]string{"--log-level=warn", "scan", "127.0.0.1/32"})
+// A successful run of the scan command needs an ICMP socket, which CI does not
+// grant, so run is covered through the failure paths that stop before the
+// sweep. internal/scanner's TestSweepLive is the opt-in live sweep.
+func TestRunRejectsMissingExplicitConfigFile(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "absent.yaml")
+
+	err := run([]string{"--config", path, "scan", "127.0.0.1/32"})
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "absent.yaml")
+}
+
+func TestLoadConfigAllowsAbsentDefaultFile(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := loadConfig(&CLI{ConfigFile: defaultConfigFile})
 	require.NoError(t, err)
+	require.NotNil(t, cfg)
+}
+
+func TestLoadConfigAppliesLoggingOverrides(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := loadConfig(&CLI{
+		ConfigFile: defaultConfigFile,
+		LogLevel:   "debug",
+		LogFormat:  "text",
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, "debug", cfg.Logger.Level)
+	assert.Equal(t, "text", cfg.Logger.Format)
 }
