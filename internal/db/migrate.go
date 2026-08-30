@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/sqlite3"
+	"github.com/golang-migrate/migrate/v4/database/sqlite"
 	"github.com/golang-migrate/migrate/v4/source"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
@@ -20,12 +20,12 @@ const migrationDir = "migrations"
 var migrationFiles embed.FS
 
 func migrateDB(db *DB) error {
-	td, err := sqlite3.WithInstance(db.Conn, &sqlite3.Config{})
+	td, err := sqlite.WithInstance(db.Conn, &sqlite.Config{})
 	if err != nil {
-		return fmt.Errorf("failed to init sqlite3 migration target: %w", err)
+		return fmt.Errorf("failed to init sqlite migration target: %w", err)
 	}
 
-	// td is deliberately not closed: the sqlite3 driver's Close closes the
+	// td is deliberately not closed: the sqlite driver's Close closes the
 	// *sql.DB it was handed, which is the connection the caller goes on using.
 
 	sd, err := iofs.New(migrationFiles, migrationDir)
@@ -35,7 +35,7 @@ func migrateDB(db *DB) error {
 
 	defer func(s source.Driver) { _ = s.Close() }(sd)
 
-	m, err := migrate.NewWithInstance("iofs", sd, "sqlite3", td)
+	m, err := migrate.NewWithInstance("iofs", sd, "sqlite", td)
 	if err != nil {
 		return fmt.Errorf("failed to init migrate: %w", err)
 	}
