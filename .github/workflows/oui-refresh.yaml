@@ -1,0 +1,99 @@
+name: Refresh OUI table
+
+on:
+  schedule:
+    # Mondays at 04:23 UTC. Deliberately off the hour: GitHub delays scheduled
+    # runs under load and drops some outright, and the top of every hour is
+    # when that load peaks.
+    - cron: '23 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    name: Rebuild from IEEE and Wireshark
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Rebuild the table
+        run: make oui
+
+      # A pull request opened with GITHUB_TOKEN does not trigger other
+      # workflows, so the usual CI will not run on it. The table is only worth
+      # proposing if it still passes, so the tests run here instead.
+      - name: Test against the new table
+        run: go test ./pkg/oui/ ./internal/scanner/
+
+      - name: Propose the change
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: chore/oui-refresh
+        run: |
+          set -euo pipefail
+
+          if git diff --quiet -- pkg/oui/data.txt; then
+            echo "Table is unchanged; nothing to propose."
+            exit 0
+          fi
+
+          # Counted against the default branch, not against whatever the
+          # branch held last week, so an unmerged pull request keeps
+          # reporting the full change a reviewer would actually be merging.
+          before=$(git show HEAD:pkg/oui/data.txt | wc -l)
+          after=$(wc -l < pkg/oui/data.txt)
+          added=$(git diff --numstat -- pkg/oui/data.txt | cut -f1)
+          removed=$(git diff --numstat -- pkg/oui/data.txt | cut -f2)
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # One long-lived branch, rebuilt from the default branch every run.
+          # A new branch each week would leave a queue of stale pull requests,
+          # and stacking onto the old one would show a reviewer the change
+          # since last week rather than the change they are merging.
+          git switch -C "$BRANCH"
+          git add pkg/oui/data.txt
+          git commit -m "chore(oui): refresh the vendor table
+
+          ${before} -> ${after} entries (+${added} / -${removed})."
+          git push --force origin "$BRANCH"
+
+          body=$(cat <<EOF
+          Rebuilt from the IEEE registries and Wireshark's \`manuf\` by the weekly workflow.
+
+          | | |
+          |---|---|
+          | Entries | ${before} → ${after} |
+          | Lines | +${added} / -${removed} |
+
+          \`go test ./pkg/oui/ ./internal/scanner/\` passed against this table in the run
+          that produced it. The usual CI does not run here: a pull request opened with
+          \`GITHUB_TOKEN\` cannot trigger other workflows.
+
+          This pull request is rebuilt from \`main\` and force-pushed every week, so the
+          figures above always describe the whole change being merged, however many
+          refreshes have gone by unmerged.
+          EOF
+          )
+
+          number=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+
+          if [ -n "$number" ]; then
+            gh pr edit "$number" --body "$body"
+            echo "Updated pull request #${number}."
+          else
+            gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "chore(oui): refresh the vendor table" \
+              --body "$body"
+          fi
