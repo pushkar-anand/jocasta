@@ -3,6 +3,7 @@ package web
 import (
 	"embed"
 	"html/template"
+	"io/fs"
 	"log/slog"
 	"net/http"
 
@@ -28,9 +29,14 @@ func NewHandler(logger *slog.Logger) *Handler {
 		panic(err)
 	}
 
+	staticFS, err := fs.Sub(static, "statics")
+	if err != nil {
+		panic(err)
+	}
+
 	r := NewRenderer(templates, logger)
 
-	mux.Handle("/static/", http.FileServer(http.FS(static)))
+	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServerFS(staticFS)))
 	mux.HandleFunc("/", r.HTML("index.html.tmpl", nil))
 
 	return &Handler{

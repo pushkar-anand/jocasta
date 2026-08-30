@@ -11,6 +11,7 @@ tool (
 require (
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/pushkar-anand/build-with-go v0.1.0
+	github.com/stretchr/testify v1.12.1
 )
 
 require (
