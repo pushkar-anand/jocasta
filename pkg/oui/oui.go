@@ -1,4 +1,4 @@
-// Package oui resolves a MAC address to the organisation that registered it.
+// Package oui resolves a MAC address to the organization that registered it.
 //
 // The table is built from the IEEE registries, which are authoritative for
 // which prefixes exist, and from Wireshark's manuf file, which supplies the
@@ -6,8 +6,8 @@
 // lookup needs no network access and no external database.
 //
 // A MAC address does not always identify a manufacturer. Current mobile and
-// desktop operating systems randomise the address they present to a network,
-// and a randomised address is generated rather than assigned, so it matches no
+// desktop operating systems randomize the address they present to a network,
+// and a randomized address is generated rather than assigned, so it matches no
 // registry and never will. [IsLocallyAdministered] reports that case, which is
 // worth distinguishing from a genuine lookup miss: one is expected and
 // permanent, the other suggests a stale table.
@@ -29,17 +29,17 @@ import (
 //go:embed data.txt.gz
 var data []byte
 
-// Vendor is a registered organisation.
+// Vendor is a registered organization.
 type Vendor struct {
-	// Name is the organisation as registered, such as "Apple, Inc.".
+	// Name is the organization as registered, such as "Apple, Inc.".
 	Name string
 
 	// Short is an abbreviated form suitable for display, such as "Apple".
 	// It falls back to Name where no abbreviation is published.
 	Short string
 
-	// Bits is the width of the prefix that matched: 24, 28 or 36. A narrower
-	// match is a more specific assignment, and identifies a smaller vendor
+	// Bits is the width of the prefix that matched: 24, 28, or 36. A narrower
+	// match is a more specific assignment and identifies a smaller vendor
 	// buying part of a block rather than the block's registrant.
 	Bits int
 }
@@ -62,7 +62,7 @@ func load() map[string]Vendor {
 		// reason a caller could act on.
 		return nil
 	}
-	defer zr.Close()
+	defer func(zr *gzip.Reader) { _ = zr.Close() }(zr)
 
 	m := make(map[string]Vendor, 64_000)
 
@@ -88,7 +88,7 @@ func load() map[string]Vendor {
 	return m
 }
 
-// Lookup returns the organisation that registered hw.
+// Lookup returns the organization that registered hw.
 //
 // It reports false for an address in no registry, which includes every
 // locally administered address; see [IsLocallyAdministered].
@@ -125,10 +125,10 @@ func Lookup(hw net.HardwareAddr) (Vendor, bool) {
 // rather than by a manufacturer, which is what the second-least-significant
 // bit of the first octet means.
 //
-// Randomised client addresses set this bit, as do virtual interfaces and
+// Randomized client addresses set this bit, as do virtual interfaces and
 // container bridges. Such an address is not a stable identifier: the same
 // device presents a different one on another network, and often after a
-// reconnect, so it cannot be used on its own to recognise a device again.
+// reconnection, so it cannot be used on its own to recognize a device again.
 func IsLocallyAdministered(hw net.HardwareAddr) bool {
 	if len(hw) == 0 {
 		return false
