@@ -175,3 +175,9 @@ func TestPragmasApplyToEveryPooledConnection(t *testing.T) {
 		assert.Equal(t, 1, foreignKeys, "foreign keys off on pooled connection %d", i)
 	}
 }
+
+func BenchmarkDSN(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		dsn("test.db")
+	}
+}

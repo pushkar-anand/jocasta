@@ -24,6 +24,16 @@ var pragmas = []string{
 	"busy_timeout(5000)",
 }
 
+var pragmaString string
+
+func init() {
+	q := make(url.Values, len(pragmas))
+	for _, p := range pragmas {
+		q.Add("_pragma", p)
+	}
+	pragmaString = q.Encode()
+}
+
 type (
 	DB struct {
 		Conn *sql.DB
@@ -57,10 +67,5 @@ func New(cfg *Config) (*DB, error) {
 
 // dsn builds a file DSN carrying the pragmas above.
 func dsn(file string) string {
-	q := make(url.Values, len(pragmas))
-	for _, p := range pragmas {
-		q.Add("_pragma", p)
-	}
-
-	return "file:" + file + "?" + q.Encode()
+	return "file:" + file + "?" + pragmaString
 }
