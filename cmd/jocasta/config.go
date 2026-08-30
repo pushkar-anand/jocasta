@@ -47,8 +47,7 @@ func (l Logger) SlogLevel() slog.Level {
 		return slog.LevelDebug
 	case "info":
 		return slog.LevelInfo
-	case "warning":
-	case "warn":
+	case "warning", "warn":
 		return slog.LevelWarn
 	case "error":
 		return slog.LevelError
