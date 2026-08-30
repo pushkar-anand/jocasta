@@ -1,4 +1,14 @@
-version: 2
+version: "2"
 
 sql:
   - engine: sqlite
+    queries: "internal/db/queries/"
+    schema: "internal/db/migrations"
+    gen:
+      go:
+        package: "models"
+        out: "internal/db/models"
+        emit_prepared_queries: true
+        emit_json_tags: true
+
+    strict_function_checks: true
