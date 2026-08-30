@@ -27,6 +27,9 @@ func TestHandlerServesIndex(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, res.StatusCode)
 	assert.Equal(t, "text/html; charset=utf-8", res.Header.Get("Content-Type"))
+	assert.Equal(t, "nosniff", res.Header.Get("X-Content-Type-Options"))
+	assert.Equal(t, "DENY", res.Header.Get("X-Frame-Options"))
+	assert.Equal(t, "default-src 'self'", res.Header.Get("Content-Security-Policy"))
 	assert.Contains(t, rec.Body.String(), "Hello World!")
 }
 
@@ -63,6 +66,9 @@ func TestRendererRender(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, "text/html; charset=utf-8", rec.Header().Get("Content-Type"))
+	assert.Equal(t, "nosniff", rec.Header().Get("X-Content-Type-Options"))
+	assert.Equal(t, "DENY", rec.Header().Get("X-Frame-Options"))
+	assert.Equal(t, "default-src 'self'", rec.Header().Get("Content-Security-Policy"))
 	assert.Equal(t, "Hello Ada!", rec.Body.String())
 }
 
