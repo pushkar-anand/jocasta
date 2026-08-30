@@ -16,7 +16,6 @@ package oui
 import (
 	"bufio"
 	"bytes"
-	"compress/gzip"
 	_ "embed"
 	"encoding/hex"
 	"net"
@@ -24,7 +23,7 @@ import (
 	"sync"
 )
 
-//go:embed data.txt.gz
+//go:embed data.txt
 var data []byte
 
 // Vendor is a registered organization.
@@ -54,17 +53,9 @@ var prefixNibbles = [...]int{9, 7, 6}
 var table = sync.OnceValue(load)
 
 func load() map[string]Vendor {
-	zr, err := gzip.NewReader(bytes.NewReader(data))
-	if err != nil {
-		// The table is embedded at build time, so this cannot fail for a
-		// reason a caller could act on.
-		return nil
-	}
-	defer func(zr *gzip.Reader) { _ = zr.Close() }(zr)
-
 	m := make(map[string]Vendor, 64_000)
 
-	sc := bufio.NewScanner(zr)
+	sc := bufio.NewScanner(bytes.NewReader(data))
 	for sc.Scan() {
 		key, rest, ok := strings.Cut(sc.Text(), "\t")
 		if !ok {

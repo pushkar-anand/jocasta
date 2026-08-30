@@ -3,10 +3,14 @@
 // The table is generated and committed rather than fetched at run time so that
 // lookups work on an isolated network, and so a build never depends on IEEE or
 // Wireshark being reachable.
+//
+// It is written uncompressed. Git deltas successive versions of a text file
+// against each other, but must store a compressed one whole every time, and a
+// refresh lands as a reviewable diff rather than an opaque binary blob.
 package main
 
 import (
-	"compress/gzip"
+	"bufio"
 	"context"
 	"encoding/csv"
 	"errors"
@@ -248,9 +252,7 @@ func clean(s string) string {
 }
 
 func write(table map[string]*entry) error {
-	// go generate runs with the working directory set to the package being
-	// generated, which is where the embedded table belongs.
-	const out = "data.txt.gz"
+	const out = "data.txt"
 
 	f, err := os.Create(out)
 	if err != nil {
@@ -258,12 +260,7 @@ func write(table map[string]*entry) error {
 	}
 	defer f.Close()
 
-	zw, err := gzip.NewWriterLevel(f, gzip.BestCompression)
-	if err != nil {
-		return err
-	}
-
-	defer func(zw *gzip.Writer) { err = zw.Close() }(zw)
+	w := bufio.NewWriter(f)
 
 	for _, key := range slices.Sorted(maps.Keys(table)) {
 		e := table[key]
@@ -275,12 +272,12 @@ func write(table map[string]*entry) error {
 			short = ""
 		}
 
-		if _, err := fmt.Fprintf(zw, "%s\t%s\t%s\n", key, short, e.long); err != nil {
+		if _, err := fmt.Fprintf(w, "%s\t%s\t%s\n", key, short, e.long); err != nil {
 			return err
 		}
 	}
 
-	if err := zw.Close(); err != nil {
+	if err := w.Flush(); err != nil {
 		return err
 	}
 
