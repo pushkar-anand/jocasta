@@ -1,7 +1,7 @@
 .PHONY: tidy fmt build run gen new_migration
 
 fmt:
-	go fmt ./... && go list ./... | goimports -w .
+	go fmt ./... && go tool goimports -w .
 
 gen:
 	go generate ./...
@@ -14,4 +14,4 @@ run: build
 
 
 new_migration: ## Create a new migration file. Usage: make new_migration name=<migration_name>
-	migrate create -dir=internal/db/migrations/ -seq -ext sql $(name)
+	go tool migrate create -dir=internal/db/migrations/ -seq -ext sql $(name)

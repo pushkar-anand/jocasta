@@ -14,7 +14,7 @@ import (
 )
 
 // Link sqlc with go generate, now we need to just run go generate to generate models and functions for DB
-//go:generate sqlc generate -f ./../../sqlc.yaml
+//go:generate go tool sqlc generate -f ./../../sqlc.yaml
 
 func main() {
 	ctx := context.Background()
