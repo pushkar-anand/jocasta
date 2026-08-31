@@ -1,10 +1,5 @@
 version: "2"
 
-run:
-  # Temporarily override the Go version to bypass the version mismatch
-  # between the project (Go 1.27) and the linter's build version.
-  go: "1.26"
-
 formatters:
   enable:
     # gofmt: Ensures code is formatted as per gofmt.
