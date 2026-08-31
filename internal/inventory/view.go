@@ -1,0 +1,316 @@
+package inventory
+
+import (
+	"cmp"
+	"fmt"
+	"net/netip"
+	"slices"
+	"strings"
+	"time"
+
+	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
+	"github.com/pushkar-anand/jocasta/internal/db/models"
+)
+
+// The types here are what the inventory hands to a caller that renders it. The
+// generated models cannot serve that purpose: every optional column reaches Go
+// as a sql.NullString, which marshals as {"String":"","Valid":false} and reads
+// as .Label.String in a template. An absent value is "" here instead, and the
+// two facts every caller derives -- what to call a device and whether it is
+// still answering -- are settled once, here, rather than in each surface.
+
+// Device is a device as it is displayed.
+type Device struct {
+	ID             int64                 `json:"id"`
+	MAC            string                `json:"mac,omitempty"`
+	IdentitySource dbtype.IdentitySource `json:"identity_source"`
+	Randomised     bool                  `json:"randomised,omitempty"`
+	Vendor         string                `json:"vendor,omitempty"`
+	Hostname       string                `json:"hostname,omitempty"`
+	HostnameSource dbtype.HostnameSource `json:"hostname_source,omitempty"`
+	Type           string                `json:"type,omitempty"`
+
+	Label   string `json:"label,omitempty"`
+	Notes   string `json:"notes,omitempty"`
+	Group   string `json:"group,omitempty"`
+	Ignored bool   `json:"ignored,omitempty"`
+
+	FirstSeen time.Time `json:"first_seen"`
+	LastSeen  time.Time `json:"last_seen"`
+
+	// Online reports whether the device was seen inside the store's online
+	// window. It is fixed when the device is read, so a list does not report
+	// two devices differently for having been formatted a second apart.
+	Online bool `json:"online"`
+
+	// Current holds the addresses the device answers on now, in address order.
+	Current []netip.Addr `json:"current_addresses,omitempty"`
+
+	// Addresses is the full history, current entries first. Only GetDevice
+	// fills it: a list would need a row per address to say when each was seen,
+	// and it only ever shows the current ones.
+	Addresses []Address `json:"addresses,omitempty"`
+}
+
+// Name is what to call the device: whatever the user labelled it, falling back
+// through the identity the network offered.
+func (d Device) Name() string {
+	var addr string
+	if len(d.Current) > 0 {
+		addr = d.Current[0].String()
+	}
+
+	return displayName(d.Label, d.Hostname, d.MAC, addr, d.ID)
+}
+
+// Address is one address a device holds, or held.
+type Address struct {
+	IP        netip.Addr `json:"ip"`
+	Current   bool       `json:"current"`
+	FirstSeen time.Time  `json:"first_seen"`
+	LastSeen  time.Time  `json:"last_seen"`
+}
+
+// Event is one entry of the change log.
+type Event struct {
+	ID       int64            `json:"id"`
+	DeviceID int64            `json:"device_id,omitempty"`
+	ScanID   int64            `json:"scan_id,omitempty"`
+	Kind     dbtype.EventKind `json:"kind"`
+	OldValue string           `json:"old_value,omitempty"`
+	NewValue string           `json:"new_value,omitempty"`
+	Detail   string           `json:"detail,omitempty"`
+	At       time.Time        `json:"occurred_at"`
+
+	// DeviceName names the device the event was about. It is empty when the
+	// device has since been deleted, and when the caller already knows which
+	// device it asked about.
+	DeviceName string `json:"device_name,omitempty"`
+}
+
+// Scan is one run of one source.
+type Scan struct {
+	ID      int64             `json:"id"`
+	Source  string            `json:"source"`
+	Kind    dbtype.ScanKind   `json:"kind"`
+	Network string            `json:"network,omitempty"`
+	Status  dbtype.ScanStatus `json:"status"`
+	Error   string            `json:"error,omitempty"`
+	Found   int               `json:"found"`
+
+	StartedAt time.Time `json:"started_at"`
+
+	// FinishedAt and Took are zero while the scan is still running.
+	FinishedAt time.Time     `json:"finished_at,omitzero"`
+	Took       time.Duration `json:"took,omitempty"`
+}
+
+// Stats counts the inventory as a whole. Every count is over all devices,
+// including the ignored ones, which Ignored reports separately.
+type Stats struct {
+	Total   int `json:"total"`
+	Online  int `json:"online"`
+	Offline int `json:"offline"`
+	Ignored int `json:"ignored"`
+
+	// Discovered counts devices first seen within DiscoveryWindow.
+	Discovered int `json:"discovered"`
+}
+
+// Status filters a device list by whether the devices are still answering.
+type Status string
+
+const (
+	StatusAny     Status = ""
+	StatusOnline  Status = "online"
+	StatusOffline Status = "offline"
+)
+
+// admits reports whether a device in the given state passes the filter. An
+// unrecognised status filters nothing out, so a hand-typed query parameter
+// widens the list rather than emptying it.
+func (s Status) admits(online bool) bool {
+	switch s {
+	case StatusOnline:
+		return online
+	case StatusOffline:
+		return !online
+	default:
+		return true
+	}
+}
+
+// Sort orders a device list. The ordering is applied in Go rather than SQL
+// because addresses are stored as TEXT, which sorts 192.0.2.9 after
+// 192.0.2.100, and because a name is assembled from several columns.
+type Sort string
+
+const (
+	// SortLastSeen puts the most recently seen device first, and is the default.
+	SortLastSeen Sort = ""
+	SortName     Sort = "name"
+	SortAddress  Sort = "address"
+)
+
+// DeviceFilter narrows a device list.
+type DeviceFilter struct {
+	// Query matches a substring of the label, hostname, vendor, hardware
+	// address, or any current address.
+	Query string
+	Group string
+
+	Status Status
+	Sort   Sort
+
+	// IncludeIgnored admits the devices the user has marked ignored, which are
+	// left out otherwise.
+	IncludeIgnored bool
+}
+
+// newDevice converts a stored device, resolving whether it counts as online
+// against a single cutoff so every device in one read is judged alike.
+func newDevice(d models.Device, cutoff time.Time) Device {
+	return Device{
+		ID:             d.ID,
+		MAC:            macString(d.Mac),
+		IdentitySource: d.IdentitySource,
+		Randomised:     d.IsRandomised,
+		Vendor:         d.Vendor.String,
+		Hostname:       d.Hostname.String,
+		HostnameSource: d.HostnameSource,
+		Type:           d.DeviceType.String,
+		Label:          d.Label.String,
+		Notes:          d.Notes.String,
+		Group:          d.GroupName.String,
+		Ignored:        d.IsIgnored,
+		FirstSeen:      d.FirstSeen.Time,
+		LastSeen:       d.LastSeen.Time,
+		Online:         !d.LastSeen.Before(cutoff),
+	}
+}
+
+func newAddress(a models.Address) Address {
+	return Address{
+		IP:        a.Ip.Addr,
+		Current:   a.IsCurrent,
+		FirstSeen: a.FirstSeen.Time,
+		LastSeen:  a.LastSeen.Time,
+	}
+}
+
+func newEvent(e models.Event) Event {
+	return Event{
+		ID:       e.ID,
+		DeviceID: e.DeviceID.Int64,
+		ScanID:   e.ScanID.Int64,
+		Kind:     e.Kind,
+		OldValue: e.OldValue.String,
+		NewValue: e.NewValue.String,
+		Detail:   e.Detail.String,
+		At:       e.OccurredAt.Time,
+	}
+}
+
+func newScan(s models.Scan, source, network string) Scan {
+	sc := Scan{
+		ID:        s.ID,
+		Source:    source,
+		Kind:      s.Kind,
+		Network:   network,
+		Status:    s.Status,
+		Error:     s.Error.String,
+		Found:     int(s.FoundCount),
+		StartedAt: s.StartedAt.Time,
+	}
+
+	if s.FinishedAt.Valid {
+		sc.FinishedAt = s.FinishedAt.Time.Time
+		sc.Took = sc.FinishedAt.Sub(sc.StartedAt)
+	}
+
+	return sc
+}
+
+// displayName picks the first identifying value that is set, falling back to
+// the row's own id so a device with nothing known about it is still nameable.
+func displayName(label, hostname, mac, addr string, id int64) string {
+	if n := cmp.Or(label, hostname, mac, addr); n != "" {
+		return n
+	}
+
+	if id == 0 {
+		return ""
+	}
+
+	return fmt.Sprintf("device %d", id)
+}
+
+func macString(m dbtype.MAC) string {
+	if !m.Valid() {
+		return ""
+	}
+
+	return m.HardwareAddr.String()
+}
+
+// parseAddrs reads the addresses GROUP_CONCAT packed into one column and orders
+// them, since neither the concatenation nor the TEXT column they came from has
+// an order worth keeping.
+func parseAddrs(concat string) []netip.Addr {
+	if concat == "" {
+		return nil
+	}
+
+	fields := strings.Fields(concat)
+	addrs := make([]netip.Addr, 0, len(fields))
+
+	for _, f := range fields {
+		// Every address reached the column through dbtype.Addr, so one that
+		// will not parse back is a row written around the application.
+		if a, err := netip.ParseAddr(f); err == nil {
+			addrs = append(addrs, a)
+		}
+	}
+
+	slices.SortFunc(addrs, func(a, b netip.Addr) int { return a.Compare(b) })
+
+	return addrs
+}
+
+// sortDevices orders the list in place. Ties fall back to the id so that a
+// repeated read returns the same order rather than SQLite's.
+func sortDevices(devices []Device, by Sort) {
+	var cmpFn func(a, b Device) int
+
+	switch by {
+	case SortName:
+		cmpFn = func(a, b Device) int {
+			return cmp.Compare(strings.ToLower(a.Name()), strings.ToLower(b.Name()))
+		}
+	case SortAddress:
+		cmpFn = func(a, b Device) int { return compareFirstAddr(a, b) }
+	default:
+		// Most recently seen first.
+		cmpFn = func(a, b Device) int { return b.LastSeen.Compare(a.LastSeen) }
+	}
+
+	slices.SortStableFunc(devices, func(a, b Device) int {
+		return cmp.Or(cmpFn(a, b), cmp.Compare(a.ID, b.ID))
+	})
+}
+
+// compareFirstAddr orders by the lowest address a device currently holds. A
+// device holding none sorts last: it has nothing to compare, not the lowest
+// address there is.
+func compareFirstAddr(a, b Device) int {
+	switch {
+	case len(a.Current) == 0 && len(b.Current) == 0:
+		return 0
+	case len(a.Current) == 0:
+		return 1
+	case len(b.Current) == 0:
+		return -1
+	}
+
+	return a.Current[0].Compare(b.Current[0])
+}

@@ -17,7 +17,11 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 )
 
-// Store writes scan results into the inventory.
+// DefaultOnlineWindow is how recently a device must have answered to count as
+// online when no window is configured.
+const DefaultOnlineWindow = 15 * time.Minute
+
+// Store reads the inventory and writes scan results into it.
 type Store struct {
 	conn *sql.DB
 	q    *models.Queries
@@ -25,10 +29,50 @@ type Store struct {
 
 	// now is a field so tests can pin the timestamps they assert on.
 	now func() time.Time
+
+	// onlineWindow is how long after a device was last seen it still counts as
+	// online. Nothing reports a device leaving, so presence is a question about
+	// how stale the last sighting is, and how stale is too stale depends on how
+	// often the sweeps run.
+	onlineWindow time.Duration
 }
 
-func New(conn *sql.DB, log *slog.Logger) *Store {
-	return &Store{conn: conn, q: models.New(conn), log: log, now: time.Now}
+// Option configures a Store.
+type Option func(*Store)
+
+// WithOnlineWindow sets how recently a device must have been seen to count as
+// online. A window of zero or less leaves the default in place.
+func WithOnlineWindow(d time.Duration) Option {
+	return func(s *Store) {
+		if d > 0 {
+			s.onlineWindow = d
+		}
+	}
+}
+
+// WithClock replaces the clock the store stamps writes and judges presence by.
+func WithClock(now func() time.Time) Option {
+	return func(s *Store) {
+		if now != nil {
+			s.now = now
+		}
+	}
+}
+
+func New(conn *sql.DB, log *slog.Logger, opts ...Option) *Store {
+	s := &Store{
+		conn:         conn,
+		q:            models.New(conn),
+		log:          log,
+		now:          time.Now,
+		onlineWindow: DefaultOnlineWindow,
+	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s
 }
 
 // Result counts what a single sweep changed.
