@@ -8,7 +8,7 @@ import (
 	"github.com/pushkar-anand/build-with-go/http/response"
 )
 
-func healthHandler(jw *response.JSONWriter) response.HandlerFunc {
+func (h *Handler) healthHandler() response.HandlerFunc {
 	info, ok := debug.ReadBuildInfo()
 
 	type healthResponse struct {
@@ -27,7 +27,7 @@ func healthHandler(jw *response.JSONWriter) response.HandlerFunc {
 			return errors.New("failed to read build info")
 		}
 
-		jw.Ok(w, r, res)
+		h.jsonWriter.Ok(w, r, res)
 
 		return nil
 	}

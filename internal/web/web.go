@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/pushkar-anand/build-with-go/http/request"
 	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/jocasta/internal/db"
 )
@@ -21,9 +22,10 @@ var templatesFS embed.FS
 type Handler struct {
 	*http.ServeMux
 	renderer *Renderer
+	reader   *request.Reader
 }
 
-func NewHandler(logger *slog.Logger, conn *db.DB) *Handler {
+func NewHandler(logger *slog.Logger, conn *db.DB, reader *request.Reader) *Handler {
 	mux := http.NewServeMux()
 
 	templates, err := template.ParseFS(templatesFS, "templates/*.html.tmpl")
@@ -44,6 +46,7 @@ func NewHandler(logger *slog.Logger, conn *db.DB) *Handler {
 	return &Handler{
 		ServeMux: mux,
 		renderer: r,
+		reader:   reader,
 	}
 }
 

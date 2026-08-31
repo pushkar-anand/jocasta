@@ -1,10 +1,10 @@
 package api
 
 import (
-	"context"
 	"net/http"
 	"strconv"
 
+	"github.com/pushkar-anand/build-with-go/http/response"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
@@ -12,128 +12,133 @@ import (
 // carries. The full log is at /events.
 const deviceEventLimit = 50
 
-type devicesResponse struct {
-	Devices []inventory.Device `json:"devices"`
-	Count   int                `json:"count"`
-}
+func (h *Handler) listDevices(store *inventory.Store) response.HandlerFunc {
+	type (
+		// devicesRequest narrows a device list. Fields are matched by their
+		// schema tag, so the names here are the ones the query string uses.
+		//
+		// A misspelt filter is rejected rather than ignored: silently returning
+		// the unfiltered list looks like the filter matched everything. The
+		// values each rule admits are the ones inventory.Status and
+		// inventory.Sort name.
+		devicesRequest struct {
+			Q              string `schema:"q"`
+			Group          string `schema:"group"`
+			Status         string `schema:"status" validate:"omitempty,oneof=online offline"`
+			Sort           string `schema:"sort" validate:"omitempty,oneof=last_seen name address"`
+			IncludeIgnored bool   `schema:"include_ignored"`
+		}
 
-type eventsResponse struct {
-	Events []inventory.Event `json:"events"`
-	Count  int               `json:"count"`
-}
+		devicesResponse struct {
+			Devices []inventory.Device `json:"devices"`
+			Count   int                `json:"count"`
+		}
+	)
 
-// deviceQuery narrows a device list. Fields are matched by their schema tag, so
-// the names here are the ones the query string uses.
-type deviceQuery struct {
-	Q              string `schema:"q"`
-	Group          string `schema:"group"`
-	Status         string `schema:"status"`
-	Sort           string `schema:"sort"`
-	IncludeIgnored bool   `schema:"include_ignored"`
-}
+	return func(w http.ResponseWriter, r *http.Request) error {
+		q, err := h.reader.ReadAndValidateQueryParams[devicesRequest](r)
+		if err != nil {
+			return err
+		}
 
-// Valid implements request.SelfValidator.
-//
-// A misspelt filter is rejected rather than ignored: silently returning the
-// unfiltered list looks like the filter matched everything.
-func (q deviceQuery) Valid(context.Context) map[string]string {
-	problems := make(map[string]string)
+		devices, err := store.ListDevices(r.Context(), inventory.DeviceFilter{
+			Query:          q.Q,
+			Group:          q.Group,
+			Status:         inventory.Status(q.Status),
+			Sort:           inventory.Sort(q.Sort),
+			IncludeIgnored: q.IncludeIgnored,
+		})
+		if err != nil {
+			return err
+		}
 
-	if !inventory.Status(q.Status).Valid() {
-		problems["status"] = "must be one of: online, offline"
-	}
+		h.jsonWriter.Ok(w, r, devicesResponse{Devices: devices, Count: len(devices)})
 
-	if !inventory.Sort(q.Sort).Valid() {
-		problems["sort"] = "must be one of: last_seen, name, address"
-	}
-
-	return problems
-}
-
-func (q deviceQuery) filter() inventory.DeviceFilter {
-	return inventory.DeviceFilter{
-		Query:          q.Q,
-		Group:          q.Group,
-		Status:         inventory.Status(q.Status),
-		Sort:           inventory.Sort(q.Sort),
-		IncludeIgnored: q.IncludeIgnored,
+		return nil
 	}
 }
 
-func (h *Handler) listDevices(w http.ResponseWriter, r *http.Request) error {
-	q, err := h.reader.ReadAndValidateQueryParams[deviceQuery](r)
-	if err != nil {
-		return err
+func (h *Handler) getDevice(store *inventory.Store) response.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		id, err := deviceID(r)
+		if err != nil {
+			return err
+		}
+
+		device, err := store.GetDevice(r.Context(), id)
+		if err != nil {
+			return err
+		}
+
+		h.jsonWriter.Ok(w, r, device)
+
+		return nil
 	}
-
-	devices, err := h.store.ListDevices(r.Context(), q.filter())
-	if err != nil {
-		return err
-	}
-
-	h.jsonWriter.Ok(w, r, devicesResponse{Devices: devices, Count: len(devices)})
-
-	return nil
 }
 
-func (h *Handler) getDevice(w http.ResponseWriter, r *http.Request) error {
-	id, err := deviceID(r)
-	if err != nil {
-		return err
+func (h *Handler) deviceEvents(store *inventory.Store) response.HandlerFunc {
+	type eventsResponse struct {
+		Events []inventory.Event `json:"events"`
+		Count  int               `json:"count"`
 	}
 
-	device, err := h.store.GetDevice(r.Context(), id)
-	if err != nil {
-		return err
+	return func(w http.ResponseWriter, r *http.Request) error {
+		id, err := deviceID(r)
+		if err != nil {
+			return err
+		}
+
+		// The device is read first so that asking for the history of a device
+		// that does not exist is a 404 rather than an empty list.
+		if _, err := store.GetDevice(r.Context(), id); err != nil {
+			return err
+		}
+
+		events, err := store.DeviceEvents(r.Context(), id, deviceEventLimit)
+		if err != nil {
+			return err
+		}
+
+		h.jsonWriter.Ok(w, r, eventsResponse{Events: events, Count: len(events)})
+
+		return nil
 	}
-
-	h.jsonWriter.Ok(w, r, device)
-
-	return nil
 }
 
-func (h *Handler) deviceEvents(w http.ResponseWriter, r *http.Request) error {
-	id, err := deviceID(r)
-	if err != nil {
-		return err
+func (h *Handler) groups(store *inventory.Store) response.HandlerFunc {
+	type groupsResponse struct {
+		Groups []string `json:"groups"`
 	}
 
-	// The device is read first so that asking for the history of a device that
-	// does not exist is a 404 rather than an empty list.
-	if _, err := h.store.GetDevice(r.Context(), id); err != nil {
-		return err
+	return func(w http.ResponseWriter, r *http.Request) error {
+		groups, err := store.Groups(r.Context())
+		if err != nil {
+			return err
+		}
+
+		h.jsonWriter.Ok(w, r, groupsResponse{Groups: groups})
+
+		return nil
 	}
-
-	events, err := h.store.DeviceEvents(r.Context(), id, deviceEventLimit)
-	if err != nil {
-		return err
-	}
-
-	h.jsonWriter.Ok(w, r, eventsResponse{Events: events, Count: len(events)})
-
-	return nil
 }
 
-func (h *Handler) groups(w http.ResponseWriter, r *http.Request) error {
-	groups, err := h.store.Groups(r.Context())
-	if err != nil {
-		return err
+func (h *Handler) stats(store *inventory.Store) response.HandlerFunc {
+	// The counts are the whole response, so the wrapper only exists to name
+	// what this route returns; the fields are inlined by the embedding.
+	type statsResponse struct {
+		inventory.Stats
 	}
 
-	h.jsonWriter.Ok(w, r, map[string]any{"groups": groups})
+	return func(w http.ResponseWriter, r *http.Request) error {
+		stats, err := store.Stats(r.Context())
+		if err != nil {
+			return err
+		}
 
-	return nil
-}
+		h.jsonWriter.Ok(w, r, statsResponse{Stats: stats})
 
-func (h *Handler) stats(w http.ResponseWriter, r *http.Request) error {
-	stats, err := h.store.Stats(r.Context())
-	if err != nil {
-		return err
+		return nil
 	}
-
-	h.jsonWriter.Ok(w, r, stats)
-
-	return nil
 }
 
 // deviceID reads the id the route captured. The pattern admits any segment, so

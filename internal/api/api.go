@@ -14,14 +14,21 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
+// Handler holds what every handler needs to read a request and write a
+// response. What a handler reads *about* -- the store -- is passed to it when
+// it is built, so a route's dependencies are visible where it is registered
+// rather than reachable from any handler that happens to have a receiver.
 type Handler struct {
 	*http.ServeMux
-	store      *inventory.Store
-	jsonWriter *response.JSONWriter
 	reader     *request.Reader
+	jsonWriter *response.JSONWriter
 }
 
-func NewHandler(l *slog.Logger, store *inventory.Store) http.Handler {
+func NewHandler(
+	l *slog.Logger,
+	reader *request.Reader,
+	store *inventory.Store,
+) http.Handler {
 	jw := response.NewJSONWriter(
 		l,
 		response.WithErrorProblemMapper(problemFor),
@@ -29,25 +36,21 @@ func NewHandler(l *slog.Logger, store *inventory.Store) http.Handler {
 
 	h := &Handler{
 		ServeMux:   http.NewServeMux(),
-		store:      store,
+		reader:     reader,
 		jsonWriter: jw,
-		// The query types validate themselves, so the reader needs no
-		// validator: the rules are which values a filter admits, which is
-		// plainer as Go than as a struct tag.
-		reader: request.NewReader(l, nil),
 	}
 
-	h.HandleFunc("GET /livez", jw.Handle(healthHandler(jw)))
+	h.HandleFunc("GET /livez", jw.Handle(h.healthHandler()))
 
-	h.HandleFunc("GET /stats", jw.Handle(h.stats))
-	h.HandleFunc("GET /groups", jw.Handle(h.groups))
+	h.HandleFunc("GET /stats", jw.Handle(h.stats(store)))
+	h.HandleFunc("GET /groups", jw.Handle(h.groups(store)))
 
-	h.HandleFunc("GET /devices", jw.Handle(h.listDevices))
-	h.HandleFunc("GET /devices/{id}", jw.Handle(h.getDevice))
-	h.HandleFunc("GET /devices/{id}/events", jw.Handle(h.deviceEvents))
+	h.HandleFunc("GET /devices", jw.Handle(h.listDevices(store)))
+	h.HandleFunc("GET /devices/{id}", jw.Handle(h.getDevice(store)))
+	h.HandleFunc("GET /devices/{id}/events", jw.Handle(h.deviceEvents(store)))
 
-	h.HandleFunc("GET /events", jw.Handle(h.listEvents))
-	h.HandleFunc("GET /scans", jw.Handle(h.listScans))
+	h.HandleFunc("GET /events", jw.Handle(h.listEvents(store)))
+	h.HandleFunc("GET /scans", jw.Handle(h.listScans(store)))
 
 	return h
 }

@@ -1,86 +1,76 @@
 package api
 
 import (
-	"context"
-	"fmt"
+	"cmp"
 	"net/http"
 
+	"github.com/pushkar-anand/build-with-go/http/response"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
 // Events and scans are the two logs that grow without bound, so both are paged.
-const (
-	defaultPageSize = 50
-	maxPageSize     = 500
-)
+// defaultPageSize is the window a request that asks for no particular one gets;
+// the ceiling is the max rule on each request's Limit.
+const defaultPageSize = 50
 
-type scansResponse struct {
-	Scans []inventory.Scan `json:"scans"`
-	Count int              `json:"count"`
+func (h *Handler) listEvents(store *inventory.Store) response.HandlerFunc {
+	type (
+		// An unset limit is the default rather than a rejected zero, which is
+		// what omitempty buys; a limit that was asked for has to be usable.
+		eventsRequest struct {
+			Limit  int `schema:"limit" validate:"omitempty,min=1,max=500"`
+			Offset int `schema:"offset" validate:"min=0"`
+		}
+
+		eventsResponse struct {
+			Events []inventory.Event `json:"events"`
+			Count  int               `json:"count"`
+		}
+	)
+
+	return func(w http.ResponseWriter, r *http.Request) error {
+		q, err := h.reader.ReadAndValidateQueryParams[eventsRequest](r)
+		if err != nil {
+			return err
+		}
+
+		events, err := store.ListEvents(r.Context(), cmp.Or(q.Limit, defaultPageSize), q.Offset)
+		if err != nil {
+			return err
+		}
+
+		h.jsonWriter.Ok(w, r, eventsResponse{Events: events, Count: len(events)})
+
+		return nil
+	}
 }
 
-// pageQuery is one window onto a log.
-type pageQuery struct {
-	Limit  int `schema:"limit"`
-	Offset int `schema:"offset"`
-}
+func (h *Handler) listScans(store *inventory.Store) response.HandlerFunc {
+	type (
+		scansRequest struct {
+			Limit  int `schema:"limit" validate:"omitempty,min=1,max=500"`
+			Offset int `schema:"offset" validate:"min=0"`
+		}
 
-// Valid implements request.SelfValidator. An unset limit is the default rather
-// than a rejected zero, but a limit that was asked for has to be usable.
-func (q pageQuery) Valid(context.Context) map[string]string {
-	problems := make(map[string]string)
+		scansResponse struct {
+			Scans []inventory.Scan `json:"scans"`
+			Count int              `json:"count"`
+		}
+	)
 
-	if q.Limit < 0 || q.Limit > maxPageSize {
-		problems["limit"] = fmt.Sprintf("must be between 1 and %d", maxPageSize)
+	return func(w http.ResponseWriter, r *http.Request) error {
+		q, err := h.reader.ReadAndValidateQueryParams[scansRequest](r)
+		if err != nil {
+			return err
+		}
+
+		scans, err := store.ListScans(r.Context(), cmp.Or(q.Limit, defaultPageSize), q.Offset)
+		if err != nil {
+			return err
+		}
+
+		h.jsonWriter.Ok(w, r, scansResponse{Scans: scans, Count: len(scans)})
+
+		return nil
 	}
-
-	if q.Offset < 0 {
-		problems["offset"] = "must not be negative"
-	}
-
-	return problems
-}
-
-func (q pageQuery) window() (limit, offset int) {
-	if q.Limit == 0 {
-		return defaultPageSize, q.Offset
-	}
-
-	return q.Limit, q.Offset
-}
-
-func (h *Handler) listEvents(w http.ResponseWriter, r *http.Request) error {
-	q, err := h.reader.ReadAndValidateQueryParams[pageQuery](r)
-	if err != nil {
-		return err
-	}
-
-	limit, offset := q.window()
-
-	events, err := h.store.ListEvents(r.Context(), limit, offset)
-	if err != nil {
-		return err
-	}
-
-	h.jsonWriter.Ok(w, r, eventsResponse{Events: events, Count: len(events)})
-
-	return nil
-}
-
-func (h *Handler) listScans(w http.ResponseWriter, r *http.Request) error {
-	q, err := h.reader.ReadAndValidateQueryParams[pageQuery](r)
-	if err != nil {
-		return err
-	}
-
-	limit, offset := q.window()
-
-	scans, err := h.store.ListScans(r.Context(), limit, offset)
-	if err != nil {
-		return err
-	}
-
-	h.jsonWriter.Ok(w, r, scansResponse{Scans: scans, Count: len(scans)})
-
-	return nil
 }

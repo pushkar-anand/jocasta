@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/pushkar-anand/build-with-go/http/request"
+	"github.com/pushkar-anand/build-with-go/validator"
 	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,11 +33,21 @@ func testDB(t *testing.T) *db.DB {
 	return conn
 }
 
+// testReader builds the request reader the server wires in.
+func testReader(t *testing.T) *request.Reader {
+	t.Helper()
+
+	v, err := validator.New()
+	require.NoError(t, err)
+
+	return request.NewReader(testLogger(), v)
+}
+
 func TestHandlerServesIndex(t *testing.T) {
 	t.Parallel()
 
 	rec := httptest.NewRecorder()
-	NewHandler(testLogger(), testDB(t)).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	NewHandler(testLogger(), testDB(t), testReader(t)).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
 
 	res := rec.Result()
 	t.Cleanup(func() { _ = res.Body.Close() })
@@ -52,7 +64,7 @@ func TestHandlerServesStaticFiles(t *testing.T) {
 	t.Parallel()
 
 	rec := httptest.NewRecorder()
-	NewHandler(testLogger(), testDB(t)).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/static/style.css", nil))
+	NewHandler(testLogger(), testDB(t), testReader(t)).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/static/style.css", nil))
 
 	res := rec.Result()
 	t.Cleanup(func() { _ = res.Body.Close() })
@@ -65,7 +77,7 @@ func TestHandlerMissingStaticFile(t *testing.T) {
 	t.Parallel()
 
 	rec := httptest.NewRecorder()
-	NewHandler(testLogger(), testDB(t)).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/static/nope.css", nil))
+	NewHandler(testLogger(), testDB(t), testReader(t)).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/static/nope.css", nil))
 
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 }

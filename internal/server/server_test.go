@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pushkar-anand/build-with-go/validator"
 	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -67,6 +68,16 @@ func waitForServer(t *testing.T, addr string) {
 
 // startServer runs Start in the background and returns the base URL. The server
 // is stopped, and its shutdown asserted, when the test ends.
+// testValidator builds the validator main hands the server.
+func testValidator(t *testing.T) *validator.Validator {
+	t.Helper()
+
+	v, err := validator.New()
+	require.NoError(t, err)
+
+	return v
+}
+
 func startServer(t *testing.T) string {
 	t.Helper()
 
@@ -83,7 +94,7 @@ func startServer(t *testing.T) string {
 	ctx := t.Context()
 
 	go func() {
-		errCh <- Start(ctx, &Config{Addr: "127.0.0.1", Port: port, Logger: testLogger()}, conn)
+		errCh <- Start(ctx, &Config{Addr: "127.0.0.1", Port: port, Logger: testLogger()}, conn, testValidator(t))
 	}()
 
 	t.Cleanup(func() {
@@ -169,7 +180,7 @@ func TestStartFailsOnPortInUse(t *testing.T) {
 		Addr:   "127.0.0.1",
 		Port:   ln.Addr().(*net.TCPAddr).Port,
 		Logger: testLogger(),
-	}, testDB(t))
+	}, testDB(t), testValidator(t))
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "error binding")
