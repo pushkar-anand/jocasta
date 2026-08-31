@@ -58,6 +58,36 @@ sql:
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
               type: "MAC"
 
+          # The CHECK constraints state these sets in the schema; the Go types
+          # mirror them so a bad value is a compile error where it can be, and
+          # a named one where it cannot.
+          - column: "sources.kind"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "SourceKind"
+          - column: "devices.identity_source"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "IdentitySource"
+          - column: "scans.kind"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "ScanKind"
+          - column: "scans.status"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "ScanStatus"
+          # events.kind and devices.hostname_source carry no CHECK, so these
+          # types are the only statement of what either column admits.
+          - column: "events.kind"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "EventKind"
+          - column: "devices.hostname_source"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "HostnameSource"
+
           # SQLite has no boolean, but the driver converts 0/1 both ways.
           - column: "devices.is_randomised"
             go_type: "bool"

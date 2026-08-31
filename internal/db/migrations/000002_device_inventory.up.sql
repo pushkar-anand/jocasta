@@ -12,7 +12,7 @@ CREATE TABLE sources
     -- What sort of thing produced the fact, not which implementation did it.
     -- RouterOS is one router among the several this could speak to, and which
     -- one a row means is the instance's own business.
-    kind       TEXT NOT NULL CHECK (kind IN ('sweep', 'router', 'dns', 'manual')),
+    kind       TEXT NOT NULL CHECK (kind IN ('SWEEP', 'ROUTER', 'DNS', 'MANUAL')),
     name       TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
@@ -39,7 +39,7 @@ CREATE TABLE devices
     mac             TEXT UNIQUE
         CHECK (mac IS NULL OR mac GLOB
                               '[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]'),
-    identity_source TEXT    NOT NULL DEFAULT 'ip' CHECK (identity_source IN ('mac', 'ip')),
+    identity_source TEXT    NOT NULL DEFAULT 'IP' CHECK (identity_source IN ('MAC', 'IP')),
 
     -- Set when the MAC is locally administered: the device generated it for
     -- itself, so it names no vendor and will not survive the next association.
@@ -87,9 +87,9 @@ CREATE TABLE scans
     -- RESTRICT, not CASCADE: dropping a source from config must not take the
     -- scan history it produced with it.
     source_id   INTEGER NOT NULL REFERENCES sources (id) ON DELETE RESTRICT,
-    kind        TEXT    NOT NULL CHECK (kind IN ('discovery', 'ports', 'import')),
+    kind        TEXT    NOT NULL CHECK (kind IN ('DISCOVERY', 'PORTS', 'IMPORT')),
     network_id  INTEGER REFERENCES networks (id) ON DELETE SET NULL,
-    status      TEXT    NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'ok', 'failed', 'cancelled')),
+    status      TEXT    NOT NULL DEFAULT 'RUNNING' CHECK (status IN ('RUNNING', 'OK', 'FAILED', 'CANCELLED')),
     error       TEXT,
     found_count INTEGER NOT NULL DEFAULT 0,
     started_at  TEXT    NOT NULL DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'now')),

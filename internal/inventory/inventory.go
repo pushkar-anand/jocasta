@@ -1,7 +1,6 @@
-// Package inventory records what a scan found. Each result is folded into the
-// device it belongs to -- identified by hardware address where one is known,
-// and by the address it answered on where one is not -- and anything that
-// changed is written to the event log.
+// Package inventory processes network scan results, merging data into corresponding
+// device records identified primarily by hardware address (or by the responding
+// address if unknown). Any detected changes are written to the event log.
 package inventory
 
 import (
@@ -17,26 +16,6 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 )
-
-// How a device came to be identified, mirroring the CHECK on the column.
-const (
-	identityMAC = "mac"
-	identityIP  = "ip"
-)
-
-// Event kinds. They live here rather than in a schema constraint so adding one
-// is a Go change instead of a migration.
-const (
-	eventDiscovered      = "device_discovered"
-	eventIdentified      = "device_identified"
-	eventMerged          = "devices_merged"
-	eventAddressAdded    = "address_added"
-	eventHostnameChanged = "hostname_changed"
-)
-
-// hostnameSourceDNS names where a swept hostname came from. A sweep resolves
-// names one way; other sources bring their own and have to be told apart.
-const hostnameSourceDNS = "dns"
 
 // Store writes scan results into the inventory.
 type Store struct {
@@ -103,7 +82,7 @@ func (s *Store) open(ctx context.Context, source string, prefix netip.Prefix) (s
 	q := s.q.WithTx(tx)
 	at := s.stamp()
 
-	src, err := q.UpsertSource(ctx, models.UpsertSourceParams{Kind: "sweep", Name: source, CreatedAt: at})
+	src, err := q.UpsertSource(ctx, models.UpsertSourceParams{Kind: dbtype.SourceSweep, Name: source, CreatedAt: at})
 	if err != nil {
 		return 0, 0, fmt.Errorf("upsert source %q: %w", source, err)
 	}
@@ -115,7 +94,7 @@ func (s *Store) open(ctx context.Context, source string, prefix netip.Prefix) (s
 
 	sc, err := q.CreateScan(ctx, models.CreateScanParams{
 		SourceID:  src.ID,
-		Kind:      "discovery",
+		Kind:      dbtype.ScanDiscovery,
 		NetworkID: sql.NullInt64{Int64: nw.ID, Valid: true},
 		StartedAt: at,
 	})
@@ -167,14 +146,14 @@ func (s *Store) ingest(ctx context.Context, scanID, networkID int64, hosts []sca
 // close marks the scan finished, carrying the ingest failure if there was one.
 func (s *Store) close(ctx context.Context, scanID int64, found int, cause error) error {
 	p := models.FinishScanParams{
-		Status:     "ok",
+		Status:     dbtype.StatusOK,
 		FoundCount: int64(found),
 		FinishedAt: dbtype.NullTime{Time: s.stamp(), Valid: true},
 		ID:         scanID,
 	}
 
 	if cause != nil {
-		p.Status = "failed"
+		p.Status = dbtype.StatusFailed
 		p.Error = nullString(cause.Error())
 	}
 
@@ -214,7 +193,7 @@ func (s *Store) record(ctx context.Context, p *pass, h scanner.Host) error {
 
 	// A row that only ever stood for this address is the same device under a
 	// weaker name once a hardware address claims it.
-	if hasHolder && holder.ID != target.ID && holder.IdentitySource == identityIP {
+	if hasHolder && holder.ID != target.ID && holder.IdentitySource == dbtype.IdentityIP {
 		if err := s.fold(ctx, p, holder, target); err != nil {
 			return err
 		}
@@ -268,7 +247,7 @@ func (s *Store) resolve(
 
 	// The address answered before its hardware was visible, so the row already
 	// standing for it becomes the identified device rather than a second one.
-	if hasHolder && holder.IdentitySource == identityIP {
+	if hasHolder && holder.IdentitySource == dbtype.IdentityIP {
 		params := models.IdentifyDeviceParams{
 			Mac:          mac,
 			IsRandomised: h.Randomised,
@@ -280,12 +259,12 @@ func (s *Store) resolve(
 			return models.Device{}, fmt.Errorf("identify device %d: %w", holder.ID, err)
 		}
 
-		if err := s.event(ctx, p, holder.ID, eventIdentified, "", mac.String(), ""); err != nil {
+		if err := s.event(ctx, p, holder.ID, dbtype.EventDeviceIdentified, "", mac.String(), ""); err != nil {
 			return models.Device{}, err
 		}
 
 		holder.Mac = params.Mac
-		holder.IdentitySource = identityMAC
+		holder.IdentitySource = dbtype.IdentityMAC
 		holder.IsRandomised = params.IsRandomised
 		holder.Vendor = params.Vendor
 		p.res.Identified++
@@ -297,14 +276,14 @@ func (s *Store) resolve(
 }
 
 func (s *Store) create(ctx context.Context, p *pass, mac dbtype.MAC, h scanner.Host) (models.Device, error) {
-	source := identityIP
+	source := dbtype.IdentityIP
 	if mac.Valid() {
-		source = identityMAC
+		source = dbtype.IdentityMAC
 	}
 
-	hostnameSource := ""
+	var hostnameSource dbtype.HostnameSource
 	if h.Hostname != "" {
-		hostnameSource = hostnameSourceDNS
+		hostnameSource = dbtype.HostnameFromDNS
 	}
 
 	d, err := p.q.CreateDevice(ctx, models.CreateDeviceParams{
@@ -313,7 +292,7 @@ func (s *Store) create(ctx context.Context, p *pass, mac dbtype.MAC, h scanner.H
 		IsRandomised:   h.Randomised,
 		Vendor:         nullString(h.Vendor),
 		Hostname:       nullString(h.Hostname),
-		HostnameSource: nullString(hostnameSource),
+		HostnameSource: hostnameSource,
 		FirstSeen:      p.at,
 		LastSeen:       p.at,
 	})
@@ -321,7 +300,7 @@ func (s *Store) create(ctx context.Context, p *pass, mac dbtype.MAC, h scanner.H
 		return models.Device{}, fmt.Errorf("create device for %s: %w", h.Addr, err)
 	}
 
-	if err := s.event(ctx, p, d.ID, eventDiscovered, "", h.Addr.String(), ""); err != nil {
+	if err := s.event(ctx, p, d.ID, dbtype.EventDeviceDiscovered, "", h.Addr.String(), ""); err != nil {
 		return models.Device{}, err
 	}
 
@@ -360,7 +339,7 @@ func (s *Store) fold(ctx context.Context, p *pass, ghost, into models.Device) er
 	s.log.InfoContext(ctx, "folded device into its identified twin", "from", ghost.ID, "into", into.ID)
 
 	detail := fmt.Sprintf("device %d folded into %d", ghost.ID, into.ID)
-	if err := s.event(ctx, p, into.ID, eventMerged, "", "", detail); err != nil {
+	if err := s.event(ctx, p, into.ID, dbtype.EventDevicesMerged, "", "", detail); err != nil {
 		return err
 	}
 
@@ -393,7 +372,7 @@ func (s *Store) claim(ctx context.Context, p *pass, deviceID int64, ip dbtype.Ad
 			return fmt.Errorf("insert %s: %w", ip, err)
 		}
 
-		return s.event(ctx, p, deviceID, eventAddressAdded, "", ip.String(), "")
+		return s.event(ctx, p, deviceID, dbtype.EventAddressAdded, "", ip.String(), "")
 	case err != nil:
 		return fmt.Errorf("address %s of device %d: %w", ip, deviceID, err)
 	}
@@ -417,7 +396,7 @@ func (s *Store) applyHostname(ctx context.Context, p *pass, d models.Device, hos
 
 	params := models.SetDeviceHostnameParams{
 		Hostname:       nullString(hostname),
-		HostnameSource: nullString(hostnameSourceDNS),
+		HostnameSource: dbtype.HostnameFromDNS,
 		ID:             d.ID,
 	}
 	if err := p.q.SetDeviceHostname(ctx, params); err != nil {
@@ -429,10 +408,10 @@ func (s *Store) applyHostname(ctx context.Context, p *pass, d models.Device, hos
 		return nil
 	}
 
-	return s.event(ctx, p, d.ID, eventHostnameChanged, d.Hostname.String, hostname, "")
+	return s.event(ctx, p, d.ID, dbtype.EventHostnameChanged, d.Hostname.String, hostname, "")
 }
 
-func (s *Store) event(ctx context.Context, p *pass, deviceID int64, kind, from, to, detail string) error {
+func (s *Store) event(ctx context.Context, p *pass, deviceID int64, kind dbtype.EventKind, from, to, detail string) error {
 	err := p.q.CreateEvent(ctx, models.CreateEventParams{
 		DeviceID:   sql.NullInt64{Int64: deviceID, Valid: true},
 		ScanID:     sql.NullInt64{Int64: p.scanID, Valid: true},

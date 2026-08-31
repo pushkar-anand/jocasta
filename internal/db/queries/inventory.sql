@@ -44,7 +44,7 @@ RETURNING *;
 -- name: IdentifyDevice :exec
 UPDATE devices
 SET mac             = sqlc.arg(mac),
-    identity_source = 'mac',
+    identity_source = 'MAC',
     is_randomised   = sqlc.arg(is_randomised),
     vendor          = sqlc.arg(vendor)
 WHERE id = sqlc.arg(id);

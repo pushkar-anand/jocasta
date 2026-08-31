@@ -21,31 +21,31 @@ type Address struct {
 }
 
 type Device struct {
-	ID             int64          `json:"id"`
-	Mac            dbtype.MAC     `json:"mac"`
-	IdentitySource string         `json:"identity_source"`
-	IsRandomised   bool           `json:"is_randomised"`
-	Vendor         sql.NullString `json:"vendor"`
-	Hostname       sql.NullString `json:"hostname"`
-	HostnameSource sql.NullString `json:"hostname_source"`
-	DeviceType     sql.NullString `json:"device_type"`
-	Label          sql.NullString `json:"label"`
-	Notes          sql.NullString `json:"notes"`
-	GroupName      sql.NullString `json:"group_name"`
-	IsIgnored      bool           `json:"is_ignored"`
-	FirstSeen      dbtype.Time    `json:"first_seen"`
-	LastSeen       dbtype.Time    `json:"last_seen"`
+	ID             int64                 `json:"id"`
+	Mac            dbtype.MAC            `json:"mac"`
+	IdentitySource dbtype.IdentitySource `json:"identity_source"`
+	IsRandomised   bool                  `json:"is_randomised"`
+	Vendor         sql.NullString        `json:"vendor"`
+	Hostname       sql.NullString        `json:"hostname"`
+	HostnameSource dbtype.HostnameSource `json:"hostname_source"`
+	DeviceType     sql.NullString        `json:"device_type"`
+	Label          sql.NullString        `json:"label"`
+	Notes          sql.NullString        `json:"notes"`
+	GroupName      sql.NullString        `json:"group_name"`
+	IsIgnored      bool                  `json:"is_ignored"`
+	FirstSeen      dbtype.Time           `json:"first_seen"`
+	LastSeen       dbtype.Time           `json:"last_seen"`
 }
 
 type Event struct {
-	ID         int64          `json:"id"`
-	DeviceID   sql.NullInt64  `json:"device_id"`
-	ScanID     sql.NullInt64  `json:"scan_id"`
-	Kind       string         `json:"kind"`
-	OldValue   sql.NullString `json:"old_value"`
-	NewValue   sql.NullString `json:"new_value"`
-	Detail     sql.NullString `json:"detail"`
-	OccurredAt dbtype.Time    `json:"occurred_at"`
+	ID         int64            `json:"id"`
+	DeviceID   sql.NullInt64    `json:"device_id"`
+	ScanID     sql.NullInt64    `json:"scan_id"`
+	Kind       dbtype.EventKind `json:"kind"`
+	OldValue   sql.NullString   `json:"old_value"`
+	NewValue   sql.NullString   `json:"new_value"`
+	Detail     sql.NullString   `json:"detail"`
+	OccurredAt dbtype.Time      `json:"occurred_at"`
 }
 
 type Network struct {
@@ -57,22 +57,22 @@ type Network struct {
 }
 
 type Scan struct {
-	ID         int64           `json:"id"`
-	SourceID   int64           `json:"source_id"`
-	Kind       string          `json:"kind"`
-	NetworkID  sql.NullInt64   `json:"network_id"`
-	Status     string          `json:"status"`
-	Error      sql.NullString  `json:"error"`
-	FoundCount int64           `json:"found_count"`
-	StartedAt  dbtype.Time     `json:"started_at"`
-	FinishedAt dbtype.NullTime `json:"finished_at"`
+	ID         int64             `json:"id"`
+	SourceID   int64             `json:"source_id"`
+	Kind       dbtype.ScanKind   `json:"kind"`
+	NetworkID  sql.NullInt64     `json:"network_id"`
+	Status     dbtype.ScanStatus `json:"status"`
+	Error      sql.NullString    `json:"error"`
+	FoundCount int64             `json:"found_count"`
+	StartedAt  dbtype.Time       `json:"started_at"`
+	FinishedAt dbtype.NullTime   `json:"finished_at"`
 }
 
 type Source struct {
-	ID        int64       `json:"id"`
-	Kind      string      `json:"kind"`
-	Name      string      `json:"name"`
-	CreatedAt dbtype.Time `json:"created_at"`
+	ID        int64             `json:"id"`
+	Kind      dbtype.SourceKind `json:"kind"`
+	Name      string            `json:"name"`
+	CreatedAt dbtype.Time       `json:"created_at"`
 }
 
 type User struct {

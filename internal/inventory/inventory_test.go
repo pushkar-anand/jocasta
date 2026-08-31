@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/pushkar-anand/jocasta/internal/db"
+	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -108,11 +109,27 @@ func currentIPs(t *testing.T, conn *sql.DB, deviceID int64) []string {
 		`SELECT ip FROM addresses WHERE device_id = ? AND is_current = 1 ORDER BY ip`, deviceID)
 }
 
-func eventKinds(t *testing.T, conn *sql.DB, deviceID int64) []string {
+func eventKinds(t *testing.T, conn *sql.DB, deviceID int64) []dbtype.EventKind {
 	t.Helper()
 
-	return queryStrings(t, conn,
-		`SELECT kind FROM events WHERE device_id = ? ORDER BY id`, deviceID)
+	rows, err := conn.Query(`SELECT kind FROM events WHERE device_id = ? ORDER BY id`, deviceID)
+	require.NoError(t, err)
+
+	defer func() { _ = rows.Close() }()
+
+	var kinds []dbtype.EventKind
+
+	for rows.Next() {
+		var k dbtype.EventKind
+
+		require.NoError(t, rows.Scan(&k))
+
+		kinds = append(kinds, k)
+	}
+
+	require.NoError(t, rows.Err())
+
+	return kinds
 }
 
 func TestRecordSweepDiscovers(t *testing.T) {
@@ -135,13 +152,13 @@ func TestRecordSweepDiscovers(t *testing.T) {
 
 	id := deviceIDByMAC(t, conn, macA)
 	assert.Equal(t, []string{"192.0.2.10"}, currentIPs(t, conn, id))
-	assert.Equal(t, []string{eventDiscovered, eventAddressAdded}, eventKinds(t, conn, id))
+	assert.Equal(t, []dbtype.EventKind{dbtype.EventDeviceDiscovered, dbtype.EventAddressAdded}, eventKinds(t, conn, id))
 
 	// The unidentified host is a device too, just a weaker one.
 	assert.Equal(t, 1, queryInt(t, conn,
-		`SELECT count(*) FROM devices WHERE mac IS NULL AND identity_source = 'ip'`))
+		`SELECT count(*) FROM devices WHERE mac IS NULL AND identity_source = 'IP'`))
 
-	assert.Equal(t, "ok", queryStrings(t, conn, `SELECT status FROM scans`)[0])
+	assert.Equal(t, string(dbtype.StatusOK), queryStrings(t, conn, `SELECT status FROM scans`)[0])
 	assert.Equal(t, 2, queryInt(t, conn, `SELECT found_count FROM scans`))
 }
 
@@ -151,12 +168,16 @@ func TestRecordSweepStoresHostname(t *testing.T) {
 	s, conn := newStore(t)
 	sweep(t, s, host("192.0.2.10", macA, "one.example"))
 
-	var name, source string
+	var (
+		name   string
+		source dbtype.HostnameSource
+	)
+
 	err := conn.QueryRow(`SELECT hostname, hostname_source FROM devices`).Scan(&name, &source)
 	require.NoError(t, err)
 
 	assert.Equal(t, "one.example", name)
-	assert.Equal(t, hostnameSourceDNS, source)
+	assert.Equal(t, dbtype.HostnameFromDNS, source)
 }
 
 // A repeated sweep of an unchanged network must not grow the inventory.
@@ -200,8 +221,8 @@ func TestRecordSweepIdentifiesLateMAC(t *testing.T) {
 	assert.Equal(t, 1, queryInt(t, conn, `SELECT count(*) FROM devices`))
 	assert.Equal(t, before, deviceIDByMAC(t, conn, macA))
 
-	assert.Equal(t, "mac", queryStrings(t, conn, `SELECT identity_source FROM devices`)[0])
-	assert.Contains(t, eventKinds(t, conn, before), eventIdentified)
+	assert.Equal(t, string(dbtype.IdentityMAC), queryStrings(t, conn, `SELECT identity_source FROM devices`)[0])
+	assert.Contains(t, eventKinds(t, conn, before), dbtype.EventDeviceIdentified)
 }
 
 // A device already known by its hardware address on one address, met again on
@@ -231,7 +252,7 @@ func TestRecordSweepFoldsDuplicate(t *testing.T) {
 	assert.Equal(t, []string{"192.0.2.10", "192.0.2.20"}, currentIPs(t, conn, id))
 
 	assert.Equal(t, "printer", queryStrings(t, conn, `SELECT label FROM devices`)[0])
-	assert.Contains(t, eventKinds(t, conn, id), eventMerged)
+	assert.Contains(t, eventKinds(t, conn, id), dbtype.EventDevicesMerged)
 	assertNoRowSeenBeforeItExisted(t, conn)
 
 	// The folded row's own history follows it rather than being orphaned.
@@ -270,11 +291,11 @@ func TestRecordSweepRecordsHostnameChange(t *testing.T) {
 
 	id := deviceIDByMAC(t, conn, macA)
 	assert.Equal(t, "two.example", queryStrings(t, conn, `SELECT hostname FROM devices`)[0])
-	assert.Contains(t, eventKinds(t, conn, id), eventHostnameChanged)
+	assert.Contains(t, eventKinds(t, conn, id), dbtype.EventHostnameChanged)
 
 	var from, to string
 	err := conn.QueryRow(
-		`SELECT old_value, new_value FROM events WHERE kind = ?`, eventHostnameChanged,
+		`SELECT old_value, new_value FROM events WHERE kind = ?`, dbtype.EventHostnameChanged,
 	).Scan(&from, &to)
 	require.NoError(t, err)
 
@@ -304,7 +325,7 @@ func TestRecordSweepEmptyIsNotAnError(t *testing.T) {
 
 	assert.Zero(t, res.Seen)
 	assert.NotZero(t, res.ScanID)
-	assert.Equal(t, "ok", queryStrings(t, conn, `SELECT status FROM scans`)[0])
+	assert.Equal(t, string(dbtype.StatusOK), queryStrings(t, conn, `SELECT status FROM scans`)[0])
 	assert.Zero(t, queryInt(t, conn, `SELECT count(*) FROM devices`))
 }
 

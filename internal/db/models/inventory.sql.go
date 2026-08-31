@@ -50,14 +50,14 @@ RETURNING id, mac, identity_source, is_randomised, vendor, hostname, hostname_so
 `
 
 type CreateDeviceParams struct {
-	Mac            dbtype.MAC     `json:"mac"`
-	IdentitySource string         `json:"identity_source"`
-	IsRandomised   bool           `json:"is_randomised"`
-	Vendor         sql.NullString `json:"vendor"`
-	Hostname       sql.NullString `json:"hostname"`
-	HostnameSource sql.NullString `json:"hostname_source"`
-	FirstSeen      dbtype.Time    `json:"first_seen"`
-	LastSeen       dbtype.Time    `json:"last_seen"`
+	Mac            dbtype.MAC            `json:"mac"`
+	IdentitySource dbtype.IdentitySource `json:"identity_source"`
+	IsRandomised   bool                  `json:"is_randomised"`
+	Vendor         sql.NullString        `json:"vendor"`
+	Hostname       sql.NullString        `json:"hostname"`
+	HostnameSource dbtype.HostnameSource `json:"hostname_source"`
+	FirstSeen      dbtype.Time           `json:"first_seen"`
+	LastSeen       dbtype.Time           `json:"last_seen"`
 }
 
 func (q *Queries) CreateDevice(ctx context.Context, arg CreateDeviceParams) (Device, error) {
@@ -97,13 +97,13 @@ VALUES (?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateEventParams struct {
-	DeviceID   sql.NullInt64  `json:"device_id"`
-	ScanID     sql.NullInt64  `json:"scan_id"`
-	Kind       string         `json:"kind"`
-	OldValue   sql.NullString `json:"old_value"`
-	NewValue   sql.NullString `json:"new_value"`
-	Detail     sql.NullString `json:"detail"`
-	OccurredAt dbtype.Time    `json:"occurred_at"`
+	DeviceID   sql.NullInt64    `json:"device_id"`
+	ScanID     sql.NullInt64    `json:"scan_id"`
+	Kind       dbtype.EventKind `json:"kind"`
+	OldValue   sql.NullString   `json:"old_value"`
+	NewValue   sql.NullString   `json:"new_value"`
+	Detail     sql.NullString   `json:"detail"`
+	OccurredAt dbtype.Time      `json:"occurred_at"`
 }
 
 func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) error {
@@ -126,10 +126,10 @@ RETURNING id, source_id, kind, network_id, status, error, found_count, started_a
 `
 
 type CreateScanParams struct {
-	SourceID  int64         `json:"source_id"`
-	Kind      string        `json:"kind"`
-	NetworkID sql.NullInt64 `json:"network_id"`
-	StartedAt dbtype.Time   `json:"started_at"`
+	SourceID  int64           `json:"source_id"`
+	Kind      dbtype.ScanKind `json:"kind"`
+	NetworkID sql.NullInt64   `json:"network_id"`
+	StartedAt dbtype.Time     `json:"started_at"`
 }
 
 func (q *Queries) CreateScan(ctx context.Context, arg CreateScanParams) (Scan, error) {
@@ -175,11 +175,11 @@ WHERE id = ?5
 `
 
 type FinishScanParams struct {
-	Status     string          `json:"status"`
-	Error      sql.NullString  `json:"error"`
-	FoundCount int64           `json:"found_count"`
-	FinishedAt dbtype.NullTime `json:"finished_at"`
-	ID         int64           `json:"id"`
+	Status     dbtype.ScanStatus `json:"status"`
+	Error      sql.NullString    `json:"error"`
+	FoundCount int64             `json:"found_count"`
+	FinishedAt dbtype.NullTime   `json:"finished_at"`
+	ID         int64             `json:"id"`
 }
 
 func (q *Queries) FinishScan(ctx context.Context, arg FinishScanParams) error {
@@ -285,7 +285,7 @@ func (q *Queries) GetDeviceByMAC(ctx context.Context, mac dbtype.MAC) (Device, e
 const identifyDevice = `-- name: IdentifyDevice :exec
 UPDATE devices
 SET mac             = ?1,
-    identity_source = 'mac',
+    identity_source = 'MAC',
     is_randomised   = ?2,
     vendor          = ?3
 WHERE id = ?4
@@ -424,9 +424,9 @@ WHERE id = ?3
 `
 
 type SetDeviceHostnameParams struct {
-	Hostname       sql.NullString `json:"hostname"`
-	HostnameSource sql.NullString `json:"hostname_source"`
-	ID             int64          `json:"id"`
+	Hostname       sql.NullString        `json:"hostname"`
+	HostnameSource dbtype.HostnameSource `json:"hostname_source"`
+	ID             int64                 `json:"id"`
 }
 
 func (q *Queries) SetDeviceHostname(ctx context.Context, arg SetDeviceHostnameParams) error {
@@ -483,9 +483,9 @@ RETURNING id, kind, name, created_at
 `
 
 type UpsertSourceParams struct {
-	Kind      string      `json:"kind"`
-	Name      string      `json:"name"`
-	CreatedAt dbtype.Time `json:"created_at"`
+	Kind      dbtype.SourceKind `json:"kind"`
+	Name      string            `json:"name"`
+	CreatedAt dbtype.Time       `json:"created_at"`
 }
 
 func (q *Queries) UpsertSource(ctx context.Context, arg UpsertSourceParams) (Source, error) {
