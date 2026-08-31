@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/pushkar-anand/build-with-go/logger"
+	"github.com/pushkar-anand/jocasta/internal/db"
 )
 
 //go:embed statics/*
@@ -22,7 +23,7 @@ type Handler struct {
 	renderer *Renderer
 }
 
-func NewHandler(logger *slog.Logger) *Handler {
+func NewHandler(logger *slog.Logger, conn *db.DB) *Handler {
 	mux := http.NewServeMux()
 
 	templates, err := template.ParseFS(templatesFS, "templates/*.html.tmpl")

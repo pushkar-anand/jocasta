@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/pushkar-anand/build-with-go/http/response"
+	"github.com/pushkar-anand/jocasta/internal/db"
 )
 
 type Handler struct {
@@ -12,7 +13,7 @@ type Handler struct {
 	jsonWriter *response.JSONWriter
 }
 
-func NewHandler(l *slog.Logger) http.Handler {
+func NewHandler(l *slog.Logger, conn *db.DB) http.Handler {
 	jw := response.NewJSONWriter(
 		l,
 	)

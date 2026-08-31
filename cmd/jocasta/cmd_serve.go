@@ -24,7 +24,7 @@ func (s *ServeCmd) Run(ctx context.Context, cfg *Config, log *slog.Logger, conn 
 		Addr:   host,
 		Port:   port,
 		Logger: log,
-	})
+	}, conn)
 	if err != nil {
 		return fmt.Errorf("start server: %w", err)
 	}
