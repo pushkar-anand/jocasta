@@ -8,6 +8,7 @@ import (
 	"github.com/pushkar-anand/build-with-go/http/server"
 	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/jocasta/internal/api"
+	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/pushkar-anand/jocasta/internal/web"
 )
 
@@ -17,15 +18,11 @@ type (
 		Addr   string
 		Logger *slog.Logger
 	}
-
-	Server struct {
-		srv *server.Server
-	}
 )
 
-func Start(ctx context.Context, cfg *Config) error {
-	ap := api.NewHandler(cfg.Logger)
-	wh := web.NewHandler(cfg.Logger)
+func Start(ctx context.Context, cfg *Config, conn *db.DB) error {
+	ap := api.NewHandler(cfg.Logger, conn)
+	wh := web.NewHandler(cfg.Logger, conn)
 
 	mux := http.NewServeMux()
 
