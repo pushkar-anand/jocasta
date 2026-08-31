@@ -22,7 +22,7 @@ func curate(t *testing.T, conn *sql.DB, id int64, column string, value any) {
 
 // names returns what each device would be called, which is the one value that
 // says which rows came back without depending on their order.
-func names(devices []Device) []string {
+func names(devices []*Device) []string {
 	out := make([]string, 0, len(devices))
 	for _, d := range devices {
 		out = append(out, d.Name())
@@ -320,7 +320,7 @@ func TestListScansDescribesTheRun(t *testing.T) {
 	assert.Equal(t, 2, sc.Found)
 	assert.Empty(t, sc.Error)
 	assert.Positive(t, sc.Took(), "the clock advances between opening and closing the scan")
-	assert.Zero(t, Scan{StartedAt: sc.StartedAt}.Took(), "a running scan has taken no time yet")
+	assert.Zero(t, (&Scan{StartedAt: sc.StartedAt}).Took(), "a running scan has taken no time yet")
 
 	latest, err := s.LatestScan(t.Context())
 	require.NoError(t, err)
@@ -347,7 +347,7 @@ func TestStatsCountsTheInventory(t *testing.T) {
 
 	stats, err := s.Stats(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, Stats{Total: 2, Online: 2, Offline: 0, Ignored: 0, Discovered: 2}, stats)
+	assert.Equal(t, &Stats{Total: 2, Online: 2, Offline: 0, Ignored: 0, Discovered: 2}, stats)
 
 	curate(t, conn, deviceIDByMAC(t, conn, macA), "is_ignored", 1)
 
@@ -360,7 +360,7 @@ func TestStatsCountsTheInventory(t *testing.T) {
 
 	stats, err = s.Stats(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, Stats{Total: 2, Online: 0, Offline: 2, Ignored: 1, Discovered: 2}, stats)
+	assert.Equal(t, &Stats{Total: 2, Online: 0, Offline: 2, Ignored: 1, Discovered: 2}, stats)
 }
 
 func TestEmptyInventoryReadsCleanly(t *testing.T) {
@@ -382,7 +382,7 @@ func TestEmptyInventoryReadsCleanly(t *testing.T) {
 
 	stats, err := s.Stats(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, Stats{}, stats)
+	assert.Equal(t, &Stats{}, stats)
 }
 
 func TestWithOnlineWindow(t *testing.T) {
@@ -415,18 +415,18 @@ func TestDisplayNameFallsBackInOrder(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		device Device
+		device *Device
 		want   string
 	}{
-		{"label wins", Device{ID: 1, Label: "Printer", Hostname: "h", MAC: macA}, "Printer"},
-		{"then hostname", Device{ID: 1, Hostname: "h", MAC: macA}, "h"},
-		{"then hardware address", Device{ID: 1, MAC: macA}, macA},
+		{"label wins", &Device{ID: 1, Label: "Printer", Hostname: "h", MAC: macA}, "Printer"},
+		{"then hostname", &Device{ID: 1, Hostname: "h", MAC: macA}, "h"},
+		{"then hardware address", &Device{ID: 1, MAC: macA}, macA},
 		{
 			"then the address it answered on",
-			Device{ID: 1, Current: []netip.Addr{netip.MustParseAddr("192.0.2.10")}},
+			&Device{ID: 1, Current: []netip.Addr{netip.MustParseAddr("192.0.2.10")}},
 			"192.0.2.10",
 		},
-		{"and finally the row itself", Device{ID: 7}, "device 7"},
+		{"and finally the row itself", &Device{ID: 7}, "device 7"},
 	}
 
 	for _, tc := range tests {

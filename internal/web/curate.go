@@ -12,16 +12,16 @@ import (
 // rowForm is one device as an editable row, with the groups already in use so
 // the group field can suggest them.
 type rowForm struct {
-	Device inventory.Device
+	Device *inventory.Device
 	Groups []string
 }
 
 // curationForm is the device panel: its identity, and the form that curates it.
 type curationForm struct {
 	view
-	Device inventory.Device
+	Device *inventory.Device
 	Groups []string
-	Events []inventory.Event
+	Events []*inventory.Event
 
 	// Saved marks the panel as having just been saved, which is the only way a
 	// swapped-in fragment can say that anything happened.
@@ -71,7 +71,7 @@ func (h *Handler) deviceRowEdit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.renderer.Render(w, r, "partial/device-row-form", rowForm{Device: device, Groups: groups})
+	h.renderer.Render(w, r, "partial/device-row-form", &rowForm{Device: device, Groups: groups})
 }
 
 // updateDeviceRow applies an edit made from the list and answers with the row.
@@ -110,7 +110,7 @@ func (h *Handler) updateDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.renderer.Render(w, r, "partial/device-panel", curationForm{
+	h.renderer.Render(w, r, "partial/device-panel", &curationForm{
 		Device: device,
 		Groups: groups,
 		Events: events,
@@ -120,18 +120,18 @@ func (h *Handler) updateDevice(w http.ResponseWriter, r *http.Request) {
 
 // applyEdit reads the form and writes it. It reports whether the caller should
 // go on to render; a request it turns away has already been answered.
-func (h *Handler) applyEdit(w http.ResponseWriter, r *http.Request) (inventory.Device, bool) {
+func (h *Handler) applyEdit(w http.ResponseWriter, r *http.Request) (*inventory.Device, bool) {
 	id, ok := deviceIDFromPath(r)
 	if !ok {
 		h.notFound(w, r)
 
-		return inventory.Device{}, false
+		return nil, false
 	}
 
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Could not read the form", http.StatusBadRequest)
 
-		return inventory.Device{}, false
+		return nil, false
 	}
 
 	device, err := h.store.UpdateCuration(r.Context(), id, curationFrom(r.PostForm))
@@ -139,12 +139,12 @@ func (h *Handler) applyEdit(w http.ResponseWriter, r *http.Request) (inventory.D
 		if errors.Is(err, inventory.ErrNotFound) {
 			h.notFound(w, r)
 
-			return inventory.Device{}, false
+			return nil, false
 		}
 
 		h.fail(w, r, err)
 
-		return inventory.Device{}, false
+		return nil, false
 	}
 
 	return device, true
@@ -152,12 +152,12 @@ func (h *Handler) applyEdit(w http.ResponseWriter, r *http.Request) (inventory.D
 
 // deviceFromPath reads the device the route names, answering the request itself
 // if there is none.
-func (h *Handler) deviceFromPath(w http.ResponseWriter, r *http.Request) (inventory.Device, bool) {
+func (h *Handler) deviceFromPath(w http.ResponseWriter, r *http.Request) (*inventory.Device, bool) {
 	id, ok := deviceIDFromPath(r)
 	if !ok {
 		h.notFound(w, r)
 
-		return inventory.Device{}, false
+		return nil, false
 	}
 
 	device, err := h.store.GetDevice(r.Context(), id)
@@ -165,12 +165,12 @@ func (h *Handler) deviceFromPath(w http.ResponseWriter, r *http.Request) (invent
 		if errors.Is(err, inventory.ErrNotFound) {
 			h.notFound(w, r)
 
-			return inventory.Device{}, false
+			return nil, false
 		}
 
 		h.fail(w, r, err)
 
-		return inventory.Device{}, false
+		return nil, false
 	}
 
 	return device, true

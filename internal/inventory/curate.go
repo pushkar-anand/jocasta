@@ -41,12 +41,12 @@ func (c Curation) clean() Curation {
 // The row and its events are written in one transaction: a change that is not
 // in the log did not happen as far as the log is concerned, and the log is the
 // only account of how a device came to look the way it does.
-func (s *Store) UpdateCuration(ctx context.Context, id int64, c Curation) (Device, error) {
+func (s *Store) UpdateCuration(ctx context.Context, id int64, c Curation) (*Device, error) {
 	c = c.clean()
 
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
-		return Device{}, fmt.Errorf("begin curation: %w", err)
+		return nil, fmt.Errorf("begin curation: %w", err)
 	}
 
 	defer func() { _ = tx.Rollback() }()
@@ -57,9 +57,9 @@ func (s *Store) UpdateCuration(ctx context.Context, id int64, c Curation) (Devic
 
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		return Device{}, fmt.Errorf("device %d: %w", id, ErrNotFound)
+		return nil, fmt.Errorf("device %d: %w", id, ErrNotFound)
 	case err != nil:
-		return Device{}, fmt.Errorf("device %d: %w", id, err)
+		return nil, fmt.Errorf("device %d: %w", id, err)
 	}
 
 	after, err := q.UpdateDeviceCuration(ctx, models.UpdateDeviceCurationParams{
@@ -71,7 +71,7 @@ func (s *Store) UpdateCuration(ctx context.Context, id int64, c Curation) (Devic
 		ID:         id,
 	})
 	if err != nil {
-		return Device{}, fmt.Errorf("curate device %d: %w", id, err)
+		return nil, fmt.Errorf("curate device %d: %w", id, err)
 	}
 
 	// One event per field that moved, so the log says which one and to what.
@@ -89,12 +89,12 @@ func (s *Store) UpdateCuration(ctx context.Context, id int64, c Curation) (Devic
 		}
 
 		if err := q.CreateEvent(ctx, params); err != nil {
-			return Device{}, fmt.Errorf("record edit of device %d: %w", id, err)
+			return nil, fmt.Errorf("record edit of device %d: %w", id, err)
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return Device{}, fmt.Errorf("commit curation: %w", err)
+		return nil, fmt.Errorf("commit curation: %w", err)
 	}
 
 	// Re-read rather than convert the updated row: a device carries the
@@ -113,7 +113,7 @@ type edit struct {
 // edits reports which user-owned fields differ between two versions of a
 // device. Nothing else is compared: a scan's columns are not the user's to
 // change, so a difference in one is not an edit.
-func edits(before, after models.Device) []edit {
+func edits(before, after *models.Device) []edit {
 	candidates := []edit{
 		{field: "label", from: before.Label.String, to: after.Label.String},
 		{field: "notes", from: before.Notes.String, to: after.Notes.String},

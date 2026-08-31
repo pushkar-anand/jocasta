@@ -139,7 +139,7 @@ func TestUpdateCurationRecordsWhatChanged(t *testing.T) {
 	events, err := s.DeviceEvents(t.Context(), id, 10)
 	require.NoError(t, err)
 
-	edited := make(map[string]Event)
+	edited := make(map[string]*Event)
 
 	for _, e := range events {
 		if e.Kind == dbtype.EventDeviceEdited {

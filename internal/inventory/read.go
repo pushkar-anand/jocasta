@@ -27,7 +27,7 @@ const DiscoveryWindow = 24 * time.Hour
 // The whole matching set is read: a homelab holds tens to low hundreds of
 // devices, and ordering by address or by name has to happen in Go, which can
 // only be right if it sees every row rather than one page of them.
-func (s *Store) ListDevices(ctx context.Context, f DeviceFilter) ([]Device, error) {
+func (s *Store) ListDevices(ctx context.Context, f DeviceFilter) ([]*Device, error) {
 	rows, err := s.q.ListDevices(ctx, models.ListDevicesParams{
 		IncludeIgnored: f.IncludeIgnored,
 		GroupName:      nullString(f.Group),
@@ -38,10 +38,10 @@ func (s *Store) ListDevices(ctx context.Context, f DeviceFilter) ([]Device, erro
 	}
 
 	cutoff := s.onlineCutoff()
-	devices := make([]Device, 0, len(rows))
+	devices := make([]*Device, 0, len(rows))
 
 	for _, r := range rows {
-		d := newDevice(r.Device, cutoff)
+		d := newDevice(&r.Device, cutoff)
 		d.Current = parseAddrs(r.CurrentIps)
 
 		// Online is decided against the clock, not the query, so the status
@@ -59,30 +59,30 @@ func (s *Store) ListDevices(ctx context.Context, f DeviceFilter) ([]Device, erro
 }
 
 // GetDevice returns one device with its full address history.
-func (s *Store) GetDevice(ctx context.Context, id int64) (Device, error) {
+func (s *Store) GetDevice(ctx context.Context, id int64) (*Device, error) {
 	row, err := s.q.GetDevice(ctx, id)
 
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		return Device{}, fmt.Errorf("device %d: %w", id, ErrNotFound)
+		return nil, fmt.Errorf("device %d: %w", id, ErrNotFound)
 	case err != nil:
-		return Device{}, fmt.Errorf("device %d: %w", id, err)
+		return nil, fmt.Errorf("device %d: %w", id, err)
 	}
 
 	d := newDevice(row, s.onlineCutoff())
 
 	addrs, err := s.q.ListDeviceAddresses(ctx, id)
 	if err != nil {
-		return Device{}, fmt.Errorf("addresses of device %d: %w", id, err)
+		return nil, fmt.Errorf("addresses of device %d: %w", id, err)
 	}
 
-	d.Addresses = make([]Address, 0, len(addrs))
+	d.Addresses = make([]*Address, 0, len(addrs))
 
 	for _, a := range addrs {
 		d.Addresses = append(d.Addresses, newAddress(a))
 
 		if a.IsCurrent {
-			d.Current = append(d.Current, a.Ip.Addr)
+			d.Current = append(d.Current, a.IP.Addr)
 		}
 	}
 
@@ -94,7 +94,7 @@ func (s *Store) GetDevice(ctx context.Context, id int64) (Device, error) {
 // DeviceEvents returns the most recent events recorded against one device.
 //
 // The events carry no DeviceName: the caller named the device it asked about.
-func (s *Store) DeviceEvents(ctx context.Context, id int64, limit int) ([]Event, error) {
+func (s *Store) DeviceEvents(ctx context.Context, id int64, limit int) ([]*Event, error) {
 	rows, err := s.q.ListDeviceEvents(ctx, models.ListDeviceEventsParams{
 		DeviceID: sql.NullInt64{Int64: id, Valid: true},
 		Limit:    int64(limit),
@@ -103,7 +103,7 @@ func (s *Store) DeviceEvents(ctx context.Context, id int64, limit int) ([]Event,
 		return nil, fmt.Errorf("events of device %d: %w", id, err)
 	}
 
-	events := make([]Event, 0, len(rows))
+	events := make([]*Event, 0, len(rows))
 	for _, r := range rows {
 		events = append(events, newEvent(r))
 	}
@@ -112,64 +112,64 @@ func (s *Store) DeviceEvents(ctx context.Context, id int64, limit int) ([]Event,
 }
 
 // ListEvents returns one page of the change log, most recent first.
-func (s *Store) ListEvents(ctx context.Context, p Page) (EventPage, error) {
+func (s *Store) ListEvents(ctx context.Context, p Page) (*EventPage, error) {
 	rows, err := s.q.ListEvents(ctx, models.PageParams{Cursor: p.Cursor, Limit: p.seek()})
 	if err != nil {
-		return EventPage{}, fmt.Errorf("list events: %w", err)
+		return nil, fmt.Errorf("list events: %w", err)
 	}
 
-	events := make([]Event, 0, len(rows))
+	events := make([]*Event, 0, len(rows))
 
 	for _, r := range rows {
-		e := newEvent(r.Event)
+		e := newEvent(&r.Event)
 		e.DeviceName = displayName(
-			r.DeviceLabel.String, r.DeviceHostname.String, macString(r.DeviceMac), "", e.DeviceID,
+			r.DeviceLabel.String, r.DeviceHostname.String, macString(r.DeviceMAC), "", e.DeviceID,
 		)
 		events = append(events, e)
 	}
 
-	events, next := trim(events, p.Limit, func(e Event) Cursor {
+	events, next := trim(events, p.Limit, func(e *Event) Cursor {
 		return Cursor{Value: e.At, ID: e.ID, Order: cursor.Desc}
 	})
 
-	return EventPage{Events: events, Next: next}, nil
+	return &EventPage{Events: events, Next: next}, nil
 }
 
 // ListScans returns one page of the scan history, most recent first.
-func (s *Store) ListScans(ctx context.Context, p Page) (ScanPage, error) {
+func (s *Store) ListScans(ctx context.Context, p Page) (*ScanPage, error) {
 	rows, err := s.q.ListScans(ctx, models.PageParams{Cursor: p.Cursor, Limit: p.seek()})
 	if err != nil {
-		return ScanPage{}, fmt.Errorf("list scans: %w", err)
+		return nil, fmt.Errorf("list scans: %w", err)
 	}
 
-	scans := make([]Scan, 0, len(rows))
+	scans := make([]*Scan, 0, len(rows))
 	for _, r := range rows {
-		scans = append(scans, newScan(r.Scan, r.SourceName, r.NetworkCidr))
+		scans = append(scans, newScan(&r.Scan, r.SourceName, r.NetworkCidr))
 	}
 
-	scans, next := trim(scans, p.Limit, func(sc Scan) Cursor {
+	scans, next := trim(scans, p.Limit, func(sc *Scan) Cursor {
 		return Cursor{Value: sc.StartedAt, ID: sc.ID, Order: cursor.Desc}
 	})
 
-	return ScanPage{Scans: scans, Next: next}, nil
+	return &ScanPage{Scans: scans, Next: next}, nil
 }
 
 // LatestScan returns the most recent scan, or ErrNotFound when none has run.
-func (s *Store) LatestScan(ctx context.Context) (Scan, error) {
+func (s *Store) LatestScan(ctx context.Context) (*Scan, error) {
 	page, err := s.ListScans(ctx, Page{Limit: 1})
 	if err != nil {
-		return Scan{}, err
+		return nil, err
 	}
 
 	if len(page.Scans) == 0 {
-		return Scan{}, fmt.Errorf("scan: %w", ErrNotFound)
+		return nil, fmt.Errorf("scan: %w", ErrNotFound)
 	}
 
 	return page.Scans[0], nil
 }
 
 // Stats counts the inventory as a whole.
-func (s *Store) Stats(ctx context.Context) (Stats, error) {
+func (s *Store) Stats(ctx context.Context) (*Stats, error) {
 	now := s.now()
 
 	row, err := s.q.DeviceStats(ctx, models.DeviceStatsParams{
@@ -177,10 +177,10 @@ func (s *Store) Stats(ctx context.Context) (Stats, error) {
 		NewSince:    dbtype.NewTime(now.Add(-DiscoveryWindow)),
 	})
 	if err != nil {
-		return Stats{}, fmt.Errorf("device stats: %w", err)
+		return nil, fmt.Errorf("device stats: %w", err)
 	}
 
-	return Stats{
+	return &Stats{
 		Total:      int(row.Total),
 		Online:     int(row.Online),
 		Offline:    int(row.Total - row.Online),

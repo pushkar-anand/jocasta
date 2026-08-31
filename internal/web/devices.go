@@ -14,7 +14,7 @@ const deviceHistoryLimit = 30
 // devicesData is the device list and the state of the form that narrowed it.
 type devicesData struct {
 	view
-	Devices []inventory.Device
+	Devices []*inventory.Device
 	Groups  []string
 
 	// The form values, kept as strings so a template can compare them against
@@ -68,8 +68,8 @@ func (d devicesData) canonical() string {
 // form only ever submits values it offered, so an unrecognised one arrived by
 // hand-editing the address, and the rendered form then shows what was actually
 // applied.
-func deviceForm(q url.Values) devicesData {
-	d := devicesData{
+func deviceForm(q url.Values) *devicesData {
+	d := &devicesData{
 		Query:          strings.TrimSpace(q.Get("q")),
 		Group:          q.Get("group"),
 		IncludeIgnored: q.Get("ignored") == "1",
@@ -112,7 +112,7 @@ func (h *Handler) deviceRows(w http.ResponseWriter, r *http.Request) {
 	h.renderer.Render(w, r, "partial/device-rows", data)
 }
 
-func (h *Handler) devicesData(r *http.Request) (devicesData, error) {
+func (h *Handler) devicesData(r *http.Request) (*devicesData, error) {
 	ctx := r.Context()
 
 	data := deviceForm(r.URL.Query())
@@ -120,12 +120,12 @@ func (h *Handler) devicesData(r *http.Request) (devicesData, error) {
 
 	devices, err := h.store.ListDevices(ctx, data.filter())
 	if err != nil {
-		return devicesData{}, err
+		return nil, err
 	}
 
 	groups, err := h.store.Groups(ctx)
 	if err != nil {
-		return devicesData{}, err
+		return nil, err
 	}
 
 	data.Devices = devices
@@ -161,7 +161,7 @@ func (h *Handler) device(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := curationForm{
+	data := &curationForm{
 		view:   view{Title: device.Name(), Section: "Devices"},
 		Device: device,
 		Groups: groups,

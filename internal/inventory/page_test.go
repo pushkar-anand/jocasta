@@ -14,12 +14,11 @@ func walkEvents(t *testing.T, s *Store, limit int) []int64 {
 
 	var (
 		ids  []int64
-		page EventPage
-		err  error
+		next Cursor
 	)
 
 	for range 20 {
-		page, err = s.ListEvents(t.Context(), Page{Limit: limit, Cursor: page.Next})
+		page, err := s.ListEvents(t.Context(), Page{Limit: limit, Cursor: next})
 		require.NoError(t, err)
 
 		for _, e := range page.Events {
@@ -29,6 +28,8 @@ func walkEvents(t *testing.T, s *Store, limit int) []int64 {
 		if page.Next.IsZero() {
 			return ids
 		}
+
+		next = page.Next
 	}
 
 	t.Fatal("the walk did not reach the end of the log")
@@ -130,11 +131,11 @@ func TestScanPagesWalkTheWholeHistory(t *testing.T) {
 
 	var (
 		ids  []int64
-		page ScanPage
+		next Cursor
 	)
 
 	for range 5 {
-		page, err = s.ListScans(t.Context(), Page{Limit: 1, Cursor: page.Next})
+		page, err := s.ListScans(t.Context(), Page{Limit: 1, Cursor: next})
 		require.NoError(t, err)
 		require.Len(t, page.Scans, 1)
 
@@ -143,6 +144,8 @@ func TestScanPagesWalkTheWholeHistory(t *testing.T) {
 		if page.Next.IsZero() {
 			break
 		}
+
+		next = page.Next
 	}
 
 	want := []int64{whole.Scans[0].ID, whole.Scans[1].ID, whole.Scans[2].ID}

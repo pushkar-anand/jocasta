@@ -49,12 +49,12 @@ type Device struct {
 	// Addresses is the full history, current entries first. Only GetDevice
 	// fills it: a list would need a row per address to say when each was seen,
 	// and it only ever shows the current ones.
-	Addresses []Address `json:"addresses,omitempty"`
+	Addresses []*Address `json:"addresses,omitempty"`
 }
 
 // Name is what to call the device: whatever the user labelled it, falling back
 // through the identity the network offered.
-func (d Device) Name() string {
+func (d *Device) Name() string {
 	var addr string
 	if len(d.Current) > 0 {
 		addr = d.Current[0].String()
@@ -109,7 +109,7 @@ type Scan struct {
 // It is derived rather than stored: the two timestamps already say it, and a
 // time.Duration has no JSON representation to be sent as -- encoding/json/v2
 // refuses to marshal one at all.
-func (s Scan) Took() time.Duration {
+func (s *Scan) Took() time.Duration {
 	if s.FinishedAt.IsZero() {
 		return 0
 	}
@@ -197,10 +197,10 @@ type DeviceFilter struct {
 
 // newDevice converts a stored device, resolving whether it counts as online
 // against a single cutoff so every device in one read is judged alike.
-func newDevice(d models.Device, cutoff time.Time) Device {
-	return Device{
+func newDevice(d *models.Device, cutoff time.Time) *Device {
+	return &Device{
 		ID:             d.ID,
-		MAC:            macString(d.Mac),
+		MAC:            macString(d.MAC),
 		IdentitySource: d.IdentitySource,
 		Randomised:     d.IsRandomised,
 		Vendor:         d.Vendor.String,
@@ -217,17 +217,17 @@ func newDevice(d models.Device, cutoff time.Time) Device {
 	}
 }
 
-func newAddress(a models.Address) Address {
-	return Address{
-		IP:        a.Ip.Addr,
+func newAddress(a *models.Address) *Address {
+	return &Address{
+		IP:        a.IP.Addr,
 		Current:   a.IsCurrent,
 		FirstSeen: a.FirstSeen.Time,
 		LastSeen:  a.LastSeen.Time,
 	}
 }
 
-func newEvent(e models.Event) Event {
-	return Event{
+func newEvent(e *models.Event) *Event {
+	return &Event{
 		ID:       e.ID,
 		DeviceID: e.DeviceID.Int64,
 		ScanID:   e.ScanID.Int64,
@@ -239,8 +239,8 @@ func newEvent(e models.Event) Event {
 	}
 }
 
-func newScan(s models.Scan, source, network string) Scan {
-	sc := Scan{
+func newScan(s *models.Scan, source, network string) *Scan {
+	sc := &Scan{
 		ID:        s.ID,
 		Source:    source,
 		Kind:      s.Kind,
@@ -306,22 +306,22 @@ func parseAddrs(concat string) []netip.Addr {
 
 // sortDevices orders the list in place. Ties fall back to the id so that a
 // repeated read returns the same order rather than SQLite's.
-func sortDevices(devices []Device, by Sort) {
-	var cmpFn func(a, b Device) int
+func sortDevices(devices []*Device, by Sort) {
+	var cmpFn func(a, b *Device) int
 
 	switch by {
 	case SortName:
-		cmpFn = func(a, b Device) int {
+		cmpFn = func(a, b *Device) int {
 			return cmp.Compare(strings.ToLower(a.Name()), strings.ToLower(b.Name()))
 		}
 	case SortAddress:
-		cmpFn = func(a, b Device) int { return compareFirstAddr(a, b) }
+		cmpFn = compareFirstAddr
 	default:
 		// SortLastSeen, and the unset field that means it.
-		cmpFn = func(a, b Device) int { return b.LastSeen.Compare(a.LastSeen) }
+		cmpFn = func(a, b *Device) int { return b.LastSeen.Compare(a.LastSeen) }
 	}
 
-	slices.SortStableFunc(devices, func(a, b Device) int {
+	slices.SortStableFunc(devices, func(a, b *Device) int {
 		return cmp.Or(cmpFn(a, b), cmp.Compare(a.ID, b.ID))
 	})
 }
@@ -329,7 +329,7 @@ func sortDevices(devices []Device, by Sort) {
 // compareFirstAddr orders by the lowest address a device currently holds. A
 // device holding none sorts last: it has nothing to compare, not the lowest
 // address there is.
-func compareFirstAddr(a, b Device) int {
+func compareFirstAddr(a, b *Device) int {
 	switch {
 	case len(a.Current) == 0 && len(b.Current) == 0:
 		return 0

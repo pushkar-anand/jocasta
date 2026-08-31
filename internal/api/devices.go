@@ -30,8 +30,8 @@ func (h *Handler) listDevices(store *inventory.Store) response.HandlerFunc {
 		}
 
 		devicesResponse struct {
-			Devices []inventory.Device `json:"devices"`
-			Count   int                `json:"count"`
+			Devices []*inventory.Device `json:"devices"`
+			Count   int                 `json:"count"`
 		}
 	)
 
@@ -120,8 +120,8 @@ func (h *Handler) updateDevice(store *inventory.Store) response.HandlerFunc {
 
 func (h *Handler) deviceEvents(store *inventory.Store) response.HandlerFunc {
 	type eventsResponse struct {
-		Events []inventory.Event `json:"events"`
-		Count  int               `json:"count"`
+		Events []*inventory.Event `json:"events"`
+		Count  int                `json:"count"`
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) error {
@@ -168,7 +168,7 @@ func (h *Handler) stats(store *inventory.Store) response.HandlerFunc {
 	// The counts are the whole response, so the wrapper only exists to name
 	// what this route returns; the fields are inlined by the embedding.
 	type statsResponse struct {
-		inventory.Stats
+		*inventory.Stats
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) error {
