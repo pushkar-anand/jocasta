@@ -11,9 +11,9 @@ import (
 func TestListDevices(t *testing.T) {
 	t.Parallel()
 
-	res, body := get(t, seeded(t), "/devices")
+	status, _, body := get(t, seeded(t), "/devices")
 
-	require.Equal(t, http.StatusOK, res.StatusCode)
+	require.Equal(t, http.StatusOK, status)
 	assert.Equal(t, float64(2), body["count"])
 
 	devices := list(t, body, "devices")
@@ -52,9 +52,9 @@ func TestListDevicesFilters(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			res, body := get(t, h, tc.target)
+			status, _, body := get(t, h, tc.target)
 
-			require.Equal(t, http.StatusOK, res.StatusCode)
+			require.Equal(t, http.StatusOK, status)
 			assert.Equal(t, float64(tc.want), body["count"])
 			assert.Len(t, list(t, body, "devices"), tc.want)
 		})
@@ -75,11 +75,11 @@ func TestListDevicesRejectsUnknownFilterValues(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.target, func(t *testing.T) {
-			res, body := get(t, h, tc.target)
+			status, _, body := get(t, h, tc.target)
 
 			// The request parsed and was understood, so it is unprocessable
 			// rather than malformed.
-			require.Equal(t, http.StatusUnprocessableEntity, res.StatusCode)
+			require.Equal(t, http.StatusUnprocessableEntity, status)
 			assert.Equal(t, float64(http.StatusUnprocessableEntity), body["status"])
 
 			// The problem names the parameter it is about, so a client is told
@@ -94,16 +94,16 @@ func TestGetDevice(t *testing.T) {
 
 	h := seeded(t)
 
-	_, listed := get(t, h, "/devices")
+	_, _, listed := get(t, h, "/devices")
 	first, ok := list(t, listed, "devices")[0].(map[string]any)
 	require.True(t, ok)
 
 	id, ok := first["id"].(float64)
 	require.True(t, ok)
 
-	res, body := get(t, h, "/devices/"+itoa(id))
+	status, _, body := get(t, h, "/devices/"+itoa(id))
 
-	require.Equal(t, http.StatusOK, res.StatusCode)
+	require.Equal(t, http.StatusOK, status)
 	assert.Equal(t, id, body["id"])
 
 	// Only the detail response carries the address history.
@@ -113,9 +113,9 @@ func TestGetDevice(t *testing.T) {
 func TestGetDeviceUnknownIDIsNotFound(t *testing.T) {
 	t.Parallel()
 
-	res, body := get(t, seeded(t), "/devices/4040")
+	status, _, body := get(t, seeded(t), "/devices/4040")
 
-	require.Equal(t, http.StatusNotFound, res.StatusCode)
+	require.Equal(t, http.StatusNotFound, status)
 	assert.Equal(t, float64(http.StatusNotFound), body["status"])
 }
 
@@ -126,8 +126,8 @@ func TestGetDeviceRejectsNonNumericID(t *testing.T) {
 
 	for _, target := range []string{"/devices/abc", "/devices/0", "/devices/-1"} {
 		t.Run(target, func(t *testing.T) {
-			res, _ := get(t, h, target)
-			assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+			status, _, _ := get(t, h, target)
+			assert.Equal(t, http.StatusBadRequest, status)
 		})
 	}
 }
@@ -137,16 +137,16 @@ func TestDeviceEvents(t *testing.T) {
 
 	h := seeded(t)
 
-	_, listed := get(t, h, "/devices")
+	_, _, listed := get(t, h, "/devices")
 	first, ok := list(t, listed, "devices")[0].(map[string]any)
 	require.True(t, ok)
 
 	id, ok := first["id"].(float64)
 	require.True(t, ok)
 
-	res, body := get(t, h, "/devices/"+itoa(id)+"/events")
+	status, _, body := get(t, h, "/devices/"+itoa(id)+"/events")
 
-	require.Equal(t, http.StatusOK, res.StatusCode)
+	require.Equal(t, http.StatusOK, status)
 	assert.NotEmpty(t, list(t, body, "events"))
 }
 
@@ -155,8 +155,8 @@ func TestDeviceEvents(t *testing.T) {
 func TestDeviceEventsUnknownIDIsNotFound(t *testing.T) {
 	t.Parallel()
 
-	res, _ := get(t, seeded(t), "/devices/4040/events")
-	assert.Equal(t, http.StatusNotFound, res.StatusCode)
+	status, _, _ := get(t, seeded(t), "/devices/4040/events")
+	assert.Equal(t, http.StatusNotFound, status)
 }
 
 func TestStatsAndGroups(t *testing.T) {
@@ -164,14 +164,14 @@ func TestStatsAndGroups(t *testing.T) {
 
 	h := seeded(t)
 
-	res, body := get(t, h, "/stats")
-	require.Equal(t, http.StatusOK, res.StatusCode)
+	status, _, body := get(t, h, "/stats")
+	require.Equal(t, http.StatusOK, status)
 	assert.Equal(t, float64(2), body["total"])
 	assert.Equal(t, float64(2), body["online"])
 	assert.Equal(t, float64(0), body["offline"])
 
-	res, body = get(t, h, "/groups")
-	require.Equal(t, http.StatusOK, res.StatusCode)
+	status, _, body = get(t, h, "/groups")
+	require.Equal(t, http.StatusOK, status)
 
 	// Nothing has been grouped, so the key is present and holds nothing.
 	require.Contains(t, body, "groups")
@@ -183,14 +183,14 @@ func TestUpdateDevice(t *testing.T) {
 
 	h := seeded(t)
 
-	res, body := patchJSON(t, h, "/devices/1", `{
+	status, _, body := patchJSON(t, h, "/devices/1", `{
 		"label": "Office printer",
 		"notes": "Second floor.",
 		"group": "office",
 		"type": "printer"
 	}`)
 
-	require.Equal(t, http.StatusOK, res.StatusCode)
+	require.Equal(t, http.StatusOK, status)
 	assert.Equal(t, "Office printer", body["label"])
 	assert.Equal(t, "office", body["group"])
 	assert.Equal(t, "printer", body["type"])
@@ -204,7 +204,7 @@ func TestUpdateDevice(t *testing.T) {
 	assert.Equal(t, macA, body["mac"])
 
 	// The change is stored, not only returned.
-	_, reread := get(t, h, "/devices/1")
+	_, _, reread := get(t, h, "/devices/1")
 	assert.Equal(t, "Office printer", reread["label"])
 }
 
@@ -216,7 +216,7 @@ func TestUpdateDeviceClearsOmittedFields(t *testing.T) {
 
 	patchJSON(t, h, "/devices/1", `{"label": "Office printer", "group": "office"}`)
 
-	_, body := patchJSON(t, h, "/devices/1", `{"label": "Office printer"}`)
+	_, _, body := patchJSON(t, h, "/devices/1", `{"label": "Office printer"}`)
 	assert.Equal(t, "Office printer", body["label"])
 	assert.NotContains(t, body, "group")
 }
@@ -228,7 +228,7 @@ func TestUpdateDeviceRecordsTheEdit(t *testing.T) {
 
 	patchJSON(t, h, "/devices/1", `{"label": "Office printer"}`)
 
-	_, body := get(t, h, "/devices/1/events")
+	_, _, body := get(t, h, "/devices/1/events")
 
 	var edits int
 
@@ -250,13 +250,13 @@ func TestUpdateDeviceRecordsTheEdit(t *testing.T) {
 func TestUpdateDeviceUnknownIDIsNotFound(t *testing.T) {
 	t.Parallel()
 
-	res, _ := patchJSON(t, seeded(t), "/devices/4040", `{"label": "Nothing"}`)
-	assert.Equal(t, http.StatusNotFound, res.StatusCode)
+	status, _, _ := patchJSON(t, seeded(t), "/devices/4040", `{"label": "Nothing"}`)
+	assert.Equal(t, http.StatusNotFound, status)
 }
 
 func TestUpdateDeviceRejectsAMalformedBody(t *testing.T) {
 	t.Parallel()
 
-	res, _ := patchJSON(t, seeded(t), "/devices/1", `{"label":`)
-	assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+	status, _, _ := patchJSON(t, seeded(t), "/devices/1", `{"label":`)
+	assert.Equal(t, http.StatusBadRequest, status)
 }

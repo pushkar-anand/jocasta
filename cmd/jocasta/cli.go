@@ -1,3 +1,4 @@
+// Command jocasta is the network inventory scanner and server.
 package main
 
 import (

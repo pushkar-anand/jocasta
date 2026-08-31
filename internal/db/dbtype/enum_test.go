@@ -105,7 +105,7 @@ func TestEnumValid(t *testing.T) {
 	t.Parallel()
 
 	assert.True(t, SourceDNS.Valid())
-	assert.False(t, SourceKind("ROUTEROS").Valid())
+	assert.False(t, SourceKind("BOGUS").Valid())
 	assert.True(t, IdentityMAC.Valid())
 	assert.False(t, IdentitySource("HOSTNAME").Valid())
 	assert.True(t, ScanImport.Valid())

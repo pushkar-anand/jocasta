@@ -35,7 +35,7 @@ func TestNew(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Conn.Close() })
 
-	require.NoError(t, db.Conn.Ping())
+	require.NoError(t, db.Conn.PingContext(t.Context()))
 	assert.FileExists(t, filepath.Join(dir, "test.db"))
 }
 
@@ -55,10 +55,12 @@ func TestNewRunsMigrations(t *testing.T) {
 
 	db := newTestDB(t)
 
-	var version int
-	var dirty bool
+	var (
+		version int
+		dirty   bool
+	)
 
-	err := db.Conn.QueryRow(`SELECT version, dirty FROM schema_migrations`).Scan(&version, &dirty)
+	err := db.Conn.QueryRowContext(t.Context(), `SELECT version, dirty FROM schema_migrations`).Scan(&version, &dirty)
 	require.NoError(t, err)
 
 	assert.Equal(t, dbVersion, version)
@@ -68,7 +70,8 @@ func TestNewRunsMigrations(t *testing.T) {
 		"users", "sources", "networks", "devices", "addresses", "scans", "events",
 	} {
 		var name string
-		err = db.Conn.QueryRow(
+
+		err = db.Conn.QueryRowContext(t.Context(),
 			`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table,
 		).Scan(&name)
 		require.NoErrorf(t, err, "%s table was not created", table)
@@ -92,7 +95,7 @@ func TestNewIsIdempotent(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = second.Conn.Close() })
 
-	require.NoError(t, second.Conn.Ping())
+	require.NoError(t, second.Conn.PingContext(t.Context()))
 }
 
 func TestMigrateDBIsIdempotent(t *testing.T) {
@@ -152,11 +155,11 @@ func TestNewAppliesPragmas(t *testing.T) {
 	db := newTestDB(t)
 
 	var foreignKeys int
-	require.NoError(t, db.Conn.QueryRow(`PRAGMA foreign_keys`).Scan(&foreignKeys))
+	require.NoError(t, db.Conn.QueryRowContext(t.Context(), `PRAGMA foreign_keys`).Scan(&foreignKeys))
 	assert.Equal(t, 1, foreignKeys, "foreign key enforcement is off")
 
 	var journalMode string
-	require.NoError(t, db.Conn.QueryRow(`PRAGMA journal_mode`).Scan(&journalMode))
+	require.NoError(t, db.Conn.QueryRowContext(t.Context(), `PRAGMA journal_mode`).Scan(&journalMode))
 	assert.Equal(t, "wal", strings.ToLower(journalMode))
 }
 
@@ -216,14 +219,14 @@ func TestTimestampWritersAgreeOnOrdering(t *testing.T) {
 
 	conn := newTestDB(t).Conn
 
-	_, err := conn.Exec(`INSERT INTO users (username, password_hash) VALUES ('middle', 'h')`)
+	_, err := conn.ExecContext(t.Context(), `INSERT INTO users (username, password_hash) VALUES ('middle', 'h')`)
 	require.NoError(t, err)
 
 	var middle dbtype.Time
-	require.NoError(t, conn.QueryRow(`SELECT created_at FROM users`).Scan(&middle))
+	require.NoError(t, conn.QueryRowContext(t.Context(), `SELECT created_at FROM users`).Scan(&middle))
 
 	insert := func(name string, at dbtype.Time) {
-		_, err := conn.Exec(
+		_, err := conn.ExecContext(t.Context(),
 			`INSERT INTO users (username, password_hash, created_at) VALUES (?, 'h', ?)`, name, at)
 		require.NoError(t, err)
 	}
@@ -231,7 +234,7 @@ func TestTimestampWritersAgreeOnOrdering(t *testing.T) {
 	insert("last", dbtype.NewTime(middle.Add(time.Second)))
 	insert("first", dbtype.NewTime(middle.Add(-time.Second)))
 
-	rows, err := conn.Query(`SELECT username FROM users ORDER BY created_at`)
+	rows, err := conn.QueryContext(t.Context(), `SELECT username FROM users ORDER BY created_at`)
 	require.NoError(t, err)
 
 	defer func() { _ = rows.Close() }()

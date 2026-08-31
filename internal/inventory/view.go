@@ -132,6 +132,7 @@ type Stats struct {
 // Status filters a device list by whether the devices are still answering.
 type Status string
 
+// Status values a filter's online/offline state can take.
 const (
 	StatusAny     Status = ""
 	StatusOnline  Status = "online"
@@ -164,6 +165,7 @@ func (s Status) admits(online bool) bool {
 // 192.0.2.100, and because a name is assembled from several columns.
 type Sort string
 
+// Sort names an ordering for a device list.
 const (
 	// SortDefault is SortLastSeen, so an unset field needs no special case.
 	SortDefault Sort = ""
@@ -277,7 +279,7 @@ func macString(m dbtype.MAC) string {
 		return ""
 	}
 
-	return m.HardwareAddr.String()
+	return m.String()
 }
 
 // parseAddrs reads the addresses GROUP_CONCAT packed into one column and orders

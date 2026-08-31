@@ -1,3 +1,4 @@
+// Package models holds the query helpers backed by the generated SQL code.
 package models
 
 import (

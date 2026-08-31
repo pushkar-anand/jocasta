@@ -22,17 +22,20 @@ import (
 // Order is the direction a query sorts in.
 type Order string
 
+// Asc and Desc are the two directions a query can sort in.
 const (
 	Asc  Order = "ASC"
 	Desc Order = "DESC"
 )
 
+// Valid reports whether o is one of the known directions.
 func (o Order) Valid() bool { return o == Asc || o == Desc }
 
 // Kind names the type of the sort column's value, so that Decode can parse back
 // what Encode wrote without being told which query the token came from.
 type Kind string
 
+// Kind values the sort column's underlying type.
 const (
 	KindString Kind = "string"
 	KindInt    Kind = "int"
@@ -40,6 +43,7 @@ const (
 	KindTime   Kind = "time"
 )
 
+// Valid reports whether k is one of the known column value types.
 func (k Kind) Valid() bool {
 	switch k {
 	case KindString, KindInt, KindFloat, KindTime:
@@ -49,6 +53,8 @@ func (k Kind) Valid() bool {
 	return false
 }
 
+// Errors returned by Encode and Decode when a request asks for something a
+// cursor cannot represent.
 var (
 	ErrUnsortableValue = errors.New("cursor: value cannot be sorted")
 	ErrMalformed       = errors.New("cursor: malformed")

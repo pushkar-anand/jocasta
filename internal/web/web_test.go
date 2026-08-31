@@ -2,7 +2,6 @@ package web
 
 import (
 	"html/template"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -28,7 +27,7 @@ const (
 )
 
 func testLogger() *slog.Logger {
-	return slog.New(slog.NewTextHandler(io.Discard, nil))
+	return slog.New(slog.DiscardHandler)
 }
 
 // testStore opens an inventory over a migrated database scoped to the test.
@@ -81,7 +80,7 @@ func get(t *testing.T, h http.Handler, target string) *httptest.ResponseRecorder
 	t.Helper()
 
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, target, nil))
+	h.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, target, nil))
 
 	return rec
 }
@@ -226,7 +225,7 @@ func TestRendererRender(t *testing.T) {
 	r := NewRenderer(tmpl, testLogger())
 
 	rec := httptest.NewRecorder()
-	r.Render(rec, httptest.NewRequest(http.MethodGet, "/", nil), "greet.tmpl", map[string]string{"Name": "Ada"})
+	r.Render(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil), "greet.tmpl", map[string]string{"Name": "Ada"})
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, "text/html; charset=utf-8", rec.Header().Get("Content-Type"))
@@ -240,7 +239,7 @@ func TestRendererRenderStatus(t *testing.T) {
 	r := NewRenderer(tmpl, testLogger())
 
 	rec := httptest.NewRecorder()
-	r.RenderStatus(rec, httptest.NewRequest(http.MethodGet, "/", nil), http.StatusGone, "greet.tmpl", nil)
+	r.RenderStatus(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil), http.StatusGone, "greet.tmpl", nil)
 
 	require.Equal(t, http.StatusGone, rec.Code)
 	assert.Equal(t, "text/html; charset=utf-8", rec.Header().Get("Content-Type"))
@@ -256,7 +255,7 @@ func TestRendererEscapesData(t *testing.T) {
 	r := NewRenderer(tmpl, testLogger())
 
 	rec := httptest.NewRecorder()
-	r.Render(rec, httptest.NewRequest(http.MethodGet, "/", nil), "greet.tmpl", map[string]string{
+	r.Render(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil), "greet.tmpl", map[string]string{
 		"Name": `<script>alert(1)</script>`,
 	})
 
@@ -271,7 +270,7 @@ func TestRendererUnknownTemplate(t *testing.T) {
 	r := NewRenderer(tmpl, testLogger())
 
 	rec := httptest.NewRecorder()
-	r.Render(rec, httptest.NewRequest(http.MethodGet, "/", nil), "missing.tmpl", nil)
+	r.Render(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil), "missing.tmpl", nil)
 
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 }
@@ -284,7 +283,7 @@ func TestRendererExecutionErrorPreventsPartialResponse(t *testing.T) {
 	r := NewRenderer(tmpl, testLogger())
 
 	rec := httptest.NewRecorder()
-	r.Render(rec, httptest.NewRequest(http.MethodGet, "/", nil), "bad.tmpl", struct{}{})
+	r.Render(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil), "bad.tmpl", struct{}{})
 
 	// Should respond with 500
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
@@ -301,7 +300,7 @@ func TestRendererHTML(t *testing.T) {
 	handler := NewRenderer(tmpl, testLogger()).HTML("greet.tmpl", "Ada")
 
 	rec := httptest.NewRecorder()
-	handler(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	handler(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, "Hello Ada!", rec.Body.String())

@@ -34,6 +34,7 @@ var templatesFS embed.FS
 // has its own page.
 const activityLimit = 12
 
+// Handler serves the HTML UI over the same store the JSON API reads.
 type Handler struct {
 	*http.ServeMux
 	store    *inventory.Store
@@ -42,6 +43,8 @@ type Handler struct {
 	log      *slog.Logger
 }
 
+// NewHandler builds the web routes, parsing the embedded templates and
+// mounting the static assets.
 func NewHandler(log *slog.Logger, reader *request.Reader, store *inventory.Store) *Handler {
 	templates, err := template.New("").
 		Funcs(funcs(time.Now)).
@@ -218,6 +221,7 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 	http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 }
 
+// Renderer writes html/template pages and fragments to an http.ResponseWriter.
 type Renderer struct {
 	templates *template.Template
 	logger    *slog.Logger
@@ -264,6 +268,7 @@ func (rr *Renderer) RenderStatus(
 	_, _ = buf.WriteTo(w)
 }
 
+// HTML wraps Render so a template can be served directly as an http.HandlerFunc.
 func (rr *Renderer) HTML(tmpl string, data any) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		rr.Render(w, r, tmpl, data)

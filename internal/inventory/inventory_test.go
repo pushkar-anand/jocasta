@@ -2,7 +2,6 @@ package inventory
 
 import (
 	"database/sql"
-	"io"
 	"log/slog"
 	"net/netip"
 	"testing"
@@ -34,7 +33,7 @@ func newStore(t *testing.T) (*Store, *sql.DB) {
 
 	t.Cleanup(func() { _ = d.Conn.Close() })
 
-	s := New(d.Conn, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	s := New(d.Conn, slog.New(slog.DiscardHandler))
 
 	tick := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	s.now = func() time.Time {
@@ -66,7 +65,7 @@ func queryInt(t *testing.T, conn *sql.DB, q string, args ...any) int {
 	t.Helper()
 
 	var n int
-	require.NoError(t, conn.QueryRow(q, args...).Scan(&n))
+	require.NoError(t, conn.QueryRowContext(t.Context(), q, args...).Scan(&n))
 
 	return n
 }
@@ -74,7 +73,7 @@ func queryInt(t *testing.T, conn *sql.DB, q string, args ...any) int {
 func queryStrings(t *testing.T, conn *sql.DB, q string, args ...any) []string {
 	t.Helper()
 
-	rows, err := conn.Query(q, args...)
+	rows, err := conn.QueryContext(t.Context(), q, args...)
 	require.NoError(t, err)
 
 	defer func() { _ = rows.Close() }()
@@ -97,7 +96,7 @@ func deviceIDByMAC(t *testing.T, conn *sql.DB, mac string) int64 {
 	t.Helper()
 
 	var id int64
-	require.NoError(t, conn.QueryRow(`SELECT id FROM devices WHERE mac = ?`, mac).Scan(&id))
+	require.NoError(t, conn.QueryRowContext(t.Context(), `SELECT id FROM devices WHERE mac = ?`, mac).Scan(&id))
 
 	return id
 }
@@ -112,7 +111,7 @@ func currentIPs(t *testing.T, conn *sql.DB, deviceID int64) []string {
 func eventKinds(t *testing.T, conn *sql.DB, deviceID int64) []dbtype.EventKind {
 	t.Helper()
 
-	rows, err := conn.Query(`SELECT kind FROM events WHERE device_id = ? ORDER BY id`, deviceID)
+	rows, err := conn.QueryContext(t.Context(), `SELECT kind FROM events WHERE device_id = ? ORDER BY id`, deviceID)
 	require.NoError(t, err)
 
 	defer func() { _ = rows.Close() }()
@@ -173,7 +172,7 @@ func TestRecordSweepStoresHostname(t *testing.T) {
 		source dbtype.HostnameSource
 	)
 
-	err := conn.QueryRow(`SELECT hostname, hostname_source FROM devices`).Scan(&name, &source)
+	err := conn.QueryRowContext(t.Context(), `SELECT hostname, hostname_source FROM devices`).Scan(&name, &source)
 	require.NoError(t, err)
 
 	assert.Equal(t, "one.example", name)
@@ -210,7 +209,7 @@ func TestRecordSweepIdentifiesLateMAC(t *testing.T) {
 	sweep(t, s, host("192.0.2.10", "", "one.example"))
 
 	var before int64
-	require.NoError(t, conn.QueryRow(`SELECT id FROM devices`).Scan(&before))
+	require.NoError(t, conn.QueryRowContext(t.Context(), `SELECT id FROM devices`).Scan(&before))
 
 	res := sweep(t, s, host("192.0.2.10", macA, "one.example"))
 
@@ -236,11 +235,11 @@ func TestRecordSweepFoldsDuplicate(t *testing.T) {
 	sweep(t, s, host("192.0.2.20", "", ""))
 
 	// Curation applied before anyone knew the two rows were one device.
-	_, err := conn.Exec(`UPDATE devices SET label = 'printer' WHERE mac IS NULL`)
+	_, err := conn.ExecContext(t.Context(), `UPDATE devices SET label = 'printer' WHERE mac IS NULL`)
 	require.NoError(t, err)
 
 	var ghost int64
-	require.NoError(t, conn.QueryRow(`SELECT id FROM devices WHERE mac IS NULL`).Scan(&ghost))
+	require.NoError(t, conn.QueryRowContext(t.Context(), `SELECT id FROM devices WHERE mac IS NULL`).Scan(&ghost))
 
 	res := sweep(t, s, host("192.0.2.20", macA, ""))
 
@@ -294,7 +293,8 @@ func TestRecordSweepRecordsHostnameChange(t *testing.T) {
 	assert.Contains(t, eventKinds(t, conn, id), dbtype.EventHostnameChanged)
 
 	var from, to string
-	err := conn.QueryRow(
+
+	err := conn.QueryRowContext(t.Context(),
 		`SELECT old_value, new_value FROM events WHERE kind = ?`, dbtype.EventHostnameChanged,
 	).Scan(&from, &to)
 	require.NoError(t, err)
@@ -340,18 +340,20 @@ func TestRecordSweepTimestampsAreOrdered(t *testing.T) {
 	sweep(t, s, host("192.0.2.10", macA, ""))
 
 	var first, last string
-	err := conn.QueryRow(`SELECT first_seen, last_seen FROM devices`).Scan(&first, &last)
+
+	err := conn.QueryRowContext(t.Context(), `SELECT first_seen, last_seen FROM devices`).Scan(&first, &last)
 	require.NoError(t, err)
 	assert.Equal(t, first, last, "a device discovered by a sweep was not first and last seen at once")
 
-	err = conn.QueryRow(`SELECT first_seen, last_seen FROM addresses`).Scan(&first, &last)
+	err = conn.QueryRowContext(t.Context(), `SELECT first_seen, last_seen FROM addresses`).Scan(&first, &last)
 	require.NoError(t, err)
 	assert.Equal(t, first, last)
 
 	// A sweep can open and close inside one second, so the invariant is that
 	// it does not finish before it started, not that the two differ.
 	var started, finished string
-	err = conn.QueryRow(`SELECT started_at, finished_at FROM scans`).Scan(&started, &finished)
+
+	err = conn.QueryRowContext(t.Context(), `SELECT started_at, finished_at FROM scans`).Scan(&started, &finished)
 	require.NoError(t, err)
 	assert.LessOrEqual(t, started, finished)
 
@@ -359,7 +361,8 @@ func TestRecordSweepTimestampsAreOrdered(t *testing.T) {
 	sweep(t, s, host("192.0.2.10", macA, ""))
 
 	var secondFirst, secondLast string
-	err = conn.QueryRow(`SELECT first_seen, last_seen FROM devices`).Scan(&secondFirst, &secondLast)
+
+	err = conn.QueryRowContext(t.Context(), `SELECT first_seen, last_seen FROM devices`).Scan(&secondFirst, &secondLast)
 	require.NoError(t, err)
 
 	assert.Equal(t, first, secondFirst, "first_seen moved")

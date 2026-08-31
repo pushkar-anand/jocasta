@@ -42,6 +42,7 @@ func TestSweepLive(t *testing.T) {
 			require.NoError(t, err)
 
 			var withMAC, withName int
+
 			for _, h := range hosts {
 				if h.MAC != "" {
 					withMAC++

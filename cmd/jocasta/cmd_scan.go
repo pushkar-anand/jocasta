@@ -51,6 +51,7 @@ func (s *ScanCmd) Run(
 	}
 
 	sc := scanner.New(log, opts...)
+
 	hosts, err := sc.Scan(ctx, p)
 	if err != nil {
 		return fmt.Errorf("scan %s: %w", p, err)
@@ -70,14 +71,14 @@ func (s *ScanCmd) Run(
 // save records the sweep in the inventory. It runs after the results are
 // printed so a database that will not open still leaves the operator with the
 // scan they asked for.
-func (s *ScanCmd) save(ctx context.Context, cfg *Config, log *slog.Logger, p netip.Prefix, hosts []scanner.Host, conn *db.DB) error {
+func (s *ScanCmd) save(ctx context.Context, _ *Config, log *slog.Logger, p netip.Prefix, hosts []scanner.Host, conn *db.DB) error {
 	res, err := inventory.New(conn.Conn, log).RecordSweep(ctx, s.sourceName(), p, hosts)
 	if err != nil {
 		return fmt.Errorf("record sweep: %w", err)
 	}
 
 	log.InfoContext(ctx, "recorded sweep",
-		"scan", res.ScanID,
+		slog.Int64("scan", res.ScanID),
 		slog.Int("seen", res.Seen),
 		slog.Int("discovered", res.Discovered),
 		slog.Int("identified", res.Identified),
@@ -106,6 +107,7 @@ func outputScanResults(w io.Writer, hosts []scanner.Host, asJSON bool) error {
 	if asJSON {
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
+
 		return enc.Encode(hosts)
 	}
 

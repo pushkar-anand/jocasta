@@ -18,7 +18,7 @@ import (
 )
 
 func testLogger() *slog.Logger {
-	return slog.New(slog.NewTextHandler(io.Discard, nil))
+	return slog.New(slog.DiscardHandler)
 }
 
 // testDB opens a migrated database in a directory scoped to the test. The
@@ -41,7 +41,7 @@ func testDB(t *testing.T) *db.DB {
 func freePort(t *testing.T) int {
 	t.Helper()
 
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	require.NoError(t, ln.Close())
 
@@ -55,7 +55,7 @@ func waitForServer(t *testing.T, addr string) {
 	deadline := time.Now().Add(5 * time.Second)
 
 	for time.Now().Before(deadline) {
-		conn, err := net.DialTimeout("tcp", addr, 200*time.Millisecond)
+		conn, err := (&net.Dialer{Timeout: 200 * time.Millisecond}).DialContext(t.Context(), "tcp", addr)
 		if err == nil {
 			_ = conn.Close()
 			return
@@ -134,6 +134,7 @@ func TestStartRoutes(t *testing.T) {
 
 	t.Run("api is mounted under /api", func(t *testing.T) {
 		res := get(t, baseURL+"/api/livez")
+		defer func() { _ = res.Body.Close() }()
 
 		require.Equal(t, http.StatusOK, res.StatusCode)
 
@@ -148,6 +149,7 @@ func TestStartRoutes(t *testing.T) {
 		// falls through to the web handler, which does not know the path and
 		// says so in HTML rather than answering with the API's JSON.
 		res := get(t, baseURL+"/livez")
+		defer func() { _ = res.Body.Close() }()
 
 		require.Equal(t, http.StatusNotFound, res.StatusCode)
 		assert.Contains(t, res.Header.Get("Content-Type"), "text/html")
@@ -155,6 +157,7 @@ func TestStartRoutes(t *testing.T) {
 
 	t.Run("web handler serves the root", func(t *testing.T) {
 		res := get(t, baseURL+"/")
+		defer func() { _ = res.Body.Close() }()
 
 		require.Equal(t, http.StatusOK, res.StatusCode)
 		assert.Contains(t, res.Header.Get("Content-Type"), "text/html")
@@ -166,6 +169,7 @@ func TestStartRoutes(t *testing.T) {
 
 	t.Run("static assets are served", func(t *testing.T) {
 		res := get(t, baseURL+"/static/style.css")
+		defer func() { _ = res.Body.Close() }()
 
 		assert.Equal(t, http.StatusOK, res.StatusCode)
 	})
@@ -177,6 +181,7 @@ func TestStartRoutes(t *testing.T) {
 		for _, path := range []string{"/", "/static/style.css", "/static/js/htmx.min.js", "/api/livez"} {
 			t.Run(path, func(t *testing.T) {
 				res := get(t, baseURL+path)
+				defer func() { _ = res.Body.Close() }()
 
 				assert.Equal(t, csp, res.Header.Get("Content-Security-Policy"))
 				assert.Equal(t, "nosniff", res.Header.Get("X-Content-Type-Options"))
@@ -196,6 +201,7 @@ func TestStartRoutes(t *testing.T) {
 
 	t.Run("responses carry a request id", func(t *testing.T) {
 		res := get(t, baseURL+"/")
+		defer func() { _ = res.Body.Close() }()
 
 		assert.NotEmpty(t, res.Header.Get("X-Request-Id"))
 	})
@@ -204,7 +210,7 @@ func TestStartRoutes(t *testing.T) {
 func TestStartFailsOnPortInUse(t *testing.T) {
 	t.Parallel()
 
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = ln.Close() })
 
@@ -285,6 +291,7 @@ func TestCrossOriginWriteIsRefused(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			res := patchWith(t, baseURL+"/api/devices/1", tc.headers)
+			defer func() { _ = res.Body.Close() }()
 
 			if tc.refused {
 				assert.Equal(t, http.StatusForbidden, res.StatusCode)

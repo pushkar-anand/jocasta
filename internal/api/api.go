@@ -24,6 +24,7 @@ type Handler struct {
 	jsonWriter *response.JSONWriter
 }
 
+// NewHandler builds the JSON API routes over the given store.
 func NewHandler(
 	l *slog.Logger,
 	reader *request.Reader,
