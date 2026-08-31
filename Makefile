@@ -1,5 +1,7 @@
 .PHONY: tidy fmt build run gen new_migration docker oui test
 
+.DEFAULT_GOAL := build
+
 fmt:
 	go fmt ./... && go tool goimports -w .
 
