@@ -29,7 +29,7 @@ type ScanCmd struct {
 	Source       string        `name:"source" help:"Name recorded as the origin of these results. Defaults to this host's name."`
 }
 
-func (s *ScanCmd) Run(ctx context.Context, cfg *Config, log *slog.Logger) error {
+func (s *ScanCmd) Run(ctx context.Context, cfg *Config, log *slog.Logger, conn *db.DB) error {
 	p, err := netip.ParsePrefix(s.Target)
 	if err != nil {
 		return fmt.Errorf("invalid CIDR prefix %q: %w", s.Target, err)
@@ -57,31 +57,24 @@ func (s *ScanCmd) Run(ctx context.Context, cfg *Config, log *slog.Logger) error 
 		return nil
 	}
 
-	return s.save(ctx, cfg, log, p, hosts)
+	return s.save(ctx, cfg, log, p, hosts, conn)
 }
 
 // save records the sweep in the inventory. It runs after the results are
 // printed so a database that will not open still leaves the operator with the
 // scan they asked for.
-func (s *ScanCmd) save(ctx context.Context, cfg *Config, log *slog.Logger, p netip.Prefix, hosts []scanner.Host) error {
-	d, err := db.New(&db.Config{Path: cfg.DB.Path, Name: cfg.DB.Name})
-	if err != nil {
-		return fmt.Errorf("open inventory: %w", err)
-	}
-
-	defer func() { _ = d.Conn.Close() }()
-
-	res, err := inventory.New(d.Conn, log).RecordSweep(ctx, s.sourceName(), p, hosts)
+func (s *ScanCmd) save(ctx context.Context, cfg *Config, log *slog.Logger, p netip.Prefix, hosts []scanner.Host, conn *db.DB) error {
+	res, err := inventory.New(conn.Conn, log).RecordSweep(ctx, s.sourceName(), p, hosts)
 	if err != nil {
 		return fmt.Errorf("record sweep: %w", err)
 	}
 
 	log.InfoContext(ctx, "recorded sweep",
 		"scan", res.ScanID,
-		"seen", res.Seen,
-		"discovered", res.Discovered,
-		"identified", res.Identified,
-		"merged", res.Merged,
+		slog.Int("seen", res.Seen),
+		slog.Int("discovered", res.Discovered),
+		slog.Int("identified", res.Identified),
+		slog.Int("merged", res.Merged),
 	)
 
 	return nil

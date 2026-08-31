@@ -11,6 +11,7 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/pushkar-anand/build-with-go/config"
 	"github.com/pushkar-anand/build-with-go/logger"
+	"github.com/pushkar-anand/jocasta/internal/db"
 )
 
 // Link sqlc with go generate, running go generate will generate the DB models and queries.
@@ -60,7 +61,14 @@ func run(args []string) error {
 		logger.WithFormat(cfg.Logger.FormatValue()),
 	)
 
-	return kCtx.Run(cfg, log)
+	conn, err := db.New(&db.Config{Path: cfg.DB.Path, Name: cfg.DB.Name})
+	if err != nil {
+		return fmt.Errorf("initialize database: %w", err)
+	}
+
+	defer func() { _ = conn.Conn.Close() }()
+
+	return kCtx.Run(cfg, log, conn)
 }
 
 // loadConfig assembles configuration from defaults, the YAML file, and the
