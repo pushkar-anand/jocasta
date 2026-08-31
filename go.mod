@@ -9,6 +9,7 @@ tool (
 )
 
 require (
+	github.com/Masterminds/squirrel v1.5.4
 	github.com/alecthomas/kong v1.16.1
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/pushkar-anand/build-with-go v0.1.0
@@ -136,6 +137,8 @@ require (
 	github.com/knadh/koanf/providers/file v1.2.1 // indirect
 	github.com/knadh/koanf/v2 v2.3.6 // indirect
 	github.com/ktrysmt/go-bitbucket v0.6.4 // indirect
+	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
+	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
 	github.com/leodido/go-urn v1.5.0 // indirect
 	github.com/lib/pq v1.12.3 // indirect
 	github.com/mattn/go-colorable v0.1.6 // indirect

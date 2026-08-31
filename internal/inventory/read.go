@@ -11,6 +11,7 @@ import (
 
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/db/models"
+	"github.com/pushkar-anand/jocasta/pkg/cursor"
 )
 
 // ErrNotFound is returned when a read names something the inventory does not
@@ -110,14 +111,11 @@ func (s *Store) DeviceEvents(ctx context.Context, id int64, limit int) ([]Event,
 	return events, nil
 }
 
-// ListEvents returns the change log, most recent first.
-func (s *Store) ListEvents(ctx context.Context, limit, offset int) ([]Event, error) {
-	rows, err := s.q.ListEvents(ctx, models.ListEventsParams{
-		Limit:  int64(limit),
-		Offset: int64(offset),
-	})
+// ListEvents returns one page of the change log, most recent first.
+func (s *Store) ListEvents(ctx context.Context, p Page) (EventPage, error) {
+	rows, err := s.q.ListEvents(ctx, models.PageParams{Cursor: p.Cursor, Limit: p.seek()})
 	if err != nil {
-		return nil, fmt.Errorf("list events: %w", err)
+		return EventPage{}, fmt.Errorf("list events: %w", err)
 	}
 
 	events := make([]Event, 0, len(rows))
@@ -130,17 +128,18 @@ func (s *Store) ListEvents(ctx context.Context, limit, offset int) ([]Event, err
 		events = append(events, e)
 	}
 
-	return events, nil
+	events, next := trim(events, p.Limit, func(e Event) Cursor {
+		return Cursor{Value: e.At, ID: e.ID, Order: cursor.Desc}
+	})
+
+	return EventPage{Events: events, Next: next}, nil
 }
 
-// ListScans returns the scan history, most recent first.
-func (s *Store) ListScans(ctx context.Context, limit, offset int) ([]Scan, error) {
-	rows, err := s.q.ListScans(ctx, models.ListScansParams{
-		Limit:  int64(limit),
-		Offset: int64(offset),
-	})
+// ListScans returns one page of the scan history, most recent first.
+func (s *Store) ListScans(ctx context.Context, p Page) (ScanPage, error) {
+	rows, err := s.q.ListScans(ctx, models.PageParams{Cursor: p.Cursor, Limit: p.seek()})
 	if err != nil {
-		return nil, fmt.Errorf("list scans: %w", err)
+		return ScanPage{}, fmt.Errorf("list scans: %w", err)
 	}
 
 	scans := make([]Scan, 0, len(rows))
@@ -148,21 +147,25 @@ func (s *Store) ListScans(ctx context.Context, limit, offset int) ([]Scan, error
 		scans = append(scans, newScan(r.Scan, r.SourceName, r.NetworkCidr))
 	}
 
-	return scans, nil
+	scans, next := trim(scans, p.Limit, func(sc Scan) Cursor {
+		return Cursor{Value: sc.StartedAt, ID: sc.ID, Order: cursor.Desc}
+	})
+
+	return ScanPage{Scans: scans, Next: next}, nil
 }
 
 // LatestScan returns the most recent scan, or ErrNotFound when none has run.
 func (s *Store) LatestScan(ctx context.Context) (Scan, error) {
-	scans, err := s.ListScans(ctx, 1, 0)
+	page, err := s.ListScans(ctx, Page{Limit: 1})
 	if err != nil {
 		return Scan{}, err
 	}
 
-	if len(scans) == 0 {
+	if len(page.Scans) == 0 {
 		return Scan{}, fmt.Errorf("scan: %w", ErrNotFound)
 	}
 
-	return scans[0], nil
+	return page.Scans[0], nil
 }
 
 // Stats counts the inventory as a whole.

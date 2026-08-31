@@ -166,6 +166,7 @@ func (q *Queries) DeleteDevice(ctx context.Context, id int64) error {
 }
 
 const deviceStats = `-- name: DeviceStats :one
+
 SELECT COUNT(*)                                                                       AS total,
        CAST(COALESCE(SUM(CASE WHEN is_ignored = 1 THEN 1 ELSE 0 END), 0) AS INTEGER)  AS ignored,
        CAST(COALESCE(SUM(CASE WHEN last_seen >= ?1 THEN 1 ELSE 0 END), 0) AS INTEGER) AS online,
@@ -185,6 +186,12 @@ type DeviceStatsRow struct {
 	Discovered int64 `json:"discovered"`
 }
 
+// The device columns come from a LEFT JOIN because an event outlives the device
+// it described: deleting one sets events.device_id to NULL rather than taking
+// the record with it.
+// The two logs are read with a query builder rather than from here: paging
+// them seeks past the row the last page ended on, and the seek is a clause that
+// is present or absent. See internal/db/models/inventory_page.go.
 func (q *Queries) DeviceStats(ctx context.Context, arg DeviceStatsParams) (DeviceStatsRow, error) {
 	row := q.queryRow(ctx, q.deviceStatsStmt, deviceStats, arg.OnlineSince, arg.NewSince)
 	var i DeviceStatsRow
@@ -572,67 +579,6 @@ func (q *Queries) ListDevices(ctx context.Context, arg ListDevicesParams) ([]Lis
 	return items, nil
 }
 
-const listEvents = `-- name: ListEvents :many
-SELECT e.id, e.device_id, e.scan_id, e.kind, e.old_value, e.new_value, e.detail, e.occurred_at,
-       d.label    AS device_label,
-       d.hostname AS device_hostname,
-       d.mac      AS device_mac
-FROM events e
-         LEFT JOIN devices d ON d.id = e.device_id
-ORDER BY e.occurred_at DESC, e.id DESC
-LIMIT ? OFFSET ?
-`
-
-type ListEventsParams struct {
-	Limit  int64 `json:"limit"`
-	Offset int64 `json:"offset"`
-}
-
-type ListEventsRow struct {
-	Event          Event          `json:"event"`
-	DeviceLabel    sql.NullString `json:"device_label"`
-	DeviceHostname sql.NullString `json:"device_hostname"`
-	DeviceMac      dbtype.MAC     `json:"device_mac"`
-}
-
-// The device columns come from a LEFT JOIN because an event outlives the device
-// it described: deleting one sets events.device_id to NULL rather than taking
-// the record with it.
-func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListEventsRow, error) {
-	rows, err := q.query(ctx, q.listEventsStmt, listEvents, arg.Limit, arg.Offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListEventsRow
-	for rows.Next() {
-		var i ListEventsRow
-		if err := rows.Scan(
-			&i.Event.ID,
-			&i.Event.DeviceID,
-			&i.Event.ScanID,
-			&i.Event.Kind,
-			&i.Event.OldValue,
-			&i.Event.NewValue,
-			&i.Event.Detail,
-			&i.Event.OccurredAt,
-			&i.DeviceLabel,
-			&i.DeviceHostname,
-			&i.DeviceMac,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listGroups = `-- name: ListGroups :many
 SELECT DISTINCT CAST(group_name AS TEXT) AS group_name
 FROM devices
@@ -654,66 +600,6 @@ func (q *Queries) ListGroups(ctx context.Context) ([]string, error) {
 			return nil, err
 		}
 		items = append(items, group_name)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listScans = `-- name: ListScans :many
-SELECT s.id, s.source_id, s.kind, s.network_id, s.status, s.error, s.found_count, s.started_at, s.finished_at,
-       src.name                          AS source_name,
-       CAST(COALESCE(n.cidr, '') AS TEXT) AS network_cidr
-FROM scans s
-         JOIN sources src ON src.id = s.source_id
-         LEFT JOIN networks n ON n.id = s.network_id
-ORDER BY s.started_at DESC, s.id DESC
-LIMIT ? OFFSET ?
-`
-
-type ListScansParams struct {
-	Limit  int64 `json:"limit"`
-	Offset int64 `json:"offset"`
-}
-
-type ListScansRow struct {
-	Scan        Scan   `json:"scan"`
-	SourceName  string `json:"source_name"`
-	NetworkCidr string `json:"network_cidr"`
-}
-
-// network_cidr is cast and coalesced rather than selected as itself: the column
-// override types it as a non-null Prefix, which cannot scan the NULL a scan
-// with no network -- or one whose network was deleted -- produces here.
-func (q *Queries) ListScans(ctx context.Context, arg ListScansParams) ([]ListScansRow, error) {
-	rows, err := q.query(ctx, q.listScansStmt, listScans, arg.Limit, arg.Offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListScansRow
-	for rows.Next() {
-		var i ListScansRow
-		if err := rows.Scan(
-			&i.Scan.ID,
-			&i.Scan.SourceID,
-			&i.Scan.Kind,
-			&i.Scan.NetworkID,
-			&i.Scan.Status,
-			&i.Scan.Error,
-			&i.Scan.FoundCount,
-			&i.Scan.StartedAt,
-			&i.Scan.FinishedAt,
-			&i.SourceName,
-			&i.NetworkCidr,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
