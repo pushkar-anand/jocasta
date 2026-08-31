@@ -5,7 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -62,10 +64,16 @@ func TestNewRunsMigrations(t *testing.T) {
 	assert.Equal(t, dbVersion, version)
 	assert.False(t, dirty, "migrations left the schema in a dirty state")
 
-	var name string
-	err = db.Conn.QueryRow(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'users'`).Scan(&name)
-	require.NoError(t, err, "users table was not created")
-	assert.Equal(t, "users", name)
+	for _, table := range []string{
+		"users", "sources", "networks", "devices", "addresses", "scans", "events",
+	} {
+		var name string
+		err = db.Conn.QueryRow(
+			`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table,
+		).Scan(&name)
+		require.NoErrorf(t, err, "%s table was not created", table)
+		assert.Equal(t, table, name)
+	}
 }
 
 // TestNewIsIdempotent covers reopening an already-migrated database, which is
@@ -113,8 +121,10 @@ func TestCreateUser(t *testing.T) {
 	assert.NotZero(t, user.ID)
 	assert.Equal(t, "ada", user.Username)
 	assert.Equal(t, "hash", user.PasswordHash)
-	assert.True(t, user.CreatedAt.Valid, "created_at default was not applied")
-	assert.NotEmpty(t, user.CreatedAt.String)
+	// Reading this back also proves the column default is written in a form
+	// dbtime parses, which is the whole point of the two matching.
+	assert.False(t, user.CreatedAt.IsZero(), "created_at default was not applied")
+	assert.WithinDuration(t, time.Now(), user.CreatedAt.Time, time.Minute)
 }
 
 func TestCreateUserRejectsDuplicateUsername(t *testing.T) {
@@ -195,4 +205,46 @@ func BenchmarkDSN(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		dsn("test.db")
 	}
+}
+
+// TestTimestampWritersAgreeOnOrdering covers the two writers of a timestamp
+// column: SQLite's own default and a Go value through dbtype. They are
+// compared as TEXT, so a disagreement over separator or width would order rows
+// by which writer produced them rather than by when they happened.
+func TestTimestampWritersAgreeOnOrdering(t *testing.T) {
+	t.Parallel()
+
+	conn := newTestDB(t).Conn
+
+	_, err := conn.Exec(`INSERT INTO users (username, password_hash) VALUES ('middle', 'h')`)
+	require.NoError(t, err)
+
+	var middle dbtype.Time
+	require.NoError(t, conn.QueryRow(`SELECT created_at FROM users`).Scan(&middle))
+
+	insert := func(name string, at dbtype.Time) {
+		_, err := conn.Exec(
+			`INSERT INTO users (username, password_hash, created_at) VALUES (?, 'h', ?)`, name, at)
+		require.NoError(t, err)
+	}
+
+	insert("last", dbtype.NewTime(middle.Add(time.Second)))
+	insert("first", dbtype.NewTime(middle.Add(-time.Second)))
+
+	rows, err := conn.Query(`SELECT username FROM users ORDER BY created_at`)
+	require.NoError(t, err)
+
+	defer func() { _ = rows.Close() }()
+
+	var order []string
+
+	for rows.Next() {
+		var name string
+		require.NoError(t, rows.Scan(&name))
+
+		order = append(order, name)
+	}
+
+	require.NoError(t, rows.Err())
+	assert.Equal(t, []string{"first", "middle", "last"}, order)
 }

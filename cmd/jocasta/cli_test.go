@@ -195,7 +195,7 @@ func TestScanCmdInvalidTarget(t *testing.T) {
 	t.Parallel()
 
 	cmd := ScanCmd{Target: "invalid-cidr"}
-	err := cmd.Run(t.Context(), nil)
+	err := cmd.Run(t.Context(), nil, nil, nil)
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "invalid CIDR prefix")
 }

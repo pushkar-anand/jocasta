@@ -15,17 +15,12 @@ type ServeCmd struct {
 	Port int    `name:"port" short:"p" help:"Override server listen port."`
 }
 
-func (s *ServeCmd) Run(ctx context.Context, cfg *Config, log *slog.Logger) error {
+func (s *ServeCmd) Run(ctx context.Context, cfg *Config, log *slog.Logger, conn *db.DB) error {
 	// The flags override the file, and an unset flag is its zero value.
 	host := cmp.Or(s.Host, cfg.Server.Host)
 	port := cmp.Or(s.Port, cfg.Server.Port)
 
-	_, err := db.New(&db.Config{Path: cfg.DB.Path, Name: cfg.DB.Name})
-	if err != nil {
-		return fmt.Errorf("initialize database: %w", err)
-	}
-
-	err = server.Start(ctx, &server.Config{
+	err := server.Start(ctx, &server.Config{
 		Addr:   host,
 		Port:   port,
 		Logger: log,
