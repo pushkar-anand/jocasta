@@ -35,7 +35,7 @@ jobs:
 
       - name: Propose the change
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.JOCASTA_OUI_REFRESH_TOKEN }}
           BRANCH: chore/oui-refresh
         run: |
           set -euo pipefail
