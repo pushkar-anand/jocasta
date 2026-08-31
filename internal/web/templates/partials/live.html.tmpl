@@ -1,0 +1,39 @@
+{{- /*
+    Everything on the overview that goes stale on its own, in one element, so
+    the periodic refresh is one request against one target rather than a
+    coordinated pair.
+*/ -}}
+{{ define "partial/live" }}
+<div id="live" hx-get="/overview/live" hx-trigger="every 30s" hx-swap="outerHTML">
+    <section>
+        {{- /* When the sweep ran is in the masthead, on every page. */}}
+        <p class="eyebrow">
+            {{- with .Scan }}{{ dash .Network }}{{ else }}No sweep recorded{{ end -}}
+        </p>
+
+        <svg class="ledger" viewBox="0 0 100 8" preserveAspectRatio="none" role="img"
+             aria-label="{{ .Stats.Online }} of {{ .Stats.Total }} devices seen recently">
+            <rect class="ledger__track" x="0" y="0" width="100" height="8"></rect>
+            <rect class="ledger__online" x="0" y="0"
+                  width="{{ pct .Stats.Online .Stats.Total }}" height="8"></rect>
+            <rect class="ledger__offline" x="{{ pct .Stats.Online .Stats.Total }}" y="0"
+                  width="{{ pct .Stats.Offline .Stats.Total }}" height="8"></rect>
+        </svg>
+
+        <dl class="facts facts--lead">
+            <div><dt>Seen recently</dt><dd>{{ .Stats.Online }}</dd></div>
+            <div><dt>Quiet</dt><dd>{{ .Stats.Offline }}</dd></div>
+            <div><dt>New today</dt><dd>{{ .Stats.Discovered }}</dd></div>
+            <div><dt>Total</dt><dd>{{ .Stats.Total }}</dd></div>
+            {{- if .Stats.Ignored }}
+            <div><dt>Ignored</dt><dd>{{ .Stats.Ignored }}</dd></div>
+            {{- end }}
+        </dl>
+    </section>
+
+    <section>
+        <p class="eyebrow">Recent activity</p>
+        {{ template "partial/activity" .Events }}
+    </section>
+</div>
+{{ end }}

@@ -1,0 +1,34 @@
+{{- /* Opens the document and the main element that layout/foot closes. */ -}}
+{{ define "layout/head" }}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ .Title }} &middot; jocasta</title>
+
+    {{- /*
+        htmx injects a style element for its indicator classes, which the
+        content security policy refuses. Turned off here and declared in the
+        stylesheet instead; a meta tag is how htmx can be configured without
+        the inline script the policy would also refuse.
+    */}}
+    <meta name="htmx-config" content='{"includeIndicatorStyles":false}'>
+
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/js/htmx.min.js" defer></script>
+</head>
+<body>
+<header class="masthead">
+    <a class="wordmark" href="/">jocasta</a>
+    <nav class="nav" aria-label="Sections">
+        {{- range .Nav }}
+        <a href="{{ .Href }}"{{ if .Current }} aria-current="page"{{ end }}>{{ .Label }}</a>
+        {{- end }}
+    </nav>
+    {{- with .Note }}
+    <span class="masthead__note">{{ . }}</span>
+    {{- end }}
+</header>
+<main>
+{{ end }}

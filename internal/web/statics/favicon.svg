@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+    <!-- The decay ladder: the same falling-off signal the device rows carry. -->
+    <rect width="16" height="16" rx="3" fill="#141210"/>
+    <rect x="3" y="3.5" width="10" height="2.5" rx="1" fill="#f0a830"/>
+    <rect x="3" y="7" width="10" height="2.5" rx="1" fill="#f0a830" opacity=".55"/>
+    <rect x="3" y="10.5" width="10" height="2.5" rx="1" fill="#f0a830" opacity=".25"/>
+</svg>

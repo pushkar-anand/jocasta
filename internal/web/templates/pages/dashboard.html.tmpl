@@ -1,0 +1,40 @@
+{{ define "page/dashboard" }}
+{{- template "layout/head" . }}
+
+{{ if .Stats.Total }}
+{{- template "partial/live" . }}
+
+{{- /*
+    One sweep is a handful of facts, not a table: the network and when it ran
+    are already stated above, so only what is left goes here. The history of
+    every sweep has its own page.
+*/}}
+{{- with .Scan }}
+<section>
+    <p class="eyebrow">Last sweep</p>
+    <dl class="facts">
+        <div><dt>Source</dt><dd>{{ .Source }}</dd></div>
+        <div><dt>Found</dt><dd>{{ .Found }}</dd></div>
+        <div><dt>Took</dt><dd>{{ took . }}</dd></div>
+        <div><dt>Status</dt><dd class="{{ statusClass .Status }}">{{ .Status }}</dd></div>
+    </dl>
+    {{- with .Error }}
+    <p class="wrap-prose status--failed">{{ . }}</p>
+    {{- end }}
+</section>
+{{- end }}
+
+{{ else }}
+<section>
+    <p class="eyebrow">Inventory</p>
+    <div class="empty">
+        <p>No devices yet. Jocasta records what a sweep finds; it does not probe
+            the network on its own.</p>
+        <p>Sweep a prefix and keep the results:</p>
+        <p><code>jocasta scan 192.168.1.0/24 --save</code></p>
+    </div>
+</section>
+{{ end }}
+
+{{- template "layout/foot" . }}
+{{ end }}
