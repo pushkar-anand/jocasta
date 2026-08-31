@@ -59,6 +59,7 @@ func WithClock(now func() time.Time) Option {
 	}
 }
 
+// New returns a store over conn that can be configured through opts.
 func New(conn *sql.DB, log *slog.Logger, opts ...Option) *Store {
 	s := &Store{
 		conn:         conn,

@@ -1,3 +1,4 @@
+// Package db opens and migrates the jocasta SQLite database.
 package db
 
 import (
@@ -31,20 +32,24 @@ func init() {
 	for _, p := range pragmas {
 		q.Add("_pragma", p)
 	}
+
 	pragmaString = q.Encode()
 }
 
 type (
+	// DB wraps the pooled connection to the application database.
 	DB struct {
 		Conn *sql.DB
 	}
 
+	// Config names where the database file lives.
 	Config struct {
 		Name string
 		Path string
 	}
 )
 
+// New opens (creating if needed) and migrates the database described by cfg.
 func New(cfg *Config) (*DB, error) {
 	n := path.Join(cfg.Path, cfg.Name)
 
@@ -72,5 +77,6 @@ func dsn(file string) string {
 		Opaque:   url.PathEscape(file),
 		RawQuery: pragmaString,
 	}
+
 	return u.String()
 }

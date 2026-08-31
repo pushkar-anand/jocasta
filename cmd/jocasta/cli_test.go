@@ -19,6 +19,7 @@ func parseCLI(t *testing.T, args []string) (*CLI, *kong.Context, error) {
 	t.Helper()
 
 	var cli CLI
+
 	parser, err := newParser(&cli,
 		kong.Exit(func(int) {}),
 		kong.Writers(io.Discard, io.Discard),
@@ -26,6 +27,7 @@ func parseCLI(t *testing.T, args []string) (*CLI, *kong.Context, error) {
 	require.NoError(t, err)
 
 	kCtx, err := parser.Parse(args)
+
 	return &cli, kCtx, err
 }
 
@@ -138,6 +140,7 @@ func TestOutputScanResultsTable(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
+
 	err := outputScanResults(&buf, hosts, false)
 	require.NoError(t, err)
 
@@ -156,6 +159,7 @@ func TestOutputScanResultsEmpty(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
+
 	err := outputScanResults(&buf, []scanner.Host{}, false)
 	require.NoError(t, err)
 
@@ -178,10 +182,12 @@ func TestOutputScanResultsJSON(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
+
 	err := outputScanResults(&buf, hosts, true)
 	require.NoError(t, err)
 
 	var decoded []scanner.Host
+
 	err = json.Unmarshal(buf.Bytes(), &decoded)
 	require.NoError(t, err)
 	require.Len(t, decoded, 1)

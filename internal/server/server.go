@@ -1,3 +1,4 @@
+// Package server wires the API and web handlers into one HTTP server.
 package server
 
 import (
@@ -19,6 +20,7 @@ import (
 )
 
 type (
+	// Config controls how the server binds and what it logs to.
 	Config struct {
 		Port   int
 		Addr   string
@@ -30,6 +32,7 @@ type (
 	}
 )
 
+// Start runs the HTTP server for the API and web UI until ctx is cancelled.
 func Start(
 	ctx context.Context,
 	cfg *Config,

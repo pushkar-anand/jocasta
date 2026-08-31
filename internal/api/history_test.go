@@ -14,12 +14,12 @@ func TestListEventsAndScans(t *testing.T) {
 
 	h := seeded(t)
 
-	res, body := get(t, h, "/events")
-	require.Equal(t, http.StatusOK, res.StatusCode)
+	status, _, body := get(t, h, "/events")
+	require.Equal(t, http.StatusOK, status)
 	assert.NotEmpty(t, list(t, body, "events"))
 
-	res, body = get(t, h, "/scans")
-	require.Equal(t, http.StatusOK, res.StatusCode)
+	status, _, body = get(t, h, "/scans")
+	require.Equal(t, http.StatusOK, status)
 
 	scans := list(t, body, "scans")
 	require.Len(t, scans, 1)
@@ -38,7 +38,7 @@ func TestPagingWalksTheLogWithCursors(t *testing.T) {
 
 	h := seeded(t)
 
-	_, whole := get(t, h, "/events")
+	_, _, whole := get(t, h, "/events")
 	total := len(list(t, whole, "events"))
 	require.Greater(t, total, 2, "the fixture has to write enough events to page")
 	assert.NotContains(t, whole, "next_cursor", "one page held the whole log")
@@ -54,8 +54,8 @@ func TestPagingWalksTheLogWithCursors(t *testing.T) {
 			target += "&cursor=" + url.QueryEscape(cursor)
 		}
 
-		res, body := get(t, h, target)
-		require.Equal(t, http.StatusOK, res.StatusCode)
+		status, _, body := get(t, h, target)
+		require.Equal(t, http.StatusOK, status)
 
 		seen = append(seen, list(t, body, "events")...)
 
@@ -81,8 +81,8 @@ func TestPagingRejectsAMalformedCursor(t *testing.T) {
 
 	for _, target := range []string{"/events?cursor=!!!", "/scans?cursor=bm90LWEtY3Vyc29y"} {
 		t.Run(target, func(t *testing.T) {
-			res, _ := get(t, h, target)
-			assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+			status, _, _ := get(t, h, target)
+			assert.Equal(t, http.StatusBadRequest, status)
 		})
 	}
 }
@@ -94,8 +94,8 @@ func TestEmptyCursorIsTheFirstPage(t *testing.T) {
 
 	h := seeded(t)
 
-	res, body := get(t, h, "/events?cursor=")
-	require.Equal(t, http.StatusOK, res.StatusCode)
+	status, _, body := get(t, h, "/events?cursor=")
+	require.Equal(t, http.StatusOK, status)
 	assert.NotEmpty(t, list(t, body, "events"))
 }
 
@@ -103,8 +103,8 @@ func TestEmptyCursorIsTheFirstPage(t *testing.T) {
 func TestOffsetIsNotAParameter(t *testing.T) {
 	t.Parallel()
 
-	res, _ := get(t, seeded(t), "/events?offset=1")
-	assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+	status, _, _ := get(t, seeded(t), "/events?offset=1")
+	assert.Equal(t, http.StatusBadRequest, status)
 }
 
 func TestPageSizeIsBounded(t *testing.T) {
@@ -112,14 +112,14 @@ func TestPageSizeIsBounded(t *testing.T) {
 
 	h := seeded(t)
 
-	res, body := get(t, h, "/events?limit=1")
-	require.Equal(t, http.StatusOK, res.StatusCode)
+	status, _, body := get(t, h, "/events?limit=1")
+	require.Equal(t, http.StatusOK, status)
 	assert.Len(t, list(t, body, "events"), 1)
 
 	// A limit that is not a number never becomes one, so it is malformed;
 	// a limit that is a number but out of range is understood and refused.
-	res, _ = get(t, h, "/events?limit=0.5")
-	assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+	status, _, _ = get(t, h, "/events?limit=0.5")
+	assert.Equal(t, http.StatusBadRequest, status)
 
 	tests := []struct{ target, field string }{
 		{"/events?limit=-1", "limit"},
@@ -129,9 +129,9 @@ func TestPageSizeIsBounded(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.target, func(t *testing.T) {
-			res, body := get(t, h, tc.target)
+			status, _, body := get(t, h, tc.target)
 
-			require.Equal(t, http.StatusUnprocessableEntity, res.StatusCode)
+			require.Equal(t, http.StatusUnprocessableEntity, status)
 			assert.Contains(t, problemContext(t, body), tc.field)
 		})
 	}

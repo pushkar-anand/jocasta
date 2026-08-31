@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"iter"
 	"log/slog"
+	"math"
 	"net"
 	"net/netip"
 	"os"
@@ -293,7 +294,12 @@ func parseReply(b []byte, peer net.Addr, token []byte) (netip.Addr, time.Time, b
 		return netip.Addr{}, time.Time{}, false
 	}
 
-	sent := time.Unix(0, int64(binary.BigEndian.Uint64(echo.Data[8:16])))
+	raw := binary.BigEndian.Uint64(echo.Data[8:16])
+	if raw > math.MaxInt64 {
+		return netip.Addr{}, time.Time{}, false
+	}
+
+	sent := time.Unix(0, int64(raw))
 
 	return addr, sent, true
 }

@@ -99,7 +99,7 @@ func fetch(ctx context.Context, url string, fn func(io.Reader) error) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected status %s", resp.Status)
@@ -121,6 +121,7 @@ func loadIEEE(ctx context.Context, url string, table map[string]*entry) error {
 			if errors.Is(err, io.EOF) {
 				return nil
 			}
+
 			if err != nil {
 				return err
 			}
@@ -204,6 +205,7 @@ func normalise(field string) (string, bool) {
 	field = strings.TrimSpace(field)
 
 	bits := 0
+
 	if pfx, suffix, found := strings.Cut(field, "/"); found {
 		field = pfx
 
@@ -258,7 +260,7 @@ func write(table map[string]*entry) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	w := bufio.NewWriter(f)
 

@@ -18,14 +18,16 @@ func NewAddr(a netip.Addr) Addr {
 	return Addr{a.Unmap()}
 }
 
+// Value renders a for the driver, refusing an invalid address.
 func (a Addr) Value() (driver.Value, error) {
 	if !a.IsValid() {
 		return nil, fmt.Errorf("dbtype: refusing to store an invalid address")
 	}
 
-	return a.Addr.String(), nil
+	return a.String(), nil
 }
 
+// Scan reads a stored address back into a.
 func (a *Addr) Scan(src any) error {
 	s, err := text(src)
 	if err != nil {
@@ -53,14 +55,16 @@ func NewPrefix(p netip.Prefix) Prefix {
 	return Prefix{p.Masked()}
 }
 
+// Value renders p for the driver, refusing an invalid prefix.
 func (p Prefix) Value() (driver.Value, error) {
 	if !p.IsValid() {
 		return nil, fmt.Errorf("dbtype: refusing to store an invalid prefix")
 	}
 
-	return p.Prefix.String(), nil
+	return p.String(), nil
 }
 
+// Scan reads a stored network back into p.
 func (p *Prefix) Scan(src any) error {
 	s, err := text(src)
 	if err != nil {
@@ -105,14 +109,16 @@ func (m MAC) Valid() bool {
 	return len(m.HardwareAddr) > 0
 }
 
+// Value renders m for the driver, storing the zero address as null.
 func (m MAC) Value() (driver.Value, error) {
 	if !m.Valid() {
 		return nil, nil
 	}
 
-	return m.HardwareAddr.String(), nil
+	return m.String(), nil
 }
 
+// Scan reads a stored hardware address back into m, treating null as empty.
 func (m *MAC) Scan(src any) error {
 	if src == nil {
 		m.HardwareAddr = nil

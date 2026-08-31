@@ -22,6 +22,7 @@ import (
 func main() {
 	if err := run(os.Args[1:]); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+
 		os.Exit(1)
 	}
 }
@@ -35,6 +36,7 @@ func run(args []string) error {
 	defer cancel()
 
 	var cli CLI
+
 	parser, err := newParser(&cli, kong.BindTo(ctx, (*context.Context)(nil)))
 	if err != nil {
 		return fmt.Errorf("init cli: %w", err)

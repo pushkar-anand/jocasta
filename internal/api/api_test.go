@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -34,7 +33,7 @@ const (
 )
 
 func testLogger() *slog.Logger {
-	return slog.New(slog.NewTextHandler(io.Discard, nil))
+	return slog.New(slog.DiscardHandler)
 }
 
 // testReader builds the request reader the server wires in, so the tests read
@@ -78,20 +77,21 @@ func seeded(t *testing.T) http.Handler {
 	return NewHandler(testLogger(), testReader(t), store)
 }
 
-// get issues a request and decodes the response body as a JSON object.
-func get(t *testing.T, h http.Handler, target string) (*http.Response, map[string]any) {
+// get issues a request, decodes the response body, and closes it. It returns the
+// status, headers, and decoded body, so callers never hold an open response.
+func get(t *testing.T, h http.Handler, target string) (int, http.Header, map[string]any) {
 	t.Helper()
 
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, target, nil))
+	h.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, target, nil))
 
 	res := rec.Result()
-	t.Cleanup(func() { _ = res.Body.Close() })
 
 	var body map[string]any
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&body))
+	require.NoError(t, res.Body.Close())
 
-	return res, body
+	return res.StatusCode, res.Header, body
 }
 
 // list pulls a named array out of a decoded response.
@@ -129,7 +129,7 @@ func TestUnknownRouteIsNotFound(t *testing.T) {
 	t.Parallel()
 
 	rec := httptest.NewRecorder()
-	seeded(t).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/nope", nil))
+	seeded(t).ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/nope", nil))
 
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 }
@@ -140,28 +140,29 @@ func TestWriteMethodIsNotAllowed(t *testing.T) {
 	t.Parallel()
 
 	rec := httptest.NewRecorder()
-	seeded(t).ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/devices", nil))
+	seeded(t).ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/devices", nil))
 
 	assert.Equal(t, http.StatusMethodNotAllowed, rec.Code)
 }
 
-// patchJSON sends a JSON body and decodes the response.
-func patchJSON(t *testing.T, h http.Handler, target, body string) (*http.Response, map[string]any) {
+// patchJSON sends a JSON body, decodes the response, and closes it. Like get, it
+// returns the status, headers, and decoded body.
+func patchJSON(t *testing.T, h http.Handler, target, body string) (int, http.Header, map[string]any) {
 	t.Helper()
 
-	req := httptest.NewRequest(http.MethodPatch, target, strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPatch, target, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
 	res := rec.Result()
-	t.Cleanup(func() { _ = res.Body.Close() })
 
 	var decoded map[string]any
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&decoded))
+	require.NoError(t, res.Body.Close())
 
-	return res, decoded
+	return res.StatusCode, res.Header, decoded
 }
 
 // The read routes name their method, so a write to one is refused.
@@ -175,7 +176,7 @@ func TestUpdateIsOnlyAllowedOnTheDeviceItself(t *testing.T) {
 
 	for _, target := range []string{"/devices", "/devices/1/events", "/stats"} {
 		t.Run(target, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPatch, target, strings.NewReader(`{}`))
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPatch, target, strings.NewReader(`{}`))
 			req.Header.Set("Content-Type", "application/json")
 
 			rec := httptest.NewRecorder()

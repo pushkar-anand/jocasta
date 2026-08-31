@@ -45,6 +45,7 @@ func (t Time) Value() (driver.Value, error) {
 	return t.UTC().Format(Layout), nil
 }
 
+// Scan reads a stored timestamp back into t.
 func (t *Time) Scan(src any) error {
 	parsed, err := parseTime(src)
 	if err != nil {
@@ -70,6 +71,7 @@ func NewNullTime(t time.Time) NullTime {
 	return NullTime{Time: NewTime(t), Valid: true}
 }
 
+// Value renders n for the driver, storing an invalid value as null.
 func (n NullTime) Value() (driver.Value, error) {
 	if !n.Valid {
 		return nil, nil
@@ -78,6 +80,7 @@ func (n NullTime) Value() (driver.Value, error) {
 	return n.Time.Value()
 }
 
+// Scan reads a stored timestamp back into n, treating null as invalid.
 func (n *NullTime) Scan(src any) error {
 	if src == nil {
 		n.Time, n.Valid = Time{}, false
