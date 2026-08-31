@@ -138,6 +138,8 @@ func eventLabel(k dbtype.EventKind) string {
 		return "address"
 	case dbtype.EventHostnameChanged:
 		return "renamed"
+	case dbtype.EventDeviceEdited:
+		return "edited"
 	}
 
 	// A kind added in Go and not yet worded here still has to render as
@@ -176,11 +178,24 @@ func addrs(list []netip.Addr) string {
 // change describes what an event changed, where it changed a value. An event
 // that changed nothing -- a discovery -- has nothing to show here.
 func change(e inventory.Event) string {
+	// An edit says which field it was about, since the user owns several. A
+	// scan's event is about the one thing that kind of event can change.
+	var field string
+	if e.Kind == dbtype.EventDeviceEdited && e.Detail != "" {
+		field = e.Detail + ": "
+	}
+
 	switch {
 	case e.OldValue != "" && e.NewValue != "":
-		return e.OldValue + " → " + e.NewValue
+		return field + e.OldValue + " → " + e.NewValue
 	case e.NewValue != "":
-		return e.NewValue
+		return field + e.NewValue
+
+	// Emptying a field is a change, and the log would otherwise show the value
+	// that went away as though it had just been set.
+	case e.OldValue != "":
+		return field + e.OldValue + " → cleared"
+
 	case e.Detail != "":
 		return e.Detail
 	}

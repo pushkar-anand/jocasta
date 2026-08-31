@@ -1,0 +1,93 @@
+{{- /*
+    The device's identity and the form that curates it, together, so saving a
+    label updates the heading that shows it rather than only the field.
+*/ -}}
+{{ define "partial/device-panel" }}
+<div id="device-panel">
+    {{- with .Device }}
+    <section>
+        <p class="eyebrow">{{ .IdentitySource }} identity &middot; seen {{ ago .LastSeen }}</p>
+        <h1>{{ .Name }}</h1>
+
+        <dl class="facts">
+            <div><dt>Hardware</dt><dd>{{ dash .MAC }}</dd></div>
+            <div><dt>Vendor</dt><dd>{{ dash .Vendor }}</dd></div>
+            <div><dt>Hostname</dt><dd>{{ dash .Hostname }}</dd></div>
+            <div><dt>Type</dt><dd>{{ dash .Type }}</dd></div>
+            <div><dt>Group</dt><dd>{{ dash .Group }}</dd></div>
+            <div><dt>First seen</dt><dd>{{ ago .FirstSeen }}</dd></div>
+        </dl>
+
+        {{- if .Randomised }}
+        <p class="wrap-prose dim">This hardware address is locally administered:
+            the device generated it for itself, so it names no vendor and will
+            not survive the next time the device associates.</p>
+        {{- end }}
+    </section>
+    {{- end }}
+
+    <section>
+        <p class="eyebrow">What you call it</p>
+
+        <form class="curation"
+              hx-patch="/devices/{{ .Device.ID }}"
+              hx-target="#device-panel"
+              hx-swap="outerHTML">
+            <div class="curation__fields">
+                <label>
+                    <span class="eyebrow">Label</span>
+                    <input name="label" value="{{ .Device.Label }}"
+                           placeholder="{{ .Device.Hostname }}" autocomplete="off">
+                </label>
+                <label>
+                    <span class="eyebrow">Group</span>
+                    <input name="group" value="{{ .Device.Group }}" list="device-groups" autocomplete="off">
+                </label>
+                <label>
+                    <span class="eyebrow">Type</span>
+                    <input name="type" value="{{ .Device.Type }}"
+                           placeholder="printer, camera, server" autocomplete="off">
+                </label>
+            </div>
+
+            <label class="stack">
+                <span class="eyebrow">Notes</span>
+                <textarea name="notes" rows="3"
+                          placeholder="Where it is, what it does, why it is here">{{ .Device.Notes }}</textarea>
+            </label>
+
+            <label class="check">
+                <input type="checkbox" name="ignored" value="1"{{ if .Device.Ignored }} checked{{ end }}>
+                <span>Leave this device out of the inventory</span>
+            </label>
+
+            <div class="curation__actions">
+                <button type="submit">Save</button>
+                {{- if .Saved }}
+                <p class="saved" role="status">Saved.</p>
+                {{- end }}
+            </div>
+
+            <datalist id="device-groups">
+                {{- range .Groups }}
+                <option value="{{ . }}"></option>
+                {{- end }}
+            </datalist>
+        </form>
+
+        <p class="wrap-prose dim">These are yours. No sweep or plugin writes
+            them, so they survive the device changing address or being
+            identified later.</p>
+    </section>
+</div>
+{{- if .Saved }}
+{{- /*
+    An edit is recorded in the log, and the log is further down the page,
+    outside what this swap replaces. Sent out of band so it updates too:
+    otherwise the history would sit there saying nothing had happened.
+*/}}
+<div id="device-history" hx-swap-oob="true">
+    {{- template "partial/activity" .Events }}
+</div>
+{{- end }}
+{{ end }}

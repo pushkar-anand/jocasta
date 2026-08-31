@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/pushkar-anand/build-with-go/http/request"
@@ -142,4 +143,45 @@ func TestWriteMethodIsNotAllowed(t *testing.T) {
 	seeded(t).ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/devices", nil))
 
 	assert.Equal(t, http.StatusMethodNotAllowed, rec.Code)
+}
+
+// patchJSON sends a JSON body and decodes the response.
+func patchJSON(t *testing.T, h http.Handler, target, body string) (*http.Response, map[string]any) {
+	t.Helper()
+
+	req := httptest.NewRequest(http.MethodPatch, target, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	res := rec.Result()
+	t.Cleanup(func() { _ = res.Body.Close() })
+
+	var decoded map[string]any
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&decoded))
+
+	return res, decoded
+}
+
+// The read routes name their method, so a write to one is refused.
+//
+// The refusal comes from the router rather than a handler, so it is plain text
+// rather than a problem document -- which is why this does not decode it.
+func TestUpdateIsOnlyAllowedOnTheDeviceItself(t *testing.T) {
+	t.Parallel()
+
+	h := seeded(t)
+
+	for _, target := range []string{"/devices", "/devices/1/events", "/stats"} {
+		t.Run(target, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPatch, target, strings.NewReader(`{}`))
+			req.Header.Set("Content-Type", "application/json")
+
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, req)
+
+			assert.Equal(t, http.StatusMethodNotAllowed, rec.Code)
+		})
+	}
 }

@@ -191,3 +191,17 @@ FROM devices
 WHERE group_name IS NOT NULL
   AND group_name <> ''
 ORDER BY group_name;
+
+-- Writes.
+
+-- Every user-owned column is set rather than merged: the form submits all of
+-- them, so an omitted one means cleared, not unchanged.
+-- name: UpdateDeviceCuration :one
+UPDATE devices
+SET label       = sqlc.narg(label),
+    notes       = sqlc.narg(notes),
+    group_name  = sqlc.narg(group_name),
+    device_type = sqlc.narg(device_type),
+    is_ignored  = sqlc.arg(is_ignored)
+WHERE id = sqlc.arg(id)
+RETURNING *;

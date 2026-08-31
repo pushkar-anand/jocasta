@@ -1,0 +1,38 @@
+{{- /*
+    The same row as a form. Only the two fields worth editing from a list are
+    shown; the rest travel as hidden inputs, because an edit applies every
+    user-owned field and a field the form omits would be cleared. The whole
+    set is editable on the device's own page.
+*/ -}}
+{{ define "partial/device-row-form" }}
+<tr id="device-row-{{ .Device.ID }}" class="editing">
+    <td colspan="7">
+        <form class="inline-form"
+              hx-patch="/devices/{{ .Device.ID }}/row"
+              hx-target="#device-row-{{ .Device.ID }}"
+              hx-swap="outerHTML">
+            <label>
+                <span class="eyebrow">Label</span>
+                <input name="label" value="{{ .Device.Label }}"
+                       placeholder="{{ .Device.Name }}" autocomplete="off" autofocus>
+            </label>
+            <label>
+                <span class="eyebrow">Group</span>
+                <input name="group" value="{{ .Device.Group }}" list="known-groups" autocomplete="off">
+            </label>
+
+            <input type="hidden" name="notes" value="{{ .Device.Notes }}">
+            <input type="hidden" name="type" value="{{ .Device.Type }}">
+            {{- if .Device.Ignored }}
+            <input type="hidden" name="ignored" value="1">
+            {{- end }}
+
+            <button type="submit">Save</button>
+            <button type="button" class="quiet"
+                    hx-get="/devices/{{ .Device.ID }}/row"
+                    hx-target="#device-row-{{ .Device.ID }}"
+                    hx-swap="outerHTML">Cancel</button>
+        </form>
+    </td>
+</tr>
+{{ end }}

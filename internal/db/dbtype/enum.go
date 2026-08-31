@@ -86,6 +86,11 @@ const (
 	EventDevicesMerged    EventKind = "DEVICES_MERGED"
 	EventAddressAdded     EventKind = "ADDRESS_ADDED"
 	EventHostnameChanged  EventKind = "HOSTNAME_CHANGED"
+
+	// EventDeviceEdited records the user changing what they own on a device.
+	// Their edits belong in the change log for the same reason a scan's do:
+	// the log is the record of what changed, whoever changed it.
+	EventDeviceEdited EventKind = "DEVICE_EDITED"
 )
 
 var eventKinds = []EventKind{
@@ -94,6 +99,7 @@ var eventKinds = []EventKind{
 	EventDevicesMerged,
 	EventAddressAdded,
 	EventHostnameChanged,
+	EventDeviceEdited,
 }
 
 func (k EventKind) Valid() bool                  { return slices.Contains(eventKinds, k) }

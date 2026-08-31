@@ -177,3 +177,86 @@ func TestStatsAndGroups(t *testing.T) {
 	require.Contains(t, body, "groups")
 	assert.Empty(t, body["groups"])
 }
+
+func TestUpdateDevice(t *testing.T) {
+	t.Parallel()
+
+	h := seeded(t)
+
+	res, body := patchJSON(t, h, "/devices/1", `{
+		"label": "Office printer",
+		"notes": "Second floor.",
+		"group": "office",
+		"type": "printer"
+	}`)
+
+	require.Equal(t, http.StatusOK, res.StatusCode)
+	assert.Equal(t, "Office printer", body["label"])
+	assert.Equal(t, "office", body["group"])
+	assert.Equal(t, "printer", body["type"])
+	assert.Equal(t, false, body["ignored"])
+
+	// The device carries its addresses, as it does from every other read.
+	assert.NotEmpty(t, body["current_addresses"])
+
+	// And what the sweep found is untouched: an address is not something to
+	// correct by hand.
+	assert.Equal(t, macA, body["mac"])
+
+	// The change is stored, not only returned.
+	_, reread := get(t, h, "/devices/1")
+	assert.Equal(t, "Office printer", reread["label"])
+}
+
+// Every field is applied, so one left out of the body clears what was there.
+func TestUpdateDeviceClearsOmittedFields(t *testing.T) {
+	t.Parallel()
+
+	h := seeded(t)
+
+	patchJSON(t, h, "/devices/1", `{"label": "Office printer", "group": "office"}`)
+
+	_, body := patchJSON(t, h, "/devices/1", `{"label": "Office printer"}`)
+	assert.Equal(t, "Office printer", body["label"])
+	assert.NotContains(t, body, "group")
+}
+
+func TestUpdateDeviceRecordsTheEdit(t *testing.T) {
+	t.Parallel()
+
+	h := seeded(t)
+
+	patchJSON(t, h, "/devices/1", `{"label": "Office printer"}`)
+
+	_, body := get(t, h, "/devices/1/events")
+
+	var edits int
+
+	for _, item := range list(t, body, "events") {
+		event, ok := item.(map[string]any)
+		require.True(t, ok)
+
+		if event["kind"] == "DEVICE_EDITED" {
+			edits++
+
+			assert.Equal(t, "label", event["detail"])
+			assert.Equal(t, "Office printer", event["new_value"])
+		}
+	}
+
+	assert.Equal(t, 1, edits, "one event for the one field that moved")
+}
+
+func TestUpdateDeviceUnknownIDIsNotFound(t *testing.T) {
+	t.Parallel()
+
+	res, _ := patchJSON(t, seeded(t), "/devices/4040", `{"label": "Nothing"}`)
+	assert.Equal(t, http.StatusNotFound, res.StatusCode)
+}
+
+func TestUpdateDeviceRejectsAMalformedBody(t *testing.T) {
+	t.Parallel()
+
+	res, _ := patchJSON(t, seeded(t), "/devices/1", `{"label":`)
+	assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+}

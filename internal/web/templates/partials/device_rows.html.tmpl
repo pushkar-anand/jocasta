@@ -15,18 +15,12 @@
                 <th scope="col">Vendor</th>
                 <th scope="col">Group</th>
                 <th scope="col">Last seen</th>
+                <th scope="col"><span class="visually-hidden">Actions</span></th>
             </tr>
             </thead>
             <tbody>
             {{- range .Devices }}
-            <tr class="{{ decay .LastSeen }}">
-                <td class="name"><a href="/devices/{{ .ID }}">{{ .Name }}</a></td>
-                <td>{{ addrs .Current }}</td>
-                <td class="dim">{{ dash .MAC }}{{ if .Randomised }} <span class="tag">randomised</span>{{ end }}</td>
-                <td class="dim">{{ dash .Vendor }}</td>
-                <td class="dim">{{ dash .Group }}</td>
-                <td class="dim">{{ ago .LastSeen }}</td>
-            </tr>
+            {{- template "partial/device-row" . }}
             {{- end }}
         </tbody>
         </table>
@@ -35,5 +29,12 @@
     {{- else }}
     <p class="dim">No device matches this filter.</p>
     {{- end }}
+
+    {{- /* Shared by every row's group field, so it is written once. */}}
+    <datalist id="known-groups">
+        {{- range .Groups }}
+        <option value="{{ . }}"></option>
+        {{- end }}
+    </datalist>
 </div>
 {{ end }}

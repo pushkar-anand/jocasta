@@ -717,6 +717,59 @@ func (q *Queries) TouchDevice(ctx context.Context, arg TouchDeviceParams) error 
 	return err
 }
 
+const updateDeviceCuration = `-- name: UpdateDeviceCuration :one
+
+UPDATE devices
+SET label       = ?1,
+    notes       = ?2,
+    group_name  = ?3,
+    device_type = ?4,
+    is_ignored  = ?5
+WHERE id = ?6
+RETURNING id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, label, notes, group_name, is_ignored, first_seen, last_seen
+`
+
+type UpdateDeviceCurationParams struct {
+	Label      sql.NullString `json:"label"`
+	Notes      sql.NullString `json:"notes"`
+	GroupName  sql.NullString `json:"group_name"`
+	DeviceType sql.NullString `json:"device_type"`
+	IsIgnored  bool           `json:"is_ignored"`
+	ID         int64          `json:"id"`
+}
+
+// Writes.
+// Every user-owned column is set rather than merged: the form submits all of
+// them, so an omitted one means cleared, not unchanged.
+func (q *Queries) UpdateDeviceCuration(ctx context.Context, arg UpdateDeviceCurationParams) (Device, error) {
+	row := q.queryRow(ctx, q.updateDeviceCurationStmt, updateDeviceCuration,
+		arg.Label,
+		arg.Notes,
+		arg.GroupName,
+		arg.DeviceType,
+		arg.IsIgnored,
+		arg.ID,
+	)
+	var i Device
+	err := row.Scan(
+		&i.ID,
+		&i.Mac,
+		&i.IdentitySource,
+		&i.IsRandomised,
+		&i.Vendor,
+		&i.Hostname,
+		&i.HostnameSource,
+		&i.DeviceType,
+		&i.Label,
+		&i.Notes,
+		&i.GroupName,
+		&i.IsIgnored,
+		&i.FirstSeen,
+		&i.LastSeen,
+	)
+	return i, err
+}
+
 const upsertNetwork = `-- name: UpsertNetwork :one
 INSERT INTO networks (cidr, created_at)
 VALUES (?, ?)

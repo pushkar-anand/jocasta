@@ -47,6 +47,7 @@ func NewHandler(
 
 	h.HandleFunc("GET /devices", jw.Handle(h.listDevices(store)))
 	h.HandleFunc("GET /devices/{id}", jw.Handle(h.getDevice(store)))
+	h.HandleFunc("PATCH /devices/{id}", jw.Handle(h.updateDevice(store)))
 	h.HandleFunc("GET /devices/{id}/events", jw.Handle(h.deviceEvents(store)))
 
 	h.HandleFunc("GET /events", jw.Handle(h.listEvents(store)))
