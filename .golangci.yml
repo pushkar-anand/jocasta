@@ -1,38 +1,65 @@
 linters:
   disable-all: true
   enable:
-    # defaults
+    # --- Default Linters ---
+    # errcheck: Checks that you handled errors.
     - errcheck
+    # gosimple: Specializes in simplifying a code.
     - gosimple
+    # govet: Reports suspicious constructs, such as Printf calls whose arguments do not align with the format string.
     - govet
+    # ineffassign: Detects when assignments to existing variables are not used.
     - ineffassign
+    # staticcheck: A set of core linter rules from staticcheck.io.
     - staticcheck
+    # typecheck: Like the front-end of a Go compiler, parses and type-checks Go code.
     - typecheck
+    # unused: Checks Go code for unused constants, variables, functions and types.
     - unused
 
-    # requested
+    # --- Code Style & Formatting ---
+    # gofmt: Ensures code is formatted as per gofmt.
     - gofmt
+    # goimports: Ensures code is formatted as per goimports.
     - goimports
-    - misspell
-    - noctx
+    # wsl: Ensures code has space/blank lines at correct places to increase readability.
     - wsl
-    - durationcheck
-    - unconvert
-    - sqlclosecheck
-    - bodyclose
-    - usestdlibvars
-    - thelper
-    - rowserrcheck
+    # whitespace: Detects trailing spaces and tabs.
     - whitespace
+    # misspell: Detects commonly misspelled English words.
+    - misspell
 
-    # sloglint
-    - sloglint
-
-    # suggested
-    - gosec
-    - gocritic
-    - revive
+    # --- Bug Detection & Correctness ---
+    # noctx: Detects context.Context misuse.
+    - noctx
+    # durationcheck: Detects common mistakes involving time.Duration.
+    - durationcheck
+    # sqlclosecheck: Detects deferred Close() calls on sql.Rows.
+    - sqlclosecheck
+    # bodyclose: Detects missing defer resp.Body.Close() on http.Response.Body.
+    - bodyclose
+    # rowserrcheck: Detects when sql.Rows.Err() is not checked.
+    - rowserrcheck
+    # unconvert: Detects redundant type conversions.
+    - unconvert
+    # thelper: Detects when a test helper is not marked with a t.Helper() call.
+    - thelper
+    # usestdlibvars: Detects the possibility to use variables/constants from the Go standard library instead of custom ones.
+    - usestdlibvars
+    # errname: Checks that sentinel errors are prefixed with the `Err` and error types are suffixed with the `Error`.
     - errname
+
+    # --- Best Practices & Security ---
+    # gosec: Inspects source code for security problems.
+    - gosec
+    # gocritic: Provides many excellent bug, performance, and style checks.
+    - gocritic
+    # revive: A fast, configurable drop-in replacement for the deprecated golint.
+    - revive
+
+    # --- Logging ---
+    # sloglint: Enforces best practices for standard library structured logging (slog).
+    - sloglint
 
 linters-settings:
   sloglint:
