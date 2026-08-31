@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/pushkar-anand/build-with-go/http/middleware"
@@ -52,7 +53,7 @@ func Start(
 
 	// Applied outside the logger so every response carries them, including the
 	// static files, which the renderer never sees.
-	h := secureHeaders(logger.NewHTTPLogger(cfg.Logger)(mux))
+	h := secureHeaders(sameOrigin(logger.NewHTTPLogger(cfg.Logger)(mux)))
 	h = middleware.RequestID(h)
 
 	srv := server.New(
@@ -84,4 +85,67 @@ func secureHeaders(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// sameOrigin turns away a state-changing request that a browser has told us
+// came from another site.
+//
+// This is not a CSRF token, and cannot be one yet: a token has to be bound to a
+// session, and there is no authentication to bind it to. Nor is one needed
+// while there is none -- with no credential to ride along, there is nothing for
+// a forged request to borrow. What it does do is refuse the shape of the attack
+// in advance, so the guard is already in place when sessions arrive.
+//
+// The headers are only trusted when present. A browser always sends them; curl
+// and the like send neither, and refusing those would break every script the
+// JSON API exists for.
+func sameOrigin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !safeMethod(r.Method) && !fromSameOrigin(r) {
+			http.Error(w, "Cross-origin request refused", http.StatusForbidden)
+
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+// safeMethod reports whether the method only reads.
+func safeMethod(method string) bool {
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace:
+		return true
+	}
+
+	return false
+}
+
+func fromSameOrigin(r *http.Request) bool {
+	// Sec-Fetch-Site is the browser's own account of where the request came
+	// from, and cannot be set by the page making it.
+	switch r.Header.Get("Sec-Fetch-Site") {
+	case "same-origin", "none":
+		return true
+	case "":
+		// Not a browser, or one too old to say. Origin is the older signal;
+		// where it is absent too, there is nothing to check.
+		break
+	default:
+		// cross-site or same-site: another origin, or another host on the same
+		// registrable domain, which is not this one.
+		return false
+	}
+
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true
+	}
+
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+
+	return u.Host == r.Host
 }

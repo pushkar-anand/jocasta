@@ -76,6 +76,48 @@ func (h *Handler) getDevice(store *inventory.Store) response.HandlerFunc {
 	}
 }
 
+func (h *Handler) updateDevice(store *inventory.Store) response.HandlerFunc {
+	// curationRequest is what a caller may change on a device. Every field is
+	// applied, so one left out of the body clears what was there.
+	//
+	// Nothing a scan writes appears here: an address, a vendor or a hardware
+	// address is what the network reported, not something to correct by hand.
+	type curationRequest struct {
+		Label   string `json:"label"`
+		Notes   string `json:"notes"`
+		Group   string `json:"group"`
+		Type    string `json:"type"`
+		Ignored bool   `json:"ignored"`
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) error {
+		id, err := deviceID(r)
+		if err != nil {
+			return err
+		}
+
+		body, err := h.reader.ReadAndValidateJSON[curationRequest](r)
+		if err != nil {
+			return err
+		}
+
+		device, err := store.UpdateCuration(r.Context(), id, inventory.Curation{
+			Label:   body.Label,
+			Notes:   body.Notes,
+			Group:   body.Group,
+			Type:    body.Type,
+			Ignored: body.Ignored,
+		})
+		if err != nil {
+			return err
+		}
+
+		h.jsonWriter.Ok(w, r, device)
+
+		return nil
+	}
+}
+
 func (h *Handler) deviceEvents(store *inventory.Store) response.HandlerFunc {
 	type eventsResponse struct {
 		Events []inventory.Event `json:"events"`

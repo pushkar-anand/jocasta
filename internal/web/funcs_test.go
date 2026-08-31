@@ -105,10 +105,12 @@ func TestEventLabel(t *testing.T) {
 	assert.Equal(t, "discovered", eventLabel(dbtype.EventDeviceDiscovered))
 	assert.Equal(t, "identified", eventLabel(dbtype.EventDeviceIdentified))
 	assert.Equal(t, "renamed", eventLabel(dbtype.EventHostnameChanged))
+	assert.Equal(t, "edited", eventLabel(dbtype.EventDeviceEdited))
 
 	// events.kind carries no CHECK, so a kind added in Go without a phrase here
-	// still has to render as something.
-	assert.Equal(t, "device edited", eventLabel(dbtype.EventKind("DEVICE_EDITED")))
+	// still has to render as something, and its own name is the most truthful
+	// fallback.
+	assert.Equal(t, "ports scanned", eventLabel(dbtype.EventKind("PORTS_SCANNED")))
 }
 
 func TestStatusClass(t *testing.T) {
@@ -129,6 +131,19 @@ func TestChange(t *testing.T) {
 
 	// A discovery changed nothing; it is the thing that happened.
 	assert.Empty(t, change(inventory.Event{}))
+
+	// An edit names the field, since the user owns several of them.
+	edit := inventory.Event{Kind: dbtype.EventDeviceEdited, Detail: "label"}
+
+	edit.NewValue = "Office printer"
+	assert.Equal(t, "label: Office printer", change(edit))
+
+	edit.OldValue = "Printer"
+	assert.Equal(t, "label: Printer → Office printer", change(edit))
+
+	// Emptying a field is a change, not the setting of the value that went away.
+	edit.NewValue = ""
+	assert.Equal(t, "label: Printer → cleared", change(edit))
 }
 
 // The map is what the templates are parsed against, so a helper renamed in one

@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -215,4 +216,115 @@ func TestStartFailsOnPortInUse(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "error binding")
+}
+
+// patchWith sends a state-changing request carrying the headers a browser would
+// send from the given site.
+func patchWith(t *testing.T, url string, headers map[string]string) *http.Response {
+	t.Helper()
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPatch, url, strings.NewReader("label=x"))
+	require.NoError(t, err)
+
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	for name, value := range headers {
+		req.Header.Set(name, value)
+	}
+
+	res, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = res.Body.Close() })
+
+	return res
+}
+
+// A state-changing request that a browser says came from another site is turned
+// away. This is not a CSRF token and cannot be one until there is a session to
+// bind it to; it refuses the shape of the attack in advance.
+func TestCrossOriginWriteIsRefused(t *testing.T) {
+	baseURL := startServer(t)
+
+	tests := []struct {
+		name    string
+		headers map[string]string
+		refused bool
+	}{
+		{
+			name:    "a browser on this site",
+			headers: map[string]string{"Sec-Fetch-Site": "same-origin"},
+		},
+		{
+			name:    "a typed address or a bookmark",
+			headers: map[string]string{"Sec-Fetch-Site": "none"},
+		},
+		{
+			name:    "a browser on another site",
+			headers: map[string]string{"Sec-Fetch-Site": "cross-site"},
+			refused: true,
+		},
+		{
+			name:    "another host on the same domain",
+			headers: map[string]string{"Sec-Fetch-Site": "same-site"},
+			refused: true,
+		},
+		{
+			name:    "an older browser reporting its origin",
+			headers: map[string]string{"Origin": "https://evil.example"},
+			refused: true,
+		},
+		{
+			// curl and the like send neither header, and refusing those would
+			// break every script the JSON API exists for.
+			name:    "not a browser at all",
+			headers: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			res := patchWith(t, baseURL+"/api/devices/1", tc.headers)
+
+			if tc.refused {
+				assert.Equal(t, http.StatusForbidden, res.StatusCode)
+
+				return
+			}
+
+			// Allowed through to the handler, which has no such device in an
+			// empty inventory. Either way it is not the guard refusing it.
+			assert.NotEqual(t, http.StatusForbidden, res.StatusCode)
+		})
+	}
+}
+
+// Reads are never refused, whatever site they came from: there is nothing to
+// forge when nothing changes.
+func TestCrossOriginReadIsAllowed(t *testing.T) {
+	baseURL := startServer(t)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, baseURL+"/api/stats", nil)
+	require.NoError(t, err)
+
+	req.Header.Set("Sec-Fetch-Site", "cross-site")
+
+	res, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = res.Body.Close() })
+
+	assert.Equal(t, http.StatusOK, res.StatusCode)
+}
+
+func TestSafeMethod(t *testing.T) {
+	t.Parallel()
+
+	for _, method := range []string{http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace} {
+		assert.True(t, safeMethod(method), method)
+	}
+
+	for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete} {
+		assert.False(t, safeMethod(method), method)
+	}
 }

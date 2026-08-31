@@ -220,18 +220,14 @@ h1 {
     fill: var(--rule);
 }
 
-/* The sections inside are laid out by main's flex gap, which does not reach
-   through a plain div, so this one repeats it. */
-#live {
-    display: flex;
-    flex-direction: column;
-    gap: 2.5rem;
-}
-
-#device-rows {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+/* These wrappers exist only so htmx has something to swap. display: contents
+   keeps them in the DOM as swap targets while taking them out of the layout, so
+   their children sit in the parent's flow and inherit its spacing rather than
+   each wrapper having to restate it. */
+#live,
+#device-rows,
+#device-panel {
+    display: contents;
 }
 
 /* A run of labelled values. --lead raises the value for the counts that are
@@ -336,6 +332,12 @@ tbody tr {
     font-weight: 600;
 }
 
+/* A name is one token, and the scroller is there for a row too wide to fit. A
+   name broken across two lines costs more than a scrollbar does. */
+tbody .name {
+    white-space: nowrap;
+}
+
 tbody .name a {
     text-decoration: none;
 }
@@ -348,6 +350,18 @@ tbody .name a:focus-visible {
 
 .dim {
     color: var(--muted);
+}
+
+/* For a heading a sighted reader does not need but a screen reader does. */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
 }
 
 .wrap-prose {
@@ -372,7 +386,10 @@ tbody .name a:focus-visible {
 }
 
 .filters input[type="search"],
-.filters select {
+.filters select,
+.inline-form input,
+.curation input[type="text"],
+.curation input:not([type]) {
     font-family: var(--mono);
     font-size: 0.8125rem;
     line-height: 1.4;
@@ -388,7 +405,8 @@ tbody .name a:focus-visible {
     min-width: 16rem;
 }
 
-.filters input[type="search"]::placeholder {
+input::placeholder,
+textarea::placeholder {
     color: var(--muted);
 }
 
@@ -405,6 +423,119 @@ tbody .name a:focus-visible {
 
 .filters input[type="checkbox"] {
     accent-color: var(--signal);
+}
+
+/* ---- Editing ----------------------------------------------------------- */
+
+/* A button is an action, so it is drawn as one. .quiet is for actions that sit
+   inside a row of data and should not compete with it. */
+button {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    color: var(--ground);
+    background: var(--signal);
+    border: 1px solid var(--signal);
+    border-radius: var(--radius);
+    padding: 0.35rem 0.75rem;
+    cursor: pointer;
+}
+
+button:hover {
+    filter: brightness(1.1);
+}
+
+button.quiet {
+    color: var(--muted);
+    background: none;
+    border-color: var(--rule);
+}
+
+button.quiet:hover {
+    color: var(--text);
+    border-color: var(--signal);
+    filter: none;
+}
+
+/* The row-as-a-form, which spans every column of the row it replaced. */
+.inline-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 0.5rem 1rem;
+    padding: 0.25rem 0;
+}
+
+.inline-form label,
+.curation label:not(.check) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.editing {
+    background: var(--surface);
+}
+
+.curation {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.curation__fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+}
+
+.curation__fields input {
+    min-width: 13rem;
+}
+
+.curation textarea {
+    font-family: var(--sans);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    padding: 0.4rem 0.5rem;
+    width: min(44rem, 100%);
+    resize: vertical;
+}
+
+.curation .check {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+}
+
+.curation input[type="checkbox"] {
+    accent-color: var(--signal);
+}
+
+.curation__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    align-self: start;
+}
+
+.curation .check {
+    align-self: start;
+}
+
+/* Only a swapped-in fragment can report that anything happened, since the page
+   around it never reloaded. */
+.saved {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--signal);
 }
 
 /* ---- Pager ------------------------------------------------------------- */

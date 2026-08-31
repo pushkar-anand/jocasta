@@ -76,6 +76,10 @@ func NewHandler(log *slog.Logger, reader *request.Reader, store *inventory.Store
 	h.HandleFunc("GET /devices", h.devices)
 	h.HandleFunc("GET /devices/rows", h.deviceRows)
 	h.HandleFunc("GET /devices/{id}", h.device)
+	h.HandleFunc("PATCH /devices/{id}", h.updateDevice)
+	h.HandleFunc("GET /devices/{id}/row", h.deviceRow)
+	h.HandleFunc("GET /devices/{id}/edit", h.deviceRowEdit)
+	h.HandleFunc("PATCH /devices/{id}/row", h.updateDeviceRow)
 
 	h.HandleFunc("GET /events", h.events)
 	h.HandleFunc("GET /scans", h.scans)

@@ -1,10 +1,8 @@
 package web
 
 import (
-	"errors"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 
 	"github.com/pushkar-anand/jocasta/internal/inventory"
@@ -140,47 +138,33 @@ func (h *Handler) devicesData(r *http.Request) (devicesData, error) {
 	return data, nil
 }
 
-// deviceData is one device and what has happened to it.
-type deviceData struct {
-	view
-	Device inventory.Device
-	Events []inventory.Event
-}
-
 func (h *Handler) device(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil || id < 1 {
-		h.notFound(w, r)
-
+	// A device that is not there is a page that is not there, not a fault.
+	device, ok := h.deviceFromPath(w, r)
+	if !ok {
 		return
 	}
 
 	ctx := r.Context()
 
-	device, err := h.store.GetDevice(ctx, id)
-	if err != nil {
-		// A device that is not there is a page that is not there, not a fault.
-		if errors.Is(err, inventory.ErrNotFound) {
-			h.notFound(w, r)
-
-			return
-		}
-
-		h.fail(w, r, err)
-
-		return
-	}
-
-	events, err := h.store.DeviceEvents(ctx, id, deviceHistoryLimit)
+	events, err := h.store.DeviceEvents(ctx, device.ID, deviceHistoryLimit)
 	if err != nil {
 		h.fail(w, r, err)
 
 		return
 	}
 
-	data := deviceData{
+	groups, err := h.store.Groups(ctx)
+	if err != nil {
+		h.fail(w, r, err)
+
+		return
+	}
+
+	data := curationForm{
 		view:   view{Title: device.Name(), Section: "Devices"},
 		Device: device,
+		Groups: groups,
 		Events: events,
 	}
 
