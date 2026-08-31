@@ -101,6 +101,24 @@ func TestRendererUnknownTemplate(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 }
 
+func TestRendererExecutionErrorPreventsPartialResponse(t *testing.T) {
+	t.Parallel()
+
+	// A template that fails halfway through execution
+	tmpl := template.Must(template.New("bad.tmpl").Parse(`Good Start... {{ .MissingField }}`))
+	r := NewRenderer(tmpl, testLogger())
+
+	rec := httptest.NewRecorder()
+	r.Render(rec, httptest.NewRequest(http.MethodGet, "/", nil), "bad.tmpl", struct{}{})
+
+	// Should respond with 500
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	// Should not have any part of the template rendered
+	assert.NotContains(t, rec.Body.String(), "Good Start...")
+	// Should contain standard http.Error body
+	assert.Contains(t, rec.Body.String(), "Internal Server Error")
+}
+
 func TestRendererHTML(t *testing.T) {
 	t.Parallel()
 
