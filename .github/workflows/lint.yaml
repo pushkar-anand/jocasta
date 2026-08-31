@@ -1,0 +1,18 @@
+name: Lint
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  golangci-lint:
+    uses: pushkar-anand/.github/.github/workflows/go-golangci-lint.yml@main
+    with:
+      # Kept in step with the version the `lint` target in the Makefile
+      # installs, so a local run and CI see the same set of checks.
+      version: v2.13.2
