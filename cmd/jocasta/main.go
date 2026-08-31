@@ -13,7 +13,7 @@ import (
 	"github.com/pushkar-anand/build-with-go/logger"
 )
 
-// Link sqlc with go generate, now we need to just run go generate to generate models and functions for DB
+// Link sqlc with go generate, running go generate will generate the DB models and queries.
 //go:generate go tool sqlc generate -f ./../../sqlc.yaml
 
 func main() {
@@ -40,10 +40,10 @@ func run(args []string) error {
 	kCtx, err := parser.Parse(args)
 	if err != nil {
 		// kong.UsageOnError() only takes effect through FatalIfErrorf, which
-		// exits the process. Print the usage block here instead so main stays
-		// in charge of exiting, and let main report the message once.
-		var parseErr *kong.ParseError
-		if errors.As(err, &parseErr) {
+		// exits the process. Print the usage block here instead so the main stays
+		// in charge of exiting and let the main report the message at
+		// once.
+		if parseErr, ok := errors.AsType[*kong.ParseError](err); ok {
 			_ = parseErr.Context.PrintUsage(false)
 		}
 
@@ -63,7 +63,7 @@ func run(args []string) error {
 	return kCtx.Run(cfg, log)
 }
 
-// loadConfig assembles configuration from defaults, the YAML file and the
+// loadConfig assembles configuration from defaults, the YAML file, and the
 // environment, then applies the global CLI overrides.
 //
 // A missing file at defaultConfigFile is fine, but an explicit --config that
