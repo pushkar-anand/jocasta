@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"database/sql"
+	"fmt"
 	"net/netip"
 	"testing"
 	"time"
@@ -17,8 +18,8 @@ func curate(t *testing.T, conn *sql.DB, id int64, column string, value any) {
 	t.Helper()
 
 	// The column name is one of a fixed set chosen by the calling test, never
-	// user input, so the concatenation is safe.
-	_, err := conn.ExecContext(t.Context(), `UPDATE devices SET `+column+` = ? WHERE id = ?`, value, id) // #nosec G202
+	// user input, so the interpolation is safe.
+	_, err := conn.ExecContext(t.Context(), fmt.Sprintf(`UPDATE devices SET %s = ? WHERE id = ?`, column), value, id) // #nosec G202
 	require.NoError(t, err)
 }
 
