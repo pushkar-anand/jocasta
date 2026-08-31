@@ -1,0 +1,45 @@
+{{ define "page/scans" }}
+{{- template "layout/head" . }}
+
+<section>
+    <p class="eyebrow">Sweeps</p>
+    {{- if .Scans }}
+    <div class="scroller">
+        <table>
+            <thead>
+            <tr>
+                <th scope="col">Started</th>
+                <th scope="col">Source</th>
+                <th scope="col">Network</th>
+                <th scope="col">Found</th>
+                <th scope="col">Took</th>
+                <th scope="col">Status</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{- range .Scans }}
+            <tr class="{{ decay .StartedAt }}">
+                <td class="dim">{{ ago .StartedAt }}</td>
+                <td class="name">{{ .Source }}</td>
+                <td>{{ dash .Network }}</td>
+                <td>{{ .Found }}</td>
+                <td class="dim">{{ took . }}</td>
+                <td class="{{ statusClass .Status }}">{{ .Status }}</td>
+            </tr>
+            {{- with .Error }}
+            <tr>
+                <td colspan="6" class="wrap-prose status--failed">{{ . }}</td>
+            </tr>
+            {{- end }}
+            {{- end }}
+            </tbody>
+        </table>
+    </div>
+    {{- else }}
+    <p class="dim">No sweep has been recorded yet.</p>
+    {{- end }}
+    {{ template "partial/pager" . }}
+</section>
+
+{{- template "layout/foot" . }}
+{{ end }}

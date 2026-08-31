@@ -5,6 +5,7 @@ package web
 
 import (
 	"bytes"
+	"context"
 	"embed"
 	"html/template"
 	"io/fs"
@@ -70,6 +71,15 @@ func NewHandler(log *slog.Logger, reader *request.Reader, store *inventory.Store
 	// catch-all below and is reported rather than quietly served the overview.
 	h.HandleFunc("GET /{$}", h.overview)
 	h.HandleFunc("GET /overview/live", h.overviewLive)
+
+	// The literal is the more specific pattern, so it wins over {id}.
+	h.HandleFunc("GET /devices", h.devices)
+	h.HandleFunc("GET /devices/rows", h.deviceRows)
+	h.HandleFunc("GET /devices/{id}", h.device)
+
+	h.HandleFunc("GET /events", h.events)
+	h.HandleFunc("GET /scans", h.scans)
+
 	h.HandleFunc("GET /", h.notFound)
 
 	return h
@@ -85,6 +95,9 @@ type nav struct {
 
 var sections = []nav{
 	{Label: "Overview", Href: "/"},
+	{Label: "Devices", Href: "/devices"},
+	{Label: "Activity", Href: "/events"},
+	{Label: "Sweeps", Href: "/scans"},
 }
 
 // view is what the layout needs from every page.
@@ -166,10 +179,26 @@ func (h *Handler) overviewData(r *http.Request) (overviewData, error) {
 	// than a failure to report.
 	if scan, err := h.store.LatestScan(ctx); err == nil {
 		data.Scan = &scan
-		data.Note = "swept " + ago(time.Now(), scan.StartedAt)
+		data.Note = sweepNote(scan)
 	}
 
 	return data, nil
+}
+
+// sweepNote is the ambient line every page carries in its masthead. The error
+// is returned rather than swallowed so a caller can tell "no sweep yet" from a
+// read that failed, and leave the line out either way.
+func (h *Handler) sweepNote(ctx context.Context) (string, error) {
+	scan, err := h.store.LatestScan(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	return sweepNote(scan), nil
+}
+
+func sweepNote(scan inventory.Scan) string {
+	return "swept " + ago(time.Now(), scan.StartedAt)
 }
 
 func (h *Handler) notFound(w http.ResponseWriter, r *http.Request) {

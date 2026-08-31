@@ -228,6 +228,12 @@ h1 {
     gap: 2.5rem;
 }
 
+#device-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
 /* A run of labelled values. --lead raises the value for the counts that are
    the point of the page; everything else states its facts at reading size. */
 .facts {
@@ -273,6 +279,11 @@ table {
     font-family: var(--mono);
     font-size: 0.8125rem;
     font-variant-numeric: tabular-nums;
+}
+
+thead th:last-child,
+tbody td:last-child {
+    width: 100%;
 }
 
 thead th {
@@ -325,6 +336,16 @@ tbody tr {
     font-weight: 600;
 }
 
+tbody .name a {
+    text-decoration: none;
+}
+
+tbody .name a:hover,
+tbody .name a:focus-visible {
+    text-decoration: underline;
+    text-decoration-color: var(--signal);
+}
+
 .dim {
     color: var(--muted);
 }
@@ -332,6 +353,84 @@ tbody tr {
 .wrap-prose {
     font-family: var(--sans);
     white-space: normal;
+}
+
+/* ---- Filters ----------------------------------------------------------- */
+
+.filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 0.75rem 1.25rem;
+    padding-bottom: 0.5rem;
+}
+
+.filters label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.filters input[type="search"],
+.filters select {
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    height: 2.1rem;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    padding: 0 0.5rem;
+}
+
+.filters input[type="search"] {
+    min-width: 16rem;
+}
+
+.filters input[type="search"]::placeholder {
+    color: var(--muted);
+}
+
+/* The checkbox sits on the baseline of the controls beside it, not above its
+   own label like the rest. */
+.filters .check {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    padding-bottom: 0.45rem;
+}
+
+.filters input[type="checkbox"] {
+    accent-color: var(--signal);
+}
+
+/* ---- Pager ------------------------------------------------------------- */
+
+/* A log is read by walking it, so there are two directions and no page
+   numbers. */
+.pager {
+    display: flex;
+    gap: 1.25rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+}
+
+/* ---- Tag --------------------------------------------------------------- */
+
+/* Reserved for a fact about a value rather than a value: a randomised hardware
+   address is still an address, but it identifies nothing. */
+.tag {
+    font-size: 0.625rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--signal);
+    border: 1px solid var(--signal-soft);
+    border-radius: var(--radius);
+    padding: 0.05rem 0.3rem;
+    white-space: nowrap;
 }
 
 /* ---- Status ----------------------------------------------------------- */

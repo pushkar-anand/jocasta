@@ -6,7 +6,8 @@
     <li class="{{ decay .At }}">
         <time datetime="{{ .At.Format "2006-01-02T15:04:05Z07:00" }}">{{ ago .At }}</time>
         <span class="kind">{{ event .Kind }}</span>
-        <span class="name">{{ dash .DeviceName }}</span>
+        {{- /* Absent when the page is already about one device. */}}
+        {{- with .DeviceName }}<span class="name">{{ . }}</span>{{ end }}
         {{- with change . }}<span class="dim">{{ . }}</span>{{ end }}
     </li>
     {{- end }}
