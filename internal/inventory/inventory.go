@@ -52,22 +52,34 @@ type pass struct {
 
 // RecordSweep stores the results of one sweep of prefix, attributing them to
 // the named source.
-func (s *Store) RecordSweep(ctx context.Context, source string, prefix netip.Prefix, hosts []scanner.Host) (Result, error) {
+func (s *Store) RecordSweep(ctx context.Context, source string, prefix netip.Prefix, hosts []scanner.Host) (*Result, error) {
 	scanID, networkID, err := s.open(ctx, source, prefix)
 	if err != nil {
-		return Result{}, err
+		return nil, err
 	}
 
 	res, ingestErr := s.ingest(ctx, scanID, networkID, hosts)
-	res.ScanID = scanID
 
-	// The scan row is closed in its own transaction so a failure is recorded
-	// rather than rolled back along with the work it was describing.
-	if err := s.close(ctx, scanID, res.Seen, ingestErr); err != nil {
-		return res, errors.Join(ingestErr, err)
+	// res is nil unless the ingest committed, so the count a failed scan
+	// records is the only one true of the table: none.
+	found := 0
+	if ingestErr == nil {
+		found = res.Seen
 	}
 
-	return res, ingestErr
+	// The scan row is closed in its own transaction, so a failure is recorded
+	// rather than rolled back along with the work it was describing.
+	closeErr := s.close(ctx, scanID, found, ingestErr)
+
+	// The scan id goes in the error rather than in a half-filled Result, so a
+	// caller never has to know which fields survive a failure.
+	if err := errors.Join(ingestErr, closeErr); err != nil {
+		return nil, fmt.Errorf("scan %d: %w", scanID, err)
+	}
+
+	res.ScanID = scanID
+
+	return res, nil
 }
 
 // open registers the source and network and opens a running scan row.
@@ -112,10 +124,10 @@ func (s *Store) open(ctx context.Context, source string, prefix netip.Prefix) (s
 // ingest applies every result as one transaction: a sweep either lands whole
 // or not at all, so a partial run cannot leave a device holding an address it
 // was about to lose.
-func (s *Store) ingest(ctx context.Context, scanID, networkID int64, hosts []scanner.Host) (Result, error) {
+func (s *Store) ingest(ctx context.Context, scanID, networkID int64, hosts []scanner.Host) (*Result, error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
-		return Result{}, fmt.Errorf("begin ingest: %w", err)
+		return nil, fmt.Errorf("begin ingest: %w", err)
 	}
 
 	defer func() { _ = tx.Rollback() }()
@@ -132,15 +144,15 @@ func (s *Store) ingest(ctx context.Context, scanID, networkID int64, hosts []sca
 
 	for _, h := range hosts {
 		if err := s.record(ctx, p, h); err != nil {
-			return Result{}, fmt.Errorf("record %s: %w", h.Addr, err)
+			return nil, fmt.Errorf("record %s: %w", h.Addr, err)
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return Result{}, fmt.Errorf("commit ingest: %w", err)
+		return nil, fmt.Errorf("commit ingest: %w", err)
 	}
 
-	return p.res, nil
+	return &p.res, nil
 }
 
 // close marks the scan finished, carrying the ingest failure if there was one.
@@ -167,7 +179,7 @@ func (s *Store) close(ctx context.Context, scanID int64, found int, cause error)
 func (s *Store) record(ctx context.Context, p *pass, h scanner.Host) error {
 	ip := dbtype.NewAddr(h.Addr)
 
-	// A sweep reports whatever the neighbour table held for the address, and
+	// A sweep reports whatever the neighbor table held for the address, and
 	// anything that is not a 6-byte hardware address identifies nothing, so the
 	// device stays known by the address it answered on.
 	var mac dbtype.MAC
@@ -309,7 +321,7 @@ func (s *Store) create(ctx context.Context, p *pass, mac dbtype.MAC, h scanner.H
 	return d, nil
 }
 
-// fold merges a device that was only ever known by its address into the one
+// fold merges a device only ever known by its address into the one
 // its hardware address identifies. Curation the user applied to the weaker row
 // is carried over, since they had no way to know it was a duplicate.
 func (s *Store) fold(ctx context.Context, p *pass, ghost, into models.Device) error {

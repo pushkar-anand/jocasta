@@ -53,7 +53,7 @@ func host(ip, mac, hostname string) scanner.Host {
 	}
 }
 
-func sweep(t *testing.T, s *Store, hosts ...scanner.Host) Result {
+func sweep(t *testing.T, s *Store, hosts ...scanner.Host) *Result {
 	t.Helper()
 
 	res, err := s.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix), hosts)
@@ -380,4 +380,28 @@ func assertNoRowSeenBeforeItExisted(t *testing.T, conn *sql.DB) {
 
 	n := queryInt(t, conn, `SELECT count(*) FROM scans WHERE finished_at < started_at`)
 	assert.Zero(t, n, "scans finished before they started")
+}
+
+// A sweep that cannot be stored still has to leave a record that it was tried,
+// which is the whole reason the scan row is closed outside the ingest.
+func TestRecordSweepRecordsAFailedIngest(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	// The zero address is refused on the way to the column, so the ingest gives
+	// up partway and rolls back the host ahead of it.
+	res, err := s.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix),
+		[]scanner.Host{host("192.0.2.10", macA, ""), {}})
+	require.Error(t, err)
+	assert.Nil(t, res, "a failed sweep returns no result to read")
+
+	assert.Equal(t, string(dbtype.StatusFailed),
+		queryStrings(t, conn, `SELECT status FROM scans`)[0])
+	assert.NotEmpty(t, queryStrings(t, conn, `SELECT error FROM scans`)[0])
+
+	// Nothing the ingest counted survived it, so the scan must not claim any.
+	assert.Equal(t, 0, queryInt(t, conn, `SELECT found_count FROM scans`))
+	assert.Equal(t, 0, queryInt(t, conn, `SELECT count(*) FROM devices`))
+	assert.Equal(t, 0, queryInt(t, conn, `SELECT count(*) FROM events`))
 }
