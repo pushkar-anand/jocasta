@@ -27,5 +27,8 @@ oui: ## Rebuild the embedded MAC vendor table from IEEE and Wireshark.
 test:
 	go test ./...
 
-lint: ## Run golangci-lint (requires golangci-lint to be installed)
-	golangci-lint run ./...
+lint: ## Run golangci-lint
+	@if [ ! -f ./bin/golangci-lint ]; then \
+		curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b ./bin v2.13.2; \
+	fi
+	./bin/golangci-lint run ./...
