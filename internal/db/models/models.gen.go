@@ -14,7 +14,7 @@ type Address struct {
 	ID        int64         `json:"id"`
 	DeviceID  int64         `json:"device_id"`
 	NetworkID sql.NullInt64 `json:"network_id"`
-	Ip        dbtype.Addr   `json:"ip"`
+	IP        dbtype.Addr   `json:"ip"`
 	IsCurrent bool          `json:"is_current"`
 	FirstSeen dbtype.Time   `json:"first_seen"`
 	LastSeen  dbtype.Time   `json:"last_seen"`
@@ -22,7 +22,7 @@ type Address struct {
 
 type Device struct {
 	ID             int64                 `json:"id"`
-	Mac            dbtype.MAC            `json:"mac"`
+	MAC            dbtype.MAC            `json:"mac"`
 	IdentitySource dbtype.IdentitySource `json:"identity_source"`
 	IsRandomised   bool                  `json:"is_randomised"`
 	Vendor         sql.NullString        `json:"vendor"`

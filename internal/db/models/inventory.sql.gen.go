@@ -57,7 +57,7 @@ RETURNING id, mac, identity_source, is_randomised, vendor, hostname, hostname_so
 `
 
 type CreateDeviceParams struct {
-	Mac            dbtype.MAC            `json:"mac"`
+	MAC            dbtype.MAC            `json:"mac"`
 	IdentitySource dbtype.IdentitySource `json:"identity_source"`
 	IsRandomised   bool                  `json:"is_randomised"`
 	Vendor         sql.NullString        `json:"vendor"`
@@ -75,7 +75,7 @@ type CreateDeviceParams struct {
 //	RETURNING id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, label, notes, group_name, is_ignored, first_seen, last_seen
 func (q *Queries) CreateDevice(ctx context.Context, arg CreateDeviceParams) (*Device, error) {
 	row := q.queryRow(ctx, q.createDeviceStmt, createDevice,
-		arg.Mac,
+		arg.MAC,
 		arg.IdentitySource,
 		arg.IsRandomised,
 		arg.Vendor,
@@ -87,7 +87,7 @@ func (q *Queries) CreateDevice(ctx context.Context, arg CreateDeviceParams) (*De
 	var i Device
 	err := row.Scan(
 		&i.ID,
-		&i.Mac,
+		&i.MAC,
 		&i.IdentitySource,
 		&i.IsRandomised,
 		&i.Vendor,
@@ -282,7 +282,7 @@ WHERE device_id = ?
 
 type GetAddressParams struct {
 	DeviceID int64       `json:"device_id"`
-	Ip       dbtype.Addr `json:"ip"`
+	IP       dbtype.Addr `json:"ip"`
 }
 
 // GetAddress
@@ -292,13 +292,13 @@ type GetAddressParams struct {
 //	WHERE device_id = ?
 //	  AND ip = ?
 func (q *Queries) GetAddress(ctx context.Context, arg GetAddressParams) (*Address, error) {
-	row := q.queryRow(ctx, q.getAddressStmt, getAddress, arg.DeviceID, arg.Ip)
+	row := q.queryRow(ctx, q.getAddressStmt, getAddress, arg.DeviceID, arg.IP)
 	var i Address
 	err := row.Scan(
 		&i.ID,
 		&i.DeviceID,
 		&i.NetworkID,
-		&i.Ip,
+		&i.IP,
 		&i.IsCurrent,
 		&i.FirstSeen,
 		&i.LastSeen,
@@ -322,7 +322,7 @@ func (q *Queries) GetDevice(ctx context.Context, id int64) (*Device, error) {
 	var i Device
 	err := row.Scan(
 		&i.ID,
-		&i.Mac,
+		&i.MAC,
 		&i.IdentitySource,
 		&i.IsRandomised,
 		&i.Vendor,
@@ -363,7 +363,7 @@ func (q *Queries) GetDeviceByCurrentIP(ctx context.Context, ip dbtype.Addr) (*Ge
 	var i GetDeviceByCurrentIPRow
 	err := row.Scan(
 		&i.Device.ID,
-		&i.Device.Mac,
+		&i.Device.MAC,
 		&i.Device.IdentitySource,
 		&i.Device.IsRandomised,
 		&i.Device.Vendor,
@@ -396,7 +396,7 @@ func (q *Queries) GetDeviceByMAC(ctx context.Context, mac dbtype.MAC) (*Device, 
 	var i Device
 	err := row.Scan(
 		&i.ID,
-		&i.Mac,
+		&i.MAC,
 		&i.IdentitySource,
 		&i.IsRandomised,
 		&i.Vendor,
@@ -423,7 +423,7 @@ WHERE id = ?4
 `
 
 type IdentifyDeviceParams struct {
-	Mac          dbtype.MAC     `json:"mac"`
+	MAC          dbtype.MAC     `json:"mac"`
 	IsRandomised bool           `json:"is_randomised"`
 	Vendor       sql.NullString `json:"vendor"`
 	ID           int64          `json:"id"`
@@ -439,7 +439,7 @@ type IdentifyDeviceParams struct {
 //	WHERE id = ?4
 func (q *Queries) IdentifyDevice(ctx context.Context, arg IdentifyDeviceParams) error {
 	_, err := q.exec(ctx, q.identifyDeviceStmt, identifyDevice,
-		arg.Mac,
+		arg.MAC,
 		arg.IsRandomised,
 		arg.Vendor,
 		arg.ID,
@@ -456,7 +456,7 @@ RETURNING id, device_id, network_id, ip, is_current, first_seen, last_seen
 type InsertAddressParams struct {
 	DeviceID  int64         `json:"device_id"`
 	NetworkID sql.NullInt64 `json:"network_id"`
-	Ip        dbtype.Addr   `json:"ip"`
+	IP        dbtype.Addr   `json:"ip"`
 	FirstSeen dbtype.Time   `json:"first_seen"`
 	LastSeen  dbtype.Time   `json:"last_seen"`
 }
@@ -470,7 +470,7 @@ func (q *Queries) InsertAddress(ctx context.Context, arg InsertAddressParams) (*
 	row := q.queryRow(ctx, q.insertAddressStmt, insertAddress,
 		arg.DeviceID,
 		arg.NetworkID,
-		arg.Ip,
+		arg.IP,
 		arg.FirstSeen,
 		arg.LastSeen,
 	)
@@ -479,7 +479,7 @@ func (q *Queries) InsertAddress(ctx context.Context, arg InsertAddressParams) (*
 		&i.ID,
 		&i.DeviceID,
 		&i.NetworkID,
-		&i.Ip,
+		&i.IP,
 		&i.IsCurrent,
 		&i.FirstSeen,
 		&i.LastSeen,
@@ -514,7 +514,7 @@ func (q *Queries) ListDeviceAddresses(ctx context.Context, deviceID int64) ([]*A
 			&i.ID,
 			&i.DeviceID,
 			&i.NetworkID,
-			&i.Ip,
+			&i.IP,
 			&i.IsCurrent,
 			&i.FirstSeen,
 			&i.LastSeen,
@@ -659,7 +659,7 @@ func (q *Queries) ListDevices(ctx context.Context, arg ListDevicesParams) ([]*Li
 		var i ListDevicesRow
 		if err := rows.Scan(
 			&i.Device.ID,
-			&i.Device.Mac,
+			&i.Device.MAC,
 			&i.Device.IdentitySource,
 			&i.Device.IsRandomised,
 			&i.Device.Vendor,
@@ -803,7 +803,7 @@ WHERE ip = ?1
 `
 
 type ReleaseAddressParams struct {
-	Ip       dbtype.Addr `json:"ip"`
+	IP       dbtype.Addr `json:"ip"`
 	DeviceID int64       `json:"device_id"`
 }
 
@@ -816,7 +816,7 @@ type ReleaseAddressParams struct {
 //	  AND is_current = 1
 //	  AND device_id <> ?2
 func (q *Queries) ReleaseAddress(ctx context.Context, arg ReleaseAddressParams) error {
-	_, err := q.exec(ctx, q.releaseAddressStmt, releaseAddress, arg.Ip, arg.DeviceID)
+	_, err := q.exec(ctx, q.releaseAddressStmt, releaseAddress, arg.IP, arg.DeviceID)
 	return err
 }
 
@@ -910,7 +910,7 @@ func (q *Queries) UpdateDeviceCuration(ctx context.Context, arg UpdateDeviceCura
 	var i Device
 	err := row.Scan(
 		&i.ID,
-		&i.Mac,
+		&i.MAC,
 		&i.IdentitySource,
 		&i.IsRandomised,
 		&i.Vendor,

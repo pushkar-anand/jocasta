@@ -15,6 +15,7 @@ sql:
         output_models_file_name: "models.gen.go"
         output_files_suffix: ".gen.go"
         emit_result_struct_pointers: true
+        initialisms: [ "id","ip","mac" ]
 
 
         # Timestamps are TEXT in ISO-8601, which the driver will not scan into
