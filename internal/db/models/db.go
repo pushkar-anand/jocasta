@@ -75,14 +75,8 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.listDevicesStmt, err = db.PrepareContext(ctx, listDevices); err != nil {
 		return nil, fmt.Errorf("error preparing query ListDevices: %w", err)
 	}
-	if q.listEventsStmt, err = db.PrepareContext(ctx, listEvents); err != nil {
-		return nil, fmt.Errorf("error preparing query ListEvents: %w", err)
-	}
 	if q.listGroupsStmt, err = db.PrepareContext(ctx, listGroups); err != nil {
 		return nil, fmt.Errorf("error preparing query ListGroups: %w", err)
-	}
-	if q.listScansStmt, err = db.PrepareContext(ctx, listScans); err != nil {
-		return nil, fmt.Errorf("error preparing query ListScans: %w", err)
 	}
 	if q.moveAddressesStmt, err = db.PrepareContext(ctx, moveAddresses); err != nil {
 		return nil, fmt.Errorf("error preparing query MoveAddresses: %w", err)
@@ -198,19 +192,9 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing listDevicesStmt: %w", cerr)
 		}
 	}
-	if q.listEventsStmt != nil {
-		if cerr := q.listEventsStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing listEventsStmt: %w", cerr)
-		}
-	}
 	if q.listGroupsStmt != nil {
 		if cerr := q.listGroupsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listGroupsStmt: %w", cerr)
-		}
-	}
-	if q.listScansStmt != nil {
-		if cerr := q.listScansStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing listScansStmt: %w", cerr)
 		}
 	}
 	if q.moveAddressesStmt != nil {
@@ -309,9 +293,7 @@ type Queries struct {
 	listDeviceAddressesStmt  *sql.Stmt
 	listDeviceEventsStmt     *sql.Stmt
 	listDevicesStmt          *sql.Stmt
-	listEventsStmt           *sql.Stmt
 	listGroupsStmt           *sql.Stmt
-	listScansStmt            *sql.Stmt
 	moveAddressesStmt        *sql.Stmt
 	moveEventsStmt           *sql.Stmt
 	refreshAddressStmt       *sql.Stmt
@@ -343,9 +325,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		listDeviceAddressesStmt:  q.listDeviceAddressesStmt,
 		listDeviceEventsStmt:     q.listDeviceEventsStmt,
 		listDevicesStmt:          q.listDevicesStmt,
-		listEventsStmt:           q.listEventsStmt,
 		listGroupsStmt:           q.listGroupsStmt,
-		listScansStmt:            q.listScansStmt,
 		moveAddressesStmt:        q.moveAddressesStmt,
 		moveEventsStmt:           q.moveEventsStmt,
 		refreshAddressStmt:       q.refreshAddressStmt,

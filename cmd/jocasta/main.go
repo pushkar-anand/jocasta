@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/alecthomas/kong"
 	"github.com/pushkar-anand/build-with-go/config"
 	"github.com/pushkar-anand/build-with-go/logger"
+	"github.com/pushkar-anand/build-with-go/validator"
 	"github.com/pushkar-anand/jocasta/internal/db"
 )
 
@@ -68,7 +70,19 @@ func run(args []string) error {
 
 	defer func() { _ = conn.Conn.Close() }()
 
-	return kCtx.Run(cfg, log, conn)
+	v, err := validator.New(
+		// The default message for oneof names the rule rather than the values
+		// it admits, which tells a client its filter was wrong without telling
+		// it what would be right.
+		validator.WithCustomMessage("oneof", func(field, param string) string {
+			return fmt.Sprintf("%s must be one of: %s", field, strings.ReplaceAll(param, " ", ", "))
+		}),
+	)
+	if err != nil {
+		return fmt.Errorf("initialize validator: %w", err)
+	}
+
+	return kCtx.Run(cfg, log, conn, v)
 }
 
 // loadConfig assembles configuration from defaults, the YAML file, and the

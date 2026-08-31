@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/pushkar-anand/build-with-go/validator"
 	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/pushkar-anand/jocasta/internal/server"
 )
@@ -15,16 +16,23 @@ type ServeCmd struct {
 	Port int    `name:"port" short:"p" help:"Override server listen port."`
 }
 
-func (s *ServeCmd) Run(ctx context.Context, cfg *Config, log *slog.Logger, conn *db.DB) error {
+func (s *ServeCmd) Run(
+	ctx context.Context,
+	cfg *Config,
+	log *slog.Logger,
+	conn *db.DB,
+	validator *validator.Validator,
+) error {
 	// The flags override the file, and an unset flag is its zero value.
 	host := cmp.Or(s.Host, cfg.Server.Host)
 	port := cmp.Or(s.Port, cfg.Server.Port)
 
 	err := server.Start(ctx, &server.Config{
-		Addr:   host,
-		Port:   port,
-		Logger: log,
-	}, conn)
+		Addr:         host,
+		Port:         port,
+		Logger:       log,
+		OnlineWindow: cfg.Inventory.OnlineWindow,
+	}, conn, validator)
 	if err != nil {
 		return fmt.Errorf("start server: %w", err)
 	}

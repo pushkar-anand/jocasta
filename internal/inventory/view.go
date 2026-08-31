@@ -24,7 +24,7 @@ type Device struct {
 	ID             int64                 `json:"id"`
 	MAC            string                `json:"mac,omitempty"`
 	IdentitySource dbtype.IdentitySource `json:"identity_source"`
-	Randomised     bool                  `json:"randomised,omitempty"`
+	Randomised     bool                  `json:"randomised"`
 	Vendor         string                `json:"vendor,omitempty"`
 	Hostname       string                `json:"hostname,omitempty"`
 	HostnameSource dbtype.HostnameSource `json:"hostname_source,omitempty"`
@@ -33,7 +33,7 @@ type Device struct {
 	Label   string `json:"label,omitempty"`
 	Notes   string `json:"notes,omitempty"`
 	Group   string `json:"group,omitempty"`
-	Ignored bool   `json:"ignored,omitempty"`
+	Ignored bool   `json:"ignored"`
 
 	FirstSeen time.Time `json:"first_seen"`
 	LastSeen  time.Time `json:"last_seen"`
@@ -100,9 +100,21 @@ type Scan struct {
 
 	StartedAt time.Time `json:"started_at"`
 
-	// FinishedAt and Took are zero while the scan is still running.
-	FinishedAt time.Time     `json:"finished_at,omitzero"`
-	Took       time.Duration `json:"took,omitempty"`
+	// FinishedAt is zero while the scan is still running.
+	FinishedAt time.Time `json:"finished_at,omitzero"`
+}
+
+// Took is how long the scan ran, and is zero while it still is.
+//
+// It is derived rather than stored: the two timestamps already say it, and a
+// time.Duration has no JSON representation to be sent as -- encoding/json/v2
+// refuses to marshal one at all.
+func (s Scan) Took() time.Duration {
+	if s.FinishedAt.IsZero() {
+		return 0
+	}
+
+	return s.FinishedAt.Sub(s.StartedAt)
 }
 
 // Stats counts the inventory as a whole. Every count is over all devices,
@@ -126,6 +138,13 @@ const (
 	StatusOffline Status = "offline"
 )
 
+var statuses = []Status{StatusAny, StatusOnline, StatusOffline}
+
+// Valid reports whether s is one of the statuses that filters anything. A
+// caller that rejects an invalid one tells the user their filter was misspelt;
+// one that does not still gets the whole list back rather than none of it.
+func (s Status) Valid() bool { return slices.Contains(statuses, s) }
+
 // admits reports whether a device in the given state passes the filter. An
 // unrecognised status filters nothing out, so a hand-typed query parameter
 // widens the list rather than emptying it.
@@ -146,11 +165,20 @@ func (s Status) admits(online bool) bool {
 type Sort string
 
 const (
-	// SortLastSeen puts the most recently seen device first, and is the default.
-	SortLastSeen Sort = ""
-	SortName     Sort = "name"
-	SortAddress  Sort = "address"
+	// SortDefault is SortLastSeen, so an unset field needs no special case.
+	SortDefault Sort = ""
+
+	// SortLastSeen puts the most recently seen device first.
+	SortLastSeen Sort = "last_seen"
+
+	SortName    Sort = "name"
+	SortAddress Sort = "address"
 )
+
+var sorts = []Sort{SortDefault, SortLastSeen, SortName, SortAddress}
+
+// Valid reports whether by names an ordering.
+func (by Sort) Valid() bool { return slices.Contains(sorts, by) }
 
 // DeviceFilter narrows a device list.
 type DeviceFilter struct {
@@ -225,7 +253,6 @@ func newScan(s models.Scan, source, network string) Scan {
 
 	if s.FinishedAt.Valid {
 		sc.FinishedAt = s.FinishedAt.Time.Time
-		sc.Took = sc.FinishedAt.Sub(sc.StartedAt)
 	}
 
 	return sc
@@ -290,7 +317,7 @@ func sortDevices(devices []Device, by Sort) {
 	case SortAddress:
 		cmpFn = func(a, b Device) int { return compareFirstAddr(a, b) }
 	default:
-		// Most recently seen first.
+		// SortLastSeen, and the unset field that means it.
 		cmpFn = func(a, b Device) int { return b.LastSeen.Compare(a.LastSeen) }
 	}
 

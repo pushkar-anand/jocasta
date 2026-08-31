@@ -12,6 +12,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/pushkar-anand/build-with-go/validator"
 	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
@@ -29,7 +30,13 @@ type ScanCmd struct {
 	Source       string        `name:"source" help:"Name recorded as the origin of these results. Defaults to this host's name."`
 }
 
-func (s *ScanCmd) Run(ctx context.Context, cfg *Config, log *slog.Logger, conn *db.DB) error {
+func (s *ScanCmd) Run(
+	ctx context.Context,
+	cfg *Config,
+	log *slog.Logger,
+	conn *db.DB,
+	_ *validator.Validator,
+) error {
 	p, err := netip.ParsePrefix(s.Target)
 	if err != nil {
 		return fmt.Errorf("invalid CIDR prefix %q: %w", s.Target, err)

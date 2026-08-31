@@ -288,11 +288,14 @@ func TestListEventsNamesTheDevice(t *testing.T) {
 	s, _ := newStore(t)
 	sweep(t, s, host("192.0.2.10", macA, "printer.local"))
 
-	events, err := s.ListEvents(t.Context(), 10, 0)
+	page, err := s.ListEvents(t.Context(), Page{Limit: 10})
 	require.NoError(t, err)
-	require.NotEmpty(t, events)
+	require.NotEmpty(t, page.Events)
 
-	for _, e := range events {
+	// The whole log fits in one page, so there is nothing after it.
+	assert.True(t, page.Next.IsZero())
+
+	for _, e := range page.Events {
 		assert.Equal(t, "printer.local", e.DeviceName)
 		assert.NotZero(t, e.ScanID)
 		assert.False(t, e.At.IsZero())
@@ -305,18 +308,19 @@ func TestListScansDescribesTheRun(t *testing.T) {
 	s, _ := newStore(t)
 	sweep(t, s, host("192.0.2.10", macA, ""), host("192.0.2.11", macB, ""))
 
-	scans, err := s.ListScans(t.Context(), 10, 0)
+	page, err := s.ListScans(t.Context(), Page{Limit: 10})
 	require.NoError(t, err)
-	require.Len(t, scans, 1)
+	require.Len(t, page.Scans, 1)
 
-	sc := scans[0]
+	sc := page.Scans[0]
 	assert.Equal(t, "test-sweep", sc.Source)
 	assert.Equal(t, prefix, sc.Network)
 	assert.Equal(t, dbtype.StatusOK, sc.Status)
 	assert.Equal(t, dbtype.ScanDiscovery, sc.Kind)
 	assert.Equal(t, 2, sc.Found)
 	assert.Empty(t, sc.Error)
-	assert.Positive(t, sc.Took, "the clock advances between opening and closing the scan")
+	assert.Positive(t, sc.Took(), "the clock advances between opening and closing the scan")
+	assert.Zero(t, Scan{StartedAt: sc.StartedAt}.Took(), "a running scan has taken no time yet")
 
 	latest, err := s.LatestScan(t.Context())
 	require.NoError(t, err)
@@ -368,9 +372,9 @@ func TestEmptyInventoryReadsCleanly(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, devices)
 
-	events, err := s.ListEvents(t.Context(), 10, 0)
+	page, err := s.ListEvents(t.Context(), Page{Limit: 10})
 	require.NoError(t, err)
-	assert.Empty(t, events)
+	assert.Empty(t, page.Events)
 
 	groups, err := s.Groups(t.Context())
 	require.NoError(t, err)

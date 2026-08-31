@@ -174,28 +174,9 @@ LIMIT ?;
 -- The device columns come from a LEFT JOIN because an event outlives the device
 -- it described: deleting one sets events.device_id to NULL rather than taking
 -- the record with it.
--- name: ListEvents :many
-SELECT sqlc.embed(e),
-       d.label    AS device_label,
-       d.hostname AS device_hostname,
-       d.mac      AS device_mac
-FROM events e
-         LEFT JOIN devices d ON d.id = e.device_id
-ORDER BY e.occurred_at DESC, e.id DESC
-LIMIT ? OFFSET ?;
-
--- network_cidr is cast and coalesced rather than selected as itself: the column
--- override types it as a non-null Prefix, which cannot scan the NULL a scan
--- with no network -- or one whose network was deleted -- produces here.
--- name: ListScans :many
-SELECT sqlc.embed(s),
-       src.name                          AS source_name,
-       CAST(COALESCE(n.cidr, '') AS TEXT) AS network_cidr
-FROM scans s
-         JOIN sources src ON src.id = s.source_id
-         LEFT JOIN networks n ON n.id = s.network_id
-ORDER BY s.started_at DESC, s.id DESC
-LIMIT ? OFFSET ?;
+-- The two logs are read with a query builder rather than from here: paging
+-- them seeks past the row the last page ended on, and the seek is a clause that
+-- is present or absent. See internal/db/models/inventory_page.go.
 
 -- name: DeviceStats :one
 SELECT COUNT(*)                                                                       AS total,
