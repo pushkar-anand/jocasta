@@ -3,8 +3,10 @@ package main
 import (
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/pushkar-anand/build-with-go/logger"
+	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
 type (
@@ -23,10 +25,18 @@ type (
 		Format string `koanf:"format"`
 	}
 
+	Inventory struct {
+		// OnlineWindow is how long after a device was last seen it still counts
+		// as online. Nothing announces a device leaving, so this belongs in
+		// config: how stale a sighting may be depends on how often sweeps run.
+		OnlineWindow time.Duration `koanf:"online_window"`
+	}
+
 	Config struct {
-		Server Server `koanf:"server"`
-		DB     DB     `koanf:"db"`
-		Logger Logger `koanf:"logger"`
+		Server    Server    `koanf:"server"`
+		DB        DB        `koanf:"db"`
+		Logger    Logger    `koanf:"logger"`
+		Inventory Inventory `koanf:"inventory"`
 	}
 )
 
@@ -39,6 +49,8 @@ var defaults = map[string]any{
 
 	"logger.level":  "info",
 	"logger.format": "json",
+
+	"inventory.online_window": inventory.DefaultOnlineWindow.String(),
 }
 
 func (l Logger) SlogLevel() slog.Level {

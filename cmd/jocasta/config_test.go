@@ -6,6 +6,7 @@ import (
 
 	"github.com/pushkar-anand/build-with-go/config"
 	"github.com/pushkar-anand/build-with-go/logger"
+	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -73,6 +74,8 @@ func TestDefaults(t *testing.T) {
 		"db.name":       "jocasta.db",
 		"logger.level":  "info",
 		"logger.format": "json",
+
+		"inventory.online_window": "15m0s",
 	}, defaults)
 }
 
@@ -105,4 +108,7 @@ func TestLoadConfig(t *testing.T) {
 	assert.Equal(t, ".", cfg.DB.Path)
 	assert.Equal(t, "jocasta.db", cfg.DB.Name)
 	assert.Equal(t, "json", cfg.Logger.Format)
+
+	// A duration is configured as text and has to reach the struct as one.
+	assert.Equal(t, inventory.DefaultOnlineWindow, cfg.Inventory.OnlineWindow)
 }

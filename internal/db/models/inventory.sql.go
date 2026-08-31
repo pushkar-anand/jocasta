@@ -165,6 +165,38 @@ func (q *Queries) DeleteDevice(ctx context.Context, id int64) error {
 	return err
 }
 
+const deviceStats = `-- name: DeviceStats :one
+SELECT COUNT(*)                                                                       AS total,
+       CAST(COALESCE(SUM(CASE WHEN is_ignored = 1 THEN 1 ELSE 0 END), 0) AS INTEGER)  AS ignored,
+       CAST(COALESCE(SUM(CASE WHEN last_seen >= ?1 THEN 1 ELSE 0 END), 0) AS INTEGER) AS online,
+       CAST(COALESCE(SUM(CASE WHEN first_seen >= ?2 THEN 1 ELSE 0 END), 0) AS INTEGER)   AS discovered
+FROM devices
+`
+
+type DeviceStatsParams struct {
+	OnlineSince dbtype.Time `json:"online_since"`
+	NewSince    dbtype.Time `json:"new_since"`
+}
+
+type DeviceStatsRow struct {
+	Total      int64 `json:"total"`
+	Ignored    int64 `json:"ignored"`
+	Online     int64 `json:"online"`
+	Discovered int64 `json:"discovered"`
+}
+
+func (q *Queries) DeviceStats(ctx context.Context, arg DeviceStatsParams) (DeviceStatsRow, error) {
+	row := q.queryRow(ctx, q.deviceStatsStmt, deviceStats, arg.OnlineSince, arg.NewSince)
+	var i DeviceStatsRow
+	err := row.Scan(
+		&i.Total,
+		&i.Ignored,
+		&i.Online,
+		&i.Discovered,
+	)
+	return i, err
+}
+
 const finishScan = `-- name: FinishScan :exec
 UPDATE scans
 SET status      = ?1,
@@ -214,6 +246,34 @@ func (q *Queries) GetAddress(ctx context.Context, arg GetAddressParams) (Address
 		&i.NetworkID,
 		&i.Ip,
 		&i.IsCurrent,
+		&i.FirstSeen,
+		&i.LastSeen,
+	)
+	return i, err
+}
+
+const getDevice = `-- name: GetDevice :one
+SELECT id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, label, notes, group_name, is_ignored, first_seen, last_seen
+FROM devices
+WHERE id = ?
+`
+
+func (q *Queries) GetDevice(ctx context.Context, id int64) (Device, error) {
+	row := q.queryRow(ctx, q.getDeviceStmt, getDevice, id)
+	var i Device
+	err := row.Scan(
+		&i.ID,
+		&i.Mac,
+		&i.IdentitySource,
+		&i.IsRandomised,
+		&i.Vendor,
+		&i.Hostname,
+		&i.HostnameSource,
+		&i.DeviceType,
+		&i.Label,
+		&i.Notes,
+		&i.GroupName,
+		&i.IsIgnored,
 		&i.FirstSeen,
 		&i.LastSeen,
 	)
@@ -341,6 +401,327 @@ func (q *Queries) InsertAddress(ctx context.Context, arg InsertAddressParams) (A
 		&i.LastSeen,
 	)
 	return i, err
+}
+
+const listDeviceAddresses = `-- name: ListDeviceAddresses :many
+SELECT id, device_id, network_id, ip, is_current, first_seen, last_seen
+FROM addresses
+WHERE device_id = ?
+ORDER BY is_current DESC, last_seen DESC
+`
+
+// Current addresses first, then the ones the device has released: "where did
+// this used to live" is the reason the released rows are kept.
+func (q *Queries) ListDeviceAddresses(ctx context.Context, deviceID int64) ([]Address, error) {
+	rows, err := q.query(ctx, q.listDeviceAddressesStmt, listDeviceAddresses, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Address
+	for rows.Next() {
+		var i Address
+		if err := rows.Scan(
+			&i.ID,
+			&i.DeviceID,
+			&i.NetworkID,
+			&i.Ip,
+			&i.IsCurrent,
+			&i.FirstSeen,
+			&i.LastSeen,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDeviceEvents = `-- name: ListDeviceEvents :many
+SELECT id, device_id, scan_id, kind, old_value, new_value, detail, occurred_at
+FROM events
+WHERE device_id = ?
+ORDER BY occurred_at DESC, id DESC
+LIMIT ?
+`
+
+type ListDeviceEventsParams struct {
+	DeviceID sql.NullInt64 `json:"device_id"`
+	Limit    int64         `json:"limit"`
+}
+
+// Timestamps only resolve to the millisecond, so id breaks the ties within one
+// scan, which writes every one of its events on the same stamp.
+func (q *Queries) ListDeviceEvents(ctx context.Context, arg ListDeviceEventsParams) ([]Event, error) {
+	rows, err := q.query(ctx, q.listDeviceEventsStmt, listDeviceEvents, arg.DeviceID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Event
+	for rows.Next() {
+		var i Event
+		if err := rows.Scan(
+			&i.ID,
+			&i.DeviceID,
+			&i.ScanID,
+			&i.Kind,
+			&i.OldValue,
+			&i.NewValue,
+			&i.Detail,
+			&i.OccurredAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDevices = `-- name: ListDevices :many
+
+SELECT d.id, d.mac, d.identity_source, d.is_randomised, d.vendor, d.hostname, d.hostname_source, d.device_type, d.label, d.notes, d.group_name, d.is_ignored, d.first_seen, d.last_seen,
+       CAST(COALESCE((SELECT GROUP_CONCAT(a.ip, ' ')
+                      FROM addresses a
+                      WHERE a.device_id = d.id
+                        AND a.is_current = 1), '') AS TEXT) AS current_ips
+FROM devices d
+WHERE (d.is_ignored = 0 OR d.is_ignored = ?1)
+  AND (CAST(?2 AS TEXT) IS NULL OR d.group_name = CAST(?2 AS TEXT))
+  AND (CAST(?3 AS TEXT) IS NULL
+    OR d.label LIKE '%' || CAST(?3 AS TEXT) || '%'
+    OR d.hostname LIKE '%' || CAST(?3 AS TEXT) || '%'
+    OR d.vendor LIKE '%' || CAST(?3 AS TEXT) || '%'
+    OR d.mac LIKE '%' || CAST(?3 AS TEXT) || '%'
+    OR EXISTS (SELECT 1
+               FROM addresses a
+               WHERE a.device_id = d.id
+                 AND a.is_current = 1
+                 AND a.ip LIKE '%' || CAST(?3 AS TEXT) || '%'))
+ORDER BY d.last_seen DESC
+`
+
+type ListDevicesParams struct {
+	IncludeIgnored bool           `json:"include_ignored"`
+	GroupName      sql.NullString `json:"group_name"`
+	Q              sql.NullString `json:"q"`
+}
+
+type ListDevicesRow struct {
+	Device     Device `json:"device"`
+	CurrentIps string `json:"current_ips"`
+}
+
+// Reads.
+// The current addresses come back on the device's own row rather than through a
+// join, so one query answers the list. GROUP_CONCAT has no ordering worth
+// relying on and the column is TEXT, which sorts 192.0.2.9 after 192.0.2.100,
+// so the caller splits and orders them.
+//
+// is_ignored compares against the argument rather than testing a flag: passing
+// false leaves the clause admitting only unignored rows, and passing true makes
+// the second half admit the rest.
+func (q *Queries) ListDevices(ctx context.Context, arg ListDevicesParams) ([]ListDevicesRow, error) {
+	rows, err := q.query(ctx, q.listDevicesStmt, listDevices, arg.IncludeIgnored, arg.GroupName, arg.Q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListDevicesRow
+	for rows.Next() {
+		var i ListDevicesRow
+		if err := rows.Scan(
+			&i.Device.ID,
+			&i.Device.Mac,
+			&i.Device.IdentitySource,
+			&i.Device.IsRandomised,
+			&i.Device.Vendor,
+			&i.Device.Hostname,
+			&i.Device.HostnameSource,
+			&i.Device.DeviceType,
+			&i.Device.Label,
+			&i.Device.Notes,
+			&i.Device.GroupName,
+			&i.Device.IsIgnored,
+			&i.Device.FirstSeen,
+			&i.Device.LastSeen,
+			&i.CurrentIps,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listEvents = `-- name: ListEvents :many
+SELECT e.id, e.device_id, e.scan_id, e.kind, e.old_value, e.new_value, e.detail, e.occurred_at,
+       d.label    AS device_label,
+       d.hostname AS device_hostname,
+       d.mac      AS device_mac
+FROM events e
+         LEFT JOIN devices d ON d.id = e.device_id
+ORDER BY e.occurred_at DESC, e.id DESC
+LIMIT ? OFFSET ?
+`
+
+type ListEventsParams struct {
+	Limit  int64 `json:"limit"`
+	Offset int64 `json:"offset"`
+}
+
+type ListEventsRow struct {
+	Event          Event          `json:"event"`
+	DeviceLabel    sql.NullString `json:"device_label"`
+	DeviceHostname sql.NullString `json:"device_hostname"`
+	DeviceMac      dbtype.MAC     `json:"device_mac"`
+}
+
+// The device columns come from a LEFT JOIN because an event outlives the device
+// it described: deleting one sets events.device_id to NULL rather than taking
+// the record with it.
+func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListEventsRow, error) {
+	rows, err := q.query(ctx, q.listEventsStmt, listEvents, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListEventsRow
+	for rows.Next() {
+		var i ListEventsRow
+		if err := rows.Scan(
+			&i.Event.ID,
+			&i.Event.DeviceID,
+			&i.Event.ScanID,
+			&i.Event.Kind,
+			&i.Event.OldValue,
+			&i.Event.NewValue,
+			&i.Event.Detail,
+			&i.Event.OccurredAt,
+			&i.DeviceLabel,
+			&i.DeviceHostname,
+			&i.DeviceMac,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listGroups = `-- name: ListGroups :many
+SELECT DISTINCT CAST(group_name AS TEXT) AS group_name
+FROM devices
+WHERE group_name IS NOT NULL
+  AND group_name <> ''
+ORDER BY group_name
+`
+
+func (q *Queries) ListGroups(ctx context.Context) ([]string, error) {
+	rows, err := q.query(ctx, q.listGroupsStmt, listGroups)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var group_name string
+		if err := rows.Scan(&group_name); err != nil {
+			return nil, err
+		}
+		items = append(items, group_name)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listScans = `-- name: ListScans :many
+SELECT s.id, s.source_id, s.kind, s.network_id, s.status, s.error, s.found_count, s.started_at, s.finished_at,
+       src.name                          AS source_name,
+       CAST(COALESCE(n.cidr, '') AS TEXT) AS network_cidr
+FROM scans s
+         JOIN sources src ON src.id = s.source_id
+         LEFT JOIN networks n ON n.id = s.network_id
+ORDER BY s.started_at DESC, s.id DESC
+LIMIT ? OFFSET ?
+`
+
+type ListScansParams struct {
+	Limit  int64 `json:"limit"`
+	Offset int64 `json:"offset"`
+}
+
+type ListScansRow struct {
+	Scan        Scan   `json:"scan"`
+	SourceName  string `json:"source_name"`
+	NetworkCidr string `json:"network_cidr"`
+}
+
+// network_cidr is cast and coalesced rather than selected as itself: the column
+// override types it as a non-null Prefix, which cannot scan the NULL a scan
+// with no network -- or one whose network was deleted -- produces here.
+func (q *Queries) ListScans(ctx context.Context, arg ListScansParams) ([]ListScansRow, error) {
+	rows, err := q.query(ctx, q.listScansStmt, listScans, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListScansRow
+	for rows.Next() {
+		var i ListScansRow
+		if err := rows.Scan(
+			&i.Scan.ID,
+			&i.Scan.SourceID,
+			&i.Scan.Kind,
+			&i.Scan.NetworkID,
+			&i.Scan.Status,
+			&i.Scan.Error,
+			&i.Scan.FoundCount,
+			&i.Scan.StartedAt,
+			&i.Scan.FinishedAt,
+			&i.SourceName,
+			&i.NetworkCidr,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const moveAddresses = `-- name: MoveAddresses :exec
