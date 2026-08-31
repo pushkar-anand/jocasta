@@ -1,0 +1,56 @@
+linters:
+  disable-all: true
+  enable:
+    # defaults
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
+
+    # requested
+    - gofmt
+    - goimports
+    - misspell
+    - noctx
+    - wsl
+    - durationcheck
+    - unconvert
+    - sqlclosecheck
+    - bodyclose
+    - usestdlibvars
+    - thelper
+    - rowserrcheck
+    - whitespace
+
+    # sloglint
+    - sloglint
+
+    # suggested
+    - gosec
+    - gocritic
+    - revive
+    - errname
+
+linters-settings:
+  sloglint:
+    # Enforce using key-value pairs only (overridden by attr-only)
+    kv-only: false
+    # Enforce using attributes only (slog.Attr)
+    attr-only: true
+    # Enforce not mixing key-value pairs and attributes
+    no-mixed-args: true
+    # Enforce passing context to log calls (all, scope, empty to disable)
+    context: "all"
+    # Enforce using static strings for log messages
+    static-msg: true
+    # Enforce not using global loggers
+    no-global: "all"
+    # Prevent using keys that conflict with standard log attributes
+    forbidden-keys:
+      - time
+      - level
+      - msg
+      - source

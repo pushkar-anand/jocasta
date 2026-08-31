@@ -1,4 +1,4 @@
-.PHONY: tidy fmt build run gen new_migration docker oui test
+.PHONY: tidy fmt build run gen new_migration docker oui test lint
 
 .DEFAULT_GOAL := build
 
@@ -26,3 +26,6 @@ oui: ## Rebuild the embedded MAC vendor table from IEEE and Wireshark.
 
 test:
 	go test ./...
+
+lint: ## Run golangci-lint (requires golangci-lint to be installed)
+	golangci-lint run ./...
