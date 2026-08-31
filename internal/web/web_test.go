@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -16,11 +17,25 @@ func testLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
+// testDB opens a migrated database in a directory scoped to the test. The
+// handler does not read from it yet, but it is wired in the way main wires it
+// so the tests break when that changes.
+func testDB(t *testing.T) *db.DB {
+	t.Helper()
+
+	conn, err := db.New(&db.Config{Path: t.TempDir(), Name: "test.db"})
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = conn.Conn.Close() })
+
+	return conn
+}
+
 func TestHandlerServesIndex(t *testing.T) {
 	t.Parallel()
 
 	rec := httptest.NewRecorder()
-	NewHandler(testLogger()).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	NewHandler(testLogger(), testDB(t)).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
 
 	res := rec.Result()
 	t.Cleanup(func() { _ = res.Body.Close() })
@@ -37,7 +52,7 @@ func TestHandlerServesStaticFiles(t *testing.T) {
 	t.Parallel()
 
 	rec := httptest.NewRecorder()
-	NewHandler(testLogger()).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/static/style.css", nil))
+	NewHandler(testLogger(), testDB(t)).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/static/style.css", nil))
 
 	res := rec.Result()
 	t.Cleanup(func() { _ = res.Body.Close() })
@@ -50,7 +65,7 @@ func TestHandlerMissingStaticFile(t *testing.T) {
 	t.Parallel()
 
 	rec := httptest.NewRecorder()
-	NewHandler(testLogger()).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/static/nope.css", nil))
+	NewHandler(testLogger(), testDB(t)).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/static/nope.css", nil))
 
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 }

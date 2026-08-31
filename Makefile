@@ -1,4 +1,4 @@
-.PHONY: tidy fmt build run gen new_migration docker oui
+.PHONY: tidy fmt build run gen new_migration docker oui test
 
 fmt:
 	go fmt ./... && go tool goimports -w .
@@ -21,3 +21,6 @@ new_migration: ## Create a new migration file. Usage: make new_migration name=<m
 
 oui: ## Rebuild the embedded MAC vendor table from IEEE and Wireshark.
 	cd pkg/oui && go run ./internal/gen
+
+test:
+	go test ./...
