@@ -2,6 +2,7 @@ package web
 
 import (
 	"html/template"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -36,6 +37,7 @@ func funcs(now func() time.Time) template.FuncMap {
 		"event":       eventLabel,
 		"statusClass": statusClass,
 		"change":      change,
+		"addrs":       addrs,
 	}
 }
 
@@ -154,6 +156,21 @@ func statusClass(s dbtype.ScanStatus) string {
 	}
 
 	return "status"
+}
+
+// addrs lists the addresses a device holds. They arrive already ordered, since
+// ordering them is something SQL cannot do over a TEXT column.
+func addrs(list []netip.Addr) string {
+	if len(list) == 0 {
+		return em
+	}
+
+	out := make([]string, 0, len(list))
+	for _, a := range list {
+		out = append(out, a.String())
+	}
+
+	return strings.Join(out, ", ")
 }
 
 // change describes what an event changed, where it changed a value. An event

@@ -1,0 +1,61 @@
+{{ define "page/device" }}
+{{- template "layout/head" . }}
+
+{{- with .Device }}
+<section>
+    <p class="eyebrow">{{ .IdentitySource }} identity &middot; seen {{ ago .LastSeen }}</p>
+    <h1>{{ .Name }}</h1>
+
+    <dl class="facts">
+        <div><dt>Hardware</dt><dd>{{ dash .MAC }}</dd></div>
+        <div><dt>Vendor</dt><dd>{{ dash .Vendor }}</dd></div>
+        <div><dt>Hostname</dt><dd>{{ dash .Hostname }}</dd></div>
+        <div><dt>Group</dt><dd>{{ dash .Group }}</dd></div>
+        <div><dt>First seen</dt><dd>{{ ago .FirstSeen }}</dd></div>
+    </dl>
+
+    {{- if .Randomised }}
+    <p class="wrap-prose dim">This hardware address is locally administered: the
+        device generated it for itself, so it names no vendor and will not
+        survive the next time the device associates.</p>
+    {{- end }}
+
+    {{- with .Notes }}
+    <p class="wrap-prose">{{ . }}</p>
+    {{- end }}
+</section>
+
+<section>
+    <p class="eyebrow">Addresses</p>
+    <div class="scroller">
+        <table>
+            <thead>
+            <tr>
+                <th scope="col">Address</th>
+                <th scope="col">Held</th>
+                <th scope="col">First seen</th>
+                <th scope="col">Last seen</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{- range .Addresses }}
+            <tr class="{{ decay .LastSeen }}">
+                <td class="name">{{ .IP }}</td>
+                <td class="dim">{{ if .Current }}now{{ else }}released{{ end }}</td>
+                <td class="dim">{{ ago .FirstSeen }}</td>
+                <td class="dim">{{ ago .LastSeen }}</td>
+            </tr>
+            {{- end }}
+            </tbody>
+        </table>
+    </div>
+</section>
+{{- end }}
+
+<section>
+    <p class="eyebrow">History</p>
+    {{ template "partial/activity" .Events }}
+</section>
+
+{{- template "layout/foot" . }}
+{{ end }}

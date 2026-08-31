@@ -1,0 +1,18 @@
+{{- /*
+    Takes a pagination value built by the pager helper: a log is read by walking
+    it, not by jumping to a page number, and the walk only runs one way. The way
+    back is to the top rather than to the page before, since the cursor a page
+    was reached by says where it ended, not where it began.
+*/ -}}
+{{ define "partial/pager" }}
+{{- if or (not .AtTop) .HasOlder }}
+<nav class="pager" aria-label="More of this log">
+    {{- if not .AtTop }}
+    <a href="{{ .Path }}" rel="first">&larr; Newest</a>
+    {{- end }}
+    {{- if .HasOlder }}
+    <a href="{{ .Older }}" rel="next">Older &rarr;</a>
+    {{- end }}
+</nav>
+{{- end }}
+{{ end }}

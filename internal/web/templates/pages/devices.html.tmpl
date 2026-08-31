@@ -1,0 +1,65 @@
+{{ define "page/devices" }}
+{{- template "layout/head" . }}
+
+<section>
+    <p class="eyebrow">Inventory</p>
+
+    {{- /*
+        The form fetches only the table. It targets the fragment endpoint, which
+        answers with HX-Push-Url naming this page, so the address bar ends up
+        somewhere that can be reloaded or shared. Without htmx it submits
+        normally to the same page and the server renders the filtered list.
+    */}}
+    <form class="filters" role="search" action="/devices" method="get"
+          hx-get="/devices/rows"
+          hx-target="#device-rows"
+          hx-swap="outerHTML"
+          hx-trigger="input changed delay:300ms, change, submit">
+        <label>
+            <span class="eyebrow">Find</span>
+            <input type="search" name="q" value="{{ .Query }}"
+                   placeholder="name, address, vendor" autocomplete="off">
+        </label>
+
+        <label>
+            <span class="eyebrow">Group</span>
+            <select name="group">
+                <option value="">Any</option>
+                {{- range .Groups }}
+                <option value="{{ . }}"{{ if eq . $.Group }} selected{{ end }}>{{ . }}</option>
+                {{- end }}
+            </select>
+        </label>
+
+        <label>
+            <span class="eyebrow">Seen</span>
+            <select name="status">
+                <option value="">Any</option>
+                <option value="online"{{ if eq .Status "online" }} selected{{ end }}>Recently</option>
+                <option value="offline"{{ if eq .Status "offline" }} selected{{ end }}>Not recently</option>
+            </select>
+        </label>
+
+        <label>
+            <span class="eyebrow">Order</span>
+            <select name="sort">
+                <option value="">Last seen</option>
+                <option value="address"{{ if eq .Sort "address" }} selected{{ end }}>Address</option>
+                <option value="name"{{ if eq .Sort "name" }} selected{{ end }}>Name</option>
+            </select>
+        </label>
+
+        <label class="check">
+            <input type="checkbox" name="ignored" value="1"{{ if .IncludeIgnored }} checked{{ end }}>
+            <span>Show ignored</span>
+        </label>
+
+        {{- /* Reached only without htmx, where the form has to be submitted. */}}
+        <noscript><button type="submit">Apply</button></noscript>
+    </form>
+
+    {{ template "partial/device-rows" . }}
+</section>
+
+{{- template "layout/foot" . }}
+{{ end }}

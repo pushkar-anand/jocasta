@@ -1,0 +1,39 @@
+{{- /*
+    The table on its own. This is what the filter form swaps, and what the page
+    renders inline on first paint.
+*/ -}}
+{{ define "partial/device-rows" }}
+<div id="device-rows">
+    {{- if .Devices }}
+    <div class="scroller">
+        <table>
+            <thead>
+            <tr>
+                <th scope="col">Device</th>
+                <th scope="col">Addresses</th>
+                <th scope="col">Hardware</th>
+                <th scope="col">Vendor</th>
+                <th scope="col">Group</th>
+                <th scope="col">Last seen</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{- range .Devices }}
+            <tr class="{{ decay .LastSeen }}">
+                <td class="name"><a href="/devices/{{ .ID }}">{{ .Name }}</a></td>
+                <td>{{ addrs .Current }}</td>
+                <td class="dim">{{ dash .MAC }}{{ if .Randomised }} <span class="tag">randomised</span>{{ end }}</td>
+                <td class="dim">{{ dash .Vendor }}</td>
+                <td class="dim">{{ dash .Group }}</td>
+                <td class="dim">{{ ago .LastSeen }}</td>
+            </tr>
+            {{- end }}
+        </tbody>
+        </table>
+    </div>
+    <p class="eyebrow">{{ len .Devices }} shown</p>
+    {{- else }}
+    <p class="dim">No device matches this filter.</p>
+    {{- end }}
+</div>
+{{ end }}
