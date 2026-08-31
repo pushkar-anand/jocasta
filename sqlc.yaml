@@ -10,6 +10,12 @@ sql:
         out: "internal/db/models"
         emit_prepared_queries: true
         emit_json_tags: true
+        emit_sql_as_comment: true
+        output_db_file_name: "db.gen.go"
+        output_models_file_name: "models.gen.go"
+        output_files_suffix: ".gen.go"
+        emit_result_struct_pointers: true
+
 
         # Timestamps are TEXT in ISO-8601, which the driver will not scan into
         # a time.Time and would write back in Go's own String form. dbtime

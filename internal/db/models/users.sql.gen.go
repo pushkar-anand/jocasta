@@ -20,7 +20,12 @@ type CreateUserParams struct {
 	PasswordHash string `json:"password_hash"`
 }
 
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+// CreateUser
+//
+//	INSERT INTO users(username, password_hash)
+//	VALUES (?, ?)
+//	RETURNING id, username, password_hash, created_at
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (*User, error) {
 	row := q.queryRow(ctx, q.createUserStmt, createUser, arg.Username, arg.PasswordHash)
 	var i User
 	err := row.Scan(
@@ -29,5 +34,5 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.PasswordHash,
 		&i.CreatedAt,
 	)
-	return i, err
+	return &i, err
 }

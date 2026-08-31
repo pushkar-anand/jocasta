@@ -31,6 +31,13 @@ type AdoptCurationParams struct {
 
 // A device folded into another may carry a label the user set before its MAC
 // was known, and the earlier of the two first_seen values is the true one.
+//
+//	UPDATE devices
+//	SET label      = COALESCE(label, ?1),
+//	    notes      = COALESCE(notes, ?2),
+//	    group_name = COALESCE(group_name, ?3),
+//	    first_seen = ?4
+//	WHERE id = ?5
 func (q *Queries) AdoptCuration(ctx context.Context, arg AdoptCurationParams) error {
 	_, err := q.exec(ctx, q.adoptCurationStmt, adoptCuration,
 		arg.FoldedLabel,
@@ -60,7 +67,13 @@ type CreateDeviceParams struct {
 	LastSeen       dbtype.Time           `json:"last_seen"`
 }
 
-func (q *Queries) CreateDevice(ctx context.Context, arg CreateDeviceParams) (Device, error) {
+// CreateDevice
+//
+//	INSERT INTO devices (mac, identity_source, is_randomised, vendor, hostname, hostname_source,
+//	                     first_seen, last_seen)
+//	VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+//	RETURNING id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, label, notes, group_name, is_ignored, first_seen, last_seen
+func (q *Queries) CreateDevice(ctx context.Context, arg CreateDeviceParams) (*Device, error) {
 	row := q.queryRow(ctx, q.createDeviceStmt, createDevice,
 		arg.Mac,
 		arg.IdentitySource,
@@ -88,7 +101,7 @@ func (q *Queries) CreateDevice(ctx context.Context, arg CreateDeviceParams) (Dev
 		&i.FirstSeen,
 		&i.LastSeen,
 	)
-	return i, err
+	return &i, err
 }
 
 const createEvent = `-- name: CreateEvent :exec
@@ -106,6 +119,10 @@ type CreateEventParams struct {
 	OccurredAt dbtype.Time      `json:"occurred_at"`
 }
 
+// CreateEvent
+//
+//	INSERT INTO events (device_id, scan_id, kind, old_value, new_value, detail, occurred_at)
+//	VALUES (?, ?, ?, ?, ?, ?, ?)
 func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) error {
 	_, err := q.exec(ctx, q.createEventStmt, createEvent,
 		arg.DeviceID,
@@ -132,7 +149,12 @@ type CreateScanParams struct {
 	StartedAt dbtype.Time     `json:"started_at"`
 }
 
-func (q *Queries) CreateScan(ctx context.Context, arg CreateScanParams) (Scan, error) {
+// CreateScan
+//
+//	INSERT INTO scans (source_id, kind, network_id, started_at)
+//	VALUES (?, ?, ?, ?)
+//	RETURNING id, source_id, kind, network_id, status, error, found_count, started_at, finished_at
+func (q *Queries) CreateScan(ctx context.Context, arg CreateScanParams) (*Scan, error) {
 	row := q.queryRow(ctx, q.createScanStmt, createScan,
 		arg.SourceID,
 		arg.Kind,
@@ -151,7 +173,7 @@ func (q *Queries) CreateScan(ctx context.Context, arg CreateScanParams) (Scan, e
 		&i.StartedAt,
 		&i.FinishedAt,
 	)
-	return i, err
+	return &i, err
 }
 
 const deleteDevice = `-- name: DeleteDevice :exec
@@ -160,6 +182,11 @@ FROM devices
 WHERE id = ?
 `
 
+// DeleteDevice
+//
+//	DELETE
+//	FROM devices
+//	WHERE id = ?
 func (q *Queries) DeleteDevice(ctx context.Context, id int64) error {
 	_, err := q.exec(ctx, q.deleteDeviceStmt, deleteDevice, id)
 	return err
@@ -192,7 +219,13 @@ type DeviceStatsRow struct {
 // The two logs are read with a query builder rather than from here: paging
 // them seeks past the row the last page ended on, and the seek is a clause that
 // is present or absent. See internal/db/models/inventory_page.go.
-func (q *Queries) DeviceStats(ctx context.Context, arg DeviceStatsParams) (DeviceStatsRow, error) {
+//
+//	SELECT COUNT(*)                                                                       AS total,
+//	       CAST(COALESCE(SUM(CASE WHEN is_ignored = 1 THEN 1 ELSE 0 END), 0) AS INTEGER)  AS ignored,
+//	       CAST(COALESCE(SUM(CASE WHEN last_seen >= ?1 THEN 1 ELSE 0 END), 0) AS INTEGER) AS online,
+//	       CAST(COALESCE(SUM(CASE WHEN first_seen >= ?2 THEN 1 ELSE 0 END), 0) AS INTEGER)   AS discovered
+//	FROM devices
+func (q *Queries) DeviceStats(ctx context.Context, arg DeviceStatsParams) (*DeviceStatsRow, error) {
 	row := q.queryRow(ctx, q.deviceStatsStmt, deviceStats, arg.OnlineSince, arg.NewSince)
 	var i DeviceStatsRow
 	err := row.Scan(
@@ -201,7 +234,7 @@ func (q *Queries) DeviceStats(ctx context.Context, arg DeviceStatsParams) (Devic
 		&i.Online,
 		&i.Discovered,
 	)
-	return i, err
+	return &i, err
 }
 
 const finishScan = `-- name: FinishScan :exec
@@ -221,6 +254,14 @@ type FinishScanParams struct {
 	ID         int64             `json:"id"`
 }
 
+// FinishScan
+//
+//	UPDATE scans
+//	SET status      = ?1,
+//	    error       = ?2,
+//	    found_count = ?3,
+//	    finished_at = ?4
+//	WHERE id = ?5
 func (q *Queries) FinishScan(ctx context.Context, arg FinishScanParams) error {
 	_, err := q.exec(ctx, q.finishScanStmt, finishScan,
 		arg.Status,
@@ -244,7 +285,13 @@ type GetAddressParams struct {
 	Ip       dbtype.Addr `json:"ip"`
 }
 
-func (q *Queries) GetAddress(ctx context.Context, arg GetAddressParams) (Address, error) {
+// GetAddress
+//
+//	SELECT id, device_id, network_id, ip, is_current, first_seen, last_seen
+//	FROM addresses
+//	WHERE device_id = ?
+//	  AND ip = ?
+func (q *Queries) GetAddress(ctx context.Context, arg GetAddressParams) (*Address, error) {
 	row := q.queryRow(ctx, q.getAddressStmt, getAddress, arg.DeviceID, arg.Ip)
 	var i Address
 	err := row.Scan(
@@ -256,7 +303,7 @@ func (q *Queries) GetAddress(ctx context.Context, arg GetAddressParams) (Address
 		&i.FirstSeen,
 		&i.LastSeen,
 	)
-	return i, err
+	return &i, err
 }
 
 const getDevice = `-- name: GetDevice :one
@@ -265,7 +312,12 @@ FROM devices
 WHERE id = ?
 `
 
-func (q *Queries) GetDevice(ctx context.Context, id int64) (Device, error) {
+// GetDevice
+//
+//	SELECT id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, label, notes, group_name, is_ignored, first_seen, last_seen
+//	FROM devices
+//	WHERE id = ?
+func (q *Queries) GetDevice(ctx context.Context, id int64) (*Device, error) {
 	row := q.queryRow(ctx, q.getDeviceStmt, getDevice, id)
 	var i Device
 	err := row.Scan(
@@ -284,7 +336,7 @@ func (q *Queries) GetDevice(ctx context.Context, id int64) (Device, error) {
 		&i.FirstSeen,
 		&i.LastSeen,
 	)
-	return i, err
+	return &i, err
 }
 
 const getDeviceByCurrentIP = `-- name: GetDeviceByCurrentIP :one
@@ -299,7 +351,14 @@ type GetDeviceByCurrentIPRow struct {
 	Device Device `json:"device"`
 }
 
-func (q *Queries) GetDeviceByCurrentIP(ctx context.Context, ip dbtype.Addr) (GetDeviceByCurrentIPRow, error) {
+// GetDeviceByCurrentIP
+//
+//	SELECT d.id, d.mac, d.identity_source, d.is_randomised, d.vendor, d.hostname, d.hostname_source, d.device_type, d.label, d.notes, d.group_name, d.is_ignored, d.first_seen, d.last_seen
+//	FROM devices d
+//	         JOIN addresses a ON a.device_id = d.id
+//	WHERE a.ip = ?
+//	  AND a.is_current = 1
+func (q *Queries) GetDeviceByCurrentIP(ctx context.Context, ip dbtype.Addr) (*GetDeviceByCurrentIPRow, error) {
 	row := q.queryRow(ctx, q.getDeviceByCurrentIPStmt, getDeviceByCurrentIP, ip)
 	var i GetDeviceByCurrentIPRow
 	err := row.Scan(
@@ -318,7 +377,7 @@ func (q *Queries) GetDeviceByCurrentIP(ctx context.Context, ip dbtype.Addr) (Get
 		&i.Device.FirstSeen,
 		&i.Device.LastSeen,
 	)
-	return i, err
+	return &i, err
 }
 
 const getDeviceByMAC = `-- name: GetDeviceByMAC :one
@@ -327,7 +386,12 @@ FROM devices
 WHERE mac = ?
 `
 
-func (q *Queries) GetDeviceByMAC(ctx context.Context, mac dbtype.MAC) (Device, error) {
+// GetDeviceByMAC
+//
+//	SELECT id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, label, notes, group_name, is_ignored, first_seen, last_seen
+//	FROM devices
+//	WHERE mac = ?
+func (q *Queries) GetDeviceByMAC(ctx context.Context, mac dbtype.MAC) (*Device, error) {
 	row := q.queryRow(ctx, q.getDeviceByMACStmt, getDeviceByMAC, mac)
 	var i Device
 	err := row.Scan(
@@ -346,7 +410,7 @@ func (q *Queries) GetDeviceByMAC(ctx context.Context, mac dbtype.MAC) (Device, e
 		&i.FirstSeen,
 		&i.LastSeen,
 	)
-	return i, err
+	return &i, err
 }
 
 const identifyDevice = `-- name: IdentifyDevice :exec
@@ -365,6 +429,14 @@ type IdentifyDeviceParams struct {
 	ID           int64          `json:"id"`
 }
 
+// IdentifyDevice
+//
+//	UPDATE devices
+//	SET mac             = ?1,
+//	    identity_source = 'MAC',
+//	    is_randomised   = ?2,
+//	    vendor          = ?3
+//	WHERE id = ?4
 func (q *Queries) IdentifyDevice(ctx context.Context, arg IdentifyDeviceParams) error {
 	_, err := q.exec(ctx, q.identifyDeviceStmt, identifyDevice,
 		arg.Mac,
@@ -389,7 +461,12 @@ type InsertAddressParams struct {
 	LastSeen  dbtype.Time   `json:"last_seen"`
 }
 
-func (q *Queries) InsertAddress(ctx context.Context, arg InsertAddressParams) (Address, error) {
+// InsertAddress
+//
+//	INSERT INTO addresses (device_id, network_id, ip, first_seen, last_seen)
+//	VALUES (?, ?, ?, ?, ?)
+//	RETURNING id, device_id, network_id, ip, is_current, first_seen, last_seen
+func (q *Queries) InsertAddress(ctx context.Context, arg InsertAddressParams) (*Address, error) {
 	row := q.queryRow(ctx, q.insertAddressStmt, insertAddress,
 		arg.DeviceID,
 		arg.NetworkID,
@@ -407,7 +484,7 @@ func (q *Queries) InsertAddress(ctx context.Context, arg InsertAddressParams) (A
 		&i.FirstSeen,
 		&i.LastSeen,
 	)
-	return i, err
+	return &i, err
 }
 
 const listDeviceAddresses = `-- name: ListDeviceAddresses :many
@@ -419,13 +496,18 @@ ORDER BY is_current DESC, last_seen DESC
 
 // Current addresses first, then the ones the device has released: "where did
 // this used to live" is the reason the released rows are kept.
-func (q *Queries) ListDeviceAddresses(ctx context.Context, deviceID int64) ([]Address, error) {
+//
+//	SELECT id, device_id, network_id, ip, is_current, first_seen, last_seen
+//	FROM addresses
+//	WHERE device_id = ?
+//	ORDER BY is_current DESC, last_seen DESC
+func (q *Queries) ListDeviceAddresses(ctx context.Context, deviceID int64) ([]*Address, error) {
 	rows, err := q.query(ctx, q.listDeviceAddressesStmt, listDeviceAddresses, deviceID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Address
+	var items []*Address
 	for rows.Next() {
 		var i Address
 		if err := rows.Scan(
@@ -439,7 +521,7 @@ func (q *Queries) ListDeviceAddresses(ctx context.Context, deviceID int64) ([]Ad
 		); err != nil {
 			return nil, err
 		}
-		items = append(items, i)
+		items = append(items, &i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -465,13 +547,19 @@ type ListDeviceEventsParams struct {
 
 // Timestamps only resolve to the millisecond, so id breaks the ties within one
 // scan, which writes every one of its events on the same stamp.
-func (q *Queries) ListDeviceEvents(ctx context.Context, arg ListDeviceEventsParams) ([]Event, error) {
+//
+//	SELECT id, device_id, scan_id, kind, old_value, new_value, detail, occurred_at
+//	FROM events
+//	WHERE device_id = ?
+//	ORDER BY occurred_at DESC, id DESC
+//	LIMIT ?
+func (q *Queries) ListDeviceEvents(ctx context.Context, arg ListDeviceEventsParams) ([]*Event, error) {
 	rows, err := q.query(ctx, q.listDeviceEventsStmt, listDeviceEvents, arg.DeviceID, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Event
+	var items []*Event
 	for rows.Next() {
 		var i Event
 		if err := rows.Scan(
@@ -486,7 +574,7 @@ func (q *Queries) ListDeviceEvents(ctx context.Context, arg ListDeviceEventsPara
 		); err != nil {
 			return nil, err
 		}
-		items = append(items, i)
+		items = append(items, &i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -540,13 +628,33 @@ type ListDevicesRow struct {
 // is_ignored compares against the argument rather than testing a flag: passing
 // false leaves the clause admitting only unignored rows, and passing true makes
 // the second half admit the rest.
-func (q *Queries) ListDevices(ctx context.Context, arg ListDevicesParams) ([]ListDevicesRow, error) {
+//
+//	SELECT d.id, d.mac, d.identity_source, d.is_randomised, d.vendor, d.hostname, d.hostname_source, d.device_type, d.label, d.notes, d.group_name, d.is_ignored, d.first_seen, d.last_seen,
+//	       CAST(COALESCE((SELECT GROUP_CONCAT(a.ip, ' ')
+//	                      FROM addresses a
+//	                      WHERE a.device_id = d.id
+//	                        AND a.is_current = 1), '') AS TEXT) AS current_ips
+//	FROM devices d
+//	WHERE (d.is_ignored = 0 OR d.is_ignored = ?1)
+//	  AND (CAST(?2 AS TEXT) IS NULL OR d.group_name = CAST(?2 AS TEXT))
+//	  AND (CAST(?3 AS TEXT) IS NULL
+//	    OR d.label LIKE '%' || CAST(?3 AS TEXT) || '%'
+//	    OR d.hostname LIKE '%' || CAST(?3 AS TEXT) || '%'
+//	    OR d.vendor LIKE '%' || CAST(?3 AS TEXT) || '%'
+//	    OR d.mac LIKE '%' || CAST(?3 AS TEXT) || '%'
+//	    OR EXISTS (SELECT 1
+//	               FROM addresses a
+//	               WHERE a.device_id = d.id
+//	                 AND a.is_current = 1
+//	                 AND a.ip LIKE '%' || CAST(?3 AS TEXT) || '%'))
+//	ORDER BY d.last_seen DESC
+func (q *Queries) ListDevices(ctx context.Context, arg ListDevicesParams) ([]*ListDevicesRow, error) {
 	rows, err := q.query(ctx, q.listDevicesStmt, listDevices, arg.IncludeIgnored, arg.GroupName, arg.Q)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListDevicesRow
+	var items []*ListDevicesRow
 	for rows.Next() {
 		var i ListDevicesRow
 		if err := rows.Scan(
@@ -568,7 +676,7 @@ func (q *Queries) ListDevices(ctx context.Context, arg ListDevicesParams) ([]Lis
 		); err != nil {
 			return nil, err
 		}
-		items = append(items, i)
+		items = append(items, &i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -587,6 +695,13 @@ WHERE group_name IS NOT NULL
 ORDER BY group_name
 `
 
+// ListGroups
+//
+//	SELECT DISTINCT CAST(group_name AS TEXT) AS group_name
+//	FROM devices
+//	WHERE group_name IS NOT NULL
+//	  AND group_name <> ''
+//	ORDER BY group_name
 func (q *Queries) ListGroups(ctx context.Context) ([]string, error) {
 	rows, err := q.query(ctx, q.listGroupsStmt, listGroups)
 	if err != nil {
@@ -623,6 +738,10 @@ type MoveAddressesParams struct {
 
 // Rows the surviving device already holds for the same address are left behind
 // and go with the folded device when it is deleted.
+//
+//	UPDATE OR IGNORE addresses
+//	SET device_id = ?1
+//	WHERE device_id = ?2
 func (q *Queries) MoveAddresses(ctx context.Context, arg MoveAddressesParams) error {
 	_, err := q.exec(ctx, q.moveAddressesStmt, moveAddresses, arg.IntoID, arg.FromID)
 	return err
@@ -639,6 +758,11 @@ type MoveEventsParams struct {
 	FromID sql.NullInt64 `json:"from_id"`
 }
 
+// MoveEvents
+//
+//	UPDATE events
+//	SET device_id = ?1
+//	WHERE device_id = ?2
 func (q *Queries) MoveEvents(ctx context.Context, arg MoveEventsParams) error {
 	_, err := q.exec(ctx, q.moveEventsStmt, moveEvents, arg.IntoID, arg.FromID)
 	return err
@@ -658,6 +782,13 @@ type RefreshAddressParams struct {
 	ID        int64         `json:"id"`
 }
 
+// RefreshAddress
+//
+//	UPDATE addresses
+//	SET is_current = 1,
+//	    network_id = ?1,
+//	    last_seen  = ?2
+//	WHERE id = ?3
 func (q *Queries) RefreshAddress(ctx context.Context, arg RefreshAddressParams) error {
 	_, err := q.exec(ctx, q.refreshAddressStmt, refreshAddress, arg.NetworkID, arg.LastSeen, arg.ID)
 	return err
@@ -678,6 +809,12 @@ type ReleaseAddressParams struct {
 
 // Only one device may hold an address as current, so the previous holder is
 // released before the new claim rather than colliding with the partial index.
+//
+//	UPDATE addresses
+//	SET is_current = 0
+//	WHERE ip = ?1
+//	  AND is_current = 1
+//	  AND device_id <> ?2
 func (q *Queries) ReleaseAddress(ctx context.Context, arg ReleaseAddressParams) error {
 	_, err := q.exec(ctx, q.releaseAddressStmt, releaseAddress, arg.Ip, arg.DeviceID)
 	return err
@@ -696,6 +833,12 @@ type SetDeviceHostnameParams struct {
 	ID             int64                 `json:"id"`
 }
 
+// SetDeviceHostname
+//
+//	UPDATE devices
+//	SET hostname        = ?1,
+//	    hostname_source = ?2
+//	WHERE id = ?3
 func (q *Queries) SetDeviceHostname(ctx context.Context, arg SetDeviceHostnameParams) error {
 	_, err := q.exec(ctx, q.setDeviceHostnameStmt, setDeviceHostname, arg.Hostname, arg.HostnameSource, arg.ID)
 	return err
@@ -712,6 +855,11 @@ type TouchDeviceParams struct {
 	ID       int64       `json:"id"`
 }
 
+// TouchDevice
+//
+//	UPDATE devices
+//	SET last_seen = ?1
+//	WHERE id = ?2
 func (q *Queries) TouchDevice(ctx context.Context, arg TouchDeviceParams) error {
 	_, err := q.exec(ctx, q.touchDeviceStmt, touchDevice, arg.LastSeen, arg.ID)
 	return err
@@ -741,7 +889,16 @@ type UpdateDeviceCurationParams struct {
 // Writes.
 // Every user-owned column is set rather than merged: the form submits all of
 // them, so an omitted one means cleared, not unchanged.
-func (q *Queries) UpdateDeviceCuration(ctx context.Context, arg UpdateDeviceCurationParams) (Device, error) {
+//
+//	UPDATE devices
+//	SET label       = ?1,
+//	    notes       = ?2,
+//	    group_name  = ?3,
+//	    device_type = ?4,
+//	    is_ignored  = ?5
+//	WHERE id = ?6
+//	RETURNING id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, label, notes, group_name, is_ignored, first_seen, last_seen
+func (q *Queries) UpdateDeviceCuration(ctx context.Context, arg UpdateDeviceCurationParams) (*Device, error) {
 	row := q.queryRow(ctx, q.updateDeviceCurationStmt, updateDeviceCuration,
 		arg.Label,
 		arg.Notes,
@@ -767,7 +924,7 @@ func (q *Queries) UpdateDeviceCuration(ctx context.Context, arg UpdateDeviceCura
 		&i.FirstSeen,
 		&i.LastSeen,
 	)
-	return i, err
+	return &i, err
 }
 
 const upsertNetwork = `-- name: UpsertNetwork :one
@@ -782,7 +939,13 @@ type UpsertNetworkParams struct {
 	CreatedAt dbtype.Time   `json:"created_at"`
 }
 
-func (q *Queries) UpsertNetwork(ctx context.Context, arg UpsertNetworkParams) (Network, error) {
+// UpsertNetwork
+//
+//	INSERT INTO networks (cidr, created_at)
+//	VALUES (?, ?)
+//	ON CONFLICT (cidr) DO UPDATE SET cidr = excluded.cidr
+//	RETURNING id, cidr, name, vlan_id, created_at
+func (q *Queries) UpsertNetwork(ctx context.Context, arg UpsertNetworkParams) (*Network, error) {
 	row := q.queryRow(ctx, q.upsertNetworkStmt, upsertNetwork, arg.Cidr, arg.CreatedAt)
 	var i Network
 	err := row.Scan(
@@ -792,7 +955,7 @@ func (q *Queries) UpsertNetwork(ctx context.Context, arg UpsertNetworkParams) (N
 		&i.VlanID,
 		&i.CreatedAt,
 	)
-	return i, err
+	return &i, err
 }
 
 const upsertSource = `-- name: UpsertSource :one
@@ -808,7 +971,13 @@ type UpsertSourceParams struct {
 	CreatedAt dbtype.Time       `json:"created_at"`
 }
 
-func (q *Queries) UpsertSource(ctx context.Context, arg UpsertSourceParams) (Source, error) {
+// UpsertSource
+//
+//	INSERT INTO sources (kind, name, created_at)
+//	VALUES (?, ?, ?)
+//	ON CONFLICT (name) DO UPDATE SET kind = excluded.kind
+//	RETURNING id, kind, name, created_at
+func (q *Queries) UpsertSource(ctx context.Context, arg UpsertSourceParams) (*Source, error) {
 	row := q.queryRow(ctx, q.upsertSourceStmt, upsertSource, arg.Kind, arg.Name, arg.CreatedAt)
 	var i Source
 	err := row.Scan(
@@ -817,5 +986,5 @@ func (q *Queries) UpsertSource(ctx context.Context, arg UpsertSourceParams) (Sou
 		&i.Name,
 		&i.CreatedAt,
 	)
-	return i, err
+	return &i, err
 }
