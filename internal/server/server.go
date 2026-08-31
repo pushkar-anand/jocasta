@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/pushkar-anand/build-with-go/http/middleware"
 	"github.com/pushkar-anand/build-with-go/http/request"
 	"github.com/pushkar-anand/build-with-go/http/server"
 	"github.com/pushkar-anand/build-with-go/logger"
@@ -42,14 +43,17 @@ func Start(
 	store := inventory.New(conn.Conn, cfg.Logger, inventory.WithOnlineWindow(cfg.OnlineWindow))
 
 	ap := api.NewHandler(cfg.Logger, reader, store)
-	wh := web.NewHandler(cfg.Logger, conn, reader)
+	wh := web.NewHandler(cfg.Logger, reader, store)
 
 	mux := http.NewServeMux()
 
 	mux.Handle("/api/", http.StripPrefix("/api", ap))
 	mux.Handle("/", wh)
 
-	h := logger.NewHTTPLogger(cfg.Logger)(mux)
+	// Applied outside the logger so every response carries them, including the
+	// static files, which the renderer never sees.
+	h := secureHeaders(logger.NewHTTPLogger(cfg.Logger)(mux))
+	h = middleware.RequestID(h)
 
 	srv := server.New(
 		h,
@@ -58,4 +62,26 @@ func Start(
 	)
 
 	return srv.Serve(ctx)
+}
+
+// csp is the content security policy every response carries.
+//
+// Everything the pages load is served from this origin: the stylesheet, and the
+// vendored htmx. That is the reason htmx is committed to the repository rather
+// than pulled from a CDN, and the reason no markup here carries an inline style
+// or an inline script -- both of which this policy refuses, and neither of which
+// htmx needs so long as hx-on attributes are left alone.
+const csp = "default-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+
+// secureHeaders sets the response headers that are the same for every response.
+func secureHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Content-Security-Policy", csp)
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("Referrer-Policy", "no-referrer")
+
+		next.ServeHTTP(w, r)
+	})
 }

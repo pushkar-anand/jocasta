@@ -1,0 +1,459 @@
+/*
+ * Jocasta -- network device inventory.
+ *
+ * The type system inverts the usual arrangement: monospace is the display face,
+ * not just the one data sits in. Everything an operator reads here is an
+ * address, a prefix or a hardware identifier, so the mono is the subject's own
+ * vernacular rather than a decorative choice. Body prose is the exception.
+ *
+ * Colour is amber on warm charcoal, after the phosphor of the terminals this
+ * kind of gear was first administered from. Amber carries every signal in the
+ * interface; rust is reserved for failure, and nothing else is coloured.
+ */
+
+:root {
+    color-scheme: light dark;
+
+    --ground: #eae7e0;
+    --surface: #f6f4ef;
+    --rule: #d6d0c4;
+    --rule-soft: #e2ddd3;
+    --text: #1b1712;
+    --muted: #6e6555;
+    --signal: #a76a08;
+    --signal-soft: #e9d3a8;
+    --alert: #a33d1c;
+
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "IBM Plex Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+
+    --gap: 1.5rem;
+    --radius: 3px;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --ground: #141210;
+        --surface: #1c1916;
+        --rule: #2f2a24;
+        --rule-soft: #241f1a;
+        --text: #e9e3d7;
+        --muted: #968d7c;
+        --signal: #f0a830;
+        --signal-soft: #7d5a22;
+        --alert: #e0714a;
+    }
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 0.875rem;
+    line-height: 1.55;
+    -webkit-text-size-adjust: 100%;
+}
+
+a {
+    color: inherit;
+    text-decoration-color: var(--rule);
+    text-underline-offset: 2px;
+}
+
+a:hover {
+    text-decoration-color: var(--signal);
+}
+
+:focus-visible {
+    outline: 2px solid var(--signal);
+    outline-offset: 2px;
+}
+
+/* ---- Masthead --------------------------------------------------------- */
+
+.masthead {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.75rem var(--gap);
+    padding: 1.25rem var(--gap) 0;
+    max-width: 76rem;
+    margin: 0 auto;
+}
+
+.wordmark {
+    font-family: var(--mono);
+    font-size: 1.0625rem;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    text-decoration: none;
+}
+
+.wordmark::before {
+    content: "";
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    margin-right: 0.5rem;
+    background: var(--signal);
+    border-radius: 1px;
+}
+
+.nav {
+    display: flex;
+    gap: 1rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.nav a {
+    color: var(--muted);
+    text-decoration: none;
+    padding-bottom: 0.25rem;
+    border-bottom: 2px solid transparent;
+}
+
+.nav a:hover {
+    color: var(--text);
+}
+
+.nav a[aria-current="page"] {
+    color: var(--text);
+    border-bottom-color: var(--signal);
+}
+
+/* Pushed to the far end of the masthead: ambient, not a control. */
+.masthead__note {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+}
+
+/* ---- Page ------------------------------------------------------------- */
+
+main {
+    max-width: 76rem;
+    margin: 0 auto;
+    padding: var(--gap);
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+}
+
+.masthead + main {
+    padding-top: 1.25rem;
+}
+
+section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* An eyebrow names the block it sits over. It is a label, not an ornament, so
+   there is exactly one per section and it never repeats the content below. */
+.eyebrow {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+h1 {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+.footer {
+    max-width: 76rem;
+    margin: 0 auto;
+    padding: 0 var(--gap) 2rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+}
+
+/* ---- Presence ledger -------------------------------------------------- */
+
+/* One bar for the whole inventory. Presence here is a question about how stale
+   the last sighting is, not a state a device reports, so the proportion is the
+   honest way to show it: how much of the network answered recently.
+
+   Drawn as SVG rather than as sized elements. The width has to come from the
+   data, and an inline style attribute would need style-src 'unsafe-inline' to
+   survive the content security policy, while an SVG width is an attribute and
+   needs nothing. */
+.ledger {
+    display: block;
+    width: 100%;
+    height: 0.5rem;
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.ledger__track {
+    fill: var(--rule-soft);
+}
+
+.ledger__online {
+    fill: var(--signal);
+}
+
+.ledger__offline {
+    fill: var(--rule);
+}
+
+/* The sections inside are laid out by main's flex gap, which does not reach
+   through a plain div, so this one repeats it. */
+#live {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+}
+
+/* A run of labelled values. --lead raises the value for the counts that are
+   the point of the page; everything else states its facts at reading size. */
+.facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.75rem;
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+}
+
+.facts div {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+}
+
+.facts dt {
+    font-size: 0.6875rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.facts dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.facts--lead dd {
+    font-size: 1.125rem;
+}
+
+/* ---- Tables ----------------------------------------------------------- */
+
+.scroller {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    font-variant-numeric: tabular-nums;
+}
+
+thead th {
+    text-align: left;
+    padding: 0 0.75rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+}
+
+tbody td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: baseline;
+}
+
+tbody tr:hover {
+    background: var(--surface);
+}
+
+/* The signature: a rule down the leading edge of every row, its weight falling
+   off with the age of the last sighting. A device is not simply present or
+   absent -- it was last heard from at some point, and how long ago that was is
+   the thing an operator is actually reading for. */
+tbody tr {
+    box-shadow: inset 3px 0 0 var(--decay, transparent);
+}
+
+.decay--fresh {
+    --decay: var(--signal);
+}
+
+.decay--recent {
+    --decay: var(--signal-soft);
+}
+
+.decay--stale {
+    --decay: var(--rule);
+}
+
+.decay--cold {
+    --decay: transparent;
+}
+
+.name {
+    font-weight: 600;
+}
+
+.dim {
+    color: var(--muted);
+}
+
+.wrap-prose {
+    font-family: var(--sans);
+    white-space: normal;
+}
+
+/* ---- Status ----------------------------------------------------------- */
+
+.status {
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.status--failed {
+    color: var(--alert);
+}
+
+.status--running {
+    color: var(--signal);
+}
+
+/* ---- Activity --------------------------------------------------------- */
+
+.activity {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+}
+
+.activity li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem 0.75rem;
+    padding: 0.4rem 0 0.4rem 0.75rem;
+    border-bottom: 1px solid var(--rule-soft);
+    box-shadow: inset 3px 0 0 var(--decay, transparent);
+}
+
+/* Fixed leading columns so the entries line up as a log rather than as prose,
+   and so a wide window does not strand the timestamp at the far edge. */
+.activity time {
+    flex: 0 0 6rem;
+    color: var(--muted);
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+.kind {
+    flex: 0 0 6rem;
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+/* The device is the third column of the log, so what changed starts at the same
+   place on every line instead of tracking the length of the name. */
+.activity .name {
+    flex: 0 0 12rem;
+}
+
+/* ---- Empty states ----------------------------------------------------- */
+
+.empty {
+    padding: 1.5rem;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+}
+
+.empty p {
+    margin: 0 0 0.75rem;
+    max-width: 44ch;
+}
+
+.empty p:last-child {
+    margin-bottom: 0;
+}
+
+code {
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    padding: 0.15rem 0.4rem;
+    background: var(--ground);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+}
+
+/* ---- htmx ------------------------------------------------------------- */
+
+/* Declared here because the policy refuses the style element htmx would inject
+   for them. Same rules, from a stylesheet this origin served. */
+.htmx-indicator {
+    opacity: 0;
+}
+
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+    opacity: 1;
+}
+
+/* Swaps carry a short fade so a table replacing itself reads as an update
+   rather than a flicker. */
+.htmx-swapping {
+    opacity: 0.4;
+    transition: opacity 120ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .htmx-swapping {
+        opacity: 1;
+        transition: none;
+    }
+}
+
+@media (max-width: 40rem) {
+    :root {
+        --gap: 1rem;
+    }
+
+    .masthead__note {
+        margin-left: 0;
+        flex-basis: 100%;
+    }
+}

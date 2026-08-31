@@ -142,12 +142,13 @@ func TestStartRoutes(t *testing.T) {
 	})
 
 	t.Run("the api prefix is stripped", func(t *testing.T) {
-		// Without StripPrefix this would reach the API handler as /api/livez
-		// and 404; with it, /livez outside the prefix falls through to the web
-		// handler, which serves the index page for any unmatched path.
+		// Without StripPrefix this would reach the API handler as /api/livez.
+		// With it, /livez outside the prefix is not an API route at all: it
+		// falls through to the web handler, which does not know the path and
+		// says so in HTML rather than answering with the API's JSON.
 		res := get(t, baseURL+"/livez")
 
-		require.Equal(t, http.StatusOK, res.StatusCode)
+		require.Equal(t, http.StatusNotFound, res.StatusCode)
 		assert.Contains(t, res.Header.Get("Content-Type"), "text/html")
 	})
 
@@ -159,13 +160,43 @@ func TestStartRoutes(t *testing.T) {
 
 		body, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
-		assert.Contains(t, string(body), "Hello World!")
+		assert.Contains(t, string(body), "jocasta")
 	})
 
 	t.Run("static assets are served", func(t *testing.T) {
 		res := get(t, baseURL+"/static/style.css")
 
 		assert.Equal(t, http.StatusOK, res.StatusCode)
+	})
+
+	// The headers are set for the whole mux rather than by the renderer, which
+	// is what a stylesheet or the vendored htmx needs: neither passes through a
+	// template.
+	t.Run("security headers reach every response", func(t *testing.T) {
+		for _, path := range []string{"/", "/static/style.css", "/static/js/htmx.min.js", "/api/livez"} {
+			t.Run(path, func(t *testing.T) {
+				res := get(t, baseURL+path)
+
+				assert.Equal(t, csp, res.Header.Get("Content-Security-Policy"))
+				assert.Equal(t, "nosniff", res.Header.Get("X-Content-Type-Options"))
+				assert.Equal(t, "DENY", res.Header.Get("X-Frame-Options"))
+				assert.Equal(t, "no-referrer", res.Header.Get("Referrer-Policy"))
+			})
+		}
+	})
+
+	// The policy is the reason htmx is vendored and no markup carries an inline
+	// style or script, so the page has to load only from this origin.
+	t.Run("the policy admits only this origin", func(t *testing.T) {
+		assert.Contains(t, csp, "default-src 'self'")
+		assert.NotContains(t, csp, "unsafe-inline")
+		assert.NotContains(t, csp, "unsafe-eval")
+	})
+
+	t.Run("responses carry a request id", func(t *testing.T) {
+		res := get(t, baseURL+"/")
+
+		assert.NotEmpty(t, res.Header.Get("X-Request-Id"))
 	})
 }
 

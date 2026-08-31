@@ -1,4 +1,4 @@
-.PHONY: tidy fmt build run gen new_migration docker oui test lint
+.PHONY: tidy fmt build run gen new_migration docker oui htmx test lint
 
 .DEFAULT_GOAL := build
 
@@ -23,6 +23,14 @@ new_migration: ## Create a new migration file. Usage: make new_migration name=<m
 
 oui: ## Rebuild the embedded MAC vendor table from IEEE and Wireshark.
 	cd pkg/oui && go run ./internal/gen
+
+# htmx is vendored rather than loaded from a CDN because the content security
+# policy admits scripts from this origin only.
+HTMX_VERSION ?= 2.0.8
+
+htmx: ## Refresh the vendored htmx. Usage: make htmx [HTMX_VERSION=2.0.8]
+	curl -sfL -o internal/web/statics/js/htmx.min.js \
+		https://cdnjs.cloudflare.com/ajax/libs/htmx/$(HTMX_VERSION)/htmx.min.js
 
 test:
 	go test ./...
