@@ -10,12 +10,27 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func testLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
+
+// testDB opens a migrated database in a directory scoped to the test. The
+// handler does not read from it yet, but it is wired in the way main wires it
+// so the tests break when that changes.
+func testDB(t *testing.T) *db.DB {
+	t.Helper()
+
+	conn, err := db.New(&db.Config{Path: t.TempDir(), Name: "test.db"})
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = conn.Conn.Close() })
+
+	return conn
 }
 
 // freePort reserves a port and releases it again. There is a window in which
@@ -57,6 +72,10 @@ func startServer(t *testing.T) string {
 
 	port := freePort(t)
 
+	// Opened here rather than in the goroutine below: testDB registers a
+	// cleanup, and t.Cleanup must not be called from another goroutine.
+	conn := testDB(t)
+
 	errCh := make(chan error, 1)
 
 	// t.Context is cancelled just before the cleanups below run, so the test
@@ -64,7 +83,7 @@ func startServer(t *testing.T) string {
 	ctx := t.Context()
 
 	go func() {
-		errCh <- Start(ctx, &Config{Addr: "127.0.0.1", Port: port, Logger: testLogger()})
+		errCh <- Start(ctx, &Config{Addr: "127.0.0.1", Port: port, Logger: testLogger()}, conn)
 	}()
 
 	t.Cleanup(func() {
@@ -150,7 +169,7 @@ func TestStartFailsOnPortInUse(t *testing.T) {
 		Addr:   "127.0.0.1",
 		Port:   ln.Addr().(*net.TCPAddr).Port,
 		Logger: testLogger(),
-	})
+	}, testDB(t))
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "error binding")
