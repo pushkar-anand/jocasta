@@ -91,12 +91,12 @@ func TestTook(t *testing.T) {
 
 	start := now
 
-	assert.Equal(t, "1.5s", took(inventory.Scan{StartedAt: start, FinishedAt: start.Add(1500 * time.Millisecond)}))
-	assert.Equal(t, "12ms", took(inventory.Scan{StartedAt: start, FinishedAt: start.Add(12 * time.Millisecond)}))
+	assert.Equal(t, "1.5s", took(&inventory.Scan{StartedAt: start, FinishedAt: start.Add(1500 * time.Millisecond)}))
+	assert.Equal(t, "12ms", took(&inventory.Scan{StartedAt: start, FinishedAt: start.Add(12 * time.Millisecond)}))
 
 	// A scan still running has taken no time yet, which is not the same as
 	// having taken none.
-	assert.Equal(t, em, took(inventory.Scan{StartedAt: start}))
+	assert.Equal(t, em, took(&inventory.Scan{StartedAt: start}))
 }
 
 func TestEventLabel(t *testing.T) {
@@ -125,15 +125,15 @@ func TestStatusClass(t *testing.T) {
 func TestChange(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "old → new", change(inventory.Event{OldValue: "old", NewValue: "new"}))
-	assert.Equal(t, "192.0.2.10", change(inventory.Event{NewValue: "192.0.2.10"}))
-	assert.Equal(t, "device 2 folded into 1", change(inventory.Event{Detail: "device 2 folded into 1"}))
+	assert.Equal(t, "old → new", change(&inventory.Event{OldValue: "old", NewValue: "new"}))
+	assert.Equal(t, "192.0.2.10", change(&inventory.Event{NewValue: "192.0.2.10"}))
+	assert.Equal(t, "device 2 folded into 1", change(&inventory.Event{Detail: "device 2 folded into 1"}))
 
 	// A discovery changed nothing; it is the thing that happened.
-	assert.Empty(t, change(inventory.Event{}))
+	assert.Empty(t, change(&inventory.Event{}))
 
 	// An edit names the field, since the user owns several of them.
-	edit := inventory.Event{Kind: dbtype.EventDeviceEdited, Detail: "label"}
+	edit := &inventory.Event{Kind: dbtype.EventDeviceEdited, Detail: "label"}
 
 	edit.NewValue = "Office printer"
 	assert.Equal(t, "label: Office printer", change(edit))

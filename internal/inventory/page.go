@@ -18,7 +18,7 @@ type Page struct {
 
 // EventPage is one window onto the change log.
 type EventPage struct {
-	Events []Event
+	Events []*Event
 
 	// Next is the window after this one, and is the zero cursor when this one
 	// reached the end of the log.
@@ -27,7 +27,7 @@ type EventPage struct {
 
 // ScanPage is one window onto the scan history.
 type ScanPage struct {
-	Scans []Scan
+	Scans []*Scan
 	Next  Cursor
 }
 

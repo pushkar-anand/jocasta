@@ -36,11 +36,11 @@ type ListEventsRow struct {
 	Event          Event          `json:"event"`
 	DeviceLabel    sql.NullString `json:"device_label"`
 	DeviceHostname sql.NullString `json:"device_hostname"`
-	DeviceMac      dbtype.MAC     `json:"device_mac"`
+	DeviceMAC      dbtype.MAC     `json:"device_mac"`
 }
 
 // ListEvents returns one page of the change log, most recent first.
-func (q *Queries) ListEvents(ctx context.Context, arg PageParams) ([]ListEventsRow, error) {
+func (q *Queries) ListEvents(ctx context.Context, arg PageParams) ([]*ListEventsRow, error) {
 	sb := squirrel.
 		Select(
 			"e.id", "e.device_id", "e.scan_id", "e.kind",
@@ -65,10 +65,10 @@ func (q *Queries) ListEvents(ctx context.Context, arg PageParams) ([]ListEventsR
 
 	defer func() { _ = rows.Close() }()
 
-	var items []ListEventsRow
+	var items []*ListEventsRow
 
 	for rows.Next() {
-		var i ListEventsRow
+		i := &ListEventsRow{}
 
 		if err := rows.Scan(
 			&i.Event.ID,
@@ -81,7 +81,7 @@ func (q *Queries) ListEvents(ctx context.Context, arg PageParams) ([]ListEventsR
 			&i.Event.OccurredAt,
 			&i.DeviceLabel,
 			&i.DeviceHostname,
-			&i.DeviceMac,
+			&i.DeviceMAC,
 		); err != nil {
 			return nil, err
 		}
@@ -104,7 +104,7 @@ type ListScansRow struct {
 }
 
 // ListScans returns one page of the scan history, most recent first.
-func (q *Queries) ListScans(ctx context.Context, arg PageParams) ([]ListScansRow, error) {
+func (q *Queries) ListScans(ctx context.Context, arg PageParams) ([]*ListScansRow, error) {
 	sb := squirrel.
 		Select(
 			"s.id", "s.source_id", "s.kind", "s.network_id", "s.status",
@@ -127,10 +127,10 @@ func (q *Queries) ListScans(ctx context.Context, arg PageParams) ([]ListScansRow
 
 	defer func() { _ = rows.Close() }()
 
-	var items []ListScansRow
+	var items []*ListScansRow
 
 	for rows.Next() {
-		var i ListScansRow
+		i := &ListScansRow{}
 
 		if err := rows.Scan(
 			&i.Scan.ID,

@@ -110,7 +110,11 @@ func pct(n, total int) string {
 
 // took renders how long a scan ran. A scan still running has taken no time yet,
 // which is not the same as having taken none.
-func took(s inventory.Scan) string {
+func took(s *inventory.Scan) string {
+	if s == nil {
+		return em
+	}
+
 	d := s.Took()
 	if d == 0 {
 		return em
@@ -177,7 +181,11 @@ func addrs(list []netip.Addr) string {
 
 // change describes what an event changed, where it changed a value. An event
 // that changed nothing -- a discovery -- has nothing to show here.
-func change(e inventory.Event) string {
+func change(e *inventory.Event) string {
+	if e == nil {
+		return ""
+	}
+
 	// An edit says which field it was about, since the user owns several. A
 	// scan's event is about the one thing that kind of event can change.
 	var field string

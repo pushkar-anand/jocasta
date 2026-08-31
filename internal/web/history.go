@@ -13,8 +13,8 @@ const logPageSize = 50
 // logData is one page of a log that grows without bound.
 type logData struct {
 	view
-	Events []inventory.Event
-	Scans  []inventory.Scan
+	Events []*inventory.Event
+	Scans  []*inventory.Scan
 
 	// Path is the log's own address, which the pager links back to.
 	Path string
@@ -65,7 +65,7 @@ func (h *Handler) events(w http.ResponseWriter, r *http.Request) {
 
 	from, token := logCursor(r.URL.Query())
 
-	data := logData{
+	data := &logData{
 		view:   view{Title: "Activity", Section: "Activity"},
 		Path:   "/events",
 		Cursor: token,
@@ -93,7 +93,7 @@ func (h *Handler) scans(w http.ResponseWriter, r *http.Request) {
 
 	from, token := logCursor(r.URL.Query())
 
-	data := logData{
+	data := &logData{
 		view:   view{Title: "Sweeps", Section: "Sweeps"},
 		Path:   "/scans",
 		Cursor: token,

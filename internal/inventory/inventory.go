@@ -237,19 +237,19 @@ func (s *Store) record(ctx context.Context, p *pass, h scanner.Host) error {
 		}
 	}
 
-	holder, hasHolder, err := currentHolder(ctx, p.q, ip)
+	holder, err := currentHolder(ctx, p.q, ip)
 	if err != nil {
 		return err
 	}
 
-	target, err := s.resolve(ctx, p, mac, h, holder, hasHolder)
+	target, err := s.resolve(ctx, p, mac, h, holder)
 	if err != nil {
 		return err
 	}
 
 	// A row that only ever stood for this address is the same device under a
 	// weaker name once a hardware address claims it.
-	if hasHolder && holder.ID != target.ID && holder.IdentitySource == dbtype.IdentityIP {
+	if holder != nil && holder.ID != target.ID && holder.IdentitySource == dbtype.IdentityIP {
 		if err := s.fold(ctx, p, holder, target); err != nil {
 			return err
 		}
@@ -275,17 +275,17 @@ func (s *Store) record(ctx context.Context, p *pass, h scanner.Host) error {
 }
 
 // resolve finds the device a result belongs to, creating or identifying one
-// where none is known yet.
+// where none is known yet. A nil holder means nothing currently claims the
+// address, which is a state to act on rather than one to report.
 func (s *Store) resolve(
 	ctx context.Context,
 	p *pass,
 	mac dbtype.MAC,
 	h scanner.Host,
-	holder models.Device,
-	hasHolder bool,
-) (models.Device, error) {
+	holder *models.Device,
+) (*models.Device, error) {
 	if !mac.Valid() {
-		if hasHolder {
+		if holder != nil {
 			return holder, nil
 		}
 
@@ -298,28 +298,28 @@ func (s *Store) resolve(
 	case err == nil:
 		return d, nil
 	case !errors.Is(err, sql.ErrNoRows):
-		return models.Device{}, fmt.Errorf("device by mac %s: %w", mac, err)
+		return nil, fmt.Errorf("device by mac %s: %w", mac, err)
 	}
 
 	// The address answered before its hardware was visible, so the row already
 	// standing for it becomes the identified device rather than a second one.
-	if hasHolder && holder.IdentitySource == dbtype.IdentityIP {
+	if holder != nil && holder.IdentitySource == dbtype.IdentityIP {
 		params := models.IdentifyDeviceParams{
-			Mac:          mac,
+			MAC:          mac,
 			IsRandomised: h.Randomised,
 			Vendor:       nullString(h.Vendor),
 			ID:           holder.ID,
 		}
 
 		if err := p.q.IdentifyDevice(ctx, params); err != nil {
-			return models.Device{}, fmt.Errorf("identify device %d: %w", holder.ID, err)
+			return nil, fmt.Errorf("identify device %d: %w", holder.ID, err)
 		}
 
 		if err := s.event(ctx, p, holder.ID, dbtype.EventDeviceIdentified, "", mac.String(), ""); err != nil {
-			return models.Device{}, err
+			return nil, err
 		}
 
-		holder.Mac = params.Mac
+		holder.MAC = params.MAC
 		holder.IdentitySource = dbtype.IdentityMAC
 		holder.IsRandomised = params.IsRandomised
 		holder.Vendor = params.Vendor
@@ -331,7 +331,7 @@ func (s *Store) resolve(
 	return s.create(ctx, p, mac, h)
 }
 
-func (s *Store) create(ctx context.Context, p *pass, mac dbtype.MAC, h scanner.Host) (models.Device, error) {
+func (s *Store) create(ctx context.Context, p *pass, mac dbtype.MAC, h scanner.Host) (*models.Device, error) {
 	source := dbtype.IdentityIP
 	if mac.Valid() {
 		source = dbtype.IdentityMAC
@@ -343,7 +343,7 @@ func (s *Store) create(ctx context.Context, p *pass, mac dbtype.MAC, h scanner.H
 	}
 
 	d, err := p.q.CreateDevice(ctx, models.CreateDeviceParams{
-		Mac:            mac,
+		MAC:            mac,
 		IdentitySource: source,
 		IsRandomised:   h.Randomised,
 		Vendor:         nullString(h.Vendor),
@@ -353,11 +353,11 @@ func (s *Store) create(ctx context.Context, p *pass, mac dbtype.MAC, h scanner.H
 		LastSeen:       p.at,
 	})
 	if err != nil {
-		return models.Device{}, fmt.Errorf("create device for %s: %w", h.Addr, err)
+		return nil, fmt.Errorf("create device for %s: %w", h.Addr, err)
 	}
 
 	if err := s.event(ctx, p, d.ID, dbtype.EventDeviceDiscovered, "", h.Addr.String(), ""); err != nil {
-		return models.Device{}, err
+		return nil, err
 	}
 
 	p.res.Discovered++
@@ -368,7 +368,7 @@ func (s *Store) create(ctx context.Context, p *pass, mac dbtype.MAC, h scanner.H
 // fold merges a device only ever known by its address into the one
 // its hardware address identifies. Curation the user applied to the weaker row
 // is carried over, since they had no way to know it was a duplicate.
-func (s *Store) fold(ctx context.Context, p *pass, ghost, into models.Device) error {
+func (s *Store) fold(ctx context.Context, p *pass, ghost, into *models.Device) error {
 	err := p.q.AdoptCuration(ctx, models.AdoptCurationParams{
 		FoldedLabel:     ghost.Label,
 		FoldedNotes:     ghost.Notes,
@@ -409,18 +409,18 @@ func (s *Store) fold(ctx context.Context, p *pass, ghost, into models.Device) er
 // claim makes the address current for the device, taking it off whoever else
 // was holding it.
 func (s *Store) claim(ctx context.Context, p *pass, deviceID int64, ip dbtype.Addr) error {
-	if err := p.q.ReleaseAddress(ctx, models.ReleaseAddressParams{Ip: ip, DeviceID: deviceID}); err != nil {
+	if err := p.q.ReleaseAddress(ctx, models.ReleaseAddressParams{IP: ip, DeviceID: deviceID}); err != nil {
 		return fmt.Errorf("release %s: %w", ip, err)
 	}
 
-	a, err := p.q.GetAddress(ctx, models.GetAddressParams{DeviceID: deviceID, Ip: ip})
+	a, err := p.q.GetAddress(ctx, models.GetAddressParams{DeviceID: deviceID, IP: ip})
 
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		params := models.InsertAddressParams{
 			DeviceID:  deviceID,
 			NetworkID: sql.NullInt64{Int64: p.networkID, Valid: true},
-			Ip:        ip,
+			IP:        ip,
 			FirstSeen: p.at,
 			LastSeen:  p.at,
 		}
@@ -445,7 +445,7 @@ func (s *Store) claim(ctx context.Context, p *pass, deviceID int64, ip dbtype.Ad
 	return nil
 }
 
-func (s *Store) applyHostname(ctx context.Context, p *pass, d models.Device, hostname string) error {
+func (s *Store) applyHostname(ctx context.Context, p *pass, d *models.Device, hostname string) error {
 	if hostname == "" || hostname == d.Hostname.String {
 		return nil
 	}
@@ -489,18 +489,20 @@ func (s *Store) stamp() dbtype.Time {
 	return dbtype.NewTime(s.now())
 }
 
-// currentHolder returns the device holding ip right now, if any.
-func currentHolder(ctx context.Context, q *models.Queries, ip dbtype.Addr) (models.Device, bool, error) {
+// currentHolder returns the device holding ip right now, and nil when the
+// address is free. Nothing holding an address is an answer, not a failure, so
+// it is reported as a nil device rather than as an error to match on.
+func currentHolder(ctx context.Context, q *models.Queries, ip dbtype.Addr) (*models.Device, error) {
 	row, err := q.GetDeviceByCurrentIP(ctx, ip)
 
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		return models.Device{}, false, nil
+		return nil, nil
 	case err != nil:
-		return models.Device{}, false, fmt.Errorf("device holding %s: %w", ip, err)
+		return nil, fmt.Errorf("device holding %s: %w", ip, err)
 	}
 
-	return row.Device, true, nil
+	return &row.Device, nil
 }
 
 // earlier returns whichever of the two timestamps came first. A folded device

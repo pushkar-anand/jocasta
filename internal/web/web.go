@@ -129,9 +129,9 @@ func (v view) Nav() []nav {
 // on its own, since the fragment is rendered from the same value.
 type overviewData struct {
 	view
-	Stats  inventory.Stats
+	Stats  *inventory.Stats
 	Scan   *inventory.Scan
-	Events []inventory.Event
+	Events []*inventory.Event
 }
 
 func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
@@ -158,22 +158,22 @@ func (h *Handler) overviewLive(w http.ResponseWriter, r *http.Request) {
 	h.renderer.Render(w, r, "partial/live", data)
 }
 
-func (h *Handler) overviewData(r *http.Request) (overviewData, error) {
+func (h *Handler) overviewData(r *http.Request) (*overviewData, error) {
 	ctx := r.Context()
 
 	stats, err := h.store.Stats(ctx)
 	if err != nil {
-		return overviewData{}, err
+		return nil, err
 	}
 
 	// The overview shows the top of the log and never walks it, so it takes
 	// the first page and drops the cursor that would continue it.
 	activity, err := h.store.ListEvents(ctx, inventory.Page{Limit: activityLimit})
 	if err != nil {
-		return overviewData{}, err
+		return nil, err
 	}
 
-	data := overviewData{
+	data := &overviewData{
 		view:   view{Title: "Overview", Section: "Overview"},
 		Stats:  stats,
 		Events: activity.Events,
@@ -182,7 +182,7 @@ func (h *Handler) overviewData(r *http.Request) (overviewData, error) {
 	// A first run has no sweep behind it, which is a state to render rather
 	// than a failure to report.
 	if scan, err := h.store.LatestScan(ctx); err == nil {
-		data.Scan = &scan
+		data.Scan = scan
 		data.Note = sweepNote(scan)
 	}
 
@@ -201,7 +201,7 @@ func (h *Handler) sweepNote(ctx context.Context) (string, error) {
 	return sweepNote(scan), nil
 }
 
-func sweepNote(scan inventory.Scan) string {
+func sweepNote(scan *inventory.Scan) string {
 	return "swept " + ago(time.Now(), scan.StartedAt)
 }
 
