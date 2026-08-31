@@ -42,11 +42,17 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deleteDeviceStmt, err = db.PrepareContext(ctx, deleteDevice); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteDevice: %w", err)
 	}
+	if q.deviceStatsStmt, err = db.PrepareContext(ctx, deviceStats); err != nil {
+		return nil, fmt.Errorf("error preparing query DeviceStats: %w", err)
+	}
 	if q.finishScanStmt, err = db.PrepareContext(ctx, finishScan); err != nil {
 		return nil, fmt.Errorf("error preparing query FinishScan: %w", err)
 	}
 	if q.getAddressStmt, err = db.PrepareContext(ctx, getAddress); err != nil {
 		return nil, fmt.Errorf("error preparing query GetAddress: %w", err)
+	}
+	if q.getDeviceStmt, err = db.PrepareContext(ctx, getDevice); err != nil {
+		return nil, fmt.Errorf("error preparing query GetDevice: %w", err)
 	}
 	if q.getDeviceByCurrentIPStmt, err = db.PrepareContext(ctx, getDeviceByCurrentIP); err != nil {
 		return nil, fmt.Errorf("error preparing query GetDeviceByCurrentIP: %w", err)
@@ -59,6 +65,24 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.insertAddressStmt, err = db.PrepareContext(ctx, insertAddress); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertAddress: %w", err)
+	}
+	if q.listDeviceAddressesStmt, err = db.PrepareContext(ctx, listDeviceAddresses); err != nil {
+		return nil, fmt.Errorf("error preparing query ListDeviceAddresses: %w", err)
+	}
+	if q.listDeviceEventsStmt, err = db.PrepareContext(ctx, listDeviceEvents); err != nil {
+		return nil, fmt.Errorf("error preparing query ListDeviceEvents: %w", err)
+	}
+	if q.listDevicesStmt, err = db.PrepareContext(ctx, listDevices); err != nil {
+		return nil, fmt.Errorf("error preparing query ListDevices: %w", err)
+	}
+	if q.listEventsStmt, err = db.PrepareContext(ctx, listEvents); err != nil {
+		return nil, fmt.Errorf("error preparing query ListEvents: %w", err)
+	}
+	if q.listGroupsStmt, err = db.PrepareContext(ctx, listGroups); err != nil {
+		return nil, fmt.Errorf("error preparing query ListGroups: %w", err)
+	}
+	if q.listScansStmt, err = db.PrepareContext(ctx, listScans); err != nil {
+		return nil, fmt.Errorf("error preparing query ListScans: %w", err)
 	}
 	if q.moveAddressesStmt, err = db.PrepareContext(ctx, moveAddresses); err != nil {
 		return nil, fmt.Errorf("error preparing query MoveAddresses: %w", err)
@@ -119,6 +143,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing deleteDeviceStmt: %w", cerr)
 		}
 	}
+	if q.deviceStatsStmt != nil {
+		if cerr := q.deviceStatsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deviceStatsStmt: %w", cerr)
+		}
+	}
 	if q.finishScanStmt != nil {
 		if cerr := q.finishScanStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing finishScanStmt: %w", cerr)
@@ -127,6 +156,11 @@ func (q *Queries) Close() error {
 	if q.getAddressStmt != nil {
 		if cerr := q.getAddressStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getAddressStmt: %w", cerr)
+		}
+	}
+	if q.getDeviceStmt != nil {
+		if cerr := q.getDeviceStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getDeviceStmt: %w", cerr)
 		}
 	}
 	if q.getDeviceByCurrentIPStmt != nil {
@@ -147,6 +181,36 @@ func (q *Queries) Close() error {
 	if q.insertAddressStmt != nil {
 		if cerr := q.insertAddressStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing insertAddressStmt: %w", cerr)
+		}
+	}
+	if q.listDeviceAddressesStmt != nil {
+		if cerr := q.listDeviceAddressesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listDeviceAddressesStmt: %w", cerr)
+		}
+	}
+	if q.listDeviceEventsStmt != nil {
+		if cerr := q.listDeviceEventsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listDeviceEventsStmt: %w", cerr)
+		}
+	}
+	if q.listDevicesStmt != nil {
+		if cerr := q.listDevicesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listDevicesStmt: %w", cerr)
+		}
+	}
+	if q.listEventsStmt != nil {
+		if cerr := q.listEventsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listEventsStmt: %w", cerr)
+		}
+	}
+	if q.listGroupsStmt != nil {
+		if cerr := q.listGroupsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listGroupsStmt: %w", cerr)
+		}
+	}
+	if q.listScansStmt != nil {
+		if cerr := q.listScansStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listScansStmt: %w", cerr)
 		}
 	}
 	if q.moveAddressesStmt != nil {
@@ -234,12 +298,20 @@ type Queries struct {
 	createScanStmt           *sql.Stmt
 	createUserStmt           *sql.Stmt
 	deleteDeviceStmt         *sql.Stmt
+	deviceStatsStmt          *sql.Stmt
 	finishScanStmt           *sql.Stmt
 	getAddressStmt           *sql.Stmt
+	getDeviceStmt            *sql.Stmt
 	getDeviceByCurrentIPStmt *sql.Stmt
 	getDeviceByMACStmt       *sql.Stmt
 	identifyDeviceStmt       *sql.Stmt
 	insertAddressStmt        *sql.Stmt
+	listDeviceAddressesStmt  *sql.Stmt
+	listDeviceEventsStmt     *sql.Stmt
+	listDevicesStmt          *sql.Stmt
+	listEventsStmt           *sql.Stmt
+	listGroupsStmt           *sql.Stmt
+	listScansStmt            *sql.Stmt
 	moveAddressesStmt        *sql.Stmt
 	moveEventsStmt           *sql.Stmt
 	refreshAddressStmt       *sql.Stmt
@@ -260,12 +332,20 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		createScanStmt:           q.createScanStmt,
 		createUserStmt:           q.createUserStmt,
 		deleteDeviceStmt:         q.deleteDeviceStmt,
+		deviceStatsStmt:          q.deviceStatsStmt,
 		finishScanStmt:           q.finishScanStmt,
 		getAddressStmt:           q.getAddressStmt,
+		getDeviceStmt:            q.getDeviceStmt,
 		getDeviceByCurrentIPStmt: q.getDeviceByCurrentIPStmt,
 		getDeviceByMACStmt:       q.getDeviceByMACStmt,
 		identifyDeviceStmt:       q.identifyDeviceStmt,
 		insertAddressStmt:        q.insertAddressStmt,
+		listDeviceAddressesStmt:  q.listDeviceAddressesStmt,
+		listDeviceEventsStmt:     q.listDeviceEventsStmt,
+		listDevicesStmt:          q.listDevicesStmt,
+		listEventsStmt:           q.listEventsStmt,
+		listGroupsStmt:           q.listGroupsStmt,
+		listScansStmt:            q.listScansStmt,
 		moveAddressesStmt:        q.moveAddressesStmt,
 		moveEventsStmt:           q.moveEventsStmt,
 		refreshAddressStmt:       q.refreshAddressStmt,
