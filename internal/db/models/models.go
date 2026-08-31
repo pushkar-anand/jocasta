@@ -6,11 +6,78 @@ package models
 
 import (
 	"database/sql"
+
+	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
 
+type Address struct {
+	ID        int64         `json:"id"`
+	DeviceID  int64         `json:"device_id"`
+	NetworkID sql.NullInt64 `json:"network_id"`
+	Ip        dbtype.Addr   `json:"ip"`
+	IsCurrent bool          `json:"is_current"`
+	FirstSeen dbtype.Time   `json:"first_seen"`
+	LastSeen  dbtype.Time   `json:"last_seen"`
+}
+
+type Device struct {
+	ID             int64          `json:"id"`
+	Mac            dbtype.MAC     `json:"mac"`
+	IdentitySource string         `json:"identity_source"`
+	IsRandomised   bool           `json:"is_randomised"`
+	Vendor         sql.NullString `json:"vendor"`
+	Hostname       sql.NullString `json:"hostname"`
+	HostnameSource sql.NullString `json:"hostname_source"`
+	DeviceType     sql.NullString `json:"device_type"`
+	Label          sql.NullString `json:"label"`
+	Notes          sql.NullString `json:"notes"`
+	GroupName      sql.NullString `json:"group_name"`
+	IsIgnored      bool           `json:"is_ignored"`
+	FirstSeen      dbtype.Time    `json:"first_seen"`
+	LastSeen       dbtype.Time    `json:"last_seen"`
+}
+
+type Event struct {
+	ID         int64          `json:"id"`
+	DeviceID   sql.NullInt64  `json:"device_id"`
+	ScanID     sql.NullInt64  `json:"scan_id"`
+	Kind       string         `json:"kind"`
+	OldValue   sql.NullString `json:"old_value"`
+	NewValue   sql.NullString `json:"new_value"`
+	Detail     sql.NullString `json:"detail"`
+	OccurredAt dbtype.Time    `json:"occurred_at"`
+}
+
+type Network struct {
+	ID        int64          `json:"id"`
+	Cidr      dbtype.Prefix  `json:"cidr"`
+	Name      sql.NullString `json:"name"`
+	VlanID    sql.NullInt64  `json:"vlan_id"`
+	CreatedAt dbtype.Time    `json:"created_at"`
+}
+
+type Scan struct {
+	ID         int64           `json:"id"`
+	SourceID   int64           `json:"source_id"`
+	Kind       string          `json:"kind"`
+	NetworkID  sql.NullInt64   `json:"network_id"`
+	Status     string          `json:"status"`
+	Error      sql.NullString  `json:"error"`
+	FoundCount int64           `json:"found_count"`
+	StartedAt  dbtype.Time     `json:"started_at"`
+	FinishedAt dbtype.NullTime `json:"finished_at"`
+}
+
+type Source struct {
+	ID        int64       `json:"id"`
+	Kind      string      `json:"kind"`
+	Name      string      `json:"name"`
+	CreatedAt dbtype.Time `json:"created_at"`
+}
+
 type User struct {
-	ID           int64          `json:"id"`
-	Username     string         `json:"username"`
-	PasswordHash string         `json:"password_hash"`
-	CreatedAt    sql.NullString `json:"created_at"`
+	ID           int64       `json:"id"`
+	Username     string      `json:"username"`
+	PasswordHash string      `json:"password_hash"`
+	CreatedAt    dbtype.Time `json:"created_at"`
 }

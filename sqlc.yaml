@@ -11,4 +11,59 @@ sql:
         emit_prepared_queries: true
         emit_json_tags: true
 
+        # Timestamps are TEXT in ISO-8601, which the driver will not scan into
+        # a time.Time and would write back in Go's own String form. dbtime
+        # controls both directions so every writer agrees on one sortable
+        # format. See internal/db/dbtype.
+        overrides:
+          - column: "users.created_at"
+            go_type: &timestamp
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "Time"
+          - column: "sources.created_at"
+            go_type: *timestamp
+          - column: "networks.created_at"
+            go_type: *timestamp
+          - column: "devices.first_seen"
+            go_type: *timestamp
+          - column: "devices.last_seen"
+            go_type: *timestamp
+          - column: "addresses.first_seen"
+            go_type: *timestamp
+          - column: "addresses.last_seen"
+            go_type: *timestamp
+          - column: "scans.started_at"
+            go_type: *timestamp
+          - column: "events.occurred_at"
+            go_type: *timestamp
+          - column: "scans.finished_at"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "NullTime"
+
+          # Addresses carry their own canonical spelling, which is what the
+          # UNIQUE constraints over them are worth.
+          - column: "addresses.ip"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "Addr"
+          - column: "networks.cidr"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "Prefix"
+          # A MAC's zero value is its null one, so the nullable column needs no
+          # second type.
+          - column: "devices.mac"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "MAC"
+
+          # SQLite has no boolean, but the driver converts 0/1 both ways.
+          - column: "devices.is_randomised"
+            go_type: "bool"
+          - column: "devices.is_ignored"
+            go_type: "bool"
+          - column: "addresses.is_current"
+            go_type: "bool"
+
     strict_function_checks: true

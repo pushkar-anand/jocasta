@@ -24,17 +24,169 @@ func New(db DBTX) *Queries {
 func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	q := Queries{db: db}
 	var err error
+	if q.adoptCurationStmt, err = db.PrepareContext(ctx, adoptCuration); err != nil {
+		return nil, fmt.Errorf("error preparing query AdoptCuration: %w", err)
+	}
+	if q.createDeviceStmt, err = db.PrepareContext(ctx, createDevice); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateDevice: %w", err)
+	}
+	if q.createEventStmt, err = db.PrepareContext(ctx, createEvent); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateEvent: %w", err)
+	}
+	if q.createScanStmt, err = db.PrepareContext(ctx, createScan); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateScan: %w", err)
+	}
 	if q.createUserStmt, err = db.PrepareContext(ctx, createUser); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateUser: %w", err)
+	}
+	if q.deleteDeviceStmt, err = db.PrepareContext(ctx, deleteDevice); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteDevice: %w", err)
+	}
+	if q.finishScanStmt, err = db.PrepareContext(ctx, finishScan); err != nil {
+		return nil, fmt.Errorf("error preparing query FinishScan: %w", err)
+	}
+	if q.getAddressStmt, err = db.PrepareContext(ctx, getAddress); err != nil {
+		return nil, fmt.Errorf("error preparing query GetAddress: %w", err)
+	}
+	if q.getDeviceByCurrentIPStmt, err = db.PrepareContext(ctx, getDeviceByCurrentIP); err != nil {
+		return nil, fmt.Errorf("error preparing query GetDeviceByCurrentIP: %w", err)
+	}
+	if q.getDeviceByMACStmt, err = db.PrepareContext(ctx, getDeviceByMAC); err != nil {
+		return nil, fmt.Errorf("error preparing query GetDeviceByMAC: %w", err)
+	}
+	if q.identifyDeviceStmt, err = db.PrepareContext(ctx, identifyDevice); err != nil {
+		return nil, fmt.Errorf("error preparing query IdentifyDevice: %w", err)
+	}
+	if q.insertAddressStmt, err = db.PrepareContext(ctx, insertAddress); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertAddress: %w", err)
+	}
+	if q.moveAddressesStmt, err = db.PrepareContext(ctx, moveAddresses); err != nil {
+		return nil, fmt.Errorf("error preparing query MoveAddresses: %w", err)
+	}
+	if q.moveEventsStmt, err = db.PrepareContext(ctx, moveEvents); err != nil {
+		return nil, fmt.Errorf("error preparing query MoveEvents: %w", err)
+	}
+	if q.refreshAddressStmt, err = db.PrepareContext(ctx, refreshAddress); err != nil {
+		return nil, fmt.Errorf("error preparing query RefreshAddress: %w", err)
+	}
+	if q.releaseAddressStmt, err = db.PrepareContext(ctx, releaseAddress); err != nil {
+		return nil, fmt.Errorf("error preparing query ReleaseAddress: %w", err)
+	}
+	if q.setDeviceHostnameStmt, err = db.PrepareContext(ctx, setDeviceHostname); err != nil {
+		return nil, fmt.Errorf("error preparing query SetDeviceHostname: %w", err)
+	}
+	if q.touchDeviceStmt, err = db.PrepareContext(ctx, touchDevice); err != nil {
+		return nil, fmt.Errorf("error preparing query TouchDevice: %w", err)
+	}
+	if q.upsertNetworkStmt, err = db.PrepareContext(ctx, upsertNetwork); err != nil {
+		return nil, fmt.Errorf("error preparing query UpsertNetwork: %w", err)
+	}
+	if q.upsertSourceStmt, err = db.PrepareContext(ctx, upsertSource); err != nil {
+		return nil, fmt.Errorf("error preparing query UpsertSource: %w", err)
 	}
 	return &q, nil
 }
 
 func (q *Queries) Close() error {
 	var err error
+	if q.adoptCurationStmt != nil {
+		if cerr := q.adoptCurationStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing adoptCurationStmt: %w", cerr)
+		}
+	}
+	if q.createDeviceStmt != nil {
+		if cerr := q.createDeviceStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createDeviceStmt: %w", cerr)
+		}
+	}
+	if q.createEventStmt != nil {
+		if cerr := q.createEventStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createEventStmt: %w", cerr)
+		}
+	}
+	if q.createScanStmt != nil {
+		if cerr := q.createScanStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createScanStmt: %w", cerr)
+		}
+	}
 	if q.createUserStmt != nil {
 		if cerr := q.createUserStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createUserStmt: %w", cerr)
+		}
+	}
+	if q.deleteDeviceStmt != nil {
+		if cerr := q.deleteDeviceStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteDeviceStmt: %w", cerr)
+		}
+	}
+	if q.finishScanStmt != nil {
+		if cerr := q.finishScanStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing finishScanStmt: %w", cerr)
+		}
+	}
+	if q.getAddressStmt != nil {
+		if cerr := q.getAddressStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getAddressStmt: %w", cerr)
+		}
+	}
+	if q.getDeviceByCurrentIPStmt != nil {
+		if cerr := q.getDeviceByCurrentIPStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getDeviceByCurrentIPStmt: %w", cerr)
+		}
+	}
+	if q.getDeviceByMACStmt != nil {
+		if cerr := q.getDeviceByMACStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getDeviceByMACStmt: %w", cerr)
+		}
+	}
+	if q.identifyDeviceStmt != nil {
+		if cerr := q.identifyDeviceStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing identifyDeviceStmt: %w", cerr)
+		}
+	}
+	if q.insertAddressStmt != nil {
+		if cerr := q.insertAddressStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertAddressStmt: %w", cerr)
+		}
+	}
+	if q.moveAddressesStmt != nil {
+		if cerr := q.moveAddressesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing moveAddressesStmt: %w", cerr)
+		}
+	}
+	if q.moveEventsStmt != nil {
+		if cerr := q.moveEventsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing moveEventsStmt: %w", cerr)
+		}
+	}
+	if q.refreshAddressStmt != nil {
+		if cerr := q.refreshAddressStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing refreshAddressStmt: %w", cerr)
+		}
+	}
+	if q.releaseAddressStmt != nil {
+		if cerr := q.releaseAddressStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing releaseAddressStmt: %w", cerr)
+		}
+	}
+	if q.setDeviceHostnameStmt != nil {
+		if cerr := q.setDeviceHostnameStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing setDeviceHostnameStmt: %w", cerr)
+		}
+	}
+	if q.touchDeviceStmt != nil {
+		if cerr := q.touchDeviceStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing touchDeviceStmt: %w", cerr)
+		}
+	}
+	if q.upsertNetworkStmt != nil {
+		if cerr := q.upsertNetworkStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing upsertNetworkStmt: %w", cerr)
+		}
+	}
+	if q.upsertSourceStmt != nil {
+		if cerr := q.upsertSourceStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing upsertSourceStmt: %w", cerr)
 		}
 	}
 	return err
@@ -74,15 +226,53 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 }
 
 type Queries struct {
-	db             DBTX
-	tx             *sql.Tx
-	createUserStmt *sql.Stmt
+	db                       DBTX
+	tx                       *sql.Tx
+	adoptCurationStmt        *sql.Stmt
+	createDeviceStmt         *sql.Stmt
+	createEventStmt          *sql.Stmt
+	createScanStmt           *sql.Stmt
+	createUserStmt           *sql.Stmt
+	deleteDeviceStmt         *sql.Stmt
+	finishScanStmt           *sql.Stmt
+	getAddressStmt           *sql.Stmt
+	getDeviceByCurrentIPStmt *sql.Stmt
+	getDeviceByMACStmt       *sql.Stmt
+	identifyDeviceStmt       *sql.Stmt
+	insertAddressStmt        *sql.Stmt
+	moveAddressesStmt        *sql.Stmt
+	moveEventsStmt           *sql.Stmt
+	refreshAddressStmt       *sql.Stmt
+	releaseAddressStmt       *sql.Stmt
+	setDeviceHostnameStmt    *sql.Stmt
+	touchDeviceStmt          *sql.Stmt
+	upsertNetworkStmt        *sql.Stmt
+	upsertSourceStmt         *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:             tx,
-		tx:             tx,
-		createUserStmt: q.createUserStmt,
+		db:                       tx,
+		tx:                       tx,
+		adoptCurationStmt:        q.adoptCurationStmt,
+		createDeviceStmt:         q.createDeviceStmt,
+		createEventStmt:          q.createEventStmt,
+		createScanStmt:           q.createScanStmt,
+		createUserStmt:           q.createUserStmt,
+		deleteDeviceStmt:         q.deleteDeviceStmt,
+		finishScanStmt:           q.finishScanStmt,
+		getAddressStmt:           q.getAddressStmt,
+		getDeviceByCurrentIPStmt: q.getDeviceByCurrentIPStmt,
+		getDeviceByMACStmt:       q.getDeviceByMACStmt,
+		identifyDeviceStmt:       q.identifyDeviceStmt,
+		insertAddressStmt:        q.insertAddressStmt,
+		moveAddressesStmt:        q.moveAddressesStmt,
+		moveEventsStmt:           q.moveEventsStmt,
+		refreshAddressStmt:       q.refreshAddressStmt,
+		releaseAddressStmt:       q.releaseAddressStmt,
+		setDeviceHostnameStmt:    q.setDeviceHostnameStmt,
+		touchDeviceStmt:          q.touchDeviceStmt,
+		upsertNetworkStmt:        q.upsertNetworkStmt,
+		upsertSourceStmt:         q.upsertSourceStmt,
 	}
 }
