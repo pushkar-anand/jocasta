@@ -316,7 +316,8 @@ func TestListScansDescribesTheRun(t *testing.T) {
 	assert.Equal(t, dbtype.ScanDiscovery, sc.Kind)
 	assert.Equal(t, 2, sc.Found)
 	assert.Empty(t, sc.Error)
-	assert.Positive(t, sc.Took, "the clock advances between opening and closing the scan")
+	assert.Positive(t, sc.Took(), "the clock advances between opening and closing the scan")
+	assert.Zero(t, Scan{StartedAt: sc.StartedAt}.Took(), "a running scan has taken no time yet")
 
 	latest, err := s.LatestScan(t.Context())
 	require.NoError(t, err)

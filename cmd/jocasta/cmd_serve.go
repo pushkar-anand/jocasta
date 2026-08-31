@@ -21,9 +21,10 @@ func (s *ServeCmd) Run(ctx context.Context, cfg *Config, log *slog.Logger, conn 
 	port := cmp.Or(s.Port, cfg.Server.Port)
 
 	err := server.Start(ctx, &server.Config{
-		Addr:   host,
-		Port:   port,
-		Logger: log,
+		Addr:         host,
+		Port:         port,
+		Logger:       log,
+		OnlineWindow: cfg.Inventory.OnlineWindow,
 	}, conn)
 	if err != nil {
 		return fmt.Errorf("start server: %w", err)
