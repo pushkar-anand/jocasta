@@ -92,8 +92,10 @@ func (p *Poller) Start(ctx context.Context) error {
 		})
 	}
 
+	done := p.done
 	p.mu.Unlock()
-	<-p.done
+
+	<-done
 
 	return nil
 }
