@@ -58,7 +58,7 @@ type (
 		Ports struct {
 			Enabled  bool          `koanf:"enabled"`
 			Interval time.Duration `koanf:"interval"`
-		}
+		} `koanf:"ports"`
 	}
 
 	// Config is the whole set of named, nested settings.
