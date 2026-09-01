@@ -1,7 +1,8 @@
-package main
+package config
 
 import (
 	"log/slog"
+	"os"
 	"testing"
 
 	"github.com/pushkar-anand/build-with-go/config"
@@ -62,23 +63,6 @@ func TestLoggerFormatValue(t *testing.T) {
 	}
 }
 
-// TestDefaults pins the values the application falls back to when neither the
-// YAML file nor the environment supplies one.
-func TestDefaults(t *testing.T) {
-	t.Parallel()
-
-	assert.Equal(t, map[string]any{
-		"server.host":   "localhost",
-		"server.port":   8080,
-		"db.path":       ".",
-		"db.name":       "jocasta.db",
-		"logger.level":  "info",
-		"logger.format": "json",
-
-		"inventory.online_window": "15m0s",
-	}, defaults)
-}
-
 // TestLoadConfig checks that the defaults reach the struct and that the
 // environment layers over them.
 //
@@ -111,4 +95,17 @@ func TestLoadConfig(t *testing.T) {
 
 	// A duration is configured as text and has to reach the struct as one.
 	assert.Equal(t, inventory.DefaultOnlineWindow, cfg.Inventory.OnlineWindow)
+
+	// Derived rather than written down, so assert it is the derivation and not
+	// merely non-empty: an unnamed source files every sweep under one blank row.
+	assert.Equal(t, defaultSource(), cfg.Scan.Source)
+}
+
+func TestDefaultSourceNamesTheHost(t *testing.T) {
+	t.Parallel()
+
+	host, err := os.Hostname()
+	require.NoError(t, err)
+
+	assert.Equal(t, "sweep:"+host, defaultSource())
 }

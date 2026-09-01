@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/pushkar-anand/build-with-go/validator"
+	"github.com/pushkar-anand/jocasta/internal/config"
 	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
@@ -27,12 +28,12 @@ type ScanCmd struct {
 	ResolveMACs  bool          `name:"resolve-macs" negatable:"" help:"Resolve MAC addresses via neighbour table." default:"true"`
 	JSON         bool          `name:"json" help:"Output results as JSON."`
 	Save         bool          `name:"save" help:"Record the results in the device inventory."`
-	Source       string        `name:"source" help:"Name recorded as the origin of these results. Defaults to this host's name."`
+	Source       string        `name:"source" help:"Name recorded as the origin of these results. Defaults to scan.source, then this host's name."`
 }
 
 func (s *ScanCmd) Run(
 	ctx context.Context,
-	cfg *Config,
+	cfg *config.Config,
 	log *slog.Logger,
 	conn *db.DB,
 	_ *validator.Validator,
@@ -71,8 +72,8 @@ func (s *ScanCmd) Run(
 // save records the sweep in the inventory. It runs after the results are
 // printed so a database that will not open still leaves the operator with the
 // scan they asked for.
-func (s *ScanCmd) save(ctx context.Context, _ *Config, log *slog.Logger, p netip.Prefix, hosts []scanner.Host, conn *db.DB) error {
-	res, err := inventory.New(conn.Conn, log).RecordSweep(ctx, s.sourceName(), p, hosts)
+func (s *ScanCmd) save(ctx context.Context, cfg *config.Config, log *slog.Logger, p netip.Prefix, hosts []scanner.Host, conn *db.DB) error {
+	res, err := inventory.New(conn.Conn, log).RecordSweep(ctx, cmp.Or(s.Source, cfg.Scan.Source), p, hosts)
 	if err != nil {
 		return fmt.Errorf("record sweep: %w", err)
 	}
@@ -86,21 +87,6 @@ func (s *ScanCmd) save(ctx context.Context, _ *Config, log *slog.Logger, p netip
 	)
 
 	return nil
-}
-
-// sourceName identifies which scanner produced these results, so a second one
-// on another segment stays distinguishable in the provenance.
-func (s *ScanCmd) sourceName() string {
-	if s.Source != "" {
-		return s.Source
-	}
-
-	name, err := os.Hostname()
-	if err != nil {
-		return "sweep"
-	}
-
-	return "sweep:" + name
 }
 
 func outputScanResults(w io.Writer, hosts []scanner.Host, asJSON bool) error {
