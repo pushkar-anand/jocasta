@@ -46,6 +46,7 @@ type (
 
 	Scan struct {
 		Devices struct {
+			Enabled      bool          `koanf:"enabled"`
 			Interval     time.Duration `koanf:"interval"`
 			Rate         int           `koanf:"rate"`
 			Rounds       int           `koanf:"rounds"`
@@ -55,6 +56,7 @@ type (
 		} `koanf:"devices"`
 
 		Ports struct {
+			Enabled  bool          `koanf:"enabled"`
 			Interval time.Duration `koanf:"interval"`
 		}
 	}
