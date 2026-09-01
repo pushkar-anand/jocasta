@@ -9,7 +9,9 @@ import (
 	"github.com/pushkar-anand/build-with-go/validator"
 	"github.com/pushkar-anand/jocasta/internal/config"
 	"github.com/pushkar-anand/jocasta/internal/db"
+	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/poller"
+	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/pushkar-anand/jocasta/internal/server"
 	"golang.org/x/sync/errgroup"
 )
@@ -25,6 +27,8 @@ func (s *ServeCmd) Run(
 	log *slog.Logger,
 	conn *db.DB,
 	validator *validator.Validator,
+	store *inventory.Store,
+	sweeper *scanner.Scanner,
 ) error {
 	// The flags override the file, and an unset flag is its zero value.
 	host := cmp.Or(s.Host, cfg.Server.Host)
@@ -41,8 +45,7 @@ func (s *ServeCmd) Run(
 
 	defer p.Stop()
 
-	// TODO: hoist scanner and store and inject here
-	pd, err := poller.NewDevice(log, nil, nil, cfg.Scan.Devices.Interval, cfg.Networks)
+	pd, err := poller.NewDevice(log, sweeper, store, cfg.Scan.Devices.Interval, cfg.Networks)
 	if err != nil {
 		return fmt.Errorf("initialize device poller: %w", err)
 	}

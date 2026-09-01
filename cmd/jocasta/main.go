@@ -14,6 +14,8 @@ import (
 	"github.com/pushkar-anand/build-with-go/validator"
 	"github.com/pushkar-anand/jocasta/internal/config"
 	"github.com/pushkar-anand/jocasta/internal/db"
+	"github.com/pushkar-anand/jocasta/internal/inventory"
+	"github.com/pushkar-anand/jocasta/internal/scanner"
 )
 
 // Link sqlc with go generate, running go generate will generate the DB models and queries.
@@ -84,7 +86,27 @@ func run(args []string) error {
 		return fmt.Errorf("initialize validator: %w", err)
 	}
 
-	return kCtx.Run(cfg, log, conn, v)
+	store := inventory.New(
+		conn.Conn,
+		log,
+		inventory.WithOnlineWindow(cfg.Inventory.OnlineWindow),
+	)
+
+	// The scanner the poller sweeps with is configured, not flagged: nobody is
+	// at a terminal to pass rates to a sweep that runs on a timer. The scan
+	// command builds its own from its flags, which are per-invocation.
+	sweeper := scanner.New(
+		log,
+		scanner.WithRate(cfg.Scan.Devices.Rate),
+		scanner.WithRounds(cfg.Scan.Devices.Rounds),
+		scanner.WithWait(cfg.Scan.Devices.Wait),
+		scanner.WithNameResolution(cfg.Scan.Devices.ResolveNames),
+		scanner.WithMACResolution(cfg.Scan.Devices.ResolveMACs),
+	)
+
+	// Kong hands each command only the arguments its Run signature names, so a
+	// command that wants none of these stays as it is.
+	return kCtx.Run(cfg, log, conn, v, store, sweeper)
 }
 
 // loadConfig loads the configuration named by cli, then layers the global CLI
