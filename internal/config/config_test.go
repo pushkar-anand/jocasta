@@ -62,23 +62,6 @@ func TestLoggerFormatValue(t *testing.T) {
 	}
 }
 
-// TestDefaults pins the values the application falls back to when neither the
-// YAML file nor the environment supplies one.
-func TestDefaults(t *testing.T) {
-	t.Parallel()
-
-	assert.Equal(t, map[string]any{
-		"server.host":   "localhost",
-		"server.port":   8080,
-		"db.path":       ".",
-		"db.name":       "jocasta.db",
-		"logger.level":  "info",
-		"logger.format": "json",
-
-		"inventory.online_window": "15m0s",
-	}, defaults)
-}
-
 // TestLoadConfig checks that the defaults reach the struct and that the
 // environment layers over them.
 //
