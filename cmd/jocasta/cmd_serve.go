@@ -8,7 +8,6 @@ import (
 
 	"github.com/pushkar-anand/build-with-go/validator"
 	"github.com/pushkar-anand/jocasta/internal/config"
-	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/poller"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
@@ -25,7 +24,6 @@ func (s *ServeCmd) Run(
 	ctx context.Context,
 	cfg *config.Config,
 	log *slog.Logger,
-	conn *db.DB,
 	validator *validator.Validator,
 	store *inventory.Store,
 	sweeper *scanner.Scanner,
@@ -35,10 +33,9 @@ func (s *ServeCmd) Run(
 	port := cmp.Or(s.Port, cfg.Server.Port)
 
 	sCfg := &server.Config{
-		Addr:         host,
-		Port:         port,
-		Logger:       log,
-		OnlineWindow: cfg.Inventory.OnlineWindow,
+		Addr:   host,
+		Port:   port,
+		Logger: log,
 	}
 
 	p := poller.New(log)
@@ -60,7 +57,7 @@ func (s *ServeCmd) Run(
 	grp, ctx := errgroup.WithContext(ctx)
 
 	grp.Go(func() error {
-		err := server.Start(ctx, sCfg, conn, validator)
+		err := server.Start(ctx, sCfg, store, validator)
 		if err != nil {
 			return fmt.Errorf("start server: %w", err)
 		}
