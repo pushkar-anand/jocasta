@@ -85,11 +85,12 @@ func (p *Poller) Start(ctx context.Context) error {
 	}
 
 	tasks := p.tasks
+	p.run.Store(r)
 	p.state.Store(stateRunning)
 
 	go func() {
 		<-ctx.Done()
-		p.Stop()
+		p.stop(r)
 	}()
 
 	for _, t := range tasks {
@@ -98,7 +99,6 @@ func (p *Poller) Start(ctx context.Context) error {
 		})
 	}
 
-	p.run.Store(r)
 	p.mu.Unlock()
 
 	<-r.done
@@ -108,15 +108,27 @@ func (p *Poller) Start(ctx context.Context) error {
 
 func (p *Poller) Stop() {
 	p.mu.Lock()
+	r := p.run.Load()
+	p.mu.Unlock()
 
-	if p.state.Load() != stateRunning {
+	p.stop(r)
+}
+
+// stop ends r, but only while r is still the run in progress.
+//
+// The identity check is what makes a run's watchdog safe. A watchdog outlives
+// the run it belongs to: it wakes when its own context is cancelled, but need
+// not be scheduled before a later run has started. Without the check it would
+// find the poller running and tear down its successor.
+func (p *Poller) stop(r *run) {
+	p.mu.Lock()
+
+	if r == nil || p.state.Load() != stateRunning || p.run.Load() != r {
 		p.mu.Unlock()
 		return
 	}
 
 	p.state.Store(stateStopping)
-
-	r := p.run.Load()
 
 	cancel, done := r.cancel, r.done
 

@@ -496,3 +496,48 @@ func TestConcurrentLifecycle(t *testing.T) {
 	next:
 	}
 }
+
+// A run's watchdog outlives its run: it wakes when its own context is
+// cancelled, but need not be scheduled before a later run has started. Calling
+// stop with that stale run must not tear down its successor.
+//
+// The scenario is driven directly rather than by racing the real watchdog,
+// which fires too promptly to reproduce it reliably.
+func TestStopIgnoresStaleRun(t *testing.T) {
+	t.Parallel()
+
+	f := newFake("a")
+	p := newPoller(t, f)
+
+	first := startAsync(t, p, t.Context())
+
+	eventually(t, func() bool { return f.runs.Load() > 0 }, "task never ran")
+
+	stale := p.run.Load()
+	require.NotNil(t, stale)
+
+	p.Stop()
+	requireReturned(t, first)
+
+	second := startAsync(t, p, t.Context())
+
+	eventually(t, func() bool { return p.state.Load() == uint32(stateRunning) },
+		"second run never started")
+
+	// Exactly what a descheduled watchdog from the first run would do.
+	p.stop(stale)
+
+	select {
+	case <-second:
+		require.FailNow(t, "stale run stopped its successor")
+	case <-time.After(20 * tick):
+	}
+
+	assert.Equal(t, uint32(stateRunning), p.state.Load(), "second run should still be running")
+
+	f.runs.Store(0)
+	eventually(t, func() bool { return f.runs.Load() > 0 }, "second run's task stopped")
+
+	p.Stop()
+	requireReturned(t, second)
+}
