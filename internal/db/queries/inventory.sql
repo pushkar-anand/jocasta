@@ -15,6 +15,23 @@ INSERT INTO scans (source_id, kind, network_id, started_at)
 VALUES (?, ?, ?, ?)
 RETURNING *;
 
+-- name: LatestSuccessfulScanFinishedAt :one
+-- When a scan of this kind last finished with something to show for it, which
+-- is the anchor the poller schedules from: it waits an interval after the work
+-- ends, not after it begins, so the two agree on what an interval measures.
+--
+-- Only scans that succeeded count. A failed one gathered nothing and a scan
+-- whose process died mid-run never wrote a finish at all; crediting either
+-- would hold the next run off for an interval that produced no data, which is
+-- the staleness the interval exists to bound.
+SELECT finished_at
+FROM scans
+WHERE kind = ?
+  AND status = 'OK'
+  AND finished_at IS NOT NULL
+ORDER BY finished_at DESC, id DESC
+LIMIT 1;
+
 -- name: FinishScan :exec
 UPDATE scans
 SET status      = sqlc.arg(status),

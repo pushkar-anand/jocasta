@@ -165,17 +165,27 @@ func (p *Poller) runTask(r *run, t task) {
 		}
 	}()
 
-	ticker := time.NewTicker(t.Interval())
-	defer ticker.Stop()
+	// A timer rather than a ticker: the first wait is the task's to choose and
+	// may be zero, which a ticker cannot express and panics on.
+	timer := time.NewTimer(firstRun(ctx, t))
+	defer timer.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
+		case <-timer.C:
+			// A zero first wait leaves both cases ready at once when the poller
+			// is started under a context that is already cancelled, and select
+			// picks between ready cases at random. Without this the run would
+			// go ahead half the time.
+			if ctx.Err() != nil {
+				return
+			}
+
 			err := t.Run(ctx)
 			if err != nil {
-				p.logger.ErrorContext(
+				log.ErrorContext(
 					ctx,
 					"task failed during poll, will be retried again",
 					logger.Err(err),
@@ -183,6 +193,19 @@ func (p *Poller) runTask(r *run, t task) {
 			}
 		}
 
-		ticker.Reset(t.Interval())
+		// Reset needs no drain: since Go 1.23 a timer channel holds no stale
+		// value to receive.
+		timer.Reset(t.Interval())
 	}
+}
+
+// firstRun is how long t waits before its first run, held to a wait the poller
+// can honour.
+//
+// A task answering with more than an interval would be idle past its own
+// schedule, and one answering with less than nothing would run at once every
+// time it was asked. Both are what a stored timestamp looks like when a clock
+// has moved, so neither is a reason to distrust the task beyond clamping it.
+func firstRun(ctx context.Context, t task) time.Duration {
+	return min(max(t.DueIn(ctx), 0), t.Interval())
 }

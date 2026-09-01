@@ -8,6 +8,8 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/pushkar-anand/build-with-go/logger"
+	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 )
@@ -65,6 +67,34 @@ func (d *Device) Interval() time.Duration {
 
 func (d *Device) Name() string {
 	return "device_scanner"
+}
+
+// DueIn resumes the sweep schedule across a restart: what is left of the
+// interval since the last successful sweep finished, or nothing at all when
+// that much has already passed or no sweep has ever succeeded.
+//
+// Its own kind, not the newest scan of any kind: a port scan says nothing about
+// whether the devices are due to be looked at again.
+//
+// A store that cannot be read waits an interval rather than sweeping. Not
+// knowing whether the work is due is a reason to hold off, and the alternative
+// turns a restart loop into a scan loop -- which is the one failure the stored
+// schedule exists to prevent.
+func (d *Device) DueIn(ctx context.Context) time.Duration {
+	at, err := d.store.LastSuccessfulScanAt(ctx, dbtype.ScanDiscovery)
+
+	switch {
+	case errors.Is(err, inventory.ErrNotFound):
+		return 0
+	case err != nil:
+		d.logger.ErrorContext(ctx, "could not tell when the last sweep ran, holding off for one interval",
+			logger.Err(err),
+		)
+
+		return d.interval
+	}
+
+	return d.interval - time.Since(at)
 }
 
 func (d *Device) Run(ctx context.Context) error {

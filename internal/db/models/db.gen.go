@@ -66,6 +66,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.insertAddressStmt, err = db.PrepareContext(ctx, insertAddress); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertAddress: %w", err)
 	}
+	if q.latestSuccessfulScanFinishedAtStmt, err = db.PrepareContext(ctx, latestSuccessfulScanFinishedAt); err != nil {
+		return nil, fmt.Errorf("error preparing query LatestSuccessfulScanFinishedAt: %w", err)
+	}
 	if q.listDeviceAddressesStmt, err = db.PrepareContext(ctx, listDeviceAddresses); err != nil {
 		return nil, fmt.Errorf("error preparing query ListDeviceAddresses: %w", err)
 	}
@@ -180,6 +183,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing insertAddressStmt: %w", cerr)
 		}
 	}
+	if q.latestSuccessfulScanFinishedAtStmt != nil {
+		if cerr := q.latestSuccessfulScanFinishedAtStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing latestSuccessfulScanFinishedAtStmt: %w", cerr)
+		}
+	}
 	if q.listDeviceAddressesStmt != nil {
 		if cerr := q.listDeviceAddressesStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listDeviceAddressesStmt: %w", cerr)
@@ -282,67 +290,69 @@ func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, ar
 }
 
 type Queries struct {
-	db                       DBTX
-	tx                       *sql.Tx
-	adoptCurationStmt        *sql.Stmt
-	createDeviceStmt         *sql.Stmt
-	createEventStmt          *sql.Stmt
-	createScanStmt           *sql.Stmt
-	createUserStmt           *sql.Stmt
-	deleteDeviceStmt         *sql.Stmt
-	deviceStatsStmt          *sql.Stmt
-	finishScanStmt           *sql.Stmt
-	getAddressStmt           *sql.Stmt
-	getDeviceStmt            *sql.Stmt
-	getDeviceByCurrentIPStmt *sql.Stmt
-	getDeviceByMACStmt       *sql.Stmt
-	identifyDeviceStmt       *sql.Stmt
-	insertAddressStmt        *sql.Stmt
-	listDeviceAddressesStmt  *sql.Stmt
-	listDeviceEventsStmt     *sql.Stmt
-	listDevicesStmt          *sql.Stmt
-	listGroupsStmt           *sql.Stmt
-	moveAddressesStmt        *sql.Stmt
-	moveEventsStmt           *sql.Stmt
-	refreshAddressStmt       *sql.Stmt
-	releaseAddressStmt       *sql.Stmt
-	setDeviceHostnameStmt    *sql.Stmt
-	touchDeviceStmt          *sql.Stmt
-	updateDeviceCurationStmt *sql.Stmt
-	upsertNetworkStmt        *sql.Stmt
-	upsertSourceStmt         *sql.Stmt
+	db                                 DBTX
+	tx                                 *sql.Tx
+	adoptCurationStmt                  *sql.Stmt
+	createDeviceStmt                   *sql.Stmt
+	createEventStmt                    *sql.Stmt
+	createScanStmt                     *sql.Stmt
+	createUserStmt                     *sql.Stmt
+	deleteDeviceStmt                   *sql.Stmt
+	deviceStatsStmt                    *sql.Stmt
+	finishScanStmt                     *sql.Stmt
+	getAddressStmt                     *sql.Stmt
+	getDeviceStmt                      *sql.Stmt
+	getDeviceByCurrentIPStmt           *sql.Stmt
+	getDeviceByMACStmt                 *sql.Stmt
+	identifyDeviceStmt                 *sql.Stmt
+	insertAddressStmt                  *sql.Stmt
+	latestSuccessfulScanFinishedAtStmt *sql.Stmt
+	listDeviceAddressesStmt            *sql.Stmt
+	listDeviceEventsStmt               *sql.Stmt
+	listDevicesStmt                    *sql.Stmt
+	listGroupsStmt                     *sql.Stmt
+	moveAddressesStmt                  *sql.Stmt
+	moveEventsStmt                     *sql.Stmt
+	refreshAddressStmt                 *sql.Stmt
+	releaseAddressStmt                 *sql.Stmt
+	setDeviceHostnameStmt              *sql.Stmt
+	touchDeviceStmt                    *sql.Stmt
+	updateDeviceCurationStmt           *sql.Stmt
+	upsertNetworkStmt                  *sql.Stmt
+	upsertSourceStmt                   *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db:                       tx,
-		tx:                       tx,
-		adoptCurationStmt:        q.adoptCurationStmt,
-		createDeviceStmt:         q.createDeviceStmt,
-		createEventStmt:          q.createEventStmt,
-		createScanStmt:           q.createScanStmt,
-		createUserStmt:           q.createUserStmt,
-		deleteDeviceStmt:         q.deleteDeviceStmt,
-		deviceStatsStmt:          q.deviceStatsStmt,
-		finishScanStmt:           q.finishScanStmt,
-		getAddressStmt:           q.getAddressStmt,
-		getDeviceStmt:            q.getDeviceStmt,
-		getDeviceByCurrentIPStmt: q.getDeviceByCurrentIPStmt,
-		getDeviceByMACStmt:       q.getDeviceByMACStmt,
-		identifyDeviceStmt:       q.identifyDeviceStmt,
-		insertAddressStmt:        q.insertAddressStmt,
-		listDeviceAddressesStmt:  q.listDeviceAddressesStmt,
-		listDeviceEventsStmt:     q.listDeviceEventsStmt,
-		listDevicesStmt:          q.listDevicesStmt,
-		listGroupsStmt:           q.listGroupsStmt,
-		moveAddressesStmt:        q.moveAddressesStmt,
-		moveEventsStmt:           q.moveEventsStmt,
-		refreshAddressStmt:       q.refreshAddressStmt,
-		releaseAddressStmt:       q.releaseAddressStmt,
-		setDeviceHostnameStmt:    q.setDeviceHostnameStmt,
-		touchDeviceStmt:          q.touchDeviceStmt,
-		updateDeviceCurationStmt: q.updateDeviceCurationStmt,
-		upsertNetworkStmt:        q.upsertNetworkStmt,
-		upsertSourceStmt:         q.upsertSourceStmt,
+		db:                                 tx,
+		tx:                                 tx,
+		adoptCurationStmt:                  q.adoptCurationStmt,
+		createDeviceStmt:                   q.createDeviceStmt,
+		createEventStmt:                    q.createEventStmt,
+		createScanStmt:                     q.createScanStmt,
+		createUserStmt:                     q.createUserStmt,
+		deleteDeviceStmt:                   q.deleteDeviceStmt,
+		deviceStatsStmt:                    q.deviceStatsStmt,
+		finishScanStmt:                     q.finishScanStmt,
+		getAddressStmt:                     q.getAddressStmt,
+		getDeviceStmt:                      q.getDeviceStmt,
+		getDeviceByCurrentIPStmt:           q.getDeviceByCurrentIPStmt,
+		getDeviceByMACStmt:                 q.getDeviceByMACStmt,
+		identifyDeviceStmt:                 q.identifyDeviceStmt,
+		insertAddressStmt:                  q.insertAddressStmt,
+		latestSuccessfulScanFinishedAtStmt: q.latestSuccessfulScanFinishedAtStmt,
+		listDeviceAddressesStmt:            q.listDeviceAddressesStmt,
+		listDeviceEventsStmt:               q.listDeviceEventsStmt,
+		listDevicesStmt:                    q.listDevicesStmt,
+		listGroupsStmt:                     q.listGroupsStmt,
+		moveAddressesStmt:                  q.moveAddressesStmt,
+		moveEventsStmt:                     q.moveEventsStmt,
+		refreshAddressStmt:                 q.refreshAddressStmt,
+		releaseAddressStmt:                 q.releaseAddressStmt,
+		setDeviceHostnameStmt:              q.setDeviceHostnameStmt,
+		touchDeviceStmt:                    q.touchDeviceStmt,
+		updateDeviceCurationStmt:           q.updateDeviceCurationStmt,
+		upsertNetworkStmt:                  q.upsertNetworkStmt,
+		upsertSourceStmt:                   q.upsertSourceStmt,
 	}
 }

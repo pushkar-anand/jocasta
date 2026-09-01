@@ -42,7 +42,13 @@ type fake struct {
 	// block, when non-nil, holds Run until it is closed or the context ends,
 	// so a test can catch the poller mid-run.
 	block chan struct{}
+
+	// due is what DueIn reports. Zero, the default, is a task with nothing to
+	// resume from, which runs at once.
+	due time.Duration
 }
+
+func (f *fake) DueIn(context.Context) time.Duration { return f.due }
 
 func (f *fake) Name() string            { return f.name }
 func (f *fake) Interval() time.Duration { return f.interval }
@@ -63,6 +69,8 @@ func (f *fake) Run(ctx context.Context) error {
 
 	return f.err
 }
+
+var _ task = (*fake)(nil)
 
 func newFake(name string) *fake {
 	return &fake{name: name, interval: tick}
@@ -425,12 +433,52 @@ func TestOverrunningTaskDoesNotBacklog(t *testing.T) {
 	requireReturned(t, errc)
 }
 
-// Documents current behaviour: the first run is one full interval after Start,
-// so nothing is polled during the first interval.
-func TestFirstRunWaitsAFullInterval(t *testing.T) {
+// A task with nothing to resume from runs at once rather than sitting out its
+// first interval, which is a whole interval of staleness otherwise.
+func TestTaskDueNowRunsAtStart(t *testing.T) {
 	t.Parallel()
 
-	f := &fake{name: "a", interval: 100 * tick}
+	// An interval far longer than the wait below, so that only a run at start
+	// can satisfy it: with a short one, a task that waited a full interval
+	// would pass too.
+	f := &fake{name: "a", interval: time.Hour}
+	p := newPoller(t, f)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	errc := startAsync(t, p, ctx)
+
+	eventually(t, func() bool { return f.runs.Load() > 0 }, "task did not run at start")
+
+	cancel()
+	requireReturned(t, errc)
+}
+
+// A zero first wait leaves the timer and the context both ready on the first
+// select, which picks at random. Repeated so that a missing ctx.Err() guard
+// cannot pass by winning the coin toss once.
+func TestStartUnderACancelledContextRunsNothing(t *testing.T) {
+	t.Parallel()
+
+	for range 20 {
+		f := newFake("a")
+		p := newPoller(t, f)
+
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+
+		require.NoError(t, p.Start(ctx))
+		assert.Zero(t, f.runs.Load(), "a poller started under a dead context must not run a task")
+	}
+}
+
+// A task that says its run is due later is left alone until then, which is what
+// stops a restart from re-running work that is not due.
+func TestTaskDueLaterIsLeftAlone(t *testing.T) {
+	t.Parallel()
+
+	f := &fake{name: "a", interval: 100 * tick, due: 100 * tick}
 	p := newPoller(t, f)
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -439,10 +487,35 @@ func TestFirstRunWaitsAFullInterval(t *testing.T) {
 	errc := startAsync(t, p, ctx)
 
 	time.Sleep(5 * tick)
-	assert.Zero(t, f.runs.Load(), "no run happens before the first interval elapses")
+	assert.Zero(t, f.runs.Load(), "a task due later must not run at start")
 
 	cancel()
 	requireReturned(t, errc)
+}
+
+// A stored time that is wrong in either direction -- a clock that moved, a row
+// from the future -- must not strand the task or stampede it.
+func TestFirstRunIsClamped(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		due  time.Duration
+		want time.Duration
+	}{
+		"negative is now":     {due: -time.Hour, want: 0},
+		"beyond one interval": {due: time.Hour, want: 100 * tick},
+		"within the interval": {due: 50 * tick, want: 50 * tick},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			f := &fake{name: "a", interval: 100 * tick, due: tt.due}
+
+			assert.Equal(t, tt.want, firstRun(t.Context(), f))
+		})
+	}
 }
 
 // Start, Stop and Register hammering the lifecycle at once, to catch races

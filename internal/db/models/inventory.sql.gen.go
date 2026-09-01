@@ -487,6 +487,39 @@ func (q *Queries) InsertAddress(ctx context.Context, arg InsertAddressParams) (*
 	return &i, err
 }
 
+const latestSuccessfulScanFinishedAt = `-- name: LatestSuccessfulScanFinishedAt :one
+SELECT finished_at
+FROM scans
+WHERE kind = ?
+  AND status = 'OK'
+  AND finished_at IS NOT NULL
+ORDER BY finished_at DESC, id DESC
+LIMIT 1
+`
+
+// When a scan of this kind last finished with something to show for it, which
+// is the anchor the poller schedules from: it waits an interval after the work
+// ends, not after it begins, so the two agree on what an interval measures.
+//
+// Only scans that succeeded count. A failed one gathered nothing and a scan
+// whose process died mid-run never wrote a finish at all; crediting either
+// would hold the next run off for an interval that produced no data, which is
+// the staleness the interval exists to bound.
+//
+//	SELECT finished_at
+//	FROM scans
+//	WHERE kind = ?
+//	  AND status = 'OK'
+//	  AND finished_at IS NOT NULL
+//	ORDER BY finished_at DESC, id DESC
+//	LIMIT 1
+func (q *Queries) LatestSuccessfulScanFinishedAt(ctx context.Context, kind dbtype.ScanKind) (dbtype.NullTime, error) {
+	row := q.queryRow(ctx, q.latestSuccessfulScanFinishedAtStmt, latestSuccessfulScanFinishedAt, kind)
+	var finished_at dbtype.NullTime
+	err := row.Scan(&finished_at)
+	return finished_at, err
+}
+
 const listDeviceAddresses = `-- name: ListDeviceAddresses :many
 SELECT id, device_id, network_id, ip, is_current, first_seen, last_seen
 FROM addresses
