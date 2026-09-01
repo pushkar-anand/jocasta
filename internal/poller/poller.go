@@ -80,7 +80,6 @@ func (p *Poller) Start(ctx context.Context) error {
 	p.done = make(chan struct{})
 	tasks := p.tasks
 	p.state.Store(stateRunning)
-	p.mu.Unlock()
 
 	go func() {
 		<-ctx.Done()
@@ -93,6 +92,7 @@ func (p *Poller) Start(ctx context.Context) error {
 		})
 	}
 
+	p.mu.Unlock()
 	<-p.done
 
 	return nil
@@ -135,10 +135,12 @@ func (p *Poller) runTask(t task) {
 		slog.Duration("interval", t.Interval()),
 	)
 
+	ctx := p.runCtx
+
 	defer func() {
 		err := recover()
 		if err != nil {
-			log.ErrorContext(p.runCtx, "task panicked", slog.String("panic", fmt.Sprint(err)))
+			log.ErrorContext(ctx, "task panicked", slog.String("panic", fmt.Sprint(err)))
 		}
 	}()
 
@@ -147,13 +149,13 @@ func (p *Poller) runTask(t task) {
 
 	for {
 		select {
-		case <-p.runCtx.Done():
+		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			err := t.Run(p.runCtx)
+			err := t.Run(ctx)
 			if err != nil {
 				p.logger.ErrorContext(
-					p.runCtx,
+					ctx,
 					"task failed during poll, will be retried again",
 					logger.Err(err),
 				)
