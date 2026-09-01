@@ -168,6 +168,35 @@ func (s *Store) LatestScan(ctx context.Context) (*Scan, error) {
 	return page.Scans[0], nil
 }
 
+// LastSuccessfulScanAt reports when a scan of kind k last finished with
+// something to show for it, and ErrNotFound when none ever has.
+//
+// It answers "is this due?" for anything that runs on a schedule, so it is the
+// finish rather than the start: a poller waits an interval after the work ends,
+// and measuring from the start would make the wait mean something else across a
+// restart than it does between runs. A scan that failed, or that was cut off
+// before it finished, gathered nothing and so does not answer -- which is what
+// makes an interrupted or failed sweep due again rather than credited as done.
+func (s *Store) LastSuccessfulScanAt(ctx context.Context, k dbtype.ScanKind) (time.Time, error) {
+	at, err := s.q.LatestSuccessfulScanFinishedAt(ctx, k)
+
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return time.Time{}, fmt.Errorf("scan of kind %s: %w", k, ErrNotFound)
+	case err != nil:
+		return time.Time{}, fmt.Errorf("latest %s scan: %w", k, err)
+	}
+
+	// The query selects finished scans only, so this holds unless the column
+	// override and the WHERE ever disagree. Kept because the failure it guards
+	// against -- a zero time read as a real one -- is silent.
+	if !at.Valid {
+		return time.Time{}, fmt.Errorf("scan of kind %s: %w", k, ErrNotFound)
+	}
+
+	return at.Time.Time, nil
+}
+
 // Stats counts the inventory as a whole.
 func (s *Store) Stats(ctx context.Context) (*Stats, error) {
 	now := s.now()

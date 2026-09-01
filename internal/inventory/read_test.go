@@ -339,6 +339,135 @@ func TestLatestScanWithoutAnyIsNotFound(t *testing.T) {
 	require.ErrorIs(t, err, ErrNotFound)
 }
 
+func TestLastSuccessfulScanAtReportsWhenTheScanFinished(t *testing.T) {
+	t.Parallel()
+
+	s, _ := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, "a"))
+
+	latest, err := s.LatestScan(t.Context())
+	require.NoError(t, err)
+	require.False(t, latest.FinishedAt.IsZero())
+	require.NotEqual(t, latest.StartedAt, latest.FinishedAt, "the clock advances during the scan")
+
+	at, err := s.LastSuccessfulScanAt(t.Context(), dbtype.ScanDiscovery)
+	require.NoError(t, err)
+	assert.Equal(t, latest.FinishedAt, at, "the schedule is anchored on the finish, not the start")
+}
+
+// A scan whose process died mid-run never finished, so the work never landed.
+// Counting it would hold the next sweep off for an interval it was never owed.
+func TestLastSuccessfulScanAtIgnoresAnUnfinishedScan(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	_, err := conn.ExecContext(t.Context(),
+		`INSERT INTO sources (kind, name) VALUES ('SWEEP', 'interrupted');
+		 INSERT INTO scans (source_id, kind, status, started_at)
+		 VALUES ((SELECT id FROM sources WHERE name = 'interrupted'), 'DISCOVERY', 'RUNNING',
+		         '2026-01-01T00:00:00.000Z');`)
+	require.NoError(t, err)
+
+	_, err = s.LastSuccessfulScanAt(t.Context(), dbtype.ScanDiscovery)
+	require.ErrorIs(t, err, ErrNotFound)
+}
+
+// A sweep in progress must not mask the last completed one: answering
+// ErrNotFound here would report "never swept" mid-sweep and start a second.
+func TestLastSuccessfulScanAtSkipsPastAnUnfinishedScan(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	_, err := conn.ExecContext(t.Context(),
+		`INSERT INTO sources (kind, name) VALUES ('SWEEP', 'mid-sweep');
+		 INSERT INTO scans (source_id, kind, status, started_at, finished_at)
+		 VALUES ((SELECT id FROM sources WHERE name = 'mid-sweep'), 'DISCOVERY', 'OK',
+		         '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:05.000Z');
+		 INSERT INTO scans (source_id, kind, status, started_at)
+		 VALUES ((SELECT id FROM sources WHERE name = 'mid-sweep'), 'DISCOVERY', 'RUNNING',
+		         '2026-01-01T00:10:00.000Z');`)
+	require.NoError(t, err)
+
+	at, err := s.LastSuccessfulScanAt(t.Context(), dbtype.ScanDiscovery)
+	require.NoError(t, err)
+	assert.Equal(t, time.Date(2026, 1, 1, 0, 0, 5, 0, time.UTC), at)
+}
+
+// A scan that finished but failed gathered nothing. Crediting it would hold the
+// next run off for an interval that produced no data, which is the staleness
+// the interval is there to bound.
+func TestLastSuccessfulScanAtIgnoresAFailedScan(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	_, err := conn.ExecContext(t.Context(),
+		`INSERT INTO sources (kind, name) VALUES ('SWEEP', 'failed');
+		 INSERT INTO scans (source_id, kind, status, error, started_at, finished_at)
+		 VALUES ((SELECT id FROM sources WHERE name = 'failed'), 'DISCOVERY', 'FAILED', 'boom',
+		         '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:05.000Z');`)
+	require.NoError(t, err)
+
+	_, err = s.LastSuccessfulScanAt(t.Context(), dbtype.ScanDiscovery)
+	require.ErrorIs(t, err, ErrNotFound)
+}
+
+// A failed scan must not mask the successful one before it either: the schedule
+// still resumes from the last run that actually gathered something.
+func TestLastSuccessfulScanAtSkipsPastAFailedScan(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	_, err := conn.ExecContext(t.Context(),
+		`INSERT INTO sources (kind, name) VALUES ('SWEEP', 'mixed');
+		 INSERT INTO scans (source_id, kind, status, started_at, finished_at)
+		 VALUES ((SELECT id FROM sources WHERE name = 'mixed'), 'DISCOVERY', 'OK',
+		         '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:05.000Z');
+		 INSERT INTO scans (source_id, kind, status, error, started_at, finished_at)
+		 VALUES ((SELECT id FROM sources WHERE name = 'mixed'), 'DISCOVERY', 'FAILED', 'boom',
+		         '2026-01-01T00:10:00.000Z', '2026-01-01T00:10:05.000Z');`)
+	require.NoError(t, err)
+
+	at, err := s.LastSuccessfulScanAt(t.Context(), dbtype.ScanDiscovery)
+	require.NoError(t, err)
+	assert.Equal(t, time.Date(2026, 1, 1, 0, 0, 5, 0, time.UTC), at)
+}
+
+func TestLastSuccessfulScanAtWithoutAnyIsNotFound(t *testing.T) {
+	t.Parallel()
+
+	s, _ := newStore(t)
+
+	_, err := s.LastSuccessfulScanAt(t.Context(), dbtype.ScanDiscovery)
+	require.ErrorIs(t, err, ErrNotFound)
+}
+
+// The kind is the point of the query: a port scan says nothing about whether
+// the devices are due to be swept again, and answering with one would hold the
+// sweep off for an interval it was owed.
+func TestLastSuccessfulScanAtIgnoresOtherKinds(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	_, err := conn.ExecContext(t.Context(),
+		`INSERT INTO sources (kind, name) VALUES ('SWEEP', 'ports-only');
+		 INSERT INTO scans (source_id, kind, status, started_at, finished_at)
+		 VALUES ((SELECT id FROM sources WHERE name = 'ports-only'), 'PORTS', 'OK',
+		         '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:05.000Z');`)
+	require.NoError(t, err)
+
+	_, err = s.LastSuccessfulScanAt(t.Context(), dbtype.ScanDiscovery)
+	require.ErrorIs(t, err, ErrNotFound, "a ports scan must not answer for a discovery sweep")
+
+	at, err := s.LastSuccessfulScanAt(t.Context(), dbtype.ScanPorts)
+	require.NoError(t, err)
+	assert.Equal(t, time.Date(2026, 1, 1, 0, 0, 5, 0, time.UTC), at)
+}
+
 func TestStatsCountsTheInventory(t *testing.T) {
 	t.Parallel()
 
