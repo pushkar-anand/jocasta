@@ -32,7 +32,7 @@ type Poller struct {
 	tasks  []task
 	logger *slog.Logger
 
-	mu sync.RWMutex
+	mu sync.Mutex
 }
 
 func New(logger *slog.Logger) *Poller {
