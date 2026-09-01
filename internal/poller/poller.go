@@ -18,20 +18,21 @@ const (
 	stateStopping
 )
 
+type run struct {
+	ctx    context.Context
+	cancel context.CancelCauseFunc
+	done   chan struct{}
+	wg     sync.WaitGroup
+}
+
 type Poller struct {
 	state atomic.Uint32
+	run   atomic.Pointer[run]
 
 	tasks  []task
 	logger *slog.Logger
 
-	wg sync.WaitGroup
-
-	// Protected by mu to prevent data races during initialization/teardown
-	mu        sync.RWMutex
-	runCtx    context.Context
-	ctxCancel context.CancelCauseFunc
-
-	done chan struct{}
+	mu sync.RWMutex
 }
 
 func New(logger *slog.Logger) *Poller {
@@ -75,9 +76,14 @@ func (p *Poller) Start(ctx context.Context) error {
 	}
 
 	ctx, cancel := context.WithCancelCause(ctx)
-	p.runCtx = ctx
-	p.ctxCancel = cancel
-	p.done = make(chan struct{})
+
+	r := &run{
+		ctx:    ctx,
+		cancel: cancel,
+		done:   make(chan struct{}),
+		wg:     sync.WaitGroup{},
+	}
+
 	tasks := p.tasks
 	p.state.Store(stateRunning)
 
@@ -87,15 +93,15 @@ func (p *Poller) Start(ctx context.Context) error {
 	}()
 
 	for _, t := range tasks {
-		p.wg.Go(func() {
-			p.runTask(t)
+		r.wg.Go(func() {
+			p.runTask(r, t)
 		})
 	}
 
-	done := p.done
+	p.run.Store(r)
 	p.mu.Unlock()
 
-	<-done
+	<-r.done
 
 	return nil
 }
@@ -110,7 +116,9 @@ func (p *Poller) Stop() {
 
 	p.state.Store(stateStopping)
 
-	cancel, done := p.ctxCancel, p.done
+	r := p.run.Load()
+
+	cancel, done := r.cancel, r.done
 
 	p.mu.Unlock()
 
@@ -118,7 +126,7 @@ func (p *Poller) Stop() {
 		cancel(errors.New("poller stop called"))
 	}
 
-	p.wg.Wait()
+	r.wg.Wait()
 
 	p.mu.Lock()
 	p.state.Store(stateIdle)
@@ -131,13 +139,13 @@ func (p *Poller) Stop() {
 	return
 }
 
-func (p *Poller) runTask(t task) {
+func (p *Poller) runTask(r *run, t task) {
 	log := p.logger.With(
 		slog.String("task", t.Name()),
 		slog.Duration("interval", t.Interval()),
 	)
 
-	ctx := p.runCtx
+	ctx := r.ctx
 
 	defer func() {
 		err := recover()
