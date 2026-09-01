@@ -2,6 +2,7 @@ package config
 
 import (
 	"log/slog"
+	"os"
 	"testing"
 
 	"github.com/pushkar-anand/build-with-go/config"
@@ -94,4 +95,17 @@ func TestLoadConfig(t *testing.T) {
 
 	// A duration is configured as text and has to reach the struct as one.
 	assert.Equal(t, inventory.DefaultOnlineWindow, cfg.Inventory.OnlineWindow)
+
+	// Derived rather than written down, so assert it is the derivation and not
+	// merely non-empty: an unnamed source files every sweep under one blank row.
+	assert.Equal(t, defaultSource(), cfg.Scan.Source)
+}
+
+func TestDefaultSourceNamesTheHost(t *testing.T) {
+	t.Parallel()
+
+	host, err := os.Hostname()
+	require.NoError(t, err)
+
+	assert.Equal(t, "sweep:"+host, defaultSource())
 }

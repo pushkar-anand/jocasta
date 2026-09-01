@@ -15,15 +15,22 @@ import (
 type Device struct {
 	scanner  *scanner.Scanner
 	store    *inventory.Store
+	source   string
 	interval time.Duration
 	networks []*netip.Prefix
 	logger   *slog.Logger
 }
 
+// NewDevice builds the task that sweeps networks and records what answered.
+//
+// source names the vantage point the sweep is taken from and is resolved by the
+// caller: what a deployment calls itself is a wiring question, and the task
+// stays testable without one.
 func NewDevice(
 	logger *slog.Logger,
 	scanner *scanner.Scanner,
 	store *inventory.Store,
+	source string,
 	interval time.Duration,
 	networks []string,
 ) (*Device, error) {
@@ -45,6 +52,7 @@ func NewDevice(
 	return &Device{
 		scanner:  scanner,
 		store:    store,
+		source:   source,
 		interval: interval,
 		networks: np,
 		logger:   logger,
@@ -82,7 +90,7 @@ func (d *Device) scanAndSaveNetwork(ctx context.Context, network *netip.Prefix) 
 		return fmt.Errorf("scan %s: %w", network, err)
 	}
 
-	saved, err := d.store.RecordSweep(ctx, "", *network, result)
+	saved, err := d.store.RecordSweep(ctx, d.source, *network, result)
 	if err != nil {
 		return fmt.Errorf("record sweep %s: %w", network, err)
 	}

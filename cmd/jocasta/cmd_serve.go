@@ -42,7 +42,14 @@ func (s *ServeCmd) Run(
 
 	defer p.Stop()
 
-	pd, err := poller.NewDevice(log, sweeper, store, cfg.Scan.Devices.Interval, cfg.Networks)
+	pd, err := poller.NewDevice(
+		log,
+		sweeper,
+		store,
+		cfg.Scan.Source,
+		cfg.Scan.Devices.Interval,
+		cfg.Networks,
+	)
 	if err != nil {
 		return fmt.Errorf("initialize device poller: %w", err)
 	}

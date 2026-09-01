@@ -1,6 +1,10 @@
 package config
 
-import "github.com/pushkar-anand/jocasta/internal/inventory"
+import (
+	"os"
+
+	"github.com/pushkar-anand/jocasta/internal/inventory"
+)
 
 var defaults = map[string]any{
 	"server.host": "localhost",
@@ -14,6 +18,8 @@ var defaults = map[string]any{
 
 	"inventory.online_window": inventory.DefaultOnlineWindow.String(),
 
+	"scan.source": defaultSource(),
+
 	"scan.devices.enabled":       true,
 	"scan.devices.interval":      "5m",
 	"scan.devices.rate":          1000,
@@ -23,4 +29,17 @@ var defaults = map[string]any{
 	"scan.devices.resolve_macs":  true,
 	"scan.ports.enabled":         false,
 	"scan.ports.interval":        "6h",
+}
+
+// defaultSource names the vantage point sweeps are taken from when nothing
+// configures one. A host that keeps its name identifies itself well enough; a
+// container does not, since its hostname is the container ID and changes on
+// every run, which is what scan.source is there to override.
+func defaultSource() string {
+	host, err := os.Hostname()
+	if err != nil {
+		return "sweep"
+	}
+
+	return "sweep:" + host
 }

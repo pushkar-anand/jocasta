@@ -45,6 +45,17 @@ type (
 	}
 
 	Scan struct {
+		// Source names the vantage point these sweeps are taken from, which is
+		// what the inventory records as their provenance. It defaults to this
+		// host's name, which is enough on a host that keeps one and wrong in a
+		// container, where the hostname is the container ID and changes on every
+		// run.
+		//
+		// Renaming does not rename the source: the existing row is matched by
+		// name, so a new name starts a new one and leaves the old scan history
+		// filed under the old.
+		Source string `koanf:"source"`
+
 		Devices struct {
 			Enabled      bool          `koanf:"enabled"`
 			Interval     time.Duration `koanf:"interval"`
