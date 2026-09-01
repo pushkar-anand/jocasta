@@ -87,12 +87,8 @@ func run(args []string) error {
 	return kCtx.Run(cfg, log, conn, v)
 }
 
-// loadConfig assembles configuration from defaults, the YAML file, and the
-// environment, then applies the global CLI overrides.
-//
-// A missing file at defaultConfigFile is fine, but an explicit --config that
-// does not exist is reported: silently falling back to defaults would bind the
-// server to the wrong address or point it at the wrong database.
+// loadConfig loads the configuration named by cli, then layers the global CLI
+// flags over it.
 func loadConfig(cli *CLI) (*config.Config, error) {
 	cfg, err := config.New(cli.ConfigFile)
 	if err != nil {

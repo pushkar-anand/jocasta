@@ -47,6 +47,12 @@ type (
 	}
 )
 
+// New assembles configuration from defaults, the YAML file at cfgFile, and the
+// environment.
+//
+// A missing file at DefaultConfigFile is fine, but an explicit path that does
+// not exist is reported: silently falling back to defaults would bind the
+// server to the wrong address or point it at the wrong database.
 func New(
 	cfgFile string,
 ) (*Config, error) {
