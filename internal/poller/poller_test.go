@@ -279,12 +279,9 @@ func TestStopIsIdempotent(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for range 4 {
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			p.Stop()
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -337,6 +334,7 @@ func TestTasksStopBeforeStartReturns(t *testing.T) {
 	requireReturned(t, errc)
 
 	settled := f.runs.Load()
+
 	time.Sleep(5 * tick)
 
 	assert.Equal(t, settled, f.runs.Load(), "no task should run after Start returns")
@@ -461,21 +459,15 @@ func TestConcurrentLifecycle(t *testing.T) {
 		var wg sync.WaitGroup
 
 		for range 4 {
-			wg.Add(1)
-
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				p.Stop()
-			}()
+			})
 		}
 
 		for range 2 {
-			wg.Add(1)
-
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				_ = p.Register(newFake("late"))
-			}()
+			})
 		}
 
 		wg.Wait()

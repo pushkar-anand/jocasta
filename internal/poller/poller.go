@@ -65,6 +65,7 @@ func (p *Poller) Register(t task) error {
 	}
 
 	p.tasks = append(p.tasks, t)
+
 	return nil
 }
 
@@ -147,8 +148,6 @@ func (p *Poller) stop(r *run) {
 	if done != nil {
 		close(done)
 	}
-
-	return
 }
 
 func (p *Poller) runTask(r *run, t task) {
