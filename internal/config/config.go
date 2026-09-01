@@ -1,3 +1,5 @@
+// Package config reads jocasta's runtime settings from defaults, a YAML file,
+// and the environment.
 package config
 
 import (
@@ -16,21 +18,25 @@ import (
 const DefaultConfigFile = "jocasta.yaml"
 
 type (
+	// Server says where the HTTP server listens.
 	Server struct {
 		Host string `koanf:"host"`
 		Port int    `koanf:"port"`
 	}
 
+	// DB says where the SQLite database lives.
 	DB struct {
 		Path string `koanf:"path"`
 		Name string `koanf:"name"`
 	}
 
+	// Logger says how logs are filtered and rendered.
 	Logger struct {
 		Level  string `koanf:"level"`
 		Format string `koanf:"format"`
 	}
 
+	// Inventory holds the knobs that change how the inventory is read.
 	Inventory struct {
 		// OnlineWindow is how long after a device was last seen it still counts
 		// as online. Nothing announces a device leaving, so this belongs in
@@ -38,6 +44,7 @@ type (
 		OnlineWindow time.Duration `koanf:"online_window"`
 	}
 
+	// Config is the whole set of named, nested settings.
 	Config struct {
 		Server    Server    `koanf:"server"`
 		DB        DB        `koanf:"db"`
@@ -74,6 +81,8 @@ func New(
 	return cfg, nil
 }
 
+// SlogLevel maps the configured level name to an slog.Level, defaulting to
+// info when the name is not recognised.
 func (l Logger) SlogLevel() slog.Level {
 	switch strings.ToLower(l.Level) {
 	case "debug":
@@ -89,6 +98,8 @@ func (l Logger) SlogLevel() slog.Level {
 	return slog.LevelInfo
 }
 
+// FormatValue maps the configured format to a logger.Format, defaulting to
+// JSON for anything other than the text form.
 func (l Logger) FormatValue() logger.Format {
 	if strings.EqualFold(l.Format, logger.FormatText.String()) {
 		return logger.FormatText
