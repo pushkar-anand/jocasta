@@ -13,4 +13,12 @@ var defaults = map[string]any{
 	"logger.format": "json",
 
 	"inventory.online_window": inventory.DefaultOnlineWindow.String(),
+
+	"scan.devices.interval":      "5m",
+	"scan.devices.rate":          1000,
+	"scan.devices.rounds":        2,
+	"scan.devices.wait":          "2s",
+	"scan.devices.resolve_names": true,
+	"scan.devices.resolve_macs":  true,
+	"scan.ports.interval":        "6h",
 }

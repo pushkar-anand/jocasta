@@ -44,6 +44,21 @@ type (
 		OnlineWindow time.Duration `koanf:"online_window"`
 	}
 
+	Scan struct {
+		Devices struct {
+			Interval     time.Duration `koanf:"interval"`
+			Rate         int           `koanf:"rate"`
+			Rounds       int           `koanf:"rounds"`
+			Wait         time.Duration `koanf:"wait"`
+			ResolveNames bool          `koanf:"resolve_names"`
+			ResolveMACs  bool          `koanf:"resolve_macs"`
+		} `koanf:"devices"`
+
+		Ports struct {
+			Interval time.Duration `koanf:"interval"`
+		}
+	}
+
 	// Config is the whole set of named, nested settings.
 	Config struct {
 		Server    Server    `koanf:"server"`
@@ -51,6 +66,7 @@ type (
 		Logger    Logger    `koanf:"logger"`
 		Inventory Inventory `koanf:"inventory"`
 		Networks  []string  `koanf:"networks"`
+		Scan      Scan      `koanf:"scan"`
 	}
 )
 
