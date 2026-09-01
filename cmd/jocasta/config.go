@@ -37,6 +37,7 @@ type (
 		DB        DB        `koanf:"db"`
 		Logger    Logger    `koanf:"logger"`
 		Inventory Inventory `koanf:"inventory"`
+		Networks  []string  `koanf:"networks"`
 	}
 )
 
