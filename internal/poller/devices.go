@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 )
@@ -82,6 +83,26 @@ func (d *Device) Run(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (d *Device) DueIn(ctx context.Context) time.Duration {
+	lastScanTime, err := d.store.LastSuccessfulDeviceScan(ctx)
+	if err != nil {
+		d.logger.ErrorContext(ctx, "failed to get last successful device scan time", logger.Err(err))
+		return d.interval
+	}
+
+	if lastScanTime.IsZero() {
+		return d.interval
+	}
+
+	diff := time.Since(lastScanTime)
+
+	if diff > d.interval {
+		return time.Duration(0)
+	}
+
+	return diff
 }
 
 func (d *Device) scanAndSaveNetwork(ctx context.Context, network *netip.Prefix) error {

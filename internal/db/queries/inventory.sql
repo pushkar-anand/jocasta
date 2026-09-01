@@ -179,8 +179,8 @@ LIMIT ?;
 -- is present or absent. See internal/db/models/inventory_page.go.
 
 -- name: DeviceStats :one
-SELECT COUNT(*)                                                                       AS total,
-       CAST(COALESCE(SUM(CASE WHEN is_ignored = 1 THEN 1 ELSE 0 END), 0) AS INTEGER)  AS ignored,
+SELECT COUNT(*)                                                                                           AS total,
+       CAST(COALESCE(SUM(CASE WHEN is_ignored = 1 THEN 1 ELSE 0 END), 0) AS INTEGER)                      AS ignored,
        CAST(COALESCE(SUM(CASE WHEN last_seen >= sqlc.arg(online_since) THEN 1 ELSE 0 END), 0) AS INTEGER) AS online,
        CAST(COALESCE(SUM(CASE WHEN first_seen >= sqlc.arg(new_since) THEN 1 ELSE 0 END), 0) AS INTEGER)   AS discovered
 FROM devices;
@@ -205,3 +205,12 @@ SET label       = sqlc.narg(label),
     is_ignored  = sqlc.arg(is_ignored)
 WHERE id = sqlc.arg(id)
 RETURNING *;
+
+-- name: LastSuccessfulDeviceScanTimestamp :one
+SELECT finished_at
+FROM scans
+WHERE kind = 'DISCOVERY'
+  AND status = 'OK'
+  AND finished_at NOT NULL
+ORDER BY finished_at DESC
+LIMIT 1;

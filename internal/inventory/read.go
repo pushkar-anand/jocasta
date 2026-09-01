@@ -199,6 +199,19 @@ func (s *Store) Groups(ctx context.Context) ([]string, error) {
 	return groups, nil
 }
 
+func (s *Store) LastSuccessfulDeviceScan(ctx context.Context) (time.Time, error) {
+	t, err := s.q.LastSuccessfulDeviceScanTimestamp(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	if t.Valid {
+		return time.Time{}, errors.New("unexpected null time value")
+	}
+
+	return t.Time.Time, nil
+}
+
 // onlineCutoff is the instant a device must have been seen at or after to count
 // as online. It is read once per query so a list judges every device alike.
 func (s *Store) onlineCutoff() time.Time {

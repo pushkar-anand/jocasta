@@ -194,8 +194,8 @@ func (q *Queries) DeleteDevice(ctx context.Context, id int64) error {
 
 const deviceStats = `-- name: DeviceStats :one
 
-SELECT COUNT(*)                                                                       AS total,
-       CAST(COALESCE(SUM(CASE WHEN is_ignored = 1 THEN 1 ELSE 0 END), 0) AS INTEGER)  AS ignored,
+SELECT COUNT(*)                                                                                           AS total,
+       CAST(COALESCE(SUM(CASE WHEN is_ignored = 1 THEN 1 ELSE 0 END), 0) AS INTEGER)                      AS ignored,
        CAST(COALESCE(SUM(CASE WHEN last_seen >= ?1 THEN 1 ELSE 0 END), 0) AS INTEGER) AS online,
        CAST(COALESCE(SUM(CASE WHEN first_seen >= ?2 THEN 1 ELSE 0 END), 0) AS INTEGER)   AS discovered
 FROM devices
@@ -220,8 +220,8 @@ type DeviceStatsRow struct {
 // them seeks past the row the last page ended on, and the seek is a clause that
 // is present or absent. See internal/db/models/inventory_page.go.
 //
-//	SELECT COUNT(*)                                                                       AS total,
-//	       CAST(COALESCE(SUM(CASE WHEN is_ignored = 1 THEN 1 ELSE 0 END), 0) AS INTEGER)  AS ignored,
+//	SELECT COUNT(*)                                                                                           AS total,
+//	       CAST(COALESCE(SUM(CASE WHEN is_ignored = 1 THEN 1 ELSE 0 END), 0) AS INTEGER)                      AS ignored,
 //	       CAST(COALESCE(SUM(CASE WHEN last_seen >= ?1 THEN 1 ELSE 0 END), 0) AS INTEGER) AS online,
 //	       CAST(COALESCE(SUM(CASE WHEN first_seen >= ?2 THEN 1 ELSE 0 END), 0) AS INTEGER)   AS discovered
 //	FROM devices
@@ -485,6 +485,32 @@ func (q *Queries) InsertAddress(ctx context.Context, arg InsertAddressParams) (*
 		&i.LastSeen,
 	)
 	return &i, err
+}
+
+const lastSuccessfulDeviceScanTimestamp = `-- name: LastSuccessfulDeviceScanTimestamp :one
+SELECT finished_at
+FROM scans
+WHERE kind = 'DISCOVERY'
+  AND status = 'OK'
+  AND finished_at NOT NULL
+ORDER BY finished_at DESC
+LIMIT 1
+`
+
+// LastSuccessfulDeviceScanTimestamp
+//
+//	SELECT finished_at
+//	FROM scans
+//	WHERE kind = 'DISCOVERY'
+//	  AND status = 'OK'
+//	  AND finished_at NOT NULL
+//	ORDER BY finished_at DESC
+//	LIMIT 1
+func (q *Queries) LastSuccessfulDeviceScanTimestamp(ctx context.Context) (dbtype.NullTime, error) {
+	row := q.queryRow(ctx, q.lastSuccessfulDeviceScanTimestampStmt, lastSuccessfulDeviceScanTimestamp)
+	var finished_at dbtype.NullTime
+	err := row.Scan(&finished_at)
+	return finished_at, err
 }
 
 const listDeviceAddresses = `-- name: ListDeviceAddresses :many
