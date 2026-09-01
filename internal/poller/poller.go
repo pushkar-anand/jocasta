@@ -165,6 +165,14 @@ func (p *Poller) runTask(r *run, t task) {
 		}
 	}()
 
+	dur := firstRun(ctx, t)
+
+	log.InfoContext(
+		ctx,
+		"task scheduled",
+		slog.Duration("next_run", dur),
+	)
+
 	// A timer rather than a ticker: the first wait is the task's to choose and
 	// may be zero, which a ticker cannot express and panics on.
 	timer := time.NewTimer(firstRun(ctx, t))
@@ -183,6 +191,8 @@ func (p *Poller) runTask(r *run, t task) {
 				return
 			}
 
+			log.InfoContext(ctx, "starting task run")
+
 			err := t.Run(ctx)
 			if err != nil {
 				log.ErrorContext(
@@ -190,6 +200,8 @@ func (p *Poller) runTask(r *run, t task) {
 					"task failed during poll, will be retried again",
 					logger.Err(err),
 				)
+			} else {
+				log.InfoContext(ctx, "task run completed")
 			}
 		}
 
