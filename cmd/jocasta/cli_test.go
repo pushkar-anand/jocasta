@@ -221,16 +221,12 @@ func TestRunRejectsMissingExplicitConfigFile(t *testing.T) {
 }
 
 func TestLoadConfigAllowsAbsentDefaultFile(t *testing.T) {
-	t.Parallel()
-
 	cfg, err := loadConfig(&CLI{ConfigFile: config.DefaultConfigFile})
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 }
 
 func TestLoadConfigAppliesLoggingOverrides(t *testing.T) {
-	t.Parallel()
-
 	cfg, err := loadConfig(&CLI{
 		ConfigFile: config.DefaultConfigFile,
 		LogLevel:   "debug",
