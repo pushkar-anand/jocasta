@@ -42,3 +42,6 @@ jocasta.yaml
 # Plans and docs for tasks in progress
 plans/
 /bin/
+
+# temp files
+tmp/

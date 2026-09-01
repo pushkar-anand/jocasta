@@ -1,4 +1,4 @@
-.PHONY: tidy fmt build run gen new_migration docker oui htmx test lint
+.PHONY: tidy fmt build run gen new_migration docker oui htmx test lint dev
 
 .DEFAULT_GOAL := build
 
@@ -8,10 +8,10 @@ fmt:
 gen:
 	go generate ./...
 
-build: gen
+build:
 	go build -o bin/ ./cmd/jocasta
 
-run: build
+run: gen build
 	./bin/jocasta
 
 docker: ## Build the container image. Usage: make docker [tag=<image tag>]
@@ -40,3 +40,6 @@ lint: ## Run golangci-lint
 		curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b ./bin v2.13.2; \
 	fi
 	./bin/golangci-lint run ./...
+
+dev: gen build ## Start the server with hot-reload
+	go tool air
