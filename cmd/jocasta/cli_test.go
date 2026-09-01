@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/alecthomas/kong"
+	"github.com/pushkar-anand/jocasta/internal/config"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -222,7 +223,7 @@ func TestRunRejectsMissingExplicitConfigFile(t *testing.T) {
 func TestLoadConfigAllowsAbsentDefaultFile(t *testing.T) {
 	t.Parallel()
 
-	cfg, err := loadConfig(&CLI{ConfigFile: defaultConfigFile})
+	cfg, err := loadConfig(&CLI{ConfigFile: config.DefaultConfigFile})
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 }
@@ -231,7 +232,7 @@ func TestLoadConfigAppliesLoggingOverrides(t *testing.T) {
 	t.Parallel()
 
 	cfg, err := loadConfig(&CLI{
-		ConfigFile: defaultConfigFile,
+		ConfigFile: config.DefaultConfigFile,
 		LogLevel:   "debug",
 		LogFormat:  "text",
 	})

@@ -1,13 +1,19 @@
-package main
+package config
 
 import (
+	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/pushkar-anand/build-with-go/config"
 	"github.com/pushkar-anand/build-with-go/logger"
-	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
+
+// DefaultConfigFile is the path used when --config is not given. A missing file
+// here is not an error: defaults and the environment can supply everything.
+const DefaultConfigFile = "jocasta.yaml"
 
 type (
 	Server struct {
@@ -41,17 +47,25 @@ type (
 	}
 )
 
-var defaults = map[string]any{
-	"server.host": "localhost",
-	"server.port": 8080,
+func New(
+	cfgFile string,
+) (*Config, error) {
+	if cfgFile != DefaultConfigFile {
+		if _, err := os.Stat(cfgFile); err != nil {
+			return nil, fmt.Errorf("config file %q: %w", cfgFile, err)
+		}
+	}
 
-	"db.path": ".",
-	"db.name": "jocasta.db",
+	cfg, err := config.Load[Config](
+		config.WithDefaults(defaults),
+		config.WithYAML(cfgFile),
+		config.WithEnvPrefix("JOCASTA_"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
 
-	"logger.level":  "info",
-	"logger.format": "json",
-
-	"inventory.online_window": inventory.DefaultOnlineWindow.String(),
+	return cfg, nil
 }
 
 func (l Logger) SlogLevel() slog.Level {

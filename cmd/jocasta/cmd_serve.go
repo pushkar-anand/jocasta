@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/pushkar-anand/build-with-go/validator"
+	"github.com/pushkar-anand/jocasta/internal/config"
 	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/pushkar-anand/jocasta/internal/server"
 )
@@ -18,7 +19,7 @@ type ServeCmd struct {
 
 func (s *ServeCmd) Run(
 	ctx context.Context,
-	cfg *Config,
+	cfg *config.Config,
 	log *slog.Logger,
 	conn *db.DB,
 	validator *validator.Validator,

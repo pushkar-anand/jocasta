@@ -10,9 +10,9 @@ import (
 	"syscall"
 
 	"github.com/alecthomas/kong"
-	"github.com/pushkar-anand/build-with-go/config"
 	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/build-with-go/validator"
+	"github.com/pushkar-anand/jocasta/internal/config"
 	"github.com/pushkar-anand/jocasta/internal/db"
 )
 
@@ -93,20 +93,10 @@ func run(args []string) error {
 // A missing file at defaultConfigFile is fine, but an explicit --config that
 // does not exist is reported: silently falling back to defaults would bind the
 // server to the wrong address or point it at the wrong database.
-func loadConfig(cli *CLI) (*Config, error) {
-	if cli.ConfigFile != defaultConfigFile {
-		if _, err := os.Stat(cli.ConfigFile); err != nil {
-			return nil, fmt.Errorf("config file %q: %w", cli.ConfigFile, err)
-		}
-	}
-
-	cfg, err := config.Load[Config](
-		config.WithDefaults(defaults),
-		config.WithYAML(cli.ConfigFile),
-		config.WithEnvPrefix("JOCASTA_"),
-	)
+func loadConfig(cli *CLI) (*config.Config, error) {
+	cfg, err := config.New(cli.ConfigFile)
 	if err != nil {
-		return nil, fmt.Errorf("load config: %w", err)
+		return nil, err
 	}
 
 	if cli.LogLevel != "" {

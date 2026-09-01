@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/pushkar-anand/build-with-go/validator"
+	"github.com/pushkar-anand/jocasta/internal/config"
 	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
@@ -32,7 +33,7 @@ type ScanCmd struct {
 
 func (s *ScanCmd) Run(
 	ctx context.Context,
-	cfg *Config,
+	cfg *config.Config,
 	log *slog.Logger,
 	conn *db.DB,
 	_ *validator.Validator,
@@ -71,7 +72,7 @@ func (s *ScanCmd) Run(
 // save records the sweep in the inventory. It runs after the results are
 // printed so a database that will not open still leaves the operator with the
 // scan they asked for.
-func (s *ScanCmd) save(ctx context.Context, _ *Config, log *slog.Logger, p netip.Prefix, hosts []scanner.Host, conn *db.DB) error {
+func (s *ScanCmd) save(ctx context.Context, _ *config.Config, log *slog.Logger, p netip.Prefix, hosts []scanner.Host, conn *db.DB) error {
 	res, err := inventory.New(conn.Conn, log).RecordSweep(ctx, s.sourceName(), p, hosts)
 	if err != nil {
 		return fmt.Errorf("record sweep: %w", err)

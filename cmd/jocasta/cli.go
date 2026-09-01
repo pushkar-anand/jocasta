@@ -3,11 +3,8 @@ package main
 
 import (
 	"github.com/alecthomas/kong"
+	"github.com/pushkar-anand/jocasta/internal/config"
 )
-
-// defaultConfigFile is the path used when --config is not given. A missing file
-// here is not an error: defaults and the environment can supply everything.
-const defaultConfigFile = "jocasta.yaml"
 
 type CLI struct {
 	ConfigFile string `name:"config" short:"c" default:"${configFile}" help:"Path to configuration file."`
@@ -24,6 +21,6 @@ func newParser(cli *CLI, opts ...kong.Option) (*kong.Kong, error) {
 	return kong.New(cli, append([]kong.Option{
 		kong.Name("jocasta"),
 		kong.Description("Network discovery and homelab device inventory tool."),
-		kong.Vars{"configFile": defaultConfigFile},
+		kong.Vars{"configFile": config.DefaultConfigFile},
 	}, opts...)...)
 }
