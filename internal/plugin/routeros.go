@@ -161,10 +161,10 @@ func (d *draft) set(key, value string) {
 
 // collectARP reads the ARP table into c.
 //
-// Most of the table is not evidence of anything -- a live read returned 794
-// rows of which 45 were usable, the rest being failed entries the router keeps
-// for nearly every address it serves. Dropping them here is what stops the
-// first run inventing 750 devices.
+// Most of the table is not evidence of anything: the router keeps a failed
+// entry for very nearly every address in every subnet it serves, so the usable
+// rows are a small fraction of it. Dropping the rest here is what stops the
+// first run inventing a device per address.
 func (r *RouterOS) collectARP(ctx context.Context, c claims, entries []routeros.ARPEntry) {
 	for _, e := range entries {
 		mac, ok := normaliseMAC(e.MACAddress)
@@ -251,8 +251,8 @@ func (r *RouterOS) collectLeases(ctx context.Context, c claims, leases []routero
 		d.set("dhcp_status", l.Status)
 		d.set("dhcp_dynamic", strconv.FormatBool(bool(l.Dynamic)))
 
-		// A note, never a name: live tables read "My PC - Resolute 2.5g eth"
-		// beside a host-name of "resolute".
+		// A note, never a name: live tables read "Workstation - wired"
+		// beside a host-name of "workstation".
 		d.set("dhcp_comment", l.Comment)
 	}
 }
@@ -311,8 +311,8 @@ func (r *RouterOS) build(ctx context.Context, c claims) ([]Fact, error) {
 // A device holding two addresses is two facts, but the claim they write is
 // keyed on the device alone, so the last one to land decides what the claim
 // says. Without this a nameless address clears the name another found, and a
-// thinner detail map overwrites a richer one -- bespin loses its lease comment
-// to a stale ARP entry for an address it has already given up.
+// thinner detail map overwrites a richer one: a device keeps a stale ARP entry
+// for an address it has given up, and that address has no lease behind it.
 func shareByDevice(c claims) {
 	// Sorted, so a key two addresses disagree on resolves the same way every
 	// run rather than however the map happened to iterate.
