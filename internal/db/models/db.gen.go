@@ -81,6 +81,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.listGroupsStmt, err = db.PrepareContext(ctx, listGroups); err != nil {
 		return nil, fmt.Errorf("error preparing query ListGroups: %w", err)
 	}
+	if q.listNetworksStmt, err = db.PrepareContext(ctx, listNetworks); err != nil {
+		return nil, fmt.Errorf("error preparing query ListNetworks: %w", err)
+	}
 	if q.moveAddressesStmt, err = db.PrepareContext(ctx, moveAddresses); err != nil {
 		return nil, fmt.Errorf("error preparing query MoveAddresses: %w", err)
 	}
@@ -208,6 +211,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing listGroupsStmt: %w", cerr)
 		}
 	}
+	if q.listNetworksStmt != nil {
+		if cerr := q.listNetworksStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listNetworksStmt: %w", cerr)
+		}
+	}
 	if q.moveAddressesStmt != nil {
 		if cerr := q.moveAddressesStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing moveAddressesStmt: %w", cerr)
@@ -311,6 +319,7 @@ type Queries struct {
 	listDeviceEventsStmt               *sql.Stmt
 	listDevicesStmt                    *sql.Stmt
 	listGroupsStmt                     *sql.Stmt
+	listNetworksStmt                   *sql.Stmt
 	moveAddressesStmt                  *sql.Stmt
 	moveEventsStmt                     *sql.Stmt
 	refreshAddressStmt                 *sql.Stmt
@@ -345,6 +354,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		listDeviceEventsStmt:               q.listDeviceEventsStmt,
 		listDevicesStmt:                    q.listDevicesStmt,
 		listGroupsStmt:                     q.listGroupsStmt,
+		listNetworksStmt:                   q.listNetworksStmt,
 		moveAddressesStmt:                  q.moveAddressesStmt,
 		moveEventsStmt:                     q.moveEventsStmt,
 		refreshAddressStmt:                 q.refreshAddressStmt,

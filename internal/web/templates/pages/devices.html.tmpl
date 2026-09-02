@@ -1,8 +1,10 @@
 {{ define "page/devices" }}
 {{- template "layout/head" . }}
 
-<section>
-    <p class="eyebrow">Inventory</p>
+<section class="block">
+    <div class="block__head">
+        <p class="eyebrow">Inventory</p>
+    </div>
 
     {{- /*
         The form fetches only the table. It targets the fragment endpoint, which
@@ -15,33 +17,37 @@
           hx-target="#device-rows"
           hx-swap="outerHTML"
           hx-trigger="input changed delay:300ms, change, submit">
-        <label>
-            <span class="eyebrow">Find</span>
+        <label class="field field--search">
+            <span class="visually-hidden">Find</span>
+            <svg class="field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>
+            </svg>
             <input type="search" name="q" value="{{ .Query }}"
                    placeholder="name, address, vendor" autocomplete="off">
         </label>
 
-        <label>
-            <span class="eyebrow">Group</span>
+        <label class="field">
+            <span class="visually-hidden">Group</span>
             <select name="group">
-                <option value="">Any</option>
+                <option value="">Any group</option>
                 {{- range .Groups }}
                 <option value="{{ . }}"{{ if eq . $.Group }} selected{{ end }}>{{ . }}</option>
                 {{- end }}
             </select>
         </label>
 
-        <label>
-            <span class="eyebrow">Seen</span>
+        <label class="field">
+            <span class="visually-hidden">Seen</span>
             <select name="status">
-                <option value="">Any</option>
-                <option value="online"{{ if eq .Status "online" }} selected{{ end }}>Recently</option>
-                <option value="offline"{{ if eq .Status "offline" }} selected{{ end }}>Not recently</option>
+                <option value="">Any presence</option>
+                <option value="online"{{ if eq .Status "online" }} selected{{ end }}>Seen recently</option>
+                <option value="offline"{{ if eq .Status "offline" }} selected{{ end }}>Quiet</option>
             </select>
         </label>
 
-        <label>
-            <span class="eyebrow">Order</span>
+        <label class="field">
+            <span class="visually-hidden">Order</span>
             <select name="sort">
                 <option value="">Last seen</option>
                 <option value="address"{{ if eq .Sort "address" }} selected{{ end }}>Address</option>
@@ -55,7 +61,7 @@
         </label>
 
         {{- /* Reached only without htmx, where the form has to be submitted. */}}
-        <noscript><button type="submit">Apply</button></noscript>
+        <noscript><button type="submit" class="btn">Apply</button></noscript>
     </form>
 
     {{ template "partial/device-rows" . }}

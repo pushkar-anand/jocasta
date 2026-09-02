@@ -66,7 +66,7 @@ func (h *Handler) events(w http.ResponseWriter, r *http.Request) {
 	from, token := logCursor(r.URL.Query())
 
 	data := &logData{
-		view:   view{Title: "Activity", Section: "Activity"},
+		view:   view{Title: "Events", Section: "Events"},
 		Path:   "/events",
 		Cursor: token,
 	}
@@ -94,7 +94,7 @@ func (h *Handler) scans(w http.ResponseWriter, r *http.Request) {
 	from, token := logCursor(r.URL.Query())
 
 	data := &logData{
-		view:   view{Title: "Sweeps", Section: "Sweeps"},
+		view:   view{Title: "Scans", Section: "Scans"},
 		Path:   "/scans",
 		Cursor: token,
 	}

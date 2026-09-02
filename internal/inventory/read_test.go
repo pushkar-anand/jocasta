@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
+	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -495,6 +496,66 @@ func TestStatsCountsTheInventory(t *testing.T) {
 	assert.Equal(t, &Stats{Total: 2, Online: 0, Offline: 2, Ignored: 1, Discovered: 2}, stats)
 }
 
+func TestListNetworksCountsWhatIsOnEachPrefix(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s,
+		host("192.0.2.10", macA, "printer.local"),
+		host("192.0.2.11", macB, "nas.local"),
+	)
+
+	_, err := s.RecordSweep(t.Context(), "test-sweep",
+		netip.MustParsePrefix("198.51.100.0/24"),
+		[]scanner.Host{host("198.51.100.5", "00:00:5e:00:53:03", "camera.local")})
+	require.NoError(t, err)
+
+	// Only a sweep writes a network row, and it writes the prefix alone: the
+	// name and the tag are the operator's to fill in.
+	_, err = conn.ExecContext(t.Context(),
+		`UPDATE networks SET name = ?, vlan_id = ? WHERE cidr = ?`, "Home", 10, prefix)
+	require.NoError(t, err)
+
+	networks, err := s.ListNetworks(t.Context())
+	require.NoError(t, err)
+	require.Len(t, networks, 2)
+
+	byCIDR := make(map[string]*Network, len(networks))
+	for _, n := range networks {
+		byCIDR[n.CIDR] = n
+	}
+
+	home := byCIDR[prefix]
+	require.NotNil(t, home)
+	assert.Equal(t, "Home", home.Name)
+	assert.Equal(t, 10, home.VLAN)
+	assert.Equal(t, 2, home.Total)
+	assert.Equal(t, 2, home.Online)
+	assert.Equal(t, 0, home.Offline)
+
+	// A network nobody has named is still a network, and reads as one.
+	other := byCIDR["198.51.100.0/24"]
+	require.NotNil(t, other)
+	assert.Empty(t, other.Name)
+	assert.Zero(t, other.VLAN)
+	assert.Equal(t, 1, other.Total)
+	assert.Equal(t, 1, other.Online)
+
+	// The counts follow the same window a device list is judged by, so the two
+	// surfaces cannot disagree about who is answering.
+	s.onlineWindow = time.Nanosecond
+
+	networks, err = s.ListNetworks(t.Context())
+	require.NoError(t, err)
+	require.Len(t, networks, 2)
+
+	for _, n := range networks {
+		assert.Zero(t, n.Online, n.CIDR)
+		assert.Equal(t, n.Total, n.Offline, n.CIDR)
+	}
+}
+
 func TestEmptyInventoryReadsCleanly(t *testing.T) {
 	t.Parallel()
 
@@ -515,6 +576,10 @@ func TestEmptyInventoryReadsCleanly(t *testing.T) {
 	stats, err := s.Stats(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, &Stats{}, stats)
+
+	networks, err := s.ListNetworks(t.Context())
+	require.NoError(t, err)
+	assert.Empty(t, networks)
 }
 
 func TestWithOnlineWindow(t *testing.T) {

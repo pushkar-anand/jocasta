@@ -1,39 +1,45 @@
 {{ define "page/scans" }}
 {{- template "layout/head" . }}
 
-<section>
-    <p class="eyebrow">Sweeps</p>
+<section class="block">
+    <div class="block__head">
+        <p class="eyebrow">Sweeps</p>
+        <p class="block__aside">Recorded by <code>jocasta scan</code></p>
+    </div>
+
     {{- if .Scans }}
-    <div class="scroller">
-        <table>
-            <thead>
-            <tr>
-                <th scope="col">Started</th>
-                <th scope="col">Source</th>
-                <th scope="col">Network</th>
-                <th scope="col">Found</th>
-                <th scope="col">Took</th>
-                <th scope="col">Status</th>
-            </tr>
-            </thead>
-            <tbody>
-            {{- range .Scans }}
-            <tr class="{{ decay .StartedAt }}">
-                <td class="dim">{{ ago .StartedAt }}</td>
-                <td class="name">{{ .Source }}</td>
-                <td>{{ dash .Network }}</td>
-                <td>{{ .Found }}</td>
-                <td class="dim">{{ took . }}</td>
-                <td class="{{ statusClass .Status }}">{{ .Status }}</td>
-            </tr>
-            {{- with .Error }}
-            <tr>
-                <td colspan="6" class="wrap-prose status--failed">{{ . }}</td>
-            </tr>
-            {{- end }}
-            {{- end }}
-            </tbody>
-        </table>
+    <div class="card card--table">
+        <div class="scroller">
+            <table>
+                <thead>
+                <tr>
+                    <th scope="col">Started</th>
+                    <th scope="col">Source</th>
+                    <th scope="col">Network</th>
+                    <th scope="col">Found</th>
+                    <th scope="col">Took</th>
+                    <th scope="col">Status</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{- range .Scans }}
+                <tr>
+                    <td class="dim">{{ ago .StartedAt }}</td>
+                    <td class="strong">{{ .Source }}</td>
+                    <td class="mono">{{ dash .Network }}</td>
+                    <td class="num">{{ .Found }}</td>
+                    <td class="dim num">{{ took . }}</td>
+                    <td><span class="{{ statusClass .Status }}">{{ .Status }}</span></td>
+                </tr>
+                {{- with .Error }}
+                <tr class="row--note">
+                    <td colspan="6"><p class="failure">{{ . }}</p></td>
+                </tr>
+                {{- end }}
+                {{- end }}
+                </tbody>
+            </table>
+        </div>
     </div>
     {{- else }}
     <p class="dim">No sweep has been recorded yet.</p>

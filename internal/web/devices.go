@@ -162,7 +162,11 @@ func (h *Handler) device(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := &curationForm{
-		view:   view{Title: device.Name(), Section: "Devices"},
+		view: view{
+			Title:   device.Name(),
+			Section: "Devices",
+			Crumb:   &crumb{Label: "Devices", Href: "/devices"},
+		},
 		Device: device,
 		Groups: groups,
 		Events: events,

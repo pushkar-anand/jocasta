@@ -99,27 +99,61 @@ func TestTook(t *testing.T) {
 	assert.Equal(t, em, took(&inventory.Scan{StartedAt: start}))
 }
 
-func TestEventLabel(t *testing.T) {
+func TestPhrase(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "discovered", eventLabel(dbtype.EventDeviceDiscovered))
-	assert.Equal(t, "identified", eventLabel(dbtype.EventDeviceIdentified))
-	assert.Equal(t, "renamed", eventLabel(dbtype.EventHostnameChanged))
-	assert.Equal(t, "edited", eventLabel(dbtype.EventDeviceEdited))
+	assert.Equal(t, "was discovered", phrase(dbtype.EventDeviceDiscovered))
+	assert.Equal(t, "was identified", phrase(dbtype.EventDeviceIdentified))
+	assert.Equal(t, "was relabelled", phrase(dbtype.EventHostnameChanged))
+	assert.Equal(t, "was edited", phrase(dbtype.EventDeviceEdited))
+	assert.Equal(t, "picked up a new address", phrase(dbtype.EventAddressAdded))
 
 	// events.kind carries no CHECK, so a kind added in Go without a phrase here
 	// still has to render as something, and its own name is the most truthful
 	// fallback.
-	assert.Equal(t, "ports scanned", eventLabel(dbtype.EventKind("PORTS_SCANNED")))
+	assert.Equal(t, "ports scanned", phrase(dbtype.EventKind("PORTS_SCANNED")))
+}
+
+func TestTone(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "act--arrival", tone(dbtype.EventDeviceDiscovered))
+	assert.Equal(t, "act--learned", tone(dbtype.EventDeviceIdentified))
+	assert.Equal(t, "act--learned", tone(dbtype.EventAddressAdded))
+	assert.Equal(t, "act--shape", tone(dbtype.EventDevicesMerged))
+	assert.Equal(t, "act--edit", tone(dbtype.EventDeviceEdited))
+
+	// Anything not worded yet reads as an edit rather than as nothing.
+	assert.Equal(t, "act--edit", tone(dbtype.EventKind("PORTS_SCANNED")))
+}
+
+func TestEventIcon(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, glyphs[dbtype.EventDeviceDiscovered], eventIcon(dbtype.EventDeviceDiscovered))
+
+	// A kind with no glyph of its own falls back rather than rendering an empty
+	// tile, which would read as a rendering fault.
+	assert.Equal(t, glyphs[dbtype.EventDeviceEdited], eventIcon(dbtype.EventKind("PORTS_SCANNED")))
+}
+
+func TestHealth(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "dot--quiet", health(nil))
+	assert.Equal(t, "dot--quiet", health(&inventory.Network{}))
+	assert.Equal(t, "dot--ok", health(&inventory.Network{Total: 12, Online: 12}))
+	assert.Equal(t, "dot--ok", health(&inventory.Network{Total: 12, Online: 10, Offline: 2}))
+	assert.Equal(t, "dot--warn", health(&inventory.Network{Total: 12, Online: 7, Offline: 5}))
 }
 
 func TestStatusClass(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "status", statusClass(dbtype.StatusOK))
-	assert.Equal(t, "status status--failed", statusClass(dbtype.StatusFailed))
-	assert.Equal(t, "status status--failed", statusClass(dbtype.StatusCancelled))
-	assert.Equal(t, "status status--running", statusClass(dbtype.StatusRunning))
+	assert.Equal(t, "chip chip--ok", statusClass(dbtype.StatusOK))
+	assert.Equal(t, "chip chip--fail", statusClass(dbtype.StatusFailed))
+	assert.Equal(t, "chip chip--quiet", statusClass(dbtype.StatusCancelled))
+	assert.Equal(t, "chip chip--brand", statusClass(dbtype.StatusRunning))
 }
 
 func TestChange(t *testing.T) {
@@ -153,7 +187,7 @@ func TestFuncsCoverEveryHelperTheTemplatesUse(t *testing.T) {
 
 	registered := funcs(func() time.Time { return now })
 
-	for _, name := range []string{"ago", "decay", "dash", "pct", "took", "event", "statusClass", "change"} {
+	for _, name := range []string{"ago", "decay", "dash", "pct", "took", "phrase", "tone", "eventIcon", "health", "statusClass", "change"} {
 		assert.Contains(t, registered, name)
 	}
 }
