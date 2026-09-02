@@ -49,6 +49,47 @@ func (q *Queries) AdoptCuration(ctx context.Context, arg AdoptCurationParams) er
 	return err
 }
 
+const allNetworks = `-- name: AllNetworks :many
+SELECT id, cidr
+FROM networks
+ORDER BY id
+`
+
+type AllNetworksRow struct {
+	ID   int64         `json:"id"`
+	Cidr dbtype.Prefix `json:"cidr"`
+}
+
+// Every recorded network, for matching an address to the prefix containing it.
+// SQLite cannot test containment, so the comparison happens in Go and this
+// returns the whole (small) table rather than filtering.
+//
+//	SELECT id, cidr
+//	FROM networks
+//	ORDER BY id
+func (q *Queries) AllNetworks(ctx context.Context) ([]*AllNetworksRow, error) {
+	rows, err := q.query(ctx, q.allNetworksStmt, allNetworks)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*AllNetworksRow
+	for rows.Next() {
+		var i AllNetworksRow
+		if err := rows.Scan(&i.ID, &i.Cidr); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const createDevice = `-- name: CreateDevice :one
 INSERT INTO devices (mac, identity_source, is_randomised, vendor, hostname, hostname_source,
                      first_seen, last_seen)
@@ -878,7 +919,7 @@ func (q *Queries) MoveEvents(ctx context.Context, arg MoveEventsParams) error {
 const refreshAddress = `-- name: RefreshAddress :exec
 UPDATE addresses
 SET is_current = 1,
-    network_id = ?1,
+    network_id = COALESCE(?1, network_id),
     last_seen  = ?2
 WHERE id = ?3
 `
@@ -889,11 +930,12 @@ type RefreshAddressParams struct {
 	ID        int64         `json:"id"`
 }
 
-// RefreshAddress
+// COALESCE, not assignment: a source that cannot say which network an address
+// is on must leave the one a sweep established rather than erase it.
 //
 //	UPDATE addresses
 //	SET is_current = 1,
-//	    network_id = ?1,
+//	    network_id = COALESCE(?1, network_id),
 //	    last_seen  = ?2
 //	WHERE id = ?3
 func (q *Queries) RefreshAddress(ctx context.Context, arg RefreshAddressParams) error {

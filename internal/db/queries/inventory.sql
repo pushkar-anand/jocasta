@@ -10,6 +10,14 @@ VALUES (?, ?)
 ON CONFLICT (cidr) DO UPDATE SET cidr = excluded.cidr
 RETURNING *;
 
+-- name: AllNetworks :many
+-- Every recorded network, for matching an address to the prefix containing it.
+-- SQLite cannot test containment, so the comparison happens in Go and this
+-- returns the whole (small) table rather than filtering.
+SELECT id, cidr
+FROM networks
+ORDER BY id;
+
 -- name: CreateScan :one
 INSERT INTO scans (source_id, kind, network_id, started_at)
 VALUES (?, ?, ?, ?)
@@ -125,9 +133,11 @@ VALUES (?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: RefreshAddress :exec
+-- COALESCE, not assignment: a source that cannot say which network an address
+-- is on must leave the one a sweep established rather than erase it.
 UPDATE addresses
 SET is_current = 1,
-    network_id = sqlc.narg(network_id),
+    network_id = COALESCE(sqlc.narg(network_id), network_id),
     last_seen  = sqlc.arg(last_seen)
 WHERE id = sqlc.arg(id);
 
