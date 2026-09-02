@@ -62,6 +62,13 @@ linters:
     # sloglint: Enforces best practices for standard library structured logging (slog).
     - sloglint
 
+  settings:
+    misspell:
+      # "routeros" is the vendor's own spelling of its operating system, not a
+      # typo for "routers".
+      ignore-rules:
+        - routeros
+
 linters-settings:
   sloglint:
     # Enforce using key-value pairs only (overridden by attr-only)
