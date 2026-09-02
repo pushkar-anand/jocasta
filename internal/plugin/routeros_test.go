@@ -22,6 +22,9 @@ import (
 // SeenAt is an assertion rather than a wobble.
 var pinned = time.Date(2026, 9, 2, 10, 0, 0, 0, time.UTC)
 
+// Addresses come from RFC 5737 and hardware addresses from RFC 7042, both
+// reserved for documentation, so nothing here names a real device.
+
 // testRouterOS builds the plugin without a client. Every test here exercises
 // the mapping, which is the half that holds the decisions; the wire half is
 // pkg/routeros and has its own tests.
@@ -85,28 +88,27 @@ func TestNewRouterOSRefusesAMissingClient(t *testing.T) {
 	require.Error(t, err)
 }
 
-// The load-bearing rule: a live read returned 794 ARP rows of which 45 were
-// usable, because the router keeps a failed entry for very nearly every address
-// in every subnet it serves. Without this the first run would invent some 750
-// devices.
+// The load-bearing rule: a router keeps a failed entry for very nearly every
+// address in every subnet it serves, so most of the table is not evidence of
+// anything. Without this the first run would invent a device per address.
 func TestCollectARPDropsTheFailedHalfOfTheTable(t *testing.T) {
 	t.Parallel()
 
 	arp := []routeros.ARPEntry{
 		{
-			ID: "*1", Address: "192.168.10.12", MACAddress: "BC:24:11:B4:04:5B",
+			ID: "*1", Address: "192.0.2.12", MACAddress: "00:00:5E:00:53:01",
 			Interface: "vlan10", Complete: true, Dynamic: true, Status: "reachable",
 		},
-		// The shape of the other 749: an address the router asked about and
-		// got no answer for. No mac-address member at all.
-		{ID: "*2", Address: "192.168.10.13", Interface: "vlan10", Status: "failed"},
-		{ID: "*3", Address: "192.168.10.14", Interface: "vlan10", Status: "failed"},
+		// The shape of most of the table: an address the router asked about
+		// and got no answer for. No mac-address member at all.
+		{ID: "*2", Address: "192.0.2.13", Interface: "vlan10", Status: "failed"},
+		{ID: "*3", Address: "192.0.2.14", Interface: "vlan10", Status: "failed"},
 	}
 
 	out := facts(t, arp, nil)
 
 	require.Len(t, out, 1)
-	assert.Equal(t, "192.168.10.12", out[0].Host.IP)
+	assert.Equal(t, "192.0.2.12", out[0].Host.IP)
 	assert.True(t, out[0].Present)
 }
 
@@ -116,8 +118,8 @@ func TestCollectARPKeepsDisbelievedEntriesWithoutPresence(t *testing.T) {
 	t.Parallel()
 
 	arp := []routeros.ARPEntry{
-		{Address: "192.168.10.20", MACAddress: "BC:24:11:FD:A8:F4", Complete: true, Invalid: true},
-		{Address: "192.168.10.21", MACAddress: "E8:9C:25:2D:11:BF", Complete: true, Disabled: true},
+		{Address: "192.0.2.20", MACAddress: "00:00:5E:00:53:05", Complete: true, Invalid: true},
+		{Address: "192.0.2.21", MACAddress: "00:00:5E:00:53:06", Complete: true, Disabled: true},
 	}
 
 	out := facts(t, arp, nil)
@@ -135,7 +137,7 @@ func TestCollectARPTreatsTheZeroMACAsNoMAC(t *testing.T) {
 	t.Parallel()
 
 	arp := []routeros.ARPEntry{
-		{Address: "192.168.10.30", MACAddress: "00:00:00:00:00:00", Complete: true},
+		{Address: "192.0.2.30", MACAddress: "00:00:00:00:00:00", Complete: true},
 	}
 
 	out := facts(t, arp, nil)
@@ -148,7 +150,7 @@ func TestCollectARPDropsAnUnparseableHardwareAddress(t *testing.T) {
 	t.Parallel()
 
 	arp := []routeros.ARPEntry{
-		{Address: "192.168.10.40", MACAddress: "not-a-mac", Complete: true},
+		{Address: "192.0.2.40", MACAddress: "not-a-mac", Complete: true},
 	}
 
 	assert.Empty(t, facts(t, arp, nil))
@@ -161,22 +163,22 @@ func TestLeaseNameReachesTheARPEntryForTheSameDevice(t *testing.T) {
 	t.Parallel()
 
 	arp := []routeros.ARPEntry{
-		{Address: "192.168.10.12", MACAddress: "BC:24:11:B4:04:5B", Interface: "vlan10", Complete: true},
+		{Address: "192.0.2.12", MACAddress: "00:00:5E:00:53:01", Interface: "vlan10", Complete: true},
 	}
 	leases := []routeros.DHCPLease{
 		{
-			Address: "192.168.10.12", MACAddress: "BC:24:11:B4:04:5B",
-			HostName: "geonosis", Status: "bound", Server: "dhcp-vlan10",
+			Address: "192.0.2.12", MACAddress: "00:00:5E:00:53:01",
+			HostName: "host-a", Status: "bound", Server: "dhcp1",
 		},
 	}
 
 	out := facts(t, arp, leases)
 
 	require.Len(t, out, 1, "one device, one fact")
-	assert.Equal(t, "geonosis", out[0].Host.Hostname())
+	assert.Equal(t, "host-a", out[0].Host.Hostname())
 	assert.True(t, out[0].Present)
 	assert.Equal(t, "vlan10", out[0].Detail["interface"])
-	assert.Equal(t, "dhcp-vlan10", out[0].Detail["dhcp_server"])
+	assert.Equal(t, "dhcp1", out[0].Detail["dhcp_server"])
 }
 
 // A static lease is one an operator bound deliberately, so the name recorded
@@ -198,35 +200,35 @@ func TestLeaseHostnameCarriesItsStanding(t *testing.T) {
 			t.Parallel()
 
 			leases := []routeros.DHCPLease{{
-				Address: "192.168.10.50", MACAddress: "E8:9C:25:2D:11:BF",
-				HostName: "resolute", Status: "bound", Dynamic: tt.dynamic,
+				Address: "192.0.2.50", MACAddress: "00:00:5E:00:53:06",
+				HostName: "workstation", Status: "bound", Dynamic: tt.dynamic,
 			}}
 
 			out := facts(t, nil, leases)
 
 			require.Len(t, out, 1)
-			assert.Equal(t, "resolute", out[0].Host.Hostname())
+			assert.Equal(t, "workstation", out[0].Host.Hostname())
 			assert.Equal(t, tt.want, out[0].HostnameSource)
 		})
 	}
 }
 
-// The real tables read "My PC - Resolute 2.5g eth" beside a host-name of
-// "resolute". The first has spaces and a dash and names an interface; only the
+// The real tables read "Workstation - wired" beside a host-name of
+// "workstation". The first has spaces and a dash and names an interface; only the
 // second is a hostname.
 func TestLeaseCommentIsCarriedAsDetailNotAsAName(t *testing.T) {
 	t.Parallel()
 
 	leases := []routeros.DHCPLease{{
-		Address: "192.168.10.50", MACAddress: "E8:9C:25:2D:11:BF",
-		HostName: "resolute", Comment: "My PC - Resolute 2.5g eth", Status: "bound",
+		Address: "192.0.2.50", MACAddress: "00:00:5E:00:53:06",
+		HostName: "workstation", Comment: "Workstation - wired", Status: "bound",
 	}}
 
 	out := facts(t, nil, leases)
 
 	require.Len(t, out, 1)
-	assert.Equal(t, "resolute", out[0].Host.Hostname())
-	assert.Equal(t, "My PC - Resolute 2.5g eth", out[0].Detail["dhcp_comment"])
+	assert.Equal(t, "workstation", out[0].Host.Hostname())
+	assert.Equal(t, "Workstation - wired", out[0].Detail["dhcp_comment"])
 }
 
 // One machine with two NICs is two devices as far as anything here can tell,
@@ -236,20 +238,20 @@ func TestTwoInterfacesOfOneMachineStayTwoFacts(t *testing.T) {
 
 	leases := []routeros.DHCPLease{
 		{
-			Address: "192.168.10.50", MACAddress: "E8:9C:25:2D:11:BF",
-			HostName: "resolute", Comment: "My PC - Resolute 2.5g eth", Status: "bound",
+			Address: "192.0.2.50", MACAddress: "00:00:5E:00:53:06",
+			HostName: "workstation", Comment: "Workstation - wired", Status: "bound",
 		},
 		{
-			Address: "192.168.10.51", MACAddress: "C8:15:4E:AF:AB:31",
-			HostName: "resolute", Comment: "My PC - Resolute Wi-Fi", Status: "bound",
+			Address: "192.0.2.51", MACAddress: "00:00:5E:00:53:07",
+			HostName: "workstation", Comment: "Workstation - wireless", Status: "bound",
 		},
 	}
 
 	out := facts(t, nil, leases)
 
 	require.Len(t, out, 2)
-	assert.Equal(t, "resolute", out[0].Host.Hostname())
-	assert.Equal(t, "resolute", out[1].Host.Hostname())
+	assert.Equal(t, "workstation", out[0].Host.Hostname())
+	assert.Equal(t, "workstation", out[1].Host.Hostname())
 	assert.NotEqual(t, out[0].Host.MAC, out[1].Host.MAC)
 }
 
@@ -259,15 +261,15 @@ func TestAnUnboundLeaseIsNotASighting(t *testing.T) {
 	t.Parallel()
 
 	leases := []routeros.DHCPLease{{
-		Address: "192.168.20.80", MACAddress: "BC:24:11:00:11:22",
-		HostName: "kamino", Status: "waiting", LastSeen: "never",
+		Address: "198.51.100.80", MACAddress: "00:00:5E:00:53:08",
+		HostName: "host-c", Status: "waiting", LastSeen: "never",
 	}}
 
 	out := facts(t, nil, leases)
 
 	require.Len(t, out, 1)
 	assert.False(t, out[0].Present)
-	assert.Equal(t, "kamino", out[0].Host.Hostname(), "it still names a device")
+	assert.Equal(t, "host-c", out[0].Host.Hostname(), "it still names a device")
 }
 
 // The switch holds a configured address and never asks for one, so its lease
@@ -278,10 +280,10 @@ func TestPresenceIsEitherTableSayingSo(t *testing.T) {
 	t.Parallel()
 
 	arp := []routeros.ARPEntry{
-		{Address: "192.168.99.2", MACAddress: "48:A9:8A:11:22:33", Complete: true, Status: "reachable"},
+		{Address: "203.0.113.2", MACAddress: "00:00:5E:00:53:09", Complete: true, Status: "reachable"},
 	}
 	leases := []routeros.DHCPLease{
-		{Address: "192.168.99.2", MACAddress: "48:A9:8A:11:22:33", Status: "waiting", LastSeen: "never"},
+		{Address: "203.0.113.2", MACAddress: "00:00:5E:00:53:09", Status: "waiting", LastSeen: "never"},
 	}
 
 	out := facts(t, arp, leases)
@@ -297,21 +299,21 @@ func TestLeasePrefersTheAddressInUse(t *testing.T) {
 	t.Parallel()
 
 	leases := []routeros.DHCPLease{{
-		Address: "192.168.10.60", ActiveAddress: "192.168.10.61",
-		MACAddress: "BC:24:11:AA:BB:CC", HostName: "coruscant", Status: "bound",
+		Address: "192.0.2.60", ActiveAddress: "192.0.2.61",
+		MACAddress: "00:00:5E:00:53:0A", HostName: "host-b", Status: "bound",
 	}}
 
 	out := facts(t, nil, leases)
 
 	require.Len(t, out, 1)
-	assert.Equal(t, "192.168.10.61", out[0].Host.IP)
+	assert.Equal(t, "192.0.2.61", out[0].Host.IP)
 }
 
 // A lease naming neither a device nor a name is configuration for an address.
 func TestLeaseWithNothingToSayIsDropped(t *testing.T) {
 	t.Parallel()
 
-	leases := []routeros.DHCPLease{{Address: "192.168.10.70", Status: "waiting"}}
+	leases := []routeros.DHCPLease{{Address: "192.0.2.70", Status: "waiting"}}
 
 	assert.Empty(t, facts(t, nil, leases))
 }
@@ -357,17 +359,17 @@ func TestFactsComeBackSortedByAddress(t *testing.T) {
 	t.Parallel()
 
 	arp := []routeros.ARPEntry{
-		{Address: "192.168.10.9", MACAddress: "BC:24:11:B4:04:5D", Complete: true},
-		{Address: "192.168.20.7", MACAddress: "BC:24:11:B4:04:5B", Complete: true},
-		{Address: "192.168.10.10", MACAddress: "BC:24:11:B4:04:5C", Complete: true},
+		{Address: "192.0.2.9", MACAddress: "00:00:5E:00:53:03", Complete: true},
+		{Address: "198.51.100.7", MACAddress: "00:00:5E:00:53:01", Complete: true},
+		{Address: "192.0.2.10", MACAddress: "00:00:5E:00:53:02", Complete: true},
 	}
 	leases := []routeros.DHCPLease{
-		{Address: "192.168.10.2", MACAddress: "BC:24:11:B4:04:5E", HostName: "pve", Status: "bound"},
+		{Address: "192.0.2.2", MACAddress: "00:00:5E:00:53:04", HostName: "host-e", Status: "bound"},
 	}
 
-	// Numerically, not lexically: "192.168.10.9" sorts after "192.168.10.10"
+	// Numerically, not lexically: "192.0.2.9" sorts after "192.0.2.10"
 	// as a string, which is the bug a naive sort would have.
-	want := []string{"192.168.10.2", "192.168.10.9", "192.168.10.10", "192.168.20.7"}
+	want := []string{"192.0.2.2", "192.0.2.9", "192.0.2.10", "198.51.100.7"}
 
 	for range 10 {
 		out := facts(t, arp, leases)
@@ -481,13 +483,13 @@ func routerFor(t *testing.T, arpBody, leaseBody string) *RouterOS {
 }
 
 const (
-	liveARP = `[{".id":"*1","address":"192.168.10.12","mac-address":"BC:24:11:B4:04:5B",` +
+	liveARP = `[{".id":"*1","address":"192.0.2.12","mac-address":"00:00:5E:00:53:01",` +
 		`"interface":"vlan10","complete":"true","dynamic":"true","status":"reachable"},` +
-		`{".id":"*2","address":"192.168.10.13","interface":"vlan10","status":"failed"}]`
+		`{".id":"*2","address":"192.0.2.13","interface":"vlan10","status":"failed"}]`
 
-	liveLeases = `[{".id":"*1","address":"192.168.10.12","mac-address":"BC:24:11:B4:04:5B",` +
-		`"host-name":"geonosis","status":"bound","dynamic":"false","server":"dhcp-vlan10",` +
-		`"comment":"Proxmox Server 4U"}]`
+	liveLeases = `[{".id":"*1","address":"192.0.2.12","mac-address":"00:00:5E:00:53:01",` +
+		`"host-name":"host-a","status":"bound","dynamic":"false","server":"dhcp1",` +
+		`"comment":"Server, rack 4U"}]`
 )
 
 func TestDiscoverMergesBothTables(t *testing.T) {
@@ -497,11 +499,11 @@ func TestDiscoverMergesBothTables(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, out, 1, "the failed arp row is dropped and the rest merges")
-	assert.Equal(t, "geonosis", out[0].Host.Hostname())
+	assert.Equal(t, "host-a", out[0].Host.Hostname())
 	assert.Equal(t, dbtype.HostnameFromDHCPStatic, out[0].HostnameSource)
 	assert.True(t, out[0].Present)
 	assert.Equal(t, "vlan10", out[0].Detail["interface"])
-	assert.Equal(t, "Proxmox Server 4U", out[0].Detail["dhcp_comment"])
+	assert.Equal(t, "Server, rack 4U", out[0].Detail["dhcp_comment"])
 }
 
 // Half a router is worth ingesting. The facts that arrived are true whatever
@@ -516,7 +518,7 @@ func TestDiscoverReturnsWhatItGotWhenOneTableFails(t *testing.T) {
 	assert.Contains(t, err.Error(), "dhcp")
 
 	require.Len(t, out, 1, "the arp table answered and its rows stand")
-	assert.Equal(t, "192.168.10.12", out[0].Host.IP)
+	assert.Equal(t, "192.0.2.12", out[0].Host.IP)
 	assert.Empty(t, out[0].Host.Hostname(), "the names were in the table that failed")
 }
 
@@ -542,17 +544,17 @@ func TestDiscoverAcceptsEmptyTables(t *testing.T) {
 
 // A device holding two addresses is two facts but one claim. Without sharing
 // the name across them, the nameless address clears the name the other found --
-// which the live tables do produce: a Proxmox VM named "bespin" on its lease,
-// and the same MAC on a second address with no lease at all.
+// which a real table does produce: a device named on its lease, and the same
+// MAC on a second address with no lease at all.
 func TestOneDeviceOnTwoAddressesKeepsItsName(t *testing.T) {
 	t.Parallel()
 
 	arp := []routeros.ARPEntry{
-		{Address: "192.168.10.14", MACAddress: "BC:24:11:07:E8:BE", Complete: true},
-		{Address: "192.168.10.106", MACAddress: "BC:24:11:07:E8:BE", Complete: true},
+		{Address: "192.0.2.14", MACAddress: "00:00:5E:00:53:0B", Complete: true},
+		{Address: "192.0.2.106", MACAddress: "00:00:5E:00:53:0B", Complete: true},
 	}
 	leases := []routeros.DHCPLease{
-		{Address: "192.168.10.14", MACAddress: "BC:24:11:07:E8:BE", HostName: "bespin", Status: "bound"},
+		{Address: "192.0.2.14", MACAddress: "00:00:5E:00:53:0B", HostName: "host-d", Status: "bound"},
 	}
 
 	out := facts(t, arp, leases)
@@ -560,7 +562,7 @@ func TestOneDeviceOnTwoAddressesKeepsItsName(t *testing.T) {
 	require.Len(t, out, 2)
 
 	for _, f := range out {
-		assert.Equal(t, "bespin", f.Host.Hostname(), "both addresses are the same device")
+		assert.Equal(t, "host-d", f.Host.Hostname(), "both addresses are the same device")
 		assert.Equal(t, dbtype.HostnameFromDHCPStatic, f.HostnameSource)
 	}
 }
@@ -572,11 +574,11 @@ func TestSharedNameTakesTheBetterStanding(t *testing.T) {
 
 	leases := []routeros.DHCPLease{
 		{
-			Address: "192.168.10.60", MACAddress: "BC:24:11:AA:BB:CC",
+			Address: "192.0.2.60", MACAddress: "00:00:5E:00:53:0A",
 			HostName: "dynamic-name", Status: "bound", Dynamic: true,
 		},
 		{
-			Address: "192.168.10.61", MACAddress: "BC:24:11:AA:BB:CC",
+			Address: "192.0.2.61", MACAddress: "00:00:5E:00:53:0A",
 			HostName: "static-name", Status: "bound",
 		},
 	}
@@ -592,24 +594,24 @@ func TestSharedNameTakesTheBetterStanding(t *testing.T) {
 }
 
 // The claim a device's facts write is keyed on the device, so the detail has to
-// be the union of what its addresses carry. Without it bespin's lease comment
-// is overwritten by the thinner ARP-only detail of an address it gave up.
+// be the union of what its addresses carry. Without it the lease comment is
+// overwritten by the thinner ARP-only detail of an address the device gave up.
 func TestDetailIsSharedAcrossADevicesAddresses(t *testing.T) {
 	t.Parallel()
 
 	arp := []routeros.ARPEntry{
 		{
-			Address: "192.168.10.14", MACAddress: "BC:24:11:07:E8:BE",
-			Interface: "vlan10-main", Complete: true, Status: "stale",
+			Address: "192.0.2.14", MACAddress: "00:00:5E:00:53:0B",
+			Interface: "vlan10", Complete: true, Status: "stale",
 		},
 		{
-			Address: "192.168.10.106", MACAddress: "BC:24:11:07:E8:BE",
-			Interface: "vlan10-main", Complete: true, Status: "stale",
+			Address: "192.0.2.106", MACAddress: "00:00:5E:00:53:0B",
+			Interface: "vlan10", Complete: true, Status: "stale",
 		},
 	}
 	leases := []routeros.DHCPLease{{
-		Address: "192.168.10.14", MACAddress: "BC:24:11:07:E8:BE",
-		HostName: "bespin", Status: "bound", Server: "dhcp-main", Comment: "Bespin VM",
+		Address: "192.0.2.14", MACAddress: "00:00:5E:00:53:0B",
+		HostName: "host-d", Status: "bound", Server: "dhcp1", Comment: "Host D, virtual",
 	}}
 
 	out := facts(t, arp, leases)
@@ -617,10 +619,10 @@ func TestDetailIsSharedAcrossADevicesAddresses(t *testing.T) {
 	require.Len(t, out, 2)
 
 	for _, f := range out {
-		assert.Equal(t, "Bespin VM", f.Detail["dhcp_comment"], "the lease detail reaches both addresses")
-		assert.Equal(t, "dhcp-main", f.Detail["dhcp_server"])
+		assert.Equal(t, "Host D, virtual", f.Detail["dhcp_comment"], "the lease detail reaches both addresses")
+		assert.Equal(t, "dhcp1", f.Detail["dhcp_server"])
 		assert.Equal(t, "bound", f.Detail["dhcp_status"])
-		assert.Equal(t, "vlan10-main", f.Detail["interface"])
+		assert.Equal(t, "vlan10", f.Detail["interface"])
 	}
 
 	// Cloned rather than shared, so one fact cannot mutate another's.
