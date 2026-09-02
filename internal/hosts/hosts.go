@@ -48,29 +48,43 @@ type Host struct {
 	randomised bool
 }
 
+// HostInput carries the raw attributes a source reports for one host. It is
+// the whole input to BuildHost, so a caller names each field at the call site
+// rather than lining up a row of same-typed arguments.
+type HostInput struct {
+	// IP is the raw string representation of the device's IP address.
+	IP string
+
+	// MAC is the raw string representation of the hardware (MAC) address.
+	MAC string
+
+	// Hostname, when set, is the name the source already knows the host by,
+	// such as a DHCP lease name. Leave it empty to have BuildHost resolve one.
+	Hostname string
+
+	// Interface is the identifier or name of the network interface the device is seen on.
+	Interface string
+
+	// VLAN is the Virtual LAN identifier associated with the host.
+	VLAN int
+}
+
 // BuildHost constructs and enriches a Host instance from the supplied network parameters.
 // It parses the IP and MAC addresses into structured types, performs reverse DNS resolution
 // if no explicit hostname is provided, and enriches MAC metadata via OUI lookup.
-func BuildHost(
-	ctx context.Context,
-	ip string,
-	MAC string,
-	hostname string,
-	interfaceName string,
-	vlan int,
-) (*Host, error) {
+func BuildHost(ctx context.Context, in HostInput) (*Host, error) {
 	h := &Host{
-		IP:        ip,
-		MAC:       MAC,
-		Interface: interfaceName,
-		VLAN:      vlan,
-		hostname:  hostname,
+		IP:        in.IP,
+		MAC:       in.MAC,
+		Interface: in.Interface,
+		VLAN:      in.VLAN,
+		hostname:  in.Hostname,
 	}
 
-	if ip != "" {
-		ipAddr, err := netip.ParseAddr(ip)
+	if in.IP != "" {
+		ipAddr, err := netip.ParseAddr(in.IP)
 		if err != nil {
-			return nil, fmt.Errorf("parse address %q: %w", ip, err)
+			return nil, fmt.Errorf("parse address %q: %w", in.IP, err)
 		}
 
 		h.addr = ipAddr
@@ -81,10 +95,10 @@ func BuildHost(
 		h.hostname = resolveName(ctx, h.addr)
 	}
 
-	if MAC != "" {
-		hw, err := net.ParseMAC(h.MAC)
+	if in.MAC != "" {
+		hw, err := net.ParseMAC(in.MAC)
 		if err != nil {
-			return nil, fmt.Errorf("parse MAC %q: %w", h.MAC, err)
+			return nil, fmt.Errorf("parse MAC %q: %w", in.MAC, err)
 		}
 
 		h.mac = hw

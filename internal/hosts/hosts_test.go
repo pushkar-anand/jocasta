@@ -58,7 +58,13 @@ func TestBuildHostParsesTheAddressesItIsGiven(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			h, err := BuildHost(t.Context(), tt.ip, tt.mac, suppliedName, "bridge", 10)
+			h, err := BuildHost(t.Context(), HostInput{
+				IP:        tt.ip,
+				MAC:       tt.mac,
+				Hostname:  suppliedName,
+				Interface: "bridge",
+				VLAN:      10,
+			})
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.addr, h.Address())
@@ -72,7 +78,13 @@ func TestBuildHostParsesTheAddressesItIsGiven(t *testing.T) {
 func TestBuildHostKeepsWhatItWasGiven(t *testing.T) {
 	t.Parallel()
 
-	h, err := BuildHost(t.Context(), "192.0.2.10", "00:00:0C:11:22:33", suppliedName, "bridge-vlan20", 20)
+	h, err := BuildHost(t.Context(), HostInput{
+		IP:        "192.0.2.10",
+		MAC:       "00:00:0C:11:22:33",
+		Hostname:  suppliedName,
+		Interface: "bridge-vlan20",
+		VLAN:      20,
+	})
 	require.NoError(t, err)
 
 	assert.Equal(t, "192.0.2.10", h.IP)
@@ -84,7 +96,7 @@ func TestBuildHostKeepsWhatItWasGiven(t *testing.T) {
 func TestBuildHostRejectsAMalformedAddress(t *testing.T) {
 	t.Parallel()
 
-	h, err := BuildHost(t.Context(), "192.0.2.999", "", suppliedName, "", 0)
+	h, err := BuildHost(t.Context(), HostInput{IP: "192.0.2.999", Hostname: suppliedName})
 
 	require.Error(t, err)
 	assert.Nil(t, h)
@@ -110,7 +122,7 @@ func TestBuildHostRejectsAMalformedMAC(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			h, err := BuildHost(t.Context(), "192.0.2.10", tt.mac, suppliedName, "", 0)
+			h, err := BuildHost(t.Context(), HostInput{IP: "192.0.2.10", MAC: tt.mac, Hostname: suppliedName})
 
 			require.Error(t, err)
 			assert.Nil(t, h)
@@ -129,7 +141,7 @@ func TestBuildHostRejectsAMalformedMAC(t *testing.T) {
 func TestBuildHostDoesNotRejectTheAllZeroMAC(t *testing.T) {
 	t.Parallel()
 
-	h, err := BuildHost(t.Context(), "192.0.2.10", "00:00:00:00:00:00", suppliedName, "", 0)
+	h, err := BuildHost(t.Context(), HostInput{IP: "192.0.2.10", MAC: "00:00:00:00:00:00", Hostname: suppliedName})
 
 	require.NoError(t, err)
 	assert.Equal(t, "00:00:00:00:00:00", h.HardwareAddress().String())
@@ -141,7 +153,7 @@ func TestBuildHostDoesNotRejectTheAllZeroMAC(t *testing.T) {
 func TestBuildHostWithoutAnAddressOrAMAC(t *testing.T) {
 	t.Parallel()
 
-	h, err := BuildHost(t.Context(), "", "", "", "", 0)
+	h, err := BuildHost(t.Context(), HostInput{})
 	require.NoError(t, err)
 
 	assert.False(t, h.Address().IsValid())
@@ -173,7 +185,7 @@ func TestBuildHostIdentifiesTheVendor(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			h, err := BuildHost(t.Context(), "192.0.2.10", tt.mac, suppliedName, "", 0)
+			h, err := BuildHost(t.Context(), HostInput{IP: "192.0.2.10", MAC: tt.mac, Hostname: suppliedName})
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.short, h.ShortName())
@@ -189,7 +201,7 @@ func TestBuildHostIdentifiesTheVendor(t *testing.T) {
 func TestBuildHostMarksARandomisedAddress(t *testing.T) {
 	t.Parallel()
 
-	h, err := BuildHost(t.Context(), "192.0.2.10", "02:00:5e:10:00:01", suppliedName, "", 0)
+	h, err := BuildHost(t.Context(), HostInput{IP: "192.0.2.10", MAC: "02:00:5e:10:00:01", Hostname: suppliedName})
 	require.NoError(t, err)
 
 	assert.True(t, h.Randomised())
@@ -200,7 +212,7 @@ func TestBuildHostMarksARandomisedAddress(t *testing.T) {
 func TestBuildHostLeavesTheVendorEmptyForAnUnregisteredAddress(t *testing.T) {
 	t.Parallel()
 
-	h, err := BuildHost(t.Context(), "192.0.2.10", "fc:ff:ff:00:00:01", suppliedName, "", 0)
+	h, err := BuildHost(t.Context(), HostInput{IP: "192.0.2.10", MAC: "fc:ff:ff:00:00:01", Hostname: suppliedName})
 	require.NoError(t, err)
 
 	assert.Empty(t, h.Vendor())
@@ -211,7 +223,7 @@ func TestBuildHostLeavesTheVendorEmptyForAnUnregisteredAddress(t *testing.T) {
 func TestBuildHostWithoutAMACHasNoVendor(t *testing.T) {
 	t.Parallel()
 
-	h, err := BuildHost(t.Context(), "192.0.2.10", "", suppliedName, "", 0)
+	h, err := BuildHost(t.Context(), HostInput{IP: "192.0.2.10", Hostname: suppliedName})
 	require.NoError(t, err)
 
 	assert.Nil(t, h.HardwareAddress())
@@ -227,7 +239,7 @@ func TestBuildHostKeepsASuppliedHostnameWithoutResolving(t *testing.T) {
 	r, calls := countingResolver()
 	useResolver(t, r)
 
-	h, err := BuildHost(t.Context(), "192.0.2.10", "00:00:0c:11:22:33", "lease-name", "", 0)
+	h, err := BuildHost(t.Context(), HostInput{IP: "192.0.2.10", MAC: "00:00:0c:11:22:33", Hostname: "lease-name"})
 	require.NoError(t, err)
 
 	assert.Equal(t, "lease-name", h.Hostname())
@@ -239,7 +251,7 @@ func TestBuildHostResolvesWhenNoHostnameIsSupplied(t *testing.T) {
 		"10.2.0.192.in-addr.arpa.": "printer.lan.",
 	}))
 
-	h, err := BuildHost(t.Context(), "192.0.2.10", "00:00:0c:11:22:33", "", "", 0)
+	h, err := BuildHost(t.Context(), HostInput{IP: "192.0.2.10", MAC: "00:00:0c:11:22:33"})
 	require.NoError(t, err)
 
 	assert.Equal(t, "printer.lan", h.Hostname())
@@ -248,7 +260,7 @@ func TestBuildHostResolvesWhenNoHostnameIsSupplied(t *testing.T) {
 func TestBuildHostLeavesTheHostnameEmptyWhenNothingResolves(t *testing.T) {
 	useResolver(t, stubResolver(t, nil))
 
-	h, err := BuildHost(t.Context(), "192.0.2.10", "", "", "", 0)
+	h, err := BuildHost(t.Context(), HostInput{IP: "192.0.2.10"})
 	require.NoError(t, err)
 
 	assert.Empty(t, h.Hostname())
@@ -259,7 +271,7 @@ func TestBuildHostDoesNotResolveWithoutAnAddress(t *testing.T) {
 	r, calls := countingResolver()
 	useResolver(t, r)
 
-	h, err := BuildHost(t.Context(), "", "00:00:0c:11:22:33", "", "", 0)
+	h, err := BuildHost(t.Context(), HostInput{MAC: "00:00:0c:11:22:33"})
 	require.NoError(t, err)
 
 	assert.Empty(t, h.Hostname())

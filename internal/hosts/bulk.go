@@ -12,15 +12,6 @@ import (
 // burst hundreds of concurrent DNS queries or exhaust descriptors.
 const buildConcurrency = 16
 
-// HostInput encapsulates the raw parameters needed to build and enrich a Host.
-type HostInput struct {
-	IP        string
-	MAC       string
-	Hostname  string
-	Interface string
-	VLAN      int
-}
-
 // BulkBuild concurrently builds and enriches multiple Host instances, capping
 // concurrent builds at buildConcurrency.
 //
@@ -49,14 +40,7 @@ func BulkBuild(ctx context.Context, inputs []HostInput) ([]*Host, error) {
 		}
 
 		g.Go(func() error {
-			h, err := BuildHost(
-				ctx,
-				input.IP,
-				input.MAC,
-				input.Hostname,
-				input.Interface,
-				input.VLAN,
-			)
+			h, err := BuildHost(ctx, input)
 			if err != nil {
 				errs[i] = fmt.Errorf("host %q: %w", input.IP, err)
 
