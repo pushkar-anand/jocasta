@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/pushkar-anand/build-with-go/config"
 	"github.com/pushkar-anand/build-with-go/logger"
@@ -71,12 +72,13 @@ func TestLoggerFormatValue(t *testing.T) {
 func TestLoadConfig(t *testing.T) {
 	cfg, err := config.Load[Config](
 		config.WithDefaults(defaults),
-		config.WithYAML("testdata/does-not-exist.yaml"),
+		config.WithYAML("testdata/plugins.yaml"),
 		config.WithEnvPrefix("JOCASTA_"),
 		config.WithEnviron(func() []string {
 			return []string{
 				"JOCASTA_SERVER__PORT=9999",
 				"JOCASTA_LOGGER__LEVEL=debug",
+				"JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD=from-environment",
 				"UNRELATED=ignored",
 			}
 		}),
@@ -99,6 +101,37 @@ func TestLoadConfig(t *testing.T) {
 	// Derived rather than written down, so assert it is the derivation and not
 	// merely non-empty: an unnamed source files every sweep under one blank row.
 	assert.Equal(t, defaultSource(), cfg.Scan.Source)
+
+	// A map-keyed block collapses to a single zero-valued entry, with a nil
+	// error, if its shape is ever changed to a list. Both instances surviving an
+	// override aimed at one of them is what says it did not.
+	require.Len(t, cfg.Plugins.RouterOS, 2)
+
+	gateway := cfg.Plugins.RouterOS["gateway"]
+	assert.True(t, gateway.Enabled)
+	assert.Equal(t, "192.0.2.1", gateway.Host)
+	assert.Equal(t, "jocasta", gateway.User)
+	assert.True(t, gateway.SSL)
+	assert.True(t, gateway.Insecure)
+	assert.Equal(t, 15*time.Second, gateway.Timeout)
+
+	// The override reaches the instance it names, and only that one.
+	assert.Equal(t, "from-environment", gateway.Password)
+
+	rack := cfg.Plugins.RouterOS["switch_rack"]
+	assert.False(t, rack.Enabled)
+	assert.Equal(t, "198.51.100.1", rack.Host)
+	assert.Equal(t, 8080, rack.Port)
+	assert.Equal(t, "also-from-file", rack.Password)
+}
+
+// An explicit path that does not exist is reported rather than silently falling
+// back to defaults, which would bind the server to the wrong address.
+func TestNewRejectsAMissingConfigFile(t *testing.T) {
+	t.Parallel()
+
+	_, err := New("testdata/does-not-exist.yaml")
+	require.Error(t, err)
 }
 
 func TestDefaultSourceNamesTheHost(t *testing.T) {

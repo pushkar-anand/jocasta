@@ -1,0 +1,19 @@
+# Two instances, so a decode that collapses the map to one element fails here
+# rather than in production. Addresses are RFC 5737 and the credentials are
+# obvious placeholders.
+plugins:
+  routeros:
+    gateway:
+      enabled: true
+      host: 192.0.2.1
+      user: jocasta
+      password: from-file
+      ssl: true
+      insecure: true
+      timeout: 15s
+    switch_rack:
+      enabled: false
+      host: 198.51.100.1
+      port: 8080
+      user: reader
+      password: also-from-file
