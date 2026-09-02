@@ -125,6 +125,7 @@ func TestCollectARPKeepsDisbelievedEntriesWithoutPresence(t *testing.T) {
 	out := facts(t, arp, nil)
 
 	require.Len(t, out, 2)
+
 	for _, f := range out {
 		assert.False(t, f.Present, "the router does not believe this entry")
 		assert.NotEmpty(t, f.Host.MAC)

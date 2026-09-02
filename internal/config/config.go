@@ -44,6 +44,7 @@ type (
 		OnlineWindow time.Duration `koanf:"online_window"`
 	}
 
+	// Scan holds settings for how and when the poller sweeps the network.
 	Scan struct {
 		// Source names the vantage point these sweeps are taken from, which is
 		// what the inventory records as their provenance. It defaults to this
