@@ -13,6 +13,8 @@ type CLI struct {
 
 	Serve ServeCmd `cmd:"" help:"Start the Jocasta web server." default:"withargs"`
 	Scan  ScanCmd  `cmd:"" help:"Scan network addresses with ICMP echo requests."`
+
+	Plugin PluginCmd `cmd:"" help:"Read a configured source directly."`
 }
 
 // newParser builds the parser for cli. Tests call it too, so the grammar they

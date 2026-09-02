@@ -42,6 +42,11 @@ func (s *ServeCmd) Run(
 
 	defer p.Stop()
 
+	discoverers, err := hostDiscoverers(cfg, log)
+	if err != nil {
+		return err
+	}
+
 	pd, err := poller.NewDevice(
 		log,
 		sweeper,
@@ -49,6 +54,7 @@ func (s *ServeCmd) Run(
 		cfg.Scan.Source,
 		cfg.Scan.Devices.Interval,
 		cfg.Networks,
+		poller.WithDiscoverers(discoverers...),
 	)
 	if err != nil {
 		return fmt.Errorf("initialize device poller: %w", err)

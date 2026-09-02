@@ -73,6 +73,40 @@ type (
 		} `koanf:"ports"`
 	}
 
+	// RouterOS names one MikroTik router to read devices from.
+	//
+	// The credentials stay here and never reach the store, which only ever sees
+	// the instance name and the facts.
+	RouterOS struct {
+		Enabled bool `koanf:"enabled"`
+
+		// Host is the router's address or name, without a port.
+		Host string `koanf:"host"`
+		Port int    `koanf:"port"`
+
+		User     string `koanf:"user"`
+		Password string `koanf:"password"`
+
+		// SSL selects https. Insecure skips certificate verification, which the
+		// common setup needs: RouterOS serves a self-signed certificate for
+		// www-ssl unless one is imported.
+		SSL      bool `koanf:"ssl"`
+		Insecure bool `koanf:"insecure"`
+
+		Timeout time.Duration `koanf:"timeout"`
+	}
+
+	// Plugins holds the sources beyond the sweep, each block keyed by an
+	// instance name that becomes the source these facts are filed under.
+	//
+	// A map rather than a list, so an environment override addresses one
+	// instance by name. A list decodes an override into a single zero-valued
+	// element and reports no error, which loses every configured instance
+	// silently.
+	Plugins struct {
+		RouterOS map[string]RouterOS `koanf:"routeros"`
+	}
+
 	// Config is the whole set of named, nested settings.
 	Config struct {
 		Server    Server    `koanf:"server"`
@@ -81,6 +115,7 @@ type (
 		Inventory Inventory `koanf:"inventory"`
 		Networks  []string  `koanf:"networks"`
 		Scan      Scan      `koanf:"scan"`
+		Plugins   Plugins   `koanf:"plugins"`
 	}
 )
 
