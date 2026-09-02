@@ -23,6 +23,11 @@ type curationForm struct {
 	Groups []string
 	Events []*inventory.Event
 
+	// Claims is what each source says about the device. Only the full page
+	// fills it: curating a device changes nothing any source claims, so the
+	// panel swap has nothing to say about them.
+	Claims []*inventory.Claim
+
 	// Saved marks the panel as having just been saved, which is the only way a
 	// swapped-in fragment can say that anything happened.
 	Saved bool

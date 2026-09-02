@@ -9,7 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
+	"github.com/pushkar-anand/jocasta/internal/hosts"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
+	"github.com/pushkar-anand/jocasta/internal/plugin"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/pushkar-anand/jocasta/pkg/cursor"
 	"github.com/stretchr/testify/assert"
@@ -377,4 +380,75 @@ func deviceIDFromBody(t *testing.T, body string) string {
 	require.NoError(t, err, "the link should end in a device id, got %q", id)
 
 	return id
+}
+
+// A device the sweep and a router both know shows what each of them says, not
+// only the name that won.
+func TestDevicePageShowsWhatEachSourceClaims(t *testing.T) {
+	t.Parallel()
+
+	store := testStore(t)
+
+	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix),
+		[]scanner.Host{host("192.0.2.10", macA, "printer.example.com")})
+	require.NoError(t, err)
+
+	h, err := hosts.BuildHost(t.Context(), hosts.HostInput{IP: "192.0.2.10", MAC: macA, Hostname: "lab-printer"})
+	require.NoError(t, err)
+
+	_, err = store.RecordFacts(t.Context(), "routeros:gateway", dbtype.SourceRouter, []plugin.Fact{{
+		Host:           h,
+		Present:        true,
+		HostnameSource: dbtype.HostnameFromDHCPStatic,
+		Detail:         map[string]string{"interface": "vlan10", "dhcp_comment": "bench unit"},
+	}})
+	require.NoError(t, err)
+
+	rec := get(t, NewHandler(testLogger(), testReader(t), store), "/devices/1")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+
+	assert.Contains(t, body, "Sources")
+
+	// Both sources are named, and the name each of them offered is shown --
+	// including the one the election did not pick.
+	assert.Contains(t, body, "test-sweep")
+	assert.Contains(t, body, "routeros:gateway")
+	assert.Contains(t, body, "printer.example.com")
+	assert.Contains(t, body, "lab-printer")
+
+	// The standing is worded rather than shown as the stored constant.
+	assert.Contains(t, body, "reverse DNS")
+	assert.Contains(t, body, "static lease")
+	assert.NotContains(t, body, "DHCP_STATIC")
+
+	// What only the router knows is rendered from its stored JSON.
+	assert.Contains(t, body, "interface")
+	assert.Contains(t, body, "vlan10")
+	assert.Contains(t, body, "bench unit")
+
+	assert.NotContains(t, body, "ZgotmplZ")
+}
+
+// A device nothing has claimed yet still renders: the section is left out
+// rather than drawn empty.
+func TestDevicePageWithoutClaimsOmitsTheSection(t *testing.T) {
+	t.Parallel()
+
+	store, conn := testStoreWithConn(t)
+
+	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix),
+		[]scanner.Host{host("192.0.2.10", macA, "")})
+	require.NoError(t, err)
+
+	// The state an install upgraded from an earlier schema is in: devices that
+	// no source has filed a claim about yet.
+	_, err = conn.ExecContext(t.Context(), `DELETE FROM device_sources`)
+	require.NoError(t, err)
+
+	rec := get(t, NewHandler(testLogger(), testReader(t), store), "/devices/1")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	assert.NotContains(t, rec.Body.String(), `<p class="eyebrow">Sources</p>`)
 }

@@ -161,6 +161,13 @@ func (h *Handler) device(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	claims, err := h.store.DeviceSources(ctx, device.ID)
+	if err != nil {
+		h.fail(w, r, err)
+
+		return
+	}
+
 	data := &curationForm{
 		view: view{
 			Title:   device.Name(),
@@ -170,6 +177,7 @@ func (h *Handler) device(w http.ResponseWriter, r *http.Request) {
 		Device: device,
 		Groups: groups,
 		Events: events,
+		Claims: claims,
 	}
 
 	if note, err := h.sweepNote(ctx); err == nil {

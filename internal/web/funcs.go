@@ -41,7 +41,25 @@ func funcs(now func() time.Time) template.FuncMap {
 		"statusClass": statusClass,
 		"change":      change,
 		"addrs":       addrs,
+		"standing":    standing,
 	}
+}
+
+// standing words where a claimed name came from, for a reader who has no reason
+// to know what DHCP_STATIC means.
+func standing(s dbtype.HostnameSource) string {
+	switch s {
+	case dbtype.HostnameFromDNS:
+		return "reverse DNS"
+	case dbtype.HostnameFromDHCPStatic:
+		return "static lease"
+	case dbtype.HostnameFromDHCPLease:
+		return "DHCP lease"
+	}
+
+	// A standing added in Go and not yet worded here still has to render as
+	// something, and its own name is the most truthful fallback.
+	return strings.ToLower(strings.ReplaceAll(string(s), "_", " "))
 }
 
 // ago renders how long before now t was, at the coarsest useful precision. An
