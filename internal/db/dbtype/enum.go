@@ -141,10 +141,19 @@ func (k *EventKind) Scan(src any) error { return enumScan(k, eventKinds, "event 
 // value is the null one, as MAC's is, for a device with no name yet.
 type HostnameSource string
 
-// HostnameFromDNS marks a name that a sweep learned by resolving the address.
-const HostnameFromDNS HostnameSource = "DNS"
+// HostnameSource values a device's name can be learned at.
+const (
+	// HostnameFromDNS is a name a sweep learned by resolving the address.
+	HostnameFromDNS HostnameSource = "DNS"
 
-var hostnameSources = []HostnameSource{HostnameFromDNS}
+	// HostnameFromDHCPStatic and HostnameFromDHCPLease are both the client's
+	// own claim about itself. They rank differently because an operator bound
+	// the static one deliberately, so its name is one they have already vetted.
+	HostnameFromDHCPStatic HostnameSource = "DHCP_STATIC"
+	HostnameFromDHCPLease  HostnameSource = "DHCP_LEASE"
+)
+
+var hostnameSources = []HostnameSource{HostnameFromDNS, HostnameFromDHCPStatic, HostnameFromDHCPLease}
 
 // Valid reports whether s is one of the known hostname sources.
 func (s HostnameSource) Valid() bool { return slices.Contains(hostnameSources, s) }
