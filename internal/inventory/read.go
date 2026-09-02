@@ -111,6 +111,22 @@ func (s *Store) DeviceEvents(ctx context.Context, id int64, limit int) ([]*Event
 	return events, nil
 }
 
+// DeviceSources returns what every source claims about one device, the most
+// recently heard from first.
+func (s *Store) DeviceSources(ctx context.Context, id int64) ([]*Claim, error) {
+	rows, err := s.q.ListDeviceSources(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("claims about device %d: %w", id, err)
+	}
+
+	claims := make([]*Claim, 0, len(rows))
+	for _, r := range rows {
+		claims = append(claims, newClaim(r))
+	}
+
+	return claims, nil
+}
+
 // ListEvents returns one page of the change log, most recent first.
 func (s *Store) ListEvents(ctx context.Context, p Page) (*EventPage, error) {
 	rows, err := s.q.ListEvents(ctx, models.PageParams{Cursor: p.Cursor, Limit: p.seek()})

@@ -2,7 +2,9 @@ package inventory
 
 import (
 	"cmp"
+	"encoding/json"
 	"fmt"
+	"maps"
 	"net/netip"
 	"slices"
 	"strings"
@@ -69,6 +71,34 @@ type Address struct {
 	Current   bool       `json:"current"`
 	FirstSeen time.Time  `json:"first_seen"`
 	LastSeen  time.Time  `json:"last_seen"`
+}
+
+// Claim is what one source says about a device, as it is displayed.
+//
+// The device row carries one name; this is every name that was offered for it,
+// so a source that lost the election is still readable rather than discarded.
+type Claim struct {
+	Source string            `json:"source"`
+	Kind   dbtype.SourceKind `json:"kind"`
+
+	Hostname       string                `json:"hostname,omitempty"`
+	HostnameSource dbtype.HostnameSource `json:"hostname_source,omitempty"`
+
+	// Detail is what only this source knows, decoded from the JSON it was
+	// stored as and sorted by key so a page renders it the same way twice.
+	Detail []Field `json:"detail,omitempty"`
+
+	// FirstSeen and LastSeen are this source's own sighting, not the device's.
+	// A router holding a bound lease for something that has not answered a ping
+	// in days is two sources disagreeing, which is what these are here to show.
+	FirstSeen time.Time `json:"first_seen"`
+	LastSeen  time.Time `json:"last_seen"`
+}
+
+// Field is one entry of a claim's detail.
+type Field struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 // Event is one entry of the change log.
@@ -244,6 +274,41 @@ func newAddress(a *models.Address) *Address {
 		FirstSeen: a.FirstSeen.Time,
 		LastSeen:  a.LastSeen.Time,
 	}
+}
+
+func newClaim(r *models.ListDeviceSourcesRow) *Claim {
+	return &Claim{
+		Source:         r.SourceName,
+		Kind:           r.SourceKind,
+		Hostname:       r.DeviceSource.Hostname.String,
+		HostnameSource: r.DeviceSource.HostnameSource,
+		Detail:         claimFields(r.DeviceSource.Detail.String),
+		FirstSeen:      r.DeviceSource.FirstSeen.Time,
+		LastSeen:       r.DeviceSource.LastSeen.Time,
+	}
+}
+
+// claimFields decodes a claim's stored detail.
+//
+// Detail that will not decode is dropped rather than reported: it is a source's
+// aside about one device, and a page that refuses to render because of it would
+// hide everything else the device knows.
+func claimFields(raw string) []Field {
+	if raw == "" {
+		return nil
+	}
+
+	var m map[string]string
+	if err := json.Unmarshal([]byte(raw), &m); err != nil {
+		return nil
+	}
+
+	fields := make([]Field, 0, len(m))
+	for _, k := range slices.Sorted(maps.Keys(m)) {
+		fields = append(fields, Field{Key: k, Value: m[k]})
+	}
+
+	return fields
 }
 
 func newEvent(e *models.Event) *Event {

@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"database/sql"
 	"html/template"
 	"log/slog"
 	"net/http"
@@ -36,12 +37,22 @@ func testLogger() *slog.Logger {
 func testStore(t *testing.T) *inventory.Store {
 	t.Helper()
 
+	store, _ := testStoreWithConn(t)
+
+	return store
+}
+
+// testStoreWithConn also hands back the connection, for a test that has to set
+// up a state the store's own writes cannot reach.
+func testStoreWithConn(t *testing.T) (*inventory.Store, *sql.DB) {
+	t.Helper()
+
 	conn, err := db.New(&db.Config{Path: t.TempDir(), Name: "test.db"})
 	require.NoError(t, err)
 
 	t.Cleanup(func() { _ = conn.Conn.Close() })
 
-	return inventory.New(conn.Conn, testLogger())
+	return inventory.New(conn.Conn, testLogger()), conn.Conn
 }
 
 // testReader builds the request reader the server wires in.

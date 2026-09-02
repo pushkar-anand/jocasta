@@ -44,6 +44,13 @@
 </section>
 {{- end }}
 
+{{- if .Claims }}
+<section class="block">
+    <p class="eyebrow">Sources</p>
+    {{- template "partial/device-sources" .Claims }}
+</section>
+{{- end }}
+
 <section class="block">
     <p class="eyebrow">History</p>
     <div id="device-history">

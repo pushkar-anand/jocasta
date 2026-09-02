@@ -825,3 +825,75 @@ func TestRecordFactsFilesUnderTheNamedSource(t *testing.T) {
 	assert.Equal(t, string(dbtype.SourceRouter),
 		queryString(t, conn, `SELECT kind FROM sources WHERE name = 'routeros:gateway'`))
 }
+
+func TestDeviceSourcesReportsEveryClaim(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, host("192.0.2.10", macA, "printer.example.com"))
+
+	f := fact("192.0.2.10", macA, "lab-printer", true, dbtype.HostnameFromDHCPStatic)
+	f.Detail = map[string]string{"interface": "vlan10", "dhcp_comment": "bench unit"}
+	report(t, s, f)
+
+	claims, err := s.DeviceSources(t.Context(), deviceIDByMAC(t, conn, macA))
+	require.NoError(t, err)
+	require.Len(t, claims, 2)
+
+	byName := map[string]*Claim{}
+	for _, c := range claims {
+		byName[c.Source] = c
+	}
+
+	swept := byName["test-sweep"]
+	require.NotNil(t, swept)
+	assert.Equal(t, "printer.example.com", swept.Hostname)
+	assert.Equal(t, dbtype.HostnameFromDNS, swept.HostnameSource)
+	assert.Equal(t, dbtype.SourceSweep, swept.Kind)
+	assert.Empty(t, swept.Detail)
+
+	router := byName["test-router"]
+	require.NotNil(t, router)
+	assert.Equal(t, "lab-printer", router.Hostname)
+	assert.Equal(t, dbtype.HostnameFromDHCPStatic, router.HostnameSource)
+	assert.Equal(t, dbtype.SourceRouter, router.Kind)
+
+	// Detail is sorted by key, so a page renders it the same way twice.
+	assert.Equal(t, []Field{
+		{Key: "dhcp_comment", Value: "bench unit"},
+		{Key: "interface", Value: "vlan10"},
+	}, router.Detail)
+}
+
+// Detail that will not decode costs the page that aside, not the whole device.
+func TestDeviceSourcesSurvivesUnreadableDetail(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	report(t, s, fact("192.0.2.10", macA, "printer", true, dbtype.HostnameFromDHCPStatic))
+
+	id := deviceIDByMAC(t, conn, macA)
+
+	_, err := conn.ExecContext(t.Context(),
+		`UPDATE device_sources SET detail = '[1,2,3]' WHERE device_id = ?`, id)
+	require.NoError(t, err)
+
+	claims, err := s.DeviceSources(t.Context(), id)
+	require.NoError(t, err)
+	require.Len(t, claims, 1)
+
+	assert.Empty(t, claims[0].Detail)
+	assert.Equal(t, "printer", claims[0].Hostname)
+}
+
+func TestDeviceSourcesOfAnUnknownDeviceIsEmpty(t *testing.T) {
+	t.Parallel()
+
+	s, _ := newStore(t)
+
+	claims, err := s.DeviceSources(t.Context(), 999)
+	require.NoError(t, err)
+	assert.Empty(t, claims)
+}
