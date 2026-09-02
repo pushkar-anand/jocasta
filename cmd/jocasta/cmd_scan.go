@@ -108,8 +108,8 @@ func outputScanResults(w io.Writer, hosts []scanner.Host, asJSON bool) error {
 	_, _ = fmt.Fprintln(tw, "IP\tMAC\tVENDOR\tHOSTNAME\tRTT\tDETAILS")
 
 	for _, h := range hosts {
-		vendor := cmp.Or(h.Vendor, "-")
-		if h.Vendor == "" && h.Randomised {
+		vendor := cmp.Or(h.ShortName(), "-")
+		if h.ShortName() == "" && h.Randomised() {
 			vendor = "[randomised]"
 		}
 
@@ -128,7 +128,7 @@ func outputScanResults(w io.Writer, hosts []scanner.Host, asJSON bool) error {
 		}
 
 		_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n",
-			h.Addr, cmp.Or(h.MAC, "-"), vendor, cmp.Or(h.Hostname, "-"), rtt, details,
+			h.Address(), cmp.Or(h.MAC, "-"), vendor, cmp.Or(h.Hostname(), "-"), rtt, details,
 		)
 	}
 

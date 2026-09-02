@@ -193,11 +193,11 @@ func TestDevicePageShowsAReleasedAddress(t *testing.T) {
 	// a second address does not give up the first, since a sweep reports only
 	// what answered.
 	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix),
-		[]scanner.Host{{Addr: netip.MustParseAddr("192.0.2.10"), MAC: macA}})
+		[]scanner.Host{host("192.0.2.10", macA, "")})
 	require.NoError(t, err)
 
 	_, err = store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix),
-		[]scanner.Host{{Addr: netip.MustParseAddr("192.0.2.10"), MAC: macB}})
+		[]scanner.Host{host("192.0.2.10", macB, "")})
 	require.NoError(t, err)
 
 	h := NewHandler(testLogger(), testReader(t), store)

@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"html/template"
 	"log/slog"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"github.com/pushkar-anand/build-with-go/http/request"
 	"github.com/pushkar-anand/build-with-go/validator"
 	"github.com/pushkar-anand/jocasta/internal/db"
+	"github.com/pushkar-anand/jocasta/internal/hosts"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/stretchr/testify/assert"
@@ -65,12 +67,12 @@ func seeded(t *testing.T) *Handler {
 
 	store := testStore(t)
 
-	hosts := []scanner.Host{
-		{Addr: netip.MustParseAddr("192.0.2.10"), MAC: macA, Hostname: "printer.local"},
-		{Addr: netip.MustParseAddr("192.0.2.11"), MAC: macB, Hostname: "nas.local"},
+	swept := []scanner.Host{
+		host("192.0.2.10", macA, "printer.local"),
+		host("192.0.2.11", macB, "nas.local"),
 	}
 
-	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix), hosts)
+	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix), swept)
 	require.NoError(t, err)
 
 	return NewHandler(testLogger(), testReader(t), store)
@@ -329,4 +331,15 @@ func TestNavMarksTheCurrentSection(t *testing.T) {
 	for _, e := range (view{Section: "Nowhere"}).Nav() {
 		assert.False(t, e.Current)
 	}
+}
+
+// host builds a swept host the way a sweep does. A malformed argument is a
+// broken test.
+func host(ip, mac, hostname string) scanner.Host {
+	h, err := hosts.BuildHost(context.Background(), hosts.HostInput{IP: ip, MAC: mac, Hostname: hostname})
+	if err != nil {
+		panic(err)
+	}
+
+	return scanner.Host{Host: h}
 }

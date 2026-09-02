@@ -48,7 +48,7 @@ func TestSweepLive(t *testing.T) {
 					withMAC++
 				}
 
-				if h.Hostname != "" {
+				if h.Hostname() != "" {
 					withName++
 				}
 			}
@@ -65,17 +65,17 @@ func TestSweepLive(t *testing.T) {
 					iface += " (self)"
 				}
 
-				vendor := cmp.Or(h.Vendor, "-")
-				if h.Randomised {
+				vendor := cmp.Or(h.ShortName(), "-")
+				if h.Randomised() {
 					vendor = "(randomised)"
 				}
 
 				_, _ = w.Write([]byte(strings.Join([]string{
-					h.Addr.String(),
+					h.Address().String(),
 					cmp.Or(h.MAC, "-"),
 					vendor,
 					iface,
-					cmp.Or(h.Hostname, "-"),
+					cmp.Or(h.Hostname(), "-"),
 					h.RTT.Round(time.Microsecond).String(),
 				}, "\t") + "\n"))
 			}

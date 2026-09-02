@@ -5,17 +5,17 @@ package scanner
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
-	"net"
 	"net/netip"
 	"slices"
 	"time"
 
+	"github.com/pushkar-anand/jocasta/internal/hosts"
 	"github.com/pushkar-anand/jocasta/pkg/cidr"
-	"github.com/pushkar-anand/jocasta/pkg/oui"
 )
 
 // ErrPrefixTooLarge is returned for a range wide enough that sweeping it would
@@ -27,26 +27,50 @@ var ErrPrefixTooLarge = errors.New("prefix too large to sweep")
 // this scanner's policy, which is why it lives here and not in pkg/cidr.
 const maxSweepHosts = 65536
 
-// Host is an address that answered a sweep, with whatever identifying detail
-// could be resolved for it.
+// Host is an address that answered a sweep. The identifying detail is carried
+// by the embedded [hosts.Host], so a sweep and a plugin describe the same
+// device the same way; what is added here is what only a probe can know.
 type Host struct {
-	Addr     netip.Addr    `json:"addr"`
-	MAC      string        `json:"mac,omitempty"`
-	Hostname string        `json:"hostname,omitempty"`
-	RTT      time.Duration `json:"rtt"`
-	SeenAt   time.Time     `json:"seen_at"`
+	*hosts.Host
 
-	// Vendor is the organisation that registered the MAC address, where one
-	// is known. Randomised marks an address the device generated for itself,
-	// which belongs to no vendor and identifies no hardware.
-	Vendor     string `json:"vendor,omitempty"`
-	Randomised bool   `json:"randomised,omitempty"`
+	// RTT is how long the address took to answer.
+	RTT time.Duration
 
-	// Self marks an address belonging to the host running the scan, and
-	// Interface names the interface holding it. Both are empty for every other
-	// host, whose interfaces are not visible from here.
-	Self      bool   `json:"self,omitempty"`
-	Interface string `json:"interface,omitempty"`
+	// SeenAt is when the sweep ran, taken once for the whole sweep so every
+	// host it found carries the same observation time.
+	SeenAt time.Time
+
+	// Self marks an address belonging to the host running the scan; the
+	// embedded Interface names the interface holding it. Both are empty for
+	// every other host, whose interfaces are not visible from here.
+	Self bool
+}
+
+// MarshalJSON writes the sweep's fields alongside the embedded host's. Without
+// it Go promotes [hosts.Host.MarshalJSON] and silently drops RTT, SeenAt and
+// Self.
+func (h Host) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Addr       netip.Addr    `json:"addr"`
+		MAC        string        `json:"mac,omitempty"`
+		Hostname   string        `json:"hostname,omitempty"`
+		RTT        time.Duration `json:"rtt"`
+		SeenAt     time.Time     `json:"seen_at"`
+		Vendor     string        `json:"vendor,omitempty"`
+		Randomised bool          `json:"randomised,omitempty"`
+		Self       bool          `json:"self,omitempty"`
+		Interface  string        `json:"interface,omitempty"`
+	}{
+		Addr:       h.Address(),
+		MAC:        h.Host.MAC,
+		Hostname:   h.Hostname(),
+		RTT:        h.RTT,
+		SeenAt:     h.SeenAt,
+		Vendor:     h.ShortName(),
+		Randomised: h.Randomised(),
+		Self:       h.Self,
+		Interface:  h.Host.Interface,
+	})
 }
 
 // Scanner sweeps address ranges. It holds no per-scan state, so a single
@@ -157,35 +181,76 @@ func (s *Scanner) Scan(ctx context.Context, p netip.Prefix) ([]Host, error) {
 		return nil, fmt.Errorf("sweep %s: %w", p, err)
 	}
 
-	now := time.Now()
-	ordered := slices.SortedFunc(maps.Keys(replies), netip.Addr.Compare)
-	hosts := make([]Host, 0, len(ordered))
-
-	for _, addr := range ordered {
-		hosts = append(hosts, Host{Addr: addr, RTT: replies[addr], SeenAt: now})
-	}
-
-	if s.resolveMACs {
-		s.enrichHardware(ctx, hosts)
-	}
-
-	if s.resolveNames {
-		resolveNames(ctx, hosts)
-	}
+	found := s.enrich(ctx, replies, time.Now())
 
 	s.log.DebugContext(ctx, "sweep complete",
 		slog.String("prefix", p.String()),
-		slog.Int("found", len(hosts)),
+		slog.Int("found", len(found)),
 	)
 
-	return hosts, nil
+	return found, nil
 }
 
-// enrichHardware fills in MAC addresses from the kernel's neighbour table and
-// from this host's own interfaces. Only on-link hosts appear in the neighbour
-// table: an address behind a router is reached through the router's own MAC, so
-// a routed network yields no hardware addresses at all.
-func (s *Scanner) enrichHardware(ctx context.Context, hosts []Host) {
+// enrich turns the addresses that answered into hosts, adding what only a
+// probe knows to what [hosts.BuildHost] can work out. at stamps every host,
+// so one sweep is one observation rather than a row of nearly-equal times.
+func (s *Scanner) enrich(ctx context.Context, replies map[netip.Addr]time.Duration, at time.Time) []Host {
+	ordered := slices.SortedFunc(maps.Keys(replies), netip.Addr.Compare)
+
+	// Hardware first: a host takes its vendor from its MAC at build time, so
+	// the MAC has to be known before the host is built.
+	var (
+		table map[netip.Addr]string
+		local map[netip.Addr]localInterface
+	)
+
+	if s.resolveMACs {
+		table, local = s.hardware(ctx)
+	}
+
+	inputs := make([]hosts.HostInput, len(ordered))
+	self := make(map[netip.Addr]bool, len(local))
+
+	for i, addr := range ordered {
+		mac, iface, own := hardwareFor(addr, table, local)
+		if own {
+			self[addr] = true
+		}
+
+		inputs[i] = hosts.HostInput{
+			IP:          addr.String(),
+			MAC:         mac,
+			Interface:   iface,
+			ResolveName: s.resolveNames,
+		}
+	}
+
+	// An address that answered is the sweep's finding, so enrichment failing
+	// for one host is not a reason to lose the rest. Both tables feeding this
+	// have already parsed every MAC they yield, which leaves little to fail.
+	built, err := hosts.BulkBuild(ctx, inputs)
+	if err != nil {
+		s.log.WarnContext(ctx, "some hosts could not be enriched", slog.Any("error", err))
+	}
+
+	found := make([]Host, 0, len(built))
+
+	for _, h := range built {
+		addr := h.Address()
+		found = append(found, Host{Host: h, RTT: replies[addr], SeenAt: at, Self: self[addr]})
+	}
+
+	return found
+}
+
+// hardware reads the two views of who holds an address: the kernel's neighbour
+// table and this host's own interfaces. Only on-link hosts appear in the
+// neighbour table -- an address behind a router is reached through the router's
+// own MAC, so a routed network yields no hardware addresses at all.
+//
+// Either being unreadable costs the MACs it would have supplied and nothing
+// else, so both fall back to an empty map.
+func (s *Scanner) hardware(ctx context.Context) (map[netip.Addr]string, map[netip.Addr]localInterface) {
 	table, err := neighbours()
 	if err != nil {
 		s.log.WarnContext(ctx, "could not read neighbour table", slog.Any("error", err))
@@ -200,57 +265,23 @@ func (s *Scanner) enrichHardware(ctx context.Context, hosts []Host) {
 		local = map[netip.Addr]localInterface{}
 	}
 
-	applyHardware(hosts, table, local)
+	return table, local
 }
 
-// applyHardware merges the two sources into hosts. A local interface wins: it
-// is the kernel describing its own address, and the neighbour table has no
-// entry to disagree with in the first place.
-func applyHardware(hosts []Host, table map[netip.Addr]string, local map[netip.Addr]localInterface) {
-	for i := range hosts {
-		if iface, ok := local[hosts[i].Addr]; ok {
-			hosts[i].Self = true
-			hosts[i].Interface = iface.Name
-
-			if iface.MAC != "" {
-				hosts[i].MAC = iface.MAC
-			}
-
-			continue
-		}
-
-		if mac, ok := table[hosts[i].Addr]; ok {
-			hosts[i].MAC = mac
-		}
-	}
-
-	for i := range hosts {
-		applyVendor(&hosts[i])
-	}
-}
-
-// applyVendor resolves the vendor behind a host's MAC address.
+// hardwareFor reports the MAC and interface an address is known by, and whether
+// it is one of this host's own.
 //
-// A randomised address is recorded as such rather than left blank: it is not a
-// gap in the table that a newer one would close, and treating it as one leads
-// to hunting for a vendor that does not exist.
-func applyVendor(h *Host) {
-	if h.MAC == "" {
-		return
+// A local interface wins over the neighbour table: it is the kernel describing
+// its own address, and a host never ARPs for itself, so any entry the table
+// holds is stale. An interface with no hardware address is still ours.
+func hardwareFor(
+	addr netip.Addr,
+	table map[netip.Addr]string,
+	local map[netip.Addr]localInterface,
+) (mac, iface string, self bool) {
+	if l, ok := local[addr]; ok {
+		return l.MAC, l.Name, true
 	}
 
-	hw, err := net.ParseMAC(h.MAC)
-	if err != nil {
-		return
-	}
-
-	if oui.IsLocallyAdministered(hw) {
-		h.Randomised = true
-
-		return
-	}
-
-	if v, ok := oui.Lookup(hw); ok {
-		h.Vendor = v.Short
-	}
+	return table[addr], "", false
 }
