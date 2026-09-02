@@ -202,6 +202,26 @@ SELECT COUNT(*)                                                                 
        CAST(COALESCE(SUM(CASE WHEN first_seen >= sqlc.arg(new_since) THEN 1 ELSE 0 END), 0) AS INTEGER)   AS discovered
 FROM devices;
 
+-- Every network a sweep has recorded, with how many devices hold an address on
+-- it now. A device counts on each network it currently holds an address on:
+-- the overview asks what is on a prefix, not how the inventory divides into
+-- disjoint parts. A network no sweep has found anything on still lists, at
+-- zero -- that it is quiet is the fact worth showing.
+-- name: ListNetworks :many
+SELECT n.id,
+       n.cidr,
+       n.name,
+       n.vlan_id,
+       CAST(COUNT(DISTINCT a.device_id) AS INTEGER) AS total,
+       CAST(COUNT(DISTINCT CASE
+                               WHEN d.last_seen >= sqlc.arg(online_since) THEN a.device_id
+           END) AS INTEGER)                         AS online
+FROM networks n
+         LEFT JOIN addresses a ON a.network_id = n.id AND a.is_current = 1
+         LEFT JOIN devices d ON d.id = a.device_id
+GROUP BY n.id
+ORDER BY n.cidr;
+
 -- name: ListGroups :many
 SELECT DISTINCT CAST(group_name AS TEXT) AS group_name
 FROM devices

@@ -34,7 +34,10 @@ func funcs(now func() time.Time) template.FuncMap {
 		"dash":        dash,
 		"pct":         pct,
 		"took":        took,
-		"event":       eventLabel,
+		"phrase":      phrase,
+		"tone":        tone,
+		"eventIcon":   eventIcon,
+		"health":      health,
 		"statusClass": statusClass,
 		"change":      change,
 		"addrs":       addrs,
@@ -127,23 +130,23 @@ func took(s *inventory.Scan) string {
 	return d.Truncate(100 * time.Millisecond).String()
 }
 
-// eventLabel renders a stored event kind as a phrase. The kinds are written for
-// the log, in the schema's upper case; this is the same fact worded for a
-// reader.
-func eventLabel(k dbtype.EventKind) string {
+// phrase renders a stored event kind as what it did, worded for a reader. The
+// kinds are written for the log, in the schema's upper case; a log line reads
+// as a sentence about the device that precedes it.
+func phrase(k dbtype.EventKind) string {
 	switch k {
 	case dbtype.EventDeviceDiscovered:
-		return "discovered"
+		return "was discovered"
 	case dbtype.EventDeviceIdentified:
-		return "identified"
+		return "was identified"
 	case dbtype.EventDevicesMerged:
-		return "merged"
+		return "merged with a duplicate record"
 	case dbtype.EventAddressAdded:
-		return "address"
+		return "picked up a new address"
 	case dbtype.EventHostnameChanged:
-		return "renamed"
+		return "was relabelled"
 	case dbtype.EventDeviceEdited:
-		return "edited"
+		return "was edited"
 	}
 
 	// A kind added in Go and not yet worded here still has to render as
@@ -151,17 +154,73 @@ func eventLabel(k dbtype.EventKind) string {
 	return strings.ToLower(strings.ReplaceAll(string(k), "_", " "))
 }
 
-// statusClass is the class that colours a scan status. Only failure is
-// coloured; a scan that worked needs no emphasis.
-func statusClass(s dbtype.ScanStatus) string {
-	switch s {
-	case dbtype.StatusFailed, dbtype.StatusCancelled:
-		return "status status--failed"
-	case dbtype.StatusRunning:
-		return "status status--running"
+// tone is the tint a log line's icon carries. Kinds are grouped rather than
+// coloured one apiece: the colour says what sort of change it was -- something
+// arrived, something was learned, someone edited it -- and six colours in a
+// list would say nothing at all.
+func tone(k dbtype.EventKind) string {
+	switch k {
+	case dbtype.EventDeviceDiscovered:
+		return "act--arrival"
+	case dbtype.EventDeviceIdentified, dbtype.EventAddressAdded:
+		return "act--learned"
+	case dbtype.EventDevicesMerged, dbtype.EventHostnameChanged:
+		return "act--shape"
 	}
 
-	return "status"
+	// Everything the user did themselves, and anything not worded yet.
+	return "act--edit"
+}
+
+// glyphs are the log icons, drawn on a 24px grid and stroked in currentColor so
+// the tone class colours them. They are markup this package owns, not anything
+// a caller supplies, which is what makes returning them as HTML safe.
+var glyphs = map[dbtype.EventKind]template.HTML{
+	dbtype.EventDeviceDiscovered: `<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>`,
+	dbtype.EventDeviceIdentified: `<circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>`,
+	dbtype.EventDevicesMerged:    `<path d="M7 4v4a5 5 0 005 5h6"/><path d="M15 10l3 3-3 3"/>`,
+	dbtype.EventAddressAdded:     `<path d="M4 12h16M4 12l4-4M4 12l4 4M20 12l-4-4M20 12l-4 4"/>`,
+	dbtype.EventHostnameChanged:  `<path d="M20.5 12.5l-8-8H4v8.5l8 8a1.5 1.5 0 002 0l6.5-6.5a1.5 1.5 0 000-2z"/><circle cx="8" cy="8" r="1"/>`,
+	dbtype.EventDeviceEdited:     `<path d="M4 20h4l10-10a2.8 2.8 0 10-4-4L4 16v4z"/>`,
+}
+
+// eventIcon is the glyph for a kind. A kind with no glyph of its own gets the
+// edit mark, which is what an unworded kind most likely is.
+func eventIcon(k dbtype.EventKind) template.HTML {
+	if g, ok := glyphs[k]; ok {
+		return g
+	}
+
+	return glyphs[dbtype.EventDeviceEdited]
+}
+
+// health is the class colouring a network's status dot. A prefix with nothing
+// quiet on it is answering; one where more than a third has gone quiet is worth
+// a second look; one nothing has ever been found on is neither.
+func health(n *inventory.Network) string {
+	switch {
+	case n == nil || n.Total == 0:
+		return "dot--quiet"
+	case n.Offline*3 > n.Total:
+		return "dot--warn"
+	}
+
+	return "dot--ok"
+}
+
+// statusClass is the chip a scan status is drawn as. Cancelled is not failure,
+// but it is the same thing to read for: the sweep has no result behind it.
+func statusClass(s dbtype.ScanStatus) string {
+	switch s {
+	case dbtype.StatusFailed:
+		return "chip chip--fail"
+	case dbtype.StatusCancelled:
+		return "chip chip--quiet"
+	case dbtype.StatusRunning:
+		return "chip chip--brand"
+	}
+
+	return "chip chip--ok"
 }
 
 // addrs lists the addresses a device holds. They arrive already ordered, since

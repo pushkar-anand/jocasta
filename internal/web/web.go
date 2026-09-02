@@ -92,19 +92,47 @@ func NewHandler(log *slog.Logger, reader *request.Reader, store *inventory.Store
 	return h
 }
 
-// nav is one entry of the masthead navigation. The entries live in Go so a page
-// that does not exist yet cannot be linked to from the layout.
+// nav is one entry of the sidebar navigation. The entries live in Go so a page
+// that does not exist yet cannot be linked to from the layout, and so a section
+// cannot be added without the glyph that names it in the rail.
 type nav struct {
 	Label   string
 	Href    string
 	Current bool
+
+	// Icon is the glyph's paths, on a 24px grid and stroked in currentColor.
+	// It is markup this package owns rather than anything a request supplies,
+	// which is what makes carrying it as HTML safe.
+	Icon template.HTML
 }
 
 var sections = []nav{
-	{Label: "Overview", Href: "/"},
-	{Label: "Devices", Href: "/devices"},
-	{Label: "Activity", Href: "/events"},
-	{Label: "Sweeps", Href: "/scans"},
+	{
+		Label: "Overview", Href: "/",
+		Icon: `<rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/>` +
+			`<rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/>`,
+	},
+	{
+		Label: "Devices", Href: "/devices",
+		Icon: `<rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/>` +
+			`<circle cx="7" cy="7" r="0.7"/><circle cx="7" cy="17" r="0.7"/>`,
+	},
+	{
+		Label: "Events", Href: "/events",
+		Icon: `<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>`,
+	},
+	{
+		Label: "Scans", Href: "/scans",
+		Icon: `<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.2"/><circle cx="12" cy="12" r="1"/>` +
+			`<path d="M12 2.3v2.2M21.7 12h-2.2M12 21.7v-2.2M2.3 12h2.2"/>`,
+	},
+}
+
+// crumb is the way back out of a page that is about one thing. Only such a page
+// sets one; every other page is reached from the rail, which is already there.
+type crumb struct {
+	Label string
+	Href  string
 }
 
 // view is what the layout needs from every page.
@@ -112,7 +140,14 @@ type view struct {
 	Title   string
 	Section string
 
-	// Note is the ambient line at the end of the masthead. Empty leaves it out.
+	// Crumb is the way back, shown before the title. Nil leaves it out.
+	Crumb *crumb
+
+	// Live marks a page that refreshes itself, which is the only thing the
+	// indicator in the topbar claims.
+	Live bool
+
+	// Note is the ambient line at the foot of the rail. Empty leaves it out.
 	Note string
 }
 
@@ -132,9 +167,10 @@ func (v view) Nav() []nav {
 // on its own, since the fragment is rendered from the same value.
 type overviewData struct {
 	view
-	Stats  *inventory.Stats
-	Scan   *inventory.Scan
-	Events []*inventory.Event
+	Stats    *inventory.Stats
+	Scan     *inventory.Scan
+	Networks []*inventory.Network
+	Events   []*inventory.Event
 }
 
 func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
@@ -169,6 +205,11 @@ func (h *Handler) overviewData(r *http.Request) (*overviewData, error) {
 		return nil, err
 	}
 
+	networks, err := h.store.ListNetworks(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	// The overview shows the top of the log and never walks it, so it takes
 	// the first page and drops the cursor that would continue it.
 	activity, err := h.store.ListEvents(ctx, inventory.Page{Limit: activityLimit})
@@ -177,9 +218,10 @@ func (h *Handler) overviewData(r *http.Request) (*overviewData, error) {
 	}
 
 	data := &overviewData{
-		view:   view{Title: "Overview", Section: "Overview"},
-		Stats:  stats,
-		Events: activity.Events,
+		view:     view{Title: "Overview", Section: "Overview", Live: true},
+		Stats:    stats,
+		Networks: networks,
+		Events:   activity.Events,
 	}
 
 	// A first run has no sweep behind it, which is a state to render rather
@@ -192,7 +234,7 @@ func (h *Handler) overviewData(r *http.Request) (*overviewData, error) {
 	return data, nil
 }
 
-// sweepNote is the ambient line every page carries in its masthead. The error
+// sweepNote is the ambient line every page carries at the foot of its rail. The error
 // is returned rather than swallowed so a caller can tell "no sweep yet" from a
 // read that failed, and leave the line out either way.
 func (h *Handler) sweepNote(ctx context.Context) (string, error) {
@@ -205,7 +247,8 @@ func (h *Handler) sweepNote(ctx context.Context) (string, error) {
 }
 
 func sweepNote(scan *inventory.Scan) string {
-	return "swept " + ago(time.Now(), scan.StartedAt)
+	// The rail labels the line "Last sweep", so the verb would be said twice.
+	return ago(time.Now(), scan.StartedAt)
 }
 
 func (h *Handler) notFound(w http.ResponseWriter, r *http.Request) {

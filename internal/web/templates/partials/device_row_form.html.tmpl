@@ -11,14 +11,15 @@
               hx-patch="/devices/{{ .Device.ID }}/row"
               hx-target="#device-row-{{ .Device.ID }}"
               hx-swap="outerHTML">
-            <label>
+            <label class="stack">
                 <span class="eyebrow">Label</span>
-                <input name="label" value="{{ .Device.Label }}"
+                <input class="input" name="label" value="{{ .Device.Label }}"
                        placeholder="{{ .Device.Name }}" autocomplete="off" autofocus>
             </label>
-            <label>
+            <label class="stack">
                 <span class="eyebrow">Group</span>
-                <input name="group" value="{{ .Device.Group }}" list="known-groups" autocomplete="off">
+                <input class="input" name="group" value="{{ .Device.Group }}"
+                       list="known-groups" autocomplete="off">
             </label>
 
             <input type="hidden" name="notes" value="{{ .Device.Notes }}">
@@ -27,11 +28,13 @@
             <input type="hidden" name="ignored" value="1">
             {{- end }}
 
-            <button type="submit">Save</button>
-            <button type="button" class="quiet"
-                    hx-get="/devices/{{ .Device.ID }}/row"
-                    hx-target="#device-row-{{ .Device.ID }}"
-                    hx-swap="outerHTML">Cancel</button>
+            <span class="inline-form__actions">
+                <button type="submit" class="btn btn--sm">Save</button>
+                <button type="button" class="btn btn--quiet btn--sm"
+                        hx-get="/devices/{{ .Device.ID }}/row"
+                        hx-target="#device-row-{{ .Device.ID }}"
+                        hx-swap="outerHTML">Cancel</button>
+            </span>
         </form>
     </td>
 </tr>

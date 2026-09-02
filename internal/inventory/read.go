@@ -218,6 +218,33 @@ func (s *Store) Stats(ctx context.Context) (*Stats, error) {
 	}, nil
 }
 
+// ListNetworks returns every recorded network with how many devices are on it
+// now. The overview leads with these, so a network the sweeps have never found
+// anything on is included at zero rather than dropped.
+func (s *Store) ListNetworks(ctx context.Context) ([]*Network, error) {
+	rows, err := s.q.ListNetworks(ctx, dbtype.NewTime(s.onlineCutoff()))
+	if err != nil {
+		return nil, fmt.Errorf("list networks: %w", err)
+	}
+
+	networks := make([]*Network, 0, len(rows))
+
+	for _, row := range rows {
+		networks = append(networks, &Network{
+			ID:   row.ID,
+			CIDR: row.Cidr.String(),
+			Name: row.Name.String,
+			VLAN: int(row.VlanID.Int64),
+
+			Total:   int(row.Total),
+			Online:  int(row.Online),
+			Offline: int(row.Total - row.Online),
+		})
+	}
+
+	return networks, nil
+}
+
 // Groups returns the group names the user has assigned, in order.
 func (s *Store) Groups(ctx context.Context) ([]string, error) {
 	groups, err := s.q.ListGroups(ctx)

@@ -1,17 +1,30 @@
 {{- /* Takes a slice of events. */ -}}
 {{ define "partial/activity" }}
 {{- if . }}
-<ul class="activity">
-    {{- range . }}
-    <li class="{{ decay .At }}">
-        <time datetime="{{ .At.Format "2006-01-02T15:04:05Z07:00" }}">{{ ago .At }}</time>
-        <span class="kind">{{ event .Kind }}</span>
-        {{- /* Absent when the page is already about one device. */}}
-        {{- with .DeviceName }}<span class="name">{{ . }}</span>{{ end }}
-        {{- with change . }}<span class="dim">{{ . }}</span>{{ end }}
-    </li>
-    {{- end }}
-</ul>
+<div class="card">
+    <ul class="activity">
+        {{- range . }}
+        {{- /* Bound so the device link can be built inside the with below,
+               which rebinds the dot to the name. */}}
+        {{- $event := . }}
+        <li class="act {{ tone .Kind }}">
+            <span class="acticon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{{ eventIcon .Kind }}</svg>
+            </span>
+
+            <p class="act__text">
+                {{- /* Absent when the page is already about one device. */}}
+                {{- with .DeviceName }}<a class="act__name" href="/devices/{{ $event.DeviceID }}">{{ . }}</a> {{ end -}}
+                <span class="act__said">{{ phrase $event.Kind }}</span>
+                {{- with change $event }} <span class="act__detail">{{ . }}</span>{{ end -}}
+            </p>
+
+            <time class="act__when" datetime="{{ .At.Format "2006-01-02T15:04:05Z07:00" }}">{{ ago .At }}</time>
+        </li>
+        {{- end }}
+    </ul>
+</div>
 {{- else }}
 <p class="dim">Nothing recorded yet.</p>
 {{- end }}

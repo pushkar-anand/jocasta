@@ -1,8 +1,11 @@
 {{ define "page/events" }}
 {{- template "layout/head" . }}
 
-<section>
-    <p class="eyebrow">Change log</p>
+<section class="block">
+    <div class="block__head">
+        <p class="eyebrow">Change log</p>
+        <p class="block__aside">Everything a sweep or an edit changed</p>
+    </div>
     {{ template "partial/activity" .Events }}
     {{ template "partial/pager" . }}
 </section>

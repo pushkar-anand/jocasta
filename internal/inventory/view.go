@@ -129,6 +129,24 @@ type Stats struct {
 	Discovered int `json:"discovered"`
 }
 
+// Network is one prefix the inventory has recorded, as it is displayed. The
+// counts are of devices holding a current address on it, judged by the same
+// online window a device list is.
+type Network struct {
+	ID   int64  `json:"id"`
+	CIDR string `json:"cidr"`
+	Name string `json:"name,omitempty"`
+
+	// VLAN is the tag the network carries, and is zero when it carries none.
+	// The schema allows a network without one, and an untagged network is a
+	// real thing rather than a missing value.
+	VLAN int `json:"vlan,omitempty"`
+
+	Total   int `json:"total"`
+	Online  int `json:"online"`
+	Offline int `json:"offline"`
+}
+
 // Status filters a device list by whether the devices are still answering.
 type Status string
 

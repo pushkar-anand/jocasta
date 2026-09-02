@@ -118,9 +118,10 @@ func TestUpdateDeviceAnswersWithThePanel(t *testing.T) {
 	assert.NotContains(t, body, "<!DOCTYPE html>")
 	assert.Contains(t, body, `id="device-panel"`)
 
-	// The panel carries the heading, so a new label shows up where the device
-	// is named and not only in the field.
-	assert.Contains(t, body, "<h1>Office printer</h1>")
+	// The heading is drawn by the layout, outside this swap, so the panel
+	// updates it out of band: a new label shows up where the device is named
+	// and not only in the field.
+	assert.Contains(t, body, `<h1 id="page-title" hx-swap-oob="true">Office printer</h1>`)
 	assert.Contains(t, body, "Hallway.")
 
 	// A swapped fragment is the only thing that can report the save.

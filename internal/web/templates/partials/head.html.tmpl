@@ -1,4 +1,4 @@
-{{- /* Opens the document and the main element that layout/foot closes. */ -}}
+{{- /* Opens the document, the rail and the main element that layout/foot closes. */ -}}
 {{ define "layout/head" }}<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -19,16 +19,65 @@
     <script src="/static/js/htmx.min.js" defer></script>
 </head>
 <body>
-<header class="masthead">
-    <a class="wordmark" href="/">jocasta</a>
+<div class="shell">
+
+<aside class="sidebar">
+    <a class="brandmark" href="/">
+        <span class="brandmark__tile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 12h16M4 12l4-4M4 12l4 4M20 12l-4-4M20 12l-4 4"/>
+            </svg>
+        </span>
+        <span class="brandmark__text">
+            <span class="brandmark__name">Jocasta</span>
+            <span class="brandmark__sub">Network inventory</span>
+        </span>
+    </a>
+
     <nav class="nav" aria-label="Sections">
         {{- range .Nav }}
-        <a href="{{ .Href }}"{{ if .Current }} aria-current="page"{{ end }}>{{ .Label }}</a>
+        <a class="navitem" href="{{ .Href }}"{{ if .Current }} aria-current="page"{{ end }}>
+            <svg class="navitem__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                {{- .Icon }}
+            </svg>
+            <span>{{ .Label }}</span>
+        </a>
         {{- end }}
     </nav>
+
+    {{- /* Pushed to the foot of the rail: ambient, not a control. */}}
     {{- with .Note }}
-    <span class="masthead__note">{{ . }}</span>
+    <div class="sidebar__foot">
+        <span class="sidebar__eyebrow">Last sweep</span>
+        <span class="sidebar__when">{{ . }}</span>
+    </div>
+    {{- end }}
+</aside>
+
+<div class="frame">
+<header class="topbar">
+    <div class="topbar__title">
+        {{- with .Crumb }}
+        <a class="crumb" href="{{ .Href }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M15 6l-6 6 6 6"/>
+            </svg>
+            {{ .Label }}
+        </a>
+        <span class="topbar__sep"></span>
+        {{- end }}
+        <h1 id="page-title">{{ .Title }}</h1>
+    </div>
+
+    {{- if .Live }}
+    <p class="topbar__live">
+        <span class="dot dot--pulse"></span>
+        Refreshing every 30s
+    </p>
     {{- end }}
 </header>
-<main>
+<main class="main">
 {{ end }}

@@ -4,34 +4,47 @@
 {{ template "partial/device-panel" . }}
 
 {{- with .Device }}
-<section>
+<section class="block">
     <p class="eyebrow">Addresses</p>
-    <div class="scroller">
-        <table>
-            <thead>
-            <tr>
-                <th scope="col">Address</th>
-                <th scope="col">Held</th>
-                <th scope="col">First seen</th>
-                <th scope="col">Last seen</th>
-            </tr>
-            </thead>
-            <tbody>
-            {{- range .Addresses }}
-            <tr class="{{ decay .LastSeen }}">
-                <td class="name">{{ .IP }}</td>
-                <td class="dim">{{ if .Current }}now{{ else }}released{{ end }}</td>
-                <td class="dim">{{ ago .FirstSeen }}</td>
-                <td class="dim">{{ ago .LastSeen }}</td>
-            </tr>
-            {{- end }}
-            </tbody>
-        </table>
+    <div class="card card--table">
+        <div class="scroller">
+            <table>
+                <thead>
+                <tr>
+                    <th scope="col">Address</th>
+                    <th scope="col">Held</th>
+                    <th scope="col">First seen</th>
+                    <th scope="col">Last seen</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{- range .Addresses }}
+                <tr>
+                    <td>
+                        <span class="cell">
+                            <span class="dot {{ decay .LastSeen }}"></span>
+                            <span class="mono strong">{{ .IP }}</span>
+                        </span>
+                    </td>
+                    <td>
+                        {{- if .Current }}
+                        <span class="chip chip--ok">now</span>
+                        {{- else }}
+                        <span class="chip">released</span>
+                        {{- end }}
+                    </td>
+                    <td class="dim">{{ ago .FirstSeen }}</td>
+                    <td class="dim">{{ ago .LastSeen }}</td>
+                </tr>
+                {{- end }}
+                </tbody>
+            </table>
+        </div>
     </div>
 </section>
 {{- end }}
 
-<section>
+<section class="block">
     <p class="eyebrow">History</p>
     <div id="device-history">
         {{- template "partial/activity" .Events }}

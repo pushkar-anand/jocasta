@@ -758,6 +758,80 @@ func (q *Queries) ListGroups(ctx context.Context) ([]string, error) {
 	return items, nil
 }
 
+const listNetworks = `-- name: ListNetworks :many
+SELECT n.id,
+       n.cidr,
+       n.name,
+       n.vlan_id,
+       CAST(COUNT(DISTINCT a.device_id) AS INTEGER) AS total,
+       CAST(COUNT(DISTINCT CASE
+                               WHEN d.last_seen >= ?1 THEN a.device_id
+           END) AS INTEGER)                         AS online
+FROM networks n
+         LEFT JOIN addresses a ON a.network_id = n.id AND a.is_current = 1
+         LEFT JOIN devices d ON d.id = a.device_id
+GROUP BY n.id
+ORDER BY n.cidr
+`
+
+type ListNetworksRow struct {
+	ID     int64          `json:"id"`
+	Cidr   dbtype.Prefix  `json:"cidr"`
+	Name   sql.NullString `json:"name"`
+	VlanID sql.NullInt64  `json:"vlan_id"`
+	Total  int64          `json:"total"`
+	Online int64          `json:"online"`
+}
+
+// Every network a sweep has recorded, with how many devices hold an address on
+// it now. A device counts on each network it currently holds an address on:
+// the overview asks what is on a prefix, not how the inventory divides into
+// disjoint parts. A network no sweep has found anything on still lists, at
+// zero -- that it is quiet is the fact worth showing.
+//
+//	SELECT n.id,
+//	       n.cidr,
+//	       n.name,
+//	       n.vlan_id,
+//	       CAST(COUNT(DISTINCT a.device_id) AS INTEGER) AS total,
+//	       CAST(COUNT(DISTINCT CASE
+//	                               WHEN d.last_seen >= ?1 THEN a.device_id
+//	           END) AS INTEGER)                         AS online
+//	FROM networks n
+//	         LEFT JOIN addresses a ON a.network_id = n.id AND a.is_current = 1
+//	         LEFT JOIN devices d ON d.id = a.device_id
+//	GROUP BY n.id
+//	ORDER BY n.cidr
+func (q *Queries) ListNetworks(ctx context.Context, onlineSince dbtype.Time) ([]*ListNetworksRow, error) {
+	rows, err := q.query(ctx, q.listNetworksStmt, listNetworks, onlineSince)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*ListNetworksRow
+	for rows.Next() {
+		var i ListNetworksRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Cidr,
+			&i.Name,
+			&i.VlanID,
+			&i.Total,
+			&i.Online,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const moveAddresses = `-- name: MoveAddresses :exec
 UPDATE OR IGNORE addresses
 SET device_id = ?1

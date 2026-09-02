@@ -1,14 +1,19 @@
 {{- /* One device. Takes the device itself, and replaces itself when edited. */ -}}
 {{ define "partial/device-row" }}
-<tr id="device-row-{{ .ID }}" class="{{ decay .LastSeen }}">
-    <td class="name"><a href="/devices/{{ .ID }}">{{ .Name }}</a></td>
-    <td>{{ addrs .Current }}</td>
-    <td class="dim">{{ dash .MAC }}{{ if .Randomised }} <span class="tag">randomised</span>{{ end }}</td>
+<tr id="device-row-{{ .ID }}">
+    <td>
+        <span class="cell">
+            <span class="dot {{ decay .LastSeen }}"></span>
+            <a class="strong" href="/devices/{{ .ID }}">{{ .Name }}</a>
+        </span>
+    </td>
+    <td class="mono">{{ addrs .Current }}</td>
+    <td class="mono dim">{{ dash .MAC }}{{ if .Randomised }} <span class="chip chip--warn">randomised</span>{{ end }}</td>
     <td class="dim">{{ dash .Vendor }}</td>
     <td class="dim">{{ dash .Group }}</td>
     <td class="dim">{{ ago .LastSeen }}</td>
-    <td>
-        <button type="button" class="quiet"
+    <td class="cell--end">
+        <button type="button" class="btn btn--quiet btn--sm"
                 hx-get="/devices/{{ .ID }}/edit"
                 hx-target="#device-row-{{ .ID }}"
                 hx-swap="outerHTML">Edit</button>

@@ -5,27 +5,29 @@
 {{ define "partial/device-rows" }}
 <div id="device-rows">
     {{- if .Devices }}
-    <div class="scroller">
-        <table>
-            <thead>
-            <tr>
-                <th scope="col">Device</th>
-                <th scope="col">Addresses</th>
-                <th scope="col">Hardware</th>
-                <th scope="col">Vendor</th>
-                <th scope="col">Group</th>
-                <th scope="col">Last seen</th>
-                <th scope="col"><span class="visually-hidden">Actions</span></th>
-            </tr>
-            </thead>
-            <tbody>
-            {{- range .Devices }}
-            {{- template "partial/device-row" . }}
-            {{- end }}
-        </tbody>
-        </table>
+    <div class="card card--table">
+        <div class="scroller">
+            <table>
+                <thead>
+                <tr>
+                    <th scope="col">Device</th>
+                    <th scope="col">Addresses</th>
+                    <th scope="col">Hardware</th>
+                    <th scope="col">Vendor</th>
+                    <th scope="col">Group</th>
+                    <th scope="col">Last seen</th>
+                    <th scope="col"><span class="visually-hidden">Actions</span></th>
+                </tr>
+                </thead>
+                <tbody>
+                {{- range .Devices }}
+                {{- template "partial/device-row" . }}
+                {{- end }}
+                </tbody>
+            </table>
+        </div>
     </div>
-    <p class="eyebrow">{{ len .Devices }} shown</p>
+    <p class="block__aside">{{ len .Devices }} shown</p>
     {{- else }}
     <p class="dim">No device matches this filter.</p>
     {{- end }}
