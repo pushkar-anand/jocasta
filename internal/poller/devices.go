@@ -1,3 +1,4 @@
+// Package poller runs recurring network tasks such as device and port sweeps.
 package poller
 
 import (
@@ -14,6 +15,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 )
 
+// Device sweeps networks and records which addresses answered.
 type Device struct {
 	scanner  *scanner.Scanner
 	store    *inventory.Store
@@ -61,10 +63,12 @@ func NewDevice(
 	}, nil
 }
 
+// Interval returns the polling period configured for this device task.
 func (d *Device) Interval() time.Duration {
 	return d.interval
 }
 
+// Name returns the identifier used in logs and scheduling.
 func (d *Device) Name() string {
 	return "device_scanner"
 }
@@ -97,6 +101,7 @@ func (d *Device) DueIn(ctx context.Context) time.Duration {
 	return d.interval - time.Since(at)
 }
 
+// Run sweeps every configured network and persists the results.
 func (d *Device) Run(ctx context.Context) error {
 	var errs []error
 

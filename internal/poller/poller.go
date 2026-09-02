@@ -25,6 +25,7 @@ type run struct {
 	wg     sync.WaitGroup
 }
 
+// Poller schedules and runs a set of tasks on fixed intervals.
 type Poller struct {
 	state atomic.Uint32
 	run   atomic.Pointer[run]
@@ -35,6 +36,7 @@ type Poller struct {
 	mu sync.Mutex
 }
 
+// New creates a Poller that uses the given logger for task output.
 func New(logger *slog.Logger) *Poller {
 	if logger == nil {
 		logger = slog.Default()
@@ -48,6 +50,7 @@ func New(logger *slog.Logger) *Poller {
 	return p
 }
 
+// Register adds a task to the poller. It must be called before Start.
 func (p *Poller) Register(t task) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -69,6 +72,7 @@ func (p *Poller) Register(t task) error {
 	return nil
 }
 
+// Start runs all registered tasks until ctx is cancelled.
 func (p *Poller) Start(ctx context.Context) error {
 	p.mu.Lock()
 	if p.state.Load() != stateIdle {
@@ -107,6 +111,7 @@ func (p *Poller) Start(ctx context.Context) error {
 	return nil
 }
 
+// Stop cancels the current run and waits for all tasks to finish.
 func (p *Poller) Stop() {
 	p.mu.Lock()
 	r := p.run.Load()

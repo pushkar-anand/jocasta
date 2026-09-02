@@ -77,8 +77,10 @@ func NewRouterOS(
 	return r, nil
 }
 
+// Name returns the plugin's configured name.
 func (r *RouterOS) Name() string { return r.name }
 
+// Kind identifies this plugin as a RouterOS source.
 func (r *RouterOS) Kind() dbtype.SourceKind { return dbtype.SourceRouter }
 
 // Discover merges both tables into one fact per device per address. One table

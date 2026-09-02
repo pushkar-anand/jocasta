@@ -91,7 +91,7 @@ func newPoller(t *testing.T, tasks ...task) *Poller {
 // startAsync runs Start in the background and returns a channel carrying its
 // error, so a test can assert that Start actually returns on shutdown rather
 // than hanging.
-func startAsync(t *testing.T, p *Poller, ctx context.Context) <-chan error {
+func startAsync(ctx context.Context, t *testing.T, p *Poller) <-chan error {
 	t.Helper()
 
 	errc := make(chan error, 1)
@@ -165,7 +165,7 @@ func TestRegisterRejectedWhileRunning(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	errc := startAsync(t, p, ctx)
+	errc := startAsync(ctx, t, p)
 
 	eventually(t, func() bool { return f.runs.Load() > 0 }, "task never ran")
 
@@ -185,7 +185,7 @@ func TestStartRunsEveryRegisteredTask(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	errc := startAsync(t, p, ctx)
+	errc := startAsync(ctx, t, p)
 
 	eventually(t, func() bool { return a.runs.Load() > 0 && b.runs.Load() > 0 },
 		"both tasks should have run")
@@ -206,7 +206,7 @@ func TestTasksRunOnIndependentIntervals(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	errc := startAsync(t, p, ctx)
+	errc := startAsync(ctx, t, p)
 
 	eventually(t, func() bool { return fast.runs.Load() >= 5 }, "fast task should have run repeatedly")
 
@@ -226,7 +226,7 @@ func TestStartRejectsSecondStart(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	errc := startAsync(t, p, ctx)
+	errc := startAsync(ctx, t, p)
 
 	eventually(t, func() bool { return f.runs.Load() > 0 }, "task never ran")
 
@@ -246,7 +246,7 @@ func TestParentCancelStopsPoller(t *testing.T) {
 	p := newPoller(t, f)
 
 	ctx, cancel := context.WithCancel(t.Context())
-	errc := startAsync(t, p, ctx)
+	errc := startAsync(ctx, t, p)
 
 	eventually(t, func() bool { return f.runs.Load() > 0 }, "task never ran")
 
@@ -263,7 +263,7 @@ func TestStopUnblocksStart(t *testing.T) {
 	f := newFake("a")
 	p := newPoller(t, f)
 
-	errc := startAsync(t, p, t.Context())
+	errc := startAsync(t.Context(), t, p)
 
 	eventually(t, func() bool { return f.runs.Load() > 0 }, "task never ran")
 
@@ -281,7 +281,7 @@ func TestStopIsIdempotent(t *testing.T) {
 	f := newFake("a")
 	p := newPoller(t, f)
 
-	errc := startAsync(t, p, t.Context())
+	errc := startAsync(t.Context(), t, p)
 
 	eventually(t, func() bool { return f.runs.Load() > 0 }, "task never ran")
 
@@ -314,7 +314,7 @@ func TestStartAfterStop(t *testing.T) {
 	p := newPoller(t, f)
 
 	for range 3 {
-		errc := startAsync(t, p, t.Context())
+		errc := startAsync(t.Context(), t, p)
 
 		eventually(t, func() bool { return f.runs.Load() > 0 }, "task never ran")
 
@@ -334,7 +334,7 @@ func TestTasksStopBeforeStartReturns(t *testing.T) {
 	p := newPoller(t, f)
 
 	ctx, cancel := context.WithCancel(t.Context())
-	errc := startAsync(t, p, ctx)
+	errc := startAsync(ctx, t, p)
 
 	eventually(t, func() bool { return f.runs.Load() > 0 }, "task never ran")
 
@@ -359,7 +359,7 @@ func TestFailingTaskKeepsRunning(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	errc := startAsync(t, p, ctx)
+	errc := startAsync(ctx, t, p)
 
 	eventually(t, func() bool { return f.runs.Load() >= 3 }, "failing task should be retried")
 
@@ -377,7 +377,7 @@ func TestPanickingTaskDoesNotKillPoller(t *testing.T) {
 	p := newPoller(t, boom, ok)
 
 	ctx, cancel := context.WithCancel(t.Context())
-	errc := startAsync(t, p, ctx)
+	errc := startAsync(ctx, t, p)
 
 	eventually(t, func() bool { return boom.runs.Load() > 0 }, "panicking task never ran")
 	eventually(t, func() bool { return ok.runs.Load() > 0 }, "healthy task never ran")
@@ -395,7 +395,7 @@ func TestRunInFlightSeesCancellation(t *testing.T) {
 	p := newPoller(t, f)
 
 	ctx, cancel := context.WithCancel(t.Context())
-	errc := startAsync(t, p, ctx)
+	errc := startAsync(ctx, t, p)
 
 	eventually(t, func() bool { return f.runs.Load() > 0 }, "task never ran")
 
@@ -415,7 +415,7 @@ func TestOverrunningTaskDoesNotBacklog(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	errc := startAsync(t, p, ctx)
+	errc := startAsync(ctx, t, p)
 
 	eventually(t, func() bool { return f.runs.Load() == 1 }, "task never ran")
 
@@ -447,7 +447,7 @@ func TestTaskDueNowRunsAtStart(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	errc := startAsync(t, p, ctx)
+	errc := startAsync(ctx, t, p)
 
 	eventually(t, func() bool { return f.runs.Load() > 0 }, "task did not run at start")
 
@@ -484,7 +484,7 @@ func TestTaskDueLaterIsLeftAlone(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	errc := startAsync(t, p, ctx)
+	errc := startAsync(ctx, t, p)
 
 	time.Sleep(5 * tick)
 	assert.Zero(t, f.runs.Load(), "a task due later must not run at start")
@@ -527,7 +527,7 @@ func TestConcurrentLifecycle(t *testing.T) {
 	p := newPoller(t, newFake("a"), newFake("b"))
 
 	for range 50 {
-		errc := startAsync(t, p, t.Context())
+		errc := startAsync(t.Context(), t, p)
 
 		var wg sync.WaitGroup
 
@@ -574,7 +574,7 @@ func TestStopIgnoresStaleRun(t *testing.T) {
 	f := newFake("a")
 	p := newPoller(t, f)
 
-	first := startAsync(t, p, t.Context())
+	first := startAsync(t.Context(), t, p)
 
 	eventually(t, func() bool { return f.runs.Load() > 0 }, "task never ran")
 
@@ -584,7 +584,7 @@ func TestStopIgnoresStaleRun(t *testing.T) {
 	p.Stop()
 	requireReturned(t, first)
 
-	second := startAsync(t, p, t.Context())
+	second := startAsync(t.Context(), t, p)
 
 	eventually(t, func() bool { return p.state.Load() == uint32(stateRunning) },
 		"second run never started")
