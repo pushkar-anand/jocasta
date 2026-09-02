@@ -62,14 +62,14 @@ func (h Host) MarshalJSON() ([]byte, error) {
 		Interface  string        `json:"interface,omitempty"`
 	}{
 		Addr:       h.Address(),
-		MAC:        h.Host.MAC,
+		MAC:        h.MAC,
 		Hostname:   h.Hostname(),
 		RTT:        h.RTT,
 		SeenAt:     h.SeenAt,
 		Vendor:     h.ShortName(),
 		Randomised: h.Randomised(),
 		Self:       h.Self,
-		Interface:  h.Host.Interface,
+		Interface:  h.Interface,
 	})
 }
 
