@@ -10,7 +10,9 @@ import (
 
 	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
+	"github.com/pushkar-anand/jocasta/internal/db/models"
 	"github.com/pushkar-anand/jocasta/internal/hosts"
+	"github.com/pushkar-anand/jocasta/internal/plugin"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -64,6 +66,37 @@ func sweep(t *testing.T, s *Store, hosts ...scanner.Host) *Result {
 	require.NoError(t, err)
 
 	return res
+}
+
+// fact builds one source's claim about one address the way a plugin does. A
+// malformed argument is a broken test.
+func fact(ip, mac, hostname string, present bool, standing dbtype.HostnameSource) plugin.Fact {
+	h, err := hosts.BuildHost(context.Background(), hosts.HostInput{IP: ip, MAC: mac, Hostname: hostname})
+	if err != nil {
+		panic(err)
+	}
+
+	return plugin.Fact{Host: h, Present: present, HostnameSource: standing}
+}
+
+// report records facts from a source that names no network of its own, the way
+// a plugin reading every VLAN at once does.
+func report(t *testing.T, s *Store, facts ...plugin.Fact) *Result {
+	t.Helper()
+
+	res, err := s.report(t.Context(), reading{source: "test-router", kind: dbtype.SourceRouter, facts: facts})
+	require.NoError(t, err)
+
+	return res
+}
+
+func queryString(t *testing.T, conn *sql.DB, q string, args ...any) string {
+	t.Helper()
+
+	var v sql.NullString
+	require.NoError(t, conn.QueryRowContext(t.Context(), q, args...).Scan(&v))
+
+	return v.String
 }
 
 func queryInt(t *testing.T, conn *sql.DB, q string, args ...any) int {
@@ -411,4 +444,157 @@ func TestRecordSweepRecordsAFailedIngest(t *testing.T) {
 	assert.Equal(t, 0, queryInt(t, conn, `SELECT found_count FROM scans`))
 	assert.Equal(t, 0, queryInt(t, conn, `SELECT count(*) FROM devices`))
 	assert.Equal(t, 0, queryInt(t, conn, `SELECT count(*) FROM events`))
+}
+
+// A source reporting a device it has not seen may say what is already known
+// about that device, and may not put a device nothing has ever met into the
+// inventory: the device list is what is on the network, and a static lease for
+// something unplugged is configuration.
+func TestReportDoesNotCreateADeviceItHasNotSeen(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	res := report(t, s, fact("192.0.2.50", macA, "printer", false, dbtype.HostnameFromDHCPStatic))
+
+	assert.Equal(t, 0, res.Seen)
+	assert.Equal(t, 0, res.Discovered)
+	assert.Equal(t, 0, queryInt(t, conn, `SELECT COUNT(*) FROM devices`))
+	assert.Equal(t, 0, queryInt(t, conn, `SELECT COUNT(*) FROM addresses`))
+}
+
+// An address a source could not resolve names nothing at all: it identifies no
+// device and does not say one is answering.
+func TestReportRecordsNothingForAnAddressItCannotResolve(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	res := report(t, s, fact("192.0.2.51", "", "", false, ""))
+
+	assert.Equal(t, 0, res.Seen)
+	assert.Equal(t, 0, queryInt(t, conn, `SELECT COUNT(*) FROM devices`))
+}
+
+// The same fact against a device already known is worth recording: the source
+// knows its name, which is the half a sweep cannot supply.
+func TestReportNamesAKnownDeviceItHasNotSeen(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, host("192.0.2.10", macA, ""))
+	id := deviceIDByMAC(t, conn, macA)
+	seen := queryString(t, conn, `SELECT last_seen FROM devices WHERE id = ?`, id)
+
+	res := report(t, s, fact("192.0.2.50", macA, "printer", false, dbtype.HostnameFromDHCPStatic))
+
+	assert.Equal(t, 1, res.Seen)
+	assert.Equal(t, "printer", queryString(t, conn, `SELECT hostname FROM devices WHERE id = ?`, id))
+
+	// Naming a device is not seeing it, and the address it was named at is not
+	// one it is holding.
+	assert.Equal(t, seen, queryString(t, conn, `SELECT last_seen FROM devices WHERE id = ?`, id),
+		"a source that did not see the device must not mark it seen")
+	assert.Equal(t, []string{"192.0.2.10"}, currentIPs(t, conn, id))
+}
+
+// The standing a source claims for a name is stored as given. Recording every
+// name as DNS would leave nothing to weigh two sources by.
+func TestReportKeepsTheStandingOfTheNameItCarries(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, host("192.0.2.10", macA, ""))
+	report(t, s, fact("192.0.2.10", macA, "printer", true, dbtype.HostnameFromDHCPStatic))
+
+	id := deviceIDByMAC(t, conn, macA)
+	assert.Equal(t, string(dbtype.HostnameFromDHCPStatic),
+		queryString(t, conn, `SELECT hostname_source FROM devices WHERE id = ?`, id))
+}
+
+// A source that has not seen a device must not take an address from whatever is
+// answering on it: a stale lease pointing at a reused address would otherwise
+// move it to a device that is not there.
+func TestReportDoesNotTakeAnAddressFromItsHolder(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, host("192.0.2.10", macA, ""), host("192.0.2.11", macB, ""))
+
+	holder := deviceIDByMAC(t, conn, macA)
+	other := deviceIDByMAC(t, conn, macB)
+
+	report(t, s, fact("192.0.2.10", macB, "", false, ""))
+
+	assert.Equal(t, []string{"192.0.2.10"}, currentIPs(t, conn, holder))
+	assert.Equal(t, []string{"192.0.2.11"}, currentIPs(t, conn, other))
+}
+
+// A source covering many networks names none of them, so each address is
+// matched to the network holding it rather than to one carried for the reading.
+func TestReportMatchesEachAddressToItsOwnNetwork(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	// Two sweeps, so both prefixes are recorded.
+	sweep(t, s, host("192.0.2.10", macA, ""))
+
+	_, err := s.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix("198.51.100.0/24"),
+		[]scanner.Host{host("198.51.100.10", macB, "")})
+	require.NoError(t, err)
+
+	report(t, s,
+		fact("192.0.2.20", "00:00:5e:00:53:03", "", true, ""),
+		fact("198.51.100.20", "00:00:5e:00:53:04", "", true, ""),
+	)
+
+	assert.Equal(t, "192.0.2.0/24", queryString(t, conn,
+		`SELECT n.cidr FROM addresses a JOIN networks n ON n.id = a.network_id WHERE a.ip = ?`, "192.0.2.20"))
+	assert.Equal(t, "198.51.100.0/24", queryString(t, conn,
+		`SELECT n.cidr FROM addresses a JOIN networks n ON n.id = a.network_id WHERE a.ip = ?`, "198.51.100.20"))
+}
+
+// An address on no recorded network is still recorded, without one.
+func TestReportRecordsAnAddressOnNoKnownNetwork(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	report(t, s, fact("203.0.113.10", macA, "", true, ""))
+
+	id := deviceIDByMAC(t, conn, macA)
+	assert.Equal(t, []string{"203.0.113.10"}, currentIPs(t, conn, id))
+	assert.Equal(t, 1, queryInt(t, conn,
+		`SELECT COUNT(*) FROM addresses WHERE ip = ? AND network_id IS NULL`, "203.0.113.10"))
+}
+
+// RefreshAddress coalesces rather than assigns, so a source that cannot say
+// which network an address is on leaves the one a sweep established. The store
+// path cannot reach this today -- an address is matched against every recorded
+// network, so a prefix a sweep recorded still matches -- which is why the guard
+// is asserted against the query itself.
+func TestRefreshAddressKeepsTheNetworkASweepEstablished(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, host("192.0.2.10", macA, ""))
+
+	var id int64
+	require.NoError(t, conn.QueryRowContext(t.Context(),
+		`SELECT id FROM addresses WHERE ip = ?`, "192.0.2.10").Scan(&id))
+
+	err := s.q.RefreshAddress(t.Context(), models.RefreshAddressParams{
+		NetworkID: sql.NullInt64{},
+		LastSeen:  s.stamp(),
+		ID:        id,
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, "192.0.2.0/24", queryString(t, conn,
+		`SELECT n.cidr FROM addresses a JOIN networks n ON n.id = a.network_id WHERE a.id = ?`, id))
 }

@@ -27,6 +27,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.adoptCurationStmt, err = db.PrepareContext(ctx, adoptCuration); err != nil {
 		return nil, fmt.Errorf("error preparing query AdoptCuration: %w", err)
 	}
+	if q.allNetworksStmt, err = db.PrepareContext(ctx, allNetworks); err != nil {
+		return nil, fmt.Errorf("error preparing query AllNetworks: %w", err)
+	}
 	if q.createDeviceStmt, err = db.PrepareContext(ctx, createDevice); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateDevice: %w", err)
 	}
@@ -119,6 +122,11 @@ func (q *Queries) Close() error {
 	if q.adoptCurationStmt != nil {
 		if cerr := q.adoptCurationStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing adoptCurationStmt: %w", cerr)
+		}
+	}
+	if q.allNetworksStmt != nil {
+		if cerr := q.allNetworksStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing allNetworksStmt: %w", cerr)
 		}
 	}
 	if q.createDeviceStmt != nil {
@@ -301,6 +309,7 @@ type Queries struct {
 	db                                 DBTX
 	tx                                 *sql.Tx
 	adoptCurationStmt                  *sql.Stmt
+	allNetworksStmt                    *sql.Stmt
 	createDeviceStmt                   *sql.Stmt
 	createEventStmt                    *sql.Stmt
 	createScanStmt                     *sql.Stmt
@@ -336,6 +345,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		db:                                 tx,
 		tx:                                 tx,
 		adoptCurationStmt:                  q.adoptCurationStmt,
+		allNetworksStmt:                    q.allNetworksStmt,
 		createDeviceStmt:                   q.createDeviceStmt,
 		createEventStmt:                    q.createEventStmt,
 		createScanStmt:                     q.createScanStmt,

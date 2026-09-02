@@ -14,6 +14,7 @@ import (
 
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/db/models"
+	"github.com/pushkar-anand/jocasta/internal/plugin"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 )
 
@@ -76,7 +77,9 @@ func New(conn *sql.DB, log *slog.Logger, opts ...Option) *Store {
 	return s
 }
 
-// Result counts what a single sweep changed.
+// Result counts what a single reading changed. Seen counts the facts that were
+// recorded rather than the addresses that answered: for a sweep the two are the
+// same, since everything a sweep returns answered a probe.
 type Result struct {
 	ScanID     int64
 	Discovered int
@@ -85,25 +88,124 @@ type Result struct {
 	Seen       int
 }
 
+// reading is what one source read: who read it, what they claim, and the
+// network the reading covered when it covered exactly one.
+type reading struct {
+	source string
+	kind   dbtype.SourceKind
+
+	// network is the prefix a sweep covered. A source that reads every network
+	// at once bounds its reading by none, and leaves this nil.
+	network *netip.Prefix
+
+	facts []plugin.Fact
+}
+
 // pass carries what every write in one ingest shares, including the single
 // timestamp they are all stamped with.
 type pass struct {
-	q         *models.Queries
-	scanID    int64
-	networkID int64
-	at        dbtype.Time
-	res       Result
+	q        *models.Queries
+	scanID   int64
+	networks networks
+	at       dbtype.Time
+	res      Result
+}
+
+// networks matches an address to the recorded network containing it. A sweep
+// knows the prefix it swept, but a source that reads every VLAN at once knows
+// only addresses, so the network is looked up per address rather than carried
+// for the whole reading.
+type networks []recordedNetwork
+
+type recordedNetwork struct {
+	id     int64
+	prefix netip.Prefix
+}
+
+// find returns the network holding addr, and false when no recorded network
+// does. The most specific match wins: a supernet and a subnet of it can both be
+// recorded, and the narrower one is the better answer.
+func (ns networks) find(addr netip.Addr) (int64, bool) {
+	var (
+		id   int64
+		bits = -1
+	)
+
+	for _, n := range ns {
+		if n.prefix.Contains(addr) && n.prefix.Bits() > bits {
+			id, bits = n.id, n.prefix.Bits()
+		}
+	}
+
+	return id, bits >= 0
+}
+
+// networkID renders what find returns as the nullable column it is written to.
+func (ns networks) networkID(addr netip.Addr) sql.NullInt64 {
+	id, ok := ns.find(addr)
+
+	return sql.NullInt64{Int64: id, Valid: ok}
+}
+
+func loadNetworks(ctx context.Context, q *models.Queries) (networks, error) {
+	rows, err := q.AllNetworks(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("load networks: %w", err)
+	}
+
+	ns := make(networks, 0, len(rows))
+	for _, r := range rows {
+		ns = append(ns, recordedNetwork{id: r.ID, prefix: r.Cidr.Prefix})
+	}
+
+	return ns, nil
 }
 
 // RecordSweep stores the results of one sweep of prefix, attributing them to
 // the named source.
+//
+// A sweep is one source among several. What makes it particular is only that
+// everything it returns answered a probe, and that any name it carries came
+// from the reverse lookup it performed -- so it states those two things and
+// hands the facts to the same path every source uses.
 func (s *Store) RecordSweep(ctx context.Context, source string, prefix netip.Prefix, hosts []scanner.Host) (*Result, error) {
-	scanID, networkID, err := s.open(ctx, source, prefix)
+	return s.report(ctx, reading{
+		source:  source,
+		kind:    dbtype.SourceSweep,
+		network: &prefix,
+		facts:   sweptFacts(hosts),
+	})
+}
+
+// sweptFacts says what a sweep result claims: the address answered, so the
+// device is here now, and a name it carries was resolved over DNS.
+func sweptFacts(hosts []scanner.Host) []plugin.Fact {
+	facts := make([]plugin.Fact, len(hosts))
+
+	for i, h := range hosts {
+		f := plugin.Fact{Host: h.Host, Present: true, SeenAt: h.SeenAt}
+
+		// The standing travels with the name: a fact carrying a source for a
+		// name it does not have is a standing for nothing.
+		if h.Hostname() != "" {
+			f.HostnameSource = dbtype.HostnameFromDNS
+		}
+
+		facts[i] = f
+	}
+
+	return facts
+}
+
+// report records one source's reading: it opens a scan row, ingests the facts
+// as one transaction, and closes the scan with whatever happened.
+func (s *Store) report(ctx context.Context, r reading) (*Result, error) {
+	scanID, err := s.open(ctx, r)
 	if err != nil {
 		return nil, err
 	}
 
-	res, ingestErr := s.ingest(ctx, scanID, networkID, hosts)
+	res, ingestErr := s.ingest(ctx, scanID, r.facts)
 
 	// res is nil unless the ingest committed, so the count a failed scan
 	// records is the only one true of the table: none.
@@ -127,11 +229,12 @@ func (s *Store) RecordSweep(ctx context.Context, source string, prefix netip.Pre
 	return res, nil
 }
 
-// open registers the source and network and opens a running scan row.
-func (s *Store) open(ctx context.Context, source string, prefix netip.Prefix) (scanID, networkID int64, err error) {
+// open registers the source and opens a running scan row, recording the network
+// when the reading covered exactly one.
+func (s *Store) open(ctx context.Context, r reading) (int64, error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
-		return 0, 0, fmt.Errorf("begin scan: %w", err)
+		return 0, fmt.Errorf("begin scan: %w", err)
 	}
 
 	defer func() { _ = tx.Rollback() }()
@@ -139,37 +242,46 @@ func (s *Store) open(ctx context.Context, source string, prefix netip.Prefix) (s
 	q := s.q.WithTx(tx)
 	at := s.stamp()
 
-	src, err := q.UpsertSource(ctx, models.UpsertSourceParams{Kind: dbtype.SourceSweep, Name: source, CreatedAt: at})
+	src, err := q.UpsertSource(ctx, models.UpsertSourceParams{Kind: r.kind, Name: r.source, CreatedAt: at})
 	if err != nil {
-		return 0, 0, fmt.Errorf("upsert source %q: %w", source, err)
+		return 0, fmt.Errorf("upsert source %q: %w", r.source, err)
 	}
 
-	nw, err := q.UpsertNetwork(ctx, models.UpsertNetworkParams{Cidr: dbtype.NewPrefix(prefix), CreatedAt: at})
-	if err != nil {
-		return 0, 0, fmt.Errorf("upsert network %s: %w", prefix, err)
+	// Recording the network here is also what lets the addresses in this
+	// reading be matched to it: a prefix nothing has swept before is not in the
+	// table until the scan that covers it opens.
+	var networkID sql.NullInt64
+
+	if r.network != nil {
+		nw, err := q.UpsertNetwork(ctx, models.UpsertNetworkParams{Cidr: dbtype.NewPrefix(*r.network), CreatedAt: at})
+		if err != nil {
+			return 0, fmt.Errorf("upsert network %s: %w", r.network, err)
+		}
+
+		networkID = sql.NullInt64{Int64: nw.ID, Valid: true}
 	}
 
 	sc, err := q.CreateScan(ctx, models.CreateScanParams{
 		SourceID:  src.ID,
 		Kind:      dbtype.ScanDiscovery,
-		NetworkID: sql.NullInt64{Int64: nw.ID, Valid: true},
+		NetworkID: networkID,
 		StartedAt: at,
 	})
 	if err != nil {
-		return 0, 0, fmt.Errorf("create scan: %w", err)
+		return 0, fmt.Errorf("create scan: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return 0, 0, fmt.Errorf("commit scan: %w", err)
+		return 0, fmt.Errorf("commit scan: %w", err)
 	}
 
-	return sc.ID, nw.ID, nil
+	return sc.ID, nil
 }
 
-// ingest applies every result as one transaction: a sweep either lands whole
+// ingest applies every fact as one transaction: a reading either lands whole
 // or not at all, so a partial run cannot leave a device holding an address it
 // was about to lose.
-func (s *Store) ingest(ctx context.Context, scanID, networkID int64, hosts []scanner.Host) (*Result, error) {
+func (s *Store) ingest(ctx context.Context, scanID int64, facts []plugin.Fact) (*Result, error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin ingest: %w", err)
@@ -177,19 +289,26 @@ func (s *Store) ingest(ctx context.Context, scanID, networkID int64, hosts []sca
 
 	defer func() { _ = tx.Rollback() }()
 
-	// One timestamp for the whole sweep. Every row it writes describes the
+	q := s.q.WithTx(tx)
+
+	nets, err := loadNetworks(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+
+	// One timestamp for the whole reading. Every row it writes describes the
 	// same observation, and taking the clock per row would stamp a device as
 	// last seen before it was first seen.
 	p := &pass{
-		q:         s.q.WithTx(tx),
-		scanID:    scanID,
-		networkID: networkID,
-		at:        s.stamp(),
+		q:        q,
+		scanID:   scanID,
+		networks: nets,
+		at:       s.stamp(),
 	}
 
-	for _, h := range hosts {
-		if err := s.record(ctx, p, h); err != nil {
-			return nil, fmt.Errorf("record %s: %w", h.Address(), err)
+	for _, f := range facts {
+		if err := s.record(ctx, p, f); err != nil {
+			return nil, fmt.Errorf("record %s: %w", f.Host.Address(), err)
 		}
 	}
 
@@ -221,30 +340,28 @@ func (s *Store) close(ctx context.Context, scanID int64, found int, cause error)
 	return nil
 }
 
-func (s *Store) record(ctx context.Context, p *pass, h scanner.Host) error {
-	ip := dbtype.NewAddr(h.Address())
+func (s *Store) record(ctx context.Context, p *pass, f plugin.Fact) error {
+	ip := dbtype.NewAddr(f.Host.Address())
+	mac := s.hardware(ctx, f)
 
-	// A sweep reports whatever the neighbor table held for the address, and
-	// anything that is not a 6-byte hardware address identifies nothing, so the
-	// device stays known by the address it answered on.
-	var mac dbtype.MAC
+	// A fact that does not assert presence says nothing about who holds the
+	// address now, so it never reaches for the current holder. A static lease
+	// for something unplugged must not identify, fold or take an address from
+	// whatever is answering on that address today.
+	var (
+		holder *models.Device
+		err    error
+	)
 
-	if h.MAC != "" {
-		parsed, err := dbtype.ParseMAC(h.MAC)
+	if f.Present {
+		holder, err = currentHolder(ctx, p.q, ip)
 		if err != nil {
-			s.log.DebugContext(ctx, "ignoring unusable hardware address", "addr", h.Address(), "mac", h.MAC, "err", err)
-		} else {
-			mac = parsed
+			return err
 		}
 	}
 
-	holder, err := currentHolder(ctx, p.q, ip)
-	if err != nil {
-		return err
-	}
-
-	target, err := s.resolve(ctx, p, mac, h, holder)
-	if err != nil {
+	target, err := s.resolve(ctx, p, mac, f, holder)
+	if err != nil || target == nil {
 		return err
 	}
 
@@ -258,16 +375,22 @@ func (s *Store) record(ctx context.Context, p *pass, h scanner.Host) error {
 		p.res.Merged++
 	}
 
-	if err := s.claim(ctx, p, target.ID, ip); err != nil {
+	// Holding an address and having been seen are both presence claims, and a
+	// source that is not making one may still say what a device is called.
+	if f.Present {
+		if err := s.claim(ctx, p, target.ID, ip); err != nil {
+			return err
+		}
+	}
+
+	if err := s.applyHostname(ctx, p, target, f); err != nil {
 		return err
 	}
 
-	if err := s.applyHostname(ctx, p, target, h.Hostname()); err != nil {
-		return err
-	}
-
-	if err := p.q.TouchDevice(ctx, models.TouchDeviceParams{LastSeen: p.at, ID: target.ID}); err != nil {
-		return fmt.Errorf("touch device %d: %w", target.ID, err)
+	if f.Present {
+		if err := p.q.TouchDevice(ctx, models.TouchDeviceParams{LastSeen: p.at, ID: target.ID}); err != nil {
+			return fmt.Errorf("touch device %d: %w", target.ID, err)
+		}
 	}
 
 	p.res.Seen++
@@ -275,14 +398,41 @@ func (s *Store) record(ctx context.Context, p *pass, h scanner.Host) error {
 	return nil
 }
 
-// resolve finds the device a result belongs to, creating or identifying one
-// where none is known yet. A nil holder means nothing currently claims the
-// address, which is a state to act on rather than one to report.
+// hardware parses the hardware address a fact carries. Anything that is not a
+// 6-byte address identifies nothing, so the fact keeps everything else it says
+// and the device stays known by the address it answered on.
+func (s *Store) hardware(ctx context.Context, f plugin.Fact) dbtype.MAC {
+	if f.Host.MAC == "" {
+		return dbtype.MAC{}
+	}
+
+	mac, err := dbtype.ParseMAC(f.Host.MAC)
+	if err != nil {
+		s.log.DebugContext(ctx, "ignoring unusable hardware address",
+			"addr", f.Host.Address(), "mac", f.Host.MAC, "err", err)
+
+		return dbtype.MAC{}
+	}
+
+	return mac
+}
+
+// resolve finds the device a fact belongs to, creating or identifying one where
+// none is known yet. A nil holder means nothing currently claims the address,
+// which is a state to act on rather than one to report.
+//
+// It returns a nil device and no error for a fact there is nothing to record
+// against. That is a fact which neither identifies a device nor says the
+// address is answering: an incomplete neighbour entry names nothing, and a
+// source reporting a device it has not seen may enrich a device already known
+// but may not conjure one. Until claims have a table of their own, "configured
+// but never seen" has nowhere to live that does not put a device nothing has
+// ever met into the inventory, counted among the online.
 func (s *Store) resolve(
 	ctx context.Context,
 	p *pass,
 	mac dbtype.MAC,
-	h scanner.Host,
+	f plugin.Fact,
 	holder *models.Device,
 ) (*models.Device, error) {
 	if !mac.Valid() {
@@ -290,7 +440,11 @@ func (s *Store) resolve(
 			return holder, nil
 		}
 
-		return s.create(ctx, p, mac, h)
+		if !f.Present {
+			return nil, nil
+		}
+
+		return s.create(ctx, p, mac, f)
 	}
 
 	d, err := p.q.GetDeviceByMAC(ctx, mac)
@@ -307,8 +461,8 @@ func (s *Store) resolve(
 	if holder != nil && holder.IdentitySource == dbtype.IdentityIP {
 		params := models.IdentifyDeviceParams{
 			MAC:          mac,
-			IsRandomised: h.Randomised(),
-			Vendor:       nullString(h.ShortName()),
+			IsRandomised: f.Host.Randomised(),
+			Vendor:       nullString(f.Host.ShortName()),
 			ID:           holder.ID,
 		}
 
@@ -329,35 +483,34 @@ func (s *Store) resolve(
 		return holder, nil
 	}
 
-	return s.create(ctx, p, mac, h)
+	if !f.Present {
+		return nil, nil
+	}
+
+	return s.create(ctx, p, mac, f)
 }
 
-func (s *Store) create(ctx context.Context, p *pass, mac dbtype.MAC, h scanner.Host) (*models.Device, error) {
+func (s *Store) create(ctx context.Context, p *pass, mac dbtype.MAC, f plugin.Fact) (*models.Device, error) {
 	source := dbtype.IdentityIP
 	if mac.Valid() {
 		source = dbtype.IdentityMAC
 	}
 
-	var hostnameSource dbtype.HostnameSource
-	if h.Hostname() != "" {
-		hostnameSource = dbtype.HostnameFromDNS
-	}
-
 	d, err := p.q.CreateDevice(ctx, models.CreateDeviceParams{
 		MAC:            mac,
 		IdentitySource: source,
-		IsRandomised:   h.Randomised(),
-		Vendor:         nullString(h.ShortName()),
-		Hostname:       nullString(h.Hostname()),
-		HostnameSource: hostnameSource,
+		IsRandomised:   f.Host.Randomised(),
+		Vendor:         nullString(f.Host.ShortName()),
+		Hostname:       nullString(f.Host.Hostname()),
+		HostnameSource: f.HostnameSource,
 		FirstSeen:      p.at,
 		LastSeen:       p.at,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("create device for %s: %w", h.Address(), err)
+		return nil, fmt.Errorf("create device for %s: %w", f.Host.Address(), err)
 	}
 
-	if err := s.event(ctx, p, d.ID, dbtype.EventDeviceDiscovered, "", h.Address().String(), ""); err != nil {
+	if err := s.event(ctx, p, d.ID, dbtype.EventDeviceDiscovered, "", f.Host.Address().String(), ""); err != nil {
 		return nil, err
 	}
 
@@ -420,7 +573,7 @@ func (s *Store) claim(ctx context.Context, p *pass, deviceID int64, ip dbtype.Ad
 	case errors.Is(err, sql.ErrNoRows):
 		params := models.InsertAddressParams{
 			DeviceID:  deviceID,
-			NetworkID: sql.NullInt64{Int64: p.networkID, Valid: true},
+			NetworkID: p.networks.networkID(ip.Addr),
 			IP:        ip,
 			FirstSeen: p.at,
 			LastSeen:  p.at,
@@ -435,7 +588,7 @@ func (s *Store) claim(ctx context.Context, p *pass, deviceID int64, ip dbtype.Ad
 	}
 
 	err = p.q.RefreshAddress(ctx, models.RefreshAddressParams{
-		NetworkID: sql.NullInt64{Int64: p.networkID, Valid: true},
+		NetworkID: p.networks.networkID(ip.Addr),
 		LastSeen:  p.at,
 		ID:        a.ID,
 	})
@@ -446,14 +599,19 @@ func (s *Store) claim(ctx context.Context, p *pass, deviceID int64, ip dbtype.Ad
 	return nil
 }
 
-func (s *Store) applyHostname(ctx context.Context, p *pass, d *models.Device, hostname string) error {
+// applyHostname writes the name a fact carries, with the standing the source
+// claims for it rather than a fixed one: a lease an operator bound and a name
+// resolved over DNS are not worth the same, and recording them alike would
+// leave nothing to weigh them by.
+func (s *Store) applyHostname(ctx context.Context, p *pass, d *models.Device, f plugin.Fact) error {
+	hostname := f.Host.Hostname()
 	if hostname == "" || hostname == d.Hostname.String {
 		return nil
 	}
 
 	params := models.SetDeviceHostnameParams{
 		Hostname:       nullString(hostname),
-		HostnameSource: dbtype.HostnameFromDNS,
+		HostnameSource: f.HostnameSource,
 		ID:             d.ID,
 	}
 	if err := p.q.SetDeviceHostname(ctx, params); err != nil {
