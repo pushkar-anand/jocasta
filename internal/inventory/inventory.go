@@ -189,7 +189,7 @@ func (s *Store) ingest(ctx context.Context, scanID, networkID int64, hosts []sca
 
 	for _, h := range hosts {
 		if err := s.record(ctx, p, h); err != nil {
-			return nil, fmt.Errorf("record %s: %w", h.Addr, err)
+			return nil, fmt.Errorf("record %s: %w", h.Address(), err)
 		}
 	}
 
@@ -222,7 +222,7 @@ func (s *Store) close(ctx context.Context, scanID int64, found int, cause error)
 }
 
 func (s *Store) record(ctx context.Context, p *pass, h scanner.Host) error {
-	ip := dbtype.NewAddr(h.Addr)
+	ip := dbtype.NewAddr(h.Address())
 
 	// A sweep reports whatever the neighbor table held for the address, and
 	// anything that is not a 6-byte hardware address identifies nothing, so the
@@ -232,7 +232,7 @@ func (s *Store) record(ctx context.Context, p *pass, h scanner.Host) error {
 	if h.MAC != "" {
 		parsed, err := dbtype.ParseMAC(h.MAC)
 		if err != nil {
-			s.log.DebugContext(ctx, "ignoring unusable hardware address", "addr", h.Addr, "mac", h.MAC, "err", err)
+			s.log.DebugContext(ctx, "ignoring unusable hardware address", "addr", h.Address(), "mac", h.MAC, "err", err)
 		} else {
 			mac = parsed
 		}
@@ -262,7 +262,7 @@ func (s *Store) record(ctx context.Context, p *pass, h scanner.Host) error {
 		return err
 	}
 
-	if err := s.applyHostname(ctx, p, target, h.Hostname); err != nil {
+	if err := s.applyHostname(ctx, p, target, h.Hostname()); err != nil {
 		return err
 	}
 
@@ -307,8 +307,8 @@ func (s *Store) resolve(
 	if holder != nil && holder.IdentitySource == dbtype.IdentityIP {
 		params := models.IdentifyDeviceParams{
 			MAC:          mac,
-			IsRandomised: h.Randomised,
-			Vendor:       nullString(h.Vendor),
+			IsRandomised: h.Randomised(),
+			Vendor:       nullString(h.ShortName()),
 			ID:           holder.ID,
 		}
 
@@ -339,25 +339,25 @@ func (s *Store) create(ctx context.Context, p *pass, mac dbtype.MAC, h scanner.H
 	}
 
 	var hostnameSource dbtype.HostnameSource
-	if h.Hostname != "" {
+	if h.Hostname() != "" {
 		hostnameSource = dbtype.HostnameFromDNS
 	}
 
 	d, err := p.q.CreateDevice(ctx, models.CreateDeviceParams{
 		MAC:            mac,
 		IdentitySource: source,
-		IsRandomised:   h.Randomised,
-		Vendor:         nullString(h.Vendor),
-		Hostname:       nullString(h.Hostname),
+		IsRandomised:   h.Randomised(),
+		Vendor:         nullString(h.ShortName()),
+		Hostname:       nullString(h.Hostname()),
 		HostnameSource: hostnameSource,
 		FirstSeen:      p.at,
 		LastSeen:       p.at,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("create device for %s: %w", h.Addr, err)
+		return nil, fmt.Errorf("create device for %s: %w", h.Address(), err)
 	}
 
-	if err := s.event(ctx, p, d.ID, dbtype.EventDeviceDiscovered, "", h.Addr.String(), ""); err != nil {
+	if err := s.event(ctx, p, d.ID, dbtype.EventDeviceDiscovered, "", h.Address().String(), ""); err != nil {
 		return nil, err
 	}
 

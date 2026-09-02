@@ -2,15 +2,16 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
-	"net/netip"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/alecthomas/kong"
 	"github.com/pushkar-anand/jocasta/internal/config"
+	"github.com/pushkar-anand/jocasta/internal/hosts"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -119,41 +120,32 @@ func TestOutputScanResultsTable(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	hosts := []scanner.Host{
-		{
-			Addr:     netip.MustParseAddr("192.168.1.1"),
-			MAC:      "00:11:22:33:44:55",
-			Vendor:   "MikroTik",
-			Hostname: "router.lan",
-			RTT:      1200 * time.Microsecond,
-			SeenAt:   now,
-		},
-		{
-			Addr:       netip.MustParseAddr("192.168.1.100"),
-			MAC:        "da:a1:19:00:11:22",
-			Randomised: true,
-			Hostname:   "",
-			RTT:        500 * time.Microsecond,
-			SeenAt:     now,
-			Self:       true,
-			Interface:  "eth0",
-		},
+	swept := []scanner.Host{
+		{Host: host("192.168.1.1", "00:00:0c:11:22:33", "router.lan", ""), RTT: 1200 * time.Microsecond, SeenAt: now},
+		{Host: host("192.168.1.100", "02:00:5e:10:00:01", "", "eth0"), RTT: 500 * time.Microsecond, SeenAt: now, Self: true},
+		{Host: host("192.168.1.101", "da:a1:19:00:11:22", "", ""), RTT: 900 * time.Microsecond, SeenAt: now},
 	}
 
 	var buf bytes.Buffer
 
-	err := outputScanResults(&buf, hosts, false)
+	err := outputScanResults(&buf, swept, false)
 	require.NoError(t, err)
 
 	output := buf.String()
 	assert.Contains(t, output, "192.168.1.1")
-	assert.Contains(t, output, "00:11:22:33:44:55")
-	assert.Contains(t, output, "MikroTik")
+	assert.Contains(t, output, "00:00:0c:11:22:33")
+	assert.Contains(t, output, "Cisco")
 	assert.Contains(t, output, "router.lan")
 
 	assert.Contains(t, output, "192.168.1.100")
 	assert.Contains(t, output, "[randomised]")
 	assert.Contains(t, output, "self (eth0)")
+
+	// A locally administered prefix the table names is that vendor's hardware,
+	// so the placeholder is for addresses nothing can name, not for every
+	// address a device assigned itself.
+	assert.Contains(t, output, "192.168.1.101")
+	assert.Contains(t, output, "Google")
 }
 
 func TestOutputScanResultsEmpty(t *testing.T) {
@@ -171,31 +163,36 @@ func TestOutputScanResultsJSON(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now().Truncate(time.Second)
-	hosts := []scanner.Host{
-		{
-			Addr:     netip.MustParseAddr("192.168.1.1"),
-			MAC:      "00:11:22:33:44:55",
-			Vendor:   "MikroTik",
-			Hostname: "router.lan",
-			RTT:      time.Millisecond,
-			SeenAt:   now,
-		},
+	swept := []scanner.Host{
+		{Host: host("192.168.1.1", "00:00:0c:11:22:33", "router.lan", ""), RTT: time.Millisecond, SeenAt: now},
 	}
 
 	var buf bytes.Buffer
 
-	err := outputScanResults(&buf, hosts, true)
+	err := outputScanResults(&buf, swept, true)
 	require.NoError(t, err)
 
-	var decoded []scanner.Host
+	// Decoded into the wire shape rather than back into a Host: the enriched
+	// values live in unexported fields, so a round trip would assert against
+	// whatever the decoder could not fill in.
+	var decoded []struct {
+		Addr     string        `json:"addr"`
+		MAC      string        `json:"mac"`
+		Vendor   string        `json:"vendor"`
+		Hostname string        `json:"hostname"`
+		RTT      time.Duration `json:"rtt"`
+		SeenAt   time.Time     `json:"seen_at"`
+	}
 
 	err = json.Unmarshal(buf.Bytes(), &decoded)
 	require.NoError(t, err)
 	require.Len(t, decoded, 1)
-	assert.Equal(t, hosts[0].Addr, decoded[0].Addr)
-	assert.Equal(t, hosts[0].MAC, decoded[0].MAC)
-	assert.Equal(t, hosts[0].Vendor, decoded[0].Vendor)
-	assert.Equal(t, hosts[0].Hostname, decoded[0].Hostname)
+	assert.Equal(t, "192.168.1.1", decoded[0].Addr)
+	assert.Equal(t, "00:00:0c:11:22:33", decoded[0].MAC)
+	assert.Equal(t, "Cisco", decoded[0].Vendor)
+	assert.Equal(t, "router.lan", decoded[0].Hostname)
+	assert.Equal(t, time.Millisecond, decoded[0].RTT)
+	assert.Equal(t, now.UTC(), decoded[0].SeenAt.UTC())
 }
 
 func TestScanCmdInvalidTarget(t *testing.T) {
@@ -236,4 +233,20 @@ func TestLoadConfigAppliesLoggingOverrides(t *testing.T) {
 
 	assert.Equal(t, "debug", cfg.Logger.Level)
 	assert.Equal(t, "text", cfg.Logger.Format)
+}
+
+// host builds an enriched host the way a sweep does. A malformed argument is a
+// broken test.
+func host(ip, mac, hostname, iface string) *hosts.Host {
+	h, err := hosts.BuildHost(context.Background(), hosts.HostInput{
+		IP:        ip,
+		MAC:       mac,
+		Hostname:  hostname,
+		Interface: iface,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	return h
 }

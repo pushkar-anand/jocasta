@@ -1,6 +1,7 @@
 package hosts
 
 import (
+	"encoding/json"
 	"net/netip"
 	"testing"
 
@@ -209,6 +210,19 @@ func TestBuildHostMarksARandomisedAddress(t *testing.T) {
 	assert.Empty(t, h.ShortName())
 }
 
+// A vendor can choose a locally administered prefix instead of registering
+// one, and the table carries those. Such a device is that vendor's hardware,
+// so the two answers are independent: locally administered, and known anyway.
+func TestBuildHostNamesTheVendorOfALocallyAdministeredPrefix(t *testing.T) {
+	t.Parallel()
+
+	h, err := BuildHost(t.Context(), HostInput{IP: "192.0.2.10", MAC: "da:a1:19:00:11:22"})
+	require.NoError(t, err)
+
+	assert.True(t, h.Randomised())
+	assert.Equal(t, "Google", h.ShortName())
+}
+
 func TestBuildHostLeavesTheVendorEmptyForAnUnregisteredAddress(t *testing.T) {
 	t.Parallel()
 
@@ -305,4 +319,49 @@ func TestHostAccessorsOnTheZeroValue(t *testing.T) {
 	assert.Empty(t, h.Vendor())
 	assert.Empty(t, h.ShortName())
 	assert.False(t, h.Randomised())
+}
+
+// The enriched values live in unexported fields, so encoding a Host without a
+// marshaller of its own would quietly emit the half nobody wants.
+func TestHostMarshalsItsEnrichedValues(t *testing.T) {
+	t.Parallel()
+
+	h, err := BuildHost(t.Context(), HostInput{
+		IP:        "192.0.2.10",
+		MAC:       "00:00:0c:11:22:33",
+		Hostname:  suppliedName,
+		Interface: "eth0",
+		VLAN:      20,
+	})
+	require.NoError(t, err)
+
+	raw, err := json.Marshal(h)
+	require.NoError(t, err)
+
+	var got map[string]any
+
+	require.NoError(t, json.Unmarshal(raw, &got))
+
+	assert.Equal(t, map[string]any{
+		"ip":           "192.0.2.10",
+		"mac":          "00:00:0c:11:22:33",
+		"hostname":     suppliedName,
+		"vendor":       "Cisco Systems, Inc",
+		"vendor_short": "Cisco",
+		"interface":    "eth0",
+		"vlan":         float64(20),
+	}, got)
+}
+
+// Nothing was resolved, so nothing but the address is worth writing.
+func TestHostMarshalsAnUnenrichedHost(t *testing.T) {
+	t.Parallel()
+
+	h, err := BuildHost(t.Context(), HostInput{IP: "192.0.2.10"})
+	require.NoError(t, err)
+
+	raw, err := json.Marshal(h)
+	require.NoError(t, err)
+
+	assert.JSONEq(t, `{"ip":"192.0.2.10"}`, string(raw))
 }

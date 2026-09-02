@@ -1,6 +1,7 @@
 package inventory
 
 import (
+	"context"
 	"database/sql"
 	"log/slog"
 	"net/netip"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
+	"github.com/pushkar-anand/jocasta/internal/hosts"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,12 +46,15 @@ func newStore(t *testing.T) (*Store, *sql.DB) {
 	return s, d.Conn
 }
 
+// host builds a swept host the way a sweep does, so the ingest sees the same
+// enrichment here as in production. A malformed argument is a broken test.
 func host(ip, mac, hostname string) scanner.Host {
-	return scanner.Host{
-		Addr:     netip.MustParseAddr(ip),
-		MAC:      mac,
-		Hostname: hostname,
+	h, err := hosts.BuildHost(context.Background(), hosts.HostInput{IP: ip, MAC: mac, Hostname: hostname})
+	if err != nil {
+		panic(err)
 	}
+
+	return scanner.Host{Host: h}
 }
 
 func sweep(t *testing.T, s *Store, hosts ...scanner.Host) *Result {
@@ -308,10 +313,9 @@ func TestRecordSweepMarksRandomisedAddress(t *testing.T) {
 
 	s, conn := newStore(t)
 
-	h := host("192.0.2.10", "02:00:5e:00:53:01", "")
-	h.Randomised = true
-
-	sweep(t, s, h)
+	// The locally administered bit is set on this address, so the flag is
+	// derived rather than asserted into the host.
+	sweep(t, s, host("192.0.2.10", "02:00:5e:00:53:01", ""))
 
 	assert.Equal(t, 1, queryInt(t, conn, `SELECT is_randomised FROM devices`))
 }
@@ -395,7 +399,7 @@ func TestRecordSweepRecordsAFailedIngest(t *testing.T) {
 	// The zero address is refused on the way to the column, so the ingest gives
 	// up partway and rolls back the host ahead of it.
 	res, err := s.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix),
-		[]scanner.Host{host("192.0.2.10", macA, ""), {}})
+		[]scanner.Host{host("192.0.2.10", macA, ""), host("", "", "")})
 	require.Error(t, err)
 	assert.Nil(t, res, "a failed sweep returns no result to read")
 

@@ -5,6 +5,7 @@ package hosts
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/netip"
@@ -113,8 +114,14 @@ func BuildHost(ctx context.Context, in HostInput) (*Host, error) {
 
 		h.mac = hw
 
-		info, found := oui.Lookup(hw)
-		if found {
+		// Checked independently: the two answer different questions, and a
+		// locally administered address can have a vendor. Wireshark's manuf
+		// file carries a couple of hundred prefixes a vendor chose for itself
+		// rather than registered, and a device using one is that vendor's
+		// hardware however its address was assigned. Only an address that is
+		// locally administered *and* matches nothing is the privacy address
+		// [Host.Randomised] exists to flag.
+		if info, found := oui.Lookup(hw); found {
 			h.shortName = info.Short
 			h.vendor = info.Name
 		}
@@ -155,4 +162,29 @@ func (h Host) HardwareAddress() net.HardwareAddr {
 // Randomised reports whether the hardware address has its locally administered bit set.
 func (h Host) Randomised() bool {
 	return h.randomised
+}
+
+// MarshalJSON writes what a Host was enriched into rather than what it was
+// built from. The name, vendor and randomised flag live in unexported fields,
+// so the default encoding emits a Host with its useful half missing.
+func (h Host) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		IP         string `json:"ip"`
+		MAC        string `json:"mac,omitempty"`
+		Hostname   string `json:"hostname,omitempty"`
+		Vendor     string `json:"vendor,omitempty"`
+		ShortName  string `json:"vendor_short,omitempty"`
+		Randomised bool   `json:"randomised,omitempty"`
+		Interface  string `json:"interface,omitempty"`
+		VLAN       int    `json:"vlan,omitempty"`
+	}{
+		IP:         h.IP,
+		MAC:        h.MAC,
+		Hostname:   h.hostname,
+		Vendor:     h.vendor,
+		ShortName:  h.shortName,
+		Randomised: h.randomised,
+		Interface:  h.Interface,
+		VLAN:       h.VLAN,
+	})
 }
