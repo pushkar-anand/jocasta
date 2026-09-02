@@ -122,7 +122,8 @@ func TestOutputScanResultsTable(t *testing.T) {
 	now := time.Now()
 	swept := []scanner.Host{
 		{Host: host("192.168.1.1", "00:00:0c:11:22:33", "router.lan", ""), RTT: 1200 * time.Microsecond, SeenAt: now},
-		{Host: host("192.168.1.100", "da:a1:19:00:11:22", "", "eth0"), RTT: 500 * time.Microsecond, SeenAt: now, Self: true},
+		{Host: host("192.168.1.100", "02:00:5e:10:00:01", "", "eth0"), RTT: 500 * time.Microsecond, SeenAt: now, Self: true},
+		{Host: host("192.168.1.101", "da:a1:19:00:11:22", "", ""), RTT: 900 * time.Microsecond, SeenAt: now},
 	}
 
 	var buf bytes.Buffer
@@ -139,6 +140,12 @@ func TestOutputScanResultsTable(t *testing.T) {
 	assert.Contains(t, output, "192.168.1.100")
 	assert.Contains(t, output, "[randomised]")
 	assert.Contains(t, output, "self (eth0)")
+
+	// A locally administered prefix the table names is that vendor's hardware,
+	// so the placeholder is for addresses nothing can name, not for every
+	// address a device assigned itself.
+	assert.Contains(t, output, "192.168.1.101")
+	assert.Contains(t, output, "Google")
 }
 
 func TestOutputScanResultsEmpty(t *testing.T) {

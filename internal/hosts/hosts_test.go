@@ -210,18 +210,17 @@ func TestBuildHostMarksARandomisedAddress(t *testing.T) {
 	assert.Empty(t, h.ShortName())
 }
 
-// The locally administered bit can be set on an address whose OUI is
-// registered, and a device that generated its own address did not become that
-// vendor's hardware by colliding with them.
-func TestBuildHostPrefersRandomisedOverACollidingRegistration(t *testing.T) {
+// A vendor can choose a locally administered prefix instead of registering
+// one, and the table carries those. Such a device is that vendor's hardware,
+// so the two answers are independent: locally administered, and known anyway.
+func TestBuildHostNamesTheVendorOfALocallyAdministeredPrefix(t *testing.T) {
 	t.Parallel()
 
 	h, err := BuildHost(t.Context(), HostInput{IP: "192.0.2.10", MAC: "da:a1:19:00:11:22"})
 	require.NoError(t, err)
 
 	assert.True(t, h.Randomised())
-	assert.Empty(t, h.Vendor())
-	assert.Empty(t, h.ShortName())
+	assert.Equal(t, "Google", h.ShortName())
 }
 
 func TestBuildHostLeavesTheVendorEmptyForAnUnregisteredAddress(t *testing.T) {
