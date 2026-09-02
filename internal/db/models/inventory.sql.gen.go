@@ -659,6 +659,62 @@ func (q *Queries) ListDeviceEvents(ctx context.Context, arg ListDeviceEventsPara
 	return items, nil
 }
 
+const listDeviceSources = `-- name: ListDeviceSources :many
+SELECT ds.device_id, ds.source_id, ds.hostname, ds.hostname_source, ds.detail, ds.first_seen, ds.last_seen, s.name AS source_name, s.kind AS source_kind
+FROM device_sources ds
+         JOIN sources s ON s.id = ds.source_id
+WHERE ds.device_id = ?
+ORDER BY ds.last_seen DESC, s.name
+`
+
+type ListDeviceSourcesRow struct {
+	DeviceSource DeviceSource      `json:"device_source"`
+	SourceName   string            `json:"source_name"`
+	SourceKind   dbtype.SourceKind `json:"source_kind"`
+}
+
+// Every source's claim about one device. Resolution reads this to elect the
+// name the device list shows and searches on; the device page reads it to show
+// what each source says, including the ones that did not win.
+//
+//	SELECT ds.device_id, ds.source_id, ds.hostname, ds.hostname_source, ds.detail, ds.first_seen, ds.last_seen, s.name AS source_name, s.kind AS source_kind
+//	FROM device_sources ds
+//	         JOIN sources s ON s.id = ds.source_id
+//	WHERE ds.device_id = ?
+//	ORDER BY ds.last_seen DESC, s.name
+func (q *Queries) ListDeviceSources(ctx context.Context, deviceID int64) ([]*ListDeviceSourcesRow, error) {
+	rows, err := q.query(ctx, q.listDeviceSourcesStmt, listDeviceSources, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*ListDeviceSourcesRow
+	for rows.Next() {
+		var i ListDeviceSourcesRow
+		if err := rows.Scan(
+			&i.DeviceSource.DeviceID,
+			&i.DeviceSource.SourceID,
+			&i.DeviceSource.Hostname,
+			&i.DeviceSource.HostnameSource,
+			&i.DeviceSource.Detail,
+			&i.DeviceSource.FirstSeen,
+			&i.DeviceSource.LastSeen,
+			&i.SourceName,
+			&i.SourceKind,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDevices = `-- name: ListDevices :many
 
 SELECT d.id, d.mac, d.identity_source, d.is_randomised, d.vendor, d.hostname, d.hostname_source, d.device_type, d.label, d.notes, d.group_name, d.is_ignored, d.first_seen, d.last_seen,
@@ -895,6 +951,54 @@ func (q *Queries) MoveAddresses(ctx context.Context, arg MoveAddressesParams) er
 	return err
 }
 
+const moveDeviceSources = `-- name: MoveDeviceSources :exec
+INSERT INTO device_sources (device_id, source_id, hostname, hostname_source, detail, first_seen, last_seen)
+SELECT ?1, ghost.source_id, ghost.hostname, ghost.hostname_source, ghost.detail,
+       ghost.first_seen, ghost.last_seen
+FROM device_sources ghost
+WHERE ghost.device_id = ?2
+ON CONFLICT (device_id, source_id)
+    DO UPDATE SET hostname        = IIF(excluded.last_seen > device_sources.last_seen,
+                                        excluded.hostname, device_sources.hostname),
+                  hostname_source = IIF(excluded.last_seen > device_sources.last_seen,
+                                        excluded.hostname_source, device_sources.hostname_source),
+                  detail          = IIF(excluded.last_seen > device_sources.last_seen,
+                                        excluded.detail, device_sources.detail),
+                  first_seen      = MIN(device_sources.first_seen, excluded.first_seen),
+                  last_seen       = MAX(device_sources.last_seen, excluded.last_seen)
+`
+
+type MoveDeviceSourcesParams struct {
+	IntoID int64 `json:"into_id"`
+	FromID int64 `json:"from_id"`
+}
+
+// Claims move with the device on a fold. Not UPDATE OR IGNORE, as addresses
+// use: device_sources is keyed on (device_id, source_id), so a source that had
+// filed a claim against both rows collides, and ignoring the collision would
+// drop the claim to the CASCADE on DeleteDevice -- losing provenance silently,
+// which is the one failure this table cannot report. The surviving claim takes
+// the newer reading's name and the outer bounds of both sightings.
+//
+//	INSERT INTO device_sources (device_id, source_id, hostname, hostname_source, detail, first_seen, last_seen)
+//	SELECT ?1, ghost.source_id, ghost.hostname, ghost.hostname_source, ghost.detail,
+//	       ghost.first_seen, ghost.last_seen
+//	FROM device_sources ghost
+//	WHERE ghost.device_id = ?2
+//	ON CONFLICT (device_id, source_id)
+//	    DO UPDATE SET hostname        = IIF(excluded.last_seen > device_sources.last_seen,
+//	                                        excluded.hostname, device_sources.hostname),
+//	                  hostname_source = IIF(excluded.last_seen > device_sources.last_seen,
+//	                                        excluded.hostname_source, device_sources.hostname_source),
+//	                  detail          = IIF(excluded.last_seen > device_sources.last_seen,
+//	                                        excluded.detail, device_sources.detail),
+//	                  first_seen      = MIN(device_sources.first_seen, excluded.first_seen),
+//	                  last_seen       = MAX(device_sources.last_seen, excluded.last_seen)
+func (q *Queries) MoveDeviceSources(ctx context.Context, arg MoveDeviceSourcesParams) error {
+	_, err := q.exec(ctx, q.moveDeviceSourcesStmt, moveDeviceSources, arg.IntoID, arg.FromID)
+	return err
+}
+
 const moveEvents = `-- name: MoveEvents :exec
 UPDATE events
 SET device_id = ?1
@@ -1074,6 +1178,51 @@ func (q *Queries) UpdateDeviceCuration(ctx context.Context, arg UpdateDeviceCura
 		&i.LastSeen,
 	)
 	return &i, err
+}
+
+const upsertDeviceSource = `-- name: UpsertDeviceSource :exec
+INSERT INTO device_sources (device_id, source_id, hostname, hostname_source, detail, first_seen, last_seen)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (device_id, source_id)
+    DO UPDATE SET hostname        = excluded.hostname,
+                  hostname_source = excluded.hostname_source,
+                  detail          = excluded.detail,
+                  last_seen       = excluded.last_seen
+`
+
+type UpsertDeviceSourceParams struct {
+	DeviceID       int64                 `json:"device_id"`
+	SourceID       int64                 `json:"source_id"`
+	Hostname       sql.NullString        `json:"hostname"`
+	HostnameSource dbtype.HostnameSource `json:"hostname_source"`
+	Detail         sql.NullString        `json:"detail"`
+	FirstSeen      dbtype.Time           `json:"first_seen"`
+	LastSeen       dbtype.Time           `json:"last_seen"`
+}
+
+// The claim is upserted rather than replaced so first_seen survives every later
+// reading. hostname is assigned rather than coalesced: a source that has
+// stopped reporting a name must be able to retract it, and a COALESCE here
+// would make a name immortal once any source had said it once.
+//
+//	INSERT INTO device_sources (device_id, source_id, hostname, hostname_source, detail, first_seen, last_seen)
+//	VALUES (?, ?, ?, ?, ?, ?, ?)
+//	ON CONFLICT (device_id, source_id)
+//	    DO UPDATE SET hostname        = excluded.hostname,
+//	                  hostname_source = excluded.hostname_source,
+//	                  detail          = excluded.detail,
+//	                  last_seen       = excluded.last_seen
+func (q *Queries) UpsertDeviceSource(ctx context.Context, arg UpsertDeviceSourceParams) error {
+	_, err := q.exec(ctx, q.upsertDeviceSourceStmt, upsertDeviceSource,
+		arg.DeviceID,
+		arg.SourceID,
+		arg.Hostname,
+		arg.HostnameSource,
+		arg.Detail,
+		arg.FirstSeen,
+		arg.LastSeen,
+	)
+	return err
 }
 
 const upsertNetwork = `-- name: UpsertNetwork :one

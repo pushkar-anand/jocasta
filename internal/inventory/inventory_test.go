@@ -598,3 +598,230 @@ func TestRefreshAddressKeepsTheNetworkASweepEstablished(t *testing.T) {
 	assert.Equal(t, "192.0.2.0/24", queryString(t, conn,
 		`SELECT n.cidr FROM addresses a JOIN networks n ON n.id = a.network_id WHERE a.id = ?`, id))
 }
+
+// claimOf reads what one source says about a device, by the source's name.
+func claimOf(t *testing.T, conn *sql.DB, deviceID int64, source string) (name, standing string) {
+	t.Helper()
+
+	var n, st sql.NullString
+
+	err := conn.QueryRowContext(t.Context(),
+		`SELECT ds.hostname, ds.hostname_source
+		 FROM device_sources ds JOIN sources s ON s.id = ds.source_id
+		 WHERE ds.device_id = ? AND s.name = ?`, deviceID, source,
+	).Scan(&n, &st)
+	require.NoError(t, err)
+
+	return n.String, st.String
+}
+
+func TestEachSourceKeepsItsOwnClaim(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, host("192.0.2.10", macA, "host-a.example.com"))
+	report(t, s, fact("192.0.2.10", macA, "printer", true, dbtype.HostnameFromDHCPStatic))
+
+	id := deviceIDByMAC(t, conn, macA)
+
+	name, standing := claimOf(t, conn, id, "test-sweep")
+	assert.Equal(t, "host-a.example.com", name)
+	assert.Equal(t, string(dbtype.HostnameFromDNS), standing)
+
+	name, standing = claimOf(t, conn, id, "test-router")
+	assert.Equal(t, "printer", name)
+	assert.Equal(t, string(dbtype.HostnameFromDHCPStatic), standing)
+
+	assert.Equal(t, 2, queryInt(t, conn, `SELECT count(*) FROM device_sources WHERE device_id = ?`, id))
+}
+
+// The name the list shows is elected from every claim, so a lease name does not
+// displace the one that resolves just by being written later.
+func TestElectedNamePrefersTheNameThatResolves(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, host("192.0.2.10", macA, "host-a.example.com"))
+	report(t, s, fact("192.0.2.10", macA, "printer", true, dbtype.HostnameFromDHCPStatic))
+
+	assert.Equal(t, "host-a.example.com", queryString(t, conn, `SELECT hostname FROM devices`))
+	assert.Equal(t, string(dbtype.HostnameFromDNS), queryString(t, conn, `SELECT hostname_source FROM devices`))
+}
+
+// The row takes the fuller spelling, but an operator is not told the device was
+// renamed when only the domain arrived.
+func TestTwoSpellingsOfOneNameAreNotARename(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	report(t, s, fact("192.0.2.10", macA, "host-a", true, dbtype.HostnameFromDHCPLease))
+
+	id := deviceIDByMAC(t, conn, macA)
+	require.Equal(t, "host-a", queryString(t, conn, `SELECT hostname FROM devices`))
+
+	sweep(t, s, host("192.0.2.10", macA, "host-a.example.com"))
+
+	assert.Equal(t, "host-a.example.com", queryString(t, conn, `SELECT hostname FROM devices`))
+	assert.NotContains(t, eventKinds(t, conn, id), dbtype.EventHostnameChanged)
+}
+
+// A source that stops reporting a name writes an empty claim over its old one,
+// which is what lets the runner-up be elected instead.
+func TestARetractedNameFallsBackToTheRunnerUp(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, host("192.0.2.10", macA, "host-a.example.com"))
+	report(t, s, fact("192.0.2.10", macA, "printer", true, dbtype.HostnameFromDHCPStatic))
+
+	id := deviceIDByMAC(t, conn, macA)
+	require.Equal(t, "host-a.example.com", queryString(t, conn, `SELECT hostname FROM devices`))
+
+	// The resolver has no record for the address any more.
+	sweep(t, s, host("192.0.2.10", macA, ""))
+
+	name, standing := claimOf(t, conn, id, "test-sweep")
+	assert.Empty(t, name)
+	assert.Empty(t, standing)
+
+	assert.Equal(t, "printer", queryString(t, conn, `SELECT hostname FROM devices`))
+	assert.Equal(t, string(dbtype.HostnameFromDHCPStatic), queryString(t, conn, `SELECT hostname_source FROM devices`))
+}
+
+// Every source retracting leaves the device nameless rather than holding a name
+// nothing claims any more.
+func TestADeviceCanLoseItsNameEntirely(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, host("192.0.2.10", macA, "host-a.example.com"))
+	sweep(t, s, host("192.0.2.10", macA, ""))
+
+	assert.Equal(t, 1, queryInt(t, conn, `SELECT count(*) FROM devices WHERE hostname IS NULL`))
+	assert.Equal(t, 1, queryInt(t, conn, `SELECT count(*) FROM devices WHERE hostname_source IS NULL`))
+}
+
+func TestFoldCarriesClaimsToTheSurvivingDevice(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, host("192.0.2.10", macA, ""))
+	report(t, s, fact("192.0.2.20", "", "printer", true, dbtype.HostnameFromDHCPStatic))
+
+	var ghost int64
+	require.NoError(t, conn.QueryRowContext(t.Context(), `SELECT id FROM devices WHERE mac IS NULL`).Scan(&ghost))
+
+	res := sweep(t, s, host("192.0.2.20", macA, ""))
+	require.Equal(t, 1, res.Merged)
+
+	id := deviceIDByMAC(t, conn, macA)
+
+	name, standing := claimOf(t, conn, id, "test-router")
+	assert.Equal(t, "printer", name)
+	assert.Equal(t, string(dbtype.HostnameFromDHCPStatic), standing)
+
+	assert.Zero(t, queryInt(t, conn, `SELECT count(*) FROM device_sources WHERE device_id = ?`, ghost))
+
+	// The claim it kept is the one the surviving row is now named by.
+	assert.Equal(t, "printer", queryString(t, conn, `SELECT hostname FROM devices`))
+}
+
+// A source that had filed against both rows collides on the primary key, so the
+// claims merge instead of one of them being dropped. The fold is driven by a
+// different source here, or this source's own upsert would mask the merge.
+func TestFoldMergesTwoClaimsFromOneSource(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, host("192.0.2.10", macA, "first.example.com"))
+	sweep(t, s, host("192.0.2.20", "", "second.example.com"))
+
+	var ghost int64
+	require.NoError(t, conn.QueryRowContext(t.Context(), `SELECT id FROM devices WHERE mac IS NULL`).Scan(&ghost))
+
+	firstSeen := queryString(t, conn,
+		`SELECT first_seen FROM device_sources WHERE device_id = ?`, deviceIDByMAC(t, conn, macA))
+
+	res := report(t, s, fact("192.0.2.20", macA, "printer", true, dbtype.HostnameFromDHCPStatic))
+	require.Equal(t, 1, res.Merged)
+
+	id := deviceIDByMAC(t, conn, macA)
+
+	assert.Zero(t, queryInt(t, conn, `SELECT count(*) FROM device_sources WHERE device_id = ?`, ghost))
+	assert.Equal(t, 2, queryInt(t, conn, `SELECT count(*) FROM device_sources WHERE device_id = ?`, id))
+
+	// The newer of the two readings names the merged claim.
+	name, _ := claimOf(t, conn, id, "test-sweep")
+	assert.Equal(t, "second.example.com", name)
+
+	// And the earlier of the two sightings still bounds it.
+	assert.Equal(t, firstSeen,
+		queryString(t, conn, `SELECT first_seen FROM device_sources ds JOIN sources s ON s.id = ds.source_id
+		                      WHERE ds.device_id = ? AND s.name = 'test-sweep'`, id))
+}
+
+// Detail is stored verbatim for the device page and never merged into devices.
+func TestAClaimStoresWhatOnlyItsSourceKnows(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	f := fact("192.0.2.10", macA, "printer", true, dbtype.HostnameFromDHCPStatic)
+	f.Detail = map[string]string{"interface": "vlan10", "dhcp_comment": "lab printer"}
+
+	report(t, s, f)
+
+	id := deviceIDByMAC(t, conn, macA)
+	assert.JSONEq(t, `{"interface":"vlan10","dhcp_comment":"lab printer"}`,
+		queryString(t, conn, `SELECT detail FROM device_sources WHERE device_id = ?`, id))
+}
+
+func TestAClaimWithoutDetailStoresNull(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	report(t, s, fact("192.0.2.10", macA, "", true, ""))
+
+	assert.Equal(t, 1, queryInt(t, conn, `SELECT count(*) FROM device_sources WHERE detail IS NULL`))
+}
+
+// A fact nothing can be recorded against is counted rather than silently lost.
+func TestReportCountsWhatItDropped(t *testing.T) {
+	t.Parallel()
+
+	s, _ := newStore(t)
+
+	res := report(t, s, fact("192.0.2.10", "", "printer", false, dbtype.HostnameFromDHCPStatic))
+
+	assert.Equal(t, 1, res.Dropped)
+	assert.Zero(t, res.Seen)
+	assert.Zero(t, res.Discovered)
+}
+
+// RecordFacts is the exported form the plugin path uses; a sweep reaches the
+// same ingest through RecordSweep.
+func TestRecordFactsFilesUnderTheNamedSource(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	res, err := s.RecordFacts(t.Context(), "routeros:gateway", dbtype.SourceRouter,
+		[]plugin.Fact{fact("192.0.2.10", macA, "printer", true, dbtype.HostnameFromDHCPStatic)})
+	require.NoError(t, err)
+	require.Equal(t, 1, res.Seen)
+
+	id := deviceIDByMAC(t, conn, macA)
+
+	name, _ := claimOf(t, conn, id, "routeros:gateway")
+	assert.Equal(t, "printer", name)
+	assert.Equal(t, string(dbtype.SourceRouter),
+		queryString(t, conn, `SELECT kind FROM sources WHERE name = 'routeros:gateway'`))
+}

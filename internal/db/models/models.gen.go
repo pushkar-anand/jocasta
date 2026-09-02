@@ -37,6 +37,16 @@ type Device struct {
 	LastSeen       dbtype.Time           `json:"last_seen"`
 }
 
+type DeviceSource struct {
+	DeviceID       int64                 `json:"device_id"`
+	SourceID       int64                 `json:"source_id"`
+	Hostname       sql.NullString        `json:"hostname"`
+	HostnameSource dbtype.HostnameSource `json:"hostname_source"`
+	Detail         sql.NullString        `json:"detail"`
+	FirstSeen      dbtype.Time           `json:"first_seen"`
+	LastSeen       dbtype.Time           `json:"last_seen"`
+}
+
 type Event struct {
 	ID         int64            `json:"id"`
 	DeviceID   sql.NullInt64    `json:"device_id"`

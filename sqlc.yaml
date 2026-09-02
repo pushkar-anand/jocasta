@@ -43,6 +43,10 @@ sql:
             go_type: *timestamp
           - column: "events.occurred_at"
             go_type: *timestamp
+          - column: "device_sources.first_seen"
+            go_type: *timestamp
+          - column: "device_sources.last_seen"
+            go_type: *timestamp
           - column: "scans.finished_at"
             go_type:
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
@@ -91,6 +95,13 @@ sql:
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
               type: "EventKind"
           - column: "devices.hostname_source"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "HostnameSource"
+          # Nullable, like devices.hostname_source: HostnameSource stores the
+          # empty source as null and reads null back as empty, so a claim with
+          # no name needs no second type either.
+          - column: "device_sources.hostname_source"
             go_type:
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
               type: "HostnameSource"

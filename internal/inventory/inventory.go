@@ -6,6 +6,7 @@ package inventory
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -86,6 +87,11 @@ type Result struct {
 	Identified int
 	Merged     int
 	Seen       int
+
+	// Dropped counts facts there was nothing to record against: no hardware
+	// address and no address any device holds, so believing them would invent a
+	// device with nothing to tell it apart.
+	Dropped int
 }
 
 // reading is what one source read: who read it, what they claim, and the
@@ -104,8 +110,13 @@ type reading struct {
 // pass carries what every write in one ingest shares, including the single
 // timestamp they are all stamped with.
 type pass struct {
-	q        *models.Queries
-	scanID   int64
+	q      *models.Queries
+	scanID int64
+
+	// sourceID files every claim this reading writes under the source that made
+	// it.
+	sourceID int64
+
 	networks networks
 	at       dbtype.Time
 	res      Result
@@ -197,15 +208,33 @@ func sweptFacts(hosts []scanner.Host) []plugin.Fact {
 	return facts
 }
 
+// RecordFacts stores what one source claims about the devices it knows of.
+//
+// A source is asked what it knows rather than probing a prefix, so the reading
+// is bounded by no network and each address is matched to the network
+// containing it. Its facts need not assert presence: a lease names a device
+// that is configured rather than answering.
+//
+// The kind is a parameter here and fixed inside RecordSweep, so a sweep's
+// callers cannot pass the wrong one.
+func (s *Store) RecordFacts(
+	ctx context.Context,
+	source string,
+	kind dbtype.SourceKind,
+	facts []plugin.Fact,
+) (*Result, error) {
+	return s.report(ctx, reading{source: source, kind: kind, facts: facts})
+}
+
 // report records one source's reading: it opens a scan row, ingests the facts
 // as one transaction, and closes the scan with whatever happened.
 func (s *Store) report(ctx context.Context, r reading) (*Result, error) {
-	scanID, err := s.open(ctx, r)
+	scanID, sourceID, err := s.open(ctx, r)
 	if err != nil {
 		return nil, err
 	}
 
-	res, ingestErr := s.ingest(ctx, scanID, r.facts)
+	res, ingestErr := s.ingest(ctx, scanID, sourceID, r.facts)
 
 	// res is nil unless the ingest committed, so the count a failed scan
 	// records is the only one true of the table: none.
@@ -231,10 +260,10 @@ func (s *Store) report(ctx context.Context, r reading) (*Result, error) {
 
 // open registers the source and opens a running scan row, recording the network
 // when the reading covered exactly one.
-func (s *Store) open(ctx context.Context, r reading) (int64, error) {
+func (s *Store) open(ctx context.Context, r reading) (scanID, sourceID int64, err error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
-		return 0, fmt.Errorf("begin scan: %w", err)
+		return 0, 0, fmt.Errorf("begin scan: %w", err)
 	}
 
 	defer func() { _ = tx.Rollback() }()
@@ -244,7 +273,7 @@ func (s *Store) open(ctx context.Context, r reading) (int64, error) {
 
 	src, err := q.UpsertSource(ctx, models.UpsertSourceParams{Kind: r.kind, Name: r.source, CreatedAt: at})
 	if err != nil {
-		return 0, fmt.Errorf("upsert source %q: %w", r.source, err)
+		return 0, 0, fmt.Errorf("upsert source %q: %w", r.source, err)
 	}
 
 	// Recording the network here is also what lets the addresses in this
@@ -255,7 +284,7 @@ func (s *Store) open(ctx context.Context, r reading) (int64, error) {
 	if r.network != nil {
 		nw, err := q.UpsertNetwork(ctx, models.UpsertNetworkParams{Cidr: dbtype.NewPrefix(*r.network), CreatedAt: at})
 		if err != nil {
-			return 0, fmt.Errorf("upsert network %s: %w", r.network, err)
+			return 0, 0, fmt.Errorf("upsert network %s: %w", r.network, err)
 		}
 
 		networkID = sql.NullInt64{Int64: nw.ID, Valid: true}
@@ -268,20 +297,20 @@ func (s *Store) open(ctx context.Context, r reading) (int64, error) {
 		StartedAt: at,
 	})
 	if err != nil {
-		return 0, fmt.Errorf("create scan: %w", err)
+		return 0, 0, fmt.Errorf("create scan: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return 0, fmt.Errorf("commit scan: %w", err)
+		return 0, 0, fmt.Errorf("commit scan: %w", err)
 	}
 
-	return sc.ID, nil
+	return sc.ID, src.ID, nil
 }
 
 // ingest applies every fact as one transaction: a reading either lands whole
 // or not at all, so a partial run cannot leave a device holding an address it
 // was about to lose.
-func (s *Store) ingest(ctx context.Context, scanID int64, facts []plugin.Fact) (*Result, error) {
+func (s *Store) ingest(ctx context.Context, scanID, sourceID int64, facts []plugin.Fact) (*Result, error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin ingest: %w", err)
@@ -302,6 +331,7 @@ func (s *Store) ingest(ctx context.Context, scanID int64, facts []plugin.Fact) (
 	p := &pass{
 		q:        q,
 		scanID:   scanID,
+		sourceID: sourceID,
 		networks: nets,
 		at:       s.stamp(),
 	}
@@ -361,8 +391,17 @@ func (s *Store) record(ctx context.Context, p *pass, f plugin.Fact) error {
 	}
 
 	target, err := s.resolve(ctx, p, mac, f, holder)
-	if err != nil || target == nil {
+	if err != nil {
 		return err
+	}
+
+	if target == nil {
+		s.log.DebugContext(ctx, "dropping a fact that identifies nothing",
+			"addr", f.Host.Address(), "mac", f.Host.MAC, "present", f.Present)
+
+		p.res.Dropped++
+
+		return nil
 	}
 
 	// A row that only ever stood for this address is the same device under a
@@ -383,7 +422,7 @@ func (s *Store) record(ctx context.Context, p *pass, f plugin.Fact) error {
 		}
 	}
 
-	if err := s.applyHostname(ctx, p, target, f); err != nil {
+	if err := s.applyClaim(ctx, p, target, f); err != nil {
 		return err
 	}
 
@@ -538,6 +577,13 @@ func (s *Store) fold(ctx context.Context, p *pass, ghost, into *models.Device) e
 		return fmt.Errorf("move addresses of device %d: %w", ghost.ID, err)
 	}
 
+	// A source that filed against both rows would otherwise lose its claim to
+	// the CASCADE when the ghost is deleted.
+	err = p.q.MoveDeviceSources(ctx, models.MoveDeviceSourcesParams{IntoID: into.ID, FromID: ghost.ID})
+	if err != nil {
+		return fmt.Errorf("move claims about device %d: %w", ghost.ID, err)
+	}
+
 	err = p.q.MoveEvents(ctx, models.MoveEventsParams{
 		IntoID: sql.NullInt64{Int64: into.ID, Valid: true},
 		FromID: sql.NullInt64{Int64: ghost.ID, Valid: true},
@@ -599,19 +645,43 @@ func (s *Store) claim(ctx context.Context, p *pass, deviceID int64, ip dbtype.Ad
 	return nil
 }
 
-// applyHostname writes the name a fact carries, with the standing the source
-// claims for it rather than a fixed one: a lease an operator bound and a name
-// resolved over DNS are not worth the same, and recording them alike would
-// leave nothing to weigh them by.
-func (s *Store) applyHostname(ctx context.Context, p *pass, d *models.Device, f plugin.Fact) error {
-	hostname := f.Host.Hostname()
-	if hostname == "" || hostname == d.Hostname.String {
+// applyClaim files this source's reading against the device, then re-elects the
+// name the device row carries from every source's claim.
+//
+// The row holds one name because the device list shows one per row and searches
+// one column; the claims behind it are kept so the device page can show a source
+// that was outranked.
+//
+// Re-deriving from every claim on each pass is what makes retraction work: a
+// source that stops reporting a name writes an empty claim, and the runner-up
+// wins the next pass that touches the device.
+func (s *Store) applyClaim(ctx context.Context, p *pass, d *models.Device, f plugin.Fact) error {
+	if err := s.recordClaim(ctx, p, d.ID, f); err != nil {
+		return err
+	}
+
+	rows, err := p.q.ListDeviceSources(ctx, d.ID)
+	if err != nil {
+		return fmt.Errorf("claims about device %d: %w", d.ID, err)
+	}
+
+	claims := make([]nameClaim, 0, len(rows))
+	for _, r := range rows {
+		claims = append(claims, nameClaim{
+			name:     r.DeviceSource.Hostname.String,
+			standing: r.DeviceSource.HostnameSource,
+			at:       r.DeviceSource.LastSeen,
+		})
+	}
+
+	won := resolveHostname(claims)
+	if won.name == d.Hostname.String && won.standing == d.HostnameSource {
 		return nil
 	}
 
 	params := models.SetDeviceHostnameParams{
-		Hostname:       nullString(hostname),
-		HostnameSource: f.HostnameSource,
+		Hostname:       nullString(won.name),
+		HostnameSource: won.standing,
 		ID:             d.ID,
 	}
 	if err := p.q.SetDeviceHostname(ctx, params); err != nil {
@@ -623,7 +693,57 @@ func (s *Store) applyHostname(ctx context.Context, p *pass, d *models.Device, f 
 		return nil
 	}
 
-	return s.event(ctx, p, d.ID, dbtype.EventHostnameChanged, d.Hostname.String, hostname, "")
+	// Two spellings of one name are not a rename, or a device whose PTR and
+	// lease label differ by a domain would log one every cycle.
+	if sameName(won.name, d.Hostname.String) {
+		return nil
+	}
+
+	return s.event(ctx, p, d.ID, dbtype.EventHostnameChanged, d.Hostname.String, won.name, "")
+}
+
+// recordClaim files this source's reading, replacing what the same source said
+// before.
+//
+// last_seen advances whenever the source still reports the device, presence or
+// not: a router still holds a static lease with nothing plugged in. Whether
+// anything answered is devices.last_seen's question.
+func (s *Store) recordClaim(ctx context.Context, p *pass, deviceID int64, f plugin.Fact) error {
+	detail, err := claimDetail(f.Detail)
+	if err != nil {
+		return fmt.Errorf("detail of %s: %w", f.Host.Address(), err)
+	}
+
+	err = p.q.UpsertDeviceSource(ctx, models.UpsertDeviceSourceParams{
+		DeviceID:       deviceID,
+		SourceID:       p.sourceID,
+		Hostname:       nullString(f.Host.Hostname()),
+		HostnameSource: f.HostnameSource,
+		Detail:         detail,
+		FirstSeen:      p.at,
+		LastSeen:       p.at,
+	})
+	if err != nil {
+		return fmt.Errorf("record claim about device %d: %w", deviceID, err)
+	}
+
+	return nil
+}
+
+// claimDetail renders what only this source knows as the column's JSON, null
+// when it knows nothing extra. encoding/json sorts map keys, so an unchanged
+// reading re-marshals identically and the row does not churn.
+func claimDetail(detail map[string]string) (sql.NullString, error) {
+	if len(detail) == 0 {
+		return sql.NullString{}, nil
+	}
+
+	raw, err := json.Marshal(detail)
+	if err != nil {
+		return sql.NullString{}, fmt.Errorf("marshal detail: %w", err)
+	}
+
+	return sql.NullString{String: string(raw), Valid: true}, nil
 }
 
 func (s *Store) event(ctx context.Context, p *pass, deviceID int64, kind dbtype.EventKind, from, to, detail string) error {
