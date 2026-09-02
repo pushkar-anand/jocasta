@@ -251,10 +251,25 @@ func TestBuildHostResolvesWhenNoHostnameIsSupplied(t *testing.T) {
 		"10.2.0.192.in-addr.arpa.": "printer.lan.",
 	}))
 
-	h, err := BuildHost(t.Context(), HostInput{IP: "192.0.2.10", MAC: "00:00:0c:11:22:33"})
+	in := HostInput{IP: "192.0.2.10", MAC: "00:00:0c:11:22:33", ResolveName: true}
+
+	h, err := BuildHost(t.Context(), in)
 	require.NoError(t, err)
 
 	assert.Equal(t, "printer.lan", h.Hostname())
+}
+
+// A resolved name belongs to whoever resolved it, so a caller that has not said
+// it can honestly claim one is never handed a name this host's resolver made up.
+func TestBuildHostDoesNotResolveUnlessAsked(t *testing.T) {
+	r, calls := countingResolver()
+	useResolver(t, r)
+
+	h, err := BuildHost(t.Context(), HostInput{IP: "192.0.2.10", MAC: "00:00:0c:11:22:33"})
+	require.NoError(t, err)
+
+	assert.Empty(t, h.Hostname())
+	assert.Zero(t, calls.Load(), "resolution is opt-in")
 }
 
 func TestBuildHostLeavesTheHostnameEmptyWhenNothingResolves(t *testing.T) {

@@ -61,7 +61,7 @@ func TestBulkBuildLooksUpARepeatedAddressOnce(t *testing.T) {
 
 	inputs := make([]HostInput, buildConcurrency)
 	for i := range inputs {
-		inputs[i] = HostInput{IP: "192.0.2.10"}
+		inputs[i] = HostInput{IP: "192.0.2.10", ResolveName: true}
 	}
 
 	out, err := BulkBuild(t.Context(), inputs)

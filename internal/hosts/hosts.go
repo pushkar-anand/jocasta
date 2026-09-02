@@ -59,8 +59,17 @@ type HostInput struct {
 	MAC string
 
 	// Hostname, when set, is the name the source already knows the host by,
-	// such as a DHCP lease name. Leave it empty to have BuildHost resolve one.
+	// such as a DHCP lease name.
 	Hostname string
+
+	// ResolveName asks for a reverse DNS lookup when Hostname is empty.
+	//
+	// Off by default, because a resolved name belongs to whoever resolved it.
+	// A sweep asking the local resolver about an address it just probed is
+	// reporting its own finding and sets this; a router's ARP table read from
+	// elsewhere is not, and filling its nameless rows from this host's resolver
+	// would file a name one source invented under another source's claim.
+	ResolveName bool
 
 	// Interface is the identifier or name of the network interface the device is seen on.
 	Interface string
@@ -90,8 +99,9 @@ func BuildHost(ctx context.Context, in HostInput) (*Host, error) {
 		h.addr = ipAddr
 	}
 
-	// Attempt to reverse DNS resolution if no explicit hostname was supplied.
-	if h.hostname == "" && h.addr.IsValid() {
+	// Attempt to reverse DNS resolution if no explicit hostname was supplied
+	// and the caller is a source that can honestly claim the answer.
+	if in.ResolveName && h.hostname == "" && h.addr.IsValid() {
 		h.hostname = resolveName(ctx, h.addr)
 	}
 
