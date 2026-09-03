@@ -131,12 +131,13 @@ func TestPortsRunScansEveryCurrentAddress(t *testing.T) {
 	assert.Equal(t, 1, countRows(t, conn, `SELECT COUNT(*) FROM events WHERE kind = 'PORT_OPENED'`))
 }
 
-func TestPortsRunWithNoTargetsRecordsNothing(t *testing.T) {
+func TestPortsRunWithNoTargetsAsksToRetry(t *testing.T) {
 	t.Parallel()
 
 	p, store, _ := newPortsTask(t, time.Hour)
 
-	require.NoError(t, p.Run(t.Context()))
+	// errNotReady, not nil: nothing to scan means retry soon, not sit out the interval.
+	require.ErrorIs(t, p.Run(t.Context()), errNotReady)
 
 	_, err := store.LastSuccessfulScanAt(t.Context(), dbtype.ScanPorts)
 	require.ErrorIs(t, err, inventory.ErrNotFound, "an empty inventory records no scan")

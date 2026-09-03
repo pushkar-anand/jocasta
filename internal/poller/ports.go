@@ -86,9 +86,8 @@ func (p *Ports) DueIn(ctx context.Context) time.Duration {
 
 // Run scans every current address in the inventory and records what answered.
 //
-// A cycle with no addresses to scan -- discovery has not populated the
-// inventory yet -- records nothing and is retried next interval, the same as a
-// device sweep with no networks.
+// With nothing to scan yet -- discovery has not run -- it returns errNotReady,
+// so the poller retries in a minute rather than after the whole interval.
 func (p *Ports) Run(ctx context.Context) error {
 	targets, err := p.store.PortScanTargets(ctx)
 	if err != nil {
@@ -96,9 +95,9 @@ func (p *Ports) Run(ctx context.Context) error {
 	}
 
 	if len(targets) == 0 {
-		p.logger.InfoContext(ctx, "no addresses to port-scan yet; discovery has found nothing")
+		p.logger.InfoContext(ctx, "no addresses to port-scan yet; waiting for discovery to populate the inventory")
 
-		return nil
+		return errNotReady
 	}
 
 	results := p.scanner.Scan(ctx, targets, time.Now())

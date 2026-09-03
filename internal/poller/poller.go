@@ -201,21 +201,28 @@ func (p *Poller) runTask(r *run, t task) {
 
 			log.InfoContext(ctx, "starting task run")
 
-			err := t.Run(ctx)
-			if err != nil {
+			next := t.Interval()
+
+			switch err := t.Run(ctx); {
+			case err == nil:
+				log.InfoContext(ctx, "task run completed")
+			case errors.Is(err, errNotReady):
+				// min: a task whose interval is already shorter keeps it.
+				next = min(notReadyRetry, t.Interval())
+				log.InfoContext(ctx, "task has nothing to work on yet, retrying soon",
+					slog.Duration("next_run", next))
+			default:
 				log.ErrorContext(
 					ctx,
 					"task failed during poll, will be retried again",
 					logger.Err(err),
 				)
-			} else {
-				log.InfoContext(ctx, "task run completed")
 			}
-		}
 
-		// Reset needs no drain: since Go 1.23 a timer channel holds no stale
-		// value to receive.
-		timer.Reset(t.Interval())
+			// Reset needs no drain: since Go 1.23 a timer channel holds no
+			// stale value to receive.
+			timer.Reset(next)
+		}
 	}
 }
 
