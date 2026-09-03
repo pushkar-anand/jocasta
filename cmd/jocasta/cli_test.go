@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"net/netip"
 	"path/filepath"
 	"testing"
 	"time"
@@ -126,6 +127,148 @@ func TestCLIScanCommandMissingTarget(t *testing.T) {
 	_, _, err := parseCLI(t, []string{"scan"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "expected \"<target>\"")
+}
+
+func TestCLIPortsCommandDefaults(t *testing.T) {
+	t.Parallel()
+
+	cli, kCtx, err := parseCLI(t, []string{"ports", "192.0.2.10"})
+	require.NoError(t, err)
+
+	assert.Equal(t, "ports <target>", kCtx.Command())
+	assert.Equal(t, "192.0.2.10", cli.Ports.Target)
+	assert.Empty(t, cli.Ports.Ports)
+	assert.Equal(t, 500*time.Millisecond, cli.Ports.Timeout)
+	assert.Equal(t, 256, cli.Ports.Concurrency)
+	assert.False(t, cli.Ports.JSON)
+}
+
+func TestCLIPortsCommandCustomFlags(t *testing.T) {
+	t.Parallel()
+
+	cli, kCtx, err := parseCLI(t, []string{
+		"ports", "192.0.2.0/24",
+		"--ports", "22,80,8000-8100",
+		"--timeout", "1s",
+		"--concurrency", "64",
+		"--json",
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, "ports <target>", kCtx.Command())
+	assert.Equal(t, "192.0.2.0/24", cli.Ports.Target)
+	assert.Equal(t, "22,80,8000-8100", cli.Ports.Ports)
+	assert.Equal(t, time.Second, cli.Ports.Timeout)
+	assert.Equal(t, 64, cli.Ports.Concurrency)
+	assert.True(t, cli.Ports.JSON)
+}
+
+func TestCLIPortsCommandMissingTarget(t *testing.T) {
+	t.Parallel()
+
+	_, _, err := parseCLI(t, []string{"ports"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "expected \"<target>\"")
+}
+
+func TestPortsCmdInvalidTarget(t *testing.T) {
+	t.Parallel()
+
+	cmd := PortsCmd{Target: "not-an-address"}
+	err := cmd.Run(t.Context(), slog.New(slog.DiscardHandler))
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "neither an address nor a CIDR")
+}
+
+func TestPortsCmdInvalidPortSpec(t *testing.T) {
+	t.Parallel()
+
+	cmd := PortsCmd{Target: "192.0.2.10", Ports: "not-a-port"}
+	err := cmd.Run(t.Context(), slog.New(slog.DiscardHandler))
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "not a number")
+}
+
+func TestPortTargetsExpandsPrefix(t *testing.T) {
+	t.Parallel()
+
+	got, err := portTargets("192.0.2.0/30")
+	require.NoError(t, err)
+
+	assert.Equal(t, []netip.Addr{
+		netip.MustParseAddr("192.0.2.1"),
+		netip.MustParseAddr("192.0.2.2"),
+	}, got)
+}
+
+func TestOutputPortScansTable(t *testing.T) {
+	t.Parallel()
+
+	results := []scanner.PortScan{
+		{
+			Addr:    netip.MustParseAddr("192.0.2.10"),
+			Open:    []uint16{22, 443},
+			Scanned: []uint16{22, 80, 443},
+		},
+		{Addr: netip.MustParseAddr("192.0.2.11"), Scanned: []uint16{22, 80, 443}},
+	}
+
+	var buf bytes.Buffer
+	require.NoError(t, outputPortScans(&buf, results, false))
+
+	out := buf.String()
+	assert.Contains(t, out, "192.0.2.10")
+	assert.Contains(t, out, "22")
+	assert.Contains(t, out, "ssh")
+	assert.Contains(t, out, "443")
+	assert.Contains(t, out, "https")
+}
+
+func TestOutputPortScansEmpty(t *testing.T) {
+	t.Parallel()
+
+	results := []scanner.PortScan{
+		{Addr: netip.MustParseAddr("192.0.2.10"), Scanned: []uint16{22, 80}},
+	}
+
+	var buf bytes.Buffer
+	require.NoError(t, outputPortScans(&buf, results, false))
+
+	assert.Equal(t, "No open ports found.\n", buf.String())
+}
+
+func TestOutputPortScansJSON(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().Truncate(time.Second)
+	results := []scanner.PortScan{
+		{
+			Addr:    netip.MustParseAddr("192.0.2.10"),
+			Open:    []uint16{22},
+			Scanned: []uint16{22, 80, 443},
+			SeenAt:  now,
+		},
+	}
+
+	var buf bytes.Buffer
+	require.NoError(t, outputPortScans(&buf, results, true))
+
+	var decoded []struct {
+		Addr string `json:"addr"`
+		Open []struct {
+			Port    uint16 `json:"port"`
+			Service string `json:"service"`
+		} `json:"open"`
+		Scanned int `json:"scanned"`
+	}
+
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &decoded))
+	require.Len(t, decoded, 1)
+	assert.Equal(t, "192.0.2.10", decoded[0].Addr)
+	require.Len(t, decoded[0].Open, 1)
+	assert.Equal(t, uint16(22), decoded[0].Open[0].Port)
+	assert.Equal(t, "ssh", decoded[0].Open[0].Service)
+	assert.Equal(t, 3, decoded[0].Scanned)
 }
 
 func TestOutputScanResultsTable(t *testing.T) {

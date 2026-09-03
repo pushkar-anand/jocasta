@@ -13,6 +13,7 @@ type CLI struct {
 
 	Serve ServeCmd `cmd:"" help:"Start the Jocasta web server." default:"withargs"`
 	Scan  ScanCmd  `cmd:"" help:"Scan network addresses with ICMP echo requests."`
+	Ports PortsCmd `cmd:"" help:"Probe the TCP ports on an address or prefix."`
 
 	Plugin PluginCmd `cmd:"" help:"Read a configured source directly."`
 
