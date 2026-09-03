@@ -16,6 +16,7 @@ import (
 
 	"github.com/pushkar-anand/build-with-go/http/request"
 	"github.com/pushkar-anand/build-with-go/logger"
+	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
@@ -255,6 +256,19 @@ func (h *Handler) sweepNote(ctx context.Context) (string, error) {
 func sweepNote(scan *inventory.Scan) string {
 	// The rail labels the line "Last sweep", so the verb would be said twice.
 	return ago(time.Now(), scan.StartedAt)
+}
+
+// lastSweptAt is when a device sweep last finished with something to show for
+// it, zero before the first. Shown on the device page beside the device's own
+// last_seen: together they separate a device that has left from sweeps that
+// have stopped.
+func (h *Handler) lastSweptAt(ctx context.Context) time.Time {
+	at, err := h.store.LastSuccessfulScanAt(ctx, dbtype.ScanDiscovery)
+	if err != nil {
+		return time.Time{}
+	}
+
+	return at
 }
 
 func (h *Handler) notFound(w http.ResponseWriter, r *http.Request) {

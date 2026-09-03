@@ -201,6 +201,30 @@ func TestDevicePage(t *testing.T) {
 
 	// And the page carries the device's own history, which the list does not.
 	assert.Contains(t, body, "discovered")
+
+	// The identity panel says when a sweep last ran, not only when this device
+	// last answered one -- the two together say whether a stale sighting is the
+	// device or the sweeps.
+	assert.Contains(t, body, "Last checked")
+}
+
+// Before any sweep has run the device page still renders; "Last checked" reads
+// as never rather than as a zero time.
+func TestDevicePageWithoutASweepReadsAsNeverChecked(t *testing.T) {
+	t.Parallel()
+
+	store, conn := testStoreWithConn(t)
+
+	// A device the store holds without a scan behind it: the sweep path always
+	// writes one, so this is reached straight through the connection.
+	_, err := conn.ExecContext(t.Context(),
+		`INSERT INTO devices (id, mac, identity_source) VALUES (1, '00:00:5e:00:53:aa', 'MAC')`)
+	require.NoError(t, err)
+
+	body := get(t, NewHandler(testLogger(), testReader(t), store), "/devices/1").Body.String()
+
+	assert.Contains(t, body, "Last checked")
+	assert.Contains(t, body, "never")
 }
 
 // A released address keeps its row, which is what makes "where did this used to
