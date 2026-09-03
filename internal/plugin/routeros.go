@@ -19,7 +19,8 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/routeros"
 )
 
-// routerOSPrefix keeps an instance key from colliding with another kind
+// routerOSPrefix namespaces an instance key so it cannot collide with another
+// source kind's.
 const routerOSPrefix = "routeros:"
 
 // zeroMAC parses perfectly well and identifies nothing, so it must not become

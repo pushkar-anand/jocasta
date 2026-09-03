@@ -1,6 +1,10 @@
-// Package hosts has types and utilities for inspecting, resolving,
-// and enriching network host metadata such as IP addresses, MAC addresses,
-// vendor lookups, and reverse DNS hostnames.
+// Package hosts turns the raw attributes a source reports about a device --
+// an address, a hardware address, sometimes a name -- into an enriched host,
+// with the address parsed, the vendor resolved from the OUI, and a reverse
+// lookup done when the caller is entitled to claim the result.
+//
+// A sweep and a router plugin both build through [BuildHost], so one device is
+// described the same way whichever of them found it.
 package hosts
 
 import (
@@ -13,50 +17,41 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/oui"
 )
 
-// Host represents a discovered network host containing both raw input
-// attributes and enriched metadata (parsed addresses, vendor info, reverse DNS).
+// Host is a device as one source sees it: the strings the source reported,
+// kept verbatim, alongside the typed values and vendor metadata [BuildHost]
+// worked out from them.
 type Host struct {
-	// IP is the raw string representation of the device's IP address.
-	IP string
-
-	// MAC is the raw string representation of the hardware (MAC) address.
-	// Note that this can be a locally administered or randomised identifier.
+	IP  string
 	MAC string
 
-	// Interface is the identifier or name of the network interface the device is seen on.
+	// Interface is the network interface the device was seen on, where the
+	// source reports one.
 	Interface string
 
-	// VLAN is the Virtual LAN identifier associated with the host.
+	// VLAN is the 802.1Q tag the device sits behind, zero when none is known.
 	VLAN int
 
-	// addr holds the parsed, type-safe IP address representation.
-	addr netip.Addr
-
-	// mac holds the parsed, type-safe hardware address representation.
-	mac net.HardwareAddr
-
-	// hostname is the reverse DNS hostname of the device, if resolved.
+	addr     netip.Addr
+	mac      net.HardwareAddr
 	hostname string
 
-	// vendor is the organisation name registered to the MAC address prefix (OUI) in the IEEE database.
-	vendor string
-
-	// shortName is a standardised or commonly recognised brand name/abbreviation for the vendor.
+	// vendor and shortName come from the OUI: the full registered name and a
+	// shorter display form. A locally administered address can carry them too,
+	// since some vendors use a prefix they never registered.
+	vendor    string
 	shortName string
 
-	// randomised indicates whether the MAC address is locally administered (randomised),
-	// a common privacy measure on modern mobile devices and laptops to mitigate tracking.
+	// randomised marks an address with its locally administered bit set. Privacy
+	// addresses set it, but so do virtual and container interfaces, so a device
+	// with a vendor match can still read as randomised here.
 	randomised bool
 }
 
 // HostInput carries the raw attributes a source reports for one host. It is
-// the whole input to BuildHost, so a caller names each field at the call site
-// rather than lining up a row of same-typed arguments.
+// the whole input to [BuildHost], so a caller names each field at the call
+// site rather than lining up a row of same-typed arguments.
 type HostInput struct {
-	// IP is the raw string representation of the device's IP address.
-	IP string
-
-	// MAC is the raw string representation of the hardware (MAC) address.
+	IP  string
 	MAC string
 
 	// Hostname, when set, is the name the source already knows the host by,
@@ -72,16 +67,14 @@ type HostInput struct {
 	// would file a name one source invented under another source's claim.
 	ResolveName bool
 
-	// Interface is the identifier or name of the network interface the device is seen on.
 	Interface string
-
-	// VLAN is the Virtual LAN identifier associated with the host.
-	VLAN int
+	VLAN      int
 }
 
-// BuildHost constructs and enriches a Host instance from the supplied network parameters.
-// It parses the IP and MAC addresses into structured types, performs reverse DNS resolution
-// if no explicit hostname is provided, and enriches MAC metadata via OUI lookup.
+// BuildHost parses and enriches one host from what a source reported about it.
+//
+// A malformed address or hardware address is an error. Everything past that is
+// best-effort, so a host with no OUI match and no reverse name still builds.
 func BuildHost(ctx context.Context, in HostInput) (*Host, error) {
 	h := &Host{
 		IP:        in.IP,
@@ -100,8 +93,8 @@ func BuildHost(ctx context.Context, in HostInput) (*Host, error) {
 		h.addr = ipAddr
 	}
 
-	// Attempt to reverse DNS resolution if no explicit hostname was supplied
-	// and the caller is a source that can honestly claim the answer.
+	// Gated on ResolveName, not just on a missing name: a resolved name belongs
+	// to whoever resolved it. See [HostInput.ResolveName].
 	if in.ResolveName && h.hostname == "" && h.addr.IsValid() {
 		h.hostname = resolveName(ctx, h.addr)
 	}
@@ -114,13 +107,13 @@ func BuildHost(ctx context.Context, in HostInput) (*Host, error) {
 
 		h.mac = hw
 
-		// Checked independently: the two answer different questions, and a
-		// locally administered address can have a vendor. Wireshark's manuf
-		// file carries a couple of hundred prefixes a vendor chose for itself
-		// rather than registered, and a device using one is that vendor's
-		// hardware however its address was assigned. Only an address that is
-		// locally administered *and* matches nothing is the privacy address
-		// [Host.Randomised] exists to flag.
+		// The vendor match and the locally administered bit are read
+		// independently: they answer different questions, and an address can
+		// have both. Wireshark's manuf file carries a few hundred prefixes a
+		// vendor chose without registering, so a device using one is that
+		// vendor's hardware whatever its address bit says. A caller after a
+		// true privacy address wants [Host.Randomised] and an empty
+		// [Host.Vendor] together.
 		if info, found := oui.Lookup(hw); found {
 			h.shortName = info.Short
 			h.vendor = info.Name
@@ -134,32 +127,37 @@ func BuildHost(ctx context.Context, in HostInput) (*Host, error) {
 	return h, nil
 }
 
-// Address returns the parsed IP address as a netip.Addr.
+// Address is the parsed IP address, invalid when the source reported none.
 func (h Host) Address() netip.Addr {
 	return h.addr
 }
 
-// Vendor returns the organisation registered to the MAC OUI prefix.
+// Vendor is the full organisation name from the OUI, empty when the address
+// matched no registered prefix.
 func (h Host) Vendor() string {
 	return h.vendor
 }
 
-// Hostname returns the host's resolved or assigned domain name.
+// Hostname is the name the source supplied or the reverse lookup found, empty
+// when neither produced one.
 func (h Host) Hostname() string {
 	return h.hostname
 }
 
-// ShortName returns the shortened or canonical brand name for the hardware vendor.
+// ShortName is the vendor in display form, falling back to the full name and
+// then to empty.
 func (h Host) ShortName() string {
 	return h.shortName
 }
 
-// HardwareAddress returns the parsed MAC address as a net.HardwareAddr.
+// HardwareAddress is the parsed hardware address, nil when the source reported
+// none.
 func (h Host) HardwareAddress() net.HardwareAddr {
 	return h.mac
 }
 
-// Randomised reports whether the hardware address has its locally administered bit set.
+// Randomised reports whether the address has its locally administered bit set.
+// See the field of the same name for why that is not "unidentifiable".
 func (h Host) Randomised() bool {
 	return h.randomised
 }

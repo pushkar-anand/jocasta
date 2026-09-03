@@ -20,9 +20,9 @@ import (
 	"golang.org/x/net/ipv4"
 )
 
-// payloadSize is the echo body we send: an 8-byte run token so we ignore ping
-// traffic that is not ours, then the send time so a reply carries its own RTT
-// and we need no bookkeeping to match it up.
+// payloadSize is the echo body: an 8-byte run token, so a reply to some other
+// program's ping is ignored, then the send time, so a reply carries its own
+// RTT and needs no table to match it back.
 const payloadSize = 16
 
 // readSlice bounds a single blocking read so the reader goroutine notices a
@@ -118,8 +118,8 @@ func sweep(
 	})
 
 	// Echo IDs only survive on a raw socket; a datagram socket has the kernel
-	// rewrite them. The run token in the payload is what actually identifies our
-	// replies, so the ID is just conventional here.
+	// rewrite them. The run token in the payload is what actually identifies
+	// this run's replies, so the ID is just conventional here.
 	id := os.Getpid() & 0xffff
 	interval := time.Second / time.Duration(max(rate, 1))
 
@@ -218,8 +218,8 @@ func send(
 	return nil
 }
 
-// readReplies records every echo reply carrying our run token until the context
-// is cancelled.
+// readReplies records every echo reply carrying this run's token until the
+// context is cancelled.
 func readReplies(
 	ctx context.Context,
 	log *slog.Logger,

@@ -12,7 +12,7 @@ import (
 )
 
 // procNetARP is the kernel's IPv4 neighbour table. Reading it is free and needs
-// no privileges, unlike sending our own ARP requests.
+// no privileges, unlike sending ARP requests directly.
 const procNetARP = "/proc/net/arp"
 
 // arpFlagComplete (ATF_COM) marks an entry whose hardware address is actually

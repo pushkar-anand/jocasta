@@ -15,8 +15,8 @@ import (
 )
 
 // ErrNotFound is returned when a read names something the inventory does not
-// hold. Callers match on it rather than on sql.ErrNoRows, which would tie every
-// surface to the storage layer.
+// hold. Callers match on it rather than on [sql.ErrNoRows], which would tie
+// every surface to the storage layer.
 var ErrNotFound = errors.New("not found")
 
 // DiscoveryWindow is how far back Stats counts a device as newly discovered.
