@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
@@ -51,7 +53,7 @@ func (s *Store) RecordPorts(
 		return nil, err
 	}
 
-	sum, ingestErr := s.ingestPorts(ctx, scanID, scans)
+	sum, touched, ingestErr := s.ingestPorts(ctx, scanID, scans)
 
 	found := 0
 	if ingestErr == nil {
@@ -66,15 +68,23 @@ func (s *Store) RecordPorts(
 
 	sum.ScanID = scanID
 
+	// A port that opened or closed can move the classifier's guess. Best-effort,
+	// like the pass after a discovery: a stale icon is not worth failing a scan
+	// that recorded the ports correctly.
+	if err := s.reclassify(ctx, scanID, touched); err != nil {
+		s.log.WarnContext(ctx, "classify pass after port scan failed", "scan", scanID, "err", err)
+	}
+
 	return sum, nil
 }
 
 // ingestPorts applies every result as one transaction, so a scan either lands
-// whole or not at all.
-func (s *Store) ingestPorts(ctx context.Context, scanID int64, scans []scanner.PortScan) (*PortSummary, error) {
+// whole or not at all. It returns the ids of the devices it wrote a port for,
+// sorted, for the classify pass that runs after the commit.
+func (s *Store) ingestPorts(ctx context.Context, scanID int64, scans []scanner.PortScan) (*PortSummary, []int64, error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("begin port ingest: %w", err)
+		return nil, nil, fmt.Errorf("begin port ingest: %w", err)
 	}
 
 	defer func() { _ = tx.Rollback() }()
@@ -82,18 +92,19 @@ func (s *Store) ingestPorts(ctx context.Context, scanID int64, scans []scanner.P
 	q := s.q.WithTx(tx)
 	at := s.stamp()
 	sum := &PortSummary{Targets: len(scans)}
+	touched := map[int64]struct{}{}
 
 	for _, scan := range scans {
-		if err := s.recordPorts(ctx, q, scanID, at, scan, sum); err != nil {
-			return nil, fmt.Errorf("record ports for %s: %w", scan.Addr, err)
+		if err := s.recordPorts(ctx, q, scanID, at, scan, sum, touched); err != nil {
+			return nil, nil, fmt.Errorf("record ports for %s: %w", scan.Addr, err)
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("commit port ingest: %w", err)
+		return nil, nil, fmt.Errorf("commit port ingest: %w", err)
 	}
 
-	return sum, nil
+	return sum, slices.Sorted(maps.Keys(touched)), nil
 }
 
 // recordPorts diffs one address's scan against what the inventory has for its
@@ -107,6 +118,7 @@ func (s *Store) recordPorts(
 	at dbtype.Time,
 	scan scanner.PortScan,
 	sum *PortSummary,
+	touched map[int64]struct{},
 ) error {
 	ip := dbtype.NewAddr(scan.Addr)
 
@@ -123,6 +135,7 @@ func (s *Store) recordPorts(
 		return nil
 	}
 
+	touched[holder.ID] = struct{}{}
 	sum.Devices++
 	sum.Open += len(scan.Open)
 

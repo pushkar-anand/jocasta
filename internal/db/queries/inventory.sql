@@ -334,6 +334,28 @@ SET label       = sqlc.narg(label),
 WHERE id = sqlc.arg(id)
 RETURNING *;
 
+-- Classification.
+
+-- The classifier's guess and its confidence, kept apart from the user's own
+-- device_type so an override is never overwritten by a scan.
+-- name: SetDeviceClass :exec
+UPDATE devices
+SET device_class            = sqlc.narg(device_class),
+    device_class_confidence = sqlc.narg(device_class_confidence)
+WHERE id = sqlc.arg(id);
+
+-- The names of the segments a device currently sits on, for the classifier: a
+-- VLAN called "IoT" or "cameras" is a hint about what belongs on it. Usually one
+-- row; a multi-homed device on two named segments returns both.
+-- name: DeviceNetworkNames :many
+SELECT DISTINCT n.name AS name
+FROM addresses a
+         JOIN networks n ON n.id = a.network_id
+WHERE a.device_id = ?
+  AND a.is_current = 1
+  AND n.name IS NOT NULL
+  AND n.name <> '';
+
 -- Ports.
 
 -- Every address a port scan should probe: the current address of every device

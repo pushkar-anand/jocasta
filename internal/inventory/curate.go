@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pushkar-anand/jocasta/internal/classify"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 )
@@ -26,12 +27,21 @@ type Curation struct {
 
 // clean trims each field. Surrounding whitespace is never meant, and a label of
 // only spaces would otherwise be a name that renders as nothing.
+//
+// Type is one of the classifier's classes or nothing: it overrides the guess
+// that drives the device icon, so a value that names no class is dropped rather
+// than stored where it could never take effect.
 func (c Curation) clean() Curation {
+	kind := strings.TrimSpace(c.Type)
+	if !classify.Class(kind).Valid() {
+		kind = ""
+	}
+
 	return Curation{
 		Label:   strings.TrimSpace(c.Label),
 		Notes:   strings.TrimSpace(c.Notes),
 		Group:   strings.TrimSpace(c.Group),
-		Type:    strings.TrimSpace(c.Type),
+		Type:    kind,
 		Ignored: c.Ignored,
 	}
 }

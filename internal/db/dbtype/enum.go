@@ -148,6 +148,13 @@ const (
 	// listening where it was not, or gone quiet where it answered before.
 	EventPortOpened EventKind = "PORT_OPENED"
 	EventPortClosed EventKind = "PORT_CLOSED"
+
+	// EventDeviceClassified records a scan's classifier moving its guess at
+	// what kind of device this is from one known class to another. The first
+	// guess is silent -- it is part of discovering the device -- and so is the
+	// guess lapsing back to nothing. The user's own answer, in device_type, is
+	// an edit, not this.
+	EventDeviceClassified EventKind = "DEVICE_CLASSIFIED"
 )
 
 var eventKinds = []EventKind{
@@ -160,6 +167,7 @@ var eventKinds = []EventKind{
 	EventDeviceEdited,
 	EventPortOpened,
 	EventPortClosed,
+	EventDeviceClassified,
 }
 
 // Valid reports whether k is one of the known event kinds.

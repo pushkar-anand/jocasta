@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pushkar-anand/jocasta/internal/classify"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 )
@@ -31,6 +32,15 @@ type Device struct {
 	Hostname       string                `json:"hostname,omitempty"`
 	HostnameSource dbtype.HostnameSource `json:"hostname_source,omitempty"`
 	Type           string                `json:"type,omitempty"`
+
+	// Class is the device category a surface shows as an icon: the user's own
+	// answer in Type when they have set one, and the classifier's guess
+	// otherwise. ClassGuess is that guess regardless of the override, and
+	// ClassConfidence how much stood behind it, so the device page can show what
+	// the classifier would say if left to itself.
+	Class           classify.Class      `json:"class,omitempty"`
+	ClassGuess      classify.Class      `json:"class_guess,omitempty"`
+	ClassConfidence classify.Confidence `json:"class_confidence,omitempty"`
 
 	Label   string `json:"label,omitempty"`
 	Notes   string `json:"notes,omitempty"`
@@ -281,22 +291,35 @@ type DeviceFilter struct {
 // newDevice converts a stored device, resolving whether it counts as online
 // against a single cutoff so every device in one read is judged alike.
 func newDevice(d *models.Device, cutoff time.Time) *Device {
+	guess := classify.Class(d.DeviceClass.String)
+
+	// The user's answer wins when it names a class this build knows; a value
+	// that does not (a free-text type from before the field was a fixed list)
+	// is no override, and the guess stands.
+	effective := guess
+	if override := classify.Class(d.DeviceType.String); override != classify.Unknown && override.Valid() {
+		effective = override
+	}
+
 	return &Device{
-		ID:             d.ID,
-		MAC:            macString(d.MAC),
-		IdentitySource: d.IdentitySource,
-		Randomised:     d.IsRandomised,
-		Vendor:         d.Vendor.String,
-		Hostname:       d.Hostname.String,
-		HostnameSource: d.HostnameSource,
-		Type:           d.DeviceType.String,
-		Label:          d.Label.String,
-		Notes:          d.Notes.String,
-		Group:          d.GroupName.String,
-		Ignored:        d.IsIgnored,
-		FirstSeen:      d.FirstSeen.Time,
-		LastSeen:       d.LastSeen.Time,
-		Online:         !d.LastSeen.Before(cutoff),
+		ID:              d.ID,
+		MAC:             macString(d.MAC),
+		IdentitySource:  d.IdentitySource,
+		Randomised:      d.IsRandomised,
+		Vendor:          d.Vendor.String,
+		Hostname:        d.Hostname.String,
+		HostnameSource:  d.HostnameSource,
+		Type:            d.DeviceType.String,
+		Class:           effective,
+		ClassGuess:      guess,
+		ClassConfidence: classify.Confidence(d.DeviceClassConfidence.String),
+		Label:           d.Label.String,
+		Notes:           d.Notes.String,
+		Group:           d.GroupName.String,
+		Ignored:         d.IsIgnored,
+		FirstSeen:       d.FirstSeen.Time,
+		LastSeen:        d.LastSeen.Time,
+		Online:          !d.LastSeen.Before(cutoff),
 	}
 }
 
