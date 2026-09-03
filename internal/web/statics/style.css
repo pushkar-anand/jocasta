@@ -105,6 +105,9 @@ a:hover {
 
 /* ---- Rail -------------------------------------------------------------- */
 
+/* Sticky so the sections and the sweep line stay in view on a page long enough
+   to scroll: the rail is the fixed point the layout is built around, and a
+   plain column scrolls away with everything else. */
 .sidebar {
     flex: 0 0 var(--rail);
     width: var(--rail);
@@ -112,6 +115,11 @@ a:hover {
     flex-direction: column;
     padding: 22px 16px;
     background: var(--sidebar);
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: 100vh;
+    overflow-y: auto;
 }
 
 .brandmark {
@@ -209,10 +217,6 @@ a:hover {
     margin-top: auto;
     padding-top: 14px;
     border-top: 1px solid var(--sidebar-rule);
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 10px;
 }
 
 .sidebar__foot-note {
@@ -254,6 +258,11 @@ a:hover {
     padding: 0 var(--pad);
     background: var(--surface);
     border-bottom: 1px solid var(--border);
+    /* Sticky so the page title and the theme control stay reachable however
+       far down the content runs. */
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .topbar__title {
@@ -261,6 +270,15 @@ a:hover {
     align-items: center;
     gap: 12px;
     min-width: 0;
+}
+
+/* Whatever sits at the far end of the topbar: the refresh note when the page
+   has one, and the theme control, which every page does. */
+.topbar__tools {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex: 0 0 auto;
 }
 
 .topbar__sep {
@@ -1158,11 +1176,14 @@ input[type="checkbox"] {
     .sidebar {
         flex: 0 0 auto;
         width: auto;
+        height: auto;
         flex-direction: row;
         align-items: center;
         gap: 8px;
         padding: 10px 16px;
         overflow-x: auto;
+        overflow-y: visible;
+        z-index: 20;
     }
 
     .brandmark {
@@ -1188,6 +1209,9 @@ input[type="checkbox"] {
         height: auto;
         flex-wrap: wrap;
         padding: 14px var(--pad);
+        /* The rail is a sticky strip at this width; a second sticky bar under it
+           would stack on top of the sections. */
+        position: static;
     }
 }
 
@@ -1234,22 +1258,24 @@ input[type="checkbox"] {
 /* ---- Theme Toggle -------------------------------------------------------- */
 
 .theme-toggle {
-    background: none;
-    border: none;
-    padding: 4px;
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    padding: 0;
     margin: 0;
-    margin-left: auto;
     cursor: pointer;
-    color: var(--sidebar-icon);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-3);
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 4px;
 }
 
 .theme-toggle:hover {
-    color: #ffffff;
-    background: var(--sidebar-hover);
+    border-color: var(--border-strong);
+    color: var(--text);
 }
 
 .theme-toggle svg {
