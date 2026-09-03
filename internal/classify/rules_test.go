@@ -117,6 +117,31 @@ func TestFirstMatchAndSpecificity(t *testing.T) {
 			in:   Input{OpenPorts: []uint16{8123, 22, 3000}},
 			want: IoTHub,
 		},
+		{
+			name: "a Proxmox OUI reads as a server, even beside a cast port",
+			in:   Input{Vendor: "Proxmox Server Solutions GmbH", OpenPorts: []uint16{22, 8009, 9100}},
+			want: Server,
+		},
+		{
+			name: "a smart-speaker name beats its own cast ports",
+			in:   Input{Vendor: "Google, Inc.", Hostname: "kitchen-nest-audio", OpenPorts: []uint16{8008, 8009}},
+			want: Speaker,
+		},
+		{
+			name: "cast ports with no telling name are a media player",
+			in:   Input{OpenPorts: []uint16{8008, 8009}},
+			want: Streaming,
+		},
+		{
+			name: "port 9100 on its own is a node-exporter",
+			in:   Input{OpenPorts: []uint16{9100}},
+			want: Server,
+		},
+		{
+			name: "a bare Intel OUI falls back to desktop",
+			in:   Input{Vendor: "Intel Corporate"},
+			want: Desktop,
+		},
 	}
 
 	for _, tt := range tests {

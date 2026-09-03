@@ -235,6 +235,9 @@ var ruleset = []Rule{
 	host(`mac-?mini`, "the name says Mac mini", Desktop, false),
 	host(`apple-?tv|appletv`, "the name says Apple TV", Streaming, false),
 	host(`home-?pod`, "the name says HomePod", Speaker, false),
+	// Every Google speaker also answers the Chromecast ports below, so name it
+	// here, above them, or the ports would carry it to the streaming class.
+	host(`nest-?(?:mini|audio)|google-?home`, "the name is a Google smart speaker", Speaker, false),
 	host(`(?:\b|_)(?:echo|alexa|echodot)(?:\b|_)`, "the name says Echo/Alexa", VoiceAssistant, false),
 	host(`fire-?tv|firetv|nvidia-?shield|(?:\b|_)shield(?:\b|_)`, "the name is a streaming box", Streaming, false),
 	host(`(?:\b|_)xbox(?:\b|_)`, "the name says Xbox", GameConsole, false),
@@ -250,6 +253,7 @@ var ruleset = []Rule{
 	host(`fitbit|garmin|apple-?watch|-watch(?:\b|_)|mi-?band|amazfit`, "the name is a wearable", Wearable, false),
 
 	vend("mikrotik", "MikroTik", Router, false),
+	vend("routerboard", "MikroTik", Router, false), // the OUI the RouterBOARD line registers under
 	vend("fortinet", "Fortinet", Firewall, false),
 	vend("paloalto", "Palo Alto", Firewall, false),
 	vend("synology", "Synology", NAS, false),
@@ -285,7 +289,6 @@ var ruleset = []Rule{
 	vend("polycom", "Polycom", VoIP, false),
 
 	port(515, "port 515 (LPD print service)", Printer, false),
-	port(8009, "port 8009 (Chromecast)", Streaming, false),
 	port(8581, "port 8581 (Homebridge)", IoTHub, false),
 	port(8006, "port 8006 (Proxmox VE)", Hypervisor, false),
 	port(32400, "port 32400 (Plex media server)", Server, false),
@@ -295,9 +298,12 @@ var ruleset = []Rule{
 	host(`ipod`, "the name says iPod", Phone, false),
 	host(`(?:\b|_)(?:pixel|galaxy|oneplus|nexus|redmi|poco|moto-?g)(?:\b|_)`, "the name is a phone model", Phone, false),
 	host(`android-[0-9a-f]{12,}`, "an Android device default name", Phone, false),
-	host(`chromecast|nest-?hub|nest-?mini|google-?home`, "the name is a Google cast device", Streaming, false),
+	host(`chromecast|nest-?hub`, "the name is a Google cast device", Streaming, false),
+	host(`(?:\b|_)mac(?:\b|_)`, "the name says Mac", Laptop, false), // macbook / imac / mac-mini are named above
+	host(`zhimi|viomi|mijia|roborock|dreame`, "the name is a Xiaomi smart-home device", SmartHome, false),
+	host(`(?:\b|_)tapo(?:\b|_)|(?:\b|_)c[1-5][0-9]{2}(?:\b|_)`, "the name is a TP-Link Tapo camera", Camera, false),
 	host(`bravia|aquos|(?:\b|_)regza(?:\b|_)|vizio|hisense|(?:\b|_)webos(?:\b|_)|(?:\b|_)tizen(?:\b|_)|-tv(?:\b|_)|(?:\b|_)tv-`, "the name says TV", TV, false),
-	host(`thermostat|ecobee|(?:\b|_)tado(?:\b|_)|(?:\b|_)nest(?:\b|_)`, "the name says thermostat", SmartHome, false),
+	host(`thermostat|ecobee|(?:\b|_)tado(?:\b|_)|nest-?(?:thermostat|learning)`, "the name says thermostat", SmartHome, false),
 	host(`nintendo|switch-?[0-9]`, "the name says Nintendo", GameConsole, false),
 	host(`pi-?hole|pihole|raspberry-?pi|(?:\b|_)rpi[0-9-]`, "the name is a Raspberry Pi", Server, false),
 	host(`router|gateway|openwrt|edgerouter|(?:\b|_)udm(?:\b|_)|dream-?machine|pfsense|opnsense|-gw(?:\b|_)|(?:\b|_)gw-`, "the name says router/gateway", Router, false),
@@ -307,6 +313,9 @@ var ruleset = []Rule{
 	host(`laptop|notebook|thinkpad|latitude|elitebook|zenbook|(?:\b|_)xps(?:\b|_)|-lt(?:\b|_)|-nb(?:\b|_)`, "the name says laptop", Laptop, false),
 	host(`desktop|workstation|-pc(?:\b|_)|-ws(?:\b|_)|optiplex|precision`, "the name says desktop", Desktop, false),
 
+	vend("proxmox", "Proxmox", Server, false), // Proxmox Server Solutions: a VM or a host, either way a server
+	vend("raspberry", "Raspberry Pi", Server, false),
+	vend("nothing", "Nothing", Phone, false),
 	vend("arris", "Arris", Router, false),
 	vend("technicolor", "Technicolor", Router, false),
 	vend("juniper", "Juniper", Switch, false),
@@ -324,7 +333,14 @@ var ruleset = []Rule{
 
 	{Cond: Cond{MinServer: 2}, Class: Server, ReasonFn: serviceReason},
 
+	// A resolver and an admin UI, and nothing else: the shape of a home router.
+	{Cond: Cond{AllPort: []uint16{53, 443}}, Class: Router, Reason: "a DNS resolver behind an HTTPS admin page"},
+
 	port(631, "port 631 (IPP print service)", Printer, false),
+	// The cast ports: every Chromecast has them, but so does every Google
+	// speaker and every Android TV, so they are a hint, not a verdict -- the
+	// name, above, is what tells the three apart.
+	port(8009, "port 8009 (Chromecast)", Streaming, false),
 	port(8008, "port 8008 (Chromecast)", Streaming, false),
 	port(554, "port 554 (RTSP video stream)", Camera, false),
 	port(8096, "port 8096 (Jellyfin media server)", Server, false),
@@ -370,9 +386,11 @@ var ruleset = []Rule{
 	vend("microsoft", "Microsoft", Desktop, true),
 	vend("amazon", "Amazon", VoiceAssistant, true),
 	vend("google", "Google", VoiceAssistant, true),
-	vend("raspberry", "Raspberry Pi", Server, true),
+	vend("intel", "Intel", Desktop, true),       // a bare board NIC: most often a desktop or laptop
+	vend("gigabyte", "Gigabyte", Desktop, true), // a desktop mainboard
+	vend("xiaomi", "Xiaomi", Phone, true),       // phones and a vast IoT range; the name usually decides
 
-	port(9100, "port 9100 (raw print, or a node-exporter)", Printer, true),
+	port(9100, "port 9100 (Prometheus node-exporter, or raw print)", Server, true),
 	port(445, "port 445 (SMB file sharing)", Server, true),
 	port(5900, "port 5900 (VNC)", Desktop, true),
 	port(53, "port 53 (DNS resolver)", Router, true),
