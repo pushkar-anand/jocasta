@@ -77,10 +77,27 @@ func (s *Store) GetDevice(ctx context.Context, id int64) (*Device, error) {
 		return nil, fmt.Errorf("addresses of device %d: %w", id, err)
 	}
 
+	// The prefix each address sits on, so the page can name it. The table is a
+	// handful of rows, so it is read whole and indexed rather than joined.
+	networks, err := s.ListNetworks(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("networks for device %d: %w", id, err)
+	}
+
+	byID := make(map[int64]*Network, len(networks))
+	for _, n := range networks {
+		byID[n.ID] = n
+	}
+
 	d.Addresses = make([]*Address, 0, len(addrs))
 
 	for _, a := range addrs {
-		d.Addresses = append(d.Addresses, newAddress(a))
+		addr := newAddress(a)
+		if a.NetworkID.Valid {
+			addr.Network = byID[a.NetworkID.Int64]
+		}
+
+		d.Addresses = append(d.Addresses, addr)
 
 		if a.IsCurrent {
 			d.Current = append(d.Current, a.IP.Addr)
