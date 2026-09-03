@@ -420,6 +420,17 @@ h1 {
     padding: 18px 20px;
 }
 
+/* The card is a link to the network's own page; it should read as the card it
+   already is, not as a run of link text. */
+a.netcard {
+    color: inherit;
+}
+
+a.netcard:hover {
+    text-decoration: none;
+    border-color: var(--border-strong);
+}
+
 .netcard__top {
     display: flex;
     align-items: center;

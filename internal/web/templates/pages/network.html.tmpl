@@ -1,0 +1,46 @@
+{{ define "page/network" }}
+{{- template "layout/head" . }}
+
+{{- with .Network }}
+<section class="block">
+    <p class="eyebrow">Network</p>
+    <div class="card panel">
+        <div class="block__head">
+            <p class="netcard__top">
+                <span class="netcard__cidr">{{ .CIDR }}</span>
+                {{- if .VLAN }}
+                <span class="chip chip--brand">VLAN {{ .VLAN }}</span>
+                {{- end }}
+            </p>
+        </div>
+        {{- with .Name }}
+        <p class="dim">{{ . }}</p>
+        {{- end }}
+
+        <svg class="ledger" viewBox="0 0 100 10" preserveAspectRatio="none" role="img"
+             aria-label="{{ .Online }} of {{ .Total }} devices seen recently">
+            <rect class="ledger__track" x="0" y="0" width="100" height="10"></rect>
+            <rect class="ledger__online" x="0" y="0"
+                  width="{{ pct .Online .Total }}" height="10"></rect>
+            <rect class="ledger__offline" x="{{ pct .Online .Total }}" y="0"
+                  width="{{ pct .Offline .Total }}" height="10"></rect>
+        </svg>
+
+        <ul class="legend">
+            <li><span class="dot dot--ok"></span>Seen recently <strong>{{ .Online }}</strong></li>
+            <li><span class="dot dot--warn"></span>Quiet <strong>{{ .Offline }}</strong></li>
+            <li><span class="dot dot--quiet"></span>On this network <strong>{{ .Total }}</strong></li>
+        </ul>
+    </div>
+</section>
+{{- end }}
+
+<section class="block">
+    <div class="block__head">
+        <p class="eyebrow">Devices</p>
+    </div>
+    {{ template "partial/device-rows" . }}
+</section>
+
+{{- template "layout/foot" . }}
+{{ end }}

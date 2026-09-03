@@ -74,11 +74,13 @@ func TestDeviceRowsPushesTheCanonicalURL(t *testing.T) {
 		{"/devices/rows?q=nas", "/devices?q=nas"},
 		{"/devices/rows?status=online", "/devices?status=online"},
 		{"/devices/rows?ignored=1", "/devices?ignored=1"},
+		{"/devices/rows?network=1", "/devices?network=1"},
 
 		// A value the inventory does not recognise is dropped, so the pushed
 		// address describes the list that was actually rendered.
 		{"/devices/rows?status=onlin", "/devices"},
 		{"/devices/rows?sort=vendor", "/devices"},
+		{"/devices/rows?network=eth0", "/devices"},
 
 		// Whitespace a reader typed is not part of the search.
 		{"/devices/rows?q=%20nas%20", "/devices?q=nas"},
@@ -120,6 +122,18 @@ func TestDevicesPageFilters(t *testing.T) {
 		{
 			name:    "not seen recently, of which there are none",
 			target:  "/devices?status=offline",
+			present: []string{"No device matches this filter"},
+			absent:  []string{"printer.local", "nas.local"},
+		},
+		{
+			// The seed sweeps one prefix, so its network holds both devices.
+			name:    "by network",
+			target:  "/devices?network=1",
+			present: []string{"printer.local", "nas.local"},
+		},
+		{
+			name:    "by a network nothing is on",
+			target:  "/devices?network=999",
 			present: []string{"No device matches this filter"},
 			absent:  []string{"printer.local", "nas.local"},
 		},
@@ -324,7 +338,7 @@ func TestCanonicalURL(t *testing.T) {
 	assert.Equal(t, "/devices", devicesData{}.canonical())
 
 	// Every value that was applied is in the address, so it can be shared.
-	got := devicesData{Query: "nas", Group: "rack", Status: "online", Sort: "name", IncludeIgnored: true}.canonical()
+	got := devicesData{Query: "nas", Group: "rack", Network: "3", Status: "online", Sort: "name", IncludeIgnored: true}.canonical()
 
 	parsed, err := url.Parse(got)
 	require.NoError(t, err)
@@ -333,6 +347,7 @@ func TestCanonicalURL(t *testing.T) {
 	assert.Equal(t, url.Values{
 		"q":       {"nas"},
 		"group":   {"rack"},
+		"network": {"3"},
 		"status":  {"online"},
 		"sort":    {"name"},
 		"ignored": {"1"},
@@ -358,6 +373,11 @@ func TestDeviceFormDropsUnrecognisedValues(t *testing.T) {
 	assert.Equal(t, "offline", form.Status)
 	assert.Equal(t, "address", form.Sort)
 	assert.True(t, form.IncludeIgnored)
+
+	// The network select offers ids; a name is not one.
+	assert.Empty(t, deviceForm(url.Values{"network": {"eth0"}}).Network)
+	assert.Empty(t, deviceForm(url.Values{"network": {"0"}}).Network)
+	assert.Equal(t, "4", deviceForm(url.Values{"network": {"4"}}).Network)
 }
 
 // deviceIDFromBody pulls the first device id out of a rendered list.

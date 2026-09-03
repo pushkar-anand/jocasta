@@ -3,6 +3,7 @@ package web
 import (
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/pushkar-anand/jocasta/internal/inventory"
@@ -14,13 +15,16 @@ const deviceHistoryLimit = 30
 // devicesData is the device list and the state of the form that narrowed it.
 type devicesData struct {
 	view
-	Devices []*inventory.Device
-	Groups  []string
+	Devices  []*inventory.Device
+	Groups   []string
+	Networks []*inventory.Network
 
 	// The form values, kept as strings so a template can compare them against
-	// the option values without converting anything.
+	// the option values without converting anything. Network is the id of the
+	// chosen network, as text.
 	Query          string
 	Group          string
+	Network        string
 	Status         string
 	Sort           string
 	IncludeIgnored bool
@@ -31,10 +35,23 @@ func (d devicesData) filter() inventory.DeviceFilter {
 	return inventory.DeviceFilter{
 		Query:          d.Query,
 		Group:          d.Group,
+		Network:        d.networkID(),
 		Status:         inventory.Status(d.Status),
 		Sort:           inventory.Sort(d.Sort),
 		IncludeIgnored: d.IncludeIgnored,
 	}
+}
+
+// networkID reads the chosen network's id. A value that is not a number is no
+// filter at all, the same as choosing "any": the select only offers ids, so
+// anything else was typed into the address by hand.
+func (d devicesData) networkID() int64 {
+	id, err := strconv.ParseInt(d.Network, 10, 64)
+	if err != nil {
+		return 0
+	}
+
+	return id
 }
 
 // canonical is the address of the page showing this list. The fragment endpoint
@@ -44,7 +61,7 @@ func (d devicesData) canonical() string {
 	q := make(url.Values)
 
 	for key, value := range map[string]string{
-		"q": d.Query, "group": d.Group, "status": d.Status, "sort": d.Sort,
+		"q": d.Query, "group": d.Group, "network": d.Network, "status": d.Status, "sort": d.Sort,
 	} {
 		if value != "" {
 			q.Set(key, value)
@@ -73,6 +90,14 @@ func deviceForm(q url.Values) *devicesData {
 		Query:          strings.TrimSpace(q.Get("q")),
 		Group:          q.Get("group"),
 		IncludeIgnored: q.Get("ignored") == "1",
+	}
+
+	// The select offers network ids; anything that is not one arrived by hand,
+	// and keeping it would leave the address claiming a filter that was not
+	// applied. An id for a network that no longer exists is left to filter to
+	// nothing, the same as an unknown group does.
+	if n, err := strconv.ParseInt(q.Get("network"), 10, 64); err == nil && n > 0 {
+		d.Network = strconv.FormatInt(n, 10)
 	}
 
 	if s := inventory.Status(q.Get("status")); s.Valid() {
@@ -128,8 +153,14 @@ func (h *Handler) devicesData(r *http.Request) (*devicesData, error) {
 		return nil, err
 	}
 
+	networks, err := h.store.ListNetworks(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	data.Devices = devices
 	data.Groups = groups
+	data.Networks = networks
 
 	if note, err := h.sweepNote(ctx); err == nil {
 		data.Note = note

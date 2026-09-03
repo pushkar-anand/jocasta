@@ -31,6 +31,7 @@ func (s *Store) ListDevices(ctx context.Context, f DeviceFilter) ([]*Device, err
 	rows, err := s.q.ListDevices(ctx, models.ListDevicesParams{
 		IncludeIgnored: f.IncludeIgnored,
 		GroupName:      nullString(f.Group),
+		NetworkID:      sql.NullInt64{Int64: f.Network, Valid: f.Network != 0},
 		Q:              nullString(f.Query),
 	})
 	if err != nil {
@@ -259,6 +260,27 @@ func (s *Store) ListNetworks(ctx context.Context) ([]*Network, error) {
 	}
 
 	return networks, nil
+}
+
+// Network returns one recorded network with its device counts, or ErrNotFound
+// when no network has that id.
+//
+// It filters the full list rather than asking for one row: the table is a
+// handful of prefixes, and the counts are the same aggregate ListNetworks
+// already computes.
+func (s *Store) Network(ctx context.Context, id int64) (*Network, error) {
+	networks, err := s.ListNetworks(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, n := range networks {
+		if n.ID == id {
+			return n, nil
+		}
+	}
+
+	return nil, fmt.Errorf("network %d: %w", id, ErrNotFound)
 }
 
 // Groups returns the group names the user has assigned, in order.

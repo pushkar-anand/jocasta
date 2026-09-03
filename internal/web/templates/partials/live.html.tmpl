@@ -16,7 +16,7 @@
         {{- if .Networks }}
         <div class="netgrid">
             {{- range .Networks }}
-            <article class="card netcard">
+            <a class="card netcard" href="/networks/{{ .ID }}">
                 <p class="netcard__top">
                     <span class="dot {{ health . }}"></span>
                     <span class="netcard__cidr">{{ .CIDR }}</span>
@@ -42,7 +42,7 @@
                     <rect class="ledger__offline" x="{{ pct .Online .Total }}" y="0"
                           width="{{ pct .Offline .Total }}" height="6"></rect>
                 </svg>
-            </article>
+            </a>
             {{- end }}
         </div>
         {{- else }}
