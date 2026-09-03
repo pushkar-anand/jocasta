@@ -1,6 +1,7 @@
 package db
 
 import (
+	"database/sql"
 	"embed"
 	"errors"
 	"fmt"
@@ -20,8 +21,8 @@ const migrationDir = "migrations"
 //go:embed migrations/*.sql
 var migrationFiles embed.FS
 
-func migrateDB(db *DB) error {
-	td, err := sqlite.WithInstance(db.Conn, &sqlite.Config{})
+func migrateDB(conn *sql.DB) error {
+	td, err := sqlite.WithInstance(conn, &sqlite.Config{})
 	if err != nil {
 		return fmt.Errorf("failed to init sqlite migration target: %w", err)
 	}

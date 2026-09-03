@@ -3,6 +3,7 @@ package main
 import (
 	"cmp"
 	"context"
+	"database/sql"
 	"fmt"
 	"io"
 	"log/slog"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/pushkar-anand/build-with-go/validator"
 	"github.com/pushkar-anand/jocasta/internal/config"
-	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 )
@@ -34,7 +34,7 @@ func (s *ScanCmd) Run(
 	ctx context.Context,
 	cfg *config.Config,
 	log *slog.Logger,
-	conn *db.DB,
+	conn *sql.DB,
 	_ *validator.Validator,
 ) error {
 	p, err := netip.ParsePrefix(s.Target)
@@ -71,8 +71,15 @@ func (s *ScanCmd) Run(
 // save records the sweep in the inventory. It runs after the results are
 // printed so a database that will not open still leaves the operator with the
 // scan they asked for.
-func (s *ScanCmd) save(ctx context.Context, cfg *config.Config, log *slog.Logger, p netip.Prefix, hosts []scanner.Host, conn *db.DB) error {
-	res, err := inventory.New(conn.Conn, log).RecordSweep(ctx, cmp.Or(s.Source, cfg.Scan.Source), p, hosts)
+func (s *ScanCmd) save(
+	ctx context.Context,
+	cfg *config.Config,
+	log *slog.Logger,
+	p netip.Prefix,
+	hosts []scanner.Host,
+	conn *sql.DB,
+) error {
+	res, err := inventory.New(conn, log).RecordSweep(ctx, cmp.Or(s.Source, cfg.Scan.Source), p, hosts)
 	if err != nil {
 		return fmt.Errorf("record sweep: %w", err)
 	}

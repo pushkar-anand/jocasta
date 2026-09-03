@@ -25,32 +25,27 @@ var pragmas = []string{
 	"busy_timeout(5000)",
 }
 
-var pragmaString string
+// pragmaString is the pragmas rendered as DSN query parameters, built once.
+var pragmaString = encodePragmas()
 
-func init() {
+func encodePragmas() string {
 	q := make(url.Values, len(pragmas))
 	for _, p := range pragmas {
 		q.Add("_pragma", p)
 	}
 
-	pragmaString = q.Encode()
+	return q.Encode()
 }
 
-type (
-	// DB wraps the pooled connection to the application database.
-	DB struct {
-		Conn *sql.DB
-	}
+// Config names where the database file lives.
+type Config struct {
+	Name string
+	Path string
+}
 
-	// Config names where the database file lives.
-	Config struct {
-		Name string
-		Path string
-	}
-)
-
-// New opens (creating if needed) and migrates the database described by cfg.
-func New(cfg *Config) (*DB, error) {
+// New opens (creating if needed) and migrates the database described by cfg,
+// returning the pool to read and write it through.
+func New(cfg *Config) (*sql.DB, error) {
 	n := path.Join(cfg.Path, cfg.Name)
 
 	conn, err := sql.Open("sqlite", dsn(n))
@@ -58,16 +53,11 @@ func New(cfg *Config) (*DB, error) {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
-	db := &DB{
-		Conn: conn,
-	}
-
-	err = migrateDB(db)
-	if err != nil {
+	if err := migrateDB(conn); err != nil {
 		return nil, fmt.Errorf("failed to migrate database: %w", err)
 	}
 
-	return db, nil
+	return conn, nil
 }
 
 // dsn builds a file DSN carrying the pragmas above.
