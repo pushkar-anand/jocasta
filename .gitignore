@@ -45,3 +45,5 @@ plans/
 
 # temp files
 tmp/
+# Screenshot data generator, kept local
+docs/screenshots/
