@@ -300,11 +300,13 @@ func TestGetDeviceCarriesOpenPorts(t *testing.T) {
 	assert.Equal(t, uint16(443), d.Ports[1].Number)
 	assert.False(t, d.Ports[1].Open(), "the port that stopped answering keeps its row, closed")
 
-	// A list read does not pay for the ports.
+	// A list read does not pay for the full port history, but it does carry the
+	// numbers of the open ones so a row can show what the device exposes.
 	list, err := s.ListDevices(t.Context(), DeviceFilter{})
 	require.NoError(t, err)
 	require.NotEmpty(t, list)
 	assert.Nil(t, list[0].Ports)
+	assert.Equal(t, []uint16{22}, list[0].OpenPorts, "the closed port is not one it exposes now")
 }
 
 func TestDeviceEventsAreMostRecentFirst(t *testing.T) {
@@ -697,6 +699,19 @@ func TestParseAddrs(t *testing.T) {
 	// Nothing reaches the column except through dbtype.Addr, so unparseable
 	// text is dropped rather than failing the read of every other device.
 	assert.Equal(t, []netip.Addr{netip.MustParseAddr("192.0.2.9")}, parseAddrs("not-an-address 192.0.2.9"))
+}
+
+func TestParsePorts(t *testing.T) {
+	t.Parallel()
+
+	assert.Nil(t, parsePorts(""))
+
+	// The aggregate has no order worth keeping, so the numbers come back sorted.
+	assert.Equal(t, []uint16{22, 80, 443}, parsePorts("443 22 80"))
+
+	// The column is written from a CHECK-constrained one, so anything that is not
+	// a port is a row written around the application and is dropped.
+	assert.Equal(t, []uint16{443}, parsePorts("nope 443 0 99999"))
 }
 
 func TestStatusAdmits(t *testing.T) {

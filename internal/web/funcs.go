@@ -42,6 +42,7 @@ func funcs(now func() time.Time) template.FuncMap {
 		"statusClass":  statusClass,
 		"change":       change,
 		"addrs":        addrs,
+		"ports":        ports,
 		"standing":     standing,
 		"classLabel":   classLabel,
 		"classIcon":    classIcon,
@@ -267,6 +268,23 @@ func addrs(list []netip.Addr) string {
 	out := make([]string, 0, len(list))
 	for _, a := range list {
 		out = append(out, a.String())
+	}
+
+	return strings.Join(out, ", ")
+}
+
+// ports lists the TCP ports a device is listening on now, for a column with room
+// for the numbers but not for the table the device page draws. An empty list is
+// a dash, the same as any other absent value: a scan that found nothing open and
+// a network where no port scan runs read alike from a row.
+func ports(list []uint16) string {
+	if len(list) == 0 {
+		return em
+	}
+
+	out := make([]string, len(list))
+	for i, p := range list {
+		out[i] = strconv.Itoa(int(p))
 	}
 
 	return strings.Join(out, ", ")
