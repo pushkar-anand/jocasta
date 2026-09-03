@@ -10,6 +10,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/pushkar-anand/jocasta/internal/classify"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 	"github.com/pushkar-anand/jocasta/pkg/cursor"
@@ -64,6 +65,13 @@ func (s *Store) ListDevices(ctx context.Context, f DeviceFilter) ([]*Device, err
 		// Online is decided against the clock, not the query, so the status
 		// filter is applied here rather than as one more SQL clause.
 		if !f.Status.admits(d.Online) {
+			continue
+		}
+
+		// The effective class is settled when the device is read, from two
+		// columns and a rule about which wins, so the type filter is applied
+		// against it here rather than reproduced in SQL.
+		if f.Type != classify.Unknown && d.Class != f.Type {
 			continue
 		}
 

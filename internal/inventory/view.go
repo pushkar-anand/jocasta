@@ -274,9 +274,13 @@ const (
 
 	SortName    Sort = "name"
 	SortAddress Sort = "address"
+
+	// SortType groups the list by device class -- like with like, the
+	// classified devices first and the unclassified ones after them.
+	SortType Sort = "type"
 )
 
-var sorts = []Sort{SortDefault, SortLastSeen, SortName, SortAddress}
+var sorts = []Sort{SortDefault, SortLastSeen, SortName, SortAddress, SortType}
 
 // Valid reports whether by names an ordering.
 func (by Sort) Valid() bool { return slices.Contains(sorts, by) }
@@ -291,6 +295,12 @@ type DeviceFilter struct {
 	// Network admits only devices holding a current address on the network
 	// with this id. Zero is every network.
 	Network int64
+
+	// Type admits only devices whose effective class -- the user's override
+	// where they set one, the classifier's guess otherwise -- is this one. The
+	// zero class is every type, and matches the same field the icon column
+	// reads, so what the filter selects is what the list already shows.
+	Type classify.Class
 
 	Status Status
 	Sort   Sort
@@ -523,6 +533,8 @@ func sortDevices(devices []*Device, by Sort) {
 		}
 	case SortAddress:
 		cmpFn = compareFirstAddr
+	case SortType:
+		cmpFn = compareClass
 	default:
 		// SortLastSeen, and the unset field that means it.
 		cmpFn = func(a, b *Device) int { return b.LastSeen.Compare(a.LastSeen) }
@@ -531,6 +543,22 @@ func sortDevices(devices []*Device, by Sort) {
 	slices.SortStableFunc(devices, func(a, b *Device) int {
 		return cmp.Or(cmpFn(a, b), cmp.Compare(a.ID, b.ID))
 	})
+}
+
+// compareClass orders by device class, keeping like with like. An unclassified
+// device sorts last: it has no class to group with, and the reader ordering by
+// type is looking for the ones that do.
+func compareClass(a, b *Device) int {
+	switch {
+	case a.Class == b.Class:
+		return 0
+	case a.Class == classify.Unknown:
+		return 1
+	case b.Class == classify.Unknown:
+		return -1
+	}
+
+	return cmp.Compare(a.Class, b.Class)
 }
 
 // compareFirstAddr orders by the lowest address a device currently holds. A
