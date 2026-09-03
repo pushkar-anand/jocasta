@@ -13,6 +13,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/pushkar-anand/jocasta/internal/config"
+	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/hosts"
 	"github.com/pushkar-anand/jocasta/internal/plugin"
@@ -163,19 +164,21 @@ func TestCLIPortsCommandCustomFlags(t *testing.T) {
 	assert.True(t, cli.Ports.JSON)
 }
 
-func TestCLIPortsCommandMissingTarget(t *testing.T) {
+func TestCLIPortsCommandTargetIsOptional(t *testing.T) {
 	t.Parallel()
 
-	_, _, err := parseCLI(t, []string{"ports"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "expected \"<target>\"")
+	cli, _, err := parseCLI(t, []string{"ports", "--save"})
+	require.NoError(t, err)
+
+	assert.Empty(t, cli.Ports.Target)
+	assert.True(t, cli.Ports.Save)
 }
 
 func TestPortsCmdInvalidTarget(t *testing.T) {
 	t.Parallel()
 
 	cmd := PortsCmd{Target: "not-an-address"}
-	err := cmd.Run(t.Context(), slog.New(slog.DiscardHandler))
+	err := cmd.Run(t.Context(), &config.Config{}, slog.New(slog.DiscardHandler), nil)
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "neither an address nor a CIDR")
 }
@@ -184,9 +187,37 @@ func TestPortsCmdInvalidPortSpec(t *testing.T) {
 	t.Parallel()
 
 	cmd := PortsCmd{Target: "192.0.2.10", Ports: "not-a-port"}
-	err := cmd.Run(t.Context(), slog.New(slog.DiscardHandler))
+	err := cmd.Run(t.Context(), &config.Config{}, slog.New(slog.DiscardHandler), nil)
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "not a number")
+}
+
+// The save path opens a scan, folds the results and closes it, even when
+// nothing the scan touched is a device the inventory holds.
+func TestPortsCmdSaveRecordsAScan(t *testing.T) {
+	t.Parallel()
+
+	conn, err := db.New(&db.Config{Path: t.TempDir(), Name: "test.db"})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = conn.Close() })
+
+	cmd := PortsCmd{
+		Target:      "192.0.2.10",
+		Ports:       "9",
+		Timeout:     20 * time.Millisecond,
+		Concurrency: 4,
+		Save:        true,
+	}
+
+	cfg := &config.Config{}
+	cfg.Scan.Source = "test-sweep"
+
+	require.NoError(t, cmd.Run(t.Context(), cfg, slog.New(slog.DiscardHandler), conn))
+
+	var scans int
+	require.NoError(t, conn.QueryRowContext(t.Context(),
+		`SELECT COUNT(*) FROM scans WHERE kind = 'PORTS' AND status = 'OK'`).Scan(&scans))
+	assert.Equal(t, 1, scans)
 }
 
 func TestPortTargetsExpandsPrefix(t *testing.T) {

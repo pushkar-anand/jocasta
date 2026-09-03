@@ -231,6 +231,24 @@ func (s *Store) LastSuccessfulScanAt(ctx context.Context, k dbtype.ScanKind) (ti
 	return at.Time.Time, nil
 }
 
+// PortScanTargets returns every address a port scan should probe: the current
+// address of every device the user has not ignored. The scan works from what
+// discovery has already found rather than sweeping, so this is its whole target
+// list.
+func (s *Store) PortScanTargets(ctx context.Context) ([]netip.Addr, error) {
+	rows, err := s.q.AllCurrentAddresses(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("port scan targets: %w", err)
+	}
+
+	addrs := make([]netip.Addr, 0, len(rows))
+	for _, r := range rows {
+		addrs = append(addrs, r.IP.Addr)
+	}
+
+	return addrs, nil
+}
+
 // Stats counts the inventory as a whole.
 func (s *Store) Stats(ctx context.Context) (*Stats, error) {
 	now := s.now()

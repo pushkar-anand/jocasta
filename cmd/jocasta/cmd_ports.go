@@ -3,6 +3,7 @@ package main
 import (
 	"cmp"
 	"context"
+	"database/sql"
 	"fmt"
 	"io"
 	"log/slog"
@@ -12,24 +13,29 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/pushkar-anand/jocasta/internal/config"
+	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/pushkar-anand/jocasta/pkg/cidr"
 )
 
 type PortsCmd struct {
-	Target      string        `arg:"" help:"Address or CIDR prefix to probe (e.g. 192.0.2.10 or 192.0.2.0/24)."`
+	Target      string        `arg:"" optional:"" help:"Address or CIDR prefix to probe. Defaults to every current address in the inventory."`
 	Ports       string        `name:"ports" help:"Ports to probe, as a spec like '22,80,443,8000-8100'. Defaults to a curated preset."`
 	Timeout     time.Duration `name:"timeout" help:"Per-connection dial timeout." default:"500ms"`
 	Concurrency int           `name:"concurrency" help:"Maximum connections in flight." default:"256"`
 	JSON        bool          `name:"json" help:"Output results as JSON."`
+	Save        bool          `name:"save" help:"Record the open ports in the device inventory."`
 }
 
-// Run probes an address or a prefix and prints what answered. It is the way a
-// port scan is checked against real hardware without starting the server, the
-// same affordance scan and plugin provide; recording what it finds in the
-// inventory comes with the --save flag a later step adds.
-func (p *PortsCmd) Run(ctx context.Context, log *slog.Logger) error {
-	targets, err := portTargets(p.Target)
+// Run probes an address, a prefix, or every address the inventory holds, and
+// prints what answered. It is the way a port scan is checked against real
+// hardware without starting the server, the same affordance scan and plugin
+// provide.
+func (p *PortsCmd) Run(ctx context.Context, cfg *config.Config, log *slog.Logger, conn *sql.DB) error {
+	store := inventory.New(conn, log)
+
+	targets, err := p.targets(ctx, store)
 	if err != nil {
 		return err
 	}
@@ -48,11 +54,63 @@ func (p *PortsCmd) Run(ctx context.Context, log *slog.Logger) error {
 		opts = append(opts, scanner.WithPorts(ports))
 	}
 
-	ps := scanner.NewPortScanner(log, opts...)
+	results := scanner.NewPortScanner(log, opts...).Scan(ctx, targets, time.Now())
 
-	results := ps.Scan(ctx, targets, time.Now())
+	if err := outputPortScans(os.Stdout, results, p.JSON); err != nil {
+		return err
+	}
 
-	return outputPortScans(os.Stdout, results, p.JSON)
+	if !p.Save {
+		return nil
+	}
+
+	return p.save(ctx, cfg, log, store, results)
+}
+
+// targets resolves what to scan: an explicit address or prefix, or every
+// current address in the inventory when none was given.
+func (p *PortsCmd) targets(ctx context.Context, store *inventory.Store) ([]netip.Addr, error) {
+	if p.Target == "" {
+		targets, err := store.PortScanTargets(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(targets) == 0 {
+			return nil, fmt.Errorf("the inventory holds no addresses to scan; run a discovery sweep first")
+		}
+
+		return targets, nil
+	}
+
+	return portTargets(p.Target)
+}
+
+// save records the scan in the inventory. It runs after the results are printed
+// so a database that will not open still leaves the operator with the scan they
+// asked for.
+func (p *PortsCmd) save(
+	ctx context.Context,
+	cfg *config.Config,
+	log *slog.Logger,
+	store *inventory.Store,
+	results []scanner.PortScan,
+) error {
+	sum, err := store.RecordPorts(ctx, cfg.Scan.Source, results)
+	if err != nil {
+		return fmt.Errorf("record ports: %w", err)
+	}
+
+	log.InfoContext(ctx, "recorded port scan",
+		slog.Int64("scan", sum.ScanID),
+		slog.Int("devices", sum.Devices),
+		slog.Int("dropped", sum.Dropped),
+		slog.Int("open", sum.Open),
+		slog.Int("opened", sum.Opened),
+		slog.Int("closed", sum.Closed),
+	)
+
+	return nil
 }
 
 // portTargets reads the command's target as either a single address or a
