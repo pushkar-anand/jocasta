@@ -25,6 +25,7 @@ type Cond struct {
 	AllPort []uint16 // all of these are open
 
 	Randomised *bool // the address is (or is not) locally administered
+	FirstHost  bool  // holds the .1 of its subnet, where a gateway lives
 
 	// MinServer fires when at least this many service ports (see serverPorts)
 	// are open at once -- a host running services rather than using them.
@@ -134,6 +135,7 @@ func match(c Cond, f Facts) (conds int, ok bool) {
 		test(len(c.AnyPort) > 0, anyPort(f, c.AnyPort)) &&
 		test(len(c.AllPort) > 0, allPort(f, c.AllPort)) &&
 		test(c.Randomised != nil, c.Randomised != nil && *c.Randomised == f.Randomised) &&
+		test(c.FirstHost, f.FirstHost) &&
 		test(c.MinServer > 0, countServer(f) >= c.MinServer) &&
 		test(c.When != nil, c.When != nil && c.When(f))
 
@@ -333,8 +335,12 @@ var ruleset = []Rule{
 
 	{Cond: Cond{MinServer: 2}, Class: Server, ReasonFn: serviceReason},
 
-	// A resolver and an admin UI, and nothing else: the shape of a home router.
-	{Cond: Cond{AllPort: []uint16{53, 443}}, Class: Router, Reason: "a DNS resolver behind an HTTPS admin page"},
+	// A resolver and an admin page, at the .1 of the subnet: a home gateway.
+	// Without the .1 this is just as likely a Pi-hole or AdGuard box, so the
+	// bare port-53 hint below carries those instead. Two rules because the
+	// admin page is on 80 as often as 443.
+	{Cond: Cond{AllPort: []uint16{53, 443}, FirstHost: true}, Class: Router, Reason: "a resolver and an admin page at the gateway address"},
+	{Cond: Cond{AllPort: []uint16{53, 80}, FirstHost: true}, Class: Router, Reason: "a resolver and an admin page at the gateway address"},
 
 	port(631, "port 631 (IPP print service)", Printer, false),
 	// The cast ports: every Chromecast has them, but so does every Google

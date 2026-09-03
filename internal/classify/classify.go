@@ -17,6 +17,7 @@
 package classify
 
 import (
+	"net/netip"
 	"slices"
 	"strings"
 )
@@ -44,6 +45,11 @@ type Input struct {
 	// NetworkName is what the segment the device sits on is called, when it is
 	// called anything. An "IoT" or "cameras" VLAN is itself a weak classifier.
 	NetworkName string
+
+	// Addresses are the IP addresses the device currently holds. One fact is
+	// read from them: whether any is the .1 of its subnet, the address a home
+	// gateway almost always answers on.
+	Addresses []netip.Addr
 }
 
 // Class is a device category. The set is closed: the UI keys an icon and a
@@ -124,11 +130,20 @@ type Facts struct {
 	Network    string // lowercased, trimmed
 	Randomised bool
 	Ports      []uint16
+	FirstHost  bool // holds an address ending in .1
 }
 
 func facts(in Input) Facts {
 	ports := slices.Clone(in.OpenPorts)
 	slices.Sort(ports)
+
+	firstHost := false
+
+	for _, a := range in.Addresses {
+		if a.Is4() && a.As4()[3] == 1 {
+			firstHost = true
+		}
+	}
 
 	return Facts{
 		Vendor:     normVendor(in.Vendor),
@@ -136,6 +151,7 @@ func facts(in Input) Facts {
 		Network:    strings.ToLower(strings.TrimSpace(in.NetworkName)),
 		Randomised: in.Randomised,
 		Ports:      slices.Compact(ports),
+		FirstHost:  firstHost,
 	}
 }
 

@@ -1,11 +1,14 @@
 package classify
 
 import (
+	"net/netip"
 	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func addr(s string) []netip.Addr { return []netip.Addr{netip.MustParseAddr(s)} }
 
 // TestRulesetIsWellFormed checks the invariants a rule has to hold, so a
 // malformed entry fails here rather than misclassifying quietly.
@@ -48,6 +51,10 @@ func TestNoDuplicateConditions(t *testing.T) {
 
 		if r.Randomised != nil {
 			key += "|rand"
+		}
+
+		if r.FirstHost {
+			key += "|first"
 		}
 
 		// two port rules for one port that vote different classes are allowed
@@ -141,6 +148,21 @@ func TestFirstMatchAndSpecificity(t *testing.T) {
 			name: "a bare Intel OUI falls back to desktop",
 			in:   Input{Vendor: "Intel Corporate"},
 			want: Desktop,
+		},
+		{
+			name: "a resolver and an admin page at the .1 is a router",
+			in:   Input{Addresses: addr("192.0.2.1"), OpenPorts: []uint16{53, 443}},
+			want: Router,
+		},
+		{
+			name: "the admin page on port 80 counts too",
+			in:   Input{Addresses: addr("198.51.100.1"), OpenPorts: []uint16{53, 80}},
+			want: Router,
+		},
+		{
+			name: "the same ports away from the .1 do not make a concrete router",
+			in:   Input{Addresses: addr("192.0.2.53"), OpenPorts: []uint16{53, 443, 22, 3000}},
+			want: Server,
 		},
 	}
 
