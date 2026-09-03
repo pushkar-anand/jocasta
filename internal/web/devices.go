@@ -65,19 +65,44 @@ func (d devicesData) listPath() string {
 	return "/devices"
 }
 
-// FilterAction is where the filter form submits without htmx.
+// FilterAction is where the filter form submits without htmx, and also where
+// the "clear" link leads: the list with nothing narrowing it.
 func (d devicesData) FilterAction() string { return d.listPath() }
 
 // FilterRows is the fragment endpoint the filter form fetches with htmx.
 func (d devicesData) FilterRows() string { return d.listPath() + "/rows" }
 
+// Filtered reports whether the form is narrowing the list. The network a
+// network page pins is the page, not a filter, so it does not count.
+func (d devicesData) Filtered() bool {
+	chosenNetwork := d.Network != "" && d.OnNetwork == nil
+
+	return d.Query != "" || d.Group != "" || chosenNetwork || d.Type != "" ||
+		d.Status != "" || d.Sort != "" || d.IncludeIgnored
+}
+
+// Count words how many devices are in the heading: the size of the match when a
+// filter is on, the size of the inventory when it is not.
+func (d devicesData) Count() string {
+	switch {
+	case d.Filtered() && d.Total == 1:
+		return "1 match"
+	case d.Filtered():
+		return strconv.Itoa(d.Total) + " matches"
+	case d.Total == 1:
+		return "1 device"
+	default:
+		return strconv.Itoa(d.Total) + " devices"
+	}
+}
+
 // listPager positions a paginated list: which page is shown, how many there
-// are in total, and the ready-built addresses of the pages either side. A nil
-// one is a list short enough to show whole.
+// are, and the ready-built addresses of the pages either side. A nil one is a
+// list short enough to show whole. The match count is carried on devicesData,
+// which the count line reads whether or not the list is paged.
 type listPager struct {
 	Page  int
 	Pages int
-	Total int
 
 	prev string
 	next string
@@ -181,7 +206,6 @@ func (d *devicesData) paginate(all []*inventory.Device) {
 		d.Pager = &listPager{
 			Page:  d.Page,
 			Pages: pages,
-			Total: d.Total,
 			prev:  d.address(d.Page - 1),
 			next:  d.address(d.Page + 1),
 		}

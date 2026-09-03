@@ -84,7 +84,10 @@
         <span>Show ignored</span>
     </label>
 
-    {{- /* Reached only without htmx, where the form has to be submitted. */}}
+    {{- /* Reached only without htmx, where the form has to be submitted. The
+           way to clear the filter rides with the result count instead, inside
+           the fragment htmx swaps, so it is never left showing when nothing is
+           set. */}}
     <noscript><button type="submit" class="btn">Apply</button></noscript>
 </form>
 {{ end }}
