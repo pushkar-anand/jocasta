@@ -1084,6 +1084,13 @@ input[type="checkbox"] {
     gap: 20px;
 }
 
+/* The device list's pager sits under the table with its position in the middle
+   and a step either side of it. */
+.pager--split {
+    align-items: center;
+    justify-content: space-between;
+}
+
 /* ---- Editing ------------------------------------------------------------------ */
 
 .curation {

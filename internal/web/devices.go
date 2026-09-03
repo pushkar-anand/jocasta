@@ -12,12 +12,22 @@ import (
 // deviceHistoryLimit is how much of one device's history the detail page shows.
 const deviceHistoryLimit = 30
 
+// devicesPerPage is how many rows one page of the device list shows. The list
+// is still read and sorted whole -- ordering by name or address cannot be done
+// in SQL -- so this only bounds how much of it reaches the DOM at once.
+const devicesPerPage = 50
+
 // devicesData is the device list and the state of the form that narrowed it.
 type devicesData struct {
 	view
 	Devices  []*inventory.Device
 	Groups   []string
 	Networks []*inventory.Network
+
+	// Total is how many devices the filter matched across every page; Devices
+	// holds only the page being shown. Pager is nil when the match fits on one.
+	Total int
+	Pager *listPager
 
 	// The form values, kept as strings so a template can compare them against
 	// the option values without converting anything. Network is the id of the
@@ -28,7 +38,28 @@ type devicesData struct {
 	Status         string
 	Sort           string
 	IncludeIgnored bool
+
+	// Page is the 1-based page the form asked for, before it is clamped to how
+	// many there turned out to be.
+	Page int
 }
+
+// listPager positions a paginated list: which page is shown, how many there
+// are in total, and the ready-built addresses of the pages either side. A nil
+// one is a list short enough to show whole.
+type listPager struct {
+	Page  int
+	Pages int
+	Total int
+
+	prev string
+	next string
+}
+
+func (p *listPager) HasPrev() bool    { return p.Page > 1 }
+func (p *listPager) HasNext() bool    { return p.Page < p.Pages }
+func (p *listPager) PrevHref() string { return p.prev }
+func (p *listPager) NextHref() string { return p.next }
 
 // filter is what the form asked the inventory for.
 func (d devicesData) filter() inventory.DeviceFilter {
@@ -54,10 +85,8 @@ func (d devicesData) networkID() int64 {
 	return id
 }
 
-// canonical is the address of the page showing this list. The fragment endpoint
-// returns it as HX-Push-Url, so the browser's address bar ends up somewhere
-// that can be reloaded or shared even though only the table was fetched.
-func (d devicesData) canonical() string {
+// params is the filter as query values, without the page.
+func (d devicesData) params() url.Values {
 	q := make(url.Values)
 
 	for key, value := range map[string]string{
@@ -72,11 +101,56 @@ func (d devicesData) canonical() string {
 		q.Set("ignored", "1")
 	}
 
+	return q
+}
+
+// address is the URL of this list on a given page. Page one carries no page
+// parameter, so an unfiltered first page is just "/devices".
+func (d devicesData) address(page int) string {
+	q := d.params()
+
+	if page > 1 {
+		q.Set("page", strconv.Itoa(page))
+	}
+
 	if len(q) == 0 {
 		return "/devices"
 	}
 
 	return "/devices?" + q.Encode()
+}
+
+// canonical is the address of the page showing this list. The fragment endpoint
+// returns it as HX-Push-Url, so the browser's address bar ends up somewhere
+// that can be reloaded or shared even though only the table was fetched.
+func (d devicesData) canonical() string {
+	return d.address(d.Page)
+}
+
+// paginate keeps the page of the sorted match that the form asked for, clamping
+// a page number past the end back to the last real one.
+func (d *devicesData) paginate(all []*inventory.Device) {
+	d.Total = len(all)
+
+	pages := 1
+	if d.Total > devicesPerPage {
+		pages = (d.Total + devicesPerPage - 1) / devicesPerPage
+	}
+
+	d.Page = min(max(d.Page, 1), pages)
+
+	start := (d.Page - 1) * devicesPerPage
+	d.Devices = all[start:min(start+devicesPerPage, d.Total)]
+
+	if pages > 1 {
+		d.Pager = &listPager{
+			Page:  d.Page,
+			Pages: pages,
+			Total: d.Total,
+			prev:  d.address(d.Page - 1),
+			next:  d.address(d.Page + 1),
+		}
+	}
 }
 
 // deviceForm reads the form out of the query string.
@@ -90,6 +164,13 @@ func deviceForm(q url.Values) *devicesData {
 		Query:          strings.TrimSpace(q.Get("q")),
 		Group:          q.Get("group"),
 		IncludeIgnored: q.Get("ignored") == "1",
+		Page:           1,
+	}
+
+	// The pager only ever links to pages that exist; a number past the end, or
+	// one that is not a number, is read as the first page.
+	if p, err := strconv.Atoi(q.Get("page")); err == nil && p > 1 {
+		d.Page = p
 	}
 
 	// The select offers network ids; anything that is not one arrived by hand,
@@ -158,9 +239,9 @@ func (h *Handler) devicesData(r *http.Request) (*devicesData, error) {
 		return nil, err
 	}
 
-	data.Devices = devices
 	data.Groups = groups
 	data.Networks = networks
+	data.paginate(devices)
 
 	if note, err := h.sweepNote(ctx); err == nil {
 		data.Note = note

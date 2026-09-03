@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"html/template"
 	"log/slog"
 	"net/http"
@@ -82,6 +83,28 @@ func seeded(t *testing.T) *Handler {
 	swept := []scanner.Host{
 		host("192.0.2.10", macA, "printer.local"),
 		host("192.0.2.11", macB, "nas.local"),
+	}
+
+	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix), swept)
+	require.NoError(t, err)
+
+	return NewHandler(testLogger(), testReader(t), store)
+}
+
+// seededWith returns a handler over an inventory holding n swept devices, for a
+// test that needs more of them than the pair seeded gives.
+func seededWith(t *testing.T, n int) *Handler {
+	t.Helper()
+
+	store := testStore(t)
+
+	swept := make([]scanner.Host, 0, n)
+	for i := 1; i <= n; i++ {
+		swept = append(swept, host(
+			fmt.Sprintf("192.0.2.%d", i),
+			fmt.Sprintf("00:00:5e:00:53:%02x", i),
+			fmt.Sprintf("host-%d.example", i),
+		))
 	}
 
 	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix), swept)
