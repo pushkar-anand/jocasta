@@ -17,6 +17,7 @@ var defaults = map[string]any{
 	"logger.format": "json",
 
 	"inventory.online_window": inventory.DefaultOnlineWindow.String(),
+	"inventory.address_grace": inventory.DefaultAddressGrace.String(),
 
 	"scan.source": defaultSource(),
 

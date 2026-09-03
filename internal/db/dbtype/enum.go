@@ -112,6 +112,11 @@ const (
 	EventAddressAdded     EventKind = "ADDRESS_ADDED"
 	EventHostnameChanged  EventKind = "HOSTNAME_CHANGED"
 
+	// EventAddressReleased records a sweep concluding a device has moved off an
+	// address: it answered elsewhere in the prefix while this one stayed silent
+	// past the grace window.
+	EventAddressReleased EventKind = "ADDRESS_RELEASED"
+
 	// EventDeviceEdited records the user changing what they own on a device.
 	// Their edits belong in the change log for the same reason a scan's do:
 	// the log is the record of what changed, whoever changed it.
@@ -124,6 +129,7 @@ var eventKinds = []EventKind{
 	EventDevicesMerged,
 	EventAddressAdded,
 	EventHostnameChanged,
+	EventAddressReleased,
 	EventDeviceEdited,
 }
 

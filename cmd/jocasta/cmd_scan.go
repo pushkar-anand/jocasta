@@ -90,6 +90,7 @@ func (s *ScanCmd) save(
 		slog.Int("discovered", res.Discovered),
 		slog.Int("identified", res.Identified),
 		slog.Int("merged", res.Merged),
+		slog.Int("released", res.Released),
 	)
 
 	return nil

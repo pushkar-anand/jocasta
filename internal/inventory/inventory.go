@@ -13,7 +13,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/netip"
+	"slices"
 	"time"
 
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
@@ -25,6 +27,11 @@ import (
 // DefaultOnlineWindow is how recently a device must have answered to count as
 // online when no window is configured.
 const DefaultOnlineWindow = 15 * time.Minute
+
+// DefaultAddressGrace is how long an address inside a swept prefix may go
+// unanswered -- while its device answers elsewhere in that prefix -- before the
+// sweep concludes the lease is gone and retires it.
+const DefaultAddressGrace = 6 * time.Hour
 
 // Store reads the inventory and writes scan results into it.
 type Store struct {
@@ -40,6 +47,12 @@ type Store struct {
 	// how stale the last sighting is, and how stale is too stale depends on how
 	// often the sweeps run.
 	onlineWindow time.Duration
+
+	// addressGrace is how long an address a swept device stopped answering on is
+	// kept before the sweep retires it. The sweep having answered for the device
+	// elsewhere in the prefix is the evidence it moved; this window only absorbs
+	// a second interface whose replies were dropped for one whole sweep.
+	addressGrace time.Duration
 }
 
 // Option configures a Store.
@@ -51,6 +64,17 @@ func WithOnlineWindow(d time.Duration) Option {
 	return func(s *Store) {
 		if d > 0 {
 			s.onlineWindow = d
+		}
+	}
+}
+
+// WithAddressGrace sets how long a swept device may go unanswered on an address
+// before a later sweep that finds it elsewhere in the prefix retires that
+// address. A window of zero or less leaves the default in place.
+func WithAddressGrace(d time.Duration) Option {
+	return func(s *Store) {
+		if d > 0 {
+			s.addressGrace = d
 		}
 	}
 }
@@ -72,6 +96,7 @@ func New(conn *sql.DB, log *slog.Logger, opts ...Option) *Store {
 		log:          log,
 		now:          time.Now,
 		onlineWindow: DefaultOnlineWindow,
+		addressGrace: DefaultAddressGrace,
 	}
 
 	for _, opt := range opts {
@@ -90,6 +115,11 @@ type Result struct {
 	Identified int
 	Merged     int
 	Seen       int
+
+	// Released counts addresses a swept device was found to have moved off: it
+	// answered elsewhere in the prefix while these stayed silent past the grace
+	// window. The rows are kept with is_current cleared.
+	Released int
 
 	// Dropped counts facts there was nothing to record against: no hardware
 	// address and no address any device holds, so believing them would invent a
@@ -123,6 +153,12 @@ type pass struct {
 	networks networks
 	at       dbtype.Time
 	res      Result
+
+	// seen and answered record what this pass had contact with, so the retire
+	// step afterwards can tell an address a device moved off from one it still
+	// holds: a device that answered somewhere, holding an address that did not.
+	seen     map[int64]struct{}
+	answered map[netip.Addr]struct{}
 }
 
 // networks matches an address to the recorded network containing it. A sweep
@@ -295,7 +331,7 @@ func (s *Store) report(ctx context.Context, r reading) (*Result, error) {
 		return nil, err
 	}
 
-	res, ingestErr := s.ingest(ctx, scanID, sourceID, r.facts)
+	res, ingestErr := s.ingest(ctx, scanID, sourceID, r)
 
 	// res is nil unless the ingest committed, so the count a failed scan
 	// records is the only one true of the table: none.
@@ -371,7 +407,7 @@ func (s *Store) open(ctx context.Context, r reading) (scanID, sourceID int64, er
 // ingest applies every fact as one transaction: a reading either lands whole
 // or not at all, so a partial run cannot leave a device holding an address it
 // was about to lose.
-func (s *Store) ingest(ctx context.Context, scanID, sourceID int64, facts []plugin.Fact) (*Result, error) {
+func (s *Store) ingest(ctx context.Context, scanID, sourceID int64, r reading) (*Result, error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin ingest: %w", err)
@@ -395,11 +431,22 @@ func (s *Store) ingest(ctx context.Context, scanID, sourceID int64, facts []plug
 		sourceID: sourceID,
 		networks: nets,
 		at:       s.stamp(),
+		seen:     map[int64]struct{}{},
+		answered: map[netip.Addr]struct{}{},
 	}
 
-	for _, f := range facts {
+	for _, f := range r.facts {
 		if err := s.record(ctx, p, f); err != nil {
 			return nil, fmt.Errorf("record %s: %w", f.Host.Address(), err)
+		}
+	}
+
+	// A sweep is the only reading bounded by a prefix, so the only one that can
+	// say an address inside it is absent. A router read covering every VLAN
+	// leaves r.network nil and retires nothing.
+	if r.network != nil {
+		if err := s.retire(ctx, p, *r.network); err != nil {
+			return nil, err
 		}
 	}
 
@@ -491,9 +538,68 @@ func (s *Store) record(ctx context.Context, p *pass, f plugin.Fact) error {
 		if err := p.q.TouchDevice(ctx, models.TouchDeviceParams{LastSeen: p.at, ID: target.ID}); err != nil {
 			return fmt.Errorf("touch device %d: %w", target.ID, err)
 		}
+
+		// This device answered, on this address. The retire step reads both: an
+		// address a device holds that is not in here, while the device is, is
+		// one the device has moved off.
+		p.seen[target.ID] = struct{}{}
+
+		if addr := ip.Addr; addr.IsValid() {
+			p.answered[addr] = struct{}{}
+		}
 	}
 
 	p.res.Seen++
+
+	return nil
+}
+
+// retire releases the addresses a swept device has moved off. An address is one
+// of those when its device answered this sweep, the address sits inside the
+// swept prefix, it did not itself answer, and it last answered longer ago than
+// the grace window.
+//
+// The device having answered elsewhere in the prefix is what separates a move
+// from an absence: a device that answered nowhere is offline, not relocated,
+// and nothing in a silent sweep says its lease changed. The grace window then
+// covers a second interface on the prefix whose replies were all dropped for
+// one sweep.
+//
+// The released row is kept with is_current cleared, so "where did this used to
+// live" stays a read, and last_seen is left at the last real sighting.
+func (s *Store) retire(ctx context.Context, p *pass, prefix netip.Prefix) error {
+	cutoff := p.at.Add(-s.addressGrace)
+
+	seen := slices.Sorted(maps.Keys(p.seen))
+
+	for _, deviceID := range seen {
+		held, err := p.q.CurrentAddresses(ctx, deviceID)
+		if err != nil {
+			return fmt.Errorf("current addresses of device %d: %w", deviceID, err)
+		}
+
+		for _, a := range held {
+			if _, answered := p.answered[a.IP.Addr]; answered {
+				continue
+			}
+
+			if !prefix.Contains(a.IP.Addr) || !a.LastSeen.Before(cutoff) {
+				continue
+			}
+
+			if err := p.q.RetireAddress(ctx, a.ID); err != nil {
+				return fmt.Errorf("retire %s: %w", a.IP, err)
+			}
+
+			detail := fmt.Sprintf("unanswered since %s; device seen elsewhere in %s",
+				a.LastSeen.Format(time.RFC3339), prefix)
+			if err := s.event(ctx, p, deviceID, dbtype.EventAddressReleased, a.IP.String(), "", detail); err != nil {
+				return err
+			}
+
+			p.res.Released++
+		}
+	}
 
 	return nil
 }

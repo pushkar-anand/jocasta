@@ -42,6 +42,12 @@ type (
 		// as online. Nothing announces a device leaving, so this belongs in
 		// config: how stale a sighting may be depends on how often sweeps run.
 		OnlineWindow time.Duration `koanf:"online_window"`
+
+		// AddressGrace is how long an address a swept device stopped answering
+		// on is kept before a later sweep that finds the device elsewhere in
+		// the prefix retires it. Raise it on a network with long DHCP leases
+		// and hosts that hold an address without using it.
+		AddressGrace time.Duration `koanf:"address_grace"`
 	}
 
 	// Scan holds settings for how and when the poller sweeps the network.

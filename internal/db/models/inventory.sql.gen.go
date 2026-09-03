@@ -217,6 +217,51 @@ func (q *Queries) CreateScan(ctx context.Context, arg CreateScanParams) (*Scan, 
 	return &i, err
 }
 
+const currentAddresses = `-- name: CurrentAddresses :many
+SELECT id, device_id, network_id, ip, is_current, first_seen, last_seen
+FROM addresses
+WHERE device_id = ?
+  AND is_current = 1
+`
+
+// Every address a device holds right now, for deciding which of them it has
+// moved off after a sweep that answered on another.
+//
+//	SELECT id, device_id, network_id, ip, is_current, first_seen, last_seen
+//	FROM addresses
+//	WHERE device_id = ?
+//	  AND is_current = 1
+func (q *Queries) CurrentAddresses(ctx context.Context, deviceID int64) ([]*Address, error) {
+	rows, err := q.query(ctx, q.currentAddressesStmt, currentAddresses, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*Address
+	for rows.Next() {
+		var i Address
+		if err := rows.Scan(
+			&i.ID,
+			&i.DeviceID,
+			&i.NetworkID,
+			&i.IP,
+			&i.IsCurrent,
+			&i.FirstSeen,
+			&i.LastSeen,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deleteDevice = `-- name: DeleteDevice :exec
 DELETE
 FROM devices
@@ -1084,6 +1129,24 @@ type ReleaseAddressParams struct {
 //	  AND device_id <> ?2
 func (q *Queries) ReleaseAddress(ctx context.Context, arg ReleaseAddressParams) error {
 	_, err := q.exec(ctx, q.releaseAddressStmt, releaseAddress, arg.IP, arg.DeviceID)
+	return err
+}
+
+const retireAddress = `-- name: RetireAddress :exec
+UPDATE addresses
+SET is_current = 0
+WHERE id = ?
+`
+
+// Drop an address a device has moved off: the sweep answered for it elsewhere
+// in the prefix while this one stayed silent past the grace window. The row
+// stays so the history does, and last_seen keeps its last real sighting.
+//
+//	UPDATE addresses
+//	SET is_current = 0
+//	WHERE id = ?
+func (q *Queries) RetireAddress(ctx context.Context, id int64) error {
+	_, err := q.exec(ctx, q.retireAddressStmt, retireAddress, id)
 	return err
 }
 

@@ -160,6 +160,8 @@ func phrase(k dbtype.EventKind) string {
 		return "merged with a duplicate record"
 	case dbtype.EventAddressAdded:
 		return "picked up a new address"
+	case dbtype.EventAddressReleased:
+		return "let go of an address"
 	case dbtype.EventHostnameChanged:
 		return "was relabelled"
 	case dbtype.EventDeviceEdited:
@@ -181,7 +183,7 @@ func tone(k dbtype.EventKind) string {
 		return "act--arrival"
 	case dbtype.EventDeviceIdentified, dbtype.EventAddressAdded:
 		return "act--learned"
-	case dbtype.EventDevicesMerged, dbtype.EventHostnameChanged:
+	case dbtype.EventDevicesMerged, dbtype.EventHostnameChanged, dbtype.EventAddressReleased:
 		return "act--shape"
 	}
 
@@ -197,6 +199,7 @@ var glyphs = map[dbtype.EventKind]template.HTML{
 	dbtype.EventDeviceIdentified: `<circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>`,
 	dbtype.EventDevicesMerged:    `<path d="M7 4v4a5 5 0 005 5h6"/><path d="M15 10l3 3-3 3"/>`,
 	dbtype.EventAddressAdded:     `<path d="M4 12h16M4 12l4-4M4 12l4 4M20 12l-4-4M20 12l-4 4"/>`,
+	dbtype.EventAddressReleased:  `<path d="M14 5H5v14h9"/><path d="M19 12H9M19 12l-4-4M19 12l-4 4"/>`,
 	dbtype.EventHostnameChanged:  `<path d="M20.5 12.5l-8-8H4v8.5l8 8a1.5 1.5 0 002 0l6.5-6.5a1.5 1.5 0 000-2z"/><circle cx="8" cy="8" r="1"/>`,
 	dbtype.EventDeviceEdited:     `<path d="M4 20h4l10-10a2.8 2.8 0 10-4-4L4 16v4z"/>`,
 }
