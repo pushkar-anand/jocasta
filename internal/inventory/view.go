@@ -7,6 +7,7 @@ import (
 	"maps"
 	"net/netip"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -67,6 +68,11 @@ type Device struct {
 	// still answering first. Only Device fills it, for the same reason
 	// Addresses is.
 	Ports []*Port `json:"ports,omitempty"`
+
+	// OpenPorts is the numbers of the ports a scan currently finds open, in
+	// number order. A list carries these where the full Ports history would be
+	// more than a row can hold; the device page reads Ports instead.
+	OpenPorts []uint16 `json:"open_ports,omitempty"`
 }
 
 // Name is what to call the device: whatever the user labelled it, falling back
@@ -431,6 +437,29 @@ func macString(m dbtype.MAC) string {
 	}
 
 	return m.String()
+}
+
+// parsePorts reads the port numbers GROUP_CONCAT packed into one column and
+// orders them, since the aggregate has no order worth keeping. A value that is
+// not a port is dropped: the column is written from a CHECK-constrained one, so
+// one that will not parse is a row written around the application.
+func parsePorts(concat string) []uint16 {
+	if concat == "" {
+		return nil
+	}
+
+	fields := strings.Fields(concat)
+	ports := make([]uint16, 0, len(fields))
+
+	for _, f := range fields {
+		if n, err := strconv.ParseUint(f, 10, 16); err == nil && n > 0 {
+			ports = append(ports, uint16(n))
+		}
+	}
+
+	slices.Sort(ports)
+
+	return ports
 }
 
 // parseAddrs reads the addresses GROUP_CONCAT packed into one column and orders

@@ -581,6 +581,32 @@ func TestDevicePageShowsOpenPorts(t *testing.T) {
 	assert.NotContains(t, body, "ZgotmplZ")
 }
 
+// The list carries the open ports a scan has found, so a reader does not have to
+// open each device to see what it exposes.
+func TestDeviceListShowsOpenPorts(t *testing.T) {
+	t.Parallel()
+
+	store := testStore(t)
+
+	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix),
+		[]scanner.Host{host("192.0.2.10", macA, "printer.local")})
+	require.NoError(t, err)
+
+	_, err = store.RecordPorts(t.Context(), "test-sweep", []scanner.PortScan{
+		{Addr: netip.MustParseAddr("192.0.2.10"), Open: []uint16{443, 80, 9100}, Scanned: []uint16{80, 443, 9100}},
+	})
+	require.NoError(t, err)
+
+	h := NewHandler(testLogger(), testReader(t), store)
+
+	body := get(t, h, "/devices").Body.String()
+	assert.Contains(t, body, `<th scope="col">Ports</th>`)
+	assert.Contains(t, body, "80, 443, 9100", "the numbers are ordered, not left as the scan gave them")
+
+	// The fragment the filter form swaps carries the column too.
+	assert.Contains(t, get(t, h, "/devices/rows").Body.String(), "80, 443, 9100")
+}
+
 // A device no port scan has reached leaves the section out rather than drawing
 // it empty.
 func TestDevicePageWithoutPortsOmitsTheSection(t *testing.T) {

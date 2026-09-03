@@ -223,9 +223,10 @@ VALUES (?, ?, ?, ?, ?, ?, ?);
 -- Reads.
 
 -- The current addresses come back on the device's own row rather than through a
--- join, so one query answers the list. GROUP_CONCAT has no ordering worth
--- relying on and the column is TEXT, which sorts 192.0.2.9 after 192.0.2.100,
--- so the caller splits and orders them.
+-- join, so one query answers the list. The open ports ride along the same way,
+-- so a list can say what a device exposes without a query per row. GROUP_CONCAT
+-- has no ordering worth relying on and the address column is TEXT, which sorts
+-- 192.0.2.9 after 192.0.2.100, so the caller splits and orders both.
 --
 -- is_ignored compares against the argument rather than testing a flag: passing
 -- false leaves the clause admitting only unignored rows, and passing true makes
@@ -235,7 +236,11 @@ SELECT sqlc.embed(d),
        CAST(COALESCE((SELECT GROUP_CONCAT(a.ip, ' ')
                       FROM addresses a
                       WHERE a.device_id = d.id
-                        AND a.is_current = 1), '') AS TEXT) AS current_ips
+                        AND a.is_current = 1), '') AS TEXT) AS current_ips,
+       CAST(COALESCE((SELECT GROUP_CONCAT(p.port, ' ')
+                      FROM device_ports p
+                      WHERE p.device_id = d.id
+                        AND p.state = 'open'), '') AS TEXT) AS open_ports
 FROM devices d
 WHERE (d.is_ignored = 0 OR d.is_ignored = sqlc.arg(include_ignored))
   AND (CAST(sqlc.narg(group_name) AS TEXT) IS NULL OR d.group_name = CAST(sqlc.narg(group_name) AS TEXT))

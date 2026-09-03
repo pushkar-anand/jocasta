@@ -13,6 +13,7 @@
         </span>
     </td>
     <td class="mono">{{ addrs .Current }}</td>
+    <td class="mono dim">{{ ports .OpenPorts }}</td>
     <td class="mono dim">{{ dash .MAC }}{{ if .Randomised }} <span class="chip chip--warn">randomised</span>{{ end }}</td>
     <td class="dim">{{ dash .Vendor }}</td>
     <td class="dim">{{ dash .Group }}</td>

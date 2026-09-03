@@ -44,6 +44,7 @@ func (s *Store) ListDevices(ctx context.Context, f DeviceFilter) ([]*Device, err
 	for _, r := range rows {
 		d := newDevice(&r.Device, cutoff)
 		d.Current = parseAddrs(r.CurrentIps)
+		d.OpenPorts = parsePorts(r.OpenPorts)
 
 		// Online is decided against the clock, not the query, so the status
 		// filter is applied here rather than as one more SQL clause.
