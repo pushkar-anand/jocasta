@@ -42,7 +42,7 @@ func classLabel(c classify.Class) string {
 	case classify.TV:
 		return "TV"
 	case classify.Streaming:
-		return "Streaming box"
+		return "Media Player"
 	case classify.Speaker:
 		return "Speaker"
 	case classify.VoiceAssistant:

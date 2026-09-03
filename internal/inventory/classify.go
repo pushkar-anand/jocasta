@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/netip"
 	"strings"
 
 	"github.com/pushkar-anand/jocasta/internal/classify"
@@ -89,12 +90,25 @@ func (s *Store) classifyOne(
 		network = names[0].String
 	}
 
+	addrs, err := q.ListDeviceAddresses(ctx, id)
+	if err != nil {
+		return fmt.Errorf("reclassify: addresses of device %d: %w", id, err)
+	}
+
+	current := make([]netip.Addr, 0, len(addrs))
+	for _, a := range addrs {
+		if a.IsCurrent {
+			current = append(current, a.IP.Addr)
+		}
+	}
+
 	got := classify.Device(classify.Input{
 		Vendor:      d.Vendor.String,
 		Hostname:    d.Hostname.String,
 		Randomised:  d.IsRandomised,
 		OpenPorts:   open,
 		NetworkName: network,
+		Addresses:   current,
 	})
 
 	prev := d.DeviceClass.String

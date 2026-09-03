@@ -8,9 +8,16 @@
 // this package touches the database or the network: it is a pure function over
 // facts gathered elsewhere, which is what makes it cheap to re-run after every
 // scan and simple to test.
+//
+// The rules live in [ruleset] as one ordered list. Every rule names a class and
+// the conditions that point at it; [Device] picks the matching rule with the
+// most conditions, and on a tie the one listed first. The list therefore runs
+// from the most definitive rules to the weakest, and that order is the only
+// tie-breaker -- there are no weights to balance.
 package classify
 
 import (
+	"net/netip"
 	"slices"
 	"strings"
 )
@@ -38,6 +45,11 @@ type Input struct {
 	// NetworkName is what the segment the device sits on is called, when it is
 	// called anything. An "IoT" or "cameras" VLAN is itself a weak classifier.
 	NetworkName string
+
+	// Addresses are the IP addresses the device currently holds. One fact is
+	// read from them: whether any is the .1 of its subnet, the address a home
+	// gateway almost always answers on.
+	Addresses []netip.Addr
 }
 
 // Class is a device category. The set is closed: the UI keys an icon and a
@@ -72,16 +84,13 @@ const (
 	VoIP           Class = "voip"
 )
 
-// classes is every real class, in the order a tie on total score is finally
-// broken. More specific categories, and ones a stray signal is less likely to
-// land on, come first. This is also the order the winner is chosen in, so a
-// result never depends on map iteration.
+// classes is every real class, in a stable order for a caller building an icon
+// map or a filter. It plays no part in classification -- the rule order does
+// that.
 var classes = []Class{
-	NAS, Hypervisor, Printer, Camera, GameConsole,
-	VoiceAssistant, Speaker, Streaming, TV, Wearable, VoIP,
-	IoTHub, SmartHome,
-	Firewall, Router, Switch, AccessPoint, Server,
-	Phone, Tablet, Laptop, Desktop,
+	Router, Switch, AccessPoint, Firewall, Server, NAS, Hypervisor,
+	Desktop, Laptop, Phone, Tablet, Printer, Camera, TV, Streaming,
+	Speaker, VoiceAssistant, GameConsole, IoTHub, SmartHome, Wearable, VoIP,
 }
 
 // Classes returns the closed set of real classes, in a stable order, for a
@@ -91,7 +100,7 @@ func Classes() []Class { return slices.Clone(classes) }
 // Valid reports whether c is Unknown or one of the known classes.
 func (c Class) Valid() bool { return c == Unknown || slices.Contains(classes, c) }
 
-// Confidence is how much weight of evidence stood behind a class.
+// Confidence is how strong a case the winning rule made.
 type Confidence string
 
 // Confidence bands. NoConfidence accompanies an Unknown class.
@@ -107,102 +116,110 @@ type Result struct {
 	Class      Class
 	Confidence Confidence
 
-	// Reasons are the winning class's supporting signals, in the order the
-	// rules produced them. Empty when Class is Unknown.
+	// Reasons are the winning rule's reason first, then the reason of every
+	// other rule that also pointed at the winning class. Empty when Class is
+	// Unknown.
 	Reasons []string
 }
 
-// signal is one rule's vote: a class, how strongly it points there, and a
-// phrase a person can read.
-type signal struct {
-	class  Class
-	weight int
-	reason string
+// Facts is [Input] normalised for the rules: the vendor reduced to letters and
+// digits, the strings lowercased and trimmed, the ports sorted and deduped.
+type Facts struct {
+	Vendor     string // letters and digits only, lowercased
+	Hostname   string // lowercased, trimmed
+	Network    string // lowercased, trimmed
+	Randomised bool
+	Ports      []uint16
+	FirstHost  bool // holds an address ending in .1
 }
 
-// rule inspects an Input and returns the signals it found, or none.
-type rule func(Input) []signal
+func facts(in Input) Facts {
+	ports := slices.Clone(in.OpenPorts)
+	slices.Sort(ports)
 
-// rules run in this order. The order affects only how reasons are listed, not
-// which class wins.
-var rules = []rule{
-	vendorRule,
-	hostnameRule,
-	portRule,
-	serverPortsRule,
-	networkRule,
-	randomisedRule,
+	firstHost := false
+
+	for _, a := range in.Addresses {
+		if a.Is4() && a.As4()[3] == 1 {
+			firstHost = true
+		}
+	}
+
+	return Facts{
+		Vendor:     normVendor(in.Vendor),
+		Hostname:   strings.ToLower(strings.TrimSpace(in.Hostname)),
+		Network:    strings.ToLower(strings.TrimSpace(in.NetworkName)),
+		Randomised: in.Randomised,
+		Ports:      slices.Compact(ports),
+		FirstHost:  firstHost,
+	}
 }
+
+func (f Facts) hasPort(p uint16) bool { _, ok := slices.BinarySearch(f.Ports, p); return ok }
 
 // Device guesses what kind of thing in describes.
 //
-// It sums every rule's signals per class and returns the class with the most
-// weight behind it. A tie goes to whichever class carries the single strongest
-// signal, and then to the order in classes, so the same input always gives the
-// same answer.
+// It walks [ruleset] once. Among the rules that match, the winner is the one
+// with the most conditions; a tie goes to whichever is listed first. The same
+// input therefore always gives the same answer.
 func Device(in Input) Result {
-	in.Vendor = strings.ToLower(strings.TrimSpace(in.Vendor))
-	in.Hostname = strings.ToLower(strings.TrimSpace(in.Hostname))
-	in.NetworkName = strings.ToLower(strings.TrimSpace(in.NetworkName))
+	f := facts(in)
 
-	ports := slices.Clone(in.OpenPorts)
-	slices.Sort(ports)
-	in.OpenPorts = slices.Compact(ports)
+	best := -1
+	bestConds := 0
 
-	var sigs []signal
-	for _, r := range rules {
-		sigs = append(sigs, r(in)...)
-	}
-
-	total := map[Class]int{}
-	strongest := map[Class]int{}
-
-	for _, s := range sigs {
-		if s.weight <= 0 || s.class == Unknown || !s.class.Valid() {
+	for i := range ruleset {
+		conds, ok := match(ruleset[i].Cond, f)
+		if !ok {
 			continue
 		}
 
-		total[s.class] += s.weight
-		strongest[s.class] = max(strongest[s.class], s.weight)
-	}
-
-	win := Unknown
-
-	for _, c := range classes {
-		switch {
-		case total[c] == 0:
-			continue
-		case win == Unknown,
-			total[c] > total[win],
-			total[c] == total[win] && strongest[c] > strongest[win]:
-			win = c
+		if best < 0 || conds > bestConds {
+			best, bestConds = i, conds
 		}
 	}
 
-	if win == Unknown {
+	if best < 0 {
 		return Result{}
 	}
 
-	var reasons []string
+	win := ruleset[best]
 
-	for _, s := range sigs {
-		if s.class == win && s.weight > 0 {
-			reasons = append(reasons, s.reason)
+	reasons := []string{win.reason(f)}
+	agree := 0
+
+	for i := range ruleset {
+		if i == best || ruleset[i].Class != win.Class {
+			continue
 		}
+
+		_, ok := match(ruleset[i].Cond, f)
+		if !ok {
+			continue
+		}
+
+		agree++
+
+		reasons = append(reasons, ruleset[i].reason(f))
 	}
 
-	return Result{Class: win, Confidence: confidence(total[win]), Reasons: reasons}
+	return Result{
+		Class:      win.Class,
+		Confidence: confidence(win, bestConds, agree),
+		Reasons:    reasons,
+	}
 }
 
-// confidence bands a winning score. The thresholds are set so a single strong
-// signal (weight 3) reads as Medium and needs corroboration to reach High.
-func confidence(score int) Confidence {
+// confidence bands a guess without any weights: a rule that needed more than
+// one fact to fire, or a class more than one rule agreed on, is High; a lone
+// weak fallback nothing corroborated is Low; everything else is Medium.
+func confidence(win Rule, conds, agree int) Confidence {
 	switch {
-	case score >= 5:
+	case conds >= 2 || agree >= 2:
 		return High
-	case score >= 3:
-		return Medium
-	default:
+	case win.Weak && agree == 0:
 		return Low
+	default:
+		return Medium
 	}
 }

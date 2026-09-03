@@ -66,13 +66,13 @@ func TestDevice(t *testing.T) {
 			confidence: classify.High,
 		},
 		{
-			name:       "9100 alone is only a hint",
+			name:       "9100 alone reads as a node-exporter, not a printer",
 			in:         classify.Input{OpenPorts: []uint16{9100}},
-			want:       classify.Printer,
+			want:       classify.Server,
 			confidence: classify.Low,
 		},
 		{
-			name:       "9100 next to server ports is a node-exporter, not a printer",
+			name:       "9100 next to service ports is a node-exporter",
 			in:         classify.Input{OpenPorts: []uint16{9100, 9090, 3000, 22}},
 			want:       classify.Server,
 			confidence: classify.Medium,
