@@ -192,6 +192,40 @@ func TestARPUsableRejectsTheEntriesThatNameNothing(t *testing.T) {
 	}, usable)
 }
 
+// Reachable is the presence test and Usable the identification one: a stale
+// entry names a device the router still knows but is not a sighting of it.
+func TestARPReachableRejectsWhatTheRouterHasNotHeardFromLately(t *testing.T) {
+	t.Parallel()
+
+	r := serve(t, respond(t, arpAPI, arpTable))
+
+	entries, err := r.ARP(t.Context())
+	require.NoError(t, err)
+
+	reachable := map[string]bool{}
+	for _, e := range entries {
+		reachable[e.ID] = e.Reachable()
+	}
+
+	assert.Equal(t, map[string]bool{
+		"*1": true,  // reachable
+		"*2": false, // stale: resolved, but not heard from lately
+		"*3": false, // failed
+		"*4": false, // invalid, and no neighbour state to fall back to
+		"*5": false, // disabled
+	}, reachable)
+}
+
+// A RouterOS 6 table carries no neighbour state, and there a resolved entry is
+// the strongest signal there is.
+func TestARPReachableFallsBackToUsableWithoutNeighbourState(t *testing.T) {
+	t.Parallel()
+
+	assert.True(t, ARPEntry{Complete: true}.Reachable())
+	assert.False(t, ARPEntry{Complete: true, Invalid: true}.Reachable())
+	assert.False(t, ARPEntry{Complete: false}.Reachable())
+}
+
 // A real /ip/dhcp-server/lease table: a bound dynamic lease naming itself, a
 // bound static lease an operator commented, a static lease for a device that
 // is not on the network, and a dynamic lease from a client that sent no name.

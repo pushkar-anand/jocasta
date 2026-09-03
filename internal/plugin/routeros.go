@@ -180,10 +180,8 @@ func (r *RouterOS) collectARP(ctx context.Context, c claims, entries []routeros.
 			continue
 		}
 
-		usable := e.Usable()
-
 		// Identifies nothing and claims nothing.
-		if mac == "" && !usable {
+		if mac == "" && !e.Usable() {
 			continue
 		}
 
@@ -197,7 +195,11 @@ func (r *RouterOS) collectARP(ctx context.Context, c claims, entries []routeros.
 		}
 
 		d := draftFor(c, claimKey{mac: mac, addr: addr})
-		d.present = d.present || usable
+
+		// A resolved entry keeps the device in the inventory; only one the
+		// router has actually heard from lately makes it present. A "stale"
+		// entry is the router remembering a hardware address, not a sighting.
+		d.present = d.present || e.Reachable()
 
 		d.set("interface", e.Interface)
 		d.set("arp_status", e.Status)

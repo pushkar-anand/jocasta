@@ -39,17 +39,38 @@ type ARPEntry struct {
 	Published Bool `json:"published"`
 
 	// Status is the neighbour state on RouterOS 7 -- "reachable", "stale",
-	// "delay", "failed". Older tables leave it empty, so Complete rather than
-	// this is what a caller should test.
+	// "delay", "probe", "failed". Older tables leave it empty, so Complete
+	// rather than this is what tells whether the entry names a device.
 	Status string `json:"status"`
 
 	Comment string `json:"comment"`
 }
 
-// Usable reports whether the entry is evidence that a device holds this
-// address now: resolved, believed, and switched on.
+// arpReachable is the RouterOS 7 neighbour state meaning the router has
+// confirmed the address answers within its reachable-time.
+const arpReachable = "reachable"
+
+// Usable reports whether the entry names a device the router believes in:
+// resolved to a hardware address, not marked invalid, not switched off. It says
+// nothing about whether that device is answering now -- see Reachable.
 func (e ARPEntry) Usable() bool {
 	return bool(e.Complete) && !bool(e.Invalid) && !bool(e.Disabled)
+}
+
+// Reachable reports whether the router has heard from this address lately. On
+// RouterOS 7 that is the "reachable" neighbour state; "stale", "delay", "probe"
+// and "failed" all mean it has not, whatever hardware address it still
+// remembers. RouterOS 6 carries no neighbour state, so there a usable entry is
+// the closest signal there is and stands in for one.
+//
+// This is the presence test. A stale entry keeps a device in the inventory
+// through Usable but must not make it read as online.
+func (e ARPEntry) Reachable() bool {
+	if e.Status == "" {
+		return e.Usable()
+	}
+
+	return e.Status == arpReachable
 }
 
 // ARP returns the router's ARP table, every VLAN of it.

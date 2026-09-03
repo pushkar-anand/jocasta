@@ -132,6 +132,42 @@ func TestCollectARPKeepsDisbelievedEntriesWithoutPresence(t *testing.T) {
 	}
 }
 
+// A "stale" ARP entry is the router remembering a hardware address, not a
+// sighting. The device stays in the inventory as a claim; it is not present.
+func TestCollectARPKeepsStaleEntriesWithoutPresence(t *testing.T) {
+	t.Parallel()
+
+	arp := []routeros.ARPEntry{
+		{Address: "192.0.2.22", MACAddress: "00:00:5E:00:53:07", Complete: true, Dynamic: true, Status: "stale"},
+	}
+
+	out := facts(t, arp, nil)
+
+	require.Len(t, out, 1)
+	assert.False(t, out[0].Present, "stale is not a sighting")
+	assert.Equal(t, "stale", out[0].Detail["arp_status"])
+	assert.NotEmpty(t, out[0].Host.MAC, "still a claim about a device")
+}
+
+// A device whose ARP entry has gone stale but whose DHCP lease is still bound is
+// left present by the lease. Whether a bound lease should age out on its own is
+// a separate question from the stale-ARP one.
+func TestCollectARPStaleEntryStaysPresentThroughABoundLease(t *testing.T) {
+	t.Parallel()
+
+	arp := []routeros.ARPEntry{
+		{Address: "192.0.2.23", MACAddress: "00:00:5E:00:53:08", Complete: true, Status: "stale"},
+	}
+	leases := []routeros.DHCPLease{
+		{Address: "192.0.2.23", MACAddress: "00:00:5E:00:53:08", HostName: "host-d", Status: "bound"},
+	}
+
+	out := facts(t, arp, leases)
+
+	require.Len(t, out, 1)
+	assert.True(t, out[0].Present, "the bound lease still vouches for it")
+}
+
 // The all-zero address parses perfectly well and identifies nothing, so it must
 // not become an identity two unrelated devices share.
 func TestCollectARPTreatsTheZeroMACAsNoMAC(t *testing.T) {
