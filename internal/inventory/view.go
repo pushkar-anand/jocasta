@@ -48,7 +48,7 @@ type Device struct {
 	// Current holds the addresses the device answers on now, in address order.
 	Current []netip.Addr `json:"current_addresses,omitempty"`
 
-	// Addresses is the full history, current entries first. Only GetDevice
+	// Addresses is the full history, current entries first. Only Device
 	// fills it: a list would need a row per address to say when each was seen,
 	// and it only ever shows the current ones.
 	Addresses []*Address `json:"addresses,omitempty"`

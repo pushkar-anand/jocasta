@@ -59,8 +59,8 @@ func (s *Store) ListDevices(ctx context.Context, f DeviceFilter) ([]*Device, err
 	return devices, nil
 }
 
-// GetDevice returns one device with its full address history.
-func (s *Store) GetDevice(ctx context.Context, id int64) (*Device, error) {
+// Device returns one device with its full address history.
+func (s *Store) Device(ctx context.Context, id int64) (*Device, error) {
 	row, err := s.q.GetDevice(ctx, id)
 
 	switch {

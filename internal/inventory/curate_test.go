@@ -41,7 +41,7 @@ func TestUpdateCurationApplies(t *testing.T) {
 	assert.Equal(t, "Office printer", got.Name())
 
 	// And it is what came back that was stored, not only what was returned.
-	reread, err := s.GetDevice(t.Context(), id)
+	reread, err := s.Device(t.Context(), id)
 	require.NoError(t, err)
 	assert.Equal(t, "Office printer", reread.Label)
 	assert.Equal(t, "office", reread.Group)
@@ -54,7 +54,7 @@ func TestUpdateCurationLeavesTheScannedFieldsAlone(t *testing.T) {
 
 	s, id := curated(t)
 
-	before, err := s.GetDevice(t.Context(), id)
+	before, err := s.Device(t.Context(), id)
 	require.NoError(t, err)
 
 	after, err := s.UpdateCuration(t.Context(), id, Curation{Label: "Office printer"})

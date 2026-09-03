@@ -46,14 +46,11 @@ type Handler struct {
 // NewHandler builds the web routes, parsing the embedded templates and
 // mounting the static assets.
 func NewHandler(log *slog.Logger, reader *request.Reader, store *inventory.Store) *Handler {
-	templates, err := template.New("").
+	// A template that does not parse is a broken build, not a runtime
+	// condition: every one of them is compiled into the binary.
+	templates := template.Must(template.New("").
 		Funcs(funcs(time.Now)).
-		ParseFS(templatesFS, "templates/pages/*.html.tmpl", "templates/partials/*.html.tmpl")
-	if err != nil {
-		// A template that does not parse is a broken build, not a runtime
-		// condition: every one of them is compiled into the binary.
-		panic(err)
-	}
+		ParseFS(templatesFS, "templates/pages/*.html.tmpl", "templates/partials/*.html.tmpl"))
 
 	staticFS, err := fs.Sub(static, "statics")
 	if err != nil {

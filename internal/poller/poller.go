@@ -12,8 +12,10 @@ import (
 	"github.com/pushkar-anand/build-with-go/logger"
 )
 
+// Poller.state holds one of these. They are uint32 to match the atomic that
+// carries them.
 const (
-	stateIdle = iota
+	stateIdle uint32 = iota
 	stateRunning
 	stateStopping
 )

@@ -226,7 +226,7 @@ func TestGetDeviceCarriesAddressHistory(t *testing.T) {
 
 	id := deviceIDByMAC(t, conn, macA)
 
-	d, err := s.GetDevice(t.Context(), id)
+	d, err := s.Device(t.Context(), id)
 	require.NoError(t, err)
 
 	assert.Equal(t, "printer.local", d.Name())
@@ -253,7 +253,7 @@ func TestGetDeviceUnknownIDIsNotFound(t *testing.T) {
 
 	s, _ := newStore(t)
 
-	_, err := s.GetDevice(t.Context(), 404)
+	_, err := s.Device(t.Context(), 404)
 	require.ErrorIs(t, err, ErrNotFound)
 }
 
@@ -267,7 +267,7 @@ func TestGetDeviceCarriesEachAddressNetwork(t *testing.T) {
 
 	id := deviceIDByMAC(t, conn, macA)
 
-	d, err := s.GetDevice(t.Context(), id)
+	d, err := s.Device(t.Context(), id)
 	require.NoError(t, err)
 
 	require.Len(t, d.Addresses, 1)

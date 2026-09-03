@@ -253,7 +253,7 @@ func TestParentCancelStopsPoller(t *testing.T) {
 	cancel()
 	requireReturned(t, errc)
 
-	assert.Equal(t, uint32(stateIdle), p.state.Load(), "poller should be idle after shutdown")
+	assert.Equal(t, stateIdle, p.state.Load(), "poller should be idle after shutdown")
 }
 
 // Stop is reachable from an API handler, so it must unblock Start on its own.
@@ -270,7 +270,7 @@ func TestStopUnblocksStart(t *testing.T) {
 	p.Stop()
 	requireReturned(t, errc)
 
-	assert.Equal(t, uint32(stateIdle), p.state.Load(), "poller should be idle after Stop")
+	assert.Equal(t, stateIdle, p.state.Load(), "poller should be idle after Stop")
 }
 
 // Stop races itself: the watchdog Start spawns calls it too, and callers hold
@@ -302,7 +302,7 @@ func TestStopBeforeStartIsSafe(t *testing.T) {
 	p := newPoller(t, newFake("a"))
 
 	assert.NotPanics(t, p.Stop)
-	assert.Equal(t, uint32(stateIdle), p.state.Load())
+	assert.Equal(t, stateIdle, p.state.Load())
 }
 
 // Stopping must leave the poller reusable, which is the whole reason Stop
@@ -586,7 +586,7 @@ func TestStopIgnoresStaleRun(t *testing.T) {
 
 	second := startAsync(t.Context(), t, p)
 
-	eventually(t, func() bool { return p.state.Load() == uint32(stateRunning) },
+	eventually(t, func() bool { return p.state.Load() == stateRunning },
 		"second run never started")
 
 	// Exactly what a descheduled watchdog from the first run would do.
@@ -598,7 +598,7 @@ func TestStopIgnoresStaleRun(t *testing.T) {
 	case <-time.After(20 * tick):
 	}
 
-	assert.Equal(t, uint32(stateRunning), p.state.Load(), "second run should still be running")
+	assert.Equal(t, stateRunning, p.state.Load(), "second run should still be running")
 
 	f.runs.Store(0)
 	eventually(t, func() bool { return f.runs.Load() > 0 }, "second run's task stopped")

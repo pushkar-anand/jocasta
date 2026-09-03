@@ -65,7 +65,7 @@ func (h *Handler) getDevice(store *inventory.Store) response.HandlerFunc {
 			return err
 		}
 
-		device, err := store.GetDevice(r.Context(), id)
+		device, err := store.Device(r.Context(), id)
 		if err != nil {
 			return err
 		}
@@ -132,7 +132,7 @@ func (h *Handler) deviceEvents(store *inventory.Store) response.HandlerFunc {
 
 		// The device is read first so that asking for the history of a device
 		// that does not exist is a 404 rather than an empty list.
-		if _, err := store.GetDevice(r.Context(), id); err != nil {
+		if _, err := store.Device(r.Context(), id); err != nil {
 			return err
 		}
 
