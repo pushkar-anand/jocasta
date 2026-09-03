@@ -293,6 +293,7 @@ func TestEveryNamedTemplateExists(t *testing.T) {
 	for _, name := range []string{
 		"page/dashboard", "page/notfound", "page/network",
 		"partial/live", "partial/live-body", "partial/activity",
+		"partial/device-filters", "partial/device-rows",
 		"layout/head", "layout/foot",
 	} {
 		assert.NotNil(t, h.renderer.templates.Lookup(name), "template %q should be parsed", name)
