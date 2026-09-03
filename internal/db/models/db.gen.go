@@ -27,8 +27,14 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.adoptCurationStmt, err = db.PrepareContext(ctx, adoptCuration); err != nil {
 		return nil, fmt.Errorf("error preparing query AdoptCuration: %w", err)
 	}
+	if q.allCurrentAddressesStmt, err = db.PrepareContext(ctx, allCurrentAddresses); err != nil {
+		return nil, fmt.Errorf("error preparing query AllCurrentAddresses: %w", err)
+	}
 	if q.allNetworksStmt, err = db.PrepareContext(ctx, allNetworks); err != nil {
 		return nil, fmt.Errorf("error preparing query AllNetworks: %w", err)
+	}
+	if q.closePortStmt, err = db.PrepareContext(ctx, closePort); err != nil {
+		return nil, fmt.Errorf("error preparing query ClosePort: %w", err)
 	}
 	if q.createDeviceStmt, err = db.PrepareContext(ctx, createDevice); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateDevice: %w", err)
@@ -81,6 +87,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.listDeviceEventsStmt, err = db.PrepareContext(ctx, listDeviceEvents); err != nil {
 		return nil, fmt.Errorf("error preparing query ListDeviceEvents: %w", err)
 	}
+	if q.listDeviceOpenPortsStmt, err = db.PrepareContext(ctx, listDeviceOpenPorts); err != nil {
+		return nil, fmt.Errorf("error preparing query ListDeviceOpenPorts: %w", err)
+	}
 	if q.listDeviceSourcesStmt, err = db.PrepareContext(ctx, listDeviceSources); err != nil {
 		return nil, fmt.Errorf("error preparing query ListDeviceSources: %w", err)
 	}
@@ -129,6 +138,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.upsertNetworkIdentityStmt, err = db.PrepareContext(ctx, upsertNetworkIdentity); err != nil {
 		return nil, fmt.Errorf("error preparing query UpsertNetworkIdentity: %w", err)
 	}
+	if q.upsertOpenPortStmt, err = db.PrepareContext(ctx, upsertOpenPort); err != nil {
+		return nil, fmt.Errorf("error preparing query UpsertOpenPort: %w", err)
+	}
 	if q.upsertSourceStmt, err = db.PrepareContext(ctx, upsertSource); err != nil {
 		return nil, fmt.Errorf("error preparing query UpsertSource: %w", err)
 	}
@@ -142,9 +154,19 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing adoptCurationStmt: %w", cerr)
 		}
 	}
+	if q.allCurrentAddressesStmt != nil {
+		if cerr := q.allCurrentAddressesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing allCurrentAddressesStmt: %w", cerr)
+		}
+	}
 	if q.allNetworksStmt != nil {
 		if cerr := q.allNetworksStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing allNetworksStmt: %w", cerr)
+		}
+	}
+	if q.closePortStmt != nil {
+		if cerr := q.closePortStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing closePortStmt: %w", cerr)
 		}
 	}
 	if q.createDeviceStmt != nil {
@@ -232,6 +254,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing listDeviceEventsStmt: %w", cerr)
 		}
 	}
+	if q.listDeviceOpenPortsStmt != nil {
+		if cerr := q.listDeviceOpenPortsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listDeviceOpenPortsStmt: %w", cerr)
+		}
+	}
 	if q.listDeviceSourcesStmt != nil {
 		if cerr := q.listDeviceSourcesStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listDeviceSourcesStmt: %w", cerr)
@@ -312,6 +339,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing upsertNetworkIdentityStmt: %w", cerr)
 		}
 	}
+	if q.upsertOpenPortStmt != nil {
+		if cerr := q.upsertOpenPortStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing upsertOpenPortStmt: %w", cerr)
+		}
+	}
 	if q.upsertSourceStmt != nil {
 		if cerr := q.upsertSourceStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing upsertSourceStmt: %w", cerr)
@@ -357,7 +389,9 @@ type Queries struct {
 	db                                 DBTX
 	tx                                 *sql.Tx
 	adoptCurationStmt                  *sql.Stmt
+	allCurrentAddressesStmt            *sql.Stmt
 	allNetworksStmt                    *sql.Stmt
+	closePortStmt                      *sql.Stmt
 	createDeviceStmt                   *sql.Stmt
 	createEventStmt                    *sql.Stmt
 	createScanStmt                     *sql.Stmt
@@ -375,6 +409,7 @@ type Queries struct {
 	latestSuccessfulScanFinishedAtStmt *sql.Stmt
 	listDeviceAddressesStmt            *sql.Stmt
 	listDeviceEventsStmt               *sql.Stmt
+	listDeviceOpenPortsStmt            *sql.Stmt
 	listDeviceSourcesStmt              *sql.Stmt
 	listDevicesStmt                    *sql.Stmt
 	listGroupsStmt                     *sql.Stmt
@@ -391,6 +426,7 @@ type Queries struct {
 	upsertDeviceSourceStmt             *sql.Stmt
 	upsertNetworkStmt                  *sql.Stmt
 	upsertNetworkIdentityStmt          *sql.Stmt
+	upsertOpenPortStmt                 *sql.Stmt
 	upsertSourceStmt                   *sql.Stmt
 }
 
@@ -399,7 +435,9 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		db:                                 tx,
 		tx:                                 tx,
 		adoptCurationStmt:                  q.adoptCurationStmt,
+		allCurrentAddressesStmt:            q.allCurrentAddressesStmt,
 		allNetworksStmt:                    q.allNetworksStmt,
+		closePortStmt:                      q.closePortStmt,
 		createDeviceStmt:                   q.createDeviceStmt,
 		createEventStmt:                    q.createEventStmt,
 		createScanStmt:                     q.createScanStmt,
@@ -417,6 +455,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		latestSuccessfulScanFinishedAtStmt: q.latestSuccessfulScanFinishedAtStmt,
 		listDeviceAddressesStmt:            q.listDeviceAddressesStmt,
 		listDeviceEventsStmt:               q.listDeviceEventsStmt,
+		listDeviceOpenPortsStmt:            q.listDeviceOpenPortsStmt,
 		listDeviceSourcesStmt:              q.listDeviceSourcesStmt,
 		listDevicesStmt:                    q.listDevicesStmt,
 		listGroupsStmt:                     q.listGroupsStmt,
@@ -433,6 +472,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		upsertDeviceSourceStmt:             q.upsertDeviceSourceStmt,
 		upsertNetworkStmt:                  q.upsertNetworkStmt,
 		upsertNetworkIdentityStmt:          q.upsertNetworkIdentityStmt,
+		upsertOpenPortStmt:                 q.upsertOpenPortStmt,
 		upsertSourceStmt:                   q.upsertSourceStmt,
 	}
 }

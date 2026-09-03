@@ -2,11 +2,15 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/sqlite"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 	"github.com/stretchr/testify/assert"
@@ -67,7 +71,7 @@ func TestNewRunsMigrations(t *testing.T) {
 	assert.False(t, dirty, "migrations left the schema in a dirty state")
 
 	for _, table := range []string{
-		"users", "sources", "networks", "devices", "addresses", "scans", "events",
+		"users", "sources", "networks", "devices", "addresses", "scans", "events", "device_ports",
 	} {
 		var name string
 
@@ -208,6 +212,90 @@ func BenchmarkDSN(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		dsn("test.db")
 	}
+}
+
+// migrateTo drives an already-open database to an arbitrary schema version, up
+// or down, so a test can check what one migration does to rows the tables it
+// touches already hold.
+func migrateTo(t *testing.T, conn *sql.DB, version uint) {
+	t.Helper()
+
+	td, err := sqlite.WithInstance(conn, &sqlite.Config{})
+	require.NoError(t, err)
+
+	// td is not closed for the same reason migrateDB does not close it: the
+	// sqlite driver's Close closes the *sql.DB the test goes on using.
+
+	sd, err := iofs.New(migrationFiles, migrationDir)
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = sd.Close() })
+
+	m, err := migrate.NewWithInstance("iofs", sd, "sqlite", td)
+	require.NoError(t, err)
+
+	err = m.Migrate(version)
+	if !errors.Is(err, migrate.ErrNoChange) {
+		require.NoError(t, err)
+	}
+}
+
+// TestMigrateDevicePortsRoundTrip covers 000004 dropping and recreating
+// device_ports without disturbing the tables it hangs off. A device and its
+// address read back identically after 4 -> 3 -> 4; the port rows go with the
+// table on the way down, which is the down migration doing what it says.
+func TestMigrateDevicePortsRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	conn := newTestDB(t) // already at dbVersion
+
+	const ts = "2026-01-01T00:00:00.000Z"
+
+	_, err := conn.ExecContext(ctx, `INSERT INTO devices (id, hostname) VALUES (1, 'workstation')`)
+	require.NoError(t, err)
+
+	_, err = conn.ExecContext(ctx,
+		`INSERT INTO addresses (id, device_id, ip, first_seen, last_seen) VALUES (1, 1, '192.0.2.10', ?, ?)`,
+		ts, ts,
+	)
+	require.NoError(t, err)
+
+	_, err = conn.ExecContext(ctx,
+		`INSERT INTO device_ports (device_id, port, state, service, first_seen, last_seen, changed_at)
+		 VALUES (1, 22, 'open', 'ssh', ?, ?, ?)`,
+		ts, ts, ts,
+	)
+	require.NoError(t, err)
+
+	migrateTo(t, conn, 3)
+
+	var n int
+
+	require.NoError(t, conn.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'device_ports'`).Scan(&n))
+	assert.Zero(t, n, "down migration left device_ports behind")
+
+	require.NoError(t, conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM devices`).Scan(&n))
+	assert.Equal(t, 1, n, "down migration disturbed devices")
+
+	require.NoError(t, conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM addresses`).Scan(&n))
+	assert.Equal(t, 1, n, "down migration disturbed addresses")
+
+	migrateTo(t, conn, 4)
+
+	var hostname string
+
+	require.NoError(t, conn.QueryRowContext(ctx, `SELECT hostname FROM devices WHERE id = 1`).Scan(&hostname))
+	assert.Equal(t, "workstation", hostname)
+
+	// The table is back and takes rows again.
+	_, err = conn.ExecContext(ctx,
+		`INSERT INTO device_ports (device_id, port, state, service, first_seen, last_seen, changed_at)
+		 VALUES (1, 443, 'open', 'https', ?, ?, ?)`,
+		ts, ts, ts,
+	)
+	require.NoError(t, err)
 }
 
 // TestTimestampWritersAgreeOnOrdering covers the two writers of a timestamp

@@ -99,6 +99,28 @@ func (s ScanStatus) Value() (driver.Value, error) { return enumValue(s, scanStat
 // Scan reads a stored scan status back into s.
 func (s *ScanStatus) Scan(src any) error { return enumScan(s, scanStatuses, "scan status", src) }
 
+// PortState is what a probe last found at a port. A port that has answered once
+// keeps its row when it goes silent, flipping to closed rather than vanishing,
+// so the record of what a device used to expose survives the service stopping.
+type PortState string
+
+// PortState values a probed port can be recorded in.
+const (
+	PortOpen   PortState = "open"
+	PortClosed PortState = "closed"
+)
+
+var portStates = []PortState{PortOpen, PortClosed}
+
+// Valid reports whether s is one of the known port states.
+func (s PortState) Valid() bool { return slices.Contains(portStates, s) }
+
+// Value renders s for the driver, refusing anything the column does not admit.
+func (s PortState) Value() (driver.Value, error) { return enumValue(s, portStates, "port state") }
+
+// Scan reads a stored port state back into s.
+func (s *PortState) Scan(src any) error { return enumScan(s, portStates, "port state", src) }
+
 // EventKind is what changed. The column carries no CHECK, so that adding a kind
 // stays a Go change rather than a migration, which leaves this list as the only
 // thing keeping a typo out of the permanent record.
@@ -121,6 +143,11 @@ const (
 	// Their edits belong in the change log for the same reason a scan's do:
 	// the log is the record of what changed, whoever changed it.
 	EventDeviceEdited EventKind = "DEVICE_EDITED"
+
+	// EventPortOpened and EventPortClosed record a port scan finding a device
+	// listening where it was not, or gone quiet where it answered before.
+	EventPortOpened EventKind = "PORT_OPENED"
+	EventPortClosed EventKind = "PORT_CLOSED"
 )
 
 var eventKinds = []EventKind{
@@ -131,6 +158,8 @@ var eventKinds = []EventKind{
 	EventHostnameChanged,
 	EventAddressReleased,
 	EventDeviceEdited,
+	EventPortOpened,
+	EventPortClosed,
 }
 
 // Valid reports whether k is one of the known event kinds.

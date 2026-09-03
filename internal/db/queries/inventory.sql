@@ -333,3 +333,50 @@ SET label       = sqlc.narg(label),
     is_ignored  = sqlc.arg(is_ignored)
 WHERE id = sqlc.arg(id)
 RETURNING *;
+
+-- Ports.
+
+-- Every address a port scan should probe: the current address of every device
+-- the user has not ignored. The scan works from what discovery has already
+-- found rather than sweeping, so this is its whole target list.
+-- name: AllCurrentAddresses :many
+SELECT a.device_id, a.ip
+FROM addresses a
+         JOIN devices d ON d.id = a.device_id
+WHERE a.is_current = 1
+  AND d.is_ignored = 0
+ORDER BY a.device_id, a.ip;
+
+-- The ports currently recorded open on a device, for a fresh scan to diff
+-- itself against. Closed rows are history and left out: a scan no longer seeing
+-- a port only matters for one we thought was open.
+-- name: ListDeviceOpenPorts :many
+SELECT *
+FROM device_ports
+WHERE device_id = ?
+  AND state = 'open';
+
+-- A port answered. A new row, or a closed one coming back: first_seen holds the
+-- first time it was ever open and changed_at moves only on a real transition,
+-- so "open since" and "state changed" stay distinct.
+-- name: UpsertOpenPort :exec
+INSERT INTO device_ports (device_id, port, state, service, first_seen, last_seen, changed_at)
+VALUES (sqlc.arg(device_id), sqlc.arg(port), 'open', sqlc.narg(service),
+        sqlc.arg(seen_at), sqlc.arg(seen_at), sqlc.arg(seen_at))
+ON CONFLICT (device_id, port)
+    DO UPDATE SET state      = 'open',
+                  service    = excluded.service,
+                  last_seen  = excluded.last_seen,
+                  changed_at = IIF(device_ports.state <> 'open',
+                                   excluded.changed_at, device_ports.changed_at);
+
+-- A port we had open did not answer this run. Keep the row, flip the state,
+-- record when it went.
+-- name: ClosePort :exec
+UPDATE device_ports
+SET state      = 'closed',
+    last_seen  = sqlc.arg(seen_at),
+    changed_at = sqlc.arg(seen_at)
+WHERE device_id = sqlc.arg(device_id)
+  AND port = sqlc.arg(port)
+  AND state = 'open';
