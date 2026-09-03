@@ -479,6 +479,29 @@ func TestHostDiscoverersSkipsDisabledInstances(t *testing.T) {
 	assert.Equal(t, []string{"routeros:gateway", "routeros:rack"}, names)
 }
 
+func TestPortsPollerAcceptsABlankSpec(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Scan.Ports.Interval = time.Hour
+
+	pp, err := portsPoller(cfg, slog.New(slog.DiscardHandler), nil)
+	require.NoError(t, err)
+	assert.Equal(t, time.Hour, pp.Interval())
+}
+
+// A spec that will not parse fails startup, not every scan.
+func TestPortsPollerRejectsABadSpec(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Scan.Ports.Custom = "22,not-a-port"
+
+	_, err := portsPoller(cfg, slog.New(slog.DiscardHandler), nil)
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "scan.ports.custom")
+}
+
 // A misconfigured entry is a config error rather than a source that stays
 // quiet, which would look exactly like a network with nothing on it.
 func TestHostDiscoverersRejectsAnInstanceWithNoHost(t *testing.T) {

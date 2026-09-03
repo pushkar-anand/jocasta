@@ -79,6 +79,8 @@ func TestLoadConfig(t *testing.T) {
 				"JOCASTA_SERVER__PORT=9999",
 				"JOCASTA_LOGGER__LEVEL=debug",
 				"JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD=from-environment",
+				"JOCASTA_SCAN__PORTS__ENABLED=true",
+				"JOCASTA_SCAN__PORTS__CUSTOM=22,80,8000-8100",
 				"UNRELATED=ignored",
 			}
 		}),
@@ -102,6 +104,12 @@ func TestLoadConfig(t *testing.T) {
 	// Derived rather than written down, so assert it is the derivation and not
 	// merely non-empty: an unnamed source files every sweep under one blank row.
 	assert.Equal(t, defaultSource(), cfg.Scan.Source)
+
+	// The port scan is off by default on a six-hour interval; the environment
+	// turns it on and hands it a spec.
+	assert.True(t, cfg.Scan.Ports.Enabled)
+	assert.Equal(t, 6*time.Hour, cfg.Scan.Ports.Interval)
+	assert.Equal(t, "22,80,8000-8100", cfg.Scan.Ports.Custom)
 
 	// A map-keyed block collapses to a single zero-valued entry, with a nil
 	// error, if its shape is ever changed to a list. Both instances surviving an

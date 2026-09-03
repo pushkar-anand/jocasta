@@ -99,6 +99,7 @@ scan:
   ports:
     enabled: false
     interval: "6h"
+    custom: ""           # ports to probe, e.g. "22,80,443,8000-8100"; blank uses a curated preset
 
 # Sources beyond the sweep. Each block is keyed by an instance name, which
 # becomes the source its facts are filed under, so two routers stay separate.
@@ -129,6 +130,7 @@ JOCASTA_SERVER__PORT=8080
 JOCASTA_DB__PATH=/data
 JOCASTA_INVENTORY__ONLINE_WINDOW=30m
 JOCASTA_SCAN__DEVICES__INTERVAL=10m
+JOCASTA_SCAN__PORTS__ENABLED=true
 JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD=change-me
 ```
 
@@ -139,6 +141,7 @@ jocasta <command> [flags]
 
   serve              Start the web server and the sweep poller.  (default)
   scan <cidr>        Sweep a prefix once and print the result.
+  ports [target]     Probe TCP ports on an address, a prefix, or the inventory.
   plugin run <name>  Read one configured source and print what it claims.
   version            Print build information.
 
@@ -155,7 +158,9 @@ jocasta serve -p 9000         # override the port
 ```
 
 Starts the HTTP server. When `scan.devices.enabled` is set, it also starts a
-poller that sweeps every network in `networks` on `scan.devices.interval`.
+poller that sweeps every network in `networks` on `scan.devices.interval`. When
+`scan.ports.enabled` is set, a second poller port-scans every address the
+inventory holds on `scan.ports.interval`.
 
 ### `scan`
 
@@ -175,6 +180,25 @@ $ jocasta scan 192.0.2.0/24 --save --rate 500 --no-resolve-names
 
 The sweep uses a raw ICMP socket where it can and an unprivileged datagram
 socket otherwise, so it runs without root.
+
+### `ports`
+
+Probes TCP ports with a plain `connect()`, so it needs no privileges and cannot
+change the target. With no argument it scans every current address in the
+inventory; give an address or a prefix to scan that instead. `--ports` takes a
+spec like `22,80,443,8000-8100`; the default is a curated preset of about a
+hundred ports a homelab commonly runs. `--save` records what it finds against
+the matching devices.
+
+```
+$ jocasta ports 192.0.2.10
+ADDRESS      PORT   SERVICE
+192.0.2.10   22     ssh
+192.0.2.10   443    https
+
+$ jocasta ports --save                      # every known address, recorded
+$ jocasta ports 192.0.2.0/24 --ports 1-1024 --json
+```
 
 ### `plugin run`
 

@@ -76,6 +76,11 @@ type (
 		Ports struct {
 			Enabled  bool          `koanf:"enabled"`
 			Interval time.Duration `koanf:"interval"`
+
+			// Custom is the ports the scan probes, as a spec like
+			// "22,80,443,8000-8100" (see scanner.ParsePortSpec). Blank leaves
+			// the curated preset in place.
+			Custom string `koanf:"custom"`
 		} `koanf:"ports"`
 	}
 

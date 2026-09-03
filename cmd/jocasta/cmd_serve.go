@@ -67,6 +67,17 @@ func (s *ServeCmd) Run(
 		}
 	}
 
+	if cfg.Scan.Ports.Enabled {
+		pp, err := portsPoller(cfg, log, store)
+		if err != nil {
+			return err
+		}
+
+		if err := p.Register(pp); err != nil {
+			return fmt.Errorf("register port poller: %w", err)
+		}
+	}
+
 	grp, ctx := errgroup.WithContext(ctx)
 
 	grp.Go(func() error {
@@ -93,4 +104,24 @@ func (s *ServeCmd) Run(
 	}
 
 	return nil
+}
+
+// portsPoller builds the port-scan task, resolving the port set from config: a
+// blank scan.ports.custom leaves the curated preset, a spec replaces it. A spec
+// that will not parse fails startup rather than every scan.
+func portsPoller(cfg *config.Config, log *slog.Logger, store *inventory.Store) (*poller.Ports, error) {
+	var opts []scanner.PortOption
+
+	if spec := cfg.Scan.Ports.Custom; spec != "" {
+		ports, err := scanner.ParsePortSpec(spec)
+		if err != nil {
+			return nil, fmt.Errorf("scan.ports.custom: %w", err)
+		}
+
+		opts = append(opts, scanner.WithPorts(ports))
+	}
+
+	sc := scanner.NewPortScanner(log, opts...)
+
+	return poller.NewPorts(log, sc, store, cfg.Scan.Source, cfg.Scan.Ports.Interval), nil
 }

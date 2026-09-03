@@ -30,6 +30,7 @@ var defaults = map[string]any{
 	"scan.devices.resolve_macs":  true,
 	"scan.ports.enabled":         false,
 	"scan.ports.interval":        "6h",
+	"scan.ports.custom":          "",
 }
 
 // defaultSource names the vantage point sweeps are taken from when nothing
