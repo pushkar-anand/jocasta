@@ -119,11 +119,11 @@ func TestRejectsMalformedTokens(t *testing.T) {
 		want  error
 	}{
 		{"not base64", "!!!!", ErrMalformed},
-		{"too few parts", encode("DESC:::time:::2026-08-31T11:26:19Z"), ErrMalformed},
-		{"unknown order", encode("SIDEWAYS:::int:::1:::2"), ErrOrder},
-		{"unknown kind", encode("DESC:::colour:::red:::2"), ErrKind},
-		{"value not of its kind", encode("DESC:::int:::red:::2"), ErrMalformed},
-		{"id not a number", encode("DESC:::int:::1:::red"), ErrMalformed},
+		{"too few parts", base64.URLEncoding.EncodeToString([]byte("DESC:::time:::2026-08-31T11:26:19Z")), ErrMalformed},
+		{"unknown order", base64.URLEncoding.EncodeToString([]byte("SIDEWAYS:::int:::1:::2")), ErrOrder},
+		{"unknown kind", base64.URLEncoding.EncodeToString([]byte("DESC:::colour:::red:::2")), ErrKind},
+		{"value not of its kind", base64.URLEncoding.EncodeToString([]byte("DESC:::int:::red:::2")), ErrMalformed},
+		{"id not a number", base64.URLEncoding.EncodeToString([]byte("DESC:::int:::1:::red")), ErrMalformed},
 	}
 
 	for _, tc := range tests {
@@ -200,7 +200,3 @@ func TestWithValueReplacesOnlyTheValue(t *testing.T) {
 	assert.Equal(t, "before", c.Value, "the original is untouched")
 }
 
-// encode builds a token by hand, for the shapes Encode would never produce.
-func encode(raw string) string {
-	return base64.URLEncoding.EncodeToString([]byte(raw))
-}
