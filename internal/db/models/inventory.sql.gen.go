@@ -673,9 +673,8 @@ type ListDeviceSourcesRow struct {
 	SourceKind   dbtype.SourceKind `json:"source_kind"`
 }
 
-// Every source's claim about one device. Resolution reads this to elect the
-// name the device list shows and searches on; the device page reads it to show
-// what each source says, including the ones that did not win.
+// Election reads this to pick the name the device list shows and searches on;
+// the device page reads it to show the claims that lost.
 //
 //	SELECT ds.device_id, ds.source_id, ds.hostname, ds.hostname_source, ds.detail, ds.first_seen, ds.last_seen, s.name AS source_name, s.kind AS source_kind
 //	FROM device_sources ds
@@ -973,12 +972,9 @@ type MoveDeviceSourcesParams struct {
 	FromID int64 `json:"from_id"`
 }
 
-// Claims move with the device on a fold. Not UPDATE OR IGNORE, as addresses
-// use: device_sources is keyed on (device_id, source_id), so a source that had
-// filed a claim against both rows collides, and ignoring the collision would
-// drop the claim to the CASCADE on DeleteDevice -- losing provenance silently,
-// which is the one failure this table cannot report. The surviving claim takes
-// the newer reading's name and the outer bounds of both sightings.
+// Claims follow the device on a fold. A source that filed against both rows
+// collides on the primary key, and the claim that survives takes the newer
+// reading's name with the outer bounds of both sightings.
 //
 //	INSERT INTO device_sources (device_id, source_id, hostname, hostname_source, detail, first_seen, last_seen)
 //	SELECT ?1, ghost.source_id, ghost.hostname, ghost.hostname_source, ghost.detail,
@@ -1200,10 +1196,9 @@ type UpsertDeviceSourceParams struct {
 	LastSeen       dbtype.Time           `json:"last_seen"`
 }
 
-// The claim is upserted rather than replaced so first_seen survives every later
-// reading. hostname is assigned rather than coalesced: a source that has
-// stopped reporting a name must be able to retract it, and a COALESCE here
-// would make a name immortal once any source had said it once.
+// Upserted rather than replaced, so first_seen survives every later reading.
+// hostname is assigned rather than coalesced, or a name would become immortal
+// once any source had said it once.
 //
 //	INSERT INTO device_sources (device_id, source_id, hostname, hostname_source, detail, first_seen, last_seen)
 //	VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -1254,6 +1249,38 @@ func (q *Queries) UpsertNetwork(ctx context.Context, arg UpsertNetworkParams) (*
 		&i.CreatedAt,
 	)
 	return &i, err
+}
+
+const upsertNetworkIdentity = `-- name: UpsertNetworkIdentity :exec
+INSERT INTO networks (cidr, name, vlan_id, created_at)
+VALUES (?, ?, ?, ?)
+ON CONFLICT (cidr) DO UPDATE SET name    = excluded.name,
+                                 vlan_id = excluded.vlan_id
+`
+
+type UpsertNetworkIdentityParams struct {
+	Cidr      dbtype.Prefix  `json:"cidr"`
+	Name      sql.NullString `json:"name"`
+	VlanID    sql.NullInt64  `json:"vlan_id"`
+	CreatedAt dbtype.Time    `json:"created_at"`
+}
+
+// What a source says a segment is. name and vlan_id are assigned rather than
+// coalesced: a VLAN renamed on the router is renamed here, and one that loses
+// its tag loses it here too.
+//
+//	INSERT INTO networks (cidr, name, vlan_id, created_at)
+//	VALUES (?, ?, ?, ?)
+//	ON CONFLICT (cidr) DO UPDATE SET name    = excluded.name,
+//	                                 vlan_id = excluded.vlan_id
+func (q *Queries) UpsertNetworkIdentity(ctx context.Context, arg UpsertNetworkIdentityParams) error {
+	_, err := q.exec(ctx, q.upsertNetworkIdentityStmt, upsertNetworkIdentity,
+		arg.Cidr,
+		arg.Name,
+		arg.VlanID,
+		arg.CreatedAt,
+	)
+	return err
 }
 
 const upsertSource = `-- name: UpsertSource :one

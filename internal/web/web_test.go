@@ -15,6 +15,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/pushkar-anand/jocasta/internal/hosts"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
+	"github.com/pushkar-anand/jocasta/internal/plugin"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -127,6 +128,42 @@ func TestOverviewRendersTheInventory(t *testing.T) {
 	// The sweep that produced all this is named.
 	assert.Contains(t, body, "test-sweep")
 	assert.Contains(t, body, prefix)
+}
+
+// Nothing on the wire says which VLAN an address is on, so a segment the
+// router named is the only place the operator ever sees the tag.
+func TestOverviewShowsWhatASegmentIsCalled(t *testing.T) {
+	t.Parallel()
+
+	store := testStore(t)
+
+	require.NoError(t, store.RecordNetworks(t.Context(), []plugin.Network{{
+		Prefix: netip.MustParsePrefix(prefix),
+		Name:   "Home",
+		VLAN:   10,
+	}}))
+
+	// The overview shows the segments only once it has devices to put on them.
+	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix),
+		[]scanner.Host{host("192.0.2.10", macA, "printer.local")})
+	require.NoError(t, err)
+
+	body := get(t, NewHandler(testLogger(), testReader(t), store), "/").Body.String()
+
+	assert.Contains(t, body, prefix)
+	assert.Contains(t, body, "VLAN 10")
+	assert.Contains(t, body, "Home")
+}
+
+// A prefix nobody has named is still a prefix, and showing an empty chip
+// beside it would read as a tag the segment does not have.
+func TestOverviewLeavesAnUnnamedSegmentBare(t *testing.T) {
+	t.Parallel()
+
+	body := get(t, seeded(t), "/").Body.String()
+
+	assert.Contains(t, body, prefix)
+	assert.NotContains(t, body, "VLAN")
 }
 
 // An empty inventory is a state to explain, not a blank page: nothing here

@@ -120,6 +120,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.upsertNetworkStmt, err = db.PrepareContext(ctx, upsertNetwork); err != nil {
 		return nil, fmt.Errorf("error preparing query UpsertNetwork: %w", err)
 	}
+	if q.upsertNetworkIdentityStmt, err = db.PrepareContext(ctx, upsertNetworkIdentity); err != nil {
+		return nil, fmt.Errorf("error preparing query UpsertNetworkIdentity: %w", err)
+	}
 	if q.upsertSourceStmt, err = db.PrepareContext(ctx, upsertSource); err != nil {
 		return nil, fmt.Errorf("error preparing query UpsertSource: %w", err)
 	}
@@ -288,6 +291,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing upsertNetworkStmt: %w", cerr)
 		}
 	}
+	if q.upsertNetworkIdentityStmt != nil {
+		if cerr := q.upsertNetworkIdentityStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing upsertNetworkIdentityStmt: %w", cerr)
+		}
+	}
 	if q.upsertSourceStmt != nil {
 		if cerr := q.upsertSourceStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing upsertSourceStmt: %w", cerr)
@@ -364,6 +372,7 @@ type Queries struct {
 	updateDeviceCurationStmt           *sql.Stmt
 	upsertDeviceSourceStmt             *sql.Stmt
 	upsertNetworkStmt                  *sql.Stmt
+	upsertNetworkIdentityStmt          *sql.Stmt
 	upsertSourceStmt                   *sql.Stmt
 }
 
@@ -403,6 +412,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		updateDeviceCurationStmt:           q.updateDeviceCurationStmt,
 		upsertDeviceSourceStmt:             q.upsertDeviceSourceStmt,
 		upsertNetworkStmt:                  q.upsertNetworkStmt,
+		upsertNetworkIdentityStmt:          q.upsertNetworkIdentityStmt,
 		upsertSourceStmt:                   q.upsertSourceStmt,
 	}
 }

@@ -511,8 +511,8 @@ func TestListNetworksCountsWhatIsOnEachPrefix(t *testing.T) {
 		[]scanner.Host{host("198.51.100.5", "00:00:5e:00:53:03", "camera.local")})
 	require.NoError(t, err)
 
-	// Only a sweep writes a network row, and it writes the prefix alone: the
-	// name and the tag are the operator's to fill in.
+	// Named directly rather than through RecordNetworks, so this test covers
+	// the read and not the write beside it.
 	_, err = conn.ExecContext(t.Context(),
 		`UPDATE networks SET name = ?, vlan_id = ? WHERE cidr = ?`, "Home", 10, prefix)
 	require.NoError(t, err)

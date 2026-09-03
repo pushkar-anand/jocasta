@@ -260,6 +260,82 @@ func TestDHCPLeaseReadsStandingAndPresenceApart(t *testing.T) {
 	}, got)
 }
 
+func TestAddressesDecodeTheTable(t *testing.T) {
+	t.Parallel()
+
+	body := `[{".id":"*1","address":"192.0.2.1/24","network":"192.0.2.0",` +
+		`"interface":"vlan10","actual-interface":"vlan10","dynamic":"false",` +
+		`"disabled":"false","invalid":"false","comment":"Home"}]`
+
+	out, err := serve(t, respond(t, addressAPI, body)).Addresses(t.Context())
+	require.NoError(t, err)
+
+	require.Len(t, out, 1)
+	assert.Equal(t, "192.0.2.1/24", out[0].Address)
+	assert.Equal(t, "192.0.2.0", out[0].Network)
+	assert.Equal(t, "vlan10", out[0].Interface)
+	assert.Equal(t, "Home", out[0].Comment)
+	assert.True(t, out[0].Usable())
+}
+
+// The WAN address the ISP hands out is dynamic, and a link the router sits on
+// is not a segment it serves.
+func TestAddressUsableRejectsWhatIsNotASegment(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		addr IPAddress
+		want bool
+	}{
+		{"configured", IPAddress{Address: "192.0.2.1/24"}, true},
+		{"handed to the router", IPAddress{Address: "203.0.113.7/24", Dynamic: true}, false},
+		{"turned off", IPAddress{Address: "192.0.2.1/24", Disabled: true}, false},
+		{"interface is gone", IPAddress{Address: "192.0.2.1/24", Invalid: true}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tt.want, tt.addr.Usable())
+		})
+	}
+}
+
+func TestVLANsDecodeTheTable(t *testing.T) {
+	t.Parallel()
+
+	body := `[{".id":"*1","name":"vlan10","vlan-id":"10","interface":"bridge",` +
+		`"disabled":"false","running":"true","comment":"Home"}]`
+
+	out, err := serve(t, respond(t, vlanAPI, body)).VLANs(t.Context())
+	require.NoError(t, err)
+
+	require.Len(t, out, 1)
+	assert.Equal(t, "vlan10", out[0].Name)
+	assert.Equal(t, "bridge", out[0].Interface)
+	assert.Equal(t, "Home", out[0].Comment)
+	assert.True(t, bool(out[0].Running))
+
+	tag, ok := out[0].Tag()
+	require.True(t, ok)
+	assert.Equal(t, 10, tag)
+}
+
+// A row whose tag does not read as a number names no segment, and reporting it
+// as VLAN 0 would claim the segment is untagged.
+func TestVLANTagRefusesWhatIsNotANumber(t *testing.T) {
+	t.Parallel()
+
+	for _, raw := range []string{"", "none", "10-20"} {
+		tag, ok := VLAN{VLANID: raw}.Tag()
+
+		assert.False(t, ok, raw)
+		assert.Zero(t, tag)
+	}
+}
+
 func TestEmptyTableIsNotAnError(t *testing.T) {
 	t.Parallel()
 

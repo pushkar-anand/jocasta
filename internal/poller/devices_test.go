@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log/slog"
+	"net/netip"
 	"testing"
 	"time"
 
@@ -211,6 +212,88 @@ func TestRunRecordsAPartialRead(t *testing.T) {
 
 	require.NoError(t, d.Run(t.Context()), "a source that answered in part has not failed")
 	assert.Equal(t, 1, countRows(t, conn, `SELECT count(*) FROM devices`))
+}
+
+// segmentDiscoverer is a source that also describes the segments it serves.
+type segmentDiscoverer struct {
+	stubDiscoverer
+
+	networks []plugin.Network
+	netErr   error
+
+	netCalls int
+}
+
+func (s *segmentDiscoverer) Networks(context.Context) ([]plugin.Network, error) {
+	s.netCalls++
+
+	return s.networks, s.netErr
+}
+
+func TestRunRecordsTheSegmentsASourceServes(t *testing.T) {
+	t.Parallel()
+
+	src := &segmentDiscoverer{
+		stubDiscoverer: stubDiscoverer{
+			name:  "routeros:gateway",
+			facts: []plugin.Fact{discoveredFact(t, "192.0.2.10", "00:00:5e:00:53:01")},
+		},
+		networks: []plugin.Network{{
+			Prefix: netip.MustParsePrefix("192.0.2.0/24"),
+			Name:   "Home",
+			VLAN:   10,
+		}},
+	}
+
+	d, conn := newDiscoveryTask(t, src)
+
+	require.NoError(t, d.Run(t.Context()))
+
+	assert.Equal(t, 1, src.netCalls)
+	assert.Equal(t, 1, countRows(t, conn, `SELECT count(*) FROM networks WHERE name = 'Home' AND vlan_id = 10`))
+
+	// The segment was recorded before the facts were, so the address landed on
+	// it rather than on nothing.
+	assert.Equal(t, 1, countRows(t, conn,
+		`SELECT count(*) FROM addresses WHERE network_id IS NOT NULL`))
+}
+
+// The segments decorate the devices rather than gating them, so a source that
+// will not describe them is still read for what it knows.
+func TestRunKeepsTheDevicesWhenTheSegmentsCannotBeRead(t *testing.T) {
+	t.Parallel()
+
+	src := &segmentDiscoverer{
+		stubDiscoverer: stubDiscoverer{
+			name:  "routeros:gateway",
+			facts: []plugin.Fact{discoveredFact(t, "192.0.2.10", "00:00:5e:00:53:01")},
+		},
+		netErr: plugin.ErrUnreachable,
+	}
+
+	d, conn := newDiscoveryTask(t, src)
+
+	require.NoError(t, d.Run(t.Context()))
+
+	assert.Equal(t, 1, countRows(t, conn, `SELECT count(*) FROM devices`))
+	assert.Zero(t, countRows(t, conn, `SELECT count(*) FROM networks`))
+}
+
+// A source with no segments to describe is not a source with none to ask.
+func TestRunAsksOnlyTheSourcesThatKnowTheirSegments(t *testing.T) {
+	t.Parallel()
+
+	plain := &stubDiscoverer{
+		name:  "routeros:gateway",
+		facts: []plugin.Fact{discoveredFact(t, "192.0.2.10", "00:00:5e:00:53:01")},
+	}
+
+	d, conn := newDiscoveryTask(t, plain)
+
+	require.NoError(t, d.Run(t.Context()))
+
+	assert.Equal(t, 1, countRows(t, conn, `SELECT count(*) FROM devices`))
+	assert.Zero(t, countRows(t, conn, `SELECT count(*) FROM networks`))
 }
 
 func TestRunWithoutSourcesDoesNothing(t *testing.T) {

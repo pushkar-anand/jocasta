@@ -187,6 +187,13 @@ func (d *Device) scanAndSaveNetwork(ctx context.Context, network *netip.Prefix) 
 // recorded and the failure is logged rather than discarded. Only a read that
 // returned nothing is a failure worth propagating.
 func (d *Device) discoverAndSave(ctx context.Context, p plugin.HostDiscoverer) error {
+	// Segments before devices: ingest matches each address to a recorded
+	// network, so a VLAN the sweep list omits must exist before the facts that
+	// belong to it land.
+	if np, ok := p.(plugin.NetworkDiscoverer); ok {
+		d.recordNetworks(ctx, np)
+	}
+
 	facts, err := p.Discover(ctx)
 
 	switch {
@@ -217,6 +224,46 @@ func (d *Device) discoverAndSave(ctx context.Context, p plugin.HostDiscoverer) e
 	)
 
 	return nil
+}
+
+// recordNetworks learns what the source calls the segments it serves.
+//
+// Failing costs the segments their names and nothing else, so it is logged
+// rather than returned: a router that will not list its addresses can still say
+// which devices are on them.
+func (d *Device) recordNetworks(ctx context.Context, p plugin.NetworkDiscoverer) {
+	nets, err := p.Networks(ctx)
+
+	if err != nil && len(nets) == 0 {
+		d.logger.WarnContext(ctx, "source did not say which segments it serves",
+			slog.String("source", p.Name()),
+			logger.Err(err),
+		)
+
+		return
+	}
+
+	if err != nil {
+		d.logger.WarnContext(ctx, "source described its segments in part",
+			slog.String("source", p.Name()),
+			slog.Int("networks", len(nets)),
+			logger.Err(err),
+		)
+	}
+
+	if err := d.store.RecordNetworks(ctx, nets); err != nil {
+		d.logger.ErrorContext(ctx, "could not record the segments a source serves",
+			slog.String("source", p.Name()),
+			logger.Err(err),
+		)
+
+		return
+	}
+
+	d.logger.InfoContext(ctx, "recorded segments",
+		slog.String("source", p.Name()),
+		slog.Int("networks", len(nets)),
+	)
 }
 
 var _ task = (*Device)(nil)

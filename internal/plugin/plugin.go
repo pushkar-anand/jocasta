@@ -10,6 +10,7 @@ package plugin
 import (
 	"context"
 	"errors"
+	"net/netip"
 	"time"
 
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
@@ -40,7 +41,34 @@ type (
 		// router, and the half that arrived is true.
 		Discover(ctx context.Context) ([]Fact, error)
 	}
+
+	// NetworkDiscoverer answers "which segments do you serve".
+	NetworkDiscoverer interface {
+		Plugin
+
+		// Networks reads the source's segments once. Partial answers come back
+		// the same way [HostDiscoverer.Discover] returns them.
+		Networks(ctx context.Context) ([]Network, error)
+	}
 )
+
+// Network is one segment a source serves.
+//
+// Nothing on the wire says which VLAN an address is on: the tag is stripped
+// before a sweep ever sees a packet, so a segment's identity can only come
+// from whatever is doing the routing.
+type Network struct {
+	// Prefix is masked, so a router reporting its own address with a length
+	// meets the prefix a sweep recorded at the same value.
+	Prefix netip.Prefix
+
+	// Name is what a person called the segment, and is empty when nobody has.
+	Name string
+
+	// VLAN is the 802.1Q tag, zero on a segment that carries none. Untagged is
+	// a real answer rather than a missing one.
+	VLAN int
+}
 
 // Fact is what one source claims about one device at one moment.
 type Fact struct {

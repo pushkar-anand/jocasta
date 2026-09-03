@@ -226,6 +226,59 @@ func (s *Store) RecordFacts(
 	return s.report(ctx, reading{source: source, kind: kind, facts: facts})
 }
 
+// RecordNetworks stores the segments a source says it serves.
+//
+// It writes no scan row. A scan is a reading of devices and is counted and
+// timed as one; learning what a prefix is called changes no device and would
+// close a scan that found nothing.
+//
+// The whole set lands as one transaction, so a run that fails halfway leaves
+// the segments as the last good reading described them rather than half
+// renamed.
+func (s *Store) RecordNetworks(ctx context.Context, nets []plugin.Network) error {
+	if len(nets) == 0 {
+		return nil
+	}
+
+	tx, err := s.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin networks: %w", err)
+	}
+
+	defer func() { _ = tx.Rollback() }()
+
+	q := s.q.WithTx(tx)
+	at := s.stamp()
+
+	for _, n := range nets {
+		if !n.Prefix.IsValid() {
+			continue
+		}
+
+		err := q.UpsertNetworkIdentity(ctx, models.UpsertNetworkIdentityParams{
+			Cidr:      dbtype.NewPrefix(n.Prefix),
+			Name:      nullString(n.Name),
+			VlanID:    nullInt64(n.VLAN),
+			CreatedAt: at,
+		})
+		if err != nil {
+			return fmt.Errorf("upsert network %s: %w", n.Prefix, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit networks: %w", err)
+	}
+
+	return nil
+}
+
+// nullInt64 renders an untagged segment as null. Zero is not a usable 802.1Q
+// tag, so nothing is lost by spelling "untagged" that way.
+func nullInt64(n int) sql.NullInt64 {
+	return sql.NullInt64{Int64: int64(n), Valid: n != 0}
+}
+
 // report records one source's reading: it opens a scan row, ingests the facts
 // as one transaction, and closes the scan with whatever happened.
 func (s *Store) report(ctx context.Context, r reading) (*Result, error) {
