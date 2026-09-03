@@ -2,6 +2,7 @@
 package cidr
 
 import (
+	"errors"
 	"fmt"
 	"iter"
 	"net/netip"
@@ -10,7 +11,7 @@ import (
 // ErrNotIPv4 is returned for a prefix this package cannot enumerate. IPv6 is
 // excluded deliberately: the smallest prefix normally assigned is a /64, so
 // walking one address at a time is never the right approach there.
-var ErrNotIPv4 = fmt.Errorf("prefix is not IPv4")
+var ErrNotIPv4 = errors.New("prefix is not IPv4")
 
 // Hosts yields every usable address in p, in ascending order.
 //

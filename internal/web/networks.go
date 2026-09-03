@@ -3,7 +3,6 @@ package web
 import (
 	"errors"
 	"net/http"
-	"strconv"
 
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
@@ -25,8 +24,8 @@ type networkData struct {
 func (h *Handler) network(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil || id < 1 {
+	id, ok := pathID(r)
+	if !ok {
 		// The pattern admits any segment, so a non-id lands here rather than
 		// at a handler that would try to look it up.
 		h.notFound(w, r)

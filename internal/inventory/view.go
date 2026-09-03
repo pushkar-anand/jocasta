@@ -393,7 +393,7 @@ func parseAddrs(concat string) []netip.Addr {
 		}
 	}
 
-	slices.SortFunc(addrs, func(a, b netip.Addr) int { return a.Compare(b) })
+	slices.SortFunc(addrs, netip.Addr.Compare)
 
 	return addrs
 }

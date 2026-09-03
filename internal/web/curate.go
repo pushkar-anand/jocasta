@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
-	"strconv"
 
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
@@ -126,7 +125,7 @@ func (h *Handler) updateDevice(w http.ResponseWriter, r *http.Request) {
 // applyEdit reads the form and writes it. It reports whether the caller should
 // go on to render; a request it turns away has already been answered.
 func (h *Handler) applyEdit(w http.ResponseWriter, r *http.Request) (*inventory.Device, bool) {
-	id, ok := deviceIDFromPath(r)
+	id, ok := pathID(r)
 	if !ok {
 		h.notFound(w, r)
 
@@ -158,7 +157,7 @@ func (h *Handler) applyEdit(w http.ResponseWriter, r *http.Request) (*inventory.
 // deviceFromPath reads the device the route names, answering the request itself
 // if there is none.
 func (h *Handler) deviceFromPath(w http.ResponseWriter, r *http.Request) (*inventory.Device, bool) {
-	id, ok := deviceIDFromPath(r)
+	id, ok := pathID(r)
 	if !ok {
 		h.notFound(w, r)
 
@@ -179,15 +178,4 @@ func (h *Handler) deviceFromPath(w http.ResponseWriter, r *http.Request) (*inven
 	}
 
 	return device, true
-}
-
-// deviceIDFromPath reads the id the route captured. The pattern admits any
-// segment, so this is where one that is not an id is rejected.
-func deviceIDFromPath(r *http.Request) (int64, bool) {
-	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil || id < 1 {
-		return 0, false
-	}
-
-	return id, true
 }

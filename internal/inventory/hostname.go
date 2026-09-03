@@ -78,9 +78,7 @@ func resolveHostname(claims []nameClaim) nameClaim {
 // Two different devices sharing a first label under different domains therefore
 // read as agreeing. Their claims are kept either way.
 func label(name string) string {
-	if i := strings.IndexByte(name, '.'); i >= 0 {
-		name = name[:i]
-	}
+	name, _, _ = strings.Cut(name, ".")
 
 	return strings.ToLower(name)
 }
