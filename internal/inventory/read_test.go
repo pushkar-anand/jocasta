@@ -374,6 +374,32 @@ func TestListEventsNamesTheDevice(t *testing.T) {
 	}
 }
 
+// A device-scoped page of the log holds only that device's entries, and walks
+// the same way the full log does.
+func TestListEventsNarrowsToOneDevice(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, "printer.local"))
+	sweep(t, s, host("192.0.2.11", macB, "nas.local"))
+
+	printer := deviceIDByMAC(t, conn, macA)
+
+	page, err := s.ListEvents(t.Context(), Page{Limit: 10, Device: printer})
+	require.NoError(t, err)
+	require.NotEmpty(t, page.Events)
+
+	for _, e := range page.Events {
+		assert.Equal(t, printer, e.DeviceID)
+		assert.Equal(t, "printer.local", e.DeviceName)
+	}
+
+	// The full log holds both devices' events, so scoping it drops some.
+	full, err := s.ListEvents(t.Context(), Page{Limit: 10})
+	require.NoError(t, err)
+	assert.Greater(t, len(full.Events), len(page.Events))
+}
+
 func TestListScansDescribesTheRun(t *testing.T) {
 	t.Parallel()
 

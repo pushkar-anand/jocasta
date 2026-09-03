@@ -301,6 +301,49 @@ func TestEventsPage(t *testing.T) {
 	assert.NotContains(t, body, "Newest")
 }
 
+// ?device= narrows the log to one device, which is how the device page's
+// history reaches the rest of itself.
+func TestEventsPageNarrowsToADevice(t *testing.T) {
+	t.Parallel()
+
+	h := seeded(t)
+
+	body := get(t, h, "/events?device=1").Body.String()
+
+	assert.Contains(t, body, "printer.local")
+	assert.NotContains(t, body, "nas.local", "the other device's events are not this device's history")
+
+	// The way back to the device, and to the unnarrowed log.
+	assert.Contains(t, body, `href="/devices/1"`)
+	assert.Contains(t, body, `href="/events"`)
+}
+
+// An id that names no device is a page that is not there, the same as
+// /devices/{id}.
+func TestEventsPageUnknownDeviceIsNotFound(t *testing.T) {
+	t.Parallel()
+
+	h := seeded(t)
+
+	for _, target := range []string{"/events?device=999", "/events?device=abc", "/events?device=0"} {
+		t.Run(target, func(t *testing.T) {
+			assert.Equal(t, http.StatusNotFound, get(t, h, target).Code)
+		})
+	}
+}
+
+// The device page shows a handful of history; the link is how the rest of it
+// is reached.
+func TestDevicePageLinksToFullHistory(t *testing.T) {
+	t.Parallel()
+
+	h := seeded(t)
+	id := deviceIDFromBody(t, get(t, h, "/devices").Body.String())
+
+	body := get(t, h, "/devices/"+id).Body.String()
+	assert.Contains(t, body, `href="/events?device=`+id+`"`)
+}
+
 func TestScansPage(t *testing.T) {
 	t.Parallel()
 
@@ -359,6 +402,12 @@ func TestPagerLinks(t *testing.T) {
 	// The token is escaped, since it is base64 and carries characters a query
 	// string gives its own meaning.
 	assert.Equal(t, "/events?cursor=there%2B%2F%3D", page.Older())
+
+	// A device-scoped log keeps the filter on every step of the walk, so the
+	// cursor joins an address that already has a query string.
+	scoped := logData{Path: "/events", Device: &inventory.Device{ID: 7}, Next: "tok"}
+	assert.Equal(t, "/events?device=7", scoped.Top())
+	assert.Equal(t, "/events?device=7&cursor=tok", scoped.Older())
 }
 
 func TestCanonicalURL(t *testing.T) {

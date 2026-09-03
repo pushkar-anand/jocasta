@@ -14,6 +14,10 @@ type Page struct {
 
 	// Cursor is where to resume. The zero cursor starts at the top of the log.
 	Cursor Cursor
+
+	// Device narrows the change log to one device's own entries. Zero is every
+	// device, which is what the full log shows. Only ListEvents reads it.
+	Device int64
 }
 
 // EventPage is one window onto the change log.

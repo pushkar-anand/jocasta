@@ -3,6 +3,8 @@ package web
 import (
 	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
 
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
@@ -16,8 +18,12 @@ type logData struct {
 	Events []*inventory.Event
 	Scans  []*inventory.Scan
 
-	// Path is the log's own address, which the pager links back to.
+	// Path is the log's own address, before any narrowing: /events or /scans.
 	Path string
+
+	// Device is the one device the change log is narrowed to, and nil for the
+	// full log. Only the event log is ever narrowed.
+	Device *inventory.Device
 
 	// Cursor is the token this page was reached by, and is empty at the top of
 	// the log.
@@ -34,9 +40,24 @@ func (d logData) AtTop() bool { return d.Cursor == "" }
 // HasOlder reports whether there is another page behind this one.
 func (d logData) HasOlder() bool { return d.Next != "" }
 
-// Older is the address of the page behind this one.
+// Top is the address of the first page of this log, carrying the device filter
+// where there is one so walking back to the top does not widen the log.
+func (d logData) Top() string {
+	if d.Device == nil {
+		return d.Path
+	}
+
+	return d.Path + "?device=" + strconv.FormatInt(d.Device.ID, 10)
+}
+
+// Older is the address of the page behind this one, keeping the filter.
 func (d logData) Older() string {
-	return d.Path + "?cursor=" + url.QueryEscape(d.Next)
+	sep := "?"
+	if strings.Contains(d.Top(), "?") {
+		sep = "&"
+	}
+
+	return d.Top() + sep + "cursor=" + url.QueryEscape(d.Next)
 }
 
 // logCursor reads the position in the log, and reports the token that is
@@ -71,7 +92,30 @@ func (h *Handler) events(w http.ResponseWriter, r *http.Request) {
 		Cursor: token,
 	}
 
-	page, err := h.store.ListEvents(ctx, inventory.Page{Limit: logPageSize, Cursor: from})
+	window := inventory.Page{Limit: logPageSize, Cursor: from}
+
+	// ?device= narrows the log to one device: the way the device page's history
+	// reaches the rest of itself. An id that names no device is a page that is
+	// not there, the same as /devices/{id}.
+	if raw := r.URL.Query().Get("device"); raw != "" {
+		id, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || id < 1 {
+			h.notFound(w, r)
+
+			return
+		}
+
+		device, ok := h.deviceByID(w, r, id)
+		if !ok {
+			return
+		}
+
+		data.Device = device
+		data.Crumb = &crumb{Label: device.Name(), Href: "/devices/" + strconv.FormatInt(id, 10)}
+		window.Device = device.ID
+	}
+
+	page, err := h.store.ListEvents(ctx, window)
 	if err != nil {
 		h.fail(w, r, err)
 

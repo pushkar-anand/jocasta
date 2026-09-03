@@ -4,8 +4,18 @@
 <section class="block">
     <div class="block__head">
         <p class="eyebrow">Change log</p>
+        {{- if .Device }}
+        <a class="more" href="/events">Every device
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+        </a>
+        {{- else }}
         <p class="block__aside">Everything a sweep or an edit changed</p>
+        {{- end }}
     </div>
+    {{- with .Device }}
+    <p class="block__aside">Only what a sweep or an edit changed on {{ .Name }}</p>
+    {{- end }}
     {{ template "partial/activity" .Events }}
     {{ template "partial/pager" . }}
 </section>
