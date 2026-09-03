@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pushkar-anand/jocasta/internal/classify"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/stretchr/testify/assert"
@@ -215,6 +216,42 @@ func TestListDevicesSortsByName(t *testing.T) {
 	devices, err := s.ListDevices(t.Context(), DeviceFilter{Sort: SortName})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"nas.local", "printer.local"}, names(devices))
+}
+
+// The type filter narrows to the effective class -- the same one the icon
+// column shows -- so a name the classifier reads is enough to be found by it.
+func TestListDevicesFiltersByType(t *testing.T) {
+	t.Parallel()
+
+	s, _ := newStore(t)
+	sweep(t, s,
+		host("192.0.2.10", macA, "printer.local"),
+		host("192.0.2.11", macB, "nas.local"),
+	)
+
+	devices, err := s.ListDevices(t.Context(), DeviceFilter{Type: classify.Printer})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"printer.local"}, names(devices))
+
+	none, err := s.ListDevices(t.Context(), DeviceFilter{Type: classify.Router})
+	require.NoError(t, err)
+	assert.Empty(t, none)
+}
+
+// Sorting by type keeps like with like and puts the devices with no class last.
+func TestListDevicesSortsByType(t *testing.T) {
+	t.Parallel()
+
+	s, _ := newStore(t)
+	sweep(t, s,
+		host("192.0.2.12", "00:00:5e:00:53:03", "host-c"),
+		host("192.0.2.10", macA, "printer.local"),
+		host("192.0.2.11", macB, "nas.local"),
+	)
+
+	devices, err := s.ListDevices(t.Context(), DeviceFilter{Sort: SortType})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"nas.local", "printer.local", "host-c"}, names(devices))
 }
 
 func TestGetDeviceCarriesAddressHistory(t *testing.T) {

@@ -50,6 +50,16 @@
         </label>
 
         <label class="field">
+            <span class="visually-hidden">Type</span>
+            <select name="type">
+                <option value="">Any type</option>
+                {{- range classChoices }}
+                <option value="{{ .Value }}"{{ if eq (printf "%s" .Value) $.Type }} selected{{ end }}>{{ .Label }}</option>
+                {{- end }}
+            </select>
+        </label>
+
+        <label class="field">
             <span class="visually-hidden">Seen</span>
             <select name="status">
                 <option value="">Any presence</option>
@@ -64,6 +74,7 @@
                 <option value="">Last seen</option>
                 <option value="address"{{ if eq .Sort "address" }} selected{{ end }}>Address</option>
                 <option value="name"{{ if eq .Sort "name" }} selected{{ end }}>Name</option>
+                <option value="type"{{ if eq .Sort "type" }} selected{{ end }}>Type</option>
             </select>
         </label>
 

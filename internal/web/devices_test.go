@@ -75,12 +75,15 @@ func TestDeviceRowsPushesTheCanonicalURL(t *testing.T) {
 		{"/devices/rows?status=online", "/devices?status=online"},
 		{"/devices/rows?ignored=1", "/devices?ignored=1"},
 		{"/devices/rows?network=1", "/devices?network=1"},
+		{"/devices/rows?type=printer", "/devices?type=printer"},
+		{"/devices/rows?sort=type", "/devices?sort=type"},
 
 		// A value the inventory does not recognise is dropped, so the pushed
 		// address describes the list that was actually rendered.
 		{"/devices/rows?status=onlin", "/devices"},
 		{"/devices/rows?sort=vendor", "/devices"},
 		{"/devices/rows?network=eth0", "/devices"},
+		{"/devices/rows?type=toaster", "/devices"},
 
 		// Whitespace a reader typed is not part of the search.
 		{"/devices/rows?q=%20nas%20", "/devices?q=nas"},
@@ -132,6 +135,12 @@ func TestDevicesPageFilters(t *testing.T) {
 			present: []string{"printer.local", "nas.local"},
 		},
 		{
+			name:    "by type",
+			target:  "/devices?type=printer",
+			present: []string{"printer.local"},
+			absent:  []string{"nas.local"},
+		},
+		{
 			name:    "by a network nothing is on",
 			target:  "/devices?network=999",
 			present: []string{"No device matches this filter"},
@@ -164,9 +173,10 @@ func TestDevicesPageFilters(t *testing.T) {
 func TestDevicesFormReflectsTheFilter(t *testing.T) {
 	t.Parallel()
 
-	body := get(t, seeded(t), "/devices?q=nas&status=offline&sort=name&ignored=1").Body.String()
+	body := get(t, seeded(t), "/devices?q=nas&type=nas&status=offline&sort=name&ignored=1").Body.String()
 
 	assert.Contains(t, body, `value="nas"`)
+	assert.Contains(t, body, `<option value="nas" selected>`)
 	assert.Contains(t, body, `<option value="offline" selected>`)
 	assert.Contains(t, body, `<option value="name" selected>`)
 	assert.Contains(t, body, `checked`)
@@ -417,7 +427,7 @@ func TestCanonicalURL(t *testing.T) {
 	assert.Equal(t, "/devices", devicesData{Page: 1}.canonical())
 
 	// Every value that was applied is in the address, so it can be shared.
-	got := devicesData{Query: "nas", Group: "rack", Network: "3", Status: "online", Sort: "name", IncludeIgnored: true, Page: 3}.canonical()
+	got := devicesData{Query: "nas", Group: "rack", Network: "3", Type: "camera", Status: "online", Sort: "name", IncludeIgnored: true, Page: 3}.canonical()
 
 	parsed, err := url.Parse(got)
 	require.NoError(t, err)
@@ -427,6 +437,7 @@ func TestCanonicalURL(t *testing.T) {
 		"q":       {"nas"},
 		"group":   {"rack"},
 		"network": {"3"},
+		"type":    {"camera"},
 		"status":  {"online"},
 		"sort":    {"name"},
 		"ignored": {"1"},
@@ -481,15 +492,20 @@ func TestDeviceFormDropsUnrecognisedValues(t *testing.T) {
 	assert.Empty(t, form.Sort)
 	assert.False(t, form.IncludeIgnored, "only the value the form submits turns it on")
 
-	form = deviceForm(url.Values{"status": {"offline"}, "sort": {"address"}, "ignored": {"1"}})
+	form = deviceForm(url.Values{"status": {"offline"}, "sort": {"type"}, "ignored": {"1"}})
 	assert.Equal(t, "offline", form.Status)
-	assert.Equal(t, "address", form.Sort)
+	assert.Equal(t, "type", form.Sort)
 	assert.True(t, form.IncludeIgnored)
 
 	// The network select offers ids; a name is not one.
 	assert.Empty(t, deviceForm(url.Values{"network": {"eth0"}}).Network)
 	assert.Empty(t, deviceForm(url.Values{"network": {"0"}}).Network)
 	assert.Equal(t, "4", deviceForm(url.Values{"network": {"4"}}).Network)
+
+	// The type select offers the class vocabulary; free text is not part of it.
+	assert.Empty(t, deviceForm(url.Values{"type": {"toaster"}}).Type)
+	assert.Empty(t, deviceForm(url.Values{"type": {""}}).Type)
+	assert.Equal(t, "camera", deviceForm(url.Values{"type": {"camera"}}).Type)
 }
 
 // The seed names its devices "printer.local" and "nas.local", both of which the

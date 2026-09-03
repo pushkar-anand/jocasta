@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pushkar-anand/jocasta/internal/classify"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
@@ -31,10 +32,11 @@ type devicesData struct {
 
 	// The form values, kept as strings so a template can compare them against
 	// the option values without converting anything. Network is the id of the
-	// chosen network, as text.
+	// chosen network, as text; Type is a device class.
 	Query          string
 	Group          string
 	Network        string
+	Type           string
 	Status         string
 	Sort           string
 	IncludeIgnored bool
@@ -67,6 +69,7 @@ func (d devicesData) filter() inventory.DeviceFilter {
 		Query:          d.Query,
 		Group:          d.Group,
 		Network:        d.networkID(),
+		Type:           classify.Class(d.Type),
 		Status:         inventory.Status(d.Status),
 		Sort:           inventory.Sort(d.Sort),
 		IncludeIgnored: d.IncludeIgnored,
@@ -90,7 +93,8 @@ func (d devicesData) params() url.Values {
 	q := make(url.Values)
 
 	for key, value := range map[string]string{
-		"q": d.Query, "group": d.Group, "network": d.Network, "status": d.Status, "sort": d.Sort,
+		"q": d.Query, "group": d.Group, "network": d.Network,
+		"type": d.Type, "status": d.Status, "sort": d.Sort,
 	} {
 		if value != "" {
 			q.Set(key, value)
@@ -179,6 +183,12 @@ func deviceForm(q url.Values) *devicesData {
 	// nothing, the same as an unknown group does.
 	if n, err := strconv.ParseInt(q.Get("network"), 10, 64); err == nil && n > 0 {
 		d.Network = strconv.FormatInt(n, 10)
+	}
+
+	// The select offers the class vocabulary; a value outside it -- including a
+	// free-text type from before the field was a fixed list -- is no filter.
+	if c := classify.Class(q.Get("type")); c != classify.Unknown && c.Valid() {
+		d.Type = string(c)
 	}
 
 	if s := inventory.Status(q.Get("status")); s.Valid() {
