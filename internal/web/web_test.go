@@ -260,7 +260,7 @@ func TestEveryNamedTemplateExists(t *testing.T) {
 	h := seeded(t)
 
 	for _, name := range []string{
-		"page/dashboard", "page/notfound",
+		"page/dashboard", "page/notfound", "page/network",
 		"partial/live", "partial/activity",
 		"layout/head", "layout/foot",
 	} {

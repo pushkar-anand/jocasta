@@ -38,6 +38,18 @@
         </label>
 
         <label class="field">
+            <span class="visually-hidden">Network</span>
+            <select name="network">
+                <option value="">Any network</option>
+                {{- range .Networks }}
+                <option value="{{ .ID }}"{{ if eq (printf "%d" .ID) $.Network }} selected{{ end }}>
+                    {{- .CIDR }}{{ with .Name }} &middot; {{ . }}{{ end }}{{ if .VLAN }} &middot; VLAN {{ .VLAN }}{{ end -}}
+                </option>
+                {{- end }}
+            </select>
+        </label>
+
+        <label class="field">
             <span class="visually-hidden">Seen</span>
             <select name="status">
                 <option value="">Any presence</option>

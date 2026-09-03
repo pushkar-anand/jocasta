@@ -724,22 +724,29 @@ SELECT d.id, d.mac, d.identity_source, d.is_randomised, d.vendor, d.hostname, d.
 FROM devices d
 WHERE (d.is_ignored = 0 OR d.is_ignored = ?1)
   AND (CAST(?2 AS TEXT) IS NULL OR d.group_name = CAST(?2 AS TEXT))
-  AND (CAST(?3 AS TEXT) IS NULL
-    OR d.label LIKE '%' || CAST(?3 AS TEXT) || '%'
-    OR d.hostname LIKE '%' || CAST(?3 AS TEXT) || '%'
-    OR d.vendor LIKE '%' || CAST(?3 AS TEXT) || '%'
-    OR d.mac LIKE '%' || CAST(?3 AS TEXT) || '%'
+  AND (CAST(?3 AS INTEGER) IS NULL
     OR EXISTS (SELECT 1
                FROM addresses a
                WHERE a.device_id = d.id
                  AND a.is_current = 1
-                 AND a.ip LIKE '%' || CAST(?3 AS TEXT) || '%'))
+                 AND a.network_id = CAST(?3 AS INTEGER)))
+  AND (CAST(?4 AS TEXT) IS NULL
+    OR d.label LIKE '%' || CAST(?4 AS TEXT) || '%'
+    OR d.hostname LIKE '%' || CAST(?4 AS TEXT) || '%'
+    OR d.vendor LIKE '%' || CAST(?4 AS TEXT) || '%'
+    OR d.mac LIKE '%' || CAST(?4 AS TEXT) || '%'
+    OR EXISTS (SELECT 1
+               FROM addresses a
+               WHERE a.device_id = d.id
+                 AND a.is_current = 1
+                 AND a.ip LIKE '%' || CAST(?4 AS TEXT) || '%'))
 ORDER BY d.last_seen DESC
 `
 
 type ListDevicesParams struct {
 	IncludeIgnored bool           `json:"include_ignored"`
 	GroupName      sql.NullString `json:"group_name"`
+	NetworkID      sql.NullInt64  `json:"network_id"`
 	Q              sql.NullString `json:"q"`
 }
 
@@ -766,19 +773,30 @@ type ListDevicesRow struct {
 //	FROM devices d
 //	WHERE (d.is_ignored = 0 OR d.is_ignored = ?1)
 //	  AND (CAST(?2 AS TEXT) IS NULL OR d.group_name = CAST(?2 AS TEXT))
-//	  AND (CAST(?3 AS TEXT) IS NULL
-//	    OR d.label LIKE '%' || CAST(?3 AS TEXT) || '%'
-//	    OR d.hostname LIKE '%' || CAST(?3 AS TEXT) || '%'
-//	    OR d.vendor LIKE '%' || CAST(?3 AS TEXT) || '%'
-//	    OR d.mac LIKE '%' || CAST(?3 AS TEXT) || '%'
+//	  AND (CAST(?3 AS INTEGER) IS NULL
 //	    OR EXISTS (SELECT 1
 //	               FROM addresses a
 //	               WHERE a.device_id = d.id
 //	                 AND a.is_current = 1
-//	                 AND a.ip LIKE '%' || CAST(?3 AS TEXT) || '%'))
+//	                 AND a.network_id = CAST(?3 AS INTEGER)))
+//	  AND (CAST(?4 AS TEXT) IS NULL
+//	    OR d.label LIKE '%' || CAST(?4 AS TEXT) || '%'
+//	    OR d.hostname LIKE '%' || CAST(?4 AS TEXT) || '%'
+//	    OR d.vendor LIKE '%' || CAST(?4 AS TEXT) || '%'
+//	    OR d.mac LIKE '%' || CAST(?4 AS TEXT) || '%'
+//	    OR EXISTS (SELECT 1
+//	               FROM addresses a
+//	               WHERE a.device_id = d.id
+//	                 AND a.is_current = 1
+//	                 AND a.ip LIKE '%' || CAST(?4 AS TEXT) || '%'))
 //	ORDER BY d.last_seen DESC
 func (q *Queries) ListDevices(ctx context.Context, arg ListDevicesParams) ([]*ListDevicesRow, error) {
-	rows, err := q.query(ctx, q.listDevicesStmt, listDevices, arg.IncludeIgnored, arg.GroupName, arg.Q)
+	rows, err := q.query(ctx, q.listDevicesStmt, listDevices,
+		arg.IncludeIgnored,
+		arg.GroupName,
+		arg.NetworkID,
+		arg.Q,
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -237,6 +237,10 @@ type DeviceFilter struct {
 	Query string
 	Group string
 
+	// Network admits only devices holding a current address on the network
+	// with this id. Zero is every network.
+	Network int64
+
 	Status Status
 	Sort   Sort
 

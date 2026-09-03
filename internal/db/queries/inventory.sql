@@ -213,6 +213,12 @@ SELECT sqlc.embed(d),
 FROM devices d
 WHERE (d.is_ignored = 0 OR d.is_ignored = sqlc.arg(include_ignored))
   AND (CAST(sqlc.narg(group_name) AS TEXT) IS NULL OR d.group_name = CAST(sqlc.narg(group_name) AS TEXT))
+  AND (CAST(sqlc.narg(network_id) AS INTEGER) IS NULL
+    OR EXISTS (SELECT 1
+               FROM addresses a
+               WHERE a.device_id = d.id
+                 AND a.is_current = 1
+                 AND a.network_id = CAST(sqlc.narg(network_id) AS INTEGER)))
   AND (CAST(sqlc.narg(q) AS TEXT) IS NULL
     OR d.label LIKE '%' || CAST(sqlc.narg(q) AS TEXT) || '%'
     OR d.hostname LIKE '%' || CAST(sqlc.narg(q) AS TEXT) || '%'
