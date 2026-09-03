@@ -14,6 +14,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/jocasta/internal/hosts"
 	"github.com/pushkar-anand/jocasta/pkg/cidr"
 )
@@ -237,7 +238,7 @@ func (s *Scanner) enrich(ctx context.Context, replies map[netip.Addr]time.Durati
 	// have already parsed every MAC they yield, which leaves little to fail.
 	built, err := hosts.BulkBuild(ctx, inputs)
 	if err != nil {
-		s.log.WarnContext(ctx, "some hosts could not be enriched", slog.Any("error", err))
+		s.log.WarnContext(ctx, "some hosts could not be enriched", logger.Err(err))
 	}
 
 	found := make([]Host, 0, len(built))
@@ -260,14 +261,14 @@ func (s *Scanner) enrich(ctx context.Context, replies map[netip.Addr]time.Durati
 func (s *Scanner) hardware(ctx context.Context) (map[netip.Addr]string, map[netip.Addr]localInterface) {
 	table, err := neighbours()
 	if err != nil {
-		s.log.WarnContext(ctx, "could not read neighbour table", slog.Any("error", err))
+		s.log.WarnContext(ctx, "could not read neighbour table", logger.Err(err))
 
 		table = map[netip.Addr]string{}
 	}
 
 	local, err := localAddrs()
 	if err != nil {
-		s.log.WarnContext(ctx, "could not read local interfaces", slog.Any("error", err))
+		s.log.WarnContext(ctx, "could not read local interfaces", logger.Err(err))
 
 		local = map[netip.Addr]localInterface{}
 	}

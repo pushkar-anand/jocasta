@@ -101,6 +101,11 @@ type Fact struct {
 // The distinction worth making about a failed read is whether the next attempt
 // could go better.
 var (
+	// ErrUnreachable is a source that could not be contacted at all. Worth
+	// retrying.
 	ErrUnreachable = errors.New("plugin: source unreachable")
-	ErrAuth        = errors.New("plugin: source rejected credentials")
+
+	// ErrAuth is a source that answered and refused the credentials. Retrying
+	// will not fix it.
+	ErrAuth = errors.New("plugin: source rejected credentials")
 )

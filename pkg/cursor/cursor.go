@@ -56,10 +56,19 @@ func (k Kind) Valid() bool {
 // Errors returned by Encode and Decode when a request asks for something a
 // cursor cannot represent.
 var (
+	// ErrUnsortableValue is a cursor Value of a type Encode has no rendering
+	// for.
 	ErrUnsortableValue = errors.New("cursor: value cannot be sorted")
-	ErrMalformed       = errors.New("cursor: malformed")
-	ErrOrder           = errors.New("cursor: unknown order")
-	ErrKind            = errors.New("cursor: unknown value kind")
+
+	// ErrMalformed is a token that is not base64 of the expected four parts,
+	// or whose value does not parse as the kind it names.
+	ErrMalformed = errors.New("cursor: malformed")
+
+	// ErrOrder is a token whose order field is neither ASC nor DESC.
+	ErrOrder = errors.New("cursor: unknown order")
+
+	// ErrKind is a token whose kind field names no known column type.
+	ErrKind = errors.New("cursor: unknown value kind")
 )
 
 // separator splits the parts of a decoded token. It is three characters so that

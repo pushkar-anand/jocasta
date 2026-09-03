@@ -104,7 +104,7 @@ func (s *Store) Device(ctx context.Context, id int64) (*Device, error) {
 		}
 	}
 
-	slices.SortFunc(d.Current, func(a, b netip.Addr) int { return a.Compare(b) })
+	slices.SortFunc(d.Current, netip.Addr.Compare)
 
 	return d, nil
 }

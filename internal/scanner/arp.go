@@ -44,13 +44,13 @@ func neighbours() (map[netip.Addr]string, error) {
 func parseARP(r io.Reader) (map[netip.Addr]string, error) {
 	out := make(map[netip.Addr]string)
 
-	scanner := bufio.NewScanner(r)
-	for lineNo := 0; scanner.Scan(); lineNo++ {
+	sc := bufio.NewScanner(r)
+	for lineNo := 0; sc.Scan(); lineNo++ {
 		if lineNo == 0 {
 			continue
 		}
 
-		fields := strings.Fields(scanner.Text())
+		fields := strings.Fields(sc.Text())
 		if len(fields) < 4 {
 			continue
 		}
@@ -81,7 +81,7 @@ func parseARP(r io.Reader) (map[netip.Addr]string, error) {
 		out[addr] = mac
 	}
 
-	if err := scanner.Err(); err != nil {
+	if err := sc.Err(); err != nil {
 		return nil, fmt.Errorf("read neighbour table: %w", err)
 	}
 

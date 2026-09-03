@@ -72,9 +72,8 @@ func ago(now, t time.Time) string {
 	d := now.Sub(t)
 
 	switch {
-	case d < 0:
-		// A clock difference, not a sighting from the future.
-		return "just now"
+	// A negative d is a clock difference, not a sighting from the future, so it
+	// reads as "just now" like any other sub-minute gap.
 	case d < time.Minute:
 		return "just now"
 	case d < time.Hour:
