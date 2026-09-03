@@ -47,6 +47,12 @@ sql:
             go_type: *timestamp
           - column: "device_sources.last_seen"
             go_type: *timestamp
+          - column: "device_ports.first_seen"
+            go_type: *timestamp
+          - column: "device_ports.last_seen"
+            go_type: *timestamp
+          - column: "device_ports.changed_at"
+            go_type: *timestamp
           - column: "scans.finished_at"
             go_type:
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
@@ -84,6 +90,10 @@ sql:
             go_type:
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
               type: "ScanKind"
+          - column: "device_ports.state"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "PortState"
           - column: "scans.status"
             go_type:
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"

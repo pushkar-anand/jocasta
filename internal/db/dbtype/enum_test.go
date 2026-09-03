@@ -21,6 +21,10 @@ func TestEnumValueRenders(t *testing.T) {
 	v, err = EventDevicesMerged.Value()
 	require.NoError(t, err)
 	assert.Equal(t, "DEVICES_MERGED", v)
+
+	v, err = PortOpen.Value()
+	require.NoError(t, err)
+	assert.Equal(t, "open", v)
 }
 
 // The zero value is not a member of any of these sets, and a column reached
@@ -37,6 +41,9 @@ func TestEnumValueRejectsZero(t *testing.T) {
 
 	_, err = IdentitySource("").Value()
 	require.ErrorContains(t, err, "is not a valid identity source")
+
+	_, err = PortState("").Value()
+	require.ErrorContains(t, err, "is not a valid port state")
 }
 
 func TestEnumValueRejectsUnknown(t *testing.T) {
@@ -60,6 +67,11 @@ func TestEnumScanRoundTrips(t *testing.T) {
 	// The driver may hand back either form for a TEXT column.
 	require.NoError(t, k.Scan([]byte("MANUAL")))
 	assert.Equal(t, SourceManual, k)
+
+	var ps PortState
+
+	require.NoError(t, ps.Scan("closed"))
+	assert.Equal(t, PortClosed, ps)
 }
 
 // Where the schema carries a CHECK it has already refused these; where it does
@@ -112,5 +124,8 @@ func TestEnumValid(t *testing.T) {
 	assert.True(t, StatusRunning.Valid())
 	assert.True(t, EventAddressAdded.Valid())
 	assert.True(t, EventAddressReleased.Valid())
+	assert.True(t, EventPortOpened.Valid())
 	assert.True(t, HostnameFromDNS.Valid())
+	assert.True(t, PortClosed.Valid())
+	assert.False(t, PortState("filtered").Valid())
 }

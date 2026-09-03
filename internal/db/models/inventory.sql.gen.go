@@ -49,6 +49,55 @@ func (q *Queries) AdoptCuration(ctx context.Context, arg AdoptCurationParams) er
 	return err
 }
 
+const allCurrentAddresses = `-- name: AllCurrentAddresses :many
+
+SELECT a.device_id, a.ip
+FROM addresses a
+         JOIN devices d ON d.id = a.device_id
+WHERE a.is_current = 1
+  AND d.is_ignored = 0
+ORDER BY a.device_id, a.ip
+`
+
+type AllCurrentAddressesRow struct {
+	DeviceID int64       `json:"device_id"`
+	IP       dbtype.Addr `json:"ip"`
+}
+
+// Ports.
+// Every address a port scan should probe: the current address of every device
+// the user has not ignored. The scan works from what discovery has already
+// found rather than sweeping, so this is its whole target list.
+//
+//	SELECT a.device_id, a.ip
+//	FROM addresses a
+//	         JOIN devices d ON d.id = a.device_id
+//	WHERE a.is_current = 1
+//	  AND d.is_ignored = 0
+//	ORDER BY a.device_id, a.ip
+func (q *Queries) AllCurrentAddresses(ctx context.Context) ([]*AllCurrentAddressesRow, error) {
+	rows, err := q.query(ctx, q.allCurrentAddressesStmt, allCurrentAddresses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*AllCurrentAddressesRow
+	for rows.Next() {
+		var i AllCurrentAddressesRow
+		if err := rows.Scan(&i.DeviceID, &i.IP); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const allNetworks = `-- name: AllNetworks :many
 SELECT id, cidr
 FROM networks
@@ -88,6 +137,37 @@ func (q *Queries) AllNetworks(ctx context.Context) ([]*AllNetworksRow, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const closePort = `-- name: ClosePort :exec
+UPDATE device_ports
+SET state      = 'closed',
+    last_seen  = ?1,
+    changed_at = ?1
+WHERE device_id = ?2
+  AND port = ?3
+  AND state = 'open'
+`
+
+type ClosePortParams struct {
+	SeenAt   dbtype.Time `json:"seen_at"`
+	DeviceID int64       `json:"device_id"`
+	Port     int64       `json:"port"`
+}
+
+// A port we had open did not answer this run. Keep the row, flip the state,
+// record when it went.
+//
+//	UPDATE device_ports
+//	SET state      = 'closed',
+//	    last_seen  = ?1,
+//	    changed_at = ?1
+//	WHERE device_id = ?2
+//	  AND port = ?3
+//	  AND state = 'open'
+func (q *Queries) ClosePort(ctx context.Context, arg ClosePortParams) error {
+	_, err := q.exec(ctx, q.closePortStmt, closePort, arg.SeenAt, arg.DeviceID, arg.Port)
+	return err
 }
 
 const createDevice = `-- name: CreateDevice :one
@@ -690,6 +770,52 @@ func (q *Queries) ListDeviceEvents(ctx context.Context, arg ListDeviceEventsPara
 			&i.NewValue,
 			&i.Detail,
 			&i.OccurredAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDeviceOpenPorts = `-- name: ListDeviceOpenPorts :many
+SELECT device_id, port, state, service, first_seen, last_seen, changed_at
+FROM device_ports
+WHERE device_id = ?
+  AND state = 'open'
+`
+
+// The ports currently recorded open on a device, for a fresh scan to diff
+// itself against. Closed rows are history and left out: a scan no longer seeing
+// a port only matters for one we thought was open.
+//
+//	SELECT device_id, port, state, service, first_seen, last_seen, changed_at
+//	FROM device_ports
+//	WHERE device_id = ?
+//	  AND state = 'open'
+func (q *Queries) ListDeviceOpenPorts(ctx context.Context, deviceID int64) ([]*DevicePort, error) {
+	rows, err := q.query(ctx, q.listDeviceOpenPortsStmt, listDeviceOpenPorts, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*DevicePort
+	for rows.Next() {
+		var i DevicePort
+		if err := rows.Scan(
+			&i.DeviceID,
+			&i.Port,
+			&i.State,
+			&i.Service,
+			&i.FirstSeen,
+			&i.LastSeen,
+			&i.ChangedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1374,6 +1500,48 @@ func (q *Queries) UpsertNetworkIdentity(ctx context.Context, arg UpsertNetworkId
 		arg.Name,
 		arg.VlanID,
 		arg.CreatedAt,
+	)
+	return err
+}
+
+const upsertOpenPort = `-- name: UpsertOpenPort :exec
+INSERT INTO device_ports (device_id, port, state, service, first_seen, last_seen, changed_at)
+VALUES (?1, ?2, 'open', ?3,
+        ?4, ?4, ?4)
+ON CONFLICT (device_id, port)
+    DO UPDATE SET state      = 'open',
+                  service    = excluded.service,
+                  last_seen  = excluded.last_seen,
+                  changed_at = IIF(device_ports.state <> 'open',
+                                   excluded.changed_at, device_ports.changed_at)
+`
+
+type UpsertOpenPortParams struct {
+	DeviceID int64          `json:"device_id"`
+	Port     int64          `json:"port"`
+	Service  sql.NullString `json:"service"`
+	SeenAt   dbtype.Time    `json:"seen_at"`
+}
+
+// A port answered. A new row, or a closed one coming back: first_seen holds the
+// first time it was ever open and changed_at moves only on a real transition,
+// so "open since" and "state changed" stay distinct.
+//
+//	INSERT INTO device_ports (device_id, port, state, service, first_seen, last_seen, changed_at)
+//	VALUES (?1, ?2, 'open', ?3,
+//	        ?4, ?4, ?4)
+//	ON CONFLICT (device_id, port)
+//	    DO UPDATE SET state      = 'open',
+//	                  service    = excluded.service,
+//	                  last_seen  = excluded.last_seen,
+//	                  changed_at = IIF(device_ports.state <> 'open',
+//	                                   excluded.changed_at, device_ports.changed_at)
+func (q *Queries) UpsertOpenPort(ctx context.Context, arg UpsertOpenPortParams) error {
+	_, err := q.exec(ctx, q.upsertOpenPortStmt, upsertOpenPort,
+		arg.DeviceID,
+		arg.Port,
+		arg.Service,
+		arg.SeenAt,
 	)
 	return err
 }

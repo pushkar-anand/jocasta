@@ -37,6 +37,16 @@ type Device struct {
 	LastSeen       dbtype.Time           `json:"last_seen"`
 }
 
+type DevicePort struct {
+	DeviceID  int64            `json:"device_id"`
+	Port      int64            `json:"port"`
+	State     dbtype.PortState `json:"state"`
+	Service   sql.NullString   `json:"service"`
+	FirstSeen dbtype.Time      `json:"first_seen"`
+	LastSeen  dbtype.Time      `json:"last_seen"`
+	ChangedAt dbtype.Time      `json:"changed_at"`
+}
+
 type DeviceSource struct {
 	DeviceID       int64                 `json:"device_id"`
 	SourceID       int64                 `json:"source_id"`
