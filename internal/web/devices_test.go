@@ -194,6 +194,11 @@ func TestDevicePage(t *testing.T) {
 	// An address the device still answers on is marked as held now.
 	assert.Contains(t, body, ">now<")
 
+	// Each address names the prefix a sweep placed it on, linking to that
+	// network's own page.
+	assert.Contains(t, body, `href="/networks/1"`)
+	assert.Contains(t, body, prefix)
+
 	// And the page carries the device's own history, which the list does not.
 	assert.Contains(t, body, "discovered")
 }

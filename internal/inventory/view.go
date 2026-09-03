@@ -71,6 +71,11 @@ type Address struct {
 	Current   bool       `json:"current"`
 	FirstSeen time.Time  `json:"first_seen"`
 	LastSeen  time.Time  `json:"last_seen"`
+
+	// Network is the recorded prefix a sweep placed this address on. It is nil
+	// when no sweep matched it to one -- an address older than network
+	// tracking, or one on a prefix nothing has recorded.
+	Network *Network `json:"network,omitempty"`
 }
 
 // Claim is what one source says about a device, as it is displayed.
