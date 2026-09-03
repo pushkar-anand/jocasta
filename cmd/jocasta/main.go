@@ -18,7 +18,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 )
 
-// Link sqlc with go generate, running go generate will generate the DB models and queries.
+// Regenerate the sqlc models and query code from sqlc.yaml.
 //go:generate go tool sqlc generate -f ./../../sqlc.yaml
 
 func main() {
@@ -32,8 +32,8 @@ func main() {
 func run(args []string) error {
 	ctx := context.Background()
 
-	// Create a context that will be canceled when the OS sends a signal to the process.
-	// This will be used to gracefully shut down the application, shutting down the server and other workers.
+	// A signal cancels this context; the server and every worker shut down
+	// when it does, so an interrupt drains rather than kills.
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
 	defer cancel()
 
@@ -46,10 +46,9 @@ func run(args []string) error {
 
 	kCtx, err := parser.Parse(args)
 	if err != nil {
-		// kong.UsageOnError() only takes effect through FatalIfErrorf, which
-		// exits the process. Print the usage block here instead so the main stays
-		// in charge of exiting and let the main report the message at
-		// once.
+		// kong.UsageOnError() only fires through FatalIfErrorf, which exits the
+		// process itself. Printing usage here keeps the one exit path in run,
+		// which reports the message.
 		if parseErr, ok := errors.AsType[*kong.ParseError](err); ok {
 			_ = parseErr.Context.PrintUsage(false)
 		}

@@ -26,9 +26,8 @@ var resolver = net.DefaultResolver
 // progress, so a later sweep resolves again and sees current DNS.
 var lookups singleflight.Group
 
-// resolveName performs a reverse DNS PTR lookup for the given IP address.
-// It applies a bounded timeout (nameLookupTimeout) derived from the parent context
-// and strips any trailing root dot from the resulting domain name.
+// resolveName does the reverse lookup for one address, bounded by
+// nameLookupTimeout, and trims the trailing root dot off any answer.
 //
 // Callers that arrive while a lookup for the same address is already running
 // share its result, and so also share the deadline of whoever started it. A

@@ -83,8 +83,8 @@ func secureHeaders(next http.Handler) http.Handler {
 	})
 }
 
-// sameOrigin turns away a state-changing request that a browser has told us
-// came from another site.
+// sameOrigin turns away a state-changing request that a browser has marked as
+// coming from another site.
 //
 // This is not a CSRF token, and cannot be one yet: a token has to be bound to a
 // session, and there is no authentication to bind it to. Nor is one needed

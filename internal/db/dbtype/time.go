@@ -37,10 +37,10 @@ func Now() Time {
 	return NewTime(time.Now())
 }
 
-// Value takes a value receiver and Scan a pointer, as sql.NullTime and the rest
-// of the database/sql null types do: Scan has to mutate, while Value has to be
-// in the method set of a Time held by value, which is how generated code hands
-// one to the driver.
+// Value takes a value receiver and Scan a pointer, as [sql.NullTime] and the
+// rest of the database/sql null types do: Scan has to mutate, while Value has
+// to be in the method set of a Time held by value, which is how generated code
+// hands one to the driver.
 func (t Time) Value() (driver.Value, error) {
 	return t.UTC().Format(Layout), nil
 }
@@ -57,7 +57,7 @@ func (t *Time) Scan(src any) error {
 	return nil
 }
 
-// NullTime is a Time for a column that may be null. sql.NullTime cannot stand
+// NullTime is a Time for a column that may be null. [sql.NullTime] cannot stand
 // in for it: its Scan defers to convertAssign, which has no conversion from the
 // string a TEXT column yields, and its Value hands back a bare time.Time for
 // the driver to render however it chooses.

@@ -11,10 +11,11 @@ import (
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
 
-// migrationDir is the directory where the migration files are stored
+// migrationDir is the path the migrations are embedded under, below.
 const migrationDir = "migrations"
 
-// migrationFiles contains all the migration files embedded in the binary
+// migrationFiles carries the schema history in the binary, so a fresh database
+// is brought up to dbVersion with no files on disk.
 //
 //go:embed migrations/*.sql
 var migrationFiles embed.FS

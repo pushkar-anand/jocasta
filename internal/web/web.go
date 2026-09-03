@@ -265,13 +265,13 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 	http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 }
 
-// Renderer writes html/template pages and fragments to an http.ResponseWriter.
+// Renderer writes html/template pages and fragments to an [http.ResponseWriter].
 type Renderer struct {
 	templates *template.Template
 	logger    *slog.Logger
 }
 
-// NewRenderer creates a new template Renderer
+// NewRenderer returns a Renderer over an already-parsed template set.
 func NewRenderer(templates *template.Template, logger *slog.Logger) *Renderer {
 	return &Renderer{
 		templates: templates,
@@ -312,7 +312,7 @@ func (rr *Renderer) RenderStatus(
 	_, _ = buf.WriteTo(w)
 }
 
-// HTML wraps Render so a template can be served directly as an http.HandlerFunc.
+// HTML wraps Render so a template can be served directly as an [http.HandlerFunc].
 func (rr *Renderer) HTML(tmpl string, data any) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		rr.Render(w, r, tmpl, data)

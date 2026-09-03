@@ -273,7 +273,7 @@ func (s *Scanner) hardware(ctx context.Context) (map[netip.Addr]string, map[neti
 //
 // A local interface wins over the neighbour table: it is the kernel describing
 // its own address, and a host never ARPs for itself, so any entry the table
-// holds is stale. An interface with no hardware address is still ours.
+// holds is stale. An interface with no hardware address still counts as local.
 func hardwareFor(
 	addr netip.Addr,
 	table map[netip.Addr]string,
