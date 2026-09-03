@@ -3,7 +3,6 @@ package main
 import (
 	"cmp"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -91,10 +90,7 @@ func (s *ScanCmd) save(ctx context.Context, cfg *config.Config, log *slog.Logger
 
 func outputScanResults(w io.Writer, hosts []scanner.Host, asJSON bool) error {
 	if asJSON {
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "  ")
-
-		return enc.Encode(hosts)
+		return writeJSON(w, hosts)
 	}
 
 	if len(hosts) == 0 {

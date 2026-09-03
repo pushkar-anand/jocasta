@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/pushkar-anand/build-with-go/http/request"
@@ -316,4 +317,16 @@ func (rr *Renderer) HTML(tmpl string, data any) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		rr.Render(w, r, tmpl, data)
 	}
+}
+
+// pathID reads the {id} the route captured. Every route carrying one admits any
+// segment, so this is where a value that is not a positive id is turned away;
+// the caller decides how.
+func pathID(r *http.Request) (int64, bool) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || id < 1 {
+		return 0, false
+	}
+
+	return id, true
 }

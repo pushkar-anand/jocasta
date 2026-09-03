@@ -3,7 +3,6 @@ package main
 import (
 	"cmp"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -132,10 +131,7 @@ func (p *PluginRunCmd) save(
 // networks and the facts rather than a wrapper holding both.
 func outputNetworks(w io.Writer, nets []plugin.Network, asJSON bool) error {
 	if asJSON {
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "  ")
-
-		return enc.Encode(nets)
+		return writeJSON(w, nets)
 	}
 
 	if len(nets) == 0 {
@@ -167,10 +163,7 @@ func outputNetworks(w io.Writer, nets []plugin.Network, asJSON bool) error {
 
 func outputFacts(w io.Writer, facts []plugin.Fact, asJSON bool) error {
 	if asJSON {
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "  ")
-
-		return enc.Encode(facts)
+		return writeJSON(w, facts)
 	}
 
 	if len(facts) == 0 {

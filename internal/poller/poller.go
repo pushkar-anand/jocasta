@@ -66,7 +66,7 @@ func (p *Poller) Register(t task) error {
 	}
 
 	if t.Name() == "" {
-		return fmt.Errorf("task has empty name")
+		return errors.New("task has empty name")
 	}
 
 	p.tasks = append(p.tasks, t)

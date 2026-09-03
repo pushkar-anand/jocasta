@@ -2,6 +2,7 @@ package dbtype
 
 import (
 	"database/sql/driver"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -21,7 +22,7 @@ func NewAddr(a netip.Addr) Addr {
 // Value renders a for the driver, refusing an invalid address.
 func (a Addr) Value() (driver.Value, error) {
 	if !a.IsValid() {
-		return nil, fmt.Errorf("dbtype: refusing to store an invalid address")
+		return nil, errors.New("dbtype: refusing to store an invalid address")
 	}
 
 	return a.String(), nil
@@ -58,7 +59,7 @@ func NewPrefix(p netip.Prefix) Prefix {
 // Value renders p for the driver, refusing an invalid prefix.
 func (p Prefix) Value() (driver.Value, error) {
 	if !p.IsValid() {
-		return nil, fmt.Errorf("dbtype: refusing to store an invalid prefix")
+		return nil, errors.New("dbtype: refusing to store an invalid prefix")
 	}
 
 	return p.String(), nil
