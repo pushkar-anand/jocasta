@@ -77,9 +77,11 @@ type Fact struct {
 	// lookup. One address per fact; a device holding two is two facts.
 	Host *hosts.Host
 
-	// Present says the device is on the network now. A complete ARP entry is
-	// evidence of that; a static lease for something unplugged is configuration,
-	// and counting it would report an unplugged printer as online forever.
+	// Present says the device is on the network now: it answered a probe, or a
+	// source that reads the network heard from it lately. A resolved ARP entry
+	// the router has not heard from since, or a static lease for something
+	// unplugged, is a record of the device, not a sighting -- counting either
+	// would report it as online long after it left.
 	Present bool
 
 	// HostnameSource is the standing of the name Host carries. It travels with
