@@ -189,8 +189,8 @@ func TestOverviewLeavesAnUnnamedSegmentBare(t *testing.T) {
 	assert.NotContains(t, body, "VLAN")
 }
 
-// An empty inventory is a state to explain, not a blank page: nothing here
-// probes on its own, so the operator has to be told what to run.
+// An empty inventory is a state to explain, not a blank page: the operator is
+// told how the inventory gets filled and given a command to fill it now.
 func TestOverviewWithoutAnySweepInvitesOne(t *testing.T) {
 	t.Parallel()
 

@@ -7,9 +7,10 @@
 <section class="block">
     <p class="eyebrow">Inventory</p>
     <div class="card empty">
-        <p>No devices yet. Jocasta records what a sweep finds; it does not probe
-            the network on its own.</p>
-        <p>Sweep a prefix and keep the results:</p>
+        <p>No devices yet. Jocasta builds this inventory from the sweeps it
+            runs on the networks you configure.</p>
+        <p>Add networks to the config and <code>jocasta serve</code> sweeps
+            them on a schedule. To sweep a prefix once, by hand:</p>
         <p><code>jocasta scan 192.168.1.0/24 --save</code></p>
     </div>
 </section>
