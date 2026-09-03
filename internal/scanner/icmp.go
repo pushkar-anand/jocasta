@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"iter"
 	"log/slog"
+	"maps"
 	"math"
 	"net"
 	"net/netip"
@@ -78,17 +79,77 @@ func peerAddr(a net.Addr) (netip.Addr, bool) {
 	}
 }
 
+// results collects the round-trip time of the first reply seen from each
+// address. The reader goroutine and the send loop both touch it, so every
+// method takes the lock.
+type results struct {
+	mu sync.Mutex
+	m  map[netip.Addr]time.Duration
+}
+
+func newResults(size int) *results {
+	return &results{m: make(map[netip.Addr]time.Duration, size)}
+}
+
+// record stores rtt as addr's time unless an earlier reply already set one. It
+// reports whether this was the first reply from addr: a later duplicate says
+// nothing new, and retry rounds mean a host that answered twice would otherwise
+// report the slower of the two.
+func (r *results) record(addr netip.Addr, rtt time.Duration) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, seen := r.m[addr]; seen {
+		return false
+	}
+
+	r.m[addr] = rtt
+
+	return true
+}
+
+// answered reports whether addr has replied, which is how a retry round skips
+// it without a second list of pending addresses being built.
+func (r *results) answered(addr netip.Addr) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	_, ok := r.m[addr]
+
+	return ok
+}
+
+// count is how many distinct addresses have replied.
+func (r *results) count() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return len(r.m)
+}
+
+// take returns a copy of the collected times, to hand back once the sweep ends.
+func (r *results) take() map[netip.Addr]time.Duration {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return maps.Clone(r.m)
+}
+
+// sweepParams is one call to sweep: the addresses to probe, how many there are,
+// and the pacing the Scanner is configured with.
+type sweepParams struct {
+	log     *slog.Logger
+	targets iter.Seq[netip.Addr]
+	count   int
+	rounds  int
+	wait    time.Duration
+	rate    int
+}
+
 // sweep probes every target and returns the round-trip time of the first reply
 // from each. Addresses that never answer are simply absent from the result.
-func sweep(
-	ctx context.Context,
-	log *slog.Logger,
-	targets iter.Seq[netip.Addr],
-	count, rounds int,
-	wait time.Duration,
-	rate int,
-) (map[netip.Addr]time.Duration, error) {
-	if count == 0 {
+func sweep(ctx context.Context, p sweepParams) (map[netip.Addr]time.Duration, error) {
+	if p.count == 0 {
 		return map[netip.Addr]time.Duration{}, nil
 	}
 
@@ -103,10 +164,7 @@ func sweep(
 		return nil, fmt.Errorf("generate run token: %w", err)
 	}
 
-	var (
-		mu      sync.Mutex
-		results = make(map[netip.Addr]time.Duration, count)
-	)
+	res := newResults(p.count)
 
 	readerCtx, stopReader := context.WithCancel(ctx)
 	defer stopReader()
@@ -114,87 +172,73 @@ func sweep(
 	var reader sync.WaitGroup
 
 	reader.Go(func() {
-		readReplies(readerCtx, log, c, token, &mu, results)
+		readReplies(readerCtx, p.log, c, token, res)
 	})
 
 	// Echo IDs only survive on a raw socket; a datagram socket has the kernel
 	// rewrite them. The run token in the payload is what actually identifies
 	// this run's replies, so the ID is just conventional here.
-	id := os.Getpid() & 0xffff
-	interval := time.Second / time.Duration(max(rate, 1))
-
-	// Retry rounds re-range the same sequence and skip whatever has already
-	// answered, so no second list of pending addresses is ever built.
-	answered := func(addr netip.Addr) bool {
-		mu.Lock()
-		defer mu.Unlock()
-
-		_, done := results[addr]
-
-		return done
+	snd := sender{
+		conn:     c,
+		targets:  p.targets,
+		answered: res.answered,
+		token:    token,
+		id:       os.Getpid() & 0xffff,
+		interval: time.Second / time.Duration(max(p.rate, 1)),
 	}
 
-	for round := range rounds {
-		if round > 0 {
-			mu.Lock()
-			remaining := count - len(results)
-			mu.Unlock()
-
-			if remaining == 0 {
-				break
-			}
+	for round := range p.rounds {
+		if round > 0 && res.count() == p.count {
+			break
 		}
 
-		if err := send(ctx, c, targets, answered, token, id, round, interval); err != nil {
+		if err := snd.round(ctx, round); err != nil {
 			return nil, err
 		}
 	}
 
 	// Give the last probes their full flight time before giving up on them.
 	select {
-	case <-time.After(wait):
+	case <-time.After(p.wait):
 	case <-ctx.Done():
 	}
 
 	stopReader()
 	reader.Wait()
 
-	mu.Lock()
-	defer mu.Unlock()
-
-	out := make(map[netip.Addr]time.Duration, len(results))
-	for addr, rtt := range results {
-		out[addr] = rtt
-	}
-
-	return out, ctx.Err()
+	return res.take(), ctx.Err()
 }
 
-// send writes one echo request per target, paced to the configured rate.
-func send(
-	ctx context.Context,
-	c *conn,
-	targets iter.Seq[netip.Addr],
-	answered func(netip.Addr) bool,
-	token []byte,
-	id, seq int,
-	interval time.Duration,
-) error {
-	ticker := time.NewTicker(interval)
+// sender writes echo requests for one sweep. Everything it needs but the round
+// number is fixed for the sweep's life.
+type sender struct {
+	conn     *conn
+	targets  iter.Seq[netip.Addr]
+	answered func(netip.Addr) bool
+	token    []byte
+	id       int
+	interval time.Duration
+}
+
+// round writes one echo request per target that has not answered yet, paced to
+// the configured rate. seq is the retry round, carried as the echo sequence
+// number.
+func (s sender) round(ctx context.Context, seq int) error {
+	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 
-	for addr := range targets {
-		if answered(addr) {
+	for addr := range s.targets {
+		if s.answered(addr) {
 			continue
 		}
 
 		payload := make([]byte, payloadSize)
-		copy(payload, token)
+		copy(payload, s.token)
 		binary.BigEndian.PutUint64(payload[8:], uint64(time.Now().UnixNano()))
 
 		msg := icmp.Message{
 			Type: ipv4.ICMPTypeEcho,
-			Body: &icmp.Echo{ID: id, Seq: seq, Data: payload},
+			Body: &icmp.Echo{ID: s.id, Seq: seq, Data: payload},
 		}
 
 		b, err := msg.Marshal(nil)
@@ -204,7 +248,7 @@ func send(
 
 		// A host that is unreachable right now fails the write outright. That is
 		// information about that address, not a reason to abandon the sweep.
-		if _, err := c.pc.WriteTo(b, c.dst(addr)); err != nil {
+		if _, err := s.conn.pc.WriteTo(b, s.conn.dst(addr)); err != nil {
 			continue
 		}
 
@@ -220,14 +264,7 @@ func send(
 
 // readReplies records every echo reply carrying this run's token until the
 // context is cancelled.
-func readReplies(
-	ctx context.Context,
-	log *slog.Logger,
-	c *conn,
-	token []byte,
-	mu *sync.Mutex,
-	results map[netip.Addr]time.Duration,
-) {
+func readReplies(ctx context.Context, log *slog.Logger, c *conn, token []byte, res *results) {
 	buf := make([]byte, 512)
 
 	for {
@@ -255,16 +292,9 @@ func readReplies(
 		}
 
 		rtt := time.Since(sent)
-
-		mu.Lock()
-		// Keep the first reply: a later duplicate says nothing new, and retry
-		// rounds mean a host that answered twice would otherwise report the
-		// slower of the two.
-		if _, seen := results[addr]; !seen {
-			results[addr] = rtt
+		if res.record(addr, rtt) {
 			log.Debug("host replied", slog.String("addr", addr.String()), slog.Duration("rtt", rtt))
 		}
-		mu.Unlock()
 	}
 }
 

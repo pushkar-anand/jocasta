@@ -176,7 +176,14 @@ func (s *Scanner) Scan(ctx context.Context, p netip.Prefix) ([]Host, error) {
 		slog.Int("targets", count),
 	)
 
-	replies, err := sweep(ctx, s.log, targets, count, s.rounds, s.wait, s.rate)
+	replies, err := sweep(ctx, sweepParams{
+		log:     s.log,
+		targets: targets,
+		count:   count,
+		rounds:  s.rounds,
+		wait:    s.wait,
+		rate:    s.rate,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("sweep %s: %w", p, err)
 	}

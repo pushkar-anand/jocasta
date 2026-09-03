@@ -134,7 +134,14 @@ func TestSweepLoopback(t *testing.T) {
 
 	targets := slices.Values([]netip.Addr{loopback})
 
-	got, err := sweep(ctx, slog.New(slog.DiscardHandler), targets, 1, 1, time.Second, 100)
+	got, err := sweep(ctx, sweepParams{
+		log:     slog.New(slog.DiscardHandler),
+		targets: targets,
+		count:   1,
+		rounds:  1,
+		wait:    time.Second,
+		rate:    100,
+	})
 	require.NoError(t, err)
 
 	require.Contains(t, got, loopback)
@@ -144,7 +151,13 @@ func TestSweepLoopback(t *testing.T) {
 func TestSweepNoTargets(t *testing.T) {
 	t.Parallel()
 
-	got, err := sweep(t.Context(), slog.New(slog.DiscardHandler), nil, 0, 1, time.Millisecond, 100)
+	got, err := sweep(t.Context(), sweepParams{
+		log:    slog.New(slog.DiscardHandler),
+		count:  0,
+		rounds: 1,
+		wait:   time.Millisecond,
+		rate:   100,
+	})
 	require.NoError(t, err)
 	assert.Empty(t, got)
 }
