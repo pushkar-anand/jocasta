@@ -185,9 +185,21 @@ func TestOverviewWithoutAnySweepInvitesOne(t *testing.T) {
 	assert.NotContains(t, body, "Seen recently")
 }
 
-// The fragment endpoint and the page differ only in which template they name,
-// so the fragment must come back on its own rather than wrapped in a document.
-func TestOverviewLiveServesAFragment(t *testing.T) {
+// The poll swaps the contents of #live, so #live and the attributes that drive
+// the poll live on the page and the fragment is the body alone.
+func TestOverviewLivePolls(t *testing.T) {
+	t.Parallel()
+
+	page := get(t, seeded(t), "/").Body.String()
+	assert.Contains(t, page, `id="live"`)
+	assert.Contains(t, page, `hx-get="/overview/live"`)
+	assert.Contains(t, page, `hx-trigger="every 30s"`)
+	assert.Contains(t, page, `hx-swap="innerHTML"`)
+}
+
+// The fragment endpoint comes back on its own rather than wrapped in a document,
+// and without a second #live nested inside the one the page keeps.
+func TestOverviewLiveServesTheBodyAlone(t *testing.T) {
 	t.Parallel()
 
 	rec := get(t, seeded(t), "/overview/live")
@@ -199,13 +211,9 @@ func TestOverviewLiveServesAFragment(t *testing.T) {
 
 	assert.NotContains(t, body, "<!DOCTYPE html>")
 	assert.NotContains(t, body, "<body>")
-	assert.Contains(t, body, `id="live"`)
+	assert.NotContains(t, body, `id="live"`)
 	assert.Contains(t, body, "Seen recently")
-
-	// The fragment carries the attributes that make it refresh itself, so the
-	// swapped-in copy keeps polling.
-	assert.Contains(t, body, `hx-get="/overview/live"`)
-	assert.Contains(t, body, `hx-trigger="every 30s"`)
+	assert.Contains(t, body, "Recent")
 }
 
 // The root pattern ends in {$}, so an unknown path is reported rather than
@@ -261,7 +269,7 @@ func TestEveryNamedTemplateExists(t *testing.T) {
 
 	for _, name := range []string{
 		"page/dashboard", "page/notfound", "page/network",
-		"partial/live", "partial/activity",
+		"partial/live", "partial/live-body", "partial/activity",
 		"layout/head", "layout/foot",
 	} {
 		assert.NotNil(t, h.renderer.templates.Lookup(name), "template %q should be parsed", name)

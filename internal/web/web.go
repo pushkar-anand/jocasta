@@ -187,7 +187,8 @@ func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 }
 
 // overviewLive serves the part of the overview that goes stale, which is what
-// the page polls for.
+// the page polls for. It answers with the body alone: the #live wrapper that
+// drives the poll stays on the page across every refresh.
 func (h *Handler) overviewLive(w http.ResponseWriter, r *http.Request) {
 	data, err := h.overviewData(r)
 	if err != nil {
@@ -196,7 +197,7 @@ func (h *Handler) overviewLive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.renderer.Render(w, r, "partial/live", data)
+	h.renderer.Render(w, r, "partial/live-body", data)
 }
 
 func (h *Handler) overviewData(r *http.Request) (*overviewData, error) {

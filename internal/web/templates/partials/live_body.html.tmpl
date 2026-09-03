@@ -1,0 +1,116 @@
+{{- /*
+    The overview's self-refreshing content: the networks, the presence and
+    last-sweep panels, and a window on the change log. partial/live wraps this
+    in the element that polls for it; the poll swaps this in on its own.
+*/ -}}
+{{ define "partial/live-body" }}
+
+    {{- /* The prefixes first: what an operator looks at before anything else. */}}
+    <section class="block">
+        <div class="block__head">
+            <p class="eyebrow">Networks</p>
+            <p class="block__aside">{{ len .Networks }} recorded</p>
+        </div>
+
+        {{- if .Networks }}
+        <div class="netgrid">
+            {{- range .Networks }}
+            <a class="card netcard" href="/networks/{{ .ID }}">
+                <p class="netcard__top">
+                    <span class="dot {{ health . }}"></span>
+                    <span class="netcard__cidr">{{ .CIDR }}</span>
+                    {{- if .VLAN }}
+                    <span class="chip chip--brand">VLAN {{ .VLAN }}</span>
+                    {{- end }}
+                </p>
+                {{- with .Name }}
+                <p class="netcard__name">{{ . }}</p>
+                {{- end }}
+
+                <dl class="stats">
+                    <div><dd>{{ .Online }}</dd><dt>Active</dt></div>
+                    <div class="stat--quiet"><dd>{{ .Offline }}</dd><dt>Offline</dt></div>
+                </dl>
+
+                {{- /* Attribute widths, not styles: see the ledger in the stylesheet. */}}
+                <svg class="ledger ledger--thin" viewBox="0 0 100 6" preserveAspectRatio="none" role="img"
+                     aria-label="{{ .Online }} of {{ .Total }} devices seen recently">
+                    <rect class="ledger__track" x="0" y="0" width="100" height="6"></rect>
+                    <rect class="ledger__online" x="0" y="0"
+                          width="{{ pct .Online .Total }}" height="6"></rect>
+                    <rect class="ledger__offline" x="{{ pct .Online .Total }}" y="0"
+                          width="{{ pct .Offline .Total }}" height="6"></rect>
+                </svg>
+            </a>
+            {{- end }}
+        </div>
+        {{- else }}
+        <p class="dim">No network has been swept yet.</p>
+        {{- end }}
+    </section>
+
+    <div class="glance">
+        <section class="card panel">
+            <div class="block__head">
+                <p class="eyebrow">Presence</p>
+                <p class="block__aside">
+                    {{- .Stats.Total }} devices
+                    {{- if .Stats.Ignored }} &middot; {{ .Stats.Ignored }} ignored{{ end -}}
+                </p>
+            </div>
+
+            <svg class="ledger" viewBox="0 0 100 10" preserveAspectRatio="none" role="img"
+                 aria-label="{{ .Stats.Online }} of {{ .Stats.Total }} devices seen recently">
+                <rect class="ledger__track" x="0" y="0" width="100" height="10"></rect>
+                <rect class="ledger__online" x="0" y="0"
+                      width="{{ pct .Stats.Online .Stats.Total }}" height="10"></rect>
+                <rect class="ledger__offline" x="{{ pct .Stats.Online .Stats.Total }}" y="0"
+                      width="{{ pct .Stats.Offline .Stats.Total }}" height="10"></rect>
+            </svg>
+
+            <ul class="legend">
+                <li><span class="dot dot--ok"></span>Seen recently <strong>{{ .Stats.Online }}</strong></li>
+                <li><span class="dot dot--warn"></span>Quiet <strong>{{ .Stats.Offline }}</strong></li>
+                <li><span class="dot dot--new"></span>New today <strong>{{ .Stats.Discovered }}</strong></li>
+            </ul>
+        </section>
+
+        <section class="card panel">
+            <div class="block__head">
+                <p class="eyebrow">Last sweep</p>
+                {{- with .Scan }}
+                <span class="{{ statusClass .Status }}">{{ .Status }}</span>
+                {{- end }}
+            </div>
+
+            {{- with .Scan }}
+            <dl class="facts">
+                <div><dt>Source</dt><dd>{{ .Source }}</dd></div>
+                <div><dt>Network</dt><dd class="mono">{{ dash .Network }}</dd></div>
+                <div><dt>Found</dt><dd>{{ .Found }}</dd></div>
+                <div><dt>Took</dt><dd>{{ took . }}</dd></div>
+                <div><dt>Kind</dt><dd class="lower">{{ .Kind }}</dd></div>
+                <div><dt>Started</dt><dd class="dim">{{ ago .StartedAt }}</dd></div>
+            </dl>
+            {{- with .Error }}
+            <p class="failure">{{ . }}</p>
+            {{- end }}
+            {{- else }}
+            <p class="dim">No sweep has been recorded yet.</p>
+            {{- end }}
+        </section>
+    </div>
+
+    <section class="block">
+        <div class="block__head">
+            <p class="eyebrow">Recent</p>
+            <a class="more" href="/events">View full log
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M9 6l6 6-6 6"/>
+                </svg>
+            </a>
+        </div>
+        {{ template "partial/activity" .Events }}
+    </section>
+{{ end }}
