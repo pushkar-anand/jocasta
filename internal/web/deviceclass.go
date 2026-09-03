@@ -64,15 +64,17 @@ func classLabel(c classify.Class) string {
 
 // confidence words how strong a case the classifier's guess rests on, for the
 // reader who sees "auto" beside a type and wants to know how much to trust it.
-// Empty for a guess that carries no confidence, which is every Unknown one.
+// One word: it rides in a chip beside "auto" and in a parenthetical in the
+// note, and both are tight. Empty for a guess that carries no confidence,
+// which is every Unknown one.
 func confidence(c classify.Confidence) string {
 	switch c {
 	case classify.High:
-		return "high confidence"
+		return "high"
 	case classify.Medium:
-		return "some confidence"
+		return "medium"
 	case classify.Low:
-		return "low confidence"
+		return "low"
 	}
 
 	return ""

@@ -568,8 +568,9 @@ func TestDevicePanelShowsClassifierConfidence(t *testing.T) {
 
 	body := get(t, h, "/devices/"+id).Body.String()
 
-	assert.Contains(t, body, ">auto<")
-	assert.Contains(t, body, "some confidence", "printer.local is a middling match")
+	// One chip: "auto" and the confidence band, not two chips fighting for the
+	// width of a narrow column.
+	assert.Contains(t, body, "auto &middot; medium", "printer.local is a middling match")
 }
 
 // When the type is the user's own, the panel still says what the classifier
@@ -589,9 +590,9 @@ func TestDevicePanelShowsTheGuessBehindAnOverride(t *testing.T) {
 
 	body := get(t, NewHandler(testLogger(), testReader(t), store), "/devices/1").Body.String()
 
-	assert.NotContains(t, body, ">auto<", "the type is the user's now")
+	assert.NotContains(t, body, `chip--quiet">auto`, "the type is the user's now, not the classifier's")
 	assert.Contains(t, body, "Left to itself the classifier reads this as")
-	assert.Contains(t, body, "Printer, with some confidence.")
+	assert.Contains(t, body, "Printer (medium confidence).")
 }
 
 // deviceIDFromBody pulls the first device id out of a rendered list.

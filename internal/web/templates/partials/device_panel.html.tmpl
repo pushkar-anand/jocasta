@@ -25,8 +25,7 @@
                         {{- end }}
                         {{ classLabel . }}
                         {{- if not $.Device.Type }}
-                        <span class="chip chip--quiet">auto</span>
-                        {{- with confidence $.Device.ClassConfidence }}<span class="chip chip--quiet">{{ . }}</span>{{ end }}
+                        <span class="chip chip--quiet">auto{{ with confidence $.Device.ClassConfidence }} &middot; {{ . }}{{ end }}</span>
                         {{- end }}
                     </span>
                     {{- else }}<span class="dim">{{ dash "" }}</span>{{ end }}
@@ -48,7 +47,7 @@
                    if you cleared the override. */}}
             {{- if and .Type .ClassGuess (ne .ClassGuess .Class) }}
             <p class="note">Left to itself the classifier reads this as
-                {{ classLabel .ClassGuess }}{{ with confidence .ClassConfidence }}, with {{ . }}{{ end }}.</p>
+                {{ classLabel .ClassGuess }}{{ with confidence .ClassConfidence }} ({{ . }} confidence){{ end }}.</p>
             {{- end }}
         </section>
         {{- end }}
