@@ -5,6 +5,10 @@ out which physical device each one is, follows them as they move between
 addresses, and records what changes over time. A web interface shows the
 current picture and the history behind it.
 
+> **Pre-1.0 and under active development.** A release can change the
+> configuration format, the database schema or the HTTP API with no upgrade
+> path. Pin to a version and check the release notes before moving to the next.
+
 ![Overview](docs/img/overview.png)
 
 ## The problem

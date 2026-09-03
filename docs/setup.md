@@ -2,25 +2,22 @@
 
 ## Install
 
-### From source
+### Prebuilt binaries
 
-Needs Go 1.27 or newer.
+Every release publishes binaries for Linux, macOS and Windows, on amd64 and
+arm64, with a `checksums.txt`, on the [releases page][releases]. Download the
+archive for your platform, check it against the checksum, and extract `jocasta`.
+`jocasta version` prints the build it came from.
+
+[releases]: https://github.com/pushkar-anand/jocasta/releases
+
+### Container image
+
+Multi-arch images (amd64 and arm64) are published to the GitHub Container
+Registry on each release, tagged `latest` and with the version:
 
 ```bash
-git clone https://github.com/pushkar-anand/jocasta.git
-cd jocasta
-make build            # -> bin/jocasta
-```
-
-The database schema is embedded. Migrations run the first time the binary opens
-the database file.
-
-### Docker
-
-```bash
-make docker                       # builds jocasta:latest
-# or
-docker build -t jocasta:latest .
+docker pull ghcr.io/pushkar-anand/jocasta:latest   # or a version tag, e.g. :v0.2.0
 ```
 
 The image is distroless, static, about 16 MB, and runs as a non-root user. It
@@ -30,7 +27,7 @@ listens on `0.0.0.0:8080` and keeps its SQLite file on the `/data` volume.
 docker run -d --name jocasta \
   -p 8080:8080 \
   -v jocasta-data:/data \
-  jocasta:latest
+  ghcr.io/pushkar-anand/jocasta:latest
 ```
 
 To see hardware addresses and interface data, the container needs host
@@ -38,6 +35,20 @@ networking (`--network host`). On a bridge network the sweep still finds hosts,
 but the only neighbour table it can read is the container's own. No added
 capability or sysctl is needed: Docker's default `net.ipv4.ping_group_range`
 already allows the unprivileged ICMP socket.
+
+### From source
+
+Needs Go 1.27 or newer.
+
+```bash
+git clone https://github.com/pushkar-anand/jocasta.git
+cd jocasta
+make build            # -> bin/jocasta
+make docker           # -> jocasta:latest
+```
+
+The database schema is embedded. Migrations run the first time the binary opens
+the database file.
 
 ## Configuration
 
@@ -129,6 +140,7 @@ jocasta <command> [flags]
   serve              Start the web server and the sweep poller.  (default)
   scan <cidr>        Sweep a prefix once and print the result.
   plugin run <name>  Read one configured source and print what it claims.
+  version            Print build information.
 
   -c, --config       Path to the config file (default "jocasta.yaml")
       --log-level    debug | info | warn | error
