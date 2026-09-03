@@ -165,7 +165,7 @@ func (h *Handler) deviceFromPath(w http.ResponseWriter, r *http.Request) (*inven
 		return nil, false
 	}
 
-	device, err := h.store.GetDevice(r.Context(), id)
+	device, err := h.store.Device(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, inventory.ErrNotFound) {
 			h.notFound(w, r)

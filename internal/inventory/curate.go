@@ -100,7 +100,7 @@ func (s *Store) UpdateCuration(ctx context.Context, id int64, c Curation) (*Devi
 	// Re-read rather than convert the updated row: a device carries the
 	// addresses it holds, and a caller re-rendering one from here would
 	// otherwise show a device that holds none.
-	return s.GetDevice(ctx, id)
+	return s.Device(ctx, id)
 }
 
 // edit is one field that changed.
