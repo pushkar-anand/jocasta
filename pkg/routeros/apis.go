@@ -6,4 +6,6 @@ const (
 	resourceAPI  = "/system/resource"
 	arpAPI       = "/ip/arp"
 	dhcpLeaseAPI = "/ip/dhcp-server/lease"
+	addressAPI   = "/ip/address"
+	vlanAPI      = "/interface/vlan"
 )

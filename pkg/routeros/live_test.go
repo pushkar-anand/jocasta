@@ -136,6 +136,57 @@ func TestReadLive(t *testing.T) {
 
 		_ = w.Flush()
 	})
+
+	t.Run("addresses", func(t *testing.T) {
+		addrs, err := r.Addresses(t.Context())
+		require.NoError(t, err)
+
+		usable := 0
+
+		for _, a := range addrs {
+			if a.Usable() {
+				usable++
+			}
+		}
+
+		t.Logf("%d addresses, %d naming a segment the router serves", len(addrs), usable)
+
+		w := tabwriter.NewWriter(os.Stderr, 0, 0, 2, ' ', 0)
+		_, _ = w.Write([]byte("\nADDRESS\tNETWORK\tIFACE\tACTUAL\tDYNAMIC\tDISABLED\tINVALID\tCOMMENT\n"))
+
+		for _, a := range addrs {
+			_, _ = w.Write([]byte(row(a.Address, a.Network, a.Interface, a.ActualInterface,
+				strconv.FormatBool(bool(a.Dynamic)), strconv.FormatBool(bool(a.Disabled)),
+				strconv.FormatBool(bool(a.Invalid)), a.Comment)))
+		}
+
+		_ = w.Flush()
+	})
+
+	t.Run("vlans", func(t *testing.T) {
+		vlans, err := r.VLANs(t.Context())
+		require.NoError(t, err)
+
+		tagged := 0
+
+		for _, v := range vlans {
+			if _, ok := v.Tag(); ok {
+				tagged++
+			}
+		}
+
+		t.Logf("%d vlans, %d with a tag that reads as a number", len(vlans), tagged)
+
+		w := tabwriter.NewWriter(os.Stderr, 0, 0, 2, ' ', 0)
+		_, _ = w.Write([]byte("\nNAME\tVLAN-ID\tPARENT\tDISABLED\tRUNNING\tCOMMENT\n"))
+
+		for _, v := range vlans {
+			_, _ = w.Write([]byte(row(v.Name, v.VLANID, v.Interface,
+				strconv.FormatBool(bool(v.Disabled)), strconv.FormatBool(bool(v.Running)), v.Comment)))
+		}
+
+		_ = w.Flush()
+	})
 }
 
 func envBool(t *testing.T, key string) bool {

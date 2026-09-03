@@ -18,6 +18,15 @@ SELECT id, cidr
 FROM networks
 ORDER BY id;
 
+-- What a source says a segment is. name and vlan_id are assigned rather than
+-- coalesced: a VLAN renamed on the router is renamed here, and one that loses
+-- its tag loses it here too.
+-- name: UpsertNetworkIdentity :exec
+INSERT INTO networks (cidr, name, vlan_id, created_at)
+VALUES (?, ?, ?, ?)
+ON CONFLICT (cidr) DO UPDATE SET name    = excluded.name,
+                                 vlan_id = excluded.vlan_id;
+
 -- name: CreateScan :one
 INSERT INTO scans (source_id, kind, network_id, started_at)
 VALUES (?, ?, ?, ?)

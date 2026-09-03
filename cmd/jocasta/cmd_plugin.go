@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"strconv"
 	"text/tabwriter"
 
 	"github.com/pushkar-anand/build-with-go/logger"
@@ -49,6 +50,16 @@ func (p *PluginRunCmd) Run(
 		return err
 	}
 
+	nets, err := src.Networks(ctx)
+	if err != nil {
+		// The segments decorate the devices rather than gating them, so a
+		// source that will not describe them is still worth reading.
+		log.WarnContext(ctx, "source did not describe its segments",
+			slog.String("source", src.Name()),
+			logger.Err(err),
+		)
+	}
+
 	facts, err := src.Discover(ctx)
 
 	// A half-read source still has something to show, so the error is reported
@@ -65,6 +76,10 @@ func (p *PluginRunCmd) Run(
 		)
 	}
 
+	if err := outputNetworks(os.Stdout, nets, p.JSON); err != nil {
+		return err
+	}
+
 	if err := outputFacts(os.Stdout, facts, p.JSON); err != nil {
 		return err
 	}
@@ -73,7 +88,7 @@ func (p *PluginRunCmd) Run(
 		return nil
 	}
 
-	return p.save(ctx, log, src, facts, conn)
+	return p.save(ctx, log, src, nets, facts, conn)
 }
 
 // save records the reading. It runs after the facts are printed so a database
@@ -82,10 +97,19 @@ func (p *PluginRunCmd) save(
 	ctx context.Context,
 	log *slog.Logger,
 	src plugin.HostDiscoverer,
+	nets []plugin.Network,
 	facts []plugin.Fact,
 	conn *db.DB,
 ) error {
-	res, err := inventory.New(conn.Conn, log).RecordFacts(ctx, src.Name(), src.Kind(), facts)
+	store := inventory.New(conn.Conn, log)
+
+	// Segments first, for the same reason the poller does it in that order: an
+	// address is matched to the networks already recorded.
+	if err := store.RecordNetworks(ctx, nets); err != nil {
+		return fmt.Errorf("record networks: %w", err)
+	}
+
+	res, err := store.RecordFacts(ctx, src.Name(), src.Kind(), facts)
 	if err != nil {
 		return fmt.Errorf("record facts: %w", err)
 	}
@@ -101,6 +125,44 @@ func (p *PluginRunCmd) save(
 	)
 
 	return nil
+}
+
+// outputNetworks prints the segments the source described. Under --json the
+// two tables are separate documents, so a reader piping this to jq gets the
+// networks and the facts rather than a wrapper holding both.
+func outputNetworks(w io.Writer, nets []plugin.Network, asJSON bool) error {
+	if asJSON {
+		enc := json.NewEncoder(w)
+		enc.SetIndent("", "  ")
+
+		return enc.Encode(nets)
+	}
+
+	if len(nets) == 0 {
+		_, err := fmt.Fprintln(w, "Source described no segments.")
+
+		return err
+	}
+
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(tw, "NETWORK\tVLAN\tNAME")
+
+	for _, n := range nets {
+		vlan := "-"
+		if n.VLAN != 0 {
+			vlan = strconv.Itoa(n.VLAN)
+		}
+
+		_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\n", n.Prefix, vlan, cmp.Or(n.Name, "-"))
+	}
+
+	if err := tw.Flush(); err != nil {
+		return err
+	}
+
+	_, err := fmt.Fprintln(w)
+
+	return err
 }
 
 func outputFacts(w io.Writer, facts []plugin.Fact, asJSON bool) error {
