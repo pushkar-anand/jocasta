@@ -62,6 +62,22 @@ func classLabel(c classify.Class) string {
 	return ""
 }
 
+// confidence words how strong a case the classifier's guess rests on, for the
+// reader who sees "auto" beside a type and wants to know how much to trust it.
+// Empty for a guess that carries no confidence, which is every Unknown one.
+func confidence(c classify.Confidence) string {
+	switch c {
+	case classify.High:
+		return "high confidence"
+	case classify.Medium:
+		return "some confidence"
+	case classify.Low:
+		return "low confidence"
+	}
+
+	return ""
+}
+
 // classChoice is one option of the device-type picker.
 type classChoice struct {
 	Value classify.Class

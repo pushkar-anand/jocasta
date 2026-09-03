@@ -47,6 +47,7 @@ func funcs(now func() time.Time) template.FuncMap {
 		"classLabel":   classLabel,
 		"classIcon":    classIcon,
 		"classChoices": classChoices,
+		"confidence":   confidence,
 	}
 }
 

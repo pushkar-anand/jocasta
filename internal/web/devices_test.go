@@ -470,6 +470,41 @@ func TestDevicePanelOffersTheTypePicker(t *testing.T) {
 	assert.Contains(t, body, "Auto")
 }
 
+// The panel says how sure the classifier was, so "auto" is not a bare claim.
+func TestDevicePanelShowsClassifierConfidence(t *testing.T) {
+	t.Parallel()
+
+	h := seeded(t)
+	id := deviceIDFromBody(t, get(t, h, "/devices").Body.String())
+
+	body := get(t, h, "/devices/"+id).Body.String()
+
+	assert.Contains(t, body, ">auto<")
+	assert.Contains(t, body, "some confidence", "printer.local is a middling match")
+}
+
+// When the type is the user's own, the panel still says what the classifier
+// would have made of the device -- the guess is why clearing the override would
+// land somewhere in particular.
+func TestDevicePanelShowsTheGuessBehindAnOverride(t *testing.T) {
+	t.Parallel()
+
+	store := testStore(t)
+
+	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix),
+		[]scanner.Host{host("192.0.2.10", macA, "printer.local")})
+	require.NoError(t, err)
+
+	_, err = store.UpdateCuration(t.Context(), 1, inventory.Curation{Type: "camera"})
+	require.NoError(t, err)
+
+	body := get(t, NewHandler(testLogger(), testReader(t), store), "/devices/1").Body.String()
+
+	assert.NotContains(t, body, ">auto<", "the type is the user's now")
+	assert.Contains(t, body, "Left to itself the classifier reads this as")
+	assert.Contains(t, body, "Printer, with some confidence.")
+}
+
 // deviceIDFromBody pulls the first device id out of a rendered list.
 func deviceIDFromBody(t *testing.T, body string) string {
 	t.Helper()
