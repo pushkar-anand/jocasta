@@ -172,6 +172,8 @@ func (p *Poller) runTask(r *run, t task) {
 		}
 	}()
 
+	// Asked once: DueIn can read the store, and a second call could disagree
+	// with the interval just logged.
 	dur := firstRun(ctx, t)
 
 	log.InfoContext(
@@ -182,7 +184,7 @@ func (p *Poller) runTask(r *run, t task) {
 
 	// A timer rather than a ticker: the first wait is the task's to choose and
 	// may be zero, which a ticker cannot express and panics on.
-	timer := time.NewTimer(firstRun(ctx, t))
+	timer := time.NewTimer(dur)
 	defer timer.Stop()
 
 	for {

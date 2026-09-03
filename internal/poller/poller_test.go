@@ -46,9 +46,17 @@ type fake struct {
 	// due is what DueIn reports. Zero, the default, is a task with nothing to
 	// resume from, which runs at once.
 	due time.Duration
+
+	// dueInCalls counts DueIn calls, so a test can check the scheduler asks
+	// once rather than recomputing a value that can read the store.
+	dueInCalls atomic.Int32
 }
 
-func (f *fake) DueIn(context.Context) time.Duration { return f.due }
+func (f *fake) DueIn(context.Context) time.Duration {
+	f.dueInCalls.Add(1)
+
+	return f.due
+}
 
 func (f *fake) Name() string            { return f.name }
 func (f *fake) Interval() time.Duration { return f.interval }
@@ -491,6 +499,9 @@ func TestTaskDueLaterIsLeftAlone(t *testing.T) {
 
 	cancel()
 	requireReturned(t, errc)
+
+	assert.Equal(t, int32(1), f.dueInCalls.Load(),
+		"the scheduler must ask a task when its first run is due exactly once")
 }
 
 // A stored time that is wrong in either direction -- a clock that moved, a row
