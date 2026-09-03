@@ -192,7 +192,7 @@ func (s *Store) DeviceSources(ctx context.Context, id int64) ([]*Claim, error) {
 
 // ListEvents returns one page of the change log, most recent first.
 func (s *Store) ListEvents(ctx context.Context, p Page) (*EventPage, error) {
-	rows, err := s.q.ListEvents(ctx, models.PageParams{Cursor: p.Cursor, Limit: p.seek()})
+	rows, err := s.q.ListEvents(ctx, models.PageParams{Cursor: p.Cursor, Limit: p.seek(), DeviceID: p.Device})
 	if err != nil {
 		return nil, fmt.Errorf("list events: %w", err)
 	}

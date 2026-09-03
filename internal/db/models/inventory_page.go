@@ -26,6 +26,10 @@ type PageParams struct {
 
 	// Limit is how many rows to read.
 	Limit int64
+
+	// DeviceID narrows the change log to one device. Zero adds no clause, which
+	// is the whole log. Only ListEvents honours it.
+	DeviceID int64
 }
 
 // ListEventsRow is one entry of the change log with the device it named.
@@ -52,6 +56,13 @@ func (q *Queries) ListEvents(ctx context.Context, arg PageParams) ([]*ListEvents
 		LeftJoin("devices d ON d.id = e.device_id").
 		OrderBy("e.occurred_at DESC", "e.id DESC").
 		Limit(pageLimit(arg.Limit))
+
+	// A device-scoped log is the same read with one more clause. An event whose
+	// device was deleted has a NULL device_id and so never matches, which is
+	// right: there is no device page to have come from.
+	if arg.DeviceID != 0 {
+		sb = sb.Where(squirrel.Eq{"e.device_id": arg.DeviceID})
+	}
 
 	// The cursor's timestamp is bound as a dbtype.Time so that it renders in
 	// the one format the column is written in: occurred_at is TEXT and is

@@ -172,6 +172,13 @@ func (h *Handler) deviceFromPath(w http.ResponseWriter, r *http.Request) (*inven
 		return nil, false
 	}
 
+	return h.deviceByID(w, r, id)
+}
+
+// deviceByID reads a device by its id, answering the request itself if the id
+// names nothing. The id has already been parsed; a route captures it as text
+// and a query string carries it as text, so the parse lives with each caller.
+func (h *Handler) deviceByID(w http.ResponseWriter, r *http.Request, id int64) (*inventory.Device, bool) {
 	device, err := h.store.Device(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, inventory.ErrNotFound) {

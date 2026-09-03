@@ -72,7 +72,15 @@
 {{- end }}
 
 <section class="block">
-    <p class="eyebrow">History</p>
+    <div class="block__head">
+        <p class="eyebrow">History</p>
+        {{- /* The page shows the most recent handful; the full log for this
+               device, paged, is the change log narrowed to it. */}}
+        <a class="more" href="/events?device={{ .Device.ID }}">Full history
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+        </a>
+    </div>
     <div id="device-history">
         {{- template "partial/activity" .Events }}
     </div>

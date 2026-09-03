@@ -8,7 +8,7 @@
 {{- if or (not .AtTop) .HasOlder }}
 <nav class="pager" aria-label="More of this log">
     {{- if not .AtTop }}
-    <a class="more" href="{{ .Path }}" rel="first">
+    <a class="more" href="{{ .Top }}" rel="first">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M15 6l-6 6 6 6"/>
