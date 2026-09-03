@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"net/netip"
 	"testing"
@@ -103,7 +104,9 @@ func TestGetDevice(t *testing.T) {
 	id, ok := first["id"].(float64)
 	require.True(t, ok)
 
-	status, _, body := get(t, h, "/devices/"+itoa(id))
+	u := fmt.Sprintf("/devices/%d", int(id))
+
+	status, _, body := get(t, h, u)
 
 	require.Equal(t, http.StatusOK, status)
 	assert.Equal(t, id, body["id"])
@@ -183,7 +186,9 @@ func TestDeviceEvents(t *testing.T) {
 	id, ok := first["id"].(float64)
 	require.True(t, ok)
 
-	status, _, body := get(t, h, "/devices/"+itoa(id)+"/events")
+	u := fmt.Sprintf("/devices/%d/events", int(id))
+
+	status, _, body := get(t, h, u)
 
 	require.Equal(t, http.StatusOK, status)
 	assert.NotEmpty(t, list(t, body, "events"))

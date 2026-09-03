@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -120,11 +119,6 @@ func problemContext(t *testing.T, body map[string]any) map[string]any {
 	require.True(t, ok, "context should be an object, got %T", body["context"])
 
 	return fields
-}
-
-// itoa renders an id that arrived as a JSON number.
-func itoa(f float64) string {
-	return strconv.FormatInt(int64(f), 10)
 }
 
 func TestUnknownRouteIsNotFound(t *testing.T) {

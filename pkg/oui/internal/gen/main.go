@@ -136,7 +136,7 @@ func loadIEEE(ctx context.Context, url string, table map[string]*entry) error {
 				continue
 			}
 
-			name := clean(rec[2])
+			name := strings.TrimSpace(strings.ReplaceAll(rec[2], "\t", " "))
 			if name == "" {
 				continue
 			}
@@ -168,9 +168,9 @@ func loadManuf(ctx context.Context, table map[string]*entry) error {
 				continue
 			}
 
-			short, long := clean(fields[1]), ""
+			short, long := strings.TrimSpace(strings.ReplaceAll(fields[1], "\t", " ")), ""
 			if len(fields) > 2 {
-				long = clean(fields[2])
+				long = strings.TrimSpace(strings.ReplaceAll(fields[2], "\t", " "))
 			}
 
 			// A few records carry the prefix itself in the short column;
@@ -245,12 +245,6 @@ func normalise(field string) (string, bool) {
 	default:
 		return "", false
 	}
-}
-
-// clean strips the whitespace and embedded tabs that would corrupt the
-// tab-separated table.
-func clean(s string) string {
-	return strings.TrimSpace(strings.ReplaceAll(s, "\t", " "))
 }
 
 func write(table map[string]*entry) error {
