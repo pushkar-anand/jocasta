@@ -140,7 +140,7 @@ func TestCLIPortsCommandDefaults(t *testing.T) {
 	assert.Equal(t, "192.0.2.10", cli.Ports.Target)
 	assert.Empty(t, cli.Ports.Ports)
 	assert.Equal(t, 500*time.Millisecond, cli.Ports.Timeout)
-	assert.Equal(t, 256, cli.Ports.Concurrency)
+	assert.Equal(t, scanner.DefaultConcurrency, cli.Ports.Concurrency)
 	assert.False(t, cli.Ports.JSON)
 }
 
@@ -151,7 +151,7 @@ func TestCLIPortsCommandCustomFlags(t *testing.T) {
 		"ports", "192.0.2.0/24",
 		"--ports", "22,80,8000-8100",
 		"--timeout", "1s",
-		"--concurrency", "64",
+		"--concurrency", "200",
 		"--json",
 	})
 	require.NoError(t, err)
@@ -160,7 +160,7 @@ func TestCLIPortsCommandCustomFlags(t *testing.T) {
 	assert.Equal(t, "192.0.2.0/24", cli.Ports.Target)
 	assert.Equal(t, "22,80,8000-8100", cli.Ports.Ports)
 	assert.Equal(t, time.Second, cli.Ports.Timeout)
-	assert.Equal(t, 64, cli.Ports.Concurrency)
+	assert.Equal(t, 200, cli.Ports.Concurrency)
 	assert.True(t, cli.Ports.JSON)
 }
 

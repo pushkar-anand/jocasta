@@ -23,7 +23,7 @@ type PortsCmd struct {
 	Target      string        `arg:"" optional:"" help:"Address or CIDR prefix to probe. Defaults to every current address in the inventory."`
 	Ports       string        `name:"ports" help:"Ports to probe, as a spec like '22,80,443,8000-8100'. Defaults to a curated preset."`
 	Timeout     time.Duration `name:"timeout" help:"Per-connection dial timeout." default:"500ms"`
-	Concurrency int           `name:"concurrency" help:"Maximum connections in flight." default:"256"`
+	Concurrency int           `name:"concurrency" help:"Maximum connections in flight." default:"64"`
 	JSON        bool          `name:"json" help:"Output results as JSON."`
 	Save        bool          `name:"save" help:"Record the open ports in the device inventory."`
 }

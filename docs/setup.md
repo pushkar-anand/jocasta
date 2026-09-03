@@ -100,6 +100,7 @@ scan:
     enabled: false
     interval: "6h"
     custom: ""           # ports to probe, e.g. "22,80,443,8000-8100"; blank uses a curated preset
+    concurrency: 64      # max connections a scan opens at once; lower it on a cheap router
 
 # Sources beyond the sweep. Each block is keyed by an instance name, which
 # becomes the source its facts are filed under, so two routers stay separate.
@@ -187,8 +188,9 @@ Probes TCP ports with a plain `connect()`, so it needs no privileges and cannot
 change the target. With no argument it scans every current address in the
 inventory; give an address or a prefix to scan that instead. `--ports` takes a
 spec like `22,80,443,8000-8100`; the default is a curated preset of about a
-hundred ports a homelab commonly runs. `--save` records what it finds against
-the matching devices.
+hundred ports a homelab commonly runs. `--concurrency` caps how many
+connections are open at once (64 by default). `--save` records what it finds
+against the matching devices.
 
 ```
 $ jocasta ports 192.0.2.10

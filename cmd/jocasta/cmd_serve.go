@@ -110,7 +110,9 @@ func (s *ServeCmd) Run(
 // blank scan.ports.custom leaves the curated preset, a spec replaces it. A spec
 // that will not parse fails startup rather than every scan.
 func portsPoller(cfg *config.Config, log *slog.Logger, store *inventory.Store) (*poller.Ports, error) {
-	var opts []scanner.PortOption
+	opts := []scanner.PortOption{
+		scanner.WithConcurrency(cfg.Scan.Ports.Concurrency),
+	}
 
 	if spec := cfg.Scan.Ports.Custom; spec != "" {
 		ports, err := scanner.ParsePortSpec(spec)
