@@ -19,7 +19,9 @@ make htmx           # refresh the vendored htmx
 - `internal/scanner`: the ICMP sweep.
 - `internal/plugin`: sources beyond the sweep (RouterOS).
 - `internal/inventory`: the store, covering identity resolution, address
-  handling and the change log.
+  handling, device classification and the change log.
+- `internal/classify`: the rules that guess a device's type from its vendor,
+  name and open ports.
 - `internal/web`, `internal/api`: the HTML UI and the JSON API.
 - `internal/db`: connection, migrations, generated queries.
 

@@ -4,6 +4,11 @@
     <td>
         <span class="cell">
             <span class="dot {{ decay .LastSeen }}"></span>
+            {{- with classIcon .Class }}
+            <svg class="devicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" role="img"
+                 aria-label="{{ classLabel $.Class }}"><title>{{ classLabel $.Class }}</title>{{ . }}</svg>
+            {{- end }}
             <a class="strong" href="/devices/{{ .ID }}">{{ .Name }}</a>
         </span>
     </td>

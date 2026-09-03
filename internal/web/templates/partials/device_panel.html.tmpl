@@ -16,7 +16,18 @@
                 <div><dt>Hardware</dt><dd class="mono">{{ dash .MAC }}</dd></div>
                 <div><dt>Vendor</dt><dd>{{ dash .Vendor }}</dd></div>
                 <div><dt>Hostname</dt><dd>{{ dash .Hostname }}</dd></div>
-                <div><dt>Type</dt><dd>{{ dash .Type }}</dd></div>
+                <div><dt>Type</dt><dd>
+                    {{- with .Class }}
+                    <span class="cell">
+                        {{- with classIcon . }}
+                        <svg class="devicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{{ . }}</svg>
+                        {{- end }}
+                        {{ classLabel . }}
+                        {{- if not $.Device.Type }}<span class="chip chip--quiet">auto</span>{{ end }}
+                    </span>
+                    {{- else }}<span class="dim">{{ dash "" }}</span>{{ end }}
+                </dd></div>
                 <div><dt>Group</dt><dd>{{ dash .Group }}</dd></div>
                 <div><dt>First seen</dt><dd class="dim">{{ ago .FirstSeen }}</dd></div>
                 <div><dt>Last seen</dt><dd class="dim">{{ ago .LastSeen }}</dd></div>
@@ -51,8 +62,14 @@
                     </label>
                     <label class="stack">
                         <span class="eyebrow">Type</span>
-                        <input class="input" name="type" value="{{ .Device.Type }}"
-                               placeholder="printer, camera, server" autocomplete="off">
+                        <select class="input" name="type">
+                            <option value="">
+                                {{- with classLabel .Device.ClassGuess }}Auto &middot; {{ . }}{{ else }}Auto{{ end -}}
+                            </option>
+                            {{- range classChoices }}
+                            <option value="{{ .Value }}"{{ if eq .Value $.Device.Type }} selected{{ end }}>{{ .Label }}</option>
+                            {{- end }}
+                        </select>
                     </label>
                 </div>
 

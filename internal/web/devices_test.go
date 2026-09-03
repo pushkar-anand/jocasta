@@ -443,6 +443,33 @@ func TestDeviceFormDropsUnrecognisedValues(t *testing.T) {
 	assert.Equal(t, "4", deviceForm(url.Values{"network": {"4"}}).Network)
 }
 
+// The seed names its devices "printer.local" and "nas.local", both of which the
+// classifier reads, so the list carries their icons and the panel offers the
+// type picker with the guess named in its blank option.
+func TestDeviceListShowsTheClassIcon(t *testing.T) {
+	t.Parallel()
+
+	body := get(t, seeded(t), "/devices").Body.String()
+
+	assert.Contains(t, body, `class="devicon"`)
+	assert.Contains(t, body, `aria-label="Printer"`)
+	assert.Contains(t, body, `aria-label="NAS"`)
+}
+
+func TestDevicePanelOffersTheTypePicker(t *testing.T) {
+	t.Parallel()
+
+	h := seeded(t)
+	id := deviceIDFromBody(t, get(t, h, "/devices").Body.String())
+
+	body := get(t, h, "/devices/"+id).Body.String()
+
+	assert.Contains(t, body, `<select class="input" name="type">`)
+	assert.Contains(t, body, `<option value="printer"`)
+	// The blank option names the current guess so a user can see what "auto" means.
+	assert.Contains(t, body, "Auto")
+}
+
 // deviceIDFromBody pulls the first device id out of a rendered list.
 func deviceIDFromBody(t *testing.T, body string) string {
 	t.Helper()

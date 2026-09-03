@@ -30,19 +30,22 @@ const em = "—"
 // should not be doing arithmetic or reaching for the clock.
 func funcs(now func() time.Time) template.FuncMap {
 	return template.FuncMap{
-		"ago":         func(t time.Time) string { return ago(now(), t) },
-		"decay":       func(t time.Time) string { return decay(now(), t) },
-		"dash":        dash,
-		"pct":         pct,
-		"took":        took,
-		"phrase":      phrase,
-		"tone":        tone,
-		"eventIcon":   eventIcon,
-		"health":      health,
-		"statusClass": statusClass,
-		"change":      change,
-		"addrs":       addrs,
-		"standing":    standing,
+		"ago":          func(t time.Time) string { return ago(now(), t) },
+		"decay":        func(t time.Time) string { return decay(now(), t) },
+		"dash":         dash,
+		"pct":          pct,
+		"took":         took,
+		"phrase":       phrase,
+		"tone":         tone,
+		"eventIcon":    eventIcon,
+		"health":       health,
+		"statusClass":  statusClass,
+		"change":       change,
+		"addrs":        addrs,
+		"standing":     standing,
+		"classLabel":   classLabel,
+		"classIcon":    classIcon,
+		"classChoices": classChoices,
 	}
 }
 
@@ -171,6 +174,8 @@ func phrase(k dbtype.EventKind) string {
 		return "began answering on"
 	case dbtype.EventPortClosed:
 		return "stopped answering on"
+	case dbtype.EventDeviceClassified:
+		return "was reclassified"
 	}
 
 	// A kind added in Go and not yet worded here still has to render as
@@ -188,7 +193,8 @@ func tone(k dbtype.EventKind) string {
 		return "act--arrival"
 	case dbtype.EventDeviceIdentified, dbtype.EventAddressAdded, dbtype.EventPortOpened:
 		return "act--learned"
-	case dbtype.EventDevicesMerged, dbtype.EventHostnameChanged, dbtype.EventAddressReleased, dbtype.EventPortClosed:
+	case dbtype.EventDevicesMerged, dbtype.EventHostnameChanged, dbtype.EventAddressReleased,
+		dbtype.EventPortClosed, dbtype.EventDeviceClassified:
 		return "act--shape"
 	}
 
@@ -209,6 +215,7 @@ var glyphs = map[dbtype.EventKind]template.HTML{
 	dbtype.EventDeviceEdited:     `<path d="M4 20h4l10-10a2.8 2.8 0 10-4-4L4 16v4z"/>`,
 	dbtype.EventPortOpened:       `<path d="M9 3v4M15 3v4"/><path d="M6 7h12v3a6 6 0 01-12 0z"/><path d="M12 16v5"/>`,
 	dbtype.EventPortClosed:       `<path d="M6 7h12v3a6 6 0 01-12 0z"/><path d="M12 16v5"/><path d="M4 4l16 16"/>`,
+	dbtype.EventDeviceClassified: `<path d="M4 4h7l9 9-7 7-9-9z"/><circle cx="8.5" cy="8.5" r="1.5"/>`,
 }
 
 // eventIcon is the glyph for a kind. A kind with no glyph of its own gets the

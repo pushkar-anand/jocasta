@@ -159,6 +159,10 @@ type pass struct {
 	// holds: a device that answered somewhere, holding an address that did not.
 	seen     map[int64]struct{}
 	answered map[netip.Addr]struct{}
+
+	// touched is every device a fact resolved to, present or not: the classify
+	// pass that runs after the ingest commits re-reads each of these.
+	touched map[int64]struct{}
 }
 
 // networks matches an address to the recorded network containing it. A sweep
@@ -331,7 +335,7 @@ func (s *Store) report(ctx context.Context, r reading) (*Result, error) {
 		return nil, err
 	}
 
-	res, ingestErr := s.ingest(ctx, scanID, sourceID, r)
+	res, touched, ingestErr := s.ingest(ctx, scanID, sourceID, r)
 
 	// res is nil unless the ingest committed, so the count a failed scan
 	// records is the only one true of the table: none.
@@ -351,6 +355,12 @@ func (s *Store) report(ctx context.Context, r reading) (*Result, error) {
 	}
 
 	res.ScanID = scanID
+
+	// The classify pass is best-effort: a guess that failed to update is worth
+	// a log line, not a failed scan whose devices were folded correctly.
+	if err := s.reclassify(ctx, scanID, touched); err != nil {
+		s.log.WarnContext(ctx, "classify pass after discovery failed", "scan", scanID, "err", err)
+	}
 
 	return res, nil
 }
@@ -420,10 +430,10 @@ func (s *Store) openScan(
 // ingest applies every fact as one transaction: a reading either lands whole
 // or not at all, so a partial run cannot leave a device holding an address it
 // was about to lose.
-func (s *Store) ingest(ctx context.Context, scanID, sourceID int64, r reading) (*Result, error) {
+func (s *Store) ingest(ctx context.Context, scanID, sourceID int64, r reading) (*Result, []int64, error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("begin ingest: %w", err)
+		return nil, nil, fmt.Errorf("begin ingest: %w", err)
 	}
 
 	defer func() { _ = tx.Rollback() }()
@@ -432,7 +442,7 @@ func (s *Store) ingest(ctx context.Context, scanID, sourceID int64, r reading) (
 
 	nets, err := loadNetworks(ctx, q)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// One timestamp for the whole reading. Every row it writes describes the
@@ -446,11 +456,12 @@ func (s *Store) ingest(ctx context.Context, scanID, sourceID int64, r reading) (
 		at:       s.stamp(),
 		seen:     map[int64]struct{}{},
 		answered: map[netip.Addr]struct{}{},
+		touched:  map[int64]struct{}{},
 	}
 
 	for _, f := range r.facts {
 		if err := s.record(ctx, p, f); err != nil {
-			return nil, fmt.Errorf("record %s: %w", f.Host.Address(), err)
+			return nil, nil, fmt.Errorf("record %s: %w", f.Host.Address(), err)
 		}
 	}
 
@@ -459,15 +470,15 @@ func (s *Store) ingest(ctx context.Context, scanID, sourceID int64, r reading) (
 	// leaves r.network nil and retires nothing.
 	if r.network != nil {
 		if err := s.retire(ctx, p, *r.network); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("commit ingest: %w", err)
+		return nil, nil, fmt.Errorf("commit ingest: %w", err)
 	}
 
-	return &p.res, nil
+	return &p.res, slices.Sorted(maps.Keys(p.touched)), nil
 }
 
 // close marks the scan finished, carrying the ingest failure if there was one.
@@ -524,6 +535,11 @@ func (s *Store) record(ctx context.Context, p *pass, f plugin.Fact) error {
 
 		return nil
 	}
+
+	// Every device a fact resolved to is re-classified once the ingest commits.
+	// target is the surviving row -- a fold below merges the ghost holder into
+	// it, not the other way -- so its id stays valid through the rest of record.
+	p.touched[target.ID] = struct{}{}
 
 	// A row that only ever stood for this address is the same device under a
 	// weaker name once a hardware address claims it.
