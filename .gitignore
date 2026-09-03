@@ -50,3 +50,4 @@ plans/
 tmp/
 # Screenshot data generator, kept local
 docs/screenshots/
+/cmd/classdump/
