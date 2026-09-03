@@ -341,9 +341,10 @@ func TestCanonicalURL(t *testing.T) {
 	t.Parallel()
 
 	assert.Equal(t, "/devices", devicesData{}.canonical())
+	assert.Equal(t, "/devices", devicesData{Page: 1}.canonical())
 
 	// Every value that was applied is in the address, so it can be shared.
-	got := devicesData{Query: "nas", Group: "rack", Network: "3", Status: "online", Sort: "name", IncludeIgnored: true}.canonical()
+	got := devicesData{Query: "nas", Group: "rack", Network: "3", Status: "online", Sort: "name", IncludeIgnored: true, Page: 3}.canonical()
 
 	parsed, err := url.Parse(got)
 	require.NoError(t, err)
@@ -356,7 +357,40 @@ func TestCanonicalURL(t *testing.T) {
 		"status":  {"online"},
 		"sort":    {"name"},
 		"ignored": {"1"},
+		"page":    {"3"},
 	}, parsed.Query())
+}
+
+// The list is read whole, but only a page of it is put in the DOM.
+func TestDevicesPagePaginates(t *testing.T) {
+	t.Parallel()
+
+	h := seededWith(t, 60)
+
+	first := get(t, h, "/devices").Body.String()
+	assert.Equal(t, devicesPerPage, strings.Count(first, `id="device-row-`))
+	assert.Contains(t, first, "Page 1 of 2 &middot; 60 devices")
+	assert.Contains(t, first, `rel="next"`)
+	assert.NotContains(t, first, `rel="prev"`)
+
+	second := get(t, h, "/devices?page=2").Body.String()
+	assert.Equal(t, 60-devicesPerPage, strings.Count(second, `id="device-row-`))
+	assert.Contains(t, second, `rel="prev"`)
+	assert.NotContains(t, second, `rel="next"`)
+
+	// A page past the end is the last real page, not an empty one.
+	clamped := get(t, h, "/devices?page=99").Body.String()
+	assert.Equal(t, 60-devicesPerPage, strings.Count(clamped, `id="device-row-`))
+}
+
+// A list that fits on one page carries no controls.
+func TestDevicesPageWithoutEnoughForASecondPage(t *testing.T) {
+	t.Parallel()
+
+	body := get(t, seeded(t), "/devices").Body.String()
+
+	assert.NotContains(t, body, "pager--split")
+	assert.Contains(t, body, "2 shown")
 }
 
 func TestDeviceFormDropsUnrecognisedValues(t *testing.T) {

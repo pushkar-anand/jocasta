@@ -16,6 +16,10 @@ type networkData struct {
 	Network *inventory.Network
 	Devices []*inventory.Device
 	Groups  []string
+
+	// Pager is what partial/device-rows reads to draw the page controls. This
+	// list is not paged, so it stays nil and the controls are left out.
+	Pager *listPager
 }
 
 func (h *Handler) network(w http.ResponseWriter, r *http.Request) {
