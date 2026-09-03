@@ -107,6 +107,7 @@ func TestPhrase(t *testing.T) {
 	assert.Equal(t, "was relabelled", phrase(dbtype.EventHostnameChanged))
 	assert.Equal(t, "was edited", phrase(dbtype.EventDeviceEdited))
 	assert.Equal(t, "picked up a new address", phrase(dbtype.EventAddressAdded))
+	assert.Equal(t, "let go of an address", phrase(dbtype.EventAddressReleased))
 
 	// events.kind carries no CHECK, so a kind added in Go without a phrase here
 	// still has to render as something, and its own name is the most truthful
@@ -121,6 +122,7 @@ func TestTone(t *testing.T) {
 	assert.Equal(t, "act--learned", tone(dbtype.EventDeviceIdentified))
 	assert.Equal(t, "act--learned", tone(dbtype.EventAddressAdded))
 	assert.Equal(t, "act--shape", tone(dbtype.EventDevicesMerged))
+	assert.Equal(t, "act--shape", tone(dbtype.EventAddressReleased))
 	assert.Equal(t, "act--edit", tone(dbtype.EventDeviceEdited))
 
 	// Anything not worded yet reads as an edit rather than as nothing.

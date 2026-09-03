@@ -48,6 +48,39 @@ func newStore(t *testing.T) (*Store, *sql.DB) {
 	return s, d
 }
 
+// clockStore is newStore with a clock the test can jump forward, for asserting
+// behaviour that turns on how much time has passed between one sweep and the
+// next -- address retirement above all.
+func clockStore(t *testing.T) (*Store, *sql.DB, func(time.Duration)) {
+	t.Helper()
+
+	d, err := db.New(&db.Config{Path: t.TempDir(), Name: "test.db"})
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = d.Close() })
+
+	s := New(d, slog.New(slog.DiscardHandler))
+
+	tick := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	s.now = func() time.Time {
+		tick = tick.Add(time.Second)
+		return tick
+	}
+
+	return s, d, func(by time.Duration) { tick = tick.Add(by) }
+}
+
+// sweepPrefix records a sweep of a named prefix, for the retirement tests that
+// need more than one.
+func sweepPrefix(t *testing.T, s *Store, cidr string, hosts ...scanner.Host) *Result {
+	t.Helper()
+
+	res, err := s.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(cidr), hosts)
+	require.NoError(t, err)
+
+	return res
+}
+
 // host builds a swept host the way a sweep does, so the ingest sees the same
 // enrichment here as in production. A malformed argument is a broken test.
 func host(ip, mac, hostname string) scanner.Host {

@@ -42,6 +42,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createUserStmt, err = db.PrepareContext(ctx, createUser); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateUser: %w", err)
 	}
+	if q.currentAddressesStmt, err = db.PrepareContext(ctx, currentAddresses); err != nil {
+		return nil, fmt.Errorf("error preparing query CurrentAddresses: %w", err)
+	}
 	if q.deleteDeviceStmt, err = db.PrepareContext(ctx, deleteDevice); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteDevice: %w", err)
 	}
@@ -105,6 +108,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.releaseAddressStmt, err = db.PrepareContext(ctx, releaseAddress); err != nil {
 		return nil, fmt.Errorf("error preparing query ReleaseAddress: %w", err)
 	}
+	if q.retireAddressStmt, err = db.PrepareContext(ctx, retireAddress); err != nil {
+		return nil, fmt.Errorf("error preparing query RetireAddress: %w", err)
+	}
 	if q.setDeviceHostnameStmt, err = db.PrepareContext(ctx, setDeviceHostname); err != nil {
 		return nil, fmt.Errorf("error preparing query SetDeviceHostname: %w", err)
 	}
@@ -159,6 +165,11 @@ func (q *Queries) Close() error {
 	if q.createUserStmt != nil {
 		if cerr := q.createUserStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createUserStmt: %w", cerr)
+		}
+	}
+	if q.currentAddressesStmt != nil {
+		if cerr := q.currentAddressesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing currentAddressesStmt: %w", cerr)
 		}
 	}
 	if q.deleteDeviceStmt != nil {
@@ -266,6 +277,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing releaseAddressStmt: %w", cerr)
 		}
 	}
+	if q.retireAddressStmt != nil {
+		if cerr := q.retireAddressStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing retireAddressStmt: %w", cerr)
+		}
+	}
 	if q.setDeviceHostnameStmt != nil {
 		if cerr := q.setDeviceHostnameStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing setDeviceHostnameStmt: %w", cerr)
@@ -346,6 +362,7 @@ type Queries struct {
 	createEventStmt                    *sql.Stmt
 	createScanStmt                     *sql.Stmt
 	createUserStmt                     *sql.Stmt
+	currentAddressesStmt               *sql.Stmt
 	deleteDeviceStmt                   *sql.Stmt
 	deviceStatsStmt                    *sql.Stmt
 	finishScanStmt                     *sql.Stmt
@@ -367,6 +384,7 @@ type Queries struct {
 	moveEventsStmt                     *sql.Stmt
 	refreshAddressStmt                 *sql.Stmt
 	releaseAddressStmt                 *sql.Stmt
+	retireAddressStmt                  *sql.Stmt
 	setDeviceHostnameStmt              *sql.Stmt
 	touchDeviceStmt                    *sql.Stmt
 	updateDeviceCurationStmt           *sql.Stmt
@@ -386,6 +404,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		createEventStmt:                    q.createEventStmt,
 		createScanStmt:                     q.createScanStmt,
 		createUserStmt:                     q.createUserStmt,
+		currentAddressesStmt:               q.currentAddressesStmt,
 		deleteDeviceStmt:                   q.deleteDeviceStmt,
 		deviceStatsStmt:                    q.deviceStatsStmt,
 		finishScanStmt:                     q.finishScanStmt,
@@ -407,6 +426,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		moveEventsStmt:                     q.moveEventsStmt,
 		refreshAddressStmt:                 q.refreshAddressStmt,
 		releaseAddressStmt:                 q.releaseAddressStmt,
+		retireAddressStmt:                  q.retireAddressStmt,
 		setDeviceHostnameStmt:              q.setDeviceHostnameStmt,
 		touchDeviceStmt:                    q.touchDeviceStmt,
 		updateDeviceCurationStmt:           q.updateDeviceCurationStmt,

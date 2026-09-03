@@ -240,8 +240,9 @@ func TestGetDeviceCarriesAddressHistory(t *testing.T) {
 	}
 
 	// A sweep only reports what answered, so an address a device answered on
-	// before is not released by another one appearing: both stay current until
-	// something establishes that the first is gone.
+	// before is not released the moment another appears: within the grace
+	// window -- these two sweeps are a clock tick apart -- both stay current.
+	// Retirement past the window is TestRetiresAnAddressADeviceMovedOff.
 	assert.Equal(t, []netip.Addr{
 		netip.MustParseAddr("192.0.2.10"),
 		netip.MustParseAddr("192.0.2.11"),

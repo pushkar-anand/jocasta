@@ -175,6 +175,7 @@ func (d *Device) scanAndSaveNetwork(ctx context.Context, network *netip.Prefix) 
 		slog.Int("discovered", saved.Discovered),
 		slog.Int("identified", saved.Identified),
 		slog.Int("merged", saved.Merged),
+		slog.Int("released", saved.Released),
 	)
 
 	return nil

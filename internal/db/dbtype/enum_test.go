@@ -111,5 +111,6 @@ func TestEnumValid(t *testing.T) {
 	assert.True(t, ScanImport.Valid())
 	assert.True(t, StatusRunning.Valid())
 	assert.True(t, EventAddressAdded.Valid())
+	assert.True(t, EventAddressReleased.Valid())
 	assert.True(t, HostnameFromDNS.Valid())
 }

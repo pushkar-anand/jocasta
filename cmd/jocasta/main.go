@@ -89,6 +89,7 @@ func run(args []string) error {
 		conn,
 		log,
 		inventory.WithOnlineWindow(cfg.Inventory.OnlineWindow),
+		inventory.WithAddressGrace(cfg.Inventory.AddressGrace),
 	)
 
 	// The scanner the poller sweeps with is configured, not flagged: nobody is

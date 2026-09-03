@@ -167,6 +167,14 @@ FROM addresses
 WHERE device_id = ?
   AND ip = ?;
 
+-- Every address a device holds right now, for deciding which of them it has
+-- moved off after a sweep that answered on another.
+-- name: CurrentAddresses :many
+SELECT *
+FROM addresses
+WHERE device_id = ?
+  AND is_current = 1;
+
 -- Only one device may hold an address as current, so the previous holder is
 -- released before the new claim rather than colliding with the partial index.
 -- name: ReleaseAddress :exec
@@ -175,6 +183,14 @@ SET is_current = 0
 WHERE ip = sqlc.arg(ip)
   AND is_current = 1
   AND device_id <> sqlc.arg(device_id);
+
+-- Drop an address a device has moved off: the sweep answered for it elsewhere
+-- in the prefix while this one stayed silent past the grace window. The row
+-- stays so the history does, and last_seen keeps its last real sighting.
+-- name: RetireAddress :exec
+UPDATE addresses
+SET is_current = 0
+WHERE id = ?;
 
 -- name: InsertAddress :one
 INSERT INTO addresses (device_id, network_id, ip, first_seen, last_seen)
