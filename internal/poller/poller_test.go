@@ -7,6 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -373,6 +374,62 @@ func TestFailingTaskKeepsRunning(t *testing.T) {
 
 	cancel()
 	requireReturned(t, errc)
+}
+
+// A not-ready task is retried after notReadyRetry, not after its full interval.
+func TestNotReadyTaskRetriesSoon(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		// interval >> notReadyRetry, so any run past the first is the short retry.
+		f := &fake{name: "waiting", interval: time.Hour, err: errNotReady}
+		p := newPoller(t, f)
+
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+
+		go func() { _ = p.Start(ctx) }()
+
+		synctest.Wait()
+		require.Equal(t, int32(1), f.runs.Load(), "the first run is due at once")
+
+		for want := int32(2); want <= 4; want++ {
+			time.Sleep(notReadyRetry)
+			synctest.Wait()
+			require.Equal(t, want, f.runs.Load(), "one more run per notReadyRetry, not per interval")
+		}
+
+		cancel()
+	})
+}
+
+// A plain error is not the not-ready signal: the task is retried, but only
+// after its full interval, so one unreachable network cannot become a spin.
+func TestFailingTaskWaitsTheFullInterval(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		f := &fake{name: "failing", interval: time.Hour, err: errors.New("boom")}
+		p := newPoller(t, f)
+
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+
+		go func() { _ = p.Start(ctx) }()
+
+		synctest.Wait()
+		require.Equal(t, int32(1), f.runs.Load(), "the first run is due at once")
+
+		time.Sleep(10 * notReadyRetry)
+		synctest.Wait()
+		require.Equal(t, int32(1), f.runs.Load(), "a plain error does not take the short retry")
+
+		time.Sleep(time.Hour)
+		synctest.Wait()
+		require.Equal(t, int32(2), f.runs.Load(), "it is retried once the interval is up")
+
+		cancel()
+	})
 }
 
 // A panicking task must not take the process down, and must not strand the

@@ -2,8 +2,18 @@ package poller
 
 import (
 	"context"
+	"errors"
 	"time"
 )
+
+// errNotReady is a task reporting it is blocked on another task's output. The
+// poller retries it after notReadyRetry instead of a full interval.
+var errNotReady = errors.New("task has nothing to work on yet")
+
+// notReadyRetry replaces a task's own interval for the one cycle after it
+// returns errNotReady. Short, because whatever it waits on is produced by a
+// task that runs far more often than it does.
+const notReadyRetry = time.Minute
 
 type task interface {
 	Name() string
