@@ -860,6 +860,13 @@ tbody tr:hover {
     text-align: right;
 }
 
+/* A cell holding more than one thing -- the prefixes a multi-homed device sits
+   on -- lets them fall to a second line rather than widening the column. */
+.cell--wrap {
+    flex-wrap: wrap;
+    gap: 6px 9px;
+}
+
 .strong {
     font-weight: 600;
 }

@@ -607,6 +607,18 @@ func TestDeviceListShowsOpenPorts(t *testing.T) {
 	assert.Contains(t, get(t, h, "/devices/rows").Body.String(), "80, 443, 9100")
 }
 
+// The list names the prefix each device is on and links to it, so the network
+// you can filter by is also one you can see and reach.
+func TestDeviceListShowsTheNetwork(t *testing.T) {
+	t.Parallel()
+
+	body := get(t, seeded(t), "/devices").Body.String()
+
+	assert.Contains(t, body, `<th scope="col">Network</th>`)
+	assert.Contains(t, body, `href="/networks/1"`)
+	assert.Contains(t, body, "192.0.2.0/24")
+}
+
 // A device no port scan has reached leaves the section out rather than drawing
 // it empty.
 func TestDevicePageWithoutPortsOmitsTheSection(t *testing.T) {

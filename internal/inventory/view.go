@@ -73,6 +73,12 @@ type Device struct {
 	// number order. A list carries these where the full Ports history would be
 	// more than a row can hold; the device page reads Ports instead.
 	OpenPorts []uint16 `json:"open_ports,omitempty"`
+
+	// Networks is the distinct set of recorded prefixes the device currently
+	// holds an address on, in CIDR order. A list reads this to say where a
+	// device lives; the per-address history, and the prefixes older addresses
+	// sat on, are on Addresses, which only the device page fills.
+	Networks []*Network `json:"networks,omitempty"`
 }
 
 // Name is what to call the device: whatever the user labelled it, falling back
@@ -460,6 +466,25 @@ func parsePorts(concat string) []uint16 {
 	slices.Sort(ports)
 
 	return ports
+}
+
+// parseIDs reads the row ids GROUP_CONCAT packed into one column. Order is not
+// kept: the caller resolves these against a list that has its own.
+func parseIDs(concat string) []int64 {
+	if concat == "" {
+		return nil
+	}
+
+	parts := strings.Split(concat, ",")
+	ids := make([]int64, 0, len(parts))
+
+	for _, p := range parts {
+		if id, err := strconv.ParseInt(strings.TrimSpace(p), 10, 64); err == nil && id > 0 {
+			ids = append(ids, id)
+		}
+	}
+
+	return ids
 }
 
 // parseAddrs reads the addresses GROUP_CONCAT packed into one column and orders

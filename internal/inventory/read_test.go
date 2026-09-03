@@ -309,6 +309,22 @@ func TestGetDeviceCarriesOpenPorts(t *testing.T) {
 	assert.Equal(t, []uint16{22}, list[0].OpenPorts, "the closed port is not one it exposes now")
 }
 
+// The list read carries the prefixes a device currently sits on, so a row can
+// name and link the network without a query of its own.
+func TestListDevicesCarriesNetworks(t *testing.T) {
+	t.Parallel()
+
+	s, _ := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, "printer.local"))
+
+	list, err := s.ListDevices(t.Context(), DeviceFilter{})
+	require.NoError(t, err)
+	require.Len(t, list, 1)
+
+	require.Len(t, list[0].Networks, 1)
+	assert.Equal(t, prefix, list[0].Networks[0].CIDR)
+}
+
 func TestDeviceEventsAreMostRecentFirst(t *testing.T) {
 	t.Parallel()
 
