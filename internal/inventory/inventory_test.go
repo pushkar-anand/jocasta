@@ -35,9 +35,9 @@ func newStore(t *testing.T) (*Store, *sql.DB) {
 	d, err := db.New(&db.Config{Path: t.TempDir(), Name: "test.db"})
 	require.NoError(t, err)
 
-	t.Cleanup(func() { _ = d.Conn.Close() })
+	t.Cleanup(func() { _ = d.Close() })
 
-	s := New(d.Conn, slog.New(slog.DiscardHandler))
+	s := New(d, slog.New(slog.DiscardHandler))
 
 	tick := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	s.now = func() time.Time {
@@ -45,7 +45,7 @@ func newStore(t *testing.T) (*Store, *sql.DB) {
 		return tick
 	}
 
-	return s, d.Conn
+	return s, d
 }
 
 // host builds a swept host the way a sweep does, so the ingest sees the same

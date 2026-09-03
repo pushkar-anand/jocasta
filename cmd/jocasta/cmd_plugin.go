@@ -3,6 +3,7 @@ package main
 import (
 	"cmp"
 	"context"
+	"database/sql"
 	"fmt"
 	"io"
 	"log/slog"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/jocasta/internal/config"
-	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/plugin"
 )
@@ -37,7 +37,7 @@ func (p *PluginRunCmd) Run(
 	ctx context.Context,
 	cfg *config.Config,
 	log *slog.Logger,
-	conn *db.DB,
+	conn *sql.DB,
 ) error {
 	rc, ok := cfg.Plugins.RouterOS[p.Name]
 	if !ok {
@@ -98,9 +98,9 @@ func (p *PluginRunCmd) save(
 	src plugin.HostDiscoverer,
 	nets []plugin.Network,
 	facts []plugin.Fact,
-	conn *db.DB,
+	conn *sql.DB,
 ) error {
-	store := inventory.New(conn.Conn, log)
+	store := inventory.New(conn, log)
 
 	// Segments first, for the same reason the poller does it in that order: an
 	// address is matched to the networks already recorded.

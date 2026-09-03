@@ -14,14 +14,14 @@ import (
 )
 
 // newTestDB opens a database in a directory scoped to the test.
-func newTestDB(t *testing.T) *DB {
+func newTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 
 	db, err := New(&Config{Path: t.TempDir(), Name: "test.db"})
 	require.NoError(t, err)
 	require.NotNil(t, db)
 
-	t.Cleanup(func() { _ = db.Conn.Close() })
+	t.Cleanup(func() { _ = db.Close() })
 
 	return db
 }
@@ -33,9 +33,9 @@ func TestNew(t *testing.T) {
 
 	db, err := New(&Config{Path: dir, Name: "test.db"})
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = db.Conn.Close() })
+	t.Cleanup(func() { _ = db.Close() })
 
-	require.NoError(t, db.Conn.PingContext(t.Context()))
+	require.NoError(t, db.PingContext(t.Context()))
 	assert.FileExists(t, filepath.Join(dir, "test.db"))
 }
 
@@ -60,7 +60,7 @@ func TestNewRunsMigrations(t *testing.T) {
 		dirty   bool
 	)
 
-	err := db.Conn.QueryRowContext(t.Context(), `SELECT version, dirty FROM schema_migrations`).Scan(&version, &dirty)
+	err := db.QueryRowContext(t.Context(), `SELECT version, dirty FROM schema_migrations`).Scan(&version, &dirty)
 	require.NoError(t, err)
 
 	assert.Equal(t, dbVersion, version)
@@ -71,7 +71,7 @@ func TestNewRunsMigrations(t *testing.T) {
 	} {
 		var name string
 
-		err = db.Conn.QueryRowContext(t.Context(),
+		err = db.QueryRowContext(t.Context(),
 			`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table,
 		).Scan(&name)
 		require.NoErrorf(t, err, "%s table was not created", table)
@@ -89,13 +89,13 @@ func TestNewIsIdempotent(t *testing.T) {
 
 	first, err := New(cfg)
 	require.NoError(t, err)
-	require.NoError(t, first.Conn.Close())
+	require.NoError(t, first.Close())
 
 	second, err := New(cfg)
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = second.Conn.Close() })
+	t.Cleanup(func() { _ = second.Close() })
 
-	require.NoError(t, second.Conn.PingContext(t.Context()))
+	require.NoError(t, second.PingContext(t.Context()))
 }
 
 func TestMigrateDBIsIdempotent(t *testing.T) {
@@ -113,7 +113,7 @@ func TestCreateUser(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
-	q := models.New(newTestDB(t).Conn)
+	q := models.New(newTestDB(t))
 
 	user, err := q.CreateUser(ctx, models.CreateUserParams{
 		Username:     "ada",
@@ -134,7 +134,7 @@ func TestCreateUserRejectsDuplicateUsername(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
-	q := models.New(newTestDB(t).Conn)
+	q := models.New(newTestDB(t))
 
 	params := models.CreateUserParams{Username: "ada", PasswordHash: "hash"}
 
@@ -155,11 +155,11 @@ func TestNewAppliesPragmas(t *testing.T) {
 	db := newTestDB(t)
 
 	var foreignKeys int
-	require.NoError(t, db.Conn.QueryRowContext(t.Context(), `PRAGMA foreign_keys`).Scan(&foreignKeys))
+	require.NoError(t, db.QueryRowContext(t.Context(), `PRAGMA foreign_keys`).Scan(&foreignKeys))
 	assert.Equal(t, 1, foreignKeys, "foreign key enforcement is off")
 
 	var journalMode string
-	require.NoError(t, db.Conn.QueryRowContext(t.Context(), `PRAGMA journal_mode`).Scan(&journalMode))
+	require.NoError(t, db.QueryRowContext(t.Context(), `PRAGMA journal_mode`).Scan(&journalMode))
 	assert.Equal(t, "wal", strings.ToLower(journalMode))
 }
 
@@ -172,13 +172,13 @@ func TestPragmasApplyToEveryPooledConnection(t *testing.T) {
 	ctx := t.Context()
 	db := newTestDB(t)
 
-	first, err := db.Conn.Conn(ctx)
+	first, err := db.Conn(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = first.Close() })
 
 	// Held at the same time as the first, so the pool has to open a second one
 	// rather than hand back the same connection.
-	second, err := db.Conn.Conn(ctx)
+	second, err := db.Conn(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = second.Close() })
 
@@ -217,7 +217,7 @@ func BenchmarkDSN(b *testing.B) {
 func TestTimestampWritersAgreeOnOrdering(t *testing.T) {
 	t.Parallel()
 
-	conn := newTestDB(t).Conn
+	conn := newTestDB(t)
 
 	_, err := conn.ExecContext(t.Context(), `INSERT INTO users (username, password_hash) VALUES ('middle', 'h')`)
 	require.NoError(t, err)

@@ -52,9 +52,9 @@ func testStoreWithConn(t *testing.T) (*inventory.Store, *sql.DB) {
 	conn, err := db.New(&db.Config{Path: t.TempDir(), Name: "test.db"})
 	require.NoError(t, err)
 
-	t.Cleanup(func() { _ = conn.Conn.Close() })
+	t.Cleanup(func() { _ = conn.Close() })
 
-	return inventory.New(conn.Conn, testLogger()), conn.Conn
+	return inventory.New(conn, testLogger()), conn
 }
 
 // testReader builds the request reader the server wires in.

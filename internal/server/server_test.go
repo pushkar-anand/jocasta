@@ -31,9 +31,9 @@ func testStore(t *testing.T) *inventory.Store {
 	conn, err := db.New(&db.Config{Path: t.TempDir(), Name: "test.db"})
 	require.NoError(t, err)
 
-	t.Cleanup(func() { _ = conn.Conn.Close() })
+	t.Cleanup(func() { _ = conn.Close() })
 
-	return inventory.New(conn.Conn, testLogger())
+	return inventory.New(conn, testLogger())
 }
 
 // freePort reserves a port and releases it again. There is a window in which

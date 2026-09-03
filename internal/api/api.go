@@ -19,9 +19,14 @@ import (
 // it is built, so a route's dependencies are visible where it is registered
 // rather than reachable from any handler that happens to have a receiver.
 type Handler struct {
-	*http.ServeMux
+	mux        *http.ServeMux
 	reader     *request.Reader
 	jsonWriter *response.JSONWriter
+}
+
+// ServeHTTP routes a request to the JSON handler that matches it.
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.mux.ServeHTTP(w, r)
 }
 
 // NewHandler builds the JSON API routes over the given store.
@@ -29,30 +34,30 @@ func NewHandler(
 	l *slog.Logger,
 	reader *request.Reader,
 	store *inventory.Store,
-) http.Handler {
+) *Handler {
 	jw := response.NewJSONWriter(
 		l,
 		response.WithErrorProblemMapper(problemFor),
 	)
 
 	h := &Handler{
-		ServeMux:   http.NewServeMux(),
+		mux:        http.NewServeMux(),
 		reader:     reader,
 		jsonWriter: jw,
 	}
 
-	h.HandleFunc("GET /livez", jw.Handle(h.healthHandler()))
+	h.mux.HandleFunc("GET /livez", jw.Handle(h.healthHandler()))
 
-	h.HandleFunc("GET /stats", jw.Handle(h.stats(store)))
-	h.HandleFunc("GET /groups", jw.Handle(h.groups(store)))
+	h.mux.HandleFunc("GET /stats", jw.Handle(h.stats(store)))
+	h.mux.HandleFunc("GET /groups", jw.Handle(h.groups(store)))
 
-	h.HandleFunc("GET /devices", jw.Handle(h.listDevices(store)))
-	h.HandleFunc("GET /devices/{id}", jw.Handle(h.getDevice(store)))
-	h.HandleFunc("PATCH /devices/{id}", jw.Handle(h.updateDevice(store)))
-	h.HandleFunc("GET /devices/{id}/events", jw.Handle(h.deviceEvents(store)))
+	h.mux.HandleFunc("GET /devices", jw.Handle(h.listDevices(store)))
+	h.mux.HandleFunc("GET /devices/{id}", jw.Handle(h.getDevice(store)))
+	h.mux.HandleFunc("PATCH /devices/{id}", jw.Handle(h.updateDevice(store)))
+	h.mux.HandleFunc("GET /devices/{id}/events", jw.Handle(h.deviceEvents(store)))
 
-	h.HandleFunc("GET /events", jw.Handle(h.listEvents(store)))
-	h.HandleFunc("GET /scans", jw.Handle(h.listScans(store)))
+	h.mux.HandleFunc("GET /events", jw.Handle(h.listEvents(store)))
+	h.mux.HandleFunc("GET /scans", jw.Handle(h.listScans(store)))
 
 	return h
 }

@@ -71,7 +71,7 @@ func run(args []string) error {
 		return fmt.Errorf("initialize database: %w", err)
 	}
 
-	defer func() { _ = conn.Conn.Close() }()
+	defer func() { _ = conn.Close() }()
 
 	v, err := validator.New(
 		// The default message for oneof names the rule rather than the values
@@ -86,7 +86,7 @@ func run(args []string) error {
 	}
 
 	store := inventory.New(
-		conn.Conn,
+		conn,
 		log,
 		inventory.WithOnlineWindow(cfg.Inventory.OnlineWindow),
 	)

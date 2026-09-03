@@ -37,11 +37,16 @@ const activityLimit = 12
 
 // Handler serves the HTML UI over the same store the JSON API reads.
 type Handler struct {
-	*http.ServeMux
+	mux      *http.ServeMux
 	store    *inventory.Store
 	renderer *Renderer
 	reader   *request.Reader
 	log      *slog.Logger
+}
+
+// ServeHTTP routes a request to the page or fragment handler that matches it.
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.mux.ServeHTTP(w, r)
 }
 
 // NewHandler builds the web routes, parsing the embedded templates and
@@ -59,35 +64,35 @@ func NewHandler(log *slog.Logger, reader *request.Reader, store *inventory.Store
 	}
 
 	h := &Handler{
-		ServeMux: http.NewServeMux(),
+		mux:      http.NewServeMux(),
 		store:    store,
 		renderer: NewRenderer(templates, log),
 		reader:   reader,
 		log:      log,
 	}
 
-	h.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(staticFS)))
+	h.mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(staticFS)))
 
 	// {$} matches only the root itself, so an unknown path reaches the
 	// catch-all below and is reported rather than quietly served the overview.
-	h.HandleFunc("GET /{$}", h.overview)
-	h.HandleFunc("GET /overview/live", h.overviewLive)
+	h.mux.HandleFunc("GET /{$}", h.overview)
+	h.mux.HandleFunc("GET /overview/live", h.overviewLive)
 
 	// The literal is the more specific pattern, so it wins over {id}.
-	h.HandleFunc("GET /devices", h.devices)
-	h.HandleFunc("GET /devices/rows", h.deviceRows)
-	h.HandleFunc("GET /devices/{id}", h.device)
-	h.HandleFunc("PATCH /devices/{id}", h.updateDevice)
-	h.HandleFunc("GET /devices/{id}/row", h.deviceRow)
-	h.HandleFunc("GET /devices/{id}/edit", h.deviceRowEdit)
-	h.HandleFunc("PATCH /devices/{id}/row", h.updateDeviceRow)
+	h.mux.HandleFunc("GET /devices", h.devices)
+	h.mux.HandleFunc("GET /devices/rows", h.deviceRows)
+	h.mux.HandleFunc("GET /devices/{id}", h.device)
+	h.mux.HandleFunc("PATCH /devices/{id}", h.updateDevice)
+	h.mux.HandleFunc("GET /devices/{id}/row", h.deviceRow)
+	h.mux.HandleFunc("GET /devices/{id}/edit", h.deviceRowEdit)
+	h.mux.HandleFunc("PATCH /devices/{id}/row", h.updateDeviceRow)
 
-	h.HandleFunc("GET /networks/{id}", h.network)
+	h.mux.HandleFunc("GET /networks/{id}", h.network)
 
-	h.HandleFunc("GET /events", h.events)
-	h.HandleFunc("GET /scans", h.scans)
+	h.mux.HandleFunc("GET /events", h.events)
+	h.mux.HandleFunc("GET /scans", h.scans)
 
-	h.HandleFunc("GET /", h.notFound)
+	h.mux.HandleFunc("GET /", h.notFound)
 
 	return h
 }

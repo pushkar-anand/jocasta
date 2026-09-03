@@ -26,9 +26,9 @@ func newDeviceTask(t *testing.T, interval time.Duration) (*Device, *inventory.St
 	conn, err := db.New(&db.Config{Path: t.TempDir(), Name: "test.db"})
 	require.NoError(t, err)
 
-	t.Cleanup(func() { _ = conn.Conn.Close() })
+	t.Cleanup(func() { _ = conn.Close() })
 
-	store := inventory.New(conn.Conn, slog.New(slog.DiscardHandler))
+	store := inventory.New(conn, slog.New(slog.DiscardHandler))
 
 	d, err := NewDevice(
 		slog.New(slog.DiscardHandler),
@@ -40,7 +40,7 @@ func newDeviceTask(t *testing.T, interval time.Duration) (*Device, *inventory.St
 	)
 	require.NoError(t, err)
 
-	return d, store, conn.Conn
+	return d, store, conn
 }
 
 func TestDeviceDueInWithoutHistoryIsNow(t *testing.T) {
@@ -101,9 +101,9 @@ func TestDeviceDueInHoldsOffWhenTheStoreCannotBeRead(t *testing.T) {
 
 	conn, err := db.New(&db.Config{Path: t.TempDir(), Name: "closed.db"})
 	require.NoError(t, err)
-	require.NoError(t, conn.Conn.Close())
+	require.NoError(t, conn.Close())
 
-	d.store = inventory.New(conn.Conn, slog.New(slog.DiscardHandler))
+	d.store = inventory.New(conn, slog.New(slog.DiscardHandler))
 
 	assert.Equal(t, time.Hour, d.DueIn(t.Context()),
 		"an unreadable store must not pass for no history")
@@ -145,12 +145,12 @@ func newDiscoveryTask(t *testing.T, ds ...plugin.HostDiscoverer) (*Device, *sql.
 	conn, err := db.New(&db.Config{Path: t.TempDir(), Name: "test.db"})
 	require.NoError(t, err)
 
-	t.Cleanup(func() { _ = conn.Conn.Close() })
+	t.Cleanup(func() { _ = conn.Close() })
 
 	d, err := NewDevice(
 		slog.New(slog.DiscardHandler),
 		nil,
-		inventory.New(conn.Conn, slog.New(slog.DiscardHandler)),
+		inventory.New(conn, slog.New(slog.DiscardHandler)),
 		"test-sweep",
 		time.Hour,
 		nil,
@@ -158,7 +158,7 @@ func newDiscoveryTask(t *testing.T, ds ...plugin.HostDiscoverer) (*Device, *sql.
 	)
 	require.NoError(t, err)
 
-	return d, conn.Conn
+	return d, conn
 }
 
 func TestRunRecordsWhatEachSourceKnows(t *testing.T) {
