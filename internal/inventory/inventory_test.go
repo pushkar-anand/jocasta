@@ -701,9 +701,10 @@ func TestTwoSpellingsOfOneNameAreNotARename(t *testing.T) {
 	assert.NotContains(t, eventKinds(t, conn, id), dbtype.EventHostnameChanged)
 }
 
-// A source that stops reporting a name writes an empty claim over its old one,
-// which is what lets the runner-up be elected instead.
-func TestARetractedNameFallsBackToTheRunnerUp(t *testing.T) {
+// A sweep that once resolved a name and now resolves nothing has not renamed
+// the device: the claim keeps the last name, and the elected name does not fall
+// back to a lower source.
+func TestASilentSourceKeepsItsLastName(t *testing.T) {
 	t.Parallel()
 
 	s, conn := newStore(t)
@@ -718,16 +719,16 @@ func TestARetractedNameFallsBackToTheRunnerUp(t *testing.T) {
 	sweep(t, s, host("192.0.2.10", macA, ""))
 
 	name, standing := claimOf(t, conn, id, "test-sweep")
-	assert.Empty(t, name)
-	assert.Empty(t, standing)
+	assert.Equal(t, "host-a.example.com", name)
+	assert.Equal(t, string(dbtype.HostnameFromDNS), standing)
 
-	assert.Equal(t, "printer", queryString(t, conn, `SELECT hostname FROM devices`))
-	assert.Equal(t, string(dbtype.HostnameFromDHCPStatic), queryString(t, conn, `SELECT hostname_source FROM devices`))
+	assert.Equal(t, "host-a.example.com", queryString(t, conn, `SELECT hostname FROM devices`))
+	assert.Equal(t, string(dbtype.HostnameFromDNS), queryString(t, conn, `SELECT hostname_source FROM devices`))
 }
 
-// Every source retracting leaves the device nameless rather than holding a name
-// nothing claims any more.
-func TestADeviceCanLoseItsNameEntirely(t *testing.T) {
+// A device whose only source of a name goes quiet keeps that name rather than
+// going nameless. last_seen on the claim ages, which is where staleness shows.
+func TestADeviceKeepsItsNameWhenTheResolverGoesQuiet(t *testing.T) {
 	t.Parallel()
 
 	s, conn := newStore(t)
@@ -735,8 +736,45 @@ func TestADeviceCanLoseItsNameEntirely(t *testing.T) {
 	sweep(t, s, host("192.0.2.10", macA, "host-a.example.com"))
 	sweep(t, s, host("192.0.2.10", macA, ""))
 
-	assert.Equal(t, 1, queryInt(t, conn, `SELECT count(*) FROM devices WHERE hostname IS NULL`))
-	assert.Equal(t, 1, queryInt(t, conn, `SELECT count(*) FROM devices WHERE hostname_source IS NULL`))
+	assert.Equal(t, "host-a.example.com", queryString(t, conn, `SELECT hostname FROM devices`))
+	assert.Equal(t, string(dbtype.HostnameFromDNS), queryString(t, conn, `SELECT hostname_source FROM devices`))
+}
+
+// A multi-homed host answers a sweep on every address it holds, and the reverse
+// lookup succeeds for one and not the other. The address with no PTR must not
+// clear the name the other resolved, and repeating the sweep must not log a
+// rename every pass.
+func TestAMultiHomedHostKeepsAResolvedNameAcrossAllItsAddresses(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	named := func() {
+		sweep(t, s,
+			host("192.0.2.10", macA, ""),
+			host("192.0.2.11", macA, "host-a.example.com"),
+		)
+	}
+
+	named()
+
+	id := deviceIDByMAC(t, conn, macA)
+	require.Equal(t, "host-a.example.com", queryString(t, conn, `SELECT hostname FROM devices`))
+
+	named()
+	named()
+
+	assert.Equal(t, "host-a.example.com", queryString(t, conn, `SELECT hostname FROM devices`))
+
+	var changes int
+
+	for _, k := range eventKinds(t, conn, id) {
+		if k == dbtype.EventHostnameChanged {
+			changes++
+		}
+	}
+
+	assert.Zero(t, changes, "a stable multi-homed host should log no renames")
 }
 
 func TestFoldCarriesClaimsToTheSurvivingDevice(t *testing.T) {
