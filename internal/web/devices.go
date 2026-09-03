@@ -44,7 +44,32 @@ type devicesData struct {
 	// Page is the 1-based page the form asked for, before it is clamped to how
 	// many there turned out to be.
 	Page int
+
+	// Base is where this list lives, "/devices" when empty. The network page
+	// reuses the list scoped to one prefix and sets Base to its own path, so
+	// the filter form and the pager address that page rather than /devices.
+	Base string
+
+	// OnNetwork is the prefix the list is pinned to on a network's page. The
+	// network select is left out then, since the path already names it, and
+	// the query string carries no redundant network id.
+	OnNetwork *inventory.Network
 }
+
+// listPath is where this list lives.
+func (d devicesData) listPath() string {
+	if d.Base != "" {
+		return d.Base
+	}
+
+	return "/devices"
+}
+
+// FilterAction is where the filter form submits without htmx.
+func (d devicesData) FilterAction() string { return d.listPath() }
+
+// FilterRows is the fragment endpoint the filter form fetches with htmx.
+func (d devicesData) FilterRows() string { return d.listPath() + "/rows" }
 
 // listPager positions a paginated list: which page is shown, how many there
 // are in total, and the ready-built addresses of the pages either side. A nil
@@ -101,6 +126,12 @@ func (d devicesData) params() url.Values {
 		}
 	}
 
+	// On a network's page the prefix is the path, so repeating it in the query
+	// string would only be there to fall out of step with the path.
+	if d.OnNetwork != nil {
+		q.Del("network")
+	}
+
 	if d.IncludeIgnored {
 		q.Set("ignored", "1")
 	}
@@ -109,7 +140,7 @@ func (d devicesData) params() url.Values {
 }
 
 // address is the URL of this list on a given page. Page one carries no page
-// parameter, so an unfiltered first page is just "/devices".
+// parameter, so an unfiltered first page is just the list's own path.
 func (d devicesData) address(page int) string {
 	q := d.params()
 
@@ -118,10 +149,10 @@ func (d devicesData) address(page int) string {
 	}
 
 	if len(q) == 0 {
-		return "/devices"
+		return d.listPath()
 	}
 
-	return "/devices?" + q.Encode()
+	return d.listPath() + "?" + q.Encode()
 }
 
 // canonical is the address of the page showing this list. The fragment endpoint
@@ -229,10 +260,27 @@ func (h *Handler) deviceRows(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) devicesData(r *http.Request) (*devicesData, error) {
+	return h.deviceListData(r, view{Title: "Devices", Section: "Devices"}, "", nil)
+}
+
+// deviceListData builds the filtered, paged device list. base and onNetwork are
+// empty for /devices; the network page passes its own path and prefix so the
+// same list, form and pager render scoped to one network.
+func (h *Handler) deviceListData(
+	r *http.Request, v view, base string, onNetwork *inventory.Network,
+) (*devicesData, error) {
 	ctx := r.Context()
 
 	data := deviceForm(r.URL.Query())
-	data.view = view{Title: "Devices", Section: "Devices"}
+	data.view = v
+	data.Base = base
+	data.OnNetwork = onNetwork
+
+	// On a network's page the prefix is the path, not a choice, so it is forced
+	// past whatever the query string asked for.
+	if onNetwork != nil {
+		data.Network = strconv.FormatInt(onNetwork.ID, 10)
+	}
 
 	devices, err := h.store.ListDevices(ctx, data.filter())
 	if err != nil {

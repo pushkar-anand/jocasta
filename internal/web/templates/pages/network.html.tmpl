@@ -1,7 +1,7 @@
 {{ define "page/network" }}
 {{- template "layout/head" . }}
 
-{{- with .Network }}
+{{- with .OnNetwork }}
 <section class="block">
     <p class="eyebrow">Network</p>
     <div class="card panel">
@@ -39,6 +39,8 @@
     <div class="block__head">
         <p class="eyebrow">Devices</p>
     </div>
+
+    {{ template "partial/device-filters" . }}
     {{ template "partial/device-rows" . }}
 </section>
 

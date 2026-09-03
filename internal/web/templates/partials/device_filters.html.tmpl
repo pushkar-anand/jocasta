@@ -1,0 +1,90 @@
+{{- /*
+    The device list's filter form. Shared by the Devices page and a network's
+    page: FilterAction and FilterRows are where it submits and what it fetches,
+    so the same form narrows /devices or the list on one prefix. On a network's
+    page OnNetwork is set and the network select is left out -- the path names
+    the network already.
+
+    The form fetches only the table. It targets the fragment endpoint, which
+    answers with HX-Push-Url naming the page, so the address bar ends up
+    somewhere that can be reloaded or shared. Without htmx it submits normally
+    and the server renders the filtered page.
+*/ -}}
+{{ define "partial/device-filters" }}
+<form class="filters" role="search" action="{{ .FilterAction }}" method="get"
+      hx-get="{{ .FilterRows }}"
+      hx-target="#device-rows"
+      hx-swap="outerHTML"
+      hx-trigger="input changed delay:300ms, change, submit">
+    <label class="field field--search">
+        <span class="visually-hidden">Find</span>
+        <svg class="field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>
+        </svg>
+        <input type="search" name="q" value="{{ .Query }}"
+               placeholder="name, address, vendor" autocomplete="off">
+    </label>
+
+    <label class="field">
+        <span class="visually-hidden">Group</span>
+        <select name="group">
+            <option value="">Any group</option>
+            {{- range .Groups }}
+            <option value="{{ . }}"{{ if eq . $.Group }} selected{{ end }}>{{ . }}</option>
+            {{- end }}
+        </select>
+    </label>
+
+    {{- if not .OnNetwork }}
+    <label class="field">
+        <span class="visually-hidden">Network</span>
+        <select name="network">
+            <option value="">Any network</option>
+            {{- range .Networks }}
+            <option value="{{ .ID }}"{{ if eq (printf "%d" .ID) $.Network }} selected{{ end }}>
+                {{- .CIDR }}{{ with .Name }} &middot; {{ . }}{{ end }}{{ if .VLAN }} &middot; VLAN {{ .VLAN }}{{ end -}}
+            </option>
+            {{- end }}
+        </select>
+    </label>
+    {{- end }}
+
+    <label class="field">
+        <span class="visually-hidden">Type</span>
+        <select name="type">
+            <option value="">Any type</option>
+            {{- range classChoices }}
+            <option value="{{ .Value }}"{{ if eq (printf "%s" .Value) $.Type }} selected{{ end }}>{{ .Label }}</option>
+            {{- end }}
+        </select>
+    </label>
+
+    <label class="field">
+        <span class="visually-hidden">Seen</span>
+        <select name="status">
+            <option value="">Any presence</option>
+            <option value="online"{{ if eq .Status "online" }} selected{{ end }}>Seen recently</option>
+            <option value="offline"{{ if eq .Status "offline" }} selected{{ end }}>Quiet</option>
+        </select>
+    </label>
+
+    <label class="field">
+        <span class="visually-hidden">Order</span>
+        <select name="sort">
+            <option value="">Last seen</option>
+            <option value="address"{{ if eq .Sort "address" }} selected{{ end }}>Address</option>
+            <option value="name"{{ if eq .Sort "name" }} selected{{ end }}>Name</option>
+            <option value="type"{{ if eq .Sort "type" }} selected{{ end }}>Type</option>
+        </select>
+    </label>
+
+    <label class="check">
+        <input type="checkbox" name="ignored" value="1"{{ if .IncludeIgnored }} checked{{ end }}>
+        <span>Show ignored</span>
+    </label>
+
+    {{- /* Reached only without htmx, where the form has to be submitted. */}}
+    <noscript><button type="submit" class="btn">Apply</button></noscript>
+</form>
+{{ end }}

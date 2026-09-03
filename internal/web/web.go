@@ -89,6 +89,7 @@ func NewHandler(log *slog.Logger, reader *request.Reader, store *inventory.Store
 	h.mux.HandleFunc("PATCH /devices/{id}/row", h.updateDeviceRow)
 
 	h.mux.HandleFunc("GET /networks/{id}", h.network)
+	h.mux.HandleFunc("GET /networks/{id}/rows", h.networkRows)
 
 	h.mux.HandleFunc("GET /events", h.events)
 	h.mux.HandleFunc("GET /scans", h.scans)
