@@ -29,6 +29,15 @@ func TestClassIconCoversEveryClass(t *testing.T) {
 	assert.Empty(t, classIcon(classify.Unknown), "an unclassified device shows no icon")
 }
 
+func TestConfidenceWordsEveryBand(t *testing.T) {
+	t.Parallel()
+
+	assert.Empty(t, confidence(classify.NoConfidence))
+	assert.NotEmpty(t, confidence(classify.Low))
+	assert.NotEmpty(t, confidence(classify.Medium))
+	assert.NotEmpty(t, confidence(classify.High))
+}
+
 func TestClassChoicesMatchesTheVocabulary(t *testing.T) {
 	t.Parallel()
 
