@@ -106,6 +106,16 @@ func (s *Store) Device(ctx context.Context, id int64) (*Device, error) {
 
 	slices.SortFunc(d.Current, netip.Addr.Compare)
 
+	ports, err := s.q.ListDevicePorts(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("ports of device %d: %w", id, err)
+	}
+
+	d.Ports = make([]*Port, 0, len(ports))
+	for _, p := range ports {
+		d.Ports = append(d.Ports, newPort(p))
+	}
+
 	return d, nil
 }
 

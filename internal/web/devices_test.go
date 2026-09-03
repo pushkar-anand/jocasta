@@ -514,6 +514,57 @@ func TestDevicePageShowsWhatEachSourceClaims(t *testing.T) {
 	assert.NotContains(t, body, "ZgotmplZ")
 }
 
+// A device a port scan has reached shows its open ports, and a port that has
+// since gone quiet as closed rather than dropping it.
+func TestDevicePageShowsOpenPorts(t *testing.T) {
+	t.Parallel()
+
+	store := testStore(t)
+
+	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix),
+		[]scanner.Host{host("192.0.2.10", macA, "printer.example.com")})
+	require.NoError(t, err)
+
+	_, err = store.RecordPorts(t.Context(), "test-sweep", []scanner.PortScan{
+		{Addr: netip.MustParseAddr("192.0.2.10"), Open: []uint16{22, 443}, Scanned: []uint16{22, 80, 443}},
+	})
+	require.NoError(t, err)
+
+	_, err = store.RecordPorts(t.Context(), "test-sweep", []scanner.PortScan{
+		{Addr: netip.MustParseAddr("192.0.2.10"), Open: []uint16{22}, Scanned: []uint16{22, 80, 443}},
+	})
+	require.NoError(t, err)
+
+	rec := get(t, NewHandler(testLogger(), testReader(t), store), "/devices/1")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+
+	assert.Contains(t, body, `<p class="eyebrow">Ports</p>`)
+	assert.Contains(t, body, "ssh")
+	assert.Contains(t, body, "https")
+	assert.Contains(t, body, "open")
+	assert.Contains(t, body, "closed")
+
+	// The history renders the port events as sentences, not as stored constants.
+	assert.Contains(t, body, "began answering on")
+	assert.Contains(t, body, "stopped answering on")
+	assert.Contains(t, body, "port 443 (https)")
+	assert.NotContains(t, body, "PORT_OPENED")
+	assert.NotContains(t, body, "ZgotmplZ")
+}
+
+// A device no port scan has reached leaves the section out rather than drawing
+// it empty.
+func TestDevicePageWithoutPortsOmitsTheSection(t *testing.T) {
+	t.Parallel()
+
+	rec := get(t, seeded(t), "/devices/1")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	assert.NotContains(t, rec.Body.String(), `<p class="eyebrow">Ports</p>`)
+}
+
 // A device nothing has claimed yet still renders: the section is left out
 // rather than drawn empty.
 func TestDevicePageWithoutClaimsOmitsTheSection(t *testing.T) {

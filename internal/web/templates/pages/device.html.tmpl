@@ -57,6 +57,13 @@
 </section>
 {{- end }}
 
+{{- with .Device.Ports }}
+<section class="block">
+    <p class="eyebrow">Ports</p>
+    {{- template "partial/device-ports" . }}
+</section>
+{{- end }}
+
 {{- if .Claims }}
 <section class="block">
     <p class="eyebrow">Sources</p>

@@ -24,7 +24,9 @@ Ignored devices are hidden unless you ask for them.
 
 Shows the identity Jocasta resolved, the user-owned fields (label, group, type,
 notes, which no scan or plugin writes), every address the device holds and its
-network, and what each source calls the device.
+network, and what each source calls the device. Once a port scan has reached the
+device (see [setup](setup.md#ports)), a Ports section lists the TCP ports it was
+found listening on, and the ones it has since stopped answering on as closed.
 
 ![Device page](img/device.png)
 

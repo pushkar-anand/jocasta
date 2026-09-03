@@ -229,7 +229,7 @@ Mounted under `/api`. Non-GET requests must come from the same origin.
 | `GET /api/stats` | Inventory counts. |
 | `GET /api/groups` | The groups devices are filed under. |
 | `GET /api/devices` | List devices, with filters. |
-| `GET /api/devices/{id}` | One device with its addresses and sources. |
+| `GET /api/devices/{id}` | One device with its addresses, open ports, and sources. |
 | `PATCH /api/devices/{id}` | Update the user-owned fields (label, group, type, notes, ignored). |
 | `GET /api/devices/{id}/events` | One device's change log. |
 | `GET /api/events` | The whole change log. |
