@@ -120,6 +120,27 @@ func TestASegmentTheRouterDescribedCatchesItsAddresses(t *testing.T) {
 		"198.51.100.5"))
 }
 
+// A device the user ignored is left off the network page's list, so it must be
+// left out of the count above it too.
+func TestListNetworksLeavesOutIgnoredDevices(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, host("192.0.2.10", macA, "printer.local"))
+	sweep(t, s, host("192.0.2.11", macB, "nas.local"))
+
+	_, err := s.UpdateCuration(t.Context(), deviceIDByMAC(t, conn, macB), Curation{Ignored: true})
+	require.NoError(t, err)
+
+	networks, err := s.ListNetworks(t.Context())
+	require.NoError(t, err)
+
+	require.Len(t, networks, 1)
+	assert.Equal(t, 1, networks[0].Total, "the ignored device is not on the prefix as far as the overview is concerned")
+	assert.Equal(t, 1, networks[0].Online)
+}
+
 func TestRecordNetworksAcceptsNothingToRecord(t *testing.T) {
 	t.Parallel()
 

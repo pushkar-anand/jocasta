@@ -303,18 +303,23 @@ FROM devices;
 -- the overview asks what is on a prefix, not how the inventory divides into
 -- disjoint parts. A network no sweep has found anything on still lists, at
 -- zero -- that it is quiet is the fact worth showing.
+--
+-- Ignored devices are left out, so the count agrees with the list the network
+-- page draws below it: the join drops them and the counts are over d.id rather
+-- than a.device_id, which would still be set for an address whose device the
+-- join excluded.
 -- name: ListNetworks :many
 SELECT n.id,
        n.cidr,
        n.name,
        n.vlan_id,
-       CAST(COUNT(DISTINCT a.device_id) AS INTEGER) AS total,
+       CAST(COUNT(DISTINCT d.id) AS INTEGER) AS total,
        CAST(COUNT(DISTINCT CASE
-                               WHEN d.last_seen >= sqlc.arg(online_since) THEN a.device_id
-           END) AS INTEGER)                         AS online
+                               WHEN d.last_seen >= sqlc.arg(online_since) THEN d.id
+           END) AS INTEGER)                  AS online
 FROM networks n
          LEFT JOIN addresses a ON a.network_id = n.id AND a.is_current = 1
-         LEFT JOIN devices d ON d.id = a.device_id
+         LEFT JOIN devices d ON d.id = a.device_id AND d.is_ignored = 0
 GROUP BY n.id
 ORDER BY n.cidr;
 
