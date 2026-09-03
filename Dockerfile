@@ -21,10 +21,21 @@ COPY . .
 # platform when building with plain `docker build`.
 ARG TARGETOS
 ARG TARGETARCH
+
+# The build context excludes .git, so the toolchain cannot stamp the version
+# itself. The release workflow passes it in; a plain `docker build` leaves these
+# empty and `jocasta version` reports "dev".
+ARG VERSION
+ARG COMMIT
+ARG DATE
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
-    go build -trimpath -ldflags="-s -w" -o /out/jocasta ./cmd/jocasta
+    go build -trimpath -ldflags="-s -w \
+      -X github.com/pushkar-anand/jocasta/internal/version.tag=${VERSION} \
+      -X github.com/pushkar-anand/jocasta/internal/version.commit=${COMMIT} \
+      -X github.com/pushkar-anand/jocasta/internal/version.date=${DATE}" \
+    -o /out/jocasta ./cmd/jocasta
 
 # The database directory is created here so it can be copied in with the right
 # ownership; the runtime image has no shell to mkdir with.

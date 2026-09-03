@@ -56,6 +56,14 @@ func run(args []string) error {
 		return err
 	}
 
+	// version reports the build and exits. It is handled here because the steps
+	// below load configuration and open the database, and opening the database
+	// creates one when none exists -- a surprising side effect of asking for a
+	// version number.
+	if kCtx.Command() == "version" {
+		return kCtx.Run()
+	}
+
 	cfg, err := loadConfig(&cli)
 	if err != nil {
 		return err

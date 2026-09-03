@@ -1,32 +1,20 @@
 package api
 
 import (
-	"errors"
 	"net/http"
-	"runtime/debug"
 
 	"github.com/pushkar-anand/build-with-go/http/response"
+	"github.com/pushkar-anand/jocasta/internal/version"
 )
 
+type healthResponse struct {
+	Version string `json:"version"`
+}
+
 func (h *Handler) healthHandler() response.HandlerFunc {
-	info, ok := debug.ReadBuildInfo()
-
-	type healthResponse struct {
-		Version string `json:"version"`
-	}
-
-	var res *healthResponse
-	if ok {
-		res = &healthResponse{
-			Version: info.Main.Version,
-		}
-	}
+	res := healthResponse{Version: version.Get().Version}
 
 	return func(w http.ResponseWriter, r *http.Request) error {
-		if !ok {
-			return errors.New("failed to read build info")
-		}
-
 		h.jsonWriter.Ok(w, r, res)
 
 		return nil

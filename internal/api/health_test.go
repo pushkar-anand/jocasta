@@ -16,8 +16,9 @@ func TestHealthEndpoint(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 	assert.Equal(t, "application/json; charset=utf-8", headers.Get("Content-Type"))
 
-	// The value is whatever the build stamped in, which is empty for a test
-	// binary, so only the shape of the payload is worth asserting.
+	// The value is whatever the build stamped in, which is the "dev"
+	// placeholder for a test binary, so only the shape of the payload is worth
+	// asserting.
 	require.Contains(t, body, "version")
 	assert.Len(t, body, 1)
 }

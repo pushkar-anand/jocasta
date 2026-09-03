@@ -15,6 +15,8 @@ type CLI struct {
 	Scan  ScanCmd  `cmd:"" help:"Scan network addresses with ICMP echo requests."`
 
 	Plugin PluginCmd `cmd:"" help:"Read a configured source directly."`
+
+	Version VersionCmd `cmd:"" help:"Print build information."`
 }
 
 // newParser builds the parser for cli. Tests call it too, so the grammar they

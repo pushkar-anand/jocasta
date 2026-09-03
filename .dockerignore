@@ -7,6 +7,7 @@
 .idea
 .junie
 bin/
+dist/
 *.db
 *.out
 coverage.*

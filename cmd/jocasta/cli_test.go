@@ -71,6 +71,15 @@ func TestCLIServeFlags(t *testing.T) {
 	assert.Equal(t, 9090, cli.Serve.Port)
 }
 
+func TestCLIVersionCommand(t *testing.T) {
+	t.Parallel()
+
+	_, kCtx, err := parseCLI(t, []string{"version"})
+	require.NoError(t, err)
+
+	assert.Equal(t, "version", kCtx.Command())
+}
+
 func TestCLIScanCommandDefaults(t *testing.T) {
 	t.Parallel()
 
