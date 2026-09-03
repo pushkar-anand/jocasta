@@ -830,6 +830,53 @@ func (q *Queries) ListDeviceOpenPorts(ctx context.Context, deviceID int64) ([]*D
 	return items, nil
 }
 
+const listDevicePorts = `-- name: ListDevicePorts :many
+SELECT device_id, port, state, service, first_seen, last_seen, changed_at
+FROM device_ports
+WHERE device_id = ?
+ORDER BY state DESC, port
+`
+
+// Every port ever seen open on a device, for the device page. Open ones lead --
+// 'open' sorts after 'closed', so DESC puts them first -- then by number. A
+// closed row is where a service used to answer, which is worth seeing beside
+// the ones that still do.
+//
+//	SELECT device_id, port, state, service, first_seen, last_seen, changed_at
+//	FROM device_ports
+//	WHERE device_id = ?
+//	ORDER BY state DESC, port
+func (q *Queries) ListDevicePorts(ctx context.Context, deviceID int64) ([]*DevicePort, error) {
+	rows, err := q.query(ctx, q.listDevicePortsStmt, listDevicePorts, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*DevicePort
+	for rows.Next() {
+		var i DevicePort
+		if err := rows.Scan(
+			&i.DeviceID,
+			&i.Port,
+			&i.State,
+			&i.Service,
+			&i.FirstSeen,
+			&i.LastSeen,
+			&i.ChangedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDeviceSources = `-- name: ListDeviceSources :many
 SELECT ds.device_id, ds.source_id, ds.hostname, ds.hostname_source, ds.detail, ds.first_seen, ds.last_seen, s.name AS source_name, s.kind AS source_kind
 FROM device_sources ds

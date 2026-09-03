@@ -52,6 +52,11 @@ type Device struct {
 	// fills it: a list would need a row per address to say when each was seen,
 	// and it only ever shows the current ones.
 	Addresses []*Address `json:"addresses,omitempty"`
+
+	// Ports is every TCP port a scan has found open on the device, the ones
+	// still answering first. Only Device fills it, for the same reason
+	// Addresses is.
+	Ports []*Port `json:"ports,omitempty"`
 }
 
 // Name is what to call the device: whatever the user labelled it, falling back
@@ -77,6 +82,25 @@ type Address struct {
 	// tracking, or one on a prefix nothing has recorded.
 	Network *Network `json:"network,omitempty"`
 }
+
+// Port is one TCP port a scan has found a device listening on, or found it
+// listening on once and later found shut. Only a port seen open is ever
+// recorded, so the list is what the device exposes now plus what it used to.
+type Port struct {
+	Number  uint16           `json:"port"`
+	Service string           `json:"service,omitempty"`
+	State   dbtype.PortState `json:"state"`
+
+	// FirstSeen is the first scan that found the port open; LastSeen the most
+	// recent scan that had an opinion on it. ChangedAt is when the state last
+	// flipped, so "open since" and "closed on" stay distinct from either.
+	FirstSeen time.Time `json:"first_seen"`
+	LastSeen  time.Time `json:"last_seen"`
+	ChangedAt time.Time `json:"changed_at"`
+}
+
+// Open reports whether the port answered the most recent scan that reached it.
+func (p *Port) Open() bool { return p.State == dbtype.PortOpen }
 
 // Claim is what one source says about a device, as it is displayed.
 //
@@ -282,6 +306,18 @@ func newAddress(a *models.Address) *Address {
 		Current:   a.IsCurrent,
 		FirstSeen: a.FirstSeen.Time,
 		LastSeen:  a.LastSeen.Time,
+	}
+}
+
+func newPort(p *models.DevicePort) *Port {
+	return &Port{
+		// device_ports.port is CHECK-constrained to 1-65535, so it fits.
+		Number:    uint16(p.Port), //nolint:gosec // range enforced by the column CHECK.
+		Service:   p.Service.String,
+		State:     p.State,
+		FirstSeen: p.FirstSeen.Time,
+		LastSeen:  p.LastSeen.Time,
+		ChangedAt: p.ChangedAt.Time,
 	}
 }
 

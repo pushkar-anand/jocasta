@@ -356,6 +356,16 @@ FROM device_ports
 WHERE device_id = ?
   AND state = 'open';
 
+-- Every port ever seen open on a device, for the device page. Open ones lead --
+-- 'open' sorts after 'closed', so DESC puts them first -- then by number. A
+-- closed row is where a service used to answer, which is worth seeing beside
+-- the ones that still do.
+-- name: ListDevicePorts :many
+SELECT *
+FROM device_ports
+WHERE device_id = ?
+ORDER BY state DESC, port;
+
 -- A port answered. A new row, or a closed one coming back: first_seen holds the
 -- first time it was ever open and changed_at moves only on a real transition,
 -- so "open since" and "state changed" stay distinct.

@@ -2,8 +2,10 @@ package api
 
 import (
 	"net/http"
+	"net/netip"
 	"testing"
 
+	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -108,6 +110,43 @@ func TestGetDevice(t *testing.T) {
 
 	// Only the detail response carries the address history.
 	assert.NotEmpty(t, list(t, body, "addresses"))
+}
+
+// The detail response carries the open ports a scan has recorded; the list does
+// not.
+func TestGetDeviceCarriesOpenPorts(t *testing.T) {
+	t.Parallel()
+
+	store := testStore(t)
+
+	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix),
+		[]scanner.Host{host("192.0.2.10", macA, "printer.local")})
+	require.NoError(t, err)
+
+	_, err = store.RecordPorts(t.Context(), "test-sweep", []scanner.PortScan{
+		{Addr: netip.MustParseAddr("192.0.2.10"), Open: []uint16{22}, Scanned: []uint16{22, 80}},
+	})
+	require.NoError(t, err)
+
+	h := NewHandler(testLogger(), testReader(t), store)
+
+	status, _, body := get(t, h, "/devices/1")
+	require.Equal(t, http.StatusOK, status)
+
+	ports := list(t, body, "ports")
+	require.Len(t, ports, 1)
+
+	port, ok := ports[0].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, float64(22), port["port"])
+	assert.Equal(t, "ssh", port["service"])
+	assert.Equal(t, "open", port["state"])
+
+	// The list carries no ports.
+	_, _, listed := get(t, h, "/devices")
+	first, ok := list(t, listed, "devices")[0].(map[string]any)
+	require.True(t, ok)
+	assert.NotContains(t, first, "ports")
 }
 
 func TestGetDeviceUnknownIDIsNotFound(t *testing.T) {

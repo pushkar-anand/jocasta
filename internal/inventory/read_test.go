@@ -276,6 +276,37 @@ func TestGetDeviceCarriesEachAddressNetwork(t *testing.T) {
 	assert.Equal(t, prefix, d.Addresses[0].Network.CIDR)
 }
 
+// The device read carries the ports a scan has found, still-open ones first,
+// and only the detail read fills them.
+func TestGetDeviceCarriesOpenPorts(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, "printer.local"))
+	id := deviceIDByMAC(t, conn, macA)
+
+	recordPorts(t, s, portScan("192.0.2.10", []uint16{22, 443}, []uint16{22, 80, 443}))
+	recordPorts(t, s, portScan("192.0.2.10", []uint16{22}, []uint16{22, 80, 443})) // 443 goes quiet
+
+	d, err := s.Device(t.Context(), id)
+	require.NoError(t, err)
+
+	require.Len(t, d.Ports, 2)
+
+	assert.Equal(t, uint16(22), d.Ports[0].Number)
+	assert.Equal(t, "ssh", d.Ports[0].Service)
+	assert.True(t, d.Ports[0].Open())
+
+	assert.Equal(t, uint16(443), d.Ports[1].Number)
+	assert.False(t, d.Ports[1].Open(), "the port that stopped answering keeps its row, closed")
+
+	// A list read does not pay for the ports.
+	list, err := s.ListDevices(t.Context(), DeviceFilter{})
+	require.NoError(t, err)
+	require.NotEmpty(t, list)
+	assert.Nil(t, list[0].Ports)
+}
+
 func TestDeviceEventsAreMostRecentFirst(t *testing.T) {
 	t.Parallel()
 

@@ -1,6 +1,7 @@
 package web
 
 import (
+	"cmp"
 	"html/template"
 	"net/netip"
 	"strconv"
@@ -166,6 +167,10 @@ func phrase(k dbtype.EventKind) string {
 		return "was relabelled"
 	case dbtype.EventDeviceEdited:
 		return "was edited"
+	case dbtype.EventPortOpened:
+		return "began answering on"
+	case dbtype.EventPortClosed:
+		return "stopped answering on"
 	}
 
 	// A kind added in Go and not yet worded here still has to render as
@@ -181,9 +186,9 @@ func tone(k dbtype.EventKind) string {
 	switch k {
 	case dbtype.EventDeviceDiscovered:
 		return "act--arrival"
-	case dbtype.EventDeviceIdentified, dbtype.EventAddressAdded:
+	case dbtype.EventDeviceIdentified, dbtype.EventAddressAdded, dbtype.EventPortOpened:
 		return "act--learned"
-	case dbtype.EventDevicesMerged, dbtype.EventHostnameChanged, dbtype.EventAddressReleased:
+	case dbtype.EventDevicesMerged, dbtype.EventHostnameChanged, dbtype.EventAddressReleased, dbtype.EventPortClosed:
 		return "act--shape"
 	}
 
@@ -202,6 +207,8 @@ var glyphs = map[dbtype.EventKind]template.HTML{
 	dbtype.EventAddressReleased:  `<path d="M14 5H5v14h9"/><path d="M19 12H9M19 12l-4-4M19 12l-4 4"/>`,
 	dbtype.EventHostnameChanged:  `<path d="M20.5 12.5l-8-8H4v8.5l8 8a1.5 1.5 0 002 0l6.5-6.5a1.5 1.5 0 000-2z"/><circle cx="8" cy="8" r="1"/>`,
 	dbtype.EventDeviceEdited:     `<path d="M4 20h4l10-10a2.8 2.8 0 10-4-4L4 16v4z"/>`,
+	dbtype.EventPortOpened:       `<path d="M9 3v4M15 3v4"/><path d="M6 7h12v3a6 6 0 01-12 0z"/><path d="M12 16v5"/>`,
+	dbtype.EventPortClosed:       `<path d="M6 7h12v3a6 6 0 01-12 0z"/><path d="M12 16v5"/><path d="M4 4l16 16"/>`,
 }
 
 // eventIcon is the glyph for a kind. A kind with no glyph of its own gets the
@@ -263,6 +270,22 @@ func addrs(list []netip.Addr) string {
 func change(e *inventory.Event) string {
 	if e == nil {
 		return ""
+	}
+
+	// A port event carries the number in whichever value changed and the
+	// service name, where the port has a familiar one, in the detail. Neither
+	// reads as a before and after, so it is worded here rather than left to
+	// fall through to one.
+	if e.Kind == dbtype.EventPortOpened || e.Kind == dbtype.EventPortClosed {
+		port := cmp.Or(e.NewValue, e.OldValue)
+		switch {
+		case port == "":
+			return ""
+		case e.Detail != "":
+			return "port " + port + " (" + e.Detail + ")"
+		default:
+			return "port " + port
+		}
 	}
 
 	// An edit says which field it was about, since the user owns several. A

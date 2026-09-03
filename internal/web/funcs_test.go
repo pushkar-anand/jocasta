@@ -108,11 +108,13 @@ func TestPhrase(t *testing.T) {
 	assert.Equal(t, "was edited", phrase(dbtype.EventDeviceEdited))
 	assert.Equal(t, "picked up a new address", phrase(dbtype.EventAddressAdded))
 	assert.Equal(t, "let go of an address", phrase(dbtype.EventAddressReleased))
+	assert.Equal(t, "began answering on", phrase(dbtype.EventPortOpened))
+	assert.Equal(t, "stopped answering on", phrase(dbtype.EventPortClosed))
 
 	// events.kind carries no CHECK, so a kind added in Go without a phrase here
 	// still has to render as something, and its own name is the most truthful
 	// fallback.
-	assert.Equal(t, "ports scanned", phrase(dbtype.EventKind("PORTS_SCANNED")))
+	assert.Equal(t, "group assigned", phrase(dbtype.EventKind("GROUP_ASSIGNED")))
 }
 
 func TestTone(t *testing.T) {
@@ -124,19 +126,22 @@ func TestTone(t *testing.T) {
 	assert.Equal(t, "act--shape", tone(dbtype.EventDevicesMerged))
 	assert.Equal(t, "act--shape", tone(dbtype.EventAddressReleased))
 	assert.Equal(t, "act--edit", tone(dbtype.EventDeviceEdited))
+	assert.Equal(t, "act--learned", tone(dbtype.EventPortOpened))
+	assert.Equal(t, "act--shape", tone(dbtype.EventPortClosed))
 
 	// Anything not worded yet reads as an edit rather than as nothing.
-	assert.Equal(t, "act--edit", tone(dbtype.EventKind("PORTS_SCANNED")))
+	assert.Equal(t, "act--edit", tone(dbtype.EventKind("GROUP_ASSIGNED")))
 }
 
 func TestEventIcon(t *testing.T) {
 	t.Parallel()
 
 	assert.Equal(t, glyphs[dbtype.EventDeviceDiscovered], eventIcon(dbtype.EventDeviceDiscovered))
+	assert.Equal(t, glyphs[dbtype.EventPortOpened], eventIcon(dbtype.EventPortOpened))
 
 	// A kind with no glyph of its own falls back rather than rendering an empty
 	// tile, which would read as a rendering fault.
-	assert.Equal(t, glyphs[dbtype.EventDeviceEdited], eventIcon(dbtype.EventKind("PORTS_SCANNED")))
+	assert.Equal(t, glyphs[dbtype.EventDeviceEdited], eventIcon(dbtype.EventKind("GROUP_ASSIGNED")))
 }
 
 func TestHealth(t *testing.T) {
@@ -167,6 +172,13 @@ func TestChange(t *testing.T) {
 
 	// A discovery changed nothing; it is the thing that happened.
 	assert.Empty(t, change(&inventory.Event{}))
+
+	// A port event names the port and, where the port is a familiar one, the
+	// service, from whichever value the flip wrote.
+	assert.Equal(t, "port 22 (ssh)",
+		change(&inventory.Event{Kind: dbtype.EventPortOpened, NewValue: "22", Detail: "ssh"}))
+	assert.Equal(t, "port 44321",
+		change(&inventory.Event{Kind: dbtype.EventPortClosed, OldValue: "44321"}))
 
 	// An edit names the field, since the user owns several of them.
 	edit := &inventory.Event{Kind: dbtype.EventDeviceEdited, Detail: "label"}
