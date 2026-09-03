@@ -355,9 +355,22 @@ func (s *Store) report(ctx context.Context, r reading) (*Result, error) {
 	return res, nil
 }
 
-// open registers the source and opens a running scan row, recording the network
-// when the reading covered exactly one.
+// open registers the source and opens a running discovery scan, recording the
+// network when the reading covered exactly one.
 func (s *Store) open(ctx context.Context, r reading) (scanID, sourceID int64, err error) {
+	return s.openScan(ctx, r.source, r.kind, dbtype.ScanDiscovery, r.network)
+}
+
+// openScan is the first of the three phases every recorded reading shares: it
+// registers the source and opens a running scan row of the given kind,
+// recording the network when the reading covered exactly one.
+func (s *Store) openScan(
+	ctx context.Context,
+	source string,
+	srcKind dbtype.SourceKind,
+	scanKind dbtype.ScanKind,
+	network *netip.Prefix,
+) (scanID, sourceID int64, err error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, 0, fmt.Errorf("begin scan: %w", err)
@@ -368,9 +381,9 @@ func (s *Store) open(ctx context.Context, r reading) (scanID, sourceID int64, er
 	q := s.q.WithTx(tx)
 	at := s.stamp()
 
-	src, err := q.UpsertSource(ctx, models.UpsertSourceParams{Kind: r.kind, Name: r.source, CreatedAt: at})
+	src, err := q.UpsertSource(ctx, models.UpsertSourceParams{Kind: srcKind, Name: source, CreatedAt: at})
 	if err != nil {
-		return 0, 0, fmt.Errorf("upsert source %q: %w", r.source, err)
+		return 0, 0, fmt.Errorf("upsert source %q: %w", source, err)
 	}
 
 	// Recording the network here is also what lets the addresses in this
@@ -378,10 +391,10 @@ func (s *Store) open(ctx context.Context, r reading) (scanID, sourceID int64, er
 	// table until the scan that covers it opens.
 	var networkID sql.NullInt64
 
-	if r.network != nil {
-		nw, err := q.UpsertNetwork(ctx, models.UpsertNetworkParams{Cidr: dbtype.NewPrefix(*r.network), CreatedAt: at})
+	if network != nil {
+		nw, err := q.UpsertNetwork(ctx, models.UpsertNetworkParams{Cidr: dbtype.NewPrefix(*network), CreatedAt: at})
 		if err != nil {
-			return 0, 0, fmt.Errorf("upsert network %s: %w", r.network, err)
+			return 0, 0, fmt.Errorf("upsert network %s: %w", network, err)
 		}
 
 		networkID = sql.NullInt64{Int64: nw.ID, Valid: true}
@@ -389,7 +402,7 @@ func (s *Store) open(ctx context.Context, r reading) (scanID, sourceID int64, er
 
 	sc, err := q.CreateScan(ctx, models.CreateScanParams{
 		SourceID:  src.ID,
-		Kind:      dbtype.ScanDiscovery,
+		Kind:      scanKind,
 		NetworkID: networkID,
 		StartedAt: at,
 	})
@@ -922,14 +935,29 @@ func (s *Store) event(
 	kind dbtype.EventKind,
 	from, to, detail string,
 ) error {
-	err := p.q.CreateEvent(ctx, models.CreateEventParams{
+	return s.writeEvent(ctx, p.q, p.scanID, p.at, deviceID, kind, from, to, detail)
+}
+
+// writeEvent appends one row to the change log. It takes the queries, scan id
+// and timestamp loose rather than a pass, so a reading that does not build one
+// -- a port scan -- can log the same way.
+func (s *Store) writeEvent(
+	ctx context.Context,
+	q *models.Queries,
+	scanID int64,
+	at dbtype.Time,
+	deviceID int64,
+	kind dbtype.EventKind,
+	from, to, detail string,
+) error {
+	err := q.CreateEvent(ctx, models.CreateEventParams{
 		DeviceID:   sql.NullInt64{Int64: deviceID, Valid: true},
-		ScanID:     sql.NullInt64{Int64: p.scanID, Valid: true},
+		ScanID:     sql.NullInt64{Int64: scanID, Valid: true},
 		Kind:       kind,
 		OldValue:   nullString(from),
 		NewValue:   nullString(to),
 		Detail:     nullString(detail),
-		OccurredAt: p.at,
+		OccurredAt: at,
 	})
 	if err != nil {
 		return fmt.Errorf("record %s event: %w", kind, err)
