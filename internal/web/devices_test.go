@@ -453,7 +453,8 @@ func TestDevicesPagePaginates(t *testing.T) {
 
 	first := get(t, h, "/devices").Body.String()
 	assert.Equal(t, devicesPerPage, strings.Count(first, `id="device-row-`))
-	assert.Contains(t, first, "Page 1 of 2 &middot; 60 devices")
+	assert.Contains(t, first, "Page 1 of 2")
+	assert.Contains(t, first, "60 devices", "the whole-match count is in the heading")
 	assert.Contains(t, first, `rel="next"`)
 	assert.NotContains(t, first, `rel="prev"`)
 
@@ -467,14 +468,37 @@ func TestDevicesPagePaginates(t *testing.T) {
 	assert.Equal(t, 60-devicesPerPage, strings.Count(clamped, `id="device-row-`))
 }
 
-// A list that fits on one page carries no controls.
+// A list that fits on one page carries no pager, just the count.
 func TestDevicesPageWithoutEnoughForASecondPage(t *testing.T) {
 	t.Parallel()
 
 	body := get(t, seeded(t), "/devices").Body.String()
 
 	assert.NotContains(t, body, "pager--split")
-	assert.Contains(t, body, "2 shown")
+	assert.Contains(t, body, "2 devices")
+}
+
+// The count and the way to clear the filter ride inside the swapped fragment,
+// so they keep step with a filtered-down table.
+func TestDeviceListShowsMatchCountAndClear(t *testing.T) {
+	t.Parallel()
+
+	h := seeded(t)
+
+	// Nothing set: the count reads as the size of the inventory, no clear.
+	full := get(t, h, "/devices/rows").Body.String()
+	assert.Contains(t, full, "2 devices")
+	assert.NotContains(t, full, `class="clear"`)
+
+	// Filtered to one: the count reads as a match, and the clear leads back to
+	// the unfiltered list.
+	one := get(t, h, "/devices/rows?q=nas").Body.String()
+	assert.Contains(t, one, "1 match")
+	assert.Contains(t, one, `<a class="clear" href="/devices">`)
+
+	// On a network's page the clear drops the filter but keeps the prefix.
+	scoped := get(t, h, "/networks/1/rows?q=nas").Body.String()
+	assert.Contains(t, scoped, `<a class="clear" href="/networks/1">`)
 }
 
 func TestDeviceFormDropsUnrecognisedValues(t *testing.T) {

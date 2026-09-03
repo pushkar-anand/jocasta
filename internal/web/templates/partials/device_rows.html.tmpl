@@ -4,6 +4,10 @@
 */ -}}
 {{ define "partial/device-rows" }}
 <div id="device-rows">
+    {{- /* Inside the swapped fragment, so a filtered-down count is current the
+           moment the table is. */}}
+    <p class="rowcount">{{ .Count }}{{ if .Filtered }} <a class="clear" href="{{ .FilterAction }}">clear</a>{{ end }}</p>
+
     {{- if .Devices }}
     <div class="card card--table">
         <div class="scroller">
@@ -43,7 +47,7 @@
             Previous
         </a>
         {{- end }}
-        <span class="block__aside">Page {{ .Page }} of {{ .Pages }} &middot; {{ .Total }} devices</span>
+        <span class="block__aside">Page {{ .Page }} of {{ .Pages }}</span>
         {{- if .HasNext }}
         <a class="more" href="{{ .NextHref }}" rel="next">Next
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -51,8 +55,6 @@
         </a>
         {{- end }}
     </nav>
-    {{- else }}
-    <p class="block__aside">{{ len .Devices }} shown</p>
     {{- end }}
     {{- else }}
     <p class="dim">No device matches this filter.</p>
