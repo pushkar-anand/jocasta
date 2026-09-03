@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/pushkar-anand/jocasta/internal/inventory"
+	"github.com/pushkar-anand/jocasta/internal/scanner"
 )
 
 var defaults = map[string]any{
@@ -31,6 +32,7 @@ var defaults = map[string]any{
 	"scan.ports.enabled":         false,
 	"scan.ports.interval":        "6h",
 	"scan.ports.custom":          "",
+	"scan.ports.concurrency":     scanner.DefaultConcurrency,
 }
 
 // defaultSource names the vantage point sweeps are taken from when nothing

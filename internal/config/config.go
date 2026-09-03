@@ -81,6 +81,12 @@ type (
 			// "22,80,443,8000-8100" (see scanner.ParsePortSpec). Blank leaves
 			// the curated preset in place.
 			Custom string `koanf:"custom"`
+
+			// Concurrency caps the connections a scan opens at once. The whole
+			// probe of every address is one burst of new flows, and a cheap
+			// router's connection table is what that strains first, so lower it
+			// on modest gear and raise it only on real switching.
+			Concurrency int `koanf:"concurrency"`
 		} `koanf:"ports"`
 	}
 

@@ -19,13 +19,14 @@ import (
 
 // Default knobs for a homelab: a listening service on a LAN answers in
 // single-digit milliseconds, so half a second is really the budget for a
-// firewalled port that will never answer; a few hundred sockets is nothing for
-// the host but a burst of them is what a cheap switch's connection table
-// handles worst.
-const (
-	defaultDialTimeout = 500 * time.Millisecond
-	defaultConcurrency = 256
-)
+// firewalled port that will never answer.
+const defaultDialTimeout = 500 * time.Millisecond
+
+// DefaultConcurrency caps connections in flight when nothing configures a
+// ceiling. A burst of new flows is what a cheap router's connection table
+// handles worst, and the scan runs on a long interval where finishing sooner
+// buys nothing, so the default stays well below where consumer gear strains.
+const DefaultConcurrency = 64
 
 // PortScan is what a probe found at one address.
 type PortScan struct {
@@ -127,13 +128,14 @@ func WithConcurrency(n int) PortOption {
 }
 
 // NewPortScanner builds a PortScanner with homelab defaults: the curated
-// preset, a half-second dial timeout and 256 connections in flight.
+// preset, a half-second dial timeout and [DefaultConcurrency] connections in
+// flight.
 func NewPortScanner(log *slog.Logger, opts ...PortOption) *PortScanner {
 	ps := &PortScanner{
 		log:         log,
 		ports:       presetPorts,
 		timeout:     defaultDialTimeout,
-		concurrency: defaultConcurrency,
+		concurrency: DefaultConcurrency,
 	}
 
 	for _, opt := range opts {

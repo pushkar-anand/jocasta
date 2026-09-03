@@ -9,6 +9,7 @@ import (
 	"github.com/pushkar-anand/build-with-go/config"
 	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
+	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -110,6 +111,10 @@ func TestLoadConfig(t *testing.T) {
 	assert.True(t, cfg.Scan.Ports.Enabled)
 	assert.Equal(t, 6*time.Hour, cfg.Scan.Ports.Interval)
 	assert.Equal(t, "22,80,8000-8100", cfg.Scan.Ports.Custom)
+
+	// Concurrency is untouched by the environment here, so it stays the
+	// scanner's default rather than falling to a zero that means "no limit".
+	assert.Equal(t, scanner.DefaultConcurrency, cfg.Scan.Ports.Concurrency)
 
 	// A map-keyed block collapses to a single zero-valued entry, with a nil
 	// error, if its shape is ever changed to a list. Both instances surviving an
