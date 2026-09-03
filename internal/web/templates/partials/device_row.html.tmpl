@@ -13,6 +13,18 @@
         </span>
     </td>
     <td class="mono">{{ addrs .Current }}</td>
+    <td>
+        {{- if .Networks }}
+        <span class="cell cell--wrap">
+            {{- range .Networks }}
+            <a class="mono" href="/networks/{{ .ID }}">{{ .CIDR }}</a>
+            {{- if .VLAN }}<span class="chip chip--brand">VLAN {{ .VLAN }}</span>{{ end }}
+            {{- end }}
+        </span>
+        {{- else }}
+        <span class="dim">&mdash;</span>
+        {{- end }}
+    </td>
     <td class="mono dim">{{ ports .OpenPorts }}</td>
     <td class="mono dim">{{ dash .MAC }}{{ if .Randomised }} <span class="chip chip--warn">randomised</span>{{ end }}</td>
     <td class="dim">{{ dash .Vendor }}</td>

@@ -6,7 +6,7 @@
 */ -}}
 {{ define "partial/device-row-form" }}
 <tr id="device-row-{{ .Device.ID }}" class="editing">
-    <td colspan="8">
+    <td colspan="9">
         <form class="inline-form"
               hx-patch="/devices/{{ .Device.ID }}/row"
               hx-target="#device-row-{{ .Device.ID }}"

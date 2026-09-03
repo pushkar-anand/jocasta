@@ -1,6 +1,7 @@
 package inventory
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
@@ -38,6 +39,19 @@ func (s *Store) ListDevices(ctx context.Context, f DeviceFilter) ([]*Device, err
 		return nil, fmt.Errorf("list devices: %w", err)
 	}
 
+	// The prefixes each device's current addresses sit on, so a row can name
+	// where the device lives. The table is a handful of rows, so it is read
+	// whole and indexed rather than joined -- the same choice Device makes.
+	networks, err := s.ListNetworks(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	byID := make(map[int64]*Network, len(networks))
+	for _, n := range networks {
+		byID[n.ID] = n
+	}
+
 	cutoff := s.onlineCutoff()
 	devices := make([]*Device, 0, len(rows))
 
@@ -45,6 +59,7 @@ func (s *Store) ListDevices(ctx context.Context, f DeviceFilter) ([]*Device, err
 		d := newDevice(&r.Device, cutoff)
 		d.Current = parseAddrs(r.CurrentIps)
 		d.OpenPorts = parsePorts(r.OpenPorts)
+		d.Networks = resolveNetworks(parseIDs(r.NetworkIds), byID)
 
 		// Online is decided against the clock, not the query, so the status
 		// filter is applied here rather than as one more SQL clause.
@@ -58,6 +73,25 @@ func (s *Store) ListDevices(ctx context.Context, f DeviceFilter) ([]*Device, err
 	sortDevices(devices, f.Sort)
 
 	return devices, nil
+}
+
+// resolveNetworks turns a device's network ids into the prefixes they name, in
+// CIDR order, dropping an id the networks list no longer holds.
+func resolveNetworks(ids []int64, byID map[int64]*Network) []*Network {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	out := make([]*Network, 0, len(ids))
+	for _, id := range ids {
+		if n, ok := byID[id]; ok {
+			out = append(out, n)
+		}
+	}
+
+	slices.SortFunc(out, func(a, b *Network) int { return cmp.Compare(a.CIDR, b.CIDR) })
+
+	return out
 }
 
 // Device returns one device with its full address history.
