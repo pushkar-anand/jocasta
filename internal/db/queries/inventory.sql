@@ -112,14 +112,24 @@ SET device_id = sqlc.arg(into_id)
 WHERE device_id = sqlc.arg(from_id);
 
 -- Upserted rather than replaced, so first_seen survives every later reading.
--- hostname is assigned rather than coalesced, or a name would become immortal
--- once any source had said it once.
+--
+-- A name only moves when this source offers one: an empty reading leaves the
+-- last name it knew in place rather than clearing it. A sweep resolves a name
+-- per address, so a multi-homed host with a PTR on one interface and none on
+-- another would otherwise thrash its name every pass; and a device that stops
+-- answering has not been renamed, it has gone quiet. last_seen still ages, so
+-- how stale the kept name is stays visible. A different non-empty name, from
+-- this source or a higher one, still replaces it.
 -- name: UpsertDeviceSource :exec
 INSERT INTO device_sources (device_id, source_id, hostname, hostname_source, detail, first_seen, last_seen)
 VALUES (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (device_id, source_id)
-    DO UPDATE SET hostname        = excluded.hostname,
-                  hostname_source = excluded.hostname_source,
+    DO UPDATE SET hostname        = CASE
+                                        WHEN excluded.hostname IS NOT NULL THEN excluded.hostname
+                                        ELSE device_sources.hostname END,
+                  hostname_source = CASE
+                                        WHEN excluded.hostname IS NOT NULL THEN excluded.hostname_source
+                                        ELSE device_sources.hostname_source END,
                   detail          = excluded.detail,
                   last_seen       = excluded.last_seen;
 

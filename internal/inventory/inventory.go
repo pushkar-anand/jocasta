@@ -819,9 +819,10 @@ func (s *Store) claim(ctx context.Context, p *pass, deviceID int64, ip dbtype.Ad
 // one column; the claims behind it are kept so the device page can show a source
 // that was outranked.
 //
-// Re-deriving from every claim on each pass is what makes retraction work: a
-// source that stops reporting a name writes an empty claim, and the runner-up
-// wins the next pass that touches the device.
+// Re-deriving from every claim on each pass is what lets a name that a source
+// has renamed, or that a higher source now contradicts, be picked up. A source
+// that simply stops reporting a name keeps the last one it gave (see
+// UpsertDeviceSource), so a device going quiet does not lose its name.
 func (s *Store) applyClaim(ctx context.Context, p *pass, d *models.Device, f plugin.Fact) error {
 	if err := s.recordClaim(ctx, p, d.ID, f); err != nil {
 		return err
@@ -869,8 +870,9 @@ func (s *Store) applyClaim(ctx context.Context, p *pass, d *models.Device, f plu
 	return s.event(ctx, p, d.ID, dbtype.EventHostnameChanged, d.Hostname.String, won.name, "")
 }
 
-// recordClaim files this source's reading, replacing what the same source said
-// before.
+// recordClaim files this source's reading over what the same source said
+// before, except that a reading with no name leaves the last name in place
+// rather than clearing it (see UpsertDeviceSource).
 //
 // last_seen advances whenever the source still reports the device, presence or
 // not: a router still holds a static lease with nothing plugged in. Whether
