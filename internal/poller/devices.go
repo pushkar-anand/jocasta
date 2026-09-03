@@ -50,8 +50,8 @@ func WithDiscoverers(ds ...plugin.HostDiscoverer) DeviceOption {
 // caller: what a deployment calls itself is a wiring question, and the task
 // stays testable without one.
 func NewDevice(
-	logger *slog.Logger,
-	scanner *scanner.Scanner,
+	log *slog.Logger,
+	sc *scanner.Scanner,
 	store *inventory.Store,
 	source string,
 	interval time.Duration,
@@ -69,17 +69,17 @@ func NewDevice(
 		np[i] = &p
 	}
 
-	if logger == nil {
-		logger = slog.Default()
+	if log == nil {
+		log = slog.Default()
 	}
 
 	d := &Device{
-		scanner:  scanner,
+		scanner:  sc,
 		store:    store,
 		source:   source,
 		interval: interval,
 		networks: np,
-		logger:   logger,
+		logger:   log,
 	}
 
 	for _, opt := range opts {

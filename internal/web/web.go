@@ -273,27 +273,27 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 // Renderer writes html/template pages and fragments to an [http.ResponseWriter].
 type Renderer struct {
 	templates *template.Template
-	logger    *slog.Logger
+	log       *slog.Logger
 }
 
 // NewRenderer returns a Renderer over an already-parsed template set.
-func NewRenderer(templates *template.Template, logger *slog.Logger) *Renderer {
+func NewRenderer(templates *template.Template, log *slog.Logger) *Renderer {
 	return &Renderer{
 		templates: templates,
-		logger:    logger,
+		log:       log,
 	}
 }
 
 // Render writes the named template. Pages and fragments go through here alike:
 // with htmx there is no third thing a fragment needs.
-func (rr *Renderer) Render(w http.ResponseWriter, request *http.Request, templateName string, templateData any) {
-	rr.RenderStatus(w, request, http.StatusOK, templateName, templateData)
+func (rr *Renderer) Render(w http.ResponseWriter, r *http.Request, templateName string, templateData any) {
+	rr.RenderStatus(w, r, http.StatusOK, templateName, templateData)
 }
 
 // RenderStatus writes the named template under a given status code.
 func (rr *Renderer) RenderStatus(
 	w http.ResponseWriter,
-	request *http.Request,
+	r *http.Request,
 	status int,
 	templateName string,
 	templateData any,
@@ -305,7 +305,8 @@ func (rr *Renderer) RenderStatus(
 
 	err := rr.templates.ExecuteTemplate(&buf, templateName, templateData)
 	if err != nil {
-		rr.logger.ErrorContext(request.Context(), "error rendering template", logger.Err(err), slog.String("template", templateName))
+		rr.log.ErrorContext(r.Context(), "error rendering template",
+			logger.Err(err), slog.String("template", templateName))
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 
 		return

@@ -39,14 +39,14 @@ type Poller struct {
 }
 
 // New creates a Poller that uses the given logger for task output.
-func New(logger *slog.Logger) *Poller {
-	if logger == nil {
-		logger = slog.Default()
+func New(log *slog.Logger) *Poller {
+	if log == nil {
+		log = slog.Default()
 	}
 
 	p := &Poller{
 		tasks:  make([]task, 0),
-		logger: logger,
+		logger: log,
 	}
 
 	return p
@@ -88,7 +88,6 @@ func (p *Poller) Start(ctx context.Context) error {
 		ctx:    ctx,
 		cancel: cancel,
 		done:   make(chan struct{}),
-		wg:     sync.WaitGroup{},
 	}
 
 	tasks := p.tasks

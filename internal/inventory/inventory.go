@@ -1,6 +1,9 @@
-// Package inventory processes network scan results, merging data into corresponding
-// device records identified primarily by hardware address (or by the responding
-// address if unknown). Any detected changes are written to the event log.
+// Package inventory folds what a source reports into the device records it
+// belongs to.
+//
+// A device is identified by its hardware address, or by the address it answered
+// on while that is all that is known. Every change the fold makes is written to
+// the event log.
 package inventory
 
 import (
@@ -179,7 +182,12 @@ func loadNetworks(ctx context.Context, q *models.Queries) (networks, error) {
 // everything it returns answered a probe, and that any name it carries came
 // from the reverse lookup it performed -- so it states those two things and
 // hands the facts to the same path every source uses.
-func (s *Store) RecordSweep(ctx context.Context, source string, prefix netip.Prefix, hosts []scanner.Host) (*Result, error) {
+func (s *Store) RecordSweep(
+	ctx context.Context,
+	source string,
+	prefix netip.Prefix,
+	hosts []scanner.Host,
+) (*Result, error) {
 	return s.report(ctx, reading{
 		source:  source,
 		kind:    dbtype.SourceSweep,
@@ -799,7 +807,13 @@ func claimDetail(detail map[string]string) (sql.NullString, error) {
 	return sql.NullString{String: string(raw), Valid: true}, nil
 }
 
-func (s *Store) event(ctx context.Context, p *pass, deviceID int64, kind dbtype.EventKind, from, to, detail string) error {
+func (s *Store) event(
+	ctx context.Context,
+	p *pass,
+	deviceID int64,
+	kind dbtype.EventKind,
+	from, to, detail string,
+) error {
 	err := p.q.CreateEvent(ctx, models.CreateEventParams{
 		DeviceID:   sql.NullInt64{Int64: deviceID, Valid: true},
 		ScanID:     sql.NullInt64{Int64: p.scanID, Valid: true},
