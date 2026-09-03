@@ -1226,6 +1226,25 @@ input[type="checkbox"] {
     }
 }
 
+/* Below this the filter row cannot hold the search and a select side by side
+   without cramping both, so the search takes its own line and the selects share
+   the next one evenly. */
+@media (max-width: 40rem) {
+    .field--search {
+        flex-basis: 100%;
+        max-width: none;
+    }
+
+    /* Two selects to a row -- gap is 10px, so half the row less half the gap. */
+    .filters .field:not(.field--search) {
+        flex: 1 1 calc(50% - 5px);
+    }
+
+    .filters .check {
+        flex-basis: 100%;
+    }
+}
+
 @media (max-width: 34rem) {
     .brandmark__text {
         display: none;
