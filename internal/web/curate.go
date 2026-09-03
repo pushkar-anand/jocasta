@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
@@ -21,6 +22,12 @@ type curationForm struct {
 	Device *inventory.Device
 	Groups []string
 	Events []*inventory.Event
+
+	// LastChecked is when a sweep last ran, whether or not it found this
+	// device. Read beside the device's own last_seen it says whether a stale
+	// sighting means the device has gone or the sweeps have. Zero before the
+	// first sweep.
+	LastChecked time.Time
 
 	// Claims is what each source says about the device. Only the full page
 	// fills it: curating a device changes nothing any source claims, so the
@@ -115,10 +122,11 @@ func (h *Handler) updateDevice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.renderer.Render(w, r, "partial/device-panel", &curationForm{
-		Device: device,
-		Groups: groups,
-		Events: events,
-		Saved:  true,
+		Device:      device,
+		Groups:      groups,
+		Events:      events,
+		LastChecked: h.lastSweptAt(ctx),
+		Saved:       true,
 	})
 }
 

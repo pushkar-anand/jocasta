@@ -20,6 +20,7 @@
                 <div><dt>Group</dt><dd>{{ dash .Group }}</dd></div>
                 <div><dt>First seen</dt><dd class="dim">{{ ago .FirstSeen }}</dd></div>
                 <div><dt>Last seen</dt><dd class="dim">{{ ago .LastSeen }}</dd></div>
+                <div><dt>Last checked</dt><dd class="dim">{{ ago $.LastChecked }}</dd></div>
             </dl>
 
             {{- if .Randomised }}

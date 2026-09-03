@@ -286,10 +286,11 @@ func (h *Handler) device(w http.ResponseWriter, r *http.Request) {
 			Section: "Devices",
 			Crumb:   &crumb{Label: "Devices", Href: "/devices"},
 		},
-		Device: device,
-		Groups: groups,
-		Events: events,
-		Claims: claims,
+		Device:      device,
+		Groups:      groups,
+		Events:      events,
+		Claims:      claims,
+		LastChecked: h.lastSweptAt(ctx),
 	}
 
 	if note, err := h.sweepNote(ctx); err == nil {
