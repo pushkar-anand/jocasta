@@ -22,6 +22,19 @@ type (
 	Server struct {
 		Host string `koanf:"host"`
 		Port int    `koanf:"port"`
+		CORS CORS   `koanf:"cors"`
+	}
+
+	// CORS says which origins outside the server's own may read its responses
+	// from a browser.
+	CORS struct {
+		// AllowedOrigins lists the origins (scheme://host[:port]) permitted to
+		// make cross-origin requests, such as a dashboard hosted elsewhere that
+		// calls the JSON API from the browser. Blank leaves it to the server to
+		// default to its own address, which is what a browser already allows
+		// without CORS -- so an unset list changes nothing until an origin
+		// outside it is added here.
+		AllowedOrigins []string `koanf:"allowed_origins"`
 	}
 
 	// DB says where the SQLite database lives.

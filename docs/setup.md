@@ -66,6 +66,8 @@ A missing config file is fine if the defaults and environment cover everything.
 server:
   host: "127.0.0.1"     # 0.0.0.0 to listen on every interface
   port: 3090
+  cors:
+    allowed_origins: [] # browser origins besides the server's own that may read /api; e.g. ["https://dashboard.example"]
 
 db:
   path: "."             # directory the SQLite file lives in
@@ -128,6 +130,7 @@ the key.
 ```bash
 JOCASTA_SERVER__HOST=0.0.0.0
 JOCASTA_SERVER__PORT=8080
+JOCASTA_SERVER__CORS__ALLOWED_ORIGINS=https://dashboard.example
 JOCASTA_DB__PATH=/data
 JOCASTA_INVENTORY__ONLINE_WINDOW=30m
 JOCASTA_SCAN__DEVICES__INTERVAL=10m
