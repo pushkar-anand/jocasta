@@ -53,6 +53,15 @@ func Start(
 		response.WithErrorTemplates(map[int]string{
 			http.StatusNotFound: web.TemplateNotFound,
 		}),
+		response.WithErrorStatusMapper(func(err error) int {
+			switch {
+			case errors.Is(err, inventory.ErrNotFound):
+				return http.StatusNotFound
+			}
+
+			return http.StatusInternalServerError
+		}),
+		response.WithErrorDataFunc(web.NotFoundData),
 	)
 
 	ap := api.NewHandler(cfg.Logger, reader, store, jw)
@@ -175,8 +184,4 @@ func problemFor(err error) response.Problem {
 	}
 
 	return nil
-}
-
-func errorFor() {
-
 }
