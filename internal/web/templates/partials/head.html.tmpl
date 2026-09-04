@@ -36,17 +36,7 @@
         </span>
     </a>
 
-    <nav class="nav" aria-label="Sections">
-        {{- range .Nav }}
-        <a class="navitem" href="{{ .Href }}"{{ if .Current }} aria-current="page"{{ end }}>
-            <svg class="navitem__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                {{- .Icon }}
-            </svg>
-            <span>{{ .Label }}</span>
-        </a>
-        {{- end }}
-    </nav>
+    {{ template "partial/nav" . }}
 
     {{- /* Pushed to the foot of the rail: ambient, not a control. */}}
     {{- with .Note }}
