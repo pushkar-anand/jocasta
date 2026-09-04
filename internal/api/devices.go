@@ -4,9 +4,19 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/pushkar-anand/build-with-go/http/response"
+	"github.com/pushkar-anand/jocasta/internal/classify"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
+
+// DeviceClassRule is the validation rule behind the "deviceclass" tag. A type
+// must name a class the classifier knows (or be empty, so the guess stands);
+// one outside the closed set has nowhere to render and is refused. The tag is
+// registered on the validator the server wires in at startup.
+func DeviceClassRule(fl validator.FieldLevel) bool {
+	return classify.Class(fl.Field().String()).Valid()
+}
 
 // deviceEventLimit is how much of a device's history the detail response
 // carries. The full log is at /events.
@@ -25,7 +35,7 @@ func (h *Handler) listDevices(store *inventory.Store) response.HandlerFunc {
 			Q              string `schema:"q"`
 			Group          string `schema:"group"`
 			Status         string `schema:"status" validate:"omitempty,oneof=online offline"`
-			Sort           string `schema:"sort" validate:"omitempty,oneof=last_seen name address"`
+			Sort           string `schema:"sort" validate:"omitempty,oneof=last_seen name address type"`
 			IncludeIgnored bool   `schema:"include_ignored"`
 		}
 
@@ -83,10 +93,10 @@ func (h *Handler) updateDevice(store *inventory.Store) response.HandlerFunc {
 	// Nothing a scan writes appears here: an address, a vendor or a hardware
 	// address is what the network reported, not something to correct by hand.
 	type curationRequest struct {
-		Label   string `json:"label"`
-		Notes   string `json:"notes"`
-		Group   string `json:"group"`
-		Type    string `json:"type"`
+		Label   string `json:"label" validate:"omitempty,max=200"`
+		Notes   string `json:"notes" validate:"omitempty,max=2000"`
+		Group   string `json:"group" validate:"omitempty,max=100"`
+		Type    string `json:"type" validate:"omitempty,deviceclass"`
 		Ignored bool   `json:"ignored"`
 	}
 

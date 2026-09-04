@@ -12,6 +12,7 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/build-with-go/validator"
+	"github.com/pushkar-anand/jocasta/internal/api"
 	"github.com/pushkar-anand/jocasta/internal/config"
 	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
@@ -87,6 +88,14 @@ func run(args []string) error {
 		// it what would be right.
 		validator.WithCustomMessage("oneof", func(field, param string) string {
 			return fmt.Sprintf("%s must be one of: %s", field, strings.ReplaceAll(param, " ", ", "))
+		}),
+		// The device's type must name one of the classes the classifier knows.
+		// The rule is registered here because the tag is used on the API's
+		// curation request; registering it in the handler would mean the reader
+		// it hands out was built with a vocabulary the validator had not heard
+		// of.
+		validator.WithCustomTags(map[string]validator.ValidationFunc{
+			"deviceclass": api.DeviceClassRule,
 		}),
 	)
 	if err != nil {
