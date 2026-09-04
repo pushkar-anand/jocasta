@@ -48,7 +48,12 @@ func Start(
 	store *inventory.Store,
 	validator *validator.Validator,
 ) error {
-	reader := request.NewReader(cfg.Logger, validator, request.WithRejectUnknownFields())
+	reader := request.NewReader(
+		cfg.Logger,
+		validator,
+		request.WithRejectUnknownFields(),
+		request.WithMaxBodyBytes(maxRequestBodyBytes),
+	)
 
 	jw := response.NewJSONWriter(
 		cfg.Logger,
@@ -111,6 +116,14 @@ func Start(
 
 	return srv.Serve(ctx)
 }
+
+// maxRequestBodyBytes caps a PATCH body the reader will decode.
+//
+// The largest curationRequest/deviceEdit a caller can legitimately send is
+// label(200) + notes(2000) + group(100) + a short type name -- a couple of KB
+// even accounting for JSON or form-encoding overhead. 16KiB leaves an order of
+// magnitude of headroom over that while still refusing an unbounded body.
+const maxRequestBodyBytes = 16 << 10
 
 // csp is the content security policy every response carries.
 //
