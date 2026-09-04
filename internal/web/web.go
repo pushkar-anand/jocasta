@@ -52,7 +52,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // NewHandler builds the web routes, parsing the embedded templates and
 // mounting the static assets.
-func NewHandler(log *slog.Logger, reader *request.Reader, store *inventory.Store) *Handler {
+func NewHandler(
+	log *slog.Logger,
+	reader *request.Reader,
+	store *inventory.Store,
+	hw *response.HTMLWriter,
+) *Handler {
 	// A template that does not parse is a broken build, not a runtime
 	// condition: every one of them is compiled into the binary.
 	templates := template.Must(
@@ -64,12 +69,12 @@ func NewHandler(log *slog.Logger, reader *request.Reader, store *inventory.Store
 				"templates/partials/*.html.tmpl"),
 	)
 
+	hw = hw.WithTemplates(templates)
+
 	staticFS, err := fs.Sub(static, "statics")
 	if err != nil {
 		panic(err)
 	}
-
-	hw := response.NewHTMLWriter(log, templates)
 
 	h := &Handler{
 		mux:        http.NewServeMux(),
@@ -140,7 +145,7 @@ func (h *Handler) notFound() http.HandlerFunc {
 	v := view{Title: "Not found"}
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		h.htmlWriter.NotFound(w, r, templateNotFound, v)
+		h.htmlWriter.Error(w, r, http.StatusNotFound, TemplateNotFound, v)
 	}
 }
 

@@ -3,5 +3,5 @@ package web
 const (
 	templatePageDashboard = "page/dashboard"
 
-	templateNotFound = "page/notfound"
+	TemplateNotFound = "page/notfound"
 )

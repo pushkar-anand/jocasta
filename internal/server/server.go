@@ -3,12 +3,14 @@ package server
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/url"
 
 	"github.com/pushkar-anand/build-with-go/http/middleware"
 	"github.com/pushkar-anand/build-with-go/http/request"
+	"github.com/pushkar-anand/build-with-go/http/response"
 	"github.com/pushkar-anand/build-with-go/http/server"
 	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/build-with-go/validator"
@@ -39,8 +41,22 @@ func Start(
 ) error {
 	reader := request.NewReader(cfg.Logger, validator, request.WithRejectUnknownFields())
 
-	ap := api.NewHandler(cfg.Logger, reader, store)
-	wh := web.NewHandler(cfg.Logger, reader, store)
+	jw := response.NewJSONWriter(
+		cfg.Logger,
+		response.WithErrorProblemMapper(problemFor),
+	)
+
+	// The templates are set up in the web handler, passing nil here.
+	hw := response.NewHTMLWriter(
+		cfg.Logger,
+		nil,
+		response.WithErrorTemplates(map[int]string{
+			http.StatusNotFound: web.TemplateNotFound,
+		}),
+	)
+
+	ap := api.NewHandler(cfg.Logger, reader, store, jw)
+	wh := web.NewHandler(cfg.Logger, reader, store, hw)
 
 	mux := http.NewServeMux()
 
@@ -144,4 +160,23 @@ func fromSameOrigin(r *http.Request) bool {
 	}
 
 	return u.Host == r.Host
+}
+
+// problemFor renders the errors the inventory returns that are not simply
+// failures. Anything else falls through to a generic 500, which is what an
+// unexpected error deserves.
+func problemFor(err error) response.Problem {
+	if errors.Is(err, inventory.ErrNotFound) {
+		return response.NewProblem().
+			WithStatus(http.StatusNotFound).
+			WithTitle(http.StatusText(http.StatusNotFound)).
+			WithDetail(err.Error()).
+			Build()
+	}
+
+	return nil
+}
+
+func errorFor() {
+
 }
