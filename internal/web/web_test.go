@@ -293,6 +293,8 @@ func TestStaticFiles(t *testing.T) {
 	}{
 		{"/static/style.css", "text/css"},
 		{"/static/js/htmx.min.js", "javascript"},
+		{"/static/favicon.svg", "image/svg+xml"},
+		{"/static/logo.svg", "image/svg+xml"},
 	}
 
 	for _, tc := range tests {
