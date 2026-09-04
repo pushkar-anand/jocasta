@@ -5,7 +5,6 @@
 package api
 
 import (
-	"errors"
 	"log/slog"
 	"net/http"
 
@@ -31,15 +30,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // NewHandler builds the JSON API routes over the given store.
 func NewHandler(
-	l *slog.Logger,
+	_ *slog.Logger,
 	reader *request.Reader,
 	store *inventory.Store,
+	jw *response.JSONWriter,
 ) *Handler {
-	jw := response.NewJSONWriter(
-		l,
-		response.WithErrorProblemMapper(problemFor),
-	)
-
 	h := &Handler{
 		mux:        http.NewServeMux(),
 		reader:     reader,
@@ -60,21 +55,6 @@ func NewHandler(
 	h.mux.HandleFunc("GET /scans", jw.Handle(h.listScans(store)))
 
 	return h
-}
-
-// problemFor renders the errors the inventory returns that are not simply
-// failures. Anything else falls through to a generic 500, which is what an
-// unexpected error deserves.
-func problemFor(err error) response.Problem {
-	if errors.Is(err, inventory.ErrNotFound) {
-		return response.NewProblem().
-			WithStatus(http.StatusNotFound).
-			WithTitle(http.StatusText(http.StatusNotFound)).
-			WithDetail(err.Error()).
-			Build()
-	}
-
-	return nil
 }
 
 // badRequest reports a request the router matched but the handler cannot use,

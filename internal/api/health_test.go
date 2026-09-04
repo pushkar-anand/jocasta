@@ -19,6 +19,7 @@ func TestHealthEndpoint(t *testing.T) {
 	// The value is whatever the build stamped in, which is the "dev"
 	// placeholder for a test binary, so only the shape of the payload is worth
 	// asserting.
-	require.Contains(t, body, "version")
+	assert.Contains(t, body, "version")
+	assert.Contains(t, body, "time")
 	assert.Len(t, body, 1)
 }

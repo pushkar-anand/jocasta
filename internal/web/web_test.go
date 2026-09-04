@@ -3,16 +3,21 @@ package web
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"html/template"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/pushkar-anand/build-with-go/http/request"
+	"github.com/pushkar-anand/build-with-go/http/response"
 	"github.com/pushkar-anand/build-with-go/validator"
+	"github.com/pushkar-anand/jocasta/internal/api"
 	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/pushkar-anand/jocasta/internal/hosts"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
@@ -61,17 +66,43 @@ func testStoreWithConn(t *testing.T) (*inventory.Store, *sql.DB) {
 func testReader(t *testing.T) *request.Reader {
 	t.Helper()
 
-	v, err := validator.New()
+	// deviceclass is the one custom tag any form or query struct in this
+	// package uses; main.go registers the same rule for the real server.
+	v, err := validator.New(validator.WithCustomTags(map[string]validator.ValidationFunc{
+		"deviceclass": api.DeviceClassRule,
+	}))
 	require.NoError(t, err)
 
 	return request.NewReader(testLogger(), v)
+}
+
+// newWebHandler builds the web handler the way the server does: an HTML writer
+// with the error pages configured, and the templates attached inside NewHandler.
+func newWebHandler(t *testing.T, store *inventory.Store) *Handler {
+	t.Helper()
+
+	hw := response.NewHTMLWriter(testLogger(), nil,
+		response.WithErrorTemplates(map[int]string{
+			http.StatusNotFound: TemplateNotFound,
+		}),
+		response.WithErrorStatusMapper(func(err error) int {
+			if errors.Is(err, inventory.ErrNotFound) {
+				return http.StatusNotFound
+			}
+
+			return http.StatusInternalServerError
+		}),
+		response.WithErrorDataFunc(NotFoundData),
+	)
+
+	return NewHandler(testLogger(), testReader(t), store, hw)
 }
 
 // empty returns a handler over an inventory nothing has swept into.
 func empty(t *testing.T) *Handler {
 	t.Helper()
 
-	return NewHandler(testLogger(), testReader(t), testStore(t))
+	return newWebHandler(t, testStore(t))
 }
 
 // seeded returns a handler over an inventory holding two swept devices.
@@ -88,7 +119,7 @@ func seeded(t *testing.T) *Handler {
 	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix), swept)
 	require.NoError(t, err)
 
-	return NewHandler(testLogger(), testReader(t), store)
+	return newWebHandler(t, store)
 }
 
 // seededWith returns a handler over an inventory holding n swept devices, for a
@@ -110,7 +141,7 @@ func seededWith(t *testing.T, n int) *Handler {
 	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix), swept)
 	require.NoError(t, err)
 
-	return NewHandler(testLogger(), testReader(t), store)
+	return newWebHandler(t, store)
 }
 
 func get(t *testing.T, h http.Handler, target string) *httptest.ResponseRecorder {
@@ -171,7 +202,7 @@ func TestOverviewShowsWhatASegmentIsCalled(t *testing.T) {
 		[]scanner.Host{host("192.0.2.10", macA, "printer.local")})
 	require.NoError(t, err)
 
-	body := get(t, NewHandler(testLogger(), testReader(t), store), "/").Body.String()
+	body := get(t, newWebHandler(t, store), "/").Body.String()
 
 	assert.Contains(t, body, prefix)
 	assert.Contains(t, body, "VLAN 10")
@@ -283,134 +314,46 @@ func TestMissingStaticFile(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, get(t, seeded(t), "/static/nope.css").Code)
 }
 
-// Every template file defines exactly one name, and those names are what the
-// handlers ask for. A rename that misses one would only show up at runtime.
+// The handlers ask for templates by name; a rename that misses one would only
+// show up at runtime. This parses the set the way NewHandler does and checks
+// every name a handler renders is defined.
 func TestEveryNamedTemplateExists(t *testing.T) {
 	t.Parallel()
 
-	h := seeded(t)
+	tmpl := template.Must(
+		template.New("").
+			Funcs(funcs(time.Now)).
+			ParseFS(templatesFS,
+				"templates/pages/*.html.tmpl",
+				"templates/partials/*.html.tmpl"),
+	)
 
 	for _, name := range []string{
-		"page/dashboard", "page/notfound", "page/network",
-		"partial/live", "partial/live-body", "partial/activity",
-		"partial/device-filters", "partial/device-rows",
+		templatePageDashboard, templatePageDevices, templatePageDevice,
+		templatePageNetwork, templatePageEvents, templatePageScans,
+		templatePartialLiveOverview, templatePartialDeviceRows,
+		templatePartialDeviceRow, templatePartialDeviceRowForm,
+		templatePartialDevicePanel, TemplateNotFound,
+		"partial/live", "partial/activity", "partial/device-filters",
 		"layout/head", "layout/foot",
 	} {
-		assert.NotNil(t, h.renderer.templates.Lookup(name), "template %q should be parsed", name)
+		assert.NotNil(t, tmpl.Lookup(name), "template %q should be parsed", name)
 	}
-}
-
-func TestRendererRender(t *testing.T) {
-	t.Parallel()
-
-	tmpl := template.Must(template.New("greet.tmpl").Parse(`Hello {{ .Name }}!`))
-	r := NewRenderer(tmpl, testLogger())
-
-	rec := httptest.NewRecorder()
-	r.Render(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil), "greet.tmpl", map[string]string{"Name": "Ada"})
-
-	require.Equal(t, http.StatusOK, rec.Code)
-	assert.Equal(t, "text/html; charset=utf-8", rec.Header().Get("Content-Type"))
-	assert.Equal(t, "Hello Ada!", rec.Body.String())
-}
-
-func TestRendererRenderStatus(t *testing.T) {
-	t.Parallel()
-
-	tmpl := template.Must(template.New("greet.tmpl").Parse(`Gone`))
-	r := NewRenderer(tmpl, testLogger())
-
-	rec := httptest.NewRecorder()
-	r.RenderStatus(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil), http.StatusGone, "greet.tmpl", nil)
-
-	require.Equal(t, http.StatusGone, rec.Code)
-	assert.Equal(t, "text/html; charset=utf-8", rec.Header().Get("Content-Type"))
-	assert.Equal(t, "Gone", rec.Body.String())
-}
-
-// TestRendererEscapesData guards the reason the handler uses html/template
-// rather than text/template.
-func TestRendererEscapesData(t *testing.T) {
-	t.Parallel()
-
-	tmpl := template.Must(template.New("greet.tmpl").Parse(`Hello {{ .Name }}!`))
-	r := NewRenderer(tmpl, testLogger())
-
-	rec := httptest.NewRecorder()
-	r.Render(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil), "greet.tmpl", map[string]string{
-		"Name": `<script>alert(1)</script>`,
-	})
-
-	assert.NotContains(t, rec.Body.String(), "<script>")
-	assert.Contains(t, rec.Body.String(), "&lt;script&gt;")
-}
-
-func TestRendererUnknownTemplate(t *testing.T) {
-	t.Parallel()
-
-	tmpl := template.Must(template.New("greet.tmpl").Parse(`Hello!`))
-	r := NewRenderer(tmpl, testLogger())
-
-	rec := httptest.NewRecorder()
-	r.Render(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil), "missing.tmpl", nil)
-
-	assert.Equal(t, http.StatusInternalServerError, rec.Code)
-}
-
-func TestRendererExecutionErrorPreventsPartialResponse(t *testing.T) {
-	t.Parallel()
-
-	// A template that fails halfway through execution
-	tmpl := template.Must(template.New("bad.tmpl").Parse(`Good Start... {{ .MissingField }}`))
-	r := NewRenderer(tmpl, testLogger())
-
-	rec := httptest.NewRecorder()
-	r.Render(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil), "bad.tmpl", struct{}{})
-
-	// Should respond with 500
-	assert.Equal(t, http.StatusInternalServerError, rec.Code)
-	// Should not have any part of the template rendered
-	assert.NotContains(t, rec.Body.String(), "Good Start...")
-	// Should contain standard http.Error body
-	assert.Contains(t, rec.Body.String(), "Internal Server Error")
-}
-
-func TestRendererHTML(t *testing.T) {
-	t.Parallel()
-
-	tmpl := template.Must(template.New("greet.tmpl").Parse(`Hello {{ . }}!`))
-	handler := NewRenderer(tmpl, testLogger()).HTML("greet.tmpl", "Ada")
-
-	rec := httptest.NewRecorder()
-	handler(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
-
-	require.Equal(t, http.StatusOK, rec.Code)
-	assert.Equal(t, "Hello Ada!", rec.Body.String())
 }
 
 func TestNavMarksTheCurrentSection(t *testing.T) {
 	t.Parallel()
 
-	entries := view{Section: "Overview"}.Nav()
-	require.NotEmpty(t, entries)
+	h := seeded(t)
 
-	current := 0
+	overview := get(t, h, "/").Body.String()
+	assert.Equal(t, 1, strings.Count(overview, `aria-current="page"`), "exactly one entry should be current")
+	assert.Contains(t, overview, `href="/" aria-current="page"`, "the current entry is Overview")
 
-	for _, e := range entries {
-		if e.Current {
-			current++
-
-			assert.Equal(t, "Overview", e.Label)
-		}
-	}
-
-	assert.Equal(t, 1, current, "exactly one entry should be current")
-
-	// A section that names nothing in the nav marks nothing, rather than
-	// marking the first entry.
-	for _, e := range (view{Section: "Nowhere"}).Nav() {
-		assert.False(t, e.Current)
-	}
+	// The 404 page's section names none of the nav's entries, so it marks
+	// nothing current rather than falling back to the first one.
+	notFound := get(t, h, "/nope").Body.String()
+	assert.NotContains(t, notFound, `aria-current="page"`)
 }
 
 // host builds a swept host the way a sweep does. A malformed argument is a

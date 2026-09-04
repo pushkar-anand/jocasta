@@ -1,11 +1,10 @@
 package web
 
 import (
-	"errors"
 	"net/http"
-	"net/url"
 	"time"
 
+	"github.com/pushkar-anand/build-with-go/http/response"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
@@ -39,158 +38,145 @@ type curationForm struct {
 	Saved bool
 }
 
-// curationFrom reads an edit out of a submitted form.
-//
-// Every user-owned field is applied, so a form that does not carry one clears
-// it. The row form carries the fields it does not show as hidden inputs for
+// deviceEdit is what a caller may change on a device through the row or panel
+// form -- the same shape curationRequest takes as JSON, in form fields instead
+// of a body. Every field is applied, so a form that does not carry one clears
+// it; the row form carries the fields it does not show as hidden inputs for
 // exactly this reason.
-func curationFrom(f url.Values) inventory.Curation {
-	return inventory.Curation{
-		Label: f.Get("label"),
-		Notes: f.Get("notes"),
-		Group: f.Get("group"),
-		Type:  f.Get("type"),
+type deviceEdit struct {
+	Label   string `schema:"label" validate:"omitempty,max=200"`
+	Notes   string `schema:"notes" validate:"omitempty,max=2000"`
+	Group   string `schema:"group" validate:"omitempty,max=100"`
+	Type    string `schema:"type" validate:"omitempty,deviceclass"`
+	Ignored bool   `schema:"ignored"`
+}
 
-		// A checkbox submits its value only when it is checked, so anything
-		// else means unchecked.
-		Ignored: f.Get("ignored") == "1",
+func (e deviceEdit) toCuration() inventory.Curation {
+	return inventory.Curation{
+		Label:   e.Label,
+		Notes:   e.Notes,
+		Group:   e.Group,
+		Type:    e.Type,
+		Ignored: e.Ignored,
 	}
 }
 
 // deviceRow serves one row as it is displayed, which is how an edit is
 // cancelled.
-func (h *Handler) deviceRow(w http.ResponseWriter, r *http.Request) {
-	device, ok := h.deviceFromPath(w, r)
-	if !ok {
-		return
-	}
+func (h *Handler) deviceRow() response.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		id, ok := pathID(r)
+		if !ok {
+			return inventory.ErrNotFound
+		}
 
-	h.renderer.Render(w, r, "partial/device-row", device)
+		device, err := h.store.Device(r.Context(), id)
+		if err != nil {
+			return err
+		}
+
+		h.htmlWriter.Success(w, r, templatePartialDeviceRow, device)
+		return nil
+	}
 }
 
-// deviceRowEdit serves the same row as a form.
-func (h *Handler) deviceRowEdit(w http.ResponseWriter, r *http.Request) {
-	device, ok := h.deviceFromPath(w, r)
-	if !ok {
-		return
+// deviceRowForm serves the same row as an editable form.
+func (h *Handler) deviceRowForm() response.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		id, ok := pathID(r)
+		if !ok {
+			return inventory.ErrNotFound
+		}
+
+		device, err := h.store.Device(r.Context(), id)
+		if err != nil {
+			return err
+		}
+
+		groups, err := h.store.Groups(r.Context())
+		if err != nil {
+			return err
+		}
+
+		h.htmlWriter.Success(w, r, templatePartialDeviceRowForm, &rowForm{Device: device, Groups: groups})
+		return nil
 	}
-
-	groups, err := h.store.Groups(r.Context())
-	if err != nil {
-		h.fail(w, r, err)
-
-		return
-	}
-
-	h.renderer.Render(w, r, "partial/device-row-form", &rowForm{Device: device, Groups: groups})
 }
 
 // updateDeviceRow applies an edit made from the list and answers with the row.
-func (h *Handler) updateDeviceRow(w http.ResponseWriter, r *http.Request) {
-	device, ok := h.applyEdit(w, r)
-	if !ok {
-		return
+func (h *Handler) updateDeviceRow() response.HandlerFunc {
+
+	type form struct {
+		deviceEdit
 	}
 
-	h.renderer.Render(w, r, "partial/device-row", device)
+	return func(w http.ResponseWriter, r *http.Request) error {
+		id, ok := pathID(r)
+		if !ok {
+			return inventory.ErrNotFound
+		}
+
+		data, err := h.reader.ReadAndValidateForm[form](r)
+		if err != nil {
+			return err
+		}
+
+		device, err := h.store.UpdateCuration(r.Context(), id, data.deviceEdit.toCuration())
+		if err != nil {
+			return err
+		}
+
+		h.htmlWriter.Success(w, r, templatePartialDeviceRow, device)
+
+		return nil
+	}
 }
 
 // updateDevice applies an edit made on the device's own page and answers with
 // the panel, which carries the heading a new label changes.
-func (h *Handler) updateDevice(w http.ResponseWriter, r *http.Request) {
-	device, ok := h.applyEdit(w, r)
-	if !ok {
-		return
+func (h *Handler) updateDevice() response.HandlerFunc {
+
+	type form struct {
+		deviceEdit
 	}
 
-	ctx := r.Context()
+	return func(w http.ResponseWriter, r *http.Request) error {
+		ctx := r.Context()
 
-	groups, err := h.store.Groups(ctx)
-	if err != nil {
-		h.fail(w, r, err)
-
-		return
-	}
-
-	// Read after the write, so the log the response carries includes the edit
-	// that was just made.
-	events, err := h.store.DeviceEvents(ctx, device.ID, deviceHistoryLimit)
-	if err != nil {
-		h.fail(w, r, err)
-
-		return
-	}
-
-	h.renderer.Render(w, r, "partial/device-panel", &curationForm{
-		Device:      device,
-		Groups:      groups,
-		Events:      events,
-		LastChecked: h.lastSweptAt(ctx),
-		Saved:       true,
-	})
-}
-
-// applyEdit reads the form and writes it. It reports whether the caller should
-// go on to render; a request it turns away has already been answered.
-func (h *Handler) applyEdit(w http.ResponseWriter, r *http.Request) (*inventory.Device, bool) {
-	id, ok := pathID(r)
-	if !ok {
-		h.notFound(w, r)
-
-		return nil, false
-	}
-
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Could not read the form", http.StatusBadRequest)
-
-		return nil, false
-	}
-
-	device, err := h.store.UpdateCuration(r.Context(), id, curationFrom(r.PostForm))
-	if err != nil {
-		if errors.Is(err, inventory.ErrNotFound) {
-			h.notFound(w, r)
-
-			return nil, false
+		id, ok := pathID(r)
+		if !ok {
+			return inventory.ErrNotFound
 		}
 
-		h.fail(w, r, err)
-
-		return nil, false
-	}
-
-	return device, true
-}
-
-// deviceFromPath reads the device the route names, answering the request itself
-// if there is none.
-func (h *Handler) deviceFromPath(w http.ResponseWriter, r *http.Request) (*inventory.Device, bool) {
-	id, ok := pathID(r)
-	if !ok {
-		h.notFound(w, r)
-
-		return nil, false
-	}
-
-	return h.deviceByID(w, r, id)
-}
-
-// deviceByID reads a device by its id, answering the request itself if the id
-// names nothing. The id has already been parsed; a route captures it as text
-// and a query string carries it as text, so the parse lives with each caller.
-func (h *Handler) deviceByID(w http.ResponseWriter, r *http.Request, id int64) (*inventory.Device, bool) {
-	device, err := h.store.Device(r.Context(), id)
-	if err != nil {
-		if errors.Is(err, inventory.ErrNotFound) {
-			h.notFound(w, r)
-
-			return nil, false
+		data, err := h.reader.ReadAndValidateForm[form](r)
+		if err != nil {
+			return err
 		}
 
-		h.fail(w, r, err)
+		device, err := h.store.UpdateCuration(r.Context(), id, data.deviceEdit.toCuration())
+		if err != nil {
+			return err
+		}
 
-		return nil, false
+		groups, err := h.store.Groups(ctx)
+		if err != nil {
+			return err
+		}
+
+		// Read after the write, so the log the response carries includes the edit
+		// that was just made.
+		events, err := h.store.DeviceEvents(ctx, device.ID, deviceHistoryLimit)
+		if err != nil {
+			return err
+		}
+
+		h.htmlWriter.Success(w, r, templatePartialDevicePanel, &curationForm{
+			Device:      device,
+			Groups:      groups,
+			Events:      events,
+			LastChecked: lastSweptAt(ctx, h.store),
+			Saved:       true,
+		})
+		return nil
 	}
-
-	return device, true
 }

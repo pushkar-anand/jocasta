@@ -231,7 +231,7 @@ func TestDevicePageWithoutASweepReadsAsNeverChecked(t *testing.T) {
 		`INSERT INTO devices (id, mac, identity_source) VALUES (1, '00:00:5e:00:53:aa', 'MAC')`)
 	require.NoError(t, err)
 
-	body := get(t, NewHandler(testLogger(), testReader(t), store), "/devices/1").Body.String()
+	body := get(t, newWebHandler(t, store), "/devices/1").Body.String()
 
 	assert.Contains(t, body, "Last checked")
 	assert.Contains(t, body, "never")
@@ -256,7 +256,7 @@ func TestDevicePageShowsAReleasedAddress(t *testing.T) {
 		[]scanner.Host{host("192.0.2.10", macB, "")})
 	require.NoError(t, err)
 
-	h := NewHandler(testLogger(), testReader(t), store)
+	h := newWebHandler(t, store)
 
 	// The device that lost the address is the first one recorded.
 	rec := get(t, h, "/devices/1")
@@ -423,11 +423,14 @@ func TestPagerLinks(t *testing.T) {
 func TestCanonicalURL(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "/devices", devicesData{}.canonical())
-	assert.Equal(t, "/devices", devicesData{Page: 1}.canonical())
+	assert.Equal(t, "/devices", (&devicesData{}).canonical())
+	assert.Equal(t, "/devices", (&devicesData{Page: 1}).canonical())
 
 	// Every value that was applied is in the address, so it can be shared.
-	got := devicesData{Query: "nas", Group: "rack", Network: "3", Type: "camera", Status: "online", Sort: "name", IncludeIgnored: true, Page: 3}.canonical()
+	got := (&devicesData{
+		Query: "nas", Group: "rack", Network: "3", Type: "camera",
+		Status: "online", Sort: "name", IncludeIgnored: true, Page: 3,
+	}).canonical()
 
 	parsed, err := url.Parse(got)
 	require.NoError(t, err)
@@ -504,32 +507,31 @@ func TestDeviceListShowsMatchCountAndClear(t *testing.T) {
 func TestDeviceFormDropsUnrecognisedValues(t *testing.T) {
 	t.Parallel()
 
-	form := deviceForm(url.Values{
-		"q":       {"  nas  "},
-		"status":  {"onlin"},
-		"sort":    {"vendor"},
-		"ignored": {"yes"},
+	form := deviceForm(deviceQuery{
+		Query:  "  nas  ",
+		Status: "onlin",
+		Sort:   "vendor",
 	})
 
 	assert.Equal(t, "nas", form.Query, "surrounding whitespace is not part of a search")
 	assert.Empty(t, form.Status)
 	assert.Empty(t, form.Sort)
-	assert.False(t, form.IncludeIgnored, "only the value the form submits turns it on")
+	assert.False(t, form.IncludeIgnored, "only a checked box turns it on")
 
-	form = deviceForm(url.Values{"status": {"offline"}, "sort": {"type"}, "ignored": {"1"}})
+	form = deviceForm(deviceQuery{Status: "offline", Sort: "type", IncludeIgnored: true})
 	assert.Equal(t, "offline", form.Status)
 	assert.Equal(t, "type", form.Sort)
 	assert.True(t, form.IncludeIgnored)
 
 	// The network select offers ids; a name is not one.
-	assert.Empty(t, deviceForm(url.Values{"network": {"eth0"}}).Network)
-	assert.Empty(t, deviceForm(url.Values{"network": {"0"}}).Network)
-	assert.Equal(t, "4", deviceForm(url.Values{"network": {"4"}}).Network)
+	assert.Empty(t, deviceForm(deviceQuery{Network: "eth0"}).Network)
+	assert.Empty(t, deviceForm(deviceQuery{Network: "0"}).Network)
+	assert.Equal(t, "4", deviceForm(deviceQuery{Network: "4"}).Network)
 
 	// The type select offers the class vocabulary; free text is not part of it.
-	assert.Empty(t, deviceForm(url.Values{"type": {"toaster"}}).Type)
-	assert.Empty(t, deviceForm(url.Values{"type": {""}}).Type)
-	assert.Equal(t, "camera", deviceForm(url.Values{"type": {"camera"}}).Type)
+	assert.Empty(t, deviceForm(deviceQuery{Type: "toaster"}).Type)
+	assert.Empty(t, deviceForm(deviceQuery{Type: ""}).Type)
+	assert.Equal(t, "camera", deviceForm(deviceQuery{Type: "camera"}).Type)
 }
 
 // The seed names its devices "printer.local" and "nas.local", both of which the
@@ -588,7 +590,7 @@ func TestDevicePanelShowsTheGuessBehindAnOverride(t *testing.T) {
 	_, err = store.UpdateCuration(t.Context(), 1, inventory.Curation{Type: "camera"})
 	require.NoError(t, err)
 
-	body := get(t, NewHandler(testLogger(), testReader(t), store), "/devices/1").Body.String()
+	body := get(t, newWebHandler(t, store), "/devices/1").Body.String()
 
 	assert.NotContains(t, body, `chip--quiet">auto`, "the type is the user's now, not the classifier's")
 	assert.Contains(t, body, "Left to itself the classifier reads this as")
@@ -639,7 +641,7 @@ func TestDevicePageShowsWhatEachSourceClaims(t *testing.T) {
 	}})
 	require.NoError(t, err)
 
-	rec := get(t, NewHandler(testLogger(), testReader(t), store), "/devices/1")
+	rec := get(t, newWebHandler(t, store), "/devices/1")
 	require.Equal(t, http.StatusOK, rec.Code)
 
 	body := rec.Body.String()
@@ -687,7 +689,7 @@ func TestDevicePageShowsOpenPorts(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	rec := get(t, NewHandler(testLogger(), testReader(t), store), "/devices/1")
+	rec := get(t, newWebHandler(t, store), "/devices/1")
 	require.Equal(t, http.StatusOK, rec.Code)
 
 	body := rec.Body.String()
@@ -722,7 +724,7 @@ func TestDeviceListShowsOpenPorts(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	h := NewHandler(testLogger(), testReader(t), store)
+	h := newWebHandler(t, store)
 
 	body := get(t, h, "/devices").Body.String()
 	assert.Contains(t, body, `<th scope="col">Ports</th>`)
@@ -771,7 +773,7 @@ func TestDevicePageWithoutClaimsOmitsTheSection(t *testing.T) {
 	_, err = conn.ExecContext(t.Context(), `DELETE FROM device_sources`)
 	require.NoError(t, err)
 
-	rec := get(t, NewHandler(testLogger(), testReader(t), store), "/devices/1")
+	rec := get(t, newWebHandler(t, store), "/devices/1")
 	require.Equal(t, http.StatusOK, rec.Code)
 
 	assert.NotContains(t, rec.Body.String(), `<p class="eyebrow">Sources</p>`)

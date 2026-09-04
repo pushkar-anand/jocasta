@@ -1,0 +1,49 @@
+{{- /*
+    The sidebar's sections: which pages exist, and the glyph that names each
+    in the rail. Static markup, not data built in Go -- a page that does not
+    exist yet cannot be linked to from here, and a section cannot be added
+    without the icon that names it. Current is marked by comparing the page's
+    own Section against each entry's label.
+*/ -}}
+{{ define "partial/nav" }}
+    <nav class="nav" aria-label="Sections">
+        <a class="navitem" href="/"{{ if eq .Section "Overview" }} aria-current="page"{{ end }}>
+            <svg class="navitem__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="3" width="8" height="8" rx="2"/>
+                <rect x="13" y="3" width="8" height="8" rx="2"/>
+                <rect x="3" y="13" width="8" height="8" rx="2"/>
+                <rect x="13" y="13" width="8" height="8" rx="2"/>
+            </svg>
+            <span>Overview</span>
+        </a>
+        <a class="navitem" href="/devices"{{ if eq .Section "Devices" }} aria-current="page"{{ end }}>
+            <svg class="navitem__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="6" rx="1.5"/>
+                <rect x="3" y="14" width="18" height="6" rx="1.5"/>
+                <circle cx="7" cy="7" r="0.7"/>
+                <circle cx="7" cy="17" r="0.7"/>
+            </svg>
+            <span>Devices</span>
+        </a>
+        <a class="navitem" href="/events"{{ if eq .Section "Events" }} aria-current="page"{{ end }}>
+            <svg class="navitem__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="M12 7v5l3.5 2"/>
+            </svg>
+            <span>Events</span>
+        </a>
+        <a class="navitem" href="/scans"{{ if eq .Section "Scans" }} aria-current="page"{{ end }}>
+            <svg class="navitem__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9"/>
+                <circle cx="12" cy="12" r="4.2"/>
+                <circle cx="12" cy="12" r="1"/>
+                <path d="M12 2.3v2.2M21.7 12h-2.2M12 21.7v-2.2M2.3 12h2.2"/>
+            </svg>
+            <span>Scans</span>
+        </a>
+    </nav>
+{{ end }}
