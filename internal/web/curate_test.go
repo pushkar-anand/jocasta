@@ -187,25 +187,61 @@ func TestEditingUnknownDeviceIsNotFound(t *testing.T) {
 func TestCurationFromForm(t *testing.T) {
 	t.Parallel()
 
-	got := curationFrom(url.Values{
-		"label":   {"Office printer"},
-		"notes":   {"Second floor."},
-		"group":   {"office"},
-		"type":    {"printer"},
-		"ignored": {"1"},
-	})
+	got := deviceEdit{
+		Label: "Office printer", Notes: "Second floor.",
+		Group: "office", Type: "printer", Ignored: true,
+	}.toCuration()
 
 	assert.Equal(t, "Office printer", got.Label)
 	assert.Equal(t, "Second floor.", got.Notes)
 	assert.Equal(t, "office", got.Group)
 	assert.Equal(t, "printer", got.Type)
 	assert.True(t, got.Ignored)
+}
 
-	// A checkbox submits its value only when checked, so an absent field and
-	// any other value both mean unchecked.
-	assert.False(t, curationFrom(url.Values{}).Ignored)
-	assert.False(t, curationFrom(url.Values{"ignored": {"0"}}).Ignored)
-	assert.False(t, curationFrom(url.Values{"ignored": {"on"}}).Ignored)
+// The checkbox is read through the same validated form as every other field,
+// not by hand: unchecked (absent) and explicitly "0" both mean false, and the
+// value the template actually emits when checked, "1", means true.
+func TestDeviceEditIgnoredCheckbox(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		form    url.Values
+		ignored bool
+	}{
+		{"checked, the value this app's own form sends", url.Values{"ignored": {"1"}}, true},
+		{"unchecked, absent", url.Values{}, false},
+		{"explicit 0", url.Values{"ignored": {"0"}}, false},
+
+		// "on" is the value a bare <input type=checkbox> submits when it
+		// carries no explicit value attribute -- not what this app's own
+		// template sends, but a schema decoder that understands HTML forms
+		// reads it as checked too.
+		{"on", url.Values{"ignored": {"on"}}, true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			rec := patch(t, seeded(t), "/devices/1", tc.form)
+
+			require.Equal(t, http.StatusOK, rec.Code)
+			assert.Equal(t, tc.ignored, strings.Contains(rec.Body.String(), `name="ignored" value="1" checked`))
+		})
+	}
+}
+
+// A value that is not any recognised spelling of a checkbox's state fails the
+// same way any other malformed field would, rather than being read as
+// unchecked.
+func TestDeviceEditRejectsAMalformedCheckbox(t *testing.T) {
+	t.Parallel()
+
+	rec := patch(t, seeded(t), "/devices/1", url.Values{"ignored": {"maybe"}})
+
+	assert.NotEqual(t, http.StatusOK, rec.Code)
 }
 
 // The user's fields are rendered through html/template, so a label carrying
