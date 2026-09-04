@@ -435,6 +435,28 @@ func TestCORSDefaultsToOwnAddress(t *testing.T) {
 	assert.Empty(t, res.Header.Get("Access-Control-Allow-Origin"))
 }
 
+// A PATCH body past maxRequestBodyBytes is refused before it is decoded in
+// full, rather than being read unbounded into memory.
+func TestRequestBodyTooLargeIsRejected(t *testing.T) {
+	baseURL := startServer(t)
+
+	oversized := strings.Repeat("a", maxRequestBodyBytes+1)
+	body := `{"notes":"` + oversized + `"}`
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPatch, baseURL+"/api/devices/1", strings.NewReader(body))
+	require.NoError(t, err)
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+
+	res, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = res.Body.Close() })
+
+	assert.Equal(t, http.StatusRequestEntityTooLarge, res.StatusCode)
+}
+
 func TestSafeMethod(t *testing.T) {
 	t.Parallel()
 
