@@ -174,7 +174,7 @@ const createDevice = `-- name: CreateDevice :one
 INSERT INTO devices (mac, identity_source, is_randomised, vendor, hostname, hostname_source,
                      first_seen, last_seen)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, label, notes, group_name, is_ignored, first_seen, last_seen, device_class, device_class_confidence
+RETURNING id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, device_class, device_class_confidence, label, notes, group_name, is_ignored, first_seen, last_seen
 `
 
 type CreateDeviceParams struct {
@@ -193,7 +193,7 @@ type CreateDeviceParams struct {
 //	INSERT INTO devices (mac, identity_source, is_randomised, vendor, hostname, hostname_source,
 //	                     first_seen, last_seen)
 //	VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-//	RETURNING id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, label, notes, group_name, is_ignored, first_seen, last_seen, device_class, device_class_confidence
+//	RETURNING id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, device_class, device_class_confidence, label, notes, group_name, is_ignored, first_seen, last_seen
 func (q *Queries) CreateDevice(ctx context.Context, arg CreateDeviceParams) (*Device, error) {
 	row := q.queryRow(ctx, q.createDeviceStmt, createDevice,
 		arg.MAC,
@@ -215,14 +215,14 @@ func (q *Queries) CreateDevice(ctx context.Context, arg CreateDeviceParams) (*De
 		&i.Hostname,
 		&i.HostnameSource,
 		&i.DeviceType,
+		&i.DeviceClass,
+		&i.DeviceClassConfidence,
 		&i.Label,
 		&i.Notes,
 		&i.GroupName,
 		&i.IsIgnored,
 		&i.FirstSeen,
 		&i.LastSeen,
-		&i.DeviceClass,
-		&i.DeviceClassConfidence,
 	)
 	return &i, err
 }
@@ -519,14 +519,14 @@ func (q *Queries) GetAddress(ctx context.Context, arg GetAddressParams) (*Addres
 }
 
 const getDevice = `-- name: GetDevice :one
-SELECT id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, label, notes, group_name, is_ignored, first_seen, last_seen, device_class, device_class_confidence
+SELECT id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, device_class, device_class_confidence, label, notes, group_name, is_ignored, first_seen, last_seen
 FROM devices
 WHERE id = ?
 `
 
 // GetDevice
 //
-//	SELECT id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, label, notes, group_name, is_ignored, first_seen, last_seen, device_class, device_class_confidence
+//	SELECT id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, device_class, device_class_confidence, label, notes, group_name, is_ignored, first_seen, last_seen
 //	FROM devices
 //	WHERE id = ?
 func (q *Queries) GetDevice(ctx context.Context, id int64) (*Device, error) {
@@ -541,20 +541,20 @@ func (q *Queries) GetDevice(ctx context.Context, id int64) (*Device, error) {
 		&i.Hostname,
 		&i.HostnameSource,
 		&i.DeviceType,
+		&i.DeviceClass,
+		&i.DeviceClassConfidence,
 		&i.Label,
 		&i.Notes,
 		&i.GroupName,
 		&i.IsIgnored,
 		&i.FirstSeen,
 		&i.LastSeen,
-		&i.DeviceClass,
-		&i.DeviceClassConfidence,
 	)
 	return &i, err
 }
 
 const getDeviceByCurrentIP = `-- name: GetDeviceByCurrentIP :one
-SELECT d.id, d.mac, d.identity_source, d.is_randomised, d.vendor, d.hostname, d.hostname_source, d.device_type, d.label, d.notes, d.group_name, d.is_ignored, d.first_seen, d.last_seen, d.device_class, d.device_class_confidence
+SELECT d.id, d.mac, d.identity_source, d.is_randomised, d.vendor, d.hostname, d.hostname_source, d.device_type, d.device_class, d.device_class_confidence, d.label, d.notes, d.group_name, d.is_ignored, d.first_seen, d.last_seen
 FROM devices d
          JOIN addresses a ON a.device_id = d.id
 WHERE a.ip = ?
@@ -567,7 +567,7 @@ type GetDeviceByCurrentIPRow struct {
 
 // GetDeviceByCurrentIP
 //
-//	SELECT d.id, d.mac, d.identity_source, d.is_randomised, d.vendor, d.hostname, d.hostname_source, d.device_type, d.label, d.notes, d.group_name, d.is_ignored, d.first_seen, d.last_seen, d.device_class, d.device_class_confidence
+//	SELECT d.id, d.mac, d.identity_source, d.is_randomised, d.vendor, d.hostname, d.hostname_source, d.device_type, d.device_class, d.device_class_confidence, d.label, d.notes, d.group_name, d.is_ignored, d.first_seen, d.last_seen
 //	FROM devices d
 //	         JOIN addresses a ON a.device_id = d.id
 //	WHERE a.ip = ?
@@ -584,27 +584,27 @@ func (q *Queries) GetDeviceByCurrentIP(ctx context.Context, ip dbtype.Addr) (*Ge
 		&i.Device.Hostname,
 		&i.Device.HostnameSource,
 		&i.Device.DeviceType,
+		&i.Device.DeviceClass,
+		&i.Device.DeviceClassConfidence,
 		&i.Device.Label,
 		&i.Device.Notes,
 		&i.Device.GroupName,
 		&i.Device.IsIgnored,
 		&i.Device.FirstSeen,
 		&i.Device.LastSeen,
-		&i.Device.DeviceClass,
-		&i.Device.DeviceClassConfidence,
 	)
 	return &i, err
 }
 
 const getDeviceByMAC = `-- name: GetDeviceByMAC :one
-SELECT id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, label, notes, group_name, is_ignored, first_seen, last_seen, device_class, device_class_confidence
+SELECT id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, device_class, device_class_confidence, label, notes, group_name, is_ignored, first_seen, last_seen
 FROM devices
 WHERE mac = ?
 `
 
 // GetDeviceByMAC
 //
-//	SELECT id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, label, notes, group_name, is_ignored, first_seen, last_seen, device_class, device_class_confidence
+//	SELECT id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, device_class, device_class_confidence, label, notes, group_name, is_ignored, first_seen, last_seen
 //	FROM devices
 //	WHERE mac = ?
 func (q *Queries) GetDeviceByMAC(ctx context.Context, mac dbtype.MAC) (*Device, error) {
@@ -619,14 +619,14 @@ func (q *Queries) GetDeviceByMAC(ctx context.Context, mac dbtype.MAC) (*Device, 
 		&i.Hostname,
 		&i.HostnameSource,
 		&i.DeviceType,
+		&i.DeviceClass,
+		&i.DeviceClassConfidence,
 		&i.Label,
 		&i.Notes,
 		&i.GroupName,
 		&i.IsIgnored,
 		&i.FirstSeen,
 		&i.LastSeen,
-		&i.DeviceClass,
-		&i.DeviceClassConfidence,
 	)
 	return &i, err
 }
@@ -986,7 +986,7 @@ func (q *Queries) ListDeviceSources(ctx context.Context, deviceID int64) ([]*Lis
 
 const listDevices = `-- name: ListDevices :many
 
-SELECT d.id, d.mac, d.identity_source, d.is_randomised, d.vendor, d.hostname, d.hostname_source, d.device_type, d.label, d.notes, d.group_name, d.is_ignored, d.first_seen, d.last_seen, d.device_class, d.device_class_confidence,
+SELECT d.id, d.mac, d.identity_source, d.is_randomised, d.vendor, d.hostname, d.hostname_source, d.device_type, d.device_class, d.device_class_confidence, d.label, d.notes, d.group_name, d.is_ignored, d.first_seen, d.last_seen,
        CAST(COALESCE((SELECT GROUP_CONCAT(a.ip, ' ')
                       FROM addresses a
                       WHERE a.device_id = d.id
@@ -1049,7 +1049,7 @@ type ListDevicesRow struct {
 // false leaves the clause admitting only unignored rows, and passing true makes
 // the second half admit the rest.
 //
-//	SELECT d.id, d.mac, d.identity_source, d.is_randomised, d.vendor, d.hostname, d.hostname_source, d.device_type, d.label, d.notes, d.group_name, d.is_ignored, d.first_seen, d.last_seen, d.device_class, d.device_class_confidence,
+//	SELECT d.id, d.mac, d.identity_source, d.is_randomised, d.vendor, d.hostname, d.hostname_source, d.device_type, d.device_class, d.device_class_confidence, d.label, d.notes, d.group_name, d.is_ignored, d.first_seen, d.last_seen,
 //	       CAST(COALESCE((SELECT GROUP_CONCAT(a.ip, ' ')
 //	                      FROM addresses a
 //	                      WHERE a.device_id = d.id
@@ -1106,14 +1106,14 @@ func (q *Queries) ListDevices(ctx context.Context, arg ListDevicesParams) ([]*Li
 			&i.Device.Hostname,
 			&i.Device.HostnameSource,
 			&i.Device.DeviceType,
+			&i.Device.DeviceClass,
+			&i.Device.DeviceClassConfidence,
 			&i.Device.Label,
 			&i.Device.Notes,
 			&i.Device.GroupName,
 			&i.Device.IsIgnored,
 			&i.Device.FirstSeen,
 			&i.Device.LastSeen,
-			&i.Device.DeviceClass,
-			&i.Device.DeviceClassConfidence,
 			&i.CurrentIps,
 			&i.OpenPorts,
 			&i.NetworkIds,
@@ -1488,7 +1488,7 @@ SET label       = ?1,
     device_type = ?4,
     is_ignored  = ?5
 WHERE id = ?6
-RETURNING id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, label, notes, group_name, is_ignored, first_seen, last_seen, device_class, device_class_confidence
+RETURNING id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, device_class, device_class_confidence, label, notes, group_name, is_ignored, first_seen, last_seen
 `
 
 type UpdateDeviceCurationParams struct {
@@ -1511,7 +1511,7 @@ type UpdateDeviceCurationParams struct {
 //	    device_type = ?4,
 //	    is_ignored  = ?5
 //	WHERE id = ?6
-//	RETURNING id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, label, notes, group_name, is_ignored, first_seen, last_seen, device_class, device_class_confidence
+//	RETURNING id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, device_class, device_class_confidence, label, notes, group_name, is_ignored, first_seen, last_seen
 func (q *Queries) UpdateDeviceCuration(ctx context.Context, arg UpdateDeviceCurationParams) (*Device, error) {
 	row := q.queryRow(ctx, q.updateDeviceCurationStmt, updateDeviceCuration,
 		arg.Label,
@@ -1531,14 +1531,14 @@ func (q *Queries) UpdateDeviceCuration(ctx context.Context, arg UpdateDeviceCura
 		&i.Hostname,
 		&i.HostnameSource,
 		&i.DeviceType,
+		&i.DeviceClass,
+		&i.DeviceClassConfidence,
 		&i.Label,
 		&i.Notes,
 		&i.GroupName,
 		&i.IsIgnored,
 		&i.FirstSeen,
 		&i.LastSeen,
-		&i.DeviceClass,
-		&i.DeviceClassConfidence,
 	)
 	return &i, err
 }

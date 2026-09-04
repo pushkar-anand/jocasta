@@ -29,14 +29,14 @@ type Device struct {
 	Hostname              sql.NullString        `json:"hostname"`
 	HostnameSource        dbtype.HostnameSource `json:"hostname_source"`
 	DeviceType            sql.NullString        `json:"device_type"`
+	DeviceClass           sql.NullString        `json:"device_class"`
+	DeviceClassConfidence sql.NullString        `json:"device_class_confidence"`
 	Label                 sql.NullString        `json:"label"`
 	Notes                 sql.NullString        `json:"notes"`
 	GroupName             sql.NullString        `json:"group_name"`
 	IsIgnored             bool                  `json:"is_ignored"`
 	FirstSeen             dbtype.Time           `json:"first_seen"`
 	LastSeen              dbtype.Time           `json:"last_seen"`
-	DeviceClass           sql.NullString        `json:"device_class"`
-	DeviceClassConfidence sql.NullString        `json:"device_class_confidence"`
 }
 
 type DevicePort struct {
