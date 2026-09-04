@@ -132,7 +132,7 @@ func TestGetDeviceCarriesOpenPorts(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	h := NewHandler(testLogger(), testReader(t), store)
+	h := NewHandler(testLogger(), testReader(t), store, testJSONWriter())
 
 	status, _, body := get(t, h, "/devices/1")
 	require.Equal(t, http.StatusOK, status)

@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/pushkar-anand/build-with-go/http/request"
+	"github.com/pushkar-anand/build-with-go/http/response"
 	"github.com/pushkar-anand/build-with-go/validator"
 	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/pushkar-anand/jocasta/internal/hosts"
@@ -52,6 +54,25 @@ func testReader(t *testing.T) *request.Reader {
 	return request.NewReader(testLogger(), v)
 }
 
+// testJSONWriter builds the response writer the way the server does, mapping
+// a not-found lookup to its problem response, so handlers under test report
+// errors the way the running service does.
+func testJSONWriter() *response.JSONWriter {
+	return response.NewJSONWriter(testLogger(),
+		response.WithErrorProblemMapper(func(err error) response.Problem {
+			if errors.Is(err, inventory.ErrNotFound) {
+				return response.NewProblem().
+					WithStatus(http.StatusNotFound).
+					WithTitle(http.StatusText(http.StatusNotFound)).
+					WithDetail(err.Error()).
+					Build()
+			}
+
+			return nil
+		}),
+	)
+}
+
 // testStore opens an inventory over a migrated database scoped to the test.
 func testStore(t *testing.T) *inventory.Store {
 	t.Helper()
@@ -79,7 +100,7 @@ func seeded(t *testing.T) http.Handler {
 	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix), swept)
 	require.NoError(t, err)
 
-	return NewHandler(testLogger(), testReader(t), store)
+	return NewHandler(testLogger(), testReader(t), store, testJSONWriter())
 }
 
 // get issues a request, decodes the response body, and closes it. It returns the
