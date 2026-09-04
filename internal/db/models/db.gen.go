@@ -36,6 +36,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.closePortStmt, err = db.PrepareContext(ctx, closePort); err != nil {
 		return nil, fmt.Errorf("error preparing query ClosePort: %w", err)
 	}
+	if q.commonOpenServicesStmt, err = db.PrepareContext(ctx, commonOpenServices); err != nil {
+		return nil, fmt.Errorf("error preparing query CommonOpenServices: %w", err)
+	}
 	if q.createDeviceStmt, err = db.PrepareContext(ctx, createDevice); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateDevice: %w", err)
 	}
@@ -117,6 +120,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.moveEventsStmt, err = db.PrepareContext(ctx, moveEvents); err != nil {
 		return nil, fmt.Errorf("error preparing query MoveEvents: %w", err)
 	}
+	if q.portStatsStmt, err = db.PrepareContext(ctx, portStats); err != nil {
+		return nil, fmt.Errorf("error preparing query PortStats: %w", err)
+	}
 	if q.refreshAddressStmt, err = db.PrepareContext(ctx, refreshAddress); err != nil {
 		return nil, fmt.Errorf("error preparing query RefreshAddress: %w", err)
 	}
@@ -176,6 +182,11 @@ func (q *Queries) Close() error {
 	if q.closePortStmt != nil {
 		if cerr := q.closePortStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing closePortStmt: %w", cerr)
+		}
+	}
+	if q.commonOpenServicesStmt != nil {
+		if cerr := q.commonOpenServicesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing commonOpenServicesStmt: %w", cerr)
 		}
 	}
 	if q.createDeviceStmt != nil {
@@ -313,6 +324,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing moveEventsStmt: %w", cerr)
 		}
 	}
+	if q.portStatsStmt != nil {
+		if cerr := q.portStatsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing portStatsStmt: %w", cerr)
+		}
+	}
 	if q.refreshAddressStmt != nil {
 		if cerr := q.refreshAddressStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing refreshAddressStmt: %w", cerr)
@@ -416,6 +432,7 @@ type Queries struct {
 	allCurrentAddressesStmt            *sql.Stmt
 	allNetworksStmt                    *sql.Stmt
 	closePortStmt                      *sql.Stmt
+	commonOpenServicesStmt             *sql.Stmt
 	createDeviceStmt                   *sql.Stmt
 	createEventStmt                    *sql.Stmt
 	createScanStmt                     *sql.Stmt
@@ -443,6 +460,7 @@ type Queries struct {
 	moveAddressesStmt                  *sql.Stmt
 	moveDeviceSourcesStmt              *sql.Stmt
 	moveEventsStmt                     *sql.Stmt
+	portStatsStmt                      *sql.Stmt
 	refreshAddressStmt                 *sql.Stmt
 	releaseAddressStmt                 *sql.Stmt
 	retireAddressStmt                  *sql.Stmt
@@ -465,6 +483,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		allCurrentAddressesStmt:            q.allCurrentAddressesStmt,
 		allNetworksStmt:                    q.allNetworksStmt,
 		closePortStmt:                      q.closePortStmt,
+		commonOpenServicesStmt:             q.commonOpenServicesStmt,
 		createDeviceStmt:                   q.createDeviceStmt,
 		createEventStmt:                    q.createEventStmt,
 		createScanStmt:                     q.createScanStmt,
@@ -492,6 +511,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		moveAddressesStmt:                  q.moveAddressesStmt,
 		moveDeviceSourcesStmt:              q.moveDeviceSourcesStmt,
 		moveEventsStmt:                     q.moveEventsStmt,
+		portStatsStmt:                      q.portStatsStmt,
 		refreshAddressStmt:                 q.refreshAddressStmt,
 		releaseAddressStmt:                 q.releaseAddressStmt,
 		retireAddressStmt:                  q.retireAddressStmt,

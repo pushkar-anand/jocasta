@@ -375,6 +375,36 @@ WHERE a.device_id = ?
 
 -- Ports.
 
+-- The overview's compact account of current services and today's changes.
+-- Ignored devices stay out so every number agrees with the device list.
+-- name: PortStats :one
+SELECT CAST((SELECT COUNT(*)
+             FROM device_ports p JOIN devices d ON d.id = p.device_id
+             WHERE p.state = 'open' AND d.is_ignored = 0) AS INTEGER) AS open_ports,
+       CAST((SELECT COUNT(DISTINCT p.device_id)
+             FROM device_ports p JOIN devices d ON d.id = p.device_id
+             WHERE p.state = 'open' AND d.is_ignored = 0) AS INTEGER) AS devices,
+       CAST((SELECT COUNT(*)
+             FROM events e JOIN devices d ON d.id = e.device_id
+             WHERE e.kind = 'PORT_OPENED' AND d.is_ignored = 0
+               AND e.occurred_at >= sqlc.arg(changed_since)) AS INTEGER) AS opened,
+       CAST((SELECT COUNT(*)
+             FROM events e JOIN devices d ON d.id = e.device_id
+             WHERE e.kind = 'PORT_CLOSED' AND d.is_ignored = 0
+               AND e.occurred_at >= sqlc.arg(changed_since)) AS INTEGER) AS closed;
+
+-- Services rather than individual ports are what an operator recognises at a
+-- glance. Unknown services fall back to their port number in the caller.
+-- name: CommonOpenServices :many
+SELECT p.port, p.service, CAST(COUNT(*) AS INTEGER) AS devices
+FROM device_ports p
+         JOIN devices d ON d.id = p.device_id
+WHERE p.state = 'open'
+  AND d.is_ignored = 0
+GROUP BY p.port, p.service
+ORDER BY devices DESC, p.port
+LIMIT ?;
+
 -- Every address a port scan should probe: the current address of every device
 -- the user has not ignored. The scan works from what discovery has already
 -- found rather than sweeping, so this is its whole target list.

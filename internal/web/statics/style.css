@@ -558,6 +558,132 @@ a.netcard:hover {
     align-items: start;
 }
 
+/* ---- Ports and services ------------------------------------------------- */
+
+.portoverview {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 20px;
+}
+
+.portmetrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    margin: 0;
+}
+
+.portmetrics div {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 2px;
+    padding: 0 20px;
+    border-left: 1px solid var(--border);
+}
+
+.portmetrics div:first-child {
+    padding-left: 0;
+    border-left: 0;
+}
+
+.portmetrics dd {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+}
+
+.portmetrics dt {
+    font-size: 12px;
+    color: var(--text-3);
+}
+
+.portdetail {
+    display: grid;
+    grid-template-columns: minmax(18rem, 1.2fr) minmax(16rem, 1fr);
+    gap: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.portscan {
+    padding-left: 24px;
+    border-left: 1px solid var(--border);
+}
+
+.portscan > p {
+    margin: 10px 0 14px;
+}
+
+.services {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin: 10px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.services li {
+    display: grid;
+    grid-template-columns: 7rem minmax(6rem, 1fr) 2rem;
+    align-items: center;
+    gap: 12px;
+    color: var(--text-2);
+}
+
+.services strong {
+    text-align: right;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+
+.portchanges {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.portchanges > p {
+    flex: 0 0 auto;
+}
+
+.portchanges ul {
+    display: flex;
+    flex: 1 1 auto;
+    gap: 24px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.portchanges li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    color: var(--text-2);
+}
+
+.portchanges time {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-3);
+    white-space: nowrap;
+}
+
+.portchanges .act--learned .dot {
+    background: var(--good);
+}
+
+.portchanges .act--shape .dot {
+    background: var(--warning);
+}
+
 /* A run of labelled values, in as many columns as fit. */
 .facts {
     display: grid;
@@ -1276,12 +1402,39 @@ input[type="checkbox"] {
            would stack on top of the sections. */
         position: static;
     }
+
+    .portdetail {
+        grid-template-columns: 1fr;
+    }
+
+    .portscan {
+        padding: 16px 0 0;
+        border-top: 1px solid var(--border);
+        border-left: 0;
+    }
+
+    .portchanges,
+    .portchanges ul {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 10px;
+    }
 }
 
 /* Below this the filter row cannot hold the search and a select side by side
    without cramping both, so the search takes its own line and the selects share
    the next one evenly. */
 @media (max-width: 40rem) {
+
+    .portmetrics {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 18px 0;
+    }
+
+    .portmetrics div:nth-child(3) {
+        padding-left: 0;
+        border-left: 0;
+    }
     .field--search {
         flex-basis: 100%;
         max-width: none;

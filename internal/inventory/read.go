@@ -200,7 +200,10 @@ func (s *Store) DeviceSources(ctx context.Context, id int64) ([]*Claim, error) {
 
 // ListEvents returns one page of the change log, most recent first.
 func (s *Store) ListEvents(ctx context.Context, p Page) (*EventPage, error) {
-	rows, err := s.q.ListEvents(ctx, models.PageParams{Cursor: p.Cursor, Limit: p.seek(), DeviceID: p.Device})
+	rows, err := s.q.ListEvents(ctx, models.PageParams{
+		Cursor: p.Cursor, Limit: p.seek(), DeviceID: p.Device,
+		EventKinds: p.EventKinds, ExcludeIgnored: p.ExcludeIgnored,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list events: %w", err)
 	}
@@ -224,7 +227,9 @@ func (s *Store) ListEvents(ctx context.Context, p Page) (*EventPage, error) {
 
 // ListScans returns one page of the scan history, most recent first.
 func (s *Store) ListScans(ctx context.Context, p Page) (*ScanPage, error) {
-	rows, err := s.q.ListScans(ctx, models.PageParams{Cursor: p.Cursor, Limit: p.seek()})
+	rows, err := s.q.ListScans(ctx, models.PageParams{
+		Cursor: p.Cursor, Limit: p.seek(), ScanKind: p.ScanKind,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list scans: %w", err)
 	}
@@ -250,6 +255,21 @@ func (s *Store) LatestScan(ctx context.Context) (*Scan, error) {
 
 	if len(page.Scans) == 0 {
 		return nil, fmt.Errorf("scan: %w", ErrNotFound)
+	}
+
+	return page.Scans[0], nil
+}
+
+// LatestScanOfKind returns the most recent scan of k, or ErrNotFound when that
+// kind has never run.
+func (s *Store) LatestScanOfKind(ctx context.Context, k dbtype.ScanKind) (*Scan, error) {
+	page, err := s.ListScans(ctx, Page{Limit: 1, ScanKind: k})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(page.Scans) == 0 {
+		return nil, fmt.Errorf("scan of kind %s: %w", k, ErrNotFound)
 	}
 
 	return page.Scans[0], nil

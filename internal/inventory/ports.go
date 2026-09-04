@@ -7,11 +7,16 @@ import (
 	"maps"
 	"slices"
 	"strconv"
+	"time"
 
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 )
+
+// PortChangeWindow is how far back the overview counts a port as newly opened
+// or closed. It is a rolling day, matching the overview's other "today" count.
+const PortChangeWindow = 24 * time.Hour
 
 // PortSummary counts what recording one port scan changed.
 type PortSummary struct {
@@ -30,6 +35,35 @@ type PortSummary struct {
 	Open   int
 	Opened int
 	Closed int
+}
+
+// PortOverview returns current open-service counts and recent transitions.
+// Ignored devices are excluded, as they are from the device list the overview
+// links to.
+func (s *Store) PortOverview(ctx context.Context, serviceLimit int) (*PortOverview, error) {
+	stats, err := s.q.PortStats(ctx, dbtype.NewTime(s.now().Add(-PortChangeWindow)))
+	if err != nil {
+		return nil, fmt.Errorf("port stats: %w", err)
+	}
+
+	rows, err := s.q.CommonOpenServices(ctx, int64(serviceLimit))
+	if err != nil {
+		return nil, fmt.Errorf("common open services: %w", err)
+	}
+
+	services := make([]*ServiceCount, 0, len(rows))
+	for _, row := range rows {
+		services = append(services, &ServiceCount{
+			// device_ports.port is CHECK-constrained to 1-65535, so it fits.
+			Port:    uint16(row.Port), //nolint:gosec // range enforced by the column CHECK.
+			Service: row.Service.String, Devices: int(row.Devices),
+		})
+	}
+
+	return &PortOverview{
+		Open: int(stats.OpenPorts), Devices: int(stats.Devices),
+		Opened: int(stats.Opened), Closed: int(stats.Closed), Services: services,
+	}, nil
 }
 
 // RecordPorts folds a port scan into the inventory, attributing it to the named
