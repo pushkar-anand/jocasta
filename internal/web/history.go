@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pushkar-anand/build-with-go/http/response"
+	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
@@ -60,15 +62,30 @@ func (d logData) Older() string {
 	return d.Top() + sep + "cursor=" + url.QueryEscape(d.Next)
 }
 
-// logCursor reads the position in the log, and reports the token that is
-// actually in effect.
+// logQuery is the cursor a log page continues from.
+type logQuery struct {
+	Cursor string `schema:"cursor" validate:"omitempty,max=512"`
+}
+
+// eventsQuery is the events log's own query string: its cursor, plus the
+// device it narrows to when there is one.
+//
+// Device is kept as a string and not parsed here: a value that names no
+// device is a page that is not there, not a bad request, so the handler turns
+// it into inventory.ErrNotFound itself rather than a validation error.
+type eventsQuery struct {
+	logQuery
+	Device string `schema:"device" validate:"omitempty,max=20"`
+}
+
+// logCursor decodes the position in the log out of an already-validated query,
+// and reports the token that is actually in effect.
 //
 // A cursor walks forwards only, so anything that is not a position starts at
 // the top: that is where a reader who edited the address by hand is best
 // served, and a page has nowhere to report a bad token that a reader could act
 // on.
-func logCursor(q url.Values) (inventory.Cursor, string) {
-	raw := q.Get("cursor")
+func logCursor(raw string) (inventory.Cursor, string) {
 	if raw == "" {
 		return inventory.Cursor{}, ""
 	}
@@ -81,83 +98,97 @@ func logCursor(q url.Values) (inventory.Cursor, string) {
 	return c, raw
 }
 
-func (h *Handler) events(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (h *Handler) events() response.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		ctx := r.Context()
 
-	from, token := logCursor(r.URL.Query())
-
-	data := &logData{
-		view:   view{Title: "Events", Section: "Events"},
-		Path:   "/events",
-		Cursor: token,
-	}
-
-	window := inventory.Page{Limit: logPageSize, Cursor: from}
-
-	// ?device= narrows the log to one device: the way the device page's history
-	// reaches the rest of itself. An id that names no device is a page that is
-	// not there, the same as /devices/{id}.
-	if raw := r.URL.Query().Get("device"); raw != "" {
-		id, err := strconv.ParseInt(raw, 10, 64)
-		if err != nil || id < 1 {
-			h.notFound(w, r)
-
-			return
+		q, err := h.reader.ReadAndValidateQueryParams[eventsQuery](r)
+		if err != nil {
+			return err
 		}
 
-		device, ok := h.deviceByID(w, r, id)
-		if !ok {
-			return
+		from, token := logCursor(q.Cursor)
+
+		data := &logData{
+			Title: "Events", Section: "Events",
+			Path:   "/events",
+			Cursor: token,
 		}
 
-		data.Device = device
-		data.Crumb = &crumb{Label: device.Name(), Href: "/devices/" + strconv.FormatInt(id, 10)}
-		window.Device = device.ID
+		window := inventory.Page{Limit: logPageSize, Cursor: from}
+
+		// ?device= narrows the log to one device: the way the device page's
+		// history reaches the rest of itself. An id that names no device is a
+		// page that is not there, the same as /devices/{id}.
+		if q.Device != "" {
+			id, err := strconv.ParseInt(q.Device, 10, 64)
+			if err != nil || id < 1 {
+				return inventory.ErrNotFound
+			}
+
+			device, err := h.store.Device(ctx, id)
+			if err != nil {
+				return err
+			}
+
+			data.Device = device
+			data.Crumb = &crumb{Label: device.Name(), Href: "/devices/" + strconv.FormatInt(id, 10)}
+			window.Device = device.ID
+		}
+
+		page, err := h.store.ListEvents(ctx, window)
+		if err != nil {
+			h.log.ErrorContext(ctx, "failed to list events", logger.Err(err))
+
+			return err
+		}
+
+		data.Events = page.Events
+		data.Next = nextToken(page.Next)
+
+		if note, err := h.sweepNote(ctx); err == nil {
+			data.Note = note
+		}
+
+		h.htmlWriter.Success(w, r, templatePageEvents, data)
+		return nil
 	}
-
-	page, err := h.store.ListEvents(ctx, window)
-	if err != nil {
-		h.fail(w, r, err)
-
-		return
-	}
-
-	data.Events = page.Events
-	data.Next = nextToken(page.Next)
-
-	if note, err := h.sweepNote(ctx); err == nil {
-		data.Note = note
-	}
-
-	h.renderer.Render(w, r, "page/events", data)
 }
 
-func (h *Handler) scans(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (h *Handler) scans() response.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		ctx := r.Context()
 
-	from, token := logCursor(r.URL.Query())
+		q, err := h.reader.ReadAndValidateQueryParams[logQuery](r)
+		if err != nil {
+			return err
+		}
 
-	data := &logData{
-		view:   view{Title: "Scans", Section: "Scans"},
-		Path:   "/scans",
-		Cursor: token,
+		from, token := logCursor(q.Cursor)
+
+		data := &logData{
+			Title: "Scans", Section: "Scans",
+			Path:   "/scans",
+			Cursor: token,
+		}
+
+		page, err := h.store.ListScans(ctx, inventory.Page{Limit: logPageSize, Cursor: from})
+		if err != nil {
+			h.log.ErrorContext(ctx, "failed to list scans", logger.Err(err))
+
+			return err
+		}
+
+		data.Scans = page.Scans
+		data.Next = nextToken(page.Next)
+
+		if note, err := h.sweepNote(ctx); err == nil {
+			data.Note = note
+		}
+
+		h.htmlWriter.Success(w, r, templatePageScans, data)
+		return nil
 	}
-
-	page, err := h.store.ListScans(ctx, inventory.Page{Limit: logPageSize, Cursor: from})
-	if err != nil {
-		h.fail(w, r, err)
-
-		return
-	}
-
-	data.Scans = page.Scans
-	data.Next = nextToken(page.Next)
-
-	if note, err := h.sweepNote(ctx); err == nil {
-		data.Note = note
-	}
-
-	h.renderer.Render(w, r, "page/scans", data)
 }
 
 // nextToken renders the cursor a page ended on. A cursor that will not encode
