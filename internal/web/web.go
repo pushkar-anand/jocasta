@@ -101,7 +101,7 @@ func NewHandler(log *slog.Logger, reader *request.Reader, store *inventory.Store
 	h.mux.HandleFunc("GET /events", h.events)
 	h.mux.HandleFunc("GET /scans", h.scans)
 
-	h.mux.HandleFunc("GET /", h.notFound)
+	h.mux.HandleFunc("GET /", h.notFound())
 
 	return h
 }
@@ -136,8 +136,12 @@ func (h *Handler) lastSweptAt(ctx context.Context) time.Time {
 	return at
 }
 
-func (h *Handler) notFound(w http.ResponseWriter, r *http.Request) {
-	h.renderer.RenderStatus(w, r, http.StatusNotFound, "page/notfound", view{Title: "Not found"})
+func (h *Handler) notFound() http.HandlerFunc {
+	v := view{Title: "Not found"}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		h.htmlWriter.NotFound(w, r, templateNotFound, v)
+	}
 }
 
 // fail reports a read that did not work. There is nothing the visitor can do
