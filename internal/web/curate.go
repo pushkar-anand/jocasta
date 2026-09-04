@@ -80,8 +80,8 @@ func (h *Handler) deviceRow() response.HandlerFunc {
 	}
 }
 
-// deviceRowEdit serves the same row as a form.
-func (h *Handler) deviceRowEdit() response.HandlerFunc {
+// deviceRowForm serves the same row as an editable form.
+func (h *Handler) deviceRowForm() response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		id, ok := pathID(r)
 		if !ok {
