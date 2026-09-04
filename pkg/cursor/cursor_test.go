@@ -199,4 +199,3 @@ func TestWithValueReplacesOnlyTheValue(t *testing.T) {
 	assert.Equal(t, Asc, got.Order)
 	assert.Equal(t, "before", c.Value, "the original is untouched")
 }
-
