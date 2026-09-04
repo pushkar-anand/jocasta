@@ -88,8 +88,8 @@ func NewHandler(
 
 	// {$} matches only the root itself, so an unknown path reaches the
 	// catch-all below and is reported rather than quietly served the overview.
-	h.mux.HandleFunc("GET /{$}", h.overview())
-	h.mux.HandleFunc("GET /overview/live", h.overviewLive())
+	h.mux.HandleFunc("GET /{$}", hw.Handle(h.overview()))
+	h.mux.HandleFunc("GET /overview/live", hw.Handle(h.overviewLive()))
 
 	// The literal is the more specific pattern, so it wins over {id}.
 	h.mux.HandleFunc("GET /devices", h.devices)

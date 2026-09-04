@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/pushkar-anand/build-with-go/http/response"
+	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
@@ -18,32 +20,39 @@ type overviewData struct {
 	Events   []*inventory.Event
 }
 
-func (h *Handler) overview() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) overview() response.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		data, err := buildOverviewData(r.Context(), h.store)
 		if err != nil {
-			h.fail(w, r, err)
+			h.log.ErrorContext(
+				r.Context(),
+				"failed to build overview data",
+				logger.Err(err),
+			)
 
-			return
+			return err
 		}
 
 		h.htmlWriter.HTML(templatePageDashboard, data)
+		return nil
 	}
 }
 
 // overviewLive serves the part of the overview that goes stale, which is what
 // the page polls for. It answers with the body alone: the #live wrapper that
 // drives the poll stays on the page across every refresh.
-func (h *Handler) overviewLive() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) overviewLive() response.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		data, err := buildOverviewData(r.Context(), h.store)
 		if err != nil {
-			h.fail(w, r, err)
+			h.log.ErrorContext(r.Context(), "failed to build overview data",
+				logger.Err(err))
 
-			return
+			return err
 		}
 
-		h.htmlWriter.HTML("partial/live-body", data)
+		h.htmlWriter.HTML(templatePartialLiveOverview, data)
+		return nil
 	}
 }
 
