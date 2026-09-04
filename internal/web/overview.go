@@ -33,7 +33,7 @@ func (h *Handler) overview() response.HandlerFunc {
 			return err
 		}
 
-		h.htmlWriter.HTML(templatePageDashboard, data)
+		h.htmlWriter.Success(w, r, templatePageDashboard, data)
 		return nil
 	}
 }
@@ -51,7 +51,7 @@ func (h *Handler) overviewLive() response.HandlerFunc {
 			return err
 		}
 
-		h.htmlWriter.HTML(templatePartialLiveOverview, data)
+		h.htmlWriter.Success(w, r, templatePartialLiveOverview, data)
 		return nil
 	}
 }
@@ -78,7 +78,7 @@ func buildOverviewData(
 	}
 
 	data := &overviewData{
-		view:     view{Title: "Overview", Section: "Overview", Live: true},
+		Title: "Overview", Section: "Overview", Live: true,
 		Stats:    stats,
 		Networks: networks,
 		Events:   activity.Events,
