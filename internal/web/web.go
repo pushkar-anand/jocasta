@@ -15,7 +15,6 @@ import (
 
 	"github.com/pushkar-anand/build-with-go/http/request"
 	"github.com/pushkar-anand/build-with-go/http/response"
-	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
@@ -92,21 +91,23 @@ func NewHandler(
 	h.mux.HandleFunc("GET /overview/live", hw.Handle(h.overviewLive()))
 
 	// The literal is the more specific pattern, so it wins over {id}.
-	h.mux.HandleFunc("GET /devices", h.devices)
-	h.mux.HandleFunc("GET /devices/rows", h.deviceRows)
-	h.mux.HandleFunc("GET /devices/{id}", h.device)
-	h.mux.HandleFunc("PATCH /devices/{id}", h.updateDevice)
-	h.mux.HandleFunc("GET /devices/{id}/row", h.deviceRow)
-	h.mux.HandleFunc("GET /devices/{id}/edit", h.deviceRowEdit)
-	h.mux.HandleFunc("PATCH /devices/{id}/row", h.updateDeviceRow)
+	h.mux.HandleFunc("GET /devices", hw.Handle(h.listDevices()))
+	h.mux.HandleFunc("GET /devices/rows", hw.Handle(h.deviceRows()))
+	h.mux.HandleFunc("GET /devices/{id}", hw.Handle(h.device()))
+	h.mux.HandleFunc("PATCH /devices/{id}", hw.Handle(h.updateDevice()))
+	h.mux.HandleFunc("GET /devices/{id}/row", hw.Handle(h.deviceRow()))
+	h.mux.HandleFunc("GET /devices/{id}/edit", hw.Handle(h.deviceRowForm()))
+	h.mux.HandleFunc("PATCH /devices/{id}/row", hw.Handle(h.updateDeviceRow()))
 
-	h.mux.HandleFunc("GET /networks/{id}", h.network)
-	h.mux.HandleFunc("GET /networks/{id}/rows", h.networkRows)
+	h.mux.HandleFunc("GET /networks/{id}", hw.Handle(h.network()))
+	h.mux.HandleFunc("GET /networks/{id}/rows", hw.Handle(h.networkRows()))
 
-	h.mux.HandleFunc("GET /events", h.events)
-	h.mux.HandleFunc("GET /scans", h.scans)
+	h.mux.HandleFunc("GET /events", hw.Handle(h.events()))
+	h.mux.HandleFunc("GET /scans", hw.Handle(h.scans()))
 
-	h.mux.HandleFunc("GET /", h.notFound())
+	h.mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		hw.ErrorPage(w, r, http.StatusNotFound)
+	})
 
 	return h
 }
@@ -132,8 +133,8 @@ func sweepNote(scan *inventory.Scan) string {
 // it, zero before the first. Shown on the device page beside the device's own
 // last_seen: together they separate a device that has left from sweeps that
 // have stopped.
-func (h *Handler) lastSweptAt(ctx context.Context) time.Time {
-	at, err := h.store.LastSuccessfulScanAt(ctx, dbtype.ScanDiscovery)
+func lastSweptAt(ctx context.Context, store *inventory.Store) time.Time {
+	at, err := store.LastSuccessfulScanAt(ctx, dbtype.ScanDiscovery)
 	if err != nil {
 		return time.Time{}
 	}
@@ -141,21 +142,19 @@ func (h *Handler) lastSweptAt(ctx context.Context) time.Time {
 	return at
 }
 
-func (h *Handler) notFound() http.HandlerFunc {
-	v := view{Title: "Not found"}
-
-	return func(w http.ResponseWriter, r *http.Request) {
-		h.htmlWriter.Error(w, r, http.StatusNotFound, TemplateNotFound, v)
+// NotFoundData is the response.WithErrorDataFunc hook the server wires into
+// the shared HTMLWriter. The 404 page is built from layout/head and
+// layout/foot like every other page, so it needs the same view fields; the
+// only configured HTML error page is the 404, so every field beyond Title is
+// left at its zero value.
+func NotFoundData(*http.Request, error, int) map[string]any {
+	return map[string]any{
+		"Title":   "Not found",
+		"Section": "",
+		"Crumb":   nil,
+		"Live":    false,
+		"Note":    "",
 	}
-}
-
-// fail reports a read that did not work. There is nothing the visitor can do
-// about it, so the page says so plainly and the detail goes to the log.
-func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
-	h.log.ErrorContext(r.Context(), "failed to read the inventory",
-		logger.Err(err), slog.String("path", r.URL.Path))
-
-	http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 }
 
 // pathID reads the {id} the route captured. Every route carrying one admits any
