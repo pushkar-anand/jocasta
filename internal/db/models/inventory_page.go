@@ -30,6 +30,10 @@ type PageParams struct {
 	// DeviceID narrows the change log to one device. Zero adds no clause, which
 	// is the whole log. Only ListEvents honours it.
 	DeviceID int64
+
+	// EventKinds and ScanKind optionally narrow their respective logs.
+	EventKinds []dbtype.EventKind
+	ScanKind   dbtype.ScanKind
 }
 
 // ListEventsRow is one entry of the change log with the device it named.
@@ -62,6 +66,9 @@ func (q *Queries) ListEvents(ctx context.Context, arg PageParams) ([]*ListEvents
 	// right: there is no device page to have come from.
 	if arg.DeviceID != 0 {
 		sb = sb.Where(squirrel.Eq{"e.device_id": arg.DeviceID})
+	}
+	if len(arg.EventKinds) != 0 {
+		sb = sb.Where(squirrel.Eq{"e.kind": arg.EventKinds})
 	}
 
 	// The cursor's timestamp is bound as a dbtype.Time so that it renders in
@@ -129,6 +136,10 @@ func (q *Queries) ListScans(ctx context.Context, arg PageParams) ([]*ListScansRo
 		LeftJoin("networks n ON n.id = s.network_id").
 		OrderBy("s.started_at DESC", "s.id DESC").
 		Limit(pageLimit(arg.Limit))
+
+	if arg.ScanKind != "" {
+		sb = sb.Where(squirrel.Eq{"s.kind": arg.ScanKind})
+	}
 
 	sb = arg.Cursor.WithValue(cursorTime(arg.Cursor)).Where(sb, "s.started_at", "s.id")
 

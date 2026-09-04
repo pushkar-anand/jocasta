@@ -50,7 +50,6 @@ func (q *Queries) AdoptCuration(ctx context.Context, arg AdoptCurationParams) er
 }
 
 const allCurrentAddresses = `-- name: AllCurrentAddresses :many
-
 SELECT a.device_id, a.ip
 FROM addresses a
          JOIN devices d ON d.id = a.device_id
@@ -64,7 +63,6 @@ type AllCurrentAddressesRow struct {
 	IP       dbtype.Addr `json:"ip"`
 }
 
-// Ports.
 // Every address a port scan should probe: the current address of every device
 // the user has not ignored. The scan works from what discovery has already
 // found rather than sweeping, so this is its whole target list.
@@ -168,6 +166,57 @@ type ClosePortParams struct {
 func (q *Queries) ClosePort(ctx context.Context, arg ClosePortParams) error {
 	_, err := q.exec(ctx, q.closePortStmt, closePort, arg.SeenAt, arg.DeviceID, arg.Port)
 	return err
+}
+
+const commonOpenServices = `-- name: CommonOpenServices :many
+SELECT p.port, p.service, CAST(COUNT(*) AS INTEGER) AS devices
+FROM device_ports p
+         JOIN devices d ON d.id = p.device_id
+WHERE p.state = 'open'
+  AND d.is_ignored = 0
+GROUP BY p.port, p.service
+ORDER BY devices DESC, p.port
+LIMIT ?
+`
+
+type CommonOpenServicesRow struct {
+	Port    int64          `json:"port"`
+	Service sql.NullString `json:"service"`
+	Devices int64          `json:"devices"`
+}
+
+// Services rather than individual ports are what an operator recognises at a
+// glance. Unknown services fall back to their port number in the caller.
+//
+//	SELECT p.port, p.service, CAST(COUNT(*) AS INTEGER) AS devices
+//	FROM device_ports p
+//	         JOIN devices d ON d.id = p.device_id
+//	WHERE p.state = 'open'
+//	  AND d.is_ignored = 0
+//	GROUP BY p.port, p.service
+//	ORDER BY devices DESC, p.port
+//	LIMIT ?
+func (q *Queries) CommonOpenServices(ctx context.Context, limit int64) ([]*CommonOpenServicesRow, error) {
+	rows, err := q.query(ctx, q.commonOpenServicesStmt, commonOpenServices, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*CommonOpenServicesRow
+	for rows.Next() {
+		var i CommonOpenServicesRow
+		if err := rows.Scan(&i.Port, &i.Service, &i.Devices); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const createDevice = `-- name: CreateDevice :one
@@ -1334,6 +1383,61 @@ type MoveEventsParams struct {
 func (q *Queries) MoveEvents(ctx context.Context, arg MoveEventsParams) error {
 	_, err := q.exec(ctx, q.moveEventsStmt, moveEvents, arg.IntoID, arg.FromID)
 	return err
+}
+
+const portStats = `-- name: PortStats :one
+
+SELECT CAST((SELECT COUNT(*)
+             FROM device_ports p JOIN devices d ON d.id = p.device_id
+             WHERE p.state = 'open' AND d.is_ignored = 0) AS INTEGER) AS open_ports,
+       CAST((SELECT COUNT(DISTINCT p.device_id)
+             FROM device_ports p JOIN devices d ON d.id = p.device_id
+             WHERE p.state = 'open' AND d.is_ignored = 0) AS INTEGER) AS devices,
+       CAST((SELECT COUNT(*)
+             FROM events e JOIN devices d ON d.id = e.device_id
+             WHERE e.kind = 'PORT_OPENED' AND d.is_ignored = 0
+               AND e.occurred_at >= ?1) AS INTEGER) AS opened,
+       CAST((SELECT COUNT(*)
+             FROM events e JOIN devices d ON d.id = e.device_id
+             WHERE e.kind = 'PORT_CLOSED' AND d.is_ignored = 0
+               AND e.occurred_at >= ?1) AS INTEGER) AS closed
+`
+
+type PortStatsRow struct {
+	OpenPorts int64 `json:"open_ports"`
+	Devices   int64 `json:"devices"`
+	Opened    int64 `json:"opened"`
+	Closed    int64 `json:"closed"`
+}
+
+// Ports.
+// The overview's compact account of current services and today's changes.
+// Ignored devices stay out so every number agrees with the device list.
+//
+//	SELECT CAST((SELECT COUNT(*)
+//	             FROM device_ports p JOIN devices d ON d.id = p.device_id
+//	             WHERE p.state = 'open' AND d.is_ignored = 0) AS INTEGER) AS open_ports,
+//	       CAST((SELECT COUNT(DISTINCT p.device_id)
+//	             FROM device_ports p JOIN devices d ON d.id = p.device_id
+//	             WHERE p.state = 'open' AND d.is_ignored = 0) AS INTEGER) AS devices,
+//	       CAST((SELECT COUNT(*)
+//	             FROM events e JOIN devices d ON d.id = e.device_id
+//	             WHERE e.kind = 'PORT_OPENED' AND d.is_ignored = 0
+//	               AND e.occurred_at >= ?1) AS INTEGER) AS opened,
+//	       CAST((SELECT COUNT(*)
+//	             FROM events e JOIN devices d ON d.id = e.device_id
+//	             WHERE e.kind = 'PORT_CLOSED' AND d.is_ignored = 0
+//	               AND e.occurred_at >= ?1) AS INTEGER) AS closed
+func (q *Queries) PortStats(ctx context.Context, changedSince dbtype.Time) (*PortStatsRow, error) {
+	row := q.queryRow(ctx, q.portStatsStmt, portStats, changedSince)
+	var i PortStatsRow
+	err := row.Scan(
+		&i.OpenPorts,
+		&i.Devices,
+		&i.Opened,
+		&i.Closed,
+	)
+	return &i, err
 }
 
 const refreshAddress = `-- name: RefreshAddress :exec

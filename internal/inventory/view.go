@@ -121,6 +121,33 @@ type Port struct {
 	ChangedAt time.Time `json:"changed_at"`
 }
 
+// PortOverview is the compact service picture shown on the overview page.
+type PortOverview struct {
+	Open     int
+	Devices  int
+	Opened   int
+	Closed   int
+	Services []*ServiceCount
+}
+
+// ServiceCount reports how many devices currently answer on one known service
+// or, where the static map has no name for it, one port number.
+type ServiceCount struct {
+	Port    uint16
+	Service string
+	Devices int
+}
+
+// Name is the recognisable service name, falling back to the port when the
+// scanner's static service map does not know one.
+func (s *ServiceCount) Name() string {
+	if s.Service != "" {
+		return s.Service
+	}
+
+	return "Port " + strconv.Itoa(int(s.Port))
+}
+
 // Open reports whether the port answered the most recent scan that reached it.
 func (p *Port) Open() bool { return p.State == dbtype.PortOpen }
 

@@ -1,6 +1,7 @@
 package inventory
 
 import (
+	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/pkg/cursor"
 )
 
@@ -18,6 +19,14 @@ type Page struct {
 	// Device narrows the change log to one device's own entries. Zero is every
 	// device, which is what the full log shows. Only ListEvents reads it.
 	Device int64
+
+	// EventKinds narrows the change log to these kinds. Empty is every kind.
+	// Only ListEvents reads it.
+	EventKinds []dbtype.EventKind
+
+	// ScanKind narrows scan history to one kind. Empty is every kind. Only
+	// ListScans reads it.
+	ScanKind dbtype.ScanKind
 }
 
 // EventPage is one window onto the change log.

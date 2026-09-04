@@ -209,6 +209,35 @@ func TestOverviewShowsWhatASegmentIsCalled(t *testing.T) {
 	assert.Contains(t, body, "Home")
 }
 
+func TestOverviewShowsPortsAndServices(t *testing.T) {
+	t.Parallel()
+
+	store := testStore(t)
+	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix), []scanner.Host{
+		host("192.0.2.10", macA, "printer.local"),
+		host("192.0.2.11", macB, "nas.local"),
+	})
+	require.NoError(t, err)
+
+	_, err = store.RecordPorts(t.Context(), "test-sweep", []scanner.PortScan{
+		{Addr: netip.MustParseAddr("192.0.2.10"), Open: []uint16{80}, Scanned: []uint16{22, 80}},
+		{Addr: netip.MustParseAddr("192.0.2.11"), Open: []uint16{22, 80}, Scanned: []uint16{22, 80}},
+	})
+	require.NoError(t, err)
+
+	body := get(t, newWebHandler(t, store), "/").Body.String()
+
+	assert.Contains(t, body, "Ports &amp; services")
+	assert.Contains(t, body, "Devices with services")
+	assert.Contains(t, body, "Common services")
+	assert.Contains(t, body, "http")
+	assert.Contains(t, body, "ssh")
+	assert.Contains(t, body, "Port scan")
+	assert.Contains(t, body, "Recent changes")
+	assert.Contains(t, body, "began answering on")
+	assert.NotContains(t, body, "Devices exposed")
+}
+
 // A prefix nobody has named is still a prefix, and showing an empty chip
 // beside it would read as a tag the segment does not have.
 func TestOverviewLeavesAnUnnamedSegmentBare(t *testing.T) {

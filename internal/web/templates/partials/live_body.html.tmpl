@@ -101,6 +101,81 @@
         </section>
     </div>
 
+    <section class="card portoverview">
+        <div class="block__head">
+            <p class="eyebrow">Ports &amp; services</p>
+            <a class="more" href="/devices">View devices
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M9 6l6 6-6 6"/>
+                </svg>
+            </a>
+        </div>
+
+        <dl class="portmetrics">
+            <div><dd>{{ .Ports.Open }}</dd><dt>Open ports</dt></div>
+            <div><dd>{{ .Ports.Devices }}</dd><dt>Devices with services</dt></div>
+            <div><dd>{{ .Ports.Opened }}</dd><dt>Opened today</dt></div>
+            <div><dd>{{ .Ports.Closed }}</dd><dt>Closed today</dt></div>
+        </dl>
+
+        <div class="portdetail">
+            <div>
+                <p class="eyebrow">Common services</p>
+                {{- if .Ports.Services }}
+                <ul class="services">
+                    {{- range .Ports.Services }}
+                    <li>
+                        <span>{{ .Name }}</span>
+                        <svg class="ledger ledger--thin" viewBox="0 0 100 6" preserveAspectRatio="none"
+                             role="img" aria-label="{{ .Devices }} devices">
+                            <rect class="ledger__track" x="0" y="0" width="100" height="6"></rect>
+                            <rect class="ledger__online" x="0" y="0"
+                                  width="{{ pct .Devices $.Ports.Devices }}" height="6"></rect>
+                        </svg>
+                        <strong>{{ .Devices }}</strong>
+                    </li>
+                    {{- end }}
+                </ul>
+                {{- else }}
+                <p class="dim">No open services recorded yet.</p>
+                {{- end }}
+            </div>
+
+            <div class="portscan">
+                <p class="eyebrow">Port scan</p>
+                {{- with .PortScan }}
+                <p><span class="{{ statusClass .Status }}">{{ .Status }}</span></p>
+                <dl class="facts">
+                    <div><dt>Source</dt><dd>{{ .Source }}</dd></div>
+                    <div><dt>Found</dt><dd>{{ .Found }} open</dd></div>
+                    <div><dt>Took</dt><dd>{{ took . }}</dd></div>
+                    <div><dt>Started</dt><dd class="dim">{{ ago .StartedAt }}</dd></div>
+                </dl>
+                {{- else }}
+                <p class="dim">No port scan has been recorded yet.</p>
+                {{- end }}
+            </div>
+        </div>
+
+        {{- if .PortEvents }}
+        <div class="portchanges">
+            <p class="eyebrow">Recent changes</p>
+            <ul>
+                {{- range .PortEvents }}
+                {{- $event := . }}
+                <li class="{{ tone .Kind }}">
+                    <span class="dot"></span>
+                    <a href="/devices/{{ .DeviceID }}">{{ .DeviceName }}</a>
+                    <span>{{ phrase .Kind }}{{ with change $event }} {{ . }}{{ end }}</span>
+                    <time datetime="{{ .At.Format "2006-01-02T15:04:05Z07:00" }}">{{ ago .At }}</time>
+                </li>
+                {{- end }}
+            </ul>
+        </div>
+        {{- end }}
+    </section>
+
     <section class="block">
         <div class="block__head">
             <p class="eyebrow">Recent</p>

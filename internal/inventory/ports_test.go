@@ -272,3 +272,50 @@ func TestPortScanTargetsSkipsIgnoredDevices(t *testing.T) {
 
 	assert.Equal(t, []netip.Addr{netip.MustParseAddr("192.0.2.10")}, targets)
 }
+
+func TestPortOverviewSummarisesCurrentServicesAndChanges(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s,
+		host("192.0.2.10", macA, "host-a"),
+		host("192.0.2.11", macB, "host-b"),
+	)
+
+	recordPorts(t, s,
+		portScan("192.0.2.10", []uint16{22, 443}, []uint16{22, 80, 443}),
+		portScan("192.0.2.11", []uint16{22}, []uint16{22, 80, 443}),
+	)
+	// Close one service so the current and transition counts differ.
+	recordPorts(t, s,
+		portScan("192.0.2.10", []uint16{22}, []uint16{22, 80, 443}),
+		portScan("192.0.2.11", []uint16{22}, []uint16{22, 80, 443}),
+	)
+
+	got, err := s.PortOverview(t.Context(), 5)
+	require.NoError(t, err)
+
+	assert.Equal(t, 2, got.Open)
+	assert.Equal(t, 2, got.Devices)
+	assert.Equal(t, 3, got.Opened)
+	assert.Equal(t, 1, got.Closed)
+	require.Len(t, got.Services, 1)
+	assert.Equal(t, "ssh", got.Services[0].Name())
+	assert.Equal(t, 2, got.Services[0].Devices)
+
+	// Ignoring a device removes both its port and its history from the overview.
+	_, err = conn.ExecContext(t.Context(), `UPDATE devices SET is_ignored = 1 WHERE mac = ?`, macB)
+	require.NoError(t, err)
+
+	got, err = s.PortOverview(t.Context(), 5)
+	require.NoError(t, err)
+	assert.Equal(t, 1, got.Open)
+	assert.Equal(t, 1, got.Devices)
+	assert.Equal(t, 2, got.Opened)
+}
+
+func TestUnknownServiceCountNamesItsPort(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "Port 49152", (&ServiceCount{Port: 49152}).Name())
+}

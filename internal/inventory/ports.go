@@ -32,6 +32,33 @@ type PortSummary struct {
 	Closed int
 }
 
+// PortOverview returns current open-service counts and transitions in the last
+// discovery window. Ignored devices are excluded, as they are from the device
+// list the overview links to.
+func (s *Store) PortOverview(ctx context.Context, serviceLimit int) (*PortOverview, error) {
+	stats, err := s.q.PortStats(ctx, dbtype.NewTime(s.now().Add(-DiscoveryWindow)))
+	if err != nil {
+		return nil, fmt.Errorf("port stats: %w", err)
+	}
+
+	rows, err := s.q.CommonOpenServices(ctx, int64(serviceLimit))
+	if err != nil {
+		return nil, fmt.Errorf("common open services: %w", err)
+	}
+
+	services := make([]*ServiceCount, 0, len(rows))
+	for _, row := range rows {
+		services = append(services, &ServiceCount{
+			Port: uint16(row.Port), Service: row.Service.String, Devices: int(row.Devices),
+		})
+	}
+
+	return &PortOverview{
+		Open: int(stats.OpenPorts), Devices: int(stats.Devices),
+		Opened: int(stats.Opened), Closed: int(stats.Closed), Services: services,
+	}, nil
+}
+
 // RecordPorts folds a port scan into the inventory, attributing it to the named
 // source -- the same vantage point the sweep records, since it is the same host
 // probing.

@@ -7,17 +7,26 @@ import (
 
 	"github.com/pushkar-anand/build-with-go/http/response"
 	"github.com/pushkar-anand/build-with-go/logger"
+	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
+)
+
+const (
+	overviewServiceLimit   = 5
+	overviewPortEventLimit = 2
 )
 
 // overviewData is the whole overview, and also every part of it that refreshes
 // on its own, since the fragment is rendered from the same value.
 type overviewData struct {
 	view
-	Stats    *inventory.Stats
-	Scan     *inventory.Scan
-	Networks []*inventory.Network
-	Events   []*inventory.Event
+	Stats      *inventory.Stats
+	Scan       *inventory.Scan
+	Ports      *inventory.PortOverview
+	PortScan   *inventory.Scan
+	PortEvents []*inventory.Event
+	Networks   []*inventory.Network
+	Events     []*inventory.Event
 }
 
 func (h *Handler) overview() response.HandlerFunc {
@@ -77,11 +86,26 @@ func buildOverviewData(
 		return nil, fmt.Errorf("list events: %w", err)
 	}
 
+	ports, err := store.PortOverview(ctx, overviewServiceLimit)
+	if err != nil {
+		return nil, err
+	}
+
+	portActivity, err := store.ListEvents(ctx, inventory.Page{
+		Limit:      overviewPortEventLimit,
+		EventKinds: []dbtype.EventKind{dbtype.EventPortOpened, dbtype.EventPortClosed},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list port events: %w", err)
+	}
+
 	data := &overviewData{
 		Title: "Overview", Section: "Overview", Live: true,
-		Stats:    stats,
-		Networks: networks,
-		Events:   activity.Events,
+		Stats:      stats,
+		Ports:      ports,
+		PortEvents: portActivity.Events,
+		Networks:   networks,
+		Events:     activity.Events,
 	}
 
 	// A first run has no sweep behind it, which is a state to render rather
@@ -89,6 +113,9 @@ func buildOverviewData(
 	if scan, err := store.LatestScan(ctx); err == nil {
 		data.Scan = scan
 		data.Note = sweepNote(scan)
+	}
+	if scan, err := store.LatestScanOfKind(ctx, dbtype.ScanPorts); err == nil {
+		data.PortScan = scan
 	}
 
 	return data, nil
