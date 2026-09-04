@@ -4,6 +4,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -17,6 +18,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/api"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/web"
+	"github.com/rs/cors"
 )
 
 type (
@@ -25,6 +27,13 @@ type (
 		Port   int
 		Addr   string
 		Logger *slog.Logger
+
+		// CORSAllowedOrigins lists the origins (scheme://host[:port]) a browser
+		// may read this server's responses from cross-origin. Empty defaults to
+		// this server's own address, which is the same thing a browser already
+		// gets for free by same-origin rules -- CORS only starts to matter once
+		// something outside that address needs in.
+		CORSAllowedOrigins []string
 	}
 )
 
@@ -72,9 +81,26 @@ func Start(
 	mux.Handle("/api/", http.StripPrefix("/api", ap))
 	mux.Handle("/", wh)
 
+	origins := cfg.CORSAllowedOrigins
+	if len(origins) == 0 {
+		origins = []string{fmt.Sprintf("http://%s:%d", cfg.Addr, cfg.Port)}
+	}
+
+	corsMW := cors.New(cors.Options{
+		AllowedOrigins: origins,
+		AllowedMethods: []string{http.MethodGet, http.MethodHead, http.MethodPatch},
+		// Content-Type is covered by the library's own defaults; nothing here
+		// asks for a header beyond what those already allow.
+		ExposedHeaders: []string{"X-Request-Id"},
+		MaxAge:         300,
+	})
+
 	// Applied outside the logger so every response carries them, including the
-	// static files, which the renderer never sees.
-	h := secureHeaders(sameOrigin(logger.NewHTTPLogger(cfg.Logger)(mux)))
+	// static files, which the renderer never sees. CORS sits inside sameOrigin:
+	// it only ever adds Access-Control-* headers or answers a preflight, never
+	// widens who may make a state-changing request -- that stays sameOrigin's
+	// call.
+	h := secureHeaders(sameOrigin(corsMW.Handler(logger.NewHTTPLogger(cfg.Logger)(mux))))
 	h = middleware.RequestID(h)
 
 	srv := server.New(
