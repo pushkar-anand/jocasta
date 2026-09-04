@@ -21,5 +21,5 @@ func TestHealthEndpoint(t *testing.T) {
 	// asserting.
 	assert.Contains(t, body, "version")
 	assert.Contains(t, body, "time")
-	assert.Len(t, body, 1)
+	assert.Len(t, body, 2)
 }
