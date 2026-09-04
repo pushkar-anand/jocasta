@@ -13,7 +13,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const dbVersion = 5
+const dbVersion = 1
 
 // pragmas travel in the DSN so the pool applies them to every connection it
 // opens. foreign_keys is the reason this matters: it is per-connection, so
