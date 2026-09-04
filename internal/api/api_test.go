@@ -42,7 +42,11 @@ func testLogger() *slog.Logger {
 func testReader(t *testing.T) *request.Reader {
 	t.Helper()
 
-	v, err := validator.New()
+	v, err := validator.New(
+		validator.WithCustomTags(map[string]validator.ValidationFunc{
+			"deviceclass": DeviceClassRule,
+		}),
+	)
 	require.NoError(t, err)
 
 	return request.NewReader(testLogger(), v)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/netip"
+	"strings"
 	"testing"
 
 	"github.com/pushkar-anand/jocasta/internal/scanner"
@@ -303,4 +304,60 @@ func TestUpdateDeviceRejectsAMalformedBody(t *testing.T) {
 
 	status, _, _ := patchJSON(t, seeded(t), "/devices/1", `{"label":`)
 	assert.Equal(t, http.StatusBadRequest, status)
+}
+
+func TestUpdateDeviceRejectsInvalidType(t *testing.T) {
+	t.Parallel()
+
+	status, _, body := patchJSON(t, seeded(t), "/devices/1", `{"type": "hovercraft"}`)
+
+	require.Equal(t, http.StatusUnprocessableEntity, status)
+	assert.Contains(t, problemContext(t, body), "type")
+}
+
+func TestUpdateDeviceRejectsOverlongLabel(t *testing.T) {
+	t.Parallel()
+
+	label := strings.Repeat("x", 201)
+	status, _, body := patchJSON(t, seeded(t), "/devices/1", fmt.Sprintf(`{"label": %q}`, label))
+
+	require.Equal(t, http.StatusUnprocessableEntity, status)
+	assert.Contains(t, problemContext(t, body), "label")
+}
+
+func TestUpdateDeviceRejectsOverlongNotes(t *testing.T) {
+	t.Parallel()
+
+	notes := strings.Repeat("x", 2001)
+	status, _, body := patchJSON(t, seeded(t), "/devices/1", fmt.Sprintf(`{"notes": %q}`, notes))
+
+	require.Equal(t, http.StatusUnprocessableEntity, status)
+	assert.Contains(t, problemContext(t, body), "notes")
+}
+
+func TestUpdateDeviceRejectsOverlongGroup(t *testing.T) {
+	t.Parallel()
+
+	group := strings.Repeat("x", 101)
+	status, _, body := patchJSON(t, seeded(t), "/devices/1", fmt.Sprintf(`{"group": %q}`, group))
+
+	require.Equal(t, http.StatusUnprocessableEntity, status)
+	assert.Contains(t, problemContext(t, body), "group")
+}
+
+func TestUpdateDeviceAcceptsValidType(t *testing.T) {
+	t.Parallel()
+
+	status, _, body := patchJSON(t, seeded(t), "/devices/1", `{"type": "printer"}`)
+	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, "printer", body["type"])
+}
+
+func TestListDevicesAcceptsSortType(t *testing.T) {
+	t.Parallel()
+
+	status, _, body := get(t, seeded(t), "/devices?sort=type")
+
+	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, float64(2), body["count"])
 }
