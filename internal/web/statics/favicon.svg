@@ -1,7 +1,49 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
-    <!-- The decay ladder: the same falling-off signal the device rows carry. -->
-    <rect width="16" height="16" rx="3" fill="#141210"/>
-    <rect x="3" y="3.5" width="10" height="2.5" rx="1" fill="#f0a830"/>
-    <rect x="3" y="7" width="10" height="2.5" rx="1" fill="#f0a830" opacity=".55"/>
-    <rect x="3" y="10.5" width="10" height="2.5" rx="1" fill="#f0a830" opacity=".25"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+    <!-- Jocasta Brand Favicon: Concept 2A Isometric Device Nexus & Radar Arc -->
+    <defs>
+        <linearGradient id="sweep-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#fab219" stop-opacity="0.85"/>
+            <stop offset="60%" stop-color="#fab219" stop-opacity="0.2"/>
+            <stop offset="100%" stop-color="#fab219" stop-opacity="0"/>
+        </linearGradient>
+    </defs>
+
+    <!-- Background Badge -->
+    <rect width="32" height="32" rx="7" fill="#15171c"/>
+
+    <!-- Radar Arc & Sweep Beam -->
+    <path d="M 6.5 10.5 A 11 11 0 0 1 25.5 10.5" fill="none" stroke="#fab219" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M 16 9 L 25.5 10.5 A 11 11 0 0 0 19 3.5 Z" fill="url(#sweep-grad)"/>
+
+    <!-- Isometric Network Cube Struts -->
+    <g stroke="#2a78d6" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+        <!-- Top Face -->
+        <path d="M 16 9 L 23 13 L 16 17 L 9 13 Z" fill="none"/>
+        
+        <!-- Vertical Edges -->
+        <line x1="9" y1="13" x2="9" y2="21"/>
+        <line x1="16" y1="17" x2="16" y2="25"/>
+        <line x1="23" y1="13" x2="23" y2="21"/>
+
+        <!-- Bottom Edges -->
+        <path d="M 9 21 L 16 25 L 23 21" fill="none"/>
+
+        <!-- Internal Cross-links -->
+        <line x1="9" y1="17" x2="16" y2="17" stroke-width="1.1" stroke-opacity="0.8"/>
+        <line x1="23" y1="17" x2="16" y2="17" stroke-width="1.1" stroke-opacity="0.8"/>
+    </g>
+
+    <!-- Network Device Nodes -->
+    <circle cx="9" cy="13" r="1.5" fill="#4ba2ff"/>
+    <circle cx="23" cy="13" r="1.5" fill="#4ba2ff"/>
+    <circle cx="9" cy="21" r="1.5" fill="#4ba2ff"/>
+    <circle cx="23" cy="21" r="1.5" fill="#4ba2ff"/>
+    <circle cx="16" cy="25" r="1.5" fill="#4ba2ff"/>
+
+    <!-- Central Core Hub Node -->
+    <circle cx="16" cy="17" r="1.8" fill="#ffffff"/>
+
+    <!-- Radar Anchor Node (Top, Amber) -->
+    <circle cx="16" cy="9" r="2" fill="#fab219"/>
 </svg>
+

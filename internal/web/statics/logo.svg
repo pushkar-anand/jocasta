@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 64" width="280" height="64">
+    <defs>
+        <linearGradient id="logo-sweep-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#fab219" stop-opacity="0.85"/>
+            <stop offset="60%" stop-color="#fab219" stop-opacity="0.2"/>
+            <stop offset="100%" stop-color="#fab219" stop-opacity="0"/>
+        </linearGradient>
+    </defs>
+
+    <!-- Brand Emblem (Concept 2A) -->
+    <g transform="translate(8, 8)">
+        <!-- Background Tile -->
+        <rect width="48" height="48" rx="12" fill="#15171c"/>
+
+        <!-- Radar Arc & Sweep Beam -->
+        <path d="M 10 16 A 16.5 16.5 0 0 1 38 16" fill="none" stroke="#fab219" stroke-width="2.2" stroke-linecap="round"/>
+        <path d="M 24 14 L 38 16 A 16.5 16.5 0 0 0 28 7.5 Z" fill="url(#logo-sweep-grad)"/>
+
+        <!-- Isometric Network Cube Struts -->
+        <g stroke="#2a78d6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <!-- Top Face -->
+            <path d="M 24 14 L 34.5 20 L 24 26 L 13.5 20 Z" fill="none"/>
+            
+            <!-- Vertical Edges -->
+            <line x1="13.5" y1="20" x2="13.5" y2="32"/>
+            <line x1="24" y1="26" x2="24" y2="38"/>
+            <line x1="34.5" y1="20" x2="34.5" y2="32"/>
+
+            <!-- Bottom Edges -->
+            <path d="M 13.5 32 L 24 38 L 34.5 32" fill="none"/>
+
+            <!-- Internal Struts -->
+            <line x1="13.5" y1="26" x2="24" y2="26" stroke-width="1.3" stroke-opacity="0.75"/>
+            <line x1="34.5" y1="26" x2="24" y2="26" stroke-width="1.3" stroke-opacity="0.75"/>
+        </g>
+
+        <!-- Network Device Nodes -->
+        <circle cx="13.5" cy="20" r="2" fill="#4ba2ff"/>
+        <circle cx="34.5" cy="20" r="2" fill="#4ba2ff"/>
+        <circle cx="13.5" cy="32" r="2" fill="#4ba2ff"/>
+        <circle cx="34.5" cy="32" r="2" fill="#4ba2ff"/>
+        <circle cx="24" cy="38" r="2" fill="#4ba2ff"/>
+
+        <!-- Central Core Hub Node -->
+        <circle cx="24" cy="26" r="2.4" fill="#ffffff"/>
+
+        <!-- Top Radar Anchor Node (Amber) -->
+        <circle cx="24" cy="14" r="2.8" fill="#fab219"/>
+    </g>
+
+    <!-- Typography -->
+    <g transform="translate(68, 22)">
+        <text x="0" y="16" font-family="-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "IBM Plex Sans", sans-serif" font-size="22" font-weight="700" letter-spacing="-0.02em" fill="#15171c">jocasta</text>
+        <text x="0" y="32" font-family="-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "IBM Plex Sans", sans-serif" font-size="9.5" font-weight="600" letter-spacing="0.12em" fill="#7d8291">NETWORK INVENTORY</text>
+    </g>
+</svg>
