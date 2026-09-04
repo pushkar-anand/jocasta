@@ -87,7 +87,7 @@ func TestNetworkPageShowsTheTag(t *testing.T) {
 		[]scanner.Host{host("192.0.2.10", macA, "printer.local")})
 	require.NoError(t, err)
 
-	body := get(t, NewHandler(testLogger(), testReader(t), store), "/networks/1").Body.String()
+	body := get(t, newWebHandler(t, store), "/networks/1").Body.String()
 
 	assert.Contains(t, body, "VLAN 10")
 	assert.Contains(t, body, "Home")
