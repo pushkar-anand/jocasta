@@ -31,9 +31,11 @@ type PageParams struct {
 	// is the whole log. Only ListEvents honours it.
 	DeviceID int64
 
-	// EventKinds and ScanKind optionally narrow their respective logs.
-	EventKinds []dbtype.EventKind
-	ScanKind   dbtype.ScanKind
+	// EventKinds, ExcludeIgnored and ScanKind optionally narrow their
+	// respective logs.
+	EventKinds     []dbtype.EventKind
+	ExcludeIgnored bool
+	ScanKind       dbtype.ScanKind
 }
 
 // ListEventsRow is one entry of the change log with the device it named.
@@ -69,6 +71,9 @@ func (q *Queries) ListEvents(ctx context.Context, arg PageParams) ([]*ListEvents
 	}
 	if len(arg.EventKinds) != 0 {
 		sb = sb.Where(squirrel.Eq{"e.kind": arg.EventKinds})
+	}
+	if arg.ExcludeIgnored {
+		sb = sb.Where(squirrel.Eq{"d.is_ignored": false})
 	}
 
 	// The cursor's timestamp is bound as a dbtype.Time so that it renders in

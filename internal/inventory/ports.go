@@ -7,11 +7,16 @@ import (
 	"maps"
 	"slices"
 	"strconv"
+	"time"
 
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 )
+
+// PortChangeWindow is how far back the overview counts a port as newly opened
+// or closed. It is a rolling day, matching the overview's other "today" count.
+const PortChangeWindow = 24 * time.Hour
 
 // PortSummary counts what recording one port scan changed.
 type PortSummary struct {
@@ -32,11 +37,11 @@ type PortSummary struct {
 	Closed int
 }
 
-// PortOverview returns current open-service counts and transitions in the last
-// discovery window. Ignored devices are excluded, as they are from the device
-// list the overview links to.
+// PortOverview returns current open-service counts and recent transitions.
+// Ignored devices are excluded, as they are from the device list the overview
+// links to.
 func (s *Store) PortOverview(ctx context.Context, serviceLimit int) (*PortOverview, error) {
-	stats, err := s.q.PortStats(ctx, dbtype.NewTime(s.now().Add(-DiscoveryWindow)))
+	stats, err := s.q.PortStats(ctx, dbtype.NewTime(s.now().Add(-PortChangeWindow)))
 	if err != nil {
 		return nil, fmt.Errorf("port stats: %w", err)
 	}
@@ -49,7 +54,9 @@ func (s *Store) PortOverview(ctx context.Context, serviceLimit int) (*PortOvervi
 	services := make([]*ServiceCount, 0, len(rows))
 	for _, row := range rows {
 		services = append(services, &ServiceCount{
-			Port: uint16(row.Port), Service: row.Service.String, Devices: int(row.Devices),
+			// device_ports.port is CHECK-constrained to 1-65535, so it fits.
+			Port:    uint16(row.Port), //nolint:gosec // range enforced by the column CHECK.
+			Service: row.Service.String, Devices: int(row.Devices),
 		})
 	}
 

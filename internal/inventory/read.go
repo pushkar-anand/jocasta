@@ -201,7 +201,8 @@ func (s *Store) DeviceSources(ctx context.Context, id int64) ([]*Claim, error) {
 // ListEvents returns one page of the change log, most recent first.
 func (s *Store) ListEvents(ctx context.Context, p Page) (*EventPage, error) {
 	rows, err := s.q.ListEvents(ctx, models.PageParams{
-		Cursor: p.Cursor, Limit: p.seek(), DeviceID: p.Device, EventKinds: p.EventKinds,
+		Cursor: p.Cursor, Limit: p.seek(), DeviceID: p.Device,
+		EventKinds: p.EventKinds, ExcludeIgnored: p.ExcludeIgnored,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list events: %w", err)
@@ -266,6 +267,7 @@ func (s *Store) LatestScanOfKind(ctx context.Context, k dbtype.ScanKind) (*Scan,
 	if err != nil {
 		return nil, err
 	}
+
 	if len(page.Scans) == 0 {
 		return nil, fmt.Errorf("scan of kind %s: %w", k, ErrNotFound)
 	}

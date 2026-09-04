@@ -24,6 +24,10 @@ type Page struct {
 	// Only ListEvents reads it.
 	EventKinds []dbtype.EventKind
 
+	// ExcludeIgnored leaves out events belonging to ignored devices. Only
+	// ListEvents reads it; the full log deliberately includes their history.
+	ExcludeIgnored bool
+
 	// ScanKind narrows scan history to one kind. Empty is every kind. Only
 	// ListScans reads it.
 	ScanKind dbtype.ScanKind

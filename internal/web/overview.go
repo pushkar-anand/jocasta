@@ -92,8 +92,9 @@ func buildOverviewData(
 	}
 
 	portActivity, err := store.ListEvents(ctx, inventory.Page{
-		Limit:      overviewPortEventLimit,
-		EventKinds: []dbtype.EventKind{dbtype.EventPortOpened, dbtype.EventPortClosed},
+		Limit:          overviewPortEventLimit,
+		EventKinds:     []dbtype.EventKind{dbtype.EventPortOpened, dbtype.EventPortClosed},
+		ExcludeIgnored: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list port events: %w", err)
@@ -114,6 +115,7 @@ func buildOverviewData(
 		data.Scan = scan
 		data.Note = sweepNote(scan)
 	}
+
 	if scan, err := store.LatestScanOfKind(ctx, dbtype.ScanPorts); err == nil {
 		data.PortScan = scan
 	}

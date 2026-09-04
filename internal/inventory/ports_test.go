@@ -312,6 +312,16 @@ func TestPortOverviewSummarisesCurrentServicesAndChanges(t *testing.T) {
 	assert.Equal(t, 1, got.Open)
 	assert.Equal(t, 1, got.Devices)
 	assert.Equal(t, 2, got.Opened)
+
+	changes, err := s.ListEvents(t.Context(), Page{
+		Limit:          100,
+		EventKinds:     []dbtype.EventKind{dbtype.EventPortOpened, dbtype.EventPortClosed},
+		ExcludeIgnored: true,
+	})
+	require.NoError(t, err)
+	for _, event := range changes.Events {
+		assert.Equal(t, "host-a", event.DeviceName)
+	}
 }
 
 func TestUnknownServiceCountNamesItsPort(t *testing.T) {
