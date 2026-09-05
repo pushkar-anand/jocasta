@@ -27,6 +27,12 @@ sql:
             go_type: &timestamp
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
               type: "Time"
+          - column: "api_tokens.created_at"
+            go_type: *timestamp
+          - column: "api_tokens.last_used_at"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "NullTime"
           - column: "sources.created_at"
             go_type: *timestamp
           - column: "networks.created_at"
@@ -98,6 +104,10 @@ sql:
             go_type:
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
               type: "ScanStatus"
+          - column: "api_tokens.scope"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "TokenScope"
           # events.kind and devices.hostname_source carry no CHECK, so these
           # types are the only statement of what either column admits.
           - column: "events.kind"
