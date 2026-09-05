@@ -245,6 +245,32 @@ func (s TokenScope) Value() (driver.Value, error) { return enumValue(s, tokenSco
 // Scan reads a stored token scope back into s.
 func (s *TokenScope) Scan(src any) error { return enumScan(s, tokenScopes, "token scope", src) }
 
+// UserRole is what an account is allowed to do.
+type UserRole string
+
+// UserRole values an account can carry.
+const (
+	// RoleAdmin additionally admits managing other accounts.
+	RoleAdmin UserRole = "admin"
+
+	// RoleRead admits reading the inventory but not changing it.
+	RoleRead UserRole = "read"
+
+	// RoleReadWrite additionally admits changing it.
+	RoleReadWrite UserRole = "read_write"
+)
+
+var userRoles = []UserRole{RoleAdmin, RoleRead, RoleReadWrite}
+
+// Valid reports whether r is one of the known user roles.
+func (r UserRole) Valid() bool { return slices.Contains(userRoles, r) }
+
+// Value renders r for the driver, refusing anything the column does not admit.
+func (r UserRole) Value() (driver.Value, error) { return enumValue(r, userRoles, "user role") }
+
+// Scan reads a stored user role back into r.
+func (r *UserRole) Scan(src any) error { return enumScan(r, userRoles, "user role", src) }
+
 // enumValue renders v, refusing anything the column does not admit. The zero
 // value is refused with the rest: a column reached without its constant set is
 // a bug worth a name, not an empty string in the table.

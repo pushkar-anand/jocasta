@@ -23,6 +23,10 @@ sql:
         # controls both directions so every writer agrees on one sortable
         # format. See internal/db/dbtype.
         overrides:
+          - column: "users.role"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "UserRole"
           - column: "users.created_at"
             go_type: &timestamp
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
