@@ -21,6 +21,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/api"
 	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/db"
+	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 	"github.com/pushkar-anand/jocasta/internal/hosts"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
@@ -106,10 +107,27 @@ func testAuth(t *testing.T) *auth.Auth {
 	_, err = q.CreateUser(t.Context(), models.CreateUserParams{
 		Username:     testUsername,
 		PasswordHash: hash,
+		Role:         dbtype.RoleAdmin,
 	})
 	require.NoError(t, err)
 
 	a, err := auth.New(q, password.NewHasher())
+	require.NoError(t, err)
+
+	return a
+}
+
+// unseededAuth is testAuth without seeding an account -- for a test exercising
+// the setup flow itself, which only makes sense before any account exists.
+func unseededAuth(t *testing.T) *auth.Auth {
+	t.Helper()
+
+	conn, err := db.New(&db.Config{Path: t.TempDir(), Name: "auth.db"})
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = conn.Close() })
+
+	a, err := auth.New(models.New(conn), password.NewHasher())
 	require.NoError(t, err)
 
 	return a
@@ -136,6 +154,8 @@ func newWebHandlerWithAuth(t *testing.T, store *inventory.Store, a *auth.Auth) h
 		response.WithErrorTemplates(map[int]string{
 			http.StatusNotFound:     TemplateNotFound,
 			http.StatusUnauthorized: TemplateLogin,
+			http.StatusConflict:     TemplateSetup,
+			http.StatusForbidden:    TemplateForbidden,
 		}),
 		response.WithErrorStatusMapper(func(err error) int {
 			switch {
@@ -143,6 +163,10 @@ func newWebHandlerWithAuth(t *testing.T, store *inventory.Store, a *auth.Auth) h
 				return http.StatusNotFound
 			case errors.Is(err, auth.ErrInvalidCredentials):
 				return http.StatusUnauthorized
+			case errors.Is(err, auth.ErrSetupComplete):
+				return http.StatusConflict
+			case errors.Is(err, auth.ErrForbidden):
+				return http.StatusForbidden
 			}
 
 			return http.StatusInternalServerError

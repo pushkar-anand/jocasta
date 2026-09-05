@@ -88,6 +88,9 @@ func NewHandler(
 
 	h.mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(staticFS)))
 
+	h.mux.HandleFunc("GET /setup", hw.Handle(h.setup()))
+	h.mux.HandleFunc("POST /setup", hw.Handle(h.setupForm(sm, a)))
+
 	h.mux.HandleFunc("GET /login", hw.Handle(h.login(sm)))
 	h.mux.HandleFunc("POST /login", hw.Handle(h.loginForm(sm, a)))
 	h.mux.HandleFunc("GET /logout", hw.Handle(h.logout(sm)))
@@ -95,6 +98,9 @@ func NewHandler(
 	h.mux.HandleFunc("GET /settings/tokens", hw.Handle(h.tokens(sm, a)))
 	h.mux.HandleFunc("POST /settings/tokens", hw.Handle(h.createToken(sm, a)))
 	h.mux.HandleFunc("DELETE /settings/tokens/{id}", hw.Handle(h.revokeToken(sm, a)))
+
+	h.mux.HandleFunc("GET /settings/users", hw.Handle(h.users(sm, a)))
+	h.mux.HandleFunc("POST /settings/users", hw.Handle(h.createUser(sm, a)))
 
 	// {$} matches only the root itself, so an unknown path reaches the
 	// catch-all below and is reported rather than quietly served the overview.
@@ -164,6 +170,24 @@ func ErrorPageData(_ *http.Request, _ error, status int) map[string]any {
 		return map[string]any{
 			"Title": "Sign in",
 			"Error": "Incorrect username or password.",
+		}
+	case http.StatusConflict:
+		// The setup page's own fields, the same reason the 401 case above uses
+		// loginData's rather than view's: TemplateSetup renders standalone too.
+		return map[string]any{
+			"Title": "Set up admin account",
+			"Error": "Setup has already been completed. Sign in instead.",
+		}
+	case http.StatusForbidden:
+		// Forbidden renders inside the signed-in shell -- the visitor reaching
+		// it is signed in, just not as an admin -- so it needs view's fields
+		// the same way the 404 case below does.
+		return map[string]any{
+			"Title":   "Forbidden",
+			"Section": "",
+			"Crumb":   nil,
+			"Live":    false,
+			"Note":    "",
 		}
 	default:
 		// The 404 page is built from layout/head and layout/foot like every
