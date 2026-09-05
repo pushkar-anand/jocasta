@@ -1,0 +1,13 @@
+{{ define "page/forbidden" }}
+    {{- template "layout/head" . }}
+
+    <section class="block">
+        <p class="eyebrow">Forbidden</p>
+        <div class="card empty">
+            <p>Your account cannot do that.</p>
+            <p><a href="/">Back to the overview</a></p>
+        </div>
+    </section>
+
+    {{- template "layout/foot" . }}
+{{ end }}
