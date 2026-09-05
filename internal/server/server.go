@@ -4,6 +4,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -19,6 +20,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/web"
+	"github.com/rs/cors"
 )
 
 type (
@@ -27,6 +29,13 @@ type (
 		Port   int
 		Addr   string
 		Logger *slog.Logger
+
+		// CORSAllowedOrigins lists the origins (scheme://host[:port]) a browser
+		// may read this server's responses from cross-origin. Empty defaults to
+		// this server's own address, which is the same thing a browser already
+		// gets for free by same-origin rules -- CORS only starts to matter once
+		// something outside that address needs in.
+		CORSAllowedOrigins []string
 	}
 )
 
@@ -42,7 +51,12 @@ func Start(
 	validator *validator.Validator,
 	a *auth.Auth,
 ) error {
-	reader := request.NewReader(cfg.Logger, validator, request.WithRejectUnknownFields())
+	reader := request.NewReader(
+		cfg.Logger,
+		validator,
+		request.WithRejectUnknownFields(),
+		request.WithMaxBodyBytes(maxRequestBodyBytes),
+	)
 	sm := auth.NewSession()
 
 	jw := response.NewJSONWriter(
@@ -96,12 +110,27 @@ func Start(
 	mux.Handle("/api/", http.StripPrefix("/api", tokenMiddleware(ap)))
 	mux.Handle("/", sessionMiddleware(wh))
 
-	h := sameOrigin(logger.NewHTTPLogger(cfg.Logger)(mux))
+	origins := cfg.CORSAllowedOrigins
+	if len(origins) == 0 {
+		origins = []string{fmt.Sprintf("http://%s:%d", cfg.Addr, cfg.Port)}
+	}
 
-	// Applied outside both gates so every response carries them, including
-	// the static files the renderer never sees and the redirect an
-	// unauthenticated request gets in place of a page.
-	h = secureHeaders(h)
+	corsMW := cors.New(cors.Options{
+		AllowedOrigins: origins,
+		AllowedMethods: []string{http.MethodGet, http.MethodHead, http.MethodPatch},
+		// Content-Type is covered by the library's own defaults; nothing here
+		// asks for a header beyond what those already allow.
+		ExposedHeaders: []string{"X-Request-Id"},
+		MaxAge:         300,
+	})
+
+	// secureHeaders sits outside both gates so every response carries them,
+	// including the static files the renderer never sees and the redirect an
+	// unauthenticated request gets in place of a page. CORS sits inside
+	// sameOrigin: it only ever adds Access-Control-* headers or answers a
+	// preflight, never widens who may make a state-changing request -- that
+	// stays sameOrigin's call.
+	h := secureHeaders(sameOrigin(corsMW.Handler(logger.NewHTTPLogger(cfg.Logger)(mux))))
 	h = middleware.RequestID(h)
 
 	srv := server.New(
@@ -112,6 +141,14 @@ func Start(
 
 	return srv.Serve(ctx)
 }
+
+// maxRequestBodyBytes caps a PATCH body the reader will decode.
+//
+// The largest curationRequest/deviceEdit a caller can legitimately send is
+// label(200) + notes(2000) + group(100) + a short type name -- a couple of KB
+// even accounting for JSON or form-encoding overhead. 16KiB leaves an order of
+// magnitude of headroom over that while still refusing an unbounded body.
+const maxRequestBodyBytes = 16 << 10
 
 // csp is the content security policy every response carries.
 //

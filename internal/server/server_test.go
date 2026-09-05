@@ -438,6 +438,140 @@ func TestCrossOriginReadIsAllowed(t *testing.T) {
 	assert.Equal(t, http.StatusOK, res.StatusCode)
 }
 
+// startServerWithOrigins is startServer with an explicit CORS allow-list,
+// rather than the default of the server's own address.
+func startServerWithOrigins(t *testing.T, origins []string) string {
+	t.Helper()
+
+	port := freePort(t)
+	store := testStore(t)
+	a, _ := testAuth(t)
+
+	errCh := make(chan error, 1)
+	ctx := t.Context()
+
+	go func() {
+		errCh <- Start(ctx, &Config{
+			Addr:               "127.0.0.1",
+			Port:               port,
+			Logger:             testLogger(),
+			CORSAllowedOrigins: origins,
+		}, store, testValidator(t), a)
+	}()
+
+	t.Cleanup(func() {
+		select {
+		case err := <-errCh:
+			assert.NoError(t, err, "Start should return cleanly once the context is cancelled")
+		case <-time.After(10 * time.Second):
+			t.Error("Start did not return after the context was cancelled")
+		}
+	})
+
+	addr := net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
+	waitForServer(t, addr)
+
+	return "http://" + addr
+}
+
+// A cross-origin read from a site named in the CORS allow-list gets the
+// header a browser needs to let the calling page read the response.
+func TestCORSAllowsConfiguredOrigin(t *testing.T) {
+	baseURL := startServerWithOrigins(t, []string{"https://dashboard.example"})
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, baseURL+"/api/stats", nil)
+	require.NoError(t, err)
+
+	req.Header.Set("Origin", "https://dashboard.example")
+
+	res, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = res.Body.Close() })
+
+	assert.Equal(t, "https://dashboard.example", res.Header.Get("Access-Control-Allow-Origin"))
+}
+
+// A site not on the allow-list gets no such header, so the browser refuses
+// the calling page access to the response even though the server answered.
+func TestCORSRefusesUnlistedOrigin(t *testing.T) {
+	baseURL := startServerWithOrigins(t, []string{"https://dashboard.example"})
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, baseURL+"/api/stats", nil)
+	require.NoError(t, err)
+
+	req.Header.Set("Origin", "https://evil.example")
+
+	res, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = res.Body.Close() })
+
+	assert.Empty(t, res.Header.Get("Access-Control-Allow-Origin"))
+}
+
+// A preflight for the state-changing route is answered without reaching the
+// mux, and only when it asks about a method the API actually exposes.
+func TestCORSPreflight(t *testing.T) {
+	baseURL := startServerWithOrigins(t, []string{"https://dashboard.example"})
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodOptions, baseURL+"/api/devices/1", nil)
+	require.NoError(t, err)
+
+	req.Header.Set("Origin", "https://dashboard.example")
+	req.Header.Set("Access-Control-Request-Method", http.MethodPatch)
+
+	res, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = res.Body.Close() })
+
+	assert.Equal(t, http.StatusNoContent, res.StatusCode)
+	assert.Equal(t, "https://dashboard.example", res.Header.Get("Access-Control-Allow-Origin"))
+	assert.Contains(t, res.Header.Get("Access-Control-Allow-Methods"), http.MethodPatch)
+}
+
+// Leaving CORSAllowedOrigins unset defaults to the server's own address, so a
+// third-party site still gets no CORS header -- unset does not mean open.
+func TestCORSDefaultsToOwnAddress(t *testing.T) {
+	baseURL, _ := startServer(t)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, baseURL+"/api/stats", nil)
+	require.NoError(t, err)
+
+	req.Header.Set("Origin", "https://evil.example")
+
+	res, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = res.Body.Close() })
+
+	assert.Empty(t, res.Header.Get("Access-Control-Allow-Origin"))
+}
+
+// A PATCH body past maxRequestBodyBytes is refused before it is decoded in
+// full, rather than being read unbounded into memory.
+func TestRequestBodyTooLargeIsRejected(t *testing.T) {
+	baseURL, apiToken := startServer(t)
+
+	oversized := strings.Repeat("a", maxRequestBodyBytes+1)
+	body := `{"notes":"` + oversized + `"}`
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPatch, baseURL+"/api/devices/1", strings.NewReader(body))
+	require.NoError(t, err)
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	req.Header.Set("Authorization", "Bearer "+apiToken)
+
+	res, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = res.Body.Close() })
+
+	assert.Equal(t, http.StatusRequestEntityTooLarge, res.StatusCode)
+}
+
 func TestSafeMethod(t *testing.T) {
 	t.Parallel()
 

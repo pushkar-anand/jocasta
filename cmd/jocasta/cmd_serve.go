@@ -35,9 +35,10 @@ func (s *ServeCmd) Run(
 	port := cmp.Or(s.Port, cfg.Server.Port)
 
 	sCfg := &server.Config{
-		Addr:   host,
-		Port:   port,
-		Logger: log,
+		Addr:               host,
+		Port:               port,
+		Logger:             log,
+		CORSAllowedOrigins: cfg.Server.CORS.AllowedOrigins,
 	}
 
 	p := poller.New(log)
