@@ -221,6 +221,30 @@ func (s *HostnameSource) Scan(src any) error {
 	return enumScan(s, hostnameSources, "hostname source", src)
 }
 
+// TokenScope is what an API token is allowed to do. Named rather than a bool,
+// so a third scope has somewhere to go without a column rename.
+type TokenScope string
+
+// TokenScope values an API token can carry.
+const (
+	// TokenRead admits any GET route.
+	TokenRead TokenScope = "read"
+
+	// TokenReadWrite additionally admits a route that changes something.
+	TokenReadWrite TokenScope = "read_write"
+)
+
+var tokenScopes = []TokenScope{TokenRead, TokenReadWrite}
+
+// Valid reports whether s is one of the known token scopes.
+func (s TokenScope) Valid() bool { return slices.Contains(tokenScopes, s) }
+
+// Value renders s for the driver, refusing anything the column does not admit.
+func (s TokenScope) Value() (driver.Value, error) { return enumValue(s, tokenScopes, "token scope") }
+
+// Scan reads a stored token scope back into s.
+func (s *TokenScope) Scan(src any) error { return enumScan(s, tokenScopes, "token scope", src) }
+
 // enumValue renders v, refusing anything the column does not admit. The zero
 // value is refused with the rest: a column reached without its constant set is
 // a bug worth a name, not an empty string in the table.

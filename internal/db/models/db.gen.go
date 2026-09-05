@@ -39,6 +39,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.commonOpenServicesStmt, err = db.PrepareContext(ctx, commonOpenServices); err != nil {
 		return nil, fmt.Errorf("error preparing query CommonOpenServices: %w", err)
 	}
+	if q.createAPITokenStmt, err = db.PrepareContext(ctx, createAPIToken); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateAPIToken: %w", err)
+	}
 	if q.createDeviceStmt, err = db.PrepareContext(ctx, createDevice); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateDevice: %w", err)
 	}
@@ -53,6 +56,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.currentAddressesStmt, err = db.PrepareContext(ctx, currentAddresses); err != nil {
 		return nil, fmt.Errorf("error preparing query CurrentAddresses: %w", err)
+	}
+	if q.deleteAPITokenStmt, err = db.PrepareContext(ctx, deleteAPIToken); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteAPIToken: %w", err)
 	}
 	if q.deleteDeviceStmt, err = db.PrepareContext(ctx, deleteDevice); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteDevice: %w", err)
@@ -89,6 +95,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.latestSuccessfulScanFinishedAtStmt, err = db.PrepareContext(ctx, latestSuccessfulScanFinishedAt); err != nil {
 		return nil, fmt.Errorf("error preparing query LatestSuccessfulScanFinishedAt: %w", err)
+	}
+	if q.listAPITokensByUserStmt, err = db.PrepareContext(ctx, listAPITokensByUser); err != nil {
+		return nil, fmt.Errorf("error preparing query ListAPITokensByUser: %w", err)
 	}
 	if q.listDeviceAddressesStmt, err = db.PrepareContext(ctx, listDeviceAddresses); err != nil {
 		return nil, fmt.Errorf("error preparing query ListDeviceAddresses: %w", err)
@@ -141,6 +150,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.setDeviceHostnameStmt, err = db.PrepareContext(ctx, setDeviceHostname); err != nil {
 		return nil, fmt.Errorf("error preparing query SetDeviceHostname: %w", err)
 	}
+	if q.touchAPITokenByHashStmt, err = db.PrepareContext(ctx, touchAPITokenByHash); err != nil {
+		return nil, fmt.Errorf("error preparing query TouchAPITokenByHash: %w", err)
+	}
 	if q.touchDeviceStmt, err = db.PrepareContext(ctx, touchDevice); err != nil {
 		return nil, fmt.Errorf("error preparing query TouchDevice: %w", err)
 	}
@@ -192,6 +204,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing commonOpenServicesStmt: %w", cerr)
 		}
 	}
+	if q.createAPITokenStmt != nil {
+		if cerr := q.createAPITokenStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createAPITokenStmt: %w", cerr)
+		}
+	}
 	if q.createDeviceStmt != nil {
 		if cerr := q.createDeviceStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createDeviceStmt: %w", cerr)
@@ -215,6 +232,11 @@ func (q *Queries) Close() error {
 	if q.currentAddressesStmt != nil {
 		if cerr := q.currentAddressesStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing currentAddressesStmt: %w", cerr)
+		}
+	}
+	if q.deleteAPITokenStmt != nil {
+		if cerr := q.deleteAPITokenStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteAPITokenStmt: %w", cerr)
 		}
 	}
 	if q.deleteDeviceStmt != nil {
@@ -275,6 +297,11 @@ func (q *Queries) Close() error {
 	if q.latestSuccessfulScanFinishedAtStmt != nil {
 		if cerr := q.latestSuccessfulScanFinishedAtStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing latestSuccessfulScanFinishedAtStmt: %w", cerr)
+		}
+	}
+	if q.listAPITokensByUserStmt != nil {
+		if cerr := q.listAPITokensByUserStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listAPITokensByUserStmt: %w", cerr)
 		}
 	}
 	if q.listDeviceAddressesStmt != nil {
@@ -362,6 +389,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing setDeviceHostnameStmt: %w", cerr)
 		}
 	}
+	if q.touchAPITokenByHashStmt != nil {
+		if cerr := q.touchAPITokenByHashStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing touchAPITokenByHashStmt: %w", cerr)
+		}
+	}
 	if q.touchDeviceStmt != nil {
 		if cerr := q.touchDeviceStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing touchDeviceStmt: %w", cerr)
@@ -441,11 +473,13 @@ type Queries struct {
 	allNetworksStmt                    *sql.Stmt
 	closePortStmt                      *sql.Stmt
 	commonOpenServicesStmt             *sql.Stmt
+	createAPITokenStmt                 *sql.Stmt
 	createDeviceStmt                   *sql.Stmt
 	createEventStmt                    *sql.Stmt
 	createScanStmt                     *sql.Stmt
 	createUserStmt                     *sql.Stmt
 	currentAddressesStmt               *sql.Stmt
+	deleteAPITokenStmt                 *sql.Stmt
 	deleteDeviceStmt                   *sql.Stmt
 	deviceNetworkNamesStmt             *sql.Stmt
 	deviceStatsStmt                    *sql.Stmt
@@ -458,6 +492,7 @@ type Queries struct {
 	identifyDeviceStmt                 *sql.Stmt
 	insertAddressStmt                  *sql.Stmt
 	latestSuccessfulScanFinishedAtStmt *sql.Stmt
+	listAPITokensByUserStmt            *sql.Stmt
 	listDeviceAddressesStmt            *sql.Stmt
 	listDeviceEventsStmt               *sql.Stmt
 	listDeviceOpenPortsStmt            *sql.Stmt
@@ -475,6 +510,7 @@ type Queries struct {
 	retireAddressStmt                  *sql.Stmt
 	setDeviceClassStmt                 *sql.Stmt
 	setDeviceHostnameStmt              *sql.Stmt
+	touchAPITokenByHashStmt            *sql.Stmt
 	touchDeviceStmt                    *sql.Stmt
 	updateDeviceCurationStmt           *sql.Stmt
 	upsertDeviceSourceStmt             *sql.Stmt
@@ -493,11 +529,13 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		allNetworksStmt:                    q.allNetworksStmt,
 		closePortStmt:                      q.closePortStmt,
 		commonOpenServicesStmt:             q.commonOpenServicesStmt,
+		createAPITokenStmt:                 q.createAPITokenStmt,
 		createDeviceStmt:                   q.createDeviceStmt,
 		createEventStmt:                    q.createEventStmt,
 		createScanStmt:                     q.createScanStmt,
 		createUserStmt:                     q.createUserStmt,
 		currentAddressesStmt:               q.currentAddressesStmt,
+		deleteAPITokenStmt:                 q.deleteAPITokenStmt,
 		deleteDeviceStmt:                   q.deleteDeviceStmt,
 		deviceNetworkNamesStmt:             q.deviceNetworkNamesStmt,
 		deviceStatsStmt:                    q.deviceStatsStmt,
@@ -510,6 +548,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		identifyDeviceStmt:                 q.identifyDeviceStmt,
 		insertAddressStmt:                  q.insertAddressStmt,
 		latestSuccessfulScanFinishedAtStmt: q.latestSuccessfulScanFinishedAtStmt,
+		listAPITokensByUserStmt:            q.listAPITokensByUserStmt,
 		listDeviceAddressesStmt:            q.listDeviceAddressesStmt,
 		listDeviceEventsStmt:               q.listDeviceEventsStmt,
 		listDeviceOpenPortsStmt:            q.listDeviceOpenPortsStmt,
@@ -527,6 +566,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		retireAddressStmt:                  q.retireAddressStmt,
 		setDeviceClassStmt:                 q.setDeviceClassStmt,
 		setDeviceHostnameStmt:              q.setDeviceHostnameStmt,
+		touchAPITokenByHashStmt:            q.touchAPITokenByHashStmt,
 		touchDeviceStmt:                    q.touchDeviceStmt,
 		updateDeviceCurationStmt:           q.updateDeviceCurationStmt,
 		upsertDeviceSourceStmt:             q.upsertDeviceSourceStmt,
