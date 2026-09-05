@@ -31,6 +31,49 @@ func (f *fakeQueries) GetUserByUsername(_ context.Context, username string) (*mo
 	return u, nil
 }
 
+func (f *fakeQueries) GetUserByID(_ context.Context, id int64) (*models.User, error) {
+	for _, u := range f.users {
+		if u.ID == id {
+			return u, nil
+		}
+	}
+
+	return nil, sql.ErrNoRows
+}
+
+func (f *fakeQueries) CreateUser(_ context.Context, arg models.CreateUserParams) (*models.User, error) {
+	f.nextID++
+
+	u := &models.User{
+		ID:           f.nextID,
+		Username:     arg.Username,
+		PasswordHash: arg.PasswordHash,
+		Role:         arg.Role,
+		CreatedAt:    dbtype.NewTime(time.Now()),
+	}
+
+	if f.users == nil {
+		f.users = map[string]*models.User{}
+	}
+
+	f.users[arg.Username] = u
+
+	return u, nil
+}
+
+func (f *fakeQueries) CountUsers(_ context.Context) (int64, error) {
+	return int64(len(f.users)), nil
+}
+
+func (f *fakeQueries) ListUsers(_ context.Context) ([]*models.User, error) {
+	out := make([]*models.User, 0, len(f.users))
+	for _, u := range f.users {
+		out = append(out, u)
+	}
+
+	return out, nil
+}
+
 func (f *fakeQueries) CreateAPIToken(_ context.Context, arg models.CreateAPITokenParams) (*models.ApiToken, error) {
 	f.nextID++
 
@@ -188,4 +231,86 @@ func TestLogin(t *testing.T) {
 		_, ok := sm.CurrentUserID(ctx)
 		assert.False(t, ok)
 	})
+}
+
+func TestSetupRequired(t *testing.T) {
+	t.Parallel()
+
+	a := newTestAuth(t, nil)
+
+	required, err := a.SetupRequired(t.Context())
+	require.NoError(t, err)
+	assert.True(t, required, "an account-less store still needs setup")
+
+	sm := NewSession()
+	ctx, err := sm.Load(t.Context(), "")
+	require.NoError(t, err)
+
+	_, err = a.CreateFirstUser(ctx, sm, "ada", "correct-password")
+	require.NoError(t, err)
+
+	required, err = a.SetupRequired(t.Context())
+	require.NoError(t, err)
+	assert.False(t, required, "an account now exists")
+}
+
+func TestCreateFirstUser(t *testing.T) {
+	t.Parallel()
+
+	a := newTestAuth(t, nil)
+	sm := NewSession()
+
+	ctx, err := sm.Load(t.Context(), "")
+	require.NoError(t, err)
+
+	user, err := a.CreateFirstUser(ctx, sm, "ada", "correct-password")
+	require.NoError(t, err)
+	assert.Equal(t, dbtype.RoleAdmin, user.Role, "the first account is always admin")
+
+	id, ok := sm.CurrentUserID(ctx)
+	require.True(t, ok, "CreateFirstUser signs the new account straight in")
+	assert.Equal(t, user.ID, id)
+
+	_, err = a.CreateFirstUser(ctx, sm, "someone-else", "another-password")
+	assert.ErrorIs(t, err, ErrSetupComplete, "setup is one-time, not reachable a second time")
+}
+
+func TestCreateUser(t *testing.T) {
+	t.Parallel()
+
+	a := newTestAuth(t, map[string]*models.User{
+		"ada": {ID: 1, Username: "ada", PasswordHash: hashOf(t, "correct-password"), Role: dbtype.RoleAdmin},
+	})
+
+	t.Run("adds an account under the given role", func(t *testing.T) {
+		t.Parallel()
+
+		user, err := a.CreateUser(t.Context(), "grace", "another-password", dbtype.RoleRead)
+		require.NoError(t, err)
+		assert.Equal(t, dbtype.RoleRead, user.Role)
+	})
+
+	t.Run("rejects a username already taken", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := a.CreateUser(t.Context(), "ada", "another-password", dbtype.RoleRead)
+		assert.ErrorIs(t, err, ErrUsernameTaken)
+	})
+}
+
+func TestIsAdmin(t *testing.T) {
+	t.Parallel()
+
+	a := newTestAuth(t, map[string]*models.User{
+		"ada":   {ID: 1, Username: "ada", PasswordHash: hashOf(t, "x"), Role: dbtype.RoleAdmin},
+		"grace": {ID: 2, Username: "grace", PasswordHash: hashOf(t, "x"), Role: dbtype.RoleRead},
+	})
+
+	admin, err := a.IsAdmin(t.Context(), 1)
+	require.NoError(t, err)
+	assert.True(t, admin)
+
+	admin, err = a.IsAdmin(t.Context(), 2)
+	require.NoError(t, err)
+	assert.False(t, admin)
 }
