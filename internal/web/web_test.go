@@ -152,10 +152,13 @@ func newWebHandlerWithAuth(t *testing.T, store *inventory.Store, a *auth.Auth) h
 
 	hw := response.NewHTMLWriter(testLogger(), nil,
 		response.WithErrorTemplates(map[int]string{
-			http.StatusNotFound:     TemplateNotFound,
-			http.StatusUnauthorized: TemplateLogin,
-			http.StatusConflict:     TemplateSetup,
-			http.StatusForbidden:    TemplateForbidden,
+			http.StatusBadRequest:            TemplateBadRequest,
+			http.StatusRequestEntityTooLarge: TemplateBadRequest,
+			http.StatusUnprocessableEntity:   TemplateBadRequest,
+			http.StatusNotFound:              TemplateNotFound,
+			http.StatusUnauthorized:          TemplateLogin,
+			http.StatusConflict:              TemplateSetup,
+			http.StatusForbidden:             TemplateForbidden,
 		}),
 		response.WithErrorStatusMapper(func(err error) int {
 			switch {
@@ -169,7 +172,7 @@ func newWebHandlerWithAuth(t *testing.T, store *inventory.Store, a *auth.Auth) h
 				return http.StatusForbidden
 			}
 
-			return http.StatusInternalServerError
+			return 0
 		}),
 		response.WithErrorDataFunc(ErrorPageData),
 	)

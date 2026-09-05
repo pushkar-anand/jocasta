@@ -1,0 +1,14 @@
+{{ define "page/badrequest" }}
+{{- template "layout/head" . }}
+
+<section class="block">
+    <p class="eyebrow">Bad request</p>
+    <div class="card empty">
+        <p>That request could not be processed. If you were filling in a form,
+            check the fields and try again.</p>
+        <p><a href="/">Back to the overview</a></p>
+    </div>
+</section>
+
+{{- template "layout/foot" . }}
+{{ end }}

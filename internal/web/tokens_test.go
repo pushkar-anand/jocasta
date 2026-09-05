@@ -118,7 +118,23 @@ func TestCreateTokenRejectsAnUnknownScope(t *testing.T) {
 	form := url.Values{"name": {"bad"}, "scope": {"admin"}}
 	rec := requestAs(t, h, cookies, http.MethodPost, "/settings/tokens", form.Encode())
 
-	assert.NotEqual(t, http.StatusOK, rec.Code)
+	require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
+	assert.NotContains(t, rec.Body.String(), "Internal Server Error")
+}
+
+// The form's own required/maxlength attributes stop an empty name in a browser;
+// a request that gets past them is answered on a page, not with a bare 500.
+func TestCreateTokenRejectsAMissingName(t *testing.T) {
+	t.Parallel()
+
+	h := empty(t)
+	cookies := signIn(t, h)
+
+	form := url.Values{"scope": {"read"}}
+	rec := requestAs(t, h, cookies, http.MethodPost, "/settings/tokens", form.Encode())
+
+	require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
+	assert.Contains(t, rec.Body.String(), "Bad request")
 }
 
 // onlyTokenRowID pulls the id out of the one row's `id="token-row-N"` marker,
