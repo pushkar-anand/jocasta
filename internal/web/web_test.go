@@ -351,6 +351,9 @@ func TestOverviewWithoutAnySweepInvitesOne(t *testing.T) {
 	// one: a ledger of nothing says less than the instruction does.
 	assert.NotContains(t, body, `id="live"`)
 	assert.NotContains(t, body, "Seen recently")
+
+	// And the topbar does not claim a refresh the page is not running.
+	assert.NotContains(t, body, "Refreshing every 30s")
 }
 
 // The poll swaps the contents of #live, so #live and the attributes that drive
@@ -363,6 +366,9 @@ func TestOverviewLivePolls(t *testing.T) {
 	assert.Contains(t, page, `hx-get="/overview/live"`)
 	assert.Contains(t, page, `hx-trigger="every 30s"`)
 	assert.Contains(t, page, `hx-swap="innerHTML"`)
+
+	// An inventory that is being polled says so in the topbar.
+	assert.Contains(t, page, "Refreshing every 30s")
 }
 
 // The fragment endpoint comes back on its own rather than wrapped in a document,

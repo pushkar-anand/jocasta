@@ -59,6 +59,27 @@ func TestUsersPageForbidsANonAdmin(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 }
 
+// The topbar offers the Users link only to an account that /settings/users
+// would let in; everyone still gets the links that are theirs.
+func TestTopbarHidesUsersLinkFromNonAdmins(t *testing.T) {
+	t.Parallel()
+
+	a := testAuth(t)
+
+	_, err := a.CreateUser(t.Context(), "reader", "reader-password-1", dbtype.RoleRead)
+	require.NoError(t, err)
+
+	h := newWebHandlerWithAuth(t, testStore(t), a)
+
+	adminBody := requestAs(t, h, signIn(t, h), http.MethodGet, "/", "").Body.String()
+	assert.Contains(t, adminBody, `href="/settings/users"`)
+
+	readerBody := requestAs(t, h, signInAs(t, h, "reader", "reader-password-1"), http.MethodGet, "/", "").Body.String()
+	assert.NotContains(t, readerBody, `href="/settings/users"`)
+	assert.Contains(t, readerBody, `href="/settings/tokens"`, "the links that are theirs stay")
+	assert.Contains(t, readerBody, `href="/logout"`)
+}
+
 func TestUsersPageListsTheSeededAdmin(t *testing.T) {
 	t.Parallel()
 
