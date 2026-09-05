@@ -33,6 +33,20 @@ func signIn(t *testing.T, h http.Handler) []*http.Cookie {
 	return rec.Result().Cookies()
 }
 
+// follow issues a GET for the Location a prior response redirected to, carrying
+// the same cookies plus any the redirecting response set -- the second half of
+// a POST-redirect-GET.
+func follow(t *testing.T, h http.Handler, cookies []*http.Cookie, rec *httptest.ResponseRecorder) *httptest.ResponseRecorder {
+	t.Helper()
+
+	require.Equal(t, http.StatusSeeOther, rec.Code, "the POST should redirect to its result")
+
+	loc := rec.Header().Get("Location")
+	require.NotEmpty(t, loc)
+
+	return requestAs(t, h, append(cookies, rec.Result().Cookies()...), http.MethodGet, loc, "")
+}
+
 // requestAs issues method/target through h carrying cookies, with an optional
 // form-encoded body.
 func requestAs(t *testing.T, h http.Handler, cookies []*http.Cookie, method, target, body string) *httptest.ResponseRecorder {
@@ -91,14 +105,22 @@ func TestCreateAndRevokeToken(t *testing.T) {
 
 	form := url.Values{"name": {"CI script"}, "scope": {"read_write"}}
 	rec := requestAs(t, h, cookies, http.MethodPost, "/settings/tokens", form.Encode())
+	rec = follow(t, h, cookies, rec)
 	require.Equal(t, http.StatusOK, rec.Code)
 
 	body := rec.Body.String()
 	assert.Contains(t, body, "CI script")
-	assert.Contains(t, body, "jct_", "the plaintext token is shown once, on this response")
+	assert.Contains(t, body, "jct_", "the plaintext is shown once, on the page the create redirects to")
 	assert.Contains(t, body, "Read &amp; write")
 
 	id := onlyTokenRowID(t, body)
+
+	// The plaintext is a one-shot: a reload of the same page re-fetches it
+	// without the secret, and without minting another token.
+	reload := requestAs(t, h, cookies, http.MethodGet, "/settings/tokens", "")
+	require.Equal(t, http.StatusOK, reload.Code)
+	assert.NotContains(t, reload.Body.String(), "jct_", "a reload does not show the token again")
+	assert.Equal(t, id, onlyTokenRowID(t, reload.Body.String()), "and does not create a second token")
 
 	rec = requestAs(t, h, cookies, http.MethodDelete, "/settings/tokens/"+strconv.FormatInt(id, 10), "")
 	require.Equal(t, http.StatusOK, rec.Code)

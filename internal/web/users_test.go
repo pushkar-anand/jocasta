@@ -81,6 +81,7 @@ func TestCreateUserAsAdmin(t *testing.T) {
 
 	form := url.Values{"username": {"reader"}, "password": {"reader-password-1"}, "role": {"read"}}
 	rec := requestAs(t, h, cookies, http.MethodPost, "/settings/users", form.Encode())
+	rec = follow(t, h, cookies, rec)
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	body := rec.Body.String()
@@ -100,7 +101,12 @@ func TestCreateUserRejectsADuplicateUsername(t *testing.T) {
 
 	form := url.Values{"username": {testUsername}, "password": {"another-password-1"}, "role": {"read"}}
 	rec := requestAs(t, h, cookies, http.MethodPost, "/settings/users", form.Encode())
+	rec = follow(t, h, cookies, rec)
 
-	require.Equal(t, http.StatusOK, rec.Code, "the page re-renders itself rather than erroring out")
+	require.Equal(t, http.StatusOK, rec.Code, "a refused create lands back on the list, not an error")
 	assert.Contains(t, rec.Body.String(), "already taken")
+
+	// The reason is a one-shot: reloading the list does not keep showing it.
+	reload := requestAs(t, h, cookies, http.MethodGet, "/settings/users", "")
+	assert.NotContains(t, reload.Body.String(), "already taken", "the message is shown once")
 }
