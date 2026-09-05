@@ -40,6 +40,12 @@ type usersData struct {
 	Error string
 }
 
+// isAdmin is requireAdmin as a bool, for the layout to decide whether to show
+// the admin-only links. The routes stay gated by requireAdmin itself.
+func isAdmin(sm *auth.Session, a *auth.Auth, r *http.Request) bool {
+	return requireAdmin(r.Context(), sm, a, r) == nil
+}
+
 // requireAdmin extends currentUserID's check with the one fact an admin-gated
 // route additionally needs: that the signed-in account is an admin.
 func requireAdmin(ctx context.Context, sm *auth.Session, a *auth.Auth, r *http.Request) error {
@@ -94,7 +100,7 @@ func (h *Handler) users(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 		}
 
 		h.htmlWriter.Success(w, r, templatePageUsers, usersData{
-			Title: "Users",
+			Title: "Users", IsAdmin: true,
 			Users: list,
 			Error: sm.PopFlash(ctx, flashUserError),
 		})

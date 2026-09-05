@@ -7,6 +7,7 @@ import (
 
 	"github.com/pushkar-anand/build-with-go/http/response"
 	"github.com/pushkar-anand/build-with-go/logger"
+	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
@@ -29,7 +30,7 @@ type overviewData struct {
 	Events     []*inventory.Event
 }
 
-func (h *Handler) overview() response.HandlerFunc {
+func (h *Handler) overview(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		data, err := buildOverviewData(r.Context(), h.store)
 		if err != nil {
@@ -41,6 +42,8 @@ func (h *Handler) overview() response.HandlerFunc {
 
 			return err
 		}
+
+		data.IsAdmin = isAdmin(sm, a, r)
 
 		h.htmlWriter.Success(w, r, templatePageDashboard, data)
 		return nil
@@ -101,7 +104,10 @@ func buildOverviewData(
 	}
 
 	data := &overviewData{
-		Title: "Overview", Section: "Overview", Live: true,
+		// Live drives the topbar's "refreshing" line, and the page only
+		// mounts the poller once it has an inventory to poll for -- an empty
+		// one renders the invitation instead, with nothing that ticks.
+		Title: "Overview", Section: "Overview", Live: stats.Total > 0,
 		Stats:      stats,
 		Ports:      ports,
 		PortEvents: portActivity.Events,

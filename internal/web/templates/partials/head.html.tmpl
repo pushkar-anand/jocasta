@@ -80,8 +80,12 @@
 
         {{- /* Account-level links, not a section of their own, so they sit here
                rather than in the rail: reachable from every screen and at every
-               width, unlike the rail, which collapses to a strip on a phone. */}}
+               width, unlike the rail, which collapses to a strip on a phone.
+               Users is admin-only -- the page turns everyone else away, so the
+               link is not shown to them. */}}
+        {{- if .IsAdmin }}
         <a class="btn btn--quiet btn--sm" href="/settings/users">Users</a>
+        {{- end }}
         <a class="btn btn--quiet btn--sm" href="/settings/tokens">API tokens</a>
         <a class="btn btn--quiet btn--sm" href="/logout">Sign out</a>
 

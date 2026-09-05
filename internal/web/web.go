@@ -104,23 +104,23 @@ func NewHandler(
 
 	// {$} matches only the root itself, so an unknown path reaches the
 	// catch-all below and is reported rather than quietly served the overview.
-	h.mux.HandleFunc("GET /{$}", hw.Handle(h.overview()))
+	h.mux.HandleFunc("GET /{$}", hw.Handle(h.overview(sm, a)))
 	h.mux.HandleFunc("GET /overview/live", hw.Handle(h.overviewLive()))
 
 	// The literal is the more specific pattern, so it wins over {id}.
-	h.mux.HandleFunc("GET /devices", hw.Handle(h.listDevices()))
+	h.mux.HandleFunc("GET /devices", hw.Handle(h.listDevices(sm, a)))
 	h.mux.HandleFunc("GET /devices/rows", hw.Handle(h.deviceRows()))
-	h.mux.HandleFunc("GET /devices/{id}", hw.Handle(h.device()))
+	h.mux.HandleFunc("GET /devices/{id}", hw.Handle(h.device(sm, a)))
 	h.mux.HandleFunc("PATCH /devices/{id}", hw.Handle(h.updateDevice()))
 	h.mux.HandleFunc("GET /devices/{id}/row", hw.Handle(h.deviceRow()))
 	h.mux.HandleFunc("GET /devices/{id}/edit", hw.Handle(h.deviceRowForm()))
 	h.mux.HandleFunc("PATCH /devices/{id}/row", hw.Handle(h.updateDeviceRow()))
 
-	h.mux.HandleFunc("GET /networks/{id}", hw.Handle(h.network()))
+	h.mux.HandleFunc("GET /networks/{id}", hw.Handle(h.network(sm, a)))
 	h.mux.HandleFunc("GET /networks/{id}/rows", hw.Handle(h.networkRows()))
 
-	h.mux.HandleFunc("GET /events", hw.Handle(h.events()))
-	h.mux.HandleFunc("GET /scans", hw.Handle(h.scans()))
+	h.mux.HandleFunc("GET /events", hw.Handle(h.events(sm, a)))
+	h.mux.HandleFunc("GET /scans", hw.Handle(h.scans(sm, a)))
 
 	h.mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		hw.ErrorPage(w, r, http.StatusNotFound)

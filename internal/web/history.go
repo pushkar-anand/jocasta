@@ -8,6 +8,7 @@ import (
 
 	"github.com/pushkar-anand/build-with-go/http/response"
 	"github.com/pushkar-anand/build-with-go/logger"
+	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
@@ -98,7 +99,7 @@ func logCursor(raw string) (inventory.Cursor, string) {
 	return c, raw
 }
 
-func (h *Handler) events() response.HandlerFunc {
+func (h *Handler) events(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 
@@ -110,7 +111,7 @@ func (h *Handler) events() response.HandlerFunc {
 		from, token := logCursor(q.Cursor)
 
 		data := &logData{
-			Title: "Events", Section: "Events",
+			Title: "Events", Section: "Events", IsAdmin: isAdmin(sm, a, r),
 			Path:   "/events",
 			Cursor: token,
 		}
@@ -155,7 +156,7 @@ func (h *Handler) events() response.HandlerFunc {
 	}
 }
 
-func (h *Handler) scans() response.HandlerFunc {
+func (h *Handler) scans(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 
@@ -167,7 +168,7 @@ func (h *Handler) scans() response.HandlerFunc {
 		from, token := logCursor(q.Cursor)
 
 		data := &logData{
-			Title: "Scans", Section: "Scans",
+			Title: "Scans", Section: "Scans", IsAdmin: isAdmin(sm, a, r),
 			Path:   "/scans",
 			Cursor: token,
 		}

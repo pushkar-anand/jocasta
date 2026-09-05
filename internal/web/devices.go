@@ -5,6 +5,7 @@ import (
 
 	"github.com/pushkar-anand/build-with-go/http/response"
 	"github.com/pushkar-anand/build-with-go/logger"
+	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
@@ -24,7 +25,7 @@ type deviceQuery struct {
 	Page           int    `schema:"page" validate:"omitempty,min=1"`
 }
 
-func (h *Handler) listDevices() response.HandlerFunc {
+func (h *Handler) listDevices(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	type query struct {
 		deviceQuery
 	}
@@ -41,6 +42,8 @@ func (h *Handler) listDevices() response.HandlerFunc {
 
 			return err
 		}
+
+		data.IsAdmin = isAdmin(sm, a, r)
 
 		h.htmlWriter.Success(w, r, templatePageDevices, data)
 		return nil
@@ -74,7 +77,7 @@ func (h *Handler) deviceRows() response.HandlerFunc {
 	}
 }
 
-func (h *Handler) device() response.HandlerFunc {
+func (h *Handler) device(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		// A device that is not there is a page that is not there, not a fault.
 		id, ok := pathID(r)
@@ -93,6 +96,8 @@ func (h *Handler) device() response.HandlerFunc {
 
 			return err
 		}
+
+		data.IsAdmin = isAdmin(sm, a, r)
 
 		h.htmlWriter.Success(w, r, templatePageDevice, data)
 		return nil
