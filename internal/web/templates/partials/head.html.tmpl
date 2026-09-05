@@ -78,9 +78,13 @@
         </p>
         {{- end }}
 
-        {{- /* The one control the layout carries, so it sits with the layout
-               rather than on any page: reachable from every screen and at every
+        {{- /* Account-level links, not a section of their own, so they sit here
+               rather than in the rail: reachable from every screen and at every
                width, unlike the rail, which collapses to a strip on a phone. */}}
+        <a class="btn btn--quiet btn--sm" href="/settings/users">Users</a>
+        <a class="btn btn--quiet btn--sm" href="/settings/tokens">API tokens</a>
+        <a class="btn btn--quiet btn--sm" href="/logout">Sign out</a>
+
         <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
             <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="5"></circle>

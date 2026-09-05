@@ -1,0 +1,80 @@
+{{ define "page/users" }}
+    {{- template "layout/head" . }}
+
+    <section class="block">
+        <div class="block__head">
+            <p class="eyebrow">Users</p>
+            <p class="block__aside">Accounts that can sign in to this instance.</p>
+        </div>
+
+        {{- with .Error }}
+            <p class="failure">{{ . }}</p>
+        {{- end }}
+
+        <div class="card panel">
+            <form method="post" action="/settings/users" class="tokenform">
+                <label class="stack">
+                    <span class="eyebrow">Username</span>
+                    <input class="input" type="text" name="username" autocomplete="off" minlength="3"
+                           maxlength="100" required>
+                </label>
+
+                <label class="stack">
+                    <span class="eyebrow">Password</span>
+                    <input class="input" type="password" name="password" autocomplete="new-password" minlength="8"
+                           maxlength="1000" required>
+                </label>
+
+                <fieldset class="tokenform__scope">
+                    <label class="check">
+                        <input type="radio" name="role" value="read" checked>
+                        Read
+                    </label>
+                    <label class="check">
+                        <input type="radio" name="role" value="read_write">
+                        Read &amp; write
+                    </label>
+                </fieldset>
+
+                <button type="submit" class="btn btn--sm">Create user</button>
+            </form>
+        </div>
+
+        {{- if .Users }}
+            <div class="card card--table">
+                <div class="scroller">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th scope="col">Username</th>
+                            <th scope="col">Role</th>
+                            <th scope="col">Created</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {{- range .Users }}
+                            <tr>
+                                <td class="strong">{{ .Username }}</td>
+                                <td>
+                                    {{- if eq .Role "admin" }}
+                                        <span class="chip chip--brand">Admin</span>
+                                    {{- else if eq .Role "read_write" }}
+                                        <span class="chip chip--brand">Read &amp; write</span>
+                                    {{- else }}
+                                        <span class="chip chip--quiet">Read</span>
+                                    {{- end }}
+                                </td>
+                                <td class="dim">{{ ago .CreatedAt }}</td>
+                            </tr>
+                        {{- end }}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {{- else }}
+            <p class="dim">No users yet.</p>
+        {{- end }}
+    </section>
+
+    {{- template "layout/foot" . }}
+{{ end }}

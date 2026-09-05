@@ -118,6 +118,7 @@ func TestCreateUser(t *testing.T) {
 	user, err := q.CreateUser(ctx, models.CreateUserParams{
 		Username:     "ada",
 		PasswordHash: "hash",
+		Role:         dbtype.RoleAdmin,
 	})
 	require.NoError(t, err)
 
@@ -136,7 +137,7 @@ func TestCreateUserRejectsDuplicateUsername(t *testing.T) {
 	ctx := t.Context()
 	q := models.New(newTestDB(t))
 
-	params := models.CreateUserParams{Username: "ada", PasswordHash: "hash"}
+	params := models.CreateUserParams{Username: "ada", PasswordHash: "hash", Role: dbtype.RoleAdmin}
 
 	_, err := q.CreateUser(ctx, params)
 	require.NoError(t, err)
@@ -219,7 +220,7 @@ func TestTimestampWritersAgreeOnOrdering(t *testing.T) {
 
 	conn := newTestDB(t)
 
-	_, err := conn.ExecContext(t.Context(), `INSERT INTO users (username, password_hash) VALUES ('middle', 'h')`)
+	_, err := conn.ExecContext(t.Context(), `INSERT INTO users (username, password_hash, role) VALUES ('middle', 'h', 'admin')`)
 	require.NoError(t, err)
 
 	var middle dbtype.Time
@@ -227,7 +228,7 @@ func TestTimestampWritersAgreeOnOrdering(t *testing.T) {
 
 	insert := func(name string, at dbtype.Time) {
 		_, err := conn.ExecContext(t.Context(),
-			`INSERT INTO users (username, password_hash, created_at) VALUES (?, 'h', ?)`, name, at)
+			`INSERT INTO users (username, password_hash, role, created_at) VALUES (?, 'h', 'admin', ?)`, name, at)
 		require.NoError(t, err)
 	}
 

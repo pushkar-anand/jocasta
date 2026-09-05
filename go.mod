@@ -12,9 +12,10 @@ tool (
 require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/alecthomas/kong v1.16.1
+	github.com/alexedwards/scs/v2 v2.9.0
 	github.com/go-playground/validator/v10 v10.30.4
 	github.com/golang-migrate/migrate/v4 v4.19.1
-	github.com/pushkar-anand/build-with-go v0.1.7
+	github.com/pushkar-anand/build-with-go v0.1.9
 	github.com/rs/cors v1.11.1
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/net v0.58.0

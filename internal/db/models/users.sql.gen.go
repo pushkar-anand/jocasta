@@ -7,32 +7,140 @@ package models
 
 import (
 	"context"
+
+	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
 
+const countUsers = `-- name: CountUsers :one
+SELECT COUNT(*)
+FROM users
+`
+
+// CountUsers
+//
+//	SELECT COUNT(*)
+//	FROM users
+func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
+	row := q.queryRow(ctx, q.countUsersStmt, countUsers)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createUser = `-- name: CreateUser :one
-INSERT INTO users(username, password_hash)
-VALUES (?, ?)
-RETURNING id, username, password_hash, created_at
+INSERT INTO users (username, password_hash, role)
+VALUES (?, ?, ?)
+RETURNING id, username, password_hash, role, created_at
 `
 
 type CreateUserParams struct {
-	Username     string `json:"username"`
-	PasswordHash string `json:"password_hash"`
+	Username     string          `json:"username"`
+	PasswordHash string          `json:"password_hash"`
+	Role         dbtype.UserRole `json:"role"`
 }
 
 // CreateUser
 //
-//	INSERT INTO users(username, password_hash)
-//	VALUES (?, ?)
-//	RETURNING id, username, password_hash, created_at
+//	INSERT INTO users (username, password_hash, role)
+//	VALUES (?, ?, ?)
+//	RETURNING id, username, password_hash, role, created_at
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (*User, error) {
-	row := q.queryRow(ctx, q.createUserStmt, createUser, arg.Username, arg.PasswordHash)
+	row := q.queryRow(ctx, q.createUserStmt, createUser, arg.Username, arg.PasswordHash, arg.Role)
 	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
 		&i.PasswordHash,
+		&i.Role,
 		&i.CreatedAt,
 	)
 	return &i, err
+}
+
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, username, password_hash, role, created_at
+FROM users
+WHERE id = ?
+`
+
+// GetUserByID
+//
+//	SELECT id, username, password_hash, role, created_at
+//	FROM users
+//	WHERE id = ?
+func (q *Queries) GetUserByID(ctx context.Context, id int64) (*User, error) {
+	row := q.queryRow(ctx, q.getUserByIDStmt, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Role,
+		&i.CreatedAt,
+	)
+	return &i, err
+}
+
+const getUserByUsername = `-- name: GetUserByUsername :one
+SELECT id, username, password_hash, role, created_at
+FROM users
+WHERE username = ?
+`
+
+// GetUserByUsername
+//
+//	SELECT id, username, password_hash, role, created_at
+//	FROM users
+//	WHERE username = ?
+func (q *Queries) GetUserByUsername(ctx context.Context, username string) (*User, error) {
+	row := q.queryRow(ctx, q.getUserByUsernameStmt, getUserByUsername, username)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Role,
+		&i.CreatedAt,
+	)
+	return &i, err
+}
+
+const listUsers = `-- name: ListUsers :many
+SELECT id, username, password_hash, role, created_at
+FROM users
+ORDER BY created_at
+`
+
+// ListUsers
+//
+//	SELECT id, username, password_hash, role, created_at
+//	FROM users
+//	ORDER BY created_at
+func (q *Queries) ListUsers(ctx context.Context) ([]*User, error) {
+	rows, err := q.query(ctx, q.listUsersStmt, listUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.PasswordHash,
+			&i.Role,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

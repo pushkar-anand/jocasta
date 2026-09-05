@@ -11,10 +11,13 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/pushkar-anand/build-with-go/logger"
+	"github.com/pushkar-anand/build-with-go/security/password"
 	"github.com/pushkar-anand/build-with-go/validator"
 	"github.com/pushkar-anand/jocasta/internal/api"
+	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/config"
 	"github.com/pushkar-anand/jocasta/internal/db"
+	"github.com/pushkar-anand/jocasta/internal/db/models"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 )
@@ -109,6 +112,14 @@ func run(args []string) error {
 		inventory.WithAddressGrace(cfg.Inventory.AddressGrace),
 	)
 
+	a, err := auth.New(
+		models.New(conn),
+		password.NewHasher(password.WithKeyLength(64)),
+	)
+	if err != nil {
+		return fmt.Errorf("initialize auth: %w", err)
+	}
+
 	// The scanner the poller sweeps with is configured, not flagged: nobody is
 	// at a terminal to pass rates to a sweep that runs on a timer. The scan
 	// command builds its own from its flags, which are per-invocation.
@@ -123,7 +134,7 @@ func run(args []string) error {
 
 	// Kong hands each command only the arguments its Run signature names, so a
 	// command that wants none of these stays as it is.
-	return kCtx.Run(cfg, log, conn, v, store, sweeper)
+	return kCtx.Run(cfg, log, conn, v, store, sweeper, a)
 }
 
 // loadConfig loads the configuration named by cli, then layers the global CLI

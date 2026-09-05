@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"regexp"
 
 	"github.com/pushkar-anand/build-with-go/http/middleware"
 	"github.com/pushkar-anand/build-with-go/http/request"
@@ -16,6 +17,7 @@ import (
 	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/build-with-go/validator"
 	"github.com/pushkar-anand/jocasta/internal/api"
+	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/web"
 	"github.com/rs/cors"
@@ -47,6 +49,7 @@ func Start(
 	cfg *Config,
 	store *inventory.Store,
 	validator *validator.Validator,
+	a *auth.Auth,
 ) error {
 	reader := request.NewReader(
 		cfg.Logger,
@@ -54,6 +57,7 @@ func Start(
 		request.WithRejectUnknownFields(),
 		request.WithMaxBodyBytes(maxRequestBodyBytes),
 	)
+	sm := auth.NewSession()
 
 	jw := response.NewJSONWriter(
 		cfg.Logger,
@@ -65,26 +69,46 @@ func Start(
 		cfg.Logger,
 		nil,
 		response.WithErrorTemplates(map[int]string{
-			http.StatusNotFound: web.TemplateNotFound,
+			http.StatusNotFound:     web.TemplateNotFound,
+			http.StatusUnauthorized: web.TemplateLogin,
+			http.StatusConflict:     web.TemplateSetup,
+			http.StatusForbidden:    web.TemplateForbidden,
 		}),
 		response.WithErrorStatusMapper(func(err error) int {
 			switch {
 			case errors.Is(err, inventory.ErrNotFound):
 				return http.StatusNotFound
+			case errors.Is(err, auth.ErrInvalidCredentials):
+				return http.StatusUnauthorized
+			case errors.Is(err, auth.ErrSetupComplete):
+				return http.StatusConflict
+			case errors.Is(err, auth.ErrForbidden):
+				return http.StatusForbidden
 			}
 
 			return http.StatusInternalServerError
 		}),
-		response.WithErrorDataFunc(web.NotFoundData),
+		response.WithErrorDataFunc(web.ErrorPageData),
 	)
 
 	ap := api.NewHandler(cfg.Logger, reader, store, jw)
-	wh := web.NewHandler(cfg.Logger, reader, store, hw)
+	wh := web.NewHandler(cfg.Logger, reader, store, hw, sm, a)
+
+	tokenMiddleware := auth.NewTokenMiddleware(jw, a, regexp.MustCompile(`^/livez$`))
+	sessionMiddleware := auth.NewSessionMiddleware(
+		sm, a,
+		[]*regexp.Regexp{regexp.MustCompile(`^/static/.*$`)},
+		[]*regexp.Regexp{regexp.MustCompile(`^/login$`)},
+	)
 
 	mux := http.NewServeMux()
 
-	mux.Handle("/api/", http.StripPrefix("/api", ap))
-	mux.Handle("/", wh)
+	// A script authenticates with a bearer token and carries no session
+	// cookie; a browser tab carries a session cookie and never attaches a
+	// bearer token on its own. Gating each mount with only the check its
+	// caller can actually satisfy keeps that distinction enforced.
+	mux.Handle("/api/", http.StripPrefix("/api", tokenMiddleware(ap)))
+	mux.Handle("/", sessionMiddleware(wh))
 
 	origins := cfg.CORSAllowedOrigins
 	if len(origins) == 0 {
@@ -100,16 +124,17 @@ func Start(
 		MaxAge:         300,
 	})
 
-	// Applied outside the logger so every response carries them, including the
-	// static files, which the renderer never sees. CORS sits inside sameOrigin:
-	// it only ever adds Access-Control-* headers or answers a preflight, never
-	// widens who may make a state-changing request -- that stays sameOrigin's
-	// call.
+	// secureHeaders sits outside both gates so every response carries them,
+	// including the static files the renderer never sees and the redirect an
+	// unauthenticated request gets in place of a page. CORS sits inside
+	// sameOrigin: it only ever adds Access-Control-* headers or answers a
+	// preflight, never widens who may make a state-changing request -- that
+	// stays sameOrigin's call.
 	h := secureHeaders(sameOrigin(corsMW.Handler(logger.NewHTTPLogger(cfg.Logger)(mux))))
 	h = middleware.RequestID(h)
 
 	srv := server.New(
-		h,
+		sm.LoadAndSave(h),
 		server.WithLogger(cfg.Logger),
 		server.WithHostPort(cfg.Addr, cfg.Port),
 	)
@@ -150,11 +175,12 @@ func secureHeaders(next http.Handler) http.Handler {
 // sameOrigin turns away a state-changing request that a browser has marked as
 // coming from another site.
 //
-// This is not a CSRF token, and cannot be one yet: a token has to be bound to a
-// session, and there is no authentication to bind it to. Nor is one needed
-// while there is none -- with no credential to ride along, there is nothing for
-// a forged request to borrow. What it does do is refuse the shape of the attack
-// in advance, so the guard is already in place when sessions arrive.
+// This is not a CSRF token, and stands in for one: the web UI's session rides
+// along on a cookie, which a browser attaches to a request regardless of which
+// site asked for it, and this is what stops another site's page from spending
+// that cookie's authority. The API's bearer token needs no such guard -- a
+// browser never attaches an Authorization header on its own, so there is
+// nothing here for a cross-site page to ride along on in the first place.
 //
 // The headers are only trusted when present. A browser always sends them; curl
 // and the like send neither, and refusing those would break every script the

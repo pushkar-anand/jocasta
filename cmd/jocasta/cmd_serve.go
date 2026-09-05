@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/pushkar-anand/build-with-go/validator"
+	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/config"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/poller"
@@ -27,6 +28,7 @@ func (s *ServeCmd) Run(
 	validator *validator.Validator,
 	store *inventory.Store,
 	sweeper *scanner.Scanner,
+	a *auth.Auth,
 ) error {
 	// The flags override the file, and an unset flag is its zero value.
 	host := cmp.Or(s.Host, cfg.Server.Host)
@@ -82,7 +84,7 @@ func (s *ServeCmd) Run(
 	grp, ctx := errgroup.WithContext(ctx)
 
 	grp.Go(func() error {
-		err := server.Start(ctx, sCfg, store, validator)
+		err := server.Start(ctx, sCfg, store, validator, a)
 		if err != nil {
 			return fmt.Errorf("start server: %w", err)
 		}

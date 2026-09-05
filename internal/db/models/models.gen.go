@@ -20,6 +20,16 @@ type Address struct {
 	LastSeen  dbtype.Time   `json:"last_seen"`
 }
 
+type ApiToken struct {
+	ID         int64             `json:"id"`
+	UserID     int64             `json:"user_id"`
+	Name       string            `json:"name"`
+	TokenHash  string            `json:"token_hash"`
+	Scope      dbtype.TokenScope `json:"scope"`
+	CreatedAt  dbtype.Time       `json:"created_at"`
+	LastUsedAt dbtype.NullTime   `json:"last_used_at"`
+}
+
 type Device struct {
 	ID                    int64                 `json:"id"`
 	MAC                   dbtype.MAC            `json:"mac"`
@@ -98,8 +108,9 @@ type Source struct {
 }
 
 type User struct {
-	ID           int64       `json:"id"`
-	Username     string      `json:"username"`
-	PasswordHash string      `json:"password_hash"`
-	CreatedAt    dbtype.Time `json:"created_at"`
+	ID           int64           `json:"id"`
+	Username     string          `json:"username"`
+	PasswordHash string          `json:"password_hash"`
+	Role         dbtype.UserRole `json:"role"`
+	CreatedAt    dbtype.Time     `json:"created_at"`
 }
