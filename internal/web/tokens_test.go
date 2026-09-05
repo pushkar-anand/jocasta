@@ -122,8 +122,14 @@ func TestCreateAndRevokeToken(t *testing.T) {
 	assert.NotContains(t, reload.Body.String(), "jct_", "a reload does not show the token again")
 	assert.Equal(t, id, onlyTokenRowID(t, reload.Body.String()), "and does not create a second token")
 
+	// Revoking straight after the create, while the reveal is still on the
+	// page: the response is the whole list region, showing the "none yet"
+	// line rather than an empty table, and carrying no leftover plaintext.
 	rec = requestAs(t, h, cookies, http.MethodDelete, "/settings/tokens/"+strconv.FormatInt(id, 10), "")
 	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "No tokens yet.")
+	assert.NotContains(t, rec.Body.String(), "CI script")
+	assert.NotContains(t, rec.Body.String(), "jct_")
 
 	rec = requestAs(t, h, cookies, http.MethodGet, "/settings/tokens", "")
 	require.Equal(t, http.StatusOK, rec.Code)

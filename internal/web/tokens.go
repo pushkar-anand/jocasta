@@ -109,11 +109,15 @@ func (h *Handler) createToken(sm *auth.Session, a *auth.Auth) response.HandlerFu
 	}
 }
 
-// revokeToken deletes one of the signed-in user's tokens. It answers with no
-// content: the row it was in is gone from the client's own list once htmx
-// swaps it out, and there is nothing else for this response to say.
+// revokeToken deletes one of the signed-in user's tokens and answers with the
+// list region as it now stands. It returns the whole region rather than an
+// empty row so the last revoke shows the "none yet" line instead of a table
+// with no body, and so any plaintext still on the page from a create just
+// before it goes with the swap.
 func (h *Handler) revokeToken(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
+		ctx := r.Context()
+
 		userID, err := currentUserID(sm, r)
 		if err != nil {
 			return err
@@ -124,11 +128,16 @@ func (h *Handler) revokeToken(sm *auth.Session, a *auth.Auth) response.HandlerFu
 			return inventory.ErrNotFound
 		}
 
-		if err := a.RevokeToken(r.Context(), userID, id); err != nil {
+		if err := a.RevokeToken(ctx, userID, id); err != nil {
 			return err
 		}
 
-		w.WriteHeader(http.StatusOK)
+		list, err := tokenList(ctx, sm, a, r)
+		if err != nil {
+			return err
+		}
+
+		h.htmlWriter.Success(w, r, templatePartialTokenList, tokensData{Tokens: list})
 
 		return nil
 	}
