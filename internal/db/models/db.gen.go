@@ -78,6 +78,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getDeviceByMACStmt, err = db.PrepareContext(ctx, getDeviceByMAC); err != nil {
 		return nil, fmt.Errorf("error preparing query GetDeviceByMAC: %w", err)
 	}
+	if q.getUserByUsernameStmt, err = db.PrepareContext(ctx, getUserByUsername); err != nil {
+		return nil, fmt.Errorf("error preparing query GetUserByUsername: %w", err)
+	}
 	if q.identifyDeviceStmt, err = db.PrepareContext(ctx, identifyDevice); err != nil {
 		return nil, fmt.Errorf("error preparing query IdentifyDevice: %w", err)
 	}
@@ -252,6 +255,11 @@ func (q *Queries) Close() error {
 	if q.getDeviceByMACStmt != nil {
 		if cerr := q.getDeviceByMACStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getDeviceByMACStmt: %w", cerr)
+		}
+	}
+	if q.getUserByUsernameStmt != nil {
+		if cerr := q.getUserByUsernameStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getUserByUsernameStmt: %w", cerr)
 		}
 	}
 	if q.identifyDeviceStmt != nil {
@@ -446,6 +454,7 @@ type Queries struct {
 	getDeviceStmt                      *sql.Stmt
 	getDeviceByCurrentIPStmt           *sql.Stmt
 	getDeviceByMACStmt                 *sql.Stmt
+	getUserByUsernameStmt              *sql.Stmt
 	identifyDeviceStmt                 *sql.Stmt
 	insertAddressStmt                  *sql.Stmt
 	latestSuccessfulScanFinishedAtStmt *sql.Stmt
@@ -497,6 +506,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getDeviceStmt:                      q.getDeviceStmt,
 		getDeviceByCurrentIPStmt:           q.getDeviceByCurrentIPStmt,
 		getDeviceByMACStmt:                 q.getDeviceByMACStmt,
+		getUserByUsernameStmt:              q.getUserByUsernameStmt,
 		identifyDeviceStmt:                 q.identifyDeviceStmt,
 		insertAddressStmt:                  q.insertAddressStmt,
 		latestSuccessfulScanFinishedAtStmt: q.latestSuccessfulScanFinishedAtStmt,
