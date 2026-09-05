@@ -1178,7 +1178,8 @@ label.stack {
     color: var(--text-2);
 }
 
-input[type="checkbox"] {
+input[type="checkbox"],
+input[type="radio"] {
     width: 15px;
     height: 15px;
     accent-color: var(--brand);
@@ -1459,6 +1460,138 @@ input[type="checkbox"] {
         flex-basis: 100%;
         padding-left: 37px;
     }
+}
+
+/* ---- Auth ---------------------------------------------------------------- */
+
+/* The one page with no sidebar and no topbar to anchor to, so the card is
+   centred in the viewport on its own rather than sitting in .main. */
+.authshell {
+    min-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--pad);
+    background: var(--bg);
+}
+
+.authshell__theme {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+}
+
+.authcard {
+    width: 100%;
+    max-width: 22rem;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+.authcard__brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.authcard__name {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.authcard__sub {
+    margin: 0;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-3);
+}
+
+.authcard__body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.authcard__body h1 {
+    font-size: 16px;
+}
+
+.authform {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.authform__submit {
+    margin-top: 6px;
+    width: 100%;
+}
+
+/* ---- API tokens ----------------------------------------------------------- */
+
+.tokenform {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 16px;
+}
+
+.tokenform .stack {
+    flex: 1 1 16rem;
+}
+
+.tokenform__scope {
+    display: flex;
+    gap: 16px;
+    margin: 0;
+    padding: 0;
+    border: none;
+}
+
+/* The one moment a token's plaintext is readable: called out rather than
+   dropped quietly into the list, since there is no second chance to see it. */
+.tokenreveal {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--warning-soft);
+    color: var(--warning-ink);
+}
+
+.tokenreveal__label {
+    margin: 0;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.tokenreveal__value {
+    display: block;
+    padding: 8px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--text);
+    overflow-wrap: anywhere;
+    user-select: all;
+}
+
+.btn--danger {
+    color: var(--critical-ink);
+}
+
+.btn--danger:hover {
+    background: var(--critical-soft);
+    border-color: var(--critical-ink);
 }
 
 [data-theme="dark"] {

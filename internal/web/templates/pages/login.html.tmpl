@@ -1,0 +1,87 @@
+{{- /*
+    Its own document rather than layout/head + layout/foot: that layout is the
+    signed-in shell -- sidebar, nav, sweep note -- none of which apply to a
+    visitor who isn't signed in yet.
+*/ -}}
+{{ define "page/login" }}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ .Title }} &middot; jocasta</title>
+
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/js/theme.js"></script>
+</head>
+<body>
+<div class="authshell">
+    <button type="button" id="theme-toggle" class="theme-toggle authshell__theme" aria-label="Toggle dark mode">
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+    </button>
+
+    <div class="authcard card">
+        <div class="authcard__brand">
+            <span class="brandmark__tile">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M5 8a8.5 8.5 0 0 1 14 0" stroke-opacity="0.6"/>
+                    <path d="M12 7 L17.5 10.5 L12 14 L6.5 10.5 Z"/>
+                    <path d="M6.5 10.5 L6.5 16.5 L12 20 L17.5 16.5 L17.5 10.5"/>
+                    <line x1="12" y1="14" x2="12" y2="20"/>
+                    <circle cx="12" cy="7" r="1.2" fill="currentColor"/>
+                    <circle cx="12" cy="14" r="1.2" fill="currentColor"/>
+                </svg>
+            </span>
+            <div>
+                <p class="authcard__name">Jocasta</p>
+                <p class="authcard__sub">Network inventory</p>
+            </div>
+        </div>
+
+        <div class="authcard__body">
+            <h1>Sign in</h1>
+
+            {{- with .Error }}
+                <p class="failure">{{ . }}</p>
+            {{- end }}
+
+            <form method="post" action="/login" class="authform">
+                <label class="stack">
+                    <span class="eyebrow">Username</span>
+                    <input class="input" type="text" name="username" autocomplete="username" autofocus required>
+                </label>
+
+                <label class="stack">
+                    <span class="eyebrow">Password</span>
+                    <input class="input" type="password" name="password" autocomplete="current-password" required>
+                </label>
+
+                <label class="stack">
+                    <input class="checkbox" type="checkbox" name="remember_me" value="true">
+                    <span class="eyebrow">Remember me</span>
+                </label>
+
+                <button type="submit" class="btn authform__submit">Sign in</button>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+{{ end }}

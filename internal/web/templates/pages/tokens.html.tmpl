@@ -1,0 +1,88 @@
+{{ define "page/tokens" }}
+    {{- template "layout/head" . }}
+
+    <section class="block">
+        <div class="block__head">
+            <p class="eyebrow">API tokens</p>
+            <p class="block__aside">Bearer credentials for a script or dashboard that reads or edits this inventory
+                without signing in.</p>
+        </div>
+
+        {{- with .PlaintextToken }}
+            <div class="tokenreveal">
+                <p class="tokenreveal__label">Copy this token now &mdash; it will not be shown again.</p>
+                <code class="tokenreveal__value">{{ . }}</code>
+            </div>
+        {{- end }}
+
+        <div class="card panel">
+            <form method="post" action="/settings/tokens" class="tokenform">
+                <label class="stack">
+                    <span class="eyebrow">Name</span>
+                    <input class="input" type="text" name="name" placeholder="e.g. Grafana dashboard"
+                           autocomplete="off" maxlength="100" required>
+                </label>
+
+                <fieldset class="tokenform__scope">
+                    <label class="check">
+                        <input type="radio" name="scope" value="read" checked>
+                        Read
+                    </label>
+                    <label class="check">
+                        <input type="radio" name="scope" value="read_write">
+                        Read &amp; write
+                    </label>
+                </fieldset>
+
+                <button type="submit" class="btn btn--sm">Create token</button>
+            </form>
+        </div>
+
+        {{- if .Tokens }}
+            <div class="card card--table">
+                <div class="scroller">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th scope="col">Name</th>
+                            <th scope="col">Scope</th>
+                            <th scope="col">Created</th>
+                            <th scope="col">Last used</th>
+                            <th scope="col"></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {{- range .Tokens }}
+                            <tr id="token-row-{{ .ID }}">
+                                <td class="strong">{{ .Name }}</td>
+                                <td>
+                                    {{- if eq .Scope "read_write" }}
+                                        <span class="chip chip--brand">Read &amp; write</span>
+                                    {{- else }}
+                                        <span class="chip chip--quiet">Read</span>
+                                    {{- end }}
+                                </td>
+                                <td class="dim">{{ ago .CreatedAt }}</td>
+                                <td class="dim">{{ ago .LastUsedAt }}</td>
+                                <td>
+                                    <button type="button" class="btn btn--quiet btn--sm btn--danger"
+                                            hx-delete="/settings/tokens/{{ .ID }}"
+                                            hx-target="#token-row-{{ .ID }}"
+                                            hx-swap="outerHTML"
+                                            hx-confirm="Revoke &quot;{{ .Name }}&quot;? Anything using it stops working immediately.">
+                                        Revoke
+                                    </button>
+                                </td>
+                            </tr>
+                        {{- end }}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {{- else }}
+            <p class="dim">No tokens yet.</p>
+        {{- end }}
+    </section>
+
+    {{- template "layout/foot" . }}
+{{ end }}
