@@ -11,6 +11,7 @@ import (
 	"github.com/pushkar-anand/build-with-go/http/request"
 	"github.com/pushkar-anand/build-with-go/http/response"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
+	"github.com/pushkar-anand/jocasta/internal/inventoryapi"
 )
 
 // Handler holds what every handler needs to read a request and write a
@@ -43,16 +44,20 @@ func NewHandler(
 
 	h.mux.HandleFunc("GET /livez", jw.Handle(h.healthHandler()))
 
-	h.mux.HandleFunc("GET /stats", jw.Handle(h.stats(store)))
-	h.mux.HandleFunc("GET /groups", jw.Handle(h.groups(store)))
-
-	h.mux.HandleFunc("GET /devices", jw.Handle(h.listDevices(store)))
-	h.mux.HandleFunc("GET /devices/{id}", jw.Handle(h.getDevice(store)))
-	h.mux.HandleFunc("PATCH /devices/{id}", jw.Handle(h.updateDevice(store)))
-	h.mux.HandleFunc("GET /devices/{id}/events", jw.Handle(h.deviceEvents(store)))
-
-	h.mux.HandleFunc("GET /events", jw.Handle(h.listEvents(store)))
-	h.mux.HandleFunc("GET /scans", jw.Handle(h.listScans(store)))
+	operations := inventoryapi.New(store)
+	h.mux.HandleFunc("GET /stats", jw.Handle(h.query(operations.GetStats)))
+	h.mux.HandleFunc("GET /groups", jw.Handle(h.query(operations.ListGroups)))
+	h.mux.HandleFunc("GET /devices", jw.Handle(h.query(operations.ListDevices)))
+	h.mux.HandleFunc("GET /devices/{id}", jw.Handle(h.query(operations.GetDevice)))
+	h.mux.HandleFunc("GET /devices/{id}/events", jw.Handle(h.query(operations.GetDeviceEvents)))
+	h.mux.HandleFunc("GET /events", jw.Handle(h.query(operations.ListEvents)))
+	h.mux.HandleFunc("GET /scans", jw.Handle(h.query(operations.ListScans)))
+	h.mux.HandleFunc("GET /networks", jw.Handle(h.query(operations.ListNetworks)))
+	h.mux.HandleFunc("GET /networks/{id}", jw.Handle(h.query(operations.GetNetwork)))
+	h.mux.HandleFunc("GET /devices/{id}/ports", jw.Handle(h.query(operations.GetDevicePorts)))
+	h.mux.HandleFunc("GET /devices/{id}/sources", jw.Handle(h.query(operations.GetDeviceSources)))
+	h.mux.HandleFunc("GET /ports/overview", jw.Handle(h.query(operations.GetPortOverview)))
+	h.mux.HandleFunc("PATCH /devices/{id}", jw.Handle(h.updateDevice(operations)))
 
 	return h
 }

@@ -39,6 +39,7 @@ func (s *ServeCmd) Run(
 		Port:               port,
 		Logger:             log,
 		CORSAllowedOrigins: cfg.Server.CORS.AllowedOrigins,
+		MCPEnabled:         cfg.MCP.Enabled,
 	}
 
 	p := poller.New(log)

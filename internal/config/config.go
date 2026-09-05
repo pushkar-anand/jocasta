@@ -37,6 +37,11 @@ type (
 		AllowedOrigins []string `koanf:"allowed_origins"`
 	}
 
+	// MCP controls whether the agent endpoint is available.
+	MCP struct {
+		Enabled bool `koanf:"enabled"`
+	}
+
 	// DB says where the SQLite database lives.
 	DB struct {
 		Path string `koanf:"path"`
@@ -140,6 +145,7 @@ type (
 	// Config is the whole set of named, nested settings.
 	Config struct {
 		Server    Server    `koanf:"server"`
+		MCP       MCP       `koanf:"mcp"`
 		DB        DB        `koanf:"db"`
 		Logger    Logger    `koanf:"logger"`
 		Inventory Inventory `koanf:"inventory"`

@@ -13,8 +13,8 @@ func (h *Handler) healthHandler() response.HandlerFunc {
 		Version string    `json:"version"`
 		Time    time.Time `json:"time"`
 	}
-	return func(w http.ResponseWriter, r *http.Request) error {
 
+	return func(w http.ResponseWriter, r *http.Request) error {
 		res := healthResponse{
 			Version: version.Get().Version,
 			Time:    time.Now(),

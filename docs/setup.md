@@ -63,6 +63,9 @@ A missing config file is fine if the defaults and environment cover everything.
 ### Example `jocasta.yaml`
 
 ```yaml
+mcp:
+  enabled: false
+
 server:
   host: "127.0.0.1"     # 0.0.0.0 to listen on every interface
   port: 3090
@@ -226,7 +229,9 @@ $ jocasta plugin run gateway --json --save
 
 ## HTTP API
 
-Mounted under `/api`. Non-GET requests must come from the same origin.
+Mounted under `/api`. Except for `/api/livez`, requests require an API token in
+`Authorization: Bearer <token>`. Read-only tokens allow reads; device edits
+require a read-write token. Browser requests must come from the same origin.
 
 | Method and path | Purpose |
 |---|---|
@@ -234,8 +239,102 @@ Mounted under `/api`. Non-GET requests must come from the same origin.
 | `GET /api/stats` | Inventory counts. |
 | `GET /api/groups` | The groups devices are filed under. |
 | `GET /api/devices` | List devices, with filters. |
-| `GET /api/devices/{id}` | One device with its addresses, open ports, and sources. |
+| `GET /api/devices/{id}` | One device with address history and recorded TCP port observations. |
 | `PATCH /api/devices/{id}` | Update the user-owned fields (label, group, type, notes, ignored). |
 | `GET /api/devices/{id}/events` | One device's change log. |
 | `GET /api/events` | The whole change log. |
 | `GET /api/scans` | Sweep and source-read history. |
+| `GET /api/networks` | Recorded networks, names, VLANs, and device counts. |
+| `GET /api/networks/{id}` | One recorded network. |
+| `GET /api/devices/{id}/ports` | Recorded TCP port states and timestamps. |
+| `GET /api/devices/{id}/sources` | Discovery-source claims and observation timestamps. |
+| `GET /api/ports/overview` | Open-port totals, recent transitions, and common services. |
+
+Device lists accept `q`, `group`, `status=online|offline`,
+`sort=last_seen|name|address|type`, `include_ignored`, `network_id`, and `type`.
+`type` matches the effective classification, including a user override.
+Use a network ID from `/api/networks` to list its devices. Networks with no
+recorded devices are included in the network list.
+
+Events, device events, and scans accept `limit` (default 50, maximum 500) and
+`cursor`. Send back `next_cursor` with the same filters to get the following
+page; its absence marks the end. Global events also accept `device_id`,
+`exclude_ignored`, and repeated `event_kinds`, for example:
+`/api/events?event_kinds=PORT_OPENED&event_kinds=PORT_CLOSED`.
+Scans accept `kind=DISCOVERY|PORTS|IMPORT`.
+
+Device ports accept `state=open|closed`; omit it to include all recorded states.
+The port overview accepts `service_limit` (default 10, maximum 100), excludes
+ignored devices, and counts opened/closed transitions over the last 24 hours.
+New collection responses contain the named collection and `count`.
+
+`PATCH /api/devices/{id}` replaces all user-owned fields. Omitted strings are
+cleared and omitted `ignored` becomes false. Field limits are 200 characters
+for `label`, 100 for `group`, and 2000 for `notes`. An empty `type` restores the
+automatic classification.
+
+## MCP for agents
+
+MCP is disabled by default. Enable it in your configuration and restart Jocasta:
+
+```yaml
+mcp:
+  enabled: true
+```
+
+The environment equivalent is `JOCASTA_MCP__ENABLED=true`. Setting it to false
+or omitting the setting leaves `/mcp` unavailable (HTTP 404); the web UI and
+JSON API continue to work normally.
+
+Sign in to the web UI and create a token on the **API tokens** page. Choose
+read-only for inventory questions, or read-write to allow device curation.
+Copy the token when it is displayed; it cannot be retrieved later. Revoking
+it blocks subsequent MCP requests, including calls from an existing client.
+
+Connect a client supporting **Streamable HTTP** to
+`http://localhost:8080/mcp`, replacing the host, port, and scheme with your
+instance's address. Supply the token in the `Authorization: Bearer` header.
+The agent's connection must be able to reach your self-hosted instance; a
+cloud agent cannot reach your machine's localhost. Browser OAuth sign-in,
+stdio, and the legacy SSE transport are not provided.
+
+For Codex, set `JOCASTA_API_TOKEN` in the environment of the process running
+Codex, then add this to its MCP configuration:
+
+```toml
+[mcp_servers.jocasta]
+url = "http://localhost:8080/mcp"
+bearer_token_env_var = "JOCASTA_API_TOKEN"
+```
+
+See the [Codex MCP configuration reference](https://learn.chatgpt.com/docs/extend/mcp?surface=cli).
+For other clients, use the same endpoint and bearer header in their HTTP MCP
+settings. Native clients can omit Origin; browser clients must send the same
+scheme and host as the endpoint. Reverse proxies must preserve the public Host;
+forwarded headers are not trusted for Origin validation.
+
+Available tools:
+
+| Tool | Purpose |
+|---|---|
+| `get_stats`, `list_groups` | Inventory counts and assigned groups. |
+| `list_devices`, `get_device` | Filtered inventory and detailed device history. |
+| `list_networks`, `get_network` | Networks, VLANs, and membership counts. |
+| `get_device_ports`, `get_port_overview` | Recorded TCP observations and service summaries. |
+| `get_device_sources` | What each discovery source reported about a device. |
+| `get_device_events`, `list_events`, `list_scans` | Paginated change and scan history. |
+| `update_device_curation` | Replace label, group, type, notes, and ignored status. |
+
+Tool filters match the JSON API; `event_kinds` is an array in MCP. Curation
+requires **all five fields** plus `id`, and a read-write token. Read the device
+first to preserve values you do not intend to change. Both token scopes see
+the same tool list; a read-only token cannot execute the curation tool.
+
+Try asking your agent to list networks and their VLANs, show the recorded open
+ports on a device, or explain recent port changes using the change log.
+
+These tools read stored observations and do not start scans. "Online" means
+seen within the configured inventory window. Ports are recorded TCP probe
+results, and service names are conventional port-number labels, not detected
+software. Empty port data does not prove that every port is closed. Check
+observation timestamps and scan history when freshness matters.

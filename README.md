@@ -53,6 +53,7 @@ continuously.
 | Change log | A timestamped record of discoveries, moves and renames, per device and across the whole network. |
 | Web interface | Overview dashboard, searchable and filterable device list, per-device and per-network pages, light and dark themes. |
 | API | A JSON API over the same data, for scripts and dashboards. |
+| Agent access | An optional MCP endpoint for agents, using scoped API tokens. |
 | Self-contained | A single binary with an embedded database. No separate services to run. |
 
 More screenshots: [docs/ui.md](docs/ui.md).
