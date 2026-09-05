@@ -57,6 +57,8 @@ func Start(
 		response.WithErrorTemplates(map[int]string{
 			http.StatusNotFound:     web.TemplateNotFound,
 			http.StatusUnauthorized: web.TemplateLogin,
+			http.StatusConflict:     web.TemplateSetup,
+			http.StatusForbidden:    web.TemplateForbidden,
 		}),
 		response.WithErrorStatusMapper(func(err error) int {
 			switch {
@@ -64,6 +66,10 @@ func Start(
 				return http.StatusNotFound
 			case errors.Is(err, auth.ErrInvalidCredentials):
 				return http.StatusUnauthorized
+			case errors.Is(err, auth.ErrSetupComplete):
+				return http.StatusConflict
+			case errors.Is(err, auth.ErrForbidden):
+				return http.StatusForbidden
 			}
 
 			return http.StatusInternalServerError
@@ -75,7 +81,11 @@ func Start(
 	wh := web.NewHandler(cfg.Logger, reader, store, hw, sm, a)
 
 	tokenMiddleware := auth.NewTokenMiddleware(jw, a, regexp.MustCompile(`^/livez$`))
-	sessionMiddleware := auth.NewSessionMiddleware(sm, regexp.MustCompile(`^/static/.*$`), regexp.MustCompile(`^/login$`))
+	sessionMiddleware := auth.NewSessionMiddleware(
+		sm, a,
+		[]*regexp.Regexp{regexp.MustCompile(`^/static/.*$`)},
+		[]*regexp.Regexp{regexp.MustCompile(`^/login$`)},
+	)
 
 	mux := http.NewServeMux()
 

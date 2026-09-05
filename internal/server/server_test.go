@@ -69,6 +69,7 @@ func testAuth(t *testing.T) (*auth.Auth, string) {
 	user, err := q.CreateUser(t.Context(), models.CreateUserParams{
 		Username:     testUsername,
 		PasswordHash: hash,
+		Role:         dbtype.RoleAdmin,
 	})
 	require.NoError(t, err)
 
