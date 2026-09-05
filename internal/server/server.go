@@ -69,10 +69,13 @@ func Start(
 		cfg.Logger,
 		nil,
 		response.WithErrorTemplates(map[int]string{
-			http.StatusNotFound:     web.TemplateNotFound,
-			http.StatusUnauthorized: web.TemplateLogin,
-			http.StatusConflict:     web.TemplateSetup,
-			http.StatusForbidden:    web.TemplateForbidden,
+			http.StatusBadRequest:            web.TemplateBadRequest,
+			http.StatusRequestEntityTooLarge: web.TemplateBadRequest,
+			http.StatusUnprocessableEntity:   web.TemplateBadRequest,
+			http.StatusNotFound:              web.TemplateNotFound,
+			http.StatusUnauthorized:          web.TemplateLogin,
+			http.StatusConflict:              web.TemplateSetup,
+			http.StatusForbidden:             web.TemplateForbidden,
 		}),
 		response.WithErrorStatusMapper(func(err error) int {
 			switch {
@@ -86,7 +89,11 @@ func Start(
 				return http.StatusForbidden
 			}
 
-			return http.StatusInternalServerError
+			// Zero, not 500: an error that describes its own status -- the
+			// request package's parse and validation failures do -- is left to
+			// the writer to read that status off, and only a truly unmapped
+			// error becomes a 500.
+			return 0
 		}),
 		response.WithErrorDataFunc(web.ErrorPageData),
 	)

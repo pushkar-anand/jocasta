@@ -64,12 +64,14 @@
             <form method="post" action="/login" class="authform">
                 <label class="stack">
                     <span class="eyebrow">Username</span>
-                    <input class="input" type="text" name="username" autocomplete="username" autofocus required>
+                    <input class="input" type="text" name="username" autocomplete="username" autofocus
+                           minlength="3" maxlength="100" required>
                 </label>
 
                 <label class="stack">
                     <span class="eyebrow">Password</span>
-                    <input class="input" type="password" name="password" autocomplete="current-password" required>
+                    <input class="input" type="password" name="password" autocomplete="current-password"
+                           minlength="8" maxlength="1000" required>
                 </label>
 
                 <label class="stack">

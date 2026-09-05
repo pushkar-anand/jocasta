@@ -164,6 +164,19 @@ func lastSweptAt(ctx context.Context, store *inventory.Store) time.Time {
 // each case supplies whatever its own template needs.
 func ErrorPageData(_ *http.Request, _ error, status int) map[string]any {
 	switch status {
+	case http.StatusBadRequest, http.StatusRequestEntityTooLarge, http.StatusUnprocessableEntity:
+		// A request the sender can fix and resend: it did not parse, was too
+		// large, or failed validation. Rendered from layout/head like the 404
+		// case below, since almost every form that reaches it is behind the
+		// signed-in shell; setup and sign-in guard their own inputs in the
+		// markup, so a crafted request is the only way they land here.
+		return map[string]any{
+			"Title":   "Bad request",
+			"Section": "",
+			"Crumb":   nil,
+			"Live":    false,
+			"Note":    "",
+		}
 	case http.StatusUnauthorized:
 		// The sign-in page's own fields -- see loginData -- not the signed-in
 		// shell's, since TemplateLogin renders standalone like login itself does.

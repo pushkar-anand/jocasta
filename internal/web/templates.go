@@ -19,6 +19,7 @@ const (
 	templatePartialDeviceRowForm = "partial/device-row-form"
 	templatePartialDevicePanel   = "partial/device-panel"
 
-	TemplateNotFound  = "page/notfound"
-	TemplateForbidden = "page/forbidden"
+	TemplateBadRequest = "page/badrequest"
+	TemplateNotFound   = "page/notfound"
+	TemplateForbidden  = "page/forbidden"
 )

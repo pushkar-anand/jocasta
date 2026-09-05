@@ -39,6 +39,23 @@ func TestSetupFormCreatesTheFirstAdminAndSignsIn(t *testing.T) {
 	require.Equal(t, http.StatusOK, overview.Code)
 }
 
+// A form that does not validate is the visitor's to fix, so it comes back as
+// the request package's own 422 rendered on a page, not the bare 500 an
+// unmapped error falls through to.
+func TestSetupFormRejectsTooShortInput(t *testing.T) {
+	t.Parallel()
+
+	a := unseededAuth(t)
+	h := newWebHandlerWithAuth(t, testStore(t), a)
+
+	form := url.Values{"username": {"ab"}, "password": {"short"}}
+	rec := requestAs(t, h, nil, http.MethodPost, "/setup", form.Encode())
+
+	require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
+	assert.Contains(t, rec.Body.String(), "Bad request")
+	assert.NotContains(t, rec.Body.String(), "Internal Server Error")
+}
+
 func TestSetupFormRefusesOnceAnAccountExists(t *testing.T) {
 	t.Parallel()
 
