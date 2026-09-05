@@ -50,25 +50,34 @@ type tokensData struct {
 	PlaintextToken string
 }
 
+// flashTokenPlaintext is the session key createToken leaves the new token's
+// plaintext under for the redirected-to GET to show once and clear.
+const flashTokenPlaintext = "flash.token_plaintext"
+
 // tokens serves the token settings page.
 func (h *Handler) tokens(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		list, err := tokenList(r.Context(), sm, a, r)
+		ctx := r.Context()
+
+		list, err := tokenList(ctx, sm, a, r)
 		if err != nil {
 			return err
 		}
 
 		h.htmlWriter.Success(w, r, templatePageTokens, tokensData{
-			Title:  "API tokens",
-			Tokens: list,
+			Title:          "API tokens",
+			Tokens:         list,
+			PlaintextToken: sm.PopFlash(ctx, flashTokenPlaintext),
 		})
 
 		return nil
 	}
 }
 
-// createToken issues a new token for the signed-in user and shows its
-// plaintext once, on this response alone.
+// createToken issues a new token for the signed-in user, then redirects to the
+// list. The plaintext -- the one thing this is the only chance to see -- rides
+// the redirect in a one-shot flash, so a reload of the landing page re-fetches
+// it rather than minting a second token.
 func (h *Handler) createToken(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	type createTokenForm struct {
 		Name  string `schema:"name" validate:"required,min=1,max=100"`
@@ -93,16 +102,8 @@ func (h *Handler) createToken(sm *auth.Session, a *auth.Auth) response.HandlerFu
 			return err
 		}
 
-		list, err := tokenList(ctx, sm, a, r)
-		if err != nil {
-			return err
-		}
-
-		h.htmlWriter.Success(w, r, templatePageTokens, tokensData{
-			Title:          "API tokens",
-			Tokens:         list,
-			PlaintextToken: plaintext,
-		})
+		sm.Flash(ctx, flashTokenPlaintext, plaintext)
+		http.Redirect(w, r, "/settings/tokens", http.StatusSeeOther)
 
 		return nil
 	}

@@ -54,6 +54,20 @@ func (s *Session) CurrentUserID(ctx context.Context) (int64, bool) {
 	return id, ok
 }
 
+// Flash stores a value read back exactly once. It is how a handler carries a
+// result -- a message, or a secret shown a single time -- across the redirect
+// it makes after a POST, so a reload re-fetches the page rather than resending
+// the form.
+func (s *Session) Flash(ctx context.Context, key, value string) {
+	s.sm.Put(ctx, key, value)
+}
+
+// PopFlash returns the value Flash stored under key and removes it, or "" when
+// there is none.
+func (s *Session) PopFlash(ctx context.Context, key string) string {
+	return s.sm.PopString(ctx, key)
+}
+
 // Logout ends the session -- Destroy under the name a caller of this package
 // actually wants.
 func (s *Session) Logout(ctx context.Context) error {

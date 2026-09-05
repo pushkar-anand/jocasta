@@ -34,10 +34,9 @@ type usersData struct {
 	view
 	Users []userRow
 
-	// Error is set only when createUser's own insert hit auth.ErrUsernameTaken
-	// -- the list this page needs on redisplay is dynamic, which is what the
-	// generic error pipeline (ErrorPageData) cannot supply, so this handler
-	// re-renders itself instead of returning the error through it.
+	// Error carries the reason a create was refused -- a username already
+	// taken -- from the createUser POST across its redirect to here, in a
+	// one-shot flash the GET reads and clears.
 	Error string
 }
 
@@ -76,6 +75,10 @@ func userList(ctx context.Context, a *auth.Auth) ([]userRow, error) {
 	return list, nil
 }
 
+// flashUserError is the session key createUser leaves the reason a create was
+// refused under, for the redirected-to GET to show once and clear.
+const flashUserError = "flash.user_error"
+
 // users serves the user management page.
 func (h *Handler) users(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
@@ -93,6 +96,7 @@ func (h *Handler) users(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 		h.htmlWriter.Success(w, r, templatePageUsers, usersData{
 			Title: "Users",
 			Users: list,
+			Error: sm.PopFlash(ctx, flashUserError),
 		})
 
 		return nil
@@ -126,21 +130,11 @@ func (h *Handler) createUser(sm *auth.Session, a *auth.Auth) response.HandlerFun
 			return createErr
 		}
 
-		list, err := userList(ctx, a)
-		if err != nil {
-			return err
+		if errors.Is(createErr, auth.ErrUsernameTaken) {
+			sm.Flash(ctx, flashUserError, "That username is already taken.")
 		}
 
-		data := usersData{
-			Title: "Users",
-			Users: list,
-		}
-
-		if createErr != nil {
-			data.Error = "That username is already taken."
-		}
-
-		h.htmlWriter.Success(w, r, templatePageUsers, data)
+		http.Redirect(w, r, "/settings/users", http.StatusSeeOther)
 
 		return nil
 	}
