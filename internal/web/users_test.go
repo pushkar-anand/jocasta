@@ -92,6 +92,9 @@ func TestUsersPageListsTheSeededAdmin(t *testing.T) {
 	body := rec.Body.String()
 	assert.Contains(t, body, testUsername)
 	assert.Contains(t, body, "Admin")
+
+	// The topbar marks the page being shown.
+	assert.Contains(t, body, `href="/settings/users" aria-current="page"`)
 }
 
 func TestCreateUserAsAdmin(t *testing.T) {

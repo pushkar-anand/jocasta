@@ -100,7 +100,7 @@ func (h *Handler) users(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 		}
 
 		h.htmlWriter.Success(w, r, templatePageUsers, usersData{
-			Title: "Users", IsAdmin: true,
+			Title: "Users", Section: "Users", IsAdmin: true,
 			Users: list,
 			Error: sm.PopFlash(ctx, flashUserError),
 		})

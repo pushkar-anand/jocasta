@@ -95,6 +95,7 @@ func TestTokensPageListsNoneToStart(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "No tokens yet.")
+	assert.Contains(t, rec.Body.String(), `href="/settings/tokens" aria-current="page"`)
 }
 
 func TestCreateAndRevokeToken(t *testing.T) {

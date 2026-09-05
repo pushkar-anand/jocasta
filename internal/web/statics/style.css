@@ -399,6 +399,8 @@ h1 {
 
 .empty {
     padding: 20px;
+    /* Hug the text rather than stretching a mostly-empty box the full width. */
+    max-width: 60ch;
 }
 
 .empty p {
@@ -1056,7 +1058,6 @@ tbody tr:hover {
     border-radius: var(--radius-sm);
     background: var(--critical-soft);
     color: var(--critical-ink);
-    font-family: var(--mono);
     font-size: 12.5px;
     overflow-wrap: anywhere;
 }
@@ -1235,6 +1236,14 @@ input[type="radio"] {
 .btn--quiet:hover {
     border-color: var(--border-strong);
     filter: none;
+}
+
+/* The topbar's account links mark the page they lead to when it is the one
+   being shown, the way the rail marks its section. */
+.btn--quiet[aria-current="page"] {
+    border-color: var(--border-strong);
+    color: var(--text);
+    background: var(--surface-2);
 }
 
 .btn--sm {
