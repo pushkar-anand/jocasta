@@ -19,6 +19,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/api"
 	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
+	"github.com/pushkar-anand/jocasta/internal/mcp"
 	"github.com/pushkar-anand/jocasta/internal/web"
 	"github.com/rs/cors"
 )
@@ -26,9 +27,10 @@ import (
 type (
 	// Config controls how the server binds and what it logs to.
 	Config struct {
-		Port   int
-		Addr   string
-		Logger *slog.Logger
+		MCPEnabled bool
+		Port       int
+		Addr       string
+		Logger     *slog.Logger
 
 		// CORSAllowedOrigins lists the origins (scheme://host[:port]) a browser
 		// may read this server's responses from cross-origin. Empty defaults to
@@ -109,6 +111,14 @@ func Start(
 	// caller can actually satisfy keeps that distinction enforced.
 	mux.Handle("/api/", http.StripPrefix("/api", tokenMiddleware(ap)))
 	mux.Handle("/", sessionMiddleware(wh))
+
+	agentHandler := http.NotFoundHandler()
+	if cfg.MCPEnabled {
+		agentHandler = mcp.NewHandler(store, a, validator, cfg.Logger)
+	}
+
+	mux.Handle("/mcp", agentHandler)
+	mux.Handle("/mcp/", agentHandler)
 
 	origins := cfg.CORSAllowedOrigins
 	if len(origins) == 0 {
