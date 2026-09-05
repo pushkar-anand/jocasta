@@ -6,16 +6,30 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/http/cookiejar"
+	"net/url"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/pushkar-anand/build-with-go/security/password"
 	"github.com/pushkar-anand/build-with-go/validator"
+	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/db"
+	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
+	"github.com/pushkar-anand/jocasta/internal/db/models"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+)
+
+// testUsername and testPassword name the one account seeded into every test
+// server, so a test that needs a signed-in view doesn't have to invent its
+// own credential.
+const (
+	testUsername = "jocasta-test"
+	testPassword = "test-password-1"
 )
 
 func testLogger() *slog.Logger {
@@ -34,6 +48,37 @@ func testStore(t *testing.T) *inventory.Store {
 	t.Cleanup(func() { _ = conn.Close() })
 
 	return inventory.New(conn, testLogger())
+}
+
+// testAuth builds an Auth over its own migrated database, separate from
+// whatever store a test is exercising, seeded with the one account tests sign
+// in as and one read-write API token tests authenticate API calls with.
+func testAuth(t *testing.T) (*auth.Auth, string) {
+	t.Helper()
+
+	conn, err := db.New(&db.Config{Path: t.TempDir(), Name: "auth.db"})
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = conn.Close() })
+
+	q := models.New(conn)
+
+	hash, err := password.NewHasher().Hash(testPassword)
+	require.NoError(t, err)
+
+	user, err := q.CreateUser(t.Context(), models.CreateUserParams{
+		Username:     testUsername,
+		PasswordHash: hash,
+	})
+	require.NoError(t, err)
+
+	a, err := auth.New(q, password.NewHasher())
+	require.NoError(t, err)
+
+	apiToken, _, err := a.CreateToken(t.Context(), user.ID, "test token", dbtype.TokenReadWrite)
+	require.NoError(t, err)
+
+	return a, apiToken
 }
 
 // freePort reserves a port and releases it again. There is a window in which
@@ -68,8 +113,6 @@ func waitForServer(t *testing.T, addr string) {
 	t.Fatalf("server did not start listening on %s", addr)
 }
 
-// startServer runs Start in the background and returns the base URL. The server
-// is stopped, and its shutdown asserted, when the test ends.
 // testValidator builds the validator main hands the server.
 func testValidator(t *testing.T) *validator.Validator {
 	t.Helper()
@@ -80,7 +123,10 @@ func testValidator(t *testing.T) *validator.Validator {
 	return v
 }
 
-func startServer(t *testing.T) string {
+// startServer runs Start in the background and returns the base URL and a
+// read-write API token good against it. The server is stopped, and its
+// shutdown asserted, when the test ends.
+func startServer(t *testing.T) (string, string) {
 	t.Helper()
 
 	port := freePort(t)
@@ -88,6 +134,7 @@ func startServer(t *testing.T) string {
 	// Opened here rather than in the goroutine below: testDB registers a
 	// cleanup, and t.Cleanup must not be called from another goroutine.
 	store := testStore(t)
+	a, apiToken := testAuth(t)
 
 	errCh := make(chan error, 1)
 
@@ -96,7 +143,7 @@ func startServer(t *testing.T) string {
 	ctx := t.Context()
 
 	go func() {
-		errCh <- Start(ctx, &Config{Addr: "127.0.0.1", Port: port, Logger: testLogger()}, store, testValidator(t))
+		errCh <- Start(ctx, &Config{Addr: "127.0.0.1", Port: port, Logger: testLogger()}, store, testValidator(t), a)
 	}()
 
 	t.Cleanup(func() {
@@ -111,16 +158,22 @@ func startServer(t *testing.T) string {
 	addr := net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
 	waitForServer(t, addr)
 
-	return "http://" + addr
+	return "http://" + addr, apiToken
 }
 
 func get(t *testing.T, url string) *http.Response {
 	t.Helper()
 
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, url, nil)
+	return getWith(t, http.DefaultClient, url)
+}
+
+func getWith(t *testing.T, client *http.Client, target string) *http.Response {
+	t.Helper()
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, target, nil)
 	require.NoError(t, err)
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := client.Do(req)
 	require.NoError(t, err)
 
 	t.Cleanup(func() { _ = res.Body.Close() })
@@ -128,10 +181,38 @@ func get(t *testing.T, url string) *http.Response {
 	return res
 }
 
+// loginClient signs in as the seeded test user and returns a client carrying
+// the resulting session cookie, for a test that needs the signed-in view
+// rather than the sign-in page every other client here gets redirected to.
+func loginClient(t *testing.T, baseURL string) *http.Client {
+	t.Helper()
+
+	jar, err := cookiejar.New(nil)
+	require.NoError(t, err)
+
+	client := &http.Client{Jar: jar}
+
+	form := url.Values{"username": {testUsername}, "password": {testPassword}}
+
+	req, err := http.NewRequestWithContext(
+		t.Context(), http.MethodPost, baseURL+"/login", strings.NewReader(form.Encode()),
+	)
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	res, err := client.Do(req)
+	require.NoError(t, err)
+	defer func() { _ = res.Body.Close() }()
+
+	require.Equal(t, http.StatusOK, res.StatusCode, "login should redirect through to the signed-in root")
+
+	return client
+}
+
 // TestStartRoutes covers the mux Start builds: the API under /api, and
 // everything else served by the web handler.
 func TestStartRoutes(t *testing.T) {
-	baseURL := startServer(t)
+	baseURL, _ := startServer(t)
 
 	t.Run("api is mounted under /api", func(t *testing.T) {
 		res := get(t, baseURL+"/api/livez")
@@ -144,12 +225,17 @@ func TestStartRoutes(t *testing.T) {
 		assert.Contains(t, body, "version")
 	})
 
+	// The web handler requires a session, so a signed-out request would find
+	// this route via the login redirect regardless of whether it exists --
+	// telling that apart from a genuine 404 needs a client that is signed in.
+	client := loginClient(t, baseURL)
+
 	t.Run("the api prefix is stripped", func(t *testing.T) {
 		// Without StripPrefix this would reach the API handler as /api/livez.
 		// With it, /livez outside the prefix is not an API route at all: it
 		// falls through to the web handler, which does not know the path and
 		// says so in HTML rather than answering with the API's JSON.
-		res := get(t, baseURL+"/livez")
+		res := getWith(t, client, baseURL+"/livez")
 		defer func() { _ = res.Body.Close() }()
 
 		require.Equal(t, http.StatusNotFound, res.StatusCode)
@@ -157,7 +243,7 @@ func TestStartRoutes(t *testing.T) {
 	})
 
 	t.Run("web handler serves the root", func(t *testing.T) {
-		res := get(t, baseURL+"/")
+		res := getWith(t, client, baseURL+"/")
 		defer func() { _ = res.Body.Close() }()
 
 		require.Equal(t, http.StatusOK, res.StatusCode)
@@ -173,6 +259,25 @@ func TestStartRoutes(t *testing.T) {
 		defer func() { _ = res.Body.Close() }()
 
 		assert.Equal(t, http.StatusOK, res.StatusCode)
+	})
+
+	t.Run("a signed-out visitor is sent to sign in", func(t *testing.T) {
+		anon := &http.Client{
+			CheckRedirect: func(*http.Request, []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		}
+
+		res := getWith(t, anon, baseURL+"/")
+		defer func() { _ = res.Body.Close() }()
+
+		require.Equal(t, http.StatusFound, res.StatusCode)
+		assert.Equal(t, "/login", res.Header.Get("Location"))
+
+		// The redirect is the auth gate short-circuiting before the mux, so
+		// it's the case most likely to lose the headers applied around it.
+		assert.Equal(t, csp, res.Header.Get("Content-Security-Policy"))
+		assert.NotEmpty(t, res.Header.Get("X-Request-Id"))
 	})
 
 	// The headers are set for the whole mux rather than by the renderer, which
@@ -215,25 +320,30 @@ func TestStartFailsOnPortInUse(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = ln.Close() })
 
+	a, _ := testAuth(t)
+
 	err = Start(t.Context(), &Config{
 		Addr:   "127.0.0.1",
 		Port:   ln.Addr().(*net.TCPAddr).Port,
 		Logger: testLogger(),
-	}, testStore(t), testValidator(t))
+	}, testStore(t), testValidator(t), a)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "error binding")
 }
 
-// patchWith sends a state-changing request carrying the headers a browser would
-// send from the given site.
-func patchWith(t *testing.T, url string, headers map[string]string) *http.Response {
+// patchWith sends a state-changing request carrying the headers a browser
+// would send from the given site, and a token good enough that the token gate
+// itself is never what answers -- what's under test here is sameOrigin, not
+// that.
+func patchWith(t *testing.T, url, apiToken string, headers map[string]string) *http.Response {
 	t.Helper()
 
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodPatch, url, strings.NewReader("label=x"))
 	require.NoError(t, err)
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Authorization", "Bearer "+apiToken)
 
 	for name, value := range headers {
 		req.Header.Set(name, value)
@@ -247,11 +357,12 @@ func patchWith(t *testing.T, url string, headers map[string]string) *http.Respon
 	return res
 }
 
-// A state-changing request that a browser says came from another site is turned
-// away. This is not a CSRF token and cannot be one until there is a session to
-// bind it to; it refuses the shape of the attack in advance.
+// A state-changing request that a browser says came from another site is
+// turned away regardless of the API token it carries -- sameOrigin guards the
+// session-cookie-authenticated web UI, but runs ahead of the API's own routes
+// too, so a forged cross-site write never reaches the token check either.
 func TestCrossOriginWriteIsRefused(t *testing.T) {
-	baseURL := startServer(t)
+	baseURL, apiToken := startServer(t)
 
 	tests := []struct {
 		name    string
@@ -291,7 +402,7 @@ func TestCrossOriginWriteIsRefused(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			res := patchWith(t, baseURL+"/api/devices/1", tc.headers)
+			res := patchWith(t, baseURL+"/api/devices/1", apiToken, tc.headers)
 			defer func() { _ = res.Body.Close() }()
 
 			if tc.refused {
@@ -301,7 +412,7 @@ func TestCrossOriginWriteIsRefused(t *testing.T) {
 			}
 
 			// Allowed through to the handler, which has no such device in an
-			// empty inventory. Either way it is not the guard refusing it.
+			// empty inventory. Either way it is not sameOrigin refusing it.
 			assert.NotEqual(t, http.StatusForbidden, res.StatusCode)
 		})
 	}
@@ -310,12 +421,13 @@ func TestCrossOriginWriteIsRefused(t *testing.T) {
 // Reads are never refused, whatever site they came from: there is nothing to
 // forge when nothing changes.
 func TestCrossOriginReadIsAllowed(t *testing.T) {
-	baseURL := startServer(t)
+	baseURL, apiToken := startServer(t)
 
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, baseURL+"/api/stats", nil)
 	require.NoError(t, err)
 
 	req.Header.Set("Sec-Fetch-Site", "cross-site")
+	req.Header.Set("Authorization", "Bearer "+apiToken)
 
 	res, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
