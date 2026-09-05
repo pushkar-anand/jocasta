@@ -66,6 +66,7 @@ func (h *Handler) tokens(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 
 		h.htmlWriter.Success(w, r, templatePageTokens, tokensData{
 			Title:          "API tokens",
+			Section:        "API tokens",
 			IsAdmin:        isAdmin(sm, a, r),
 			Tokens:         list,
 			PlaintextToken: sm.PopFlash(ctx, flashTokenPlaintext),
