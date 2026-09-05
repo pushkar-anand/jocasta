@@ -42,6 +42,17 @@ func TestDevicesPageListsThem(t *testing.T) {
 	assert.Contains(t, body, `hx-target="#device-rows"`)
 }
 
+// An inventory nothing has swept into is a state to explain, not a filter that
+// matched nothing.
+func TestDevicesPageWhenEmptyExplainsWhy(t *testing.T) {
+	t.Parallel()
+
+	body := get(t, empty(t), "/devices").Body.String()
+
+	assert.Contains(t, body, "No devices yet")
+	assert.NotContains(t, body, "No device matches this filter")
+}
+
 // The fragment endpoint is what the form fetches, so it has to answer with the
 // table alone.
 func TestDeviceRowsServesTheTableAlone(t *testing.T) {

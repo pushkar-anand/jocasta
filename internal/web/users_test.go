@@ -77,7 +77,7 @@ func TestTopbarHidesUsersLinkFromNonAdmins(t *testing.T) {
 	readerBody := requestAs(t, h, signInAs(t, h, "reader", "reader-password-1"), http.MethodGet, "/", "").Body.String()
 	assert.NotContains(t, readerBody, `href="/settings/users"`)
 	assert.Contains(t, readerBody, `href="/settings/tokens"`, "the links that are theirs stay")
-	assert.Contains(t, readerBody, `href="/logout"`)
+	assert.Contains(t, readerBody, `action="/logout"`)
 }
 
 func TestUsersPageListsTheSeededAdmin(t *testing.T) {

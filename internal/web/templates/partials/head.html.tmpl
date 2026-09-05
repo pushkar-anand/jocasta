@@ -87,7 +87,9 @@
         <a class="btn btn--quiet btn--sm" href="/settings/users">Users</a>
         {{- end }}
         <a class="btn btn--quiet btn--sm" href="/settings/tokens">API tokens</a>
-        <a class="btn btn--quiet btn--sm" href="/logout">Sign out</a>
+        <form class="topbar__signout" method="post" action="/logout">
+            <button type="submit" class="btn btn--quiet btn--sm">Sign out</button>
+        </form>
 
         <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
             <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

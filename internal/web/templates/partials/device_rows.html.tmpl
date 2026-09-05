@@ -56,8 +56,10 @@
         {{- end }}
     </nav>
     {{- end }}
-    {{- else }}
+    {{- else if .Filtered }}
     <p class="dim">No device matches this filter.</p>
+    {{- else }}
+    <p class="dim">No devices yet. Jocasta builds this list from the sweeps it runs on the networks you configure.</p>
     {{- end }}
 
     {{- /* Shared by every row's group field, so it is written once. */}}
