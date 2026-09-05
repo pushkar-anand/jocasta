@@ -93,7 +93,10 @@ func NewHandler(
 
 	h.mux.HandleFunc("GET /login", hw.Handle(h.login(sm)))
 	h.mux.HandleFunc("POST /login", hw.Handle(h.loginForm(sm, a)))
-	h.mux.HandleFunc("GET /logout", hw.Handle(h.logout(sm)))
+
+	// Signing out changes state, so it is a POST the sameOrigin guard covers,
+	// not a link another page can spend.
+	h.mux.HandleFunc("POST /logout", hw.Handle(h.logout(sm)))
 
 	h.mux.HandleFunc("GET /settings/tokens", hw.Handle(h.tokens(sm, a)))
 	h.mux.HandleFunc("POST /settings/tokens", hw.Handle(h.createToken(sm, a)))

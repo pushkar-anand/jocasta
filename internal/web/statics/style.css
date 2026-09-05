@@ -287,6 +287,13 @@ a:hover {
     background: var(--border);
 }
 
+/* Sign out is a POST, so it is a one-button form rather than a link. This keeps
+   the form from adding a box of its own between the other tools. */
+.topbar__signout {
+    display: flex;
+    margin: 0;
+}
+
 h1 {
     margin: 0;
     font-size: 17px;
