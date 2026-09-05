@@ -13,6 +13,7 @@ const (
 	templatePageTokens    = "page/tokens"
 	templatePageUsers     = "page/users"
 
+	templatePartialTokenList     = "partial/token-list"
 	templatePartialLiveOverview  = "partial/live-body"
 	templatePartialDeviceRows    = "partial/device-rows"
 	templatePartialDeviceRow     = "partial/device-row"

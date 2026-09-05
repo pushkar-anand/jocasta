@@ -1,0 +1,66 @@
+{{- /*
+    The token reveal and the list, in one wrapper the revoke button swaps as a
+    whole (hx-target="#token-list"). Rendered inline by page/tokens on first
+    paint and returned on its own by revokeToken: swapping the wrapper rather
+    than the one row means the last revoke lands on the "none yet" line instead
+    of an empty table, and drops a plaintext still shown from a create just
+    before it.
+
+    Takes tokensData: PlaintextToken is set only on the GET a create redirects
+    to, Tokens is the caller's own list newest first.
+*/ -}}
+{{ define "partial/token-list" }}
+<div id="token-list">
+    {{- with .PlaintextToken }}
+        <div class="tokenreveal">
+            <p class="tokenreveal__label">Copy this token now &mdash; it will not be shown again.</p>
+            <code class="tokenreveal__value">{{ . }}</code>
+        </div>
+    {{- end }}
+
+    {{- if .Tokens }}
+        <div class="card card--table">
+            <div class="scroller">
+                <table>
+                    <thead>
+                    <tr>
+                        <th scope="col">Name</th>
+                        <th scope="col">Scope</th>
+                        <th scope="col">Created</th>
+                        <th scope="col">Last used</th>
+                        <th scope="col"></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {{- range .Tokens }}
+                        <tr id="token-row-{{ .ID }}">
+                            <td class="strong">{{ .Name }}</td>
+                            <td>
+                                {{- if eq .Scope "read_write" }}
+                                    <span class="chip chip--brand">Read &amp; write</span>
+                                {{- else }}
+                                    <span class="chip chip--quiet">Read</span>
+                                {{- end }}
+                            </td>
+                            <td class="dim">{{ ago .CreatedAt }}</td>
+                            <td class="dim">{{ ago .LastUsedAt }}</td>
+                            <td>
+                                <button type="button" class="btn btn--quiet btn--sm btn--danger"
+                                        hx-delete="/settings/tokens/{{ .ID }}"
+                                        hx-target="#token-list"
+                                        hx-swap="outerHTML"
+                                        hx-confirm="Revoke &quot;{{ .Name }}&quot;? Anything using it stops working immediately.">
+                                    Revoke
+                                </button>
+                            </td>
+                        </tr>
+                    {{- end }}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {{- else }}
+        <p class="dim">No tokens yet.</p>
+    {{- end }}
+</div>
+{{ end }}
