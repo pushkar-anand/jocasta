@@ -16,9 +16,12 @@ import (
 
 	"github.com/pushkar-anand/build-with-go/http/request"
 	"github.com/pushkar-anand/build-with-go/http/response"
+	"github.com/pushkar-anand/build-with-go/security/password"
 	"github.com/pushkar-anand/build-with-go/validator"
 	"github.com/pushkar-anand/jocasta/internal/api"
+	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/db"
+	"github.com/pushkar-anand/jocasta/internal/db/models"
 	"github.com/pushkar-anand/jocasta/internal/hosts"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/plugin"
@@ -76,37 +79,92 @@ func testReader(t *testing.T) *request.Reader {
 	return request.NewReader(testLogger(), v)
 }
 
+// testUsername and testPassword name the one account seeded into every test
+// Auth, so a test that needs a signed-in view doesn't have to invent its own
+// credential.
+const (
+	testUsername = "jocasta-test"
+	testPassword = "test-password-1"
+)
+
+// testAuth builds an Auth over its own migrated database, separate from
+// whatever store a test is exercising, seeded with the one account a test
+// signs in as.
+func testAuth(t *testing.T) *auth.Auth {
+	t.Helper()
+
+	conn, err := db.New(&db.Config{Path: t.TempDir(), Name: "auth.db"})
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = conn.Close() })
+
+	q := models.New(conn)
+
+	hash, err := password.NewHasher().Hash(testPassword)
+	require.NoError(t, err)
+
+	_, err = q.CreateUser(t.Context(), models.CreateUserParams{
+		Username:     testUsername,
+		PasswordHash: hash,
+	})
+	require.NoError(t, err)
+
+	a, err := auth.New(q, password.NewHasher())
+	require.NoError(t, err)
+
+	return a
+}
+
 // newWebHandler builds the web handler the way the server does: an HTML writer
-// with the error pages configured, and the templates attached inside NewHandler.
-func newWebHandler(t *testing.T, store *inventory.Store) *Handler {
+// with the error pages configured, and the templates attached inside
+// NewHandler, wrapped in the same session load-and-save the real server
+// applies outside it -- without it, any code touching the session panics on
+// finding no session data in the request's context.
+func newWebHandler(t *testing.T, store *inventory.Store) http.Handler {
+	t.Helper()
+
+	return newWebHandlerWithAuth(t, store, testAuth(t))
+}
+
+// newWebHandlerWithAuth is newWebHandler for a test that needs its own handle
+// on the Auth it signs in against -- to look up what a token's create just
+// gave the user's id, say, rather than scraping it back out of a response.
+func newWebHandlerWithAuth(t *testing.T, store *inventory.Store, a *auth.Auth) http.Handler {
 	t.Helper()
 
 	hw := response.NewHTMLWriter(testLogger(), nil,
 		response.WithErrorTemplates(map[int]string{
-			http.StatusNotFound: TemplateNotFound,
+			http.StatusNotFound:     TemplateNotFound,
+			http.StatusUnauthorized: TemplateLogin,
 		}),
 		response.WithErrorStatusMapper(func(err error) int {
-			if errors.Is(err, inventory.ErrNotFound) {
+			switch {
+			case errors.Is(err, inventory.ErrNotFound):
 				return http.StatusNotFound
+			case errors.Is(err, auth.ErrInvalidCredentials):
+				return http.StatusUnauthorized
 			}
 
 			return http.StatusInternalServerError
 		}),
-		response.WithErrorDataFunc(NotFoundData),
+		response.WithErrorDataFunc(ErrorPageData),
 	)
 
-	return NewHandler(testLogger(), testReader(t), store, hw)
+	sm := auth.NewSession()
+	h := NewHandler(testLogger(), testReader(t), store, hw, sm, a)
+
+	return sm.LoadAndSave(h)
 }
 
 // empty returns a handler over an inventory nothing has swept into.
-func empty(t *testing.T) *Handler {
+func empty(t *testing.T) http.Handler {
 	t.Helper()
 
 	return newWebHandler(t, testStore(t))
 }
 
 // seeded returns a handler over an inventory holding two swept devices.
-func seeded(t *testing.T) *Handler {
+func seeded(t *testing.T) http.Handler {
 	t.Helper()
 
 	store := testStore(t)
@@ -124,7 +182,7 @@ func seeded(t *testing.T) *Handler {
 
 // seededWith returns a handler over an inventory holding n swept devices, for a
 // test that needs more of them than the pair seeded gives.
-func seededWith(t *testing.T, n int) *Handler {
+func seededWith(t *testing.T, n int) http.Handler {
 	t.Helper()
 
 	store := testStore(t)

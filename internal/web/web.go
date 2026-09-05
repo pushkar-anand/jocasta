@@ -15,6 +15,7 @@ import (
 
 	"github.com/pushkar-anand/build-with-go/http/request"
 	"github.com/pushkar-anand/build-with-go/http/response"
+	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
@@ -56,6 +57,8 @@ func NewHandler(
 	reader *request.Reader,
 	store *inventory.Store,
 	hw *response.HTMLWriter,
+	sm *auth.Session,
+	a *auth.Auth,
 ) *Handler {
 	// A template that does not parse is a broken build, not a runtime
 	// condition: every one of them is compiled into the binary.
@@ -84,6 +87,14 @@ func NewHandler(
 	}
 
 	h.mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(staticFS)))
+
+	h.mux.HandleFunc("GET /login", hw.Handle(h.login(sm)))
+	h.mux.HandleFunc("POST /login", hw.Handle(h.loginForm(sm, a)))
+	h.mux.HandleFunc("GET /logout", hw.Handle(h.logout(sm)))
+
+	h.mux.HandleFunc("GET /settings/tokens", hw.Handle(h.tokens(sm, a)))
+	h.mux.HandleFunc("POST /settings/tokens", hw.Handle(h.createToken(sm, a)))
+	h.mux.HandleFunc("DELETE /settings/tokens/{id}", hw.Handle(h.revokeToken(sm, a)))
 
 	// {$} matches only the root itself, so an unknown path reaches the
 	// catch-all below and is reported rather than quietly served the overview.
@@ -142,18 +153,29 @@ func lastSweptAt(ctx context.Context, store *inventory.Store) time.Time {
 	return at
 }
 
-// NotFoundData is the response.WithErrorDataFunc hook the server wires into
-// the shared HTMLWriter. The 404 page is built from layout/head and
-// layout/foot like every other page, so it needs the same view fields; the
-// only configured HTML error page is the 404, so every field beyond Title is
-// left at its zero value.
-func NotFoundData(*http.Request, error, int) map[string]any {
-	return map[string]any{
-		"Title":   "Not found",
-		"Section": "",
-		"Crumb":   nil,
-		"Live":    false,
-		"Note":    "",
+// ErrorPageData is the response.WithErrorDataFunc hook the server wires into
+// the shared HTMLWriter, keyed by status the same way WithErrorTemplates is --
+// each case supplies whatever its own template needs.
+func ErrorPageData(_ *http.Request, _ error, status int) map[string]any {
+	switch status {
+	case http.StatusUnauthorized:
+		// The sign-in page's own fields -- see loginData -- not the signed-in
+		// shell's, since TemplateLogin renders standalone like login itself does.
+		return map[string]any{
+			"Title": "Sign in",
+			"Error": "Incorrect username or password.",
+		}
+	default:
+		// The 404 page is built from layout/head and layout/foot like every
+		// other page, so it needs the same view fields; every one beyond Title
+		// is left at its zero value.
+		return map[string]any{
+			"Title":   "Not found",
+			"Section": "",
+			"Crumb":   nil,
+			"Live":    false,
+			"Note":    "",
+		}
 	}
 }
 
