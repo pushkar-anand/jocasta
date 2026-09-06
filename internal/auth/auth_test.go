@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"database/sql"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -131,6 +132,10 @@ func (f *fakeQueries) DeleteAPIToken(_ context.Context, arg models.DeleteAPIToke
 	return nil
 }
 
+func testLogger() *slog.Logger {
+	return slog.New(slog.DiscardHandler)
+}
+
 func newTestAuth(t *testing.T, users map[string]*models.User) *Auth {
 	t.Helper()
 
@@ -203,7 +208,7 @@ func TestLogin(t *testing.T) {
 	t.Run("matching credentials populate the session", func(t *testing.T) {
 		t.Parallel()
 
-		sm := NewSession()
+		sm := NewSession(testLogger())
 
 		ctx, err := sm.Load(t.Context(), "")
 		require.NoError(t, err)
@@ -220,7 +225,7 @@ func TestLogin(t *testing.T) {
 	t.Run("wrong credentials leave no session", func(t *testing.T) {
 		t.Parallel()
 
-		sm := NewSession()
+		sm := NewSession(testLogger())
 
 		ctx, err := sm.Load(t.Context(), "")
 		require.NoError(t, err)
@@ -242,7 +247,7 @@ func TestSetupRequired(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, required, "an account-less store still needs setup")
 
-	sm := NewSession()
+	sm := NewSession(testLogger())
 	ctx, err := sm.Load(t.Context(), "")
 	require.NoError(t, err)
 
@@ -258,7 +263,7 @@ func TestCreateFirstUser(t *testing.T) {
 	t.Parallel()
 
 	a := newTestAuth(t, nil)
-	sm := NewSession()
+	sm := NewSession(testLogger())
 
 	ctx, err := sm.Load(t.Context(), "")
 	require.NoError(t, err)

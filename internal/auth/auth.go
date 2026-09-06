@@ -125,22 +125,23 @@ func (a *Auth) Login(
 	}
 
 	if rememberMe {
-		sm.sm.RememberMe(ctx, true)
+		sm.s.RememberMe(ctx, true)
 	}
 
 	return user, nil
 }
 
-// establishSession renews the session token and records who it belongs to --
-// the one sequence both signing in and completing setup need to leave a
-// visitor signed in afterward.
+// establishSession renews the session token -- so a token held while anonymous
+// can't carry over into the authenticated session -- then records who the
+// session belongs to. Both signing in and completing setup need this exact
+// sequence to leave a visitor signed in afterward.
 func (a *Auth) establishSession(ctx context.Context, sm *Session, userID int64) error {
-	if err := sm.sm.RenewToken(ctx); err != nil {
+	if err := sm.s.Renew(ctx); err != nil {
 		return err
 	}
 
 	// Only the id goes into the session.
-	sm.sm.Put(ctx, sessionUserKey, userID)
+	sm.s.Update(ctx, func(d *Data) { d.UserID = userID })
 
 	return nil
 }
