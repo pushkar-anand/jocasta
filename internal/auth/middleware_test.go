@@ -17,7 +17,7 @@ import (
 func testSessionMiddleware(t *testing.T, a *Auth, always, signIn []*regexp.Regexp) (*Session, http.Handler, *bool) {
 	t.Helper()
 
-	sm := NewSession()
+	sm := NewSession(testLogger())
 
 	reached := false
 	next := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
@@ -112,7 +112,7 @@ func TestSessionMiddlewareAllowsASignedInVisitor(t *testing.T) {
 
 	ctx, err := sm.Load(t.Context(), "")
 	require.NoError(t, err)
-	sm.sm.Put(ctx, sessionUserKey, int64(1))
+	sm.s.Update(ctx, func(d *Data) { d.UserID = 1 })
 
 	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()

@@ -2,56 +2,71 @@ package auth
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"time"
 
-	"github.com/alexedwards/scs/v2"
+	"github.com/pushkar-anand/build-with-go/security/session"
 )
 
-// sessionUserKey is the one value a session carries: the id Login writes and
-// CurrentUserID and the middleware's presence check both read back. Kept
-// unexported so nothing outside this package can address the session under a
-// different name and quietly stop agreeing with it.
-const sessionUserKey = "user"
+// Data is the whole of what a session carries, as one typed document: a
+// misspelled field is then a compile error, not a read that silently returns
+// the zero value.
+type Data struct {
+	// UserID is the signed-in account, or 0 when nobody is signed in.
+	UserID int64
 
-type Session struct {
-	sm *scs.SessionManager
+	// Flash holds values a handler leaves for the GET it redirects to and
+	// that are read back exactly once -- a message, or a secret shown a
+	// single time. nil until the first Flash call.
+	Flash map[string]string
 }
 
-func NewSession() *Session {
-	sm := scs.New()
+// Session adapts the generic typed session to jocasta's own vocabulary
+// (CurrentUserID, Flash, PopFlash, Logout), so callers in internal/web never
+// import the session library or name its types.
+type Session struct {
+	s *session.Session[Data]
+}
 
-	sm.Lifetime = 7 * 24 * time.Hour
-	sm.IdleTimeout = 24 * time.Hour
+// NewSession sets every cookie and lifetime option explicitly rather than
+// leaning on the library defaults, so a change to those defaults can't quietly
+// move jocasta's session semantics.
+func NewSession(log *slog.Logger) *Session {
+	s := session.New[Data](
+		session.WithLogger(log),
+		session.WithLifetime(7*24*time.Hour),
+		session.WithIdleTimeout(24*time.Hour),
+		session.WithCookieName("jocasta_session"),
+		session.WithCookiePath("/"),
+		session.WithCookieHttpOnly(true),
+		session.WithCookieSameSite(http.SameSiteStrictMode),
+		session.WithCookiePersist(false),
+	)
 
-	sm.Cookie.Name = "jocasta_session"
-	sm.Cookie.HttpOnly = true
-	sm.Cookie.Path = "/"
-	sm.Cookie.SameSite = http.SameSiteStrictMode
-	sm.Cookie.Persist = false
-
-	return &Session{
-		sm,
-	}
+	return &Session{s: s}
 }
 
 // LoadAndSave wraps next with the session middleware every request must pass
 // through before any code in this package can touch session data.
 func (s *Session) LoadAndSave(next http.Handler) http.Handler {
-	return s.sm.LoadAndSave(next)
+	return s.s.LoadAndSave(next)
 }
 
-// Load returns a context carrying session data for token, the way the
-// request middleware does for a live request -- for a test that needs one
-// without going through HTTP to get it.
+// Load returns a context carrying session data for token, so a test can get one
+// without an HTTP round trip through the middleware.
 func (s *Session) Load(ctx context.Context, token string) (context.Context, error) {
-	return s.sm.Load(ctx, token)
+	return s.s.Manager().Load(ctx, token)
 }
 
-// CurrentUserID returns the id Login put in the session, if any.
+// CurrentUserID returns the id establishSession put in the session, if any.
 func (s *Session) CurrentUserID(ctx context.Context) (int64, bool) {
-	id, ok := s.sm.Get(ctx, sessionUserKey).(int64)
-	return id, ok
+	d, ok := s.s.Current(ctx)
+	if !ok || d.UserID == 0 {
+		return 0, false
+	}
+
+	return d.UserID, true
 }
 
 // Flash stores a value read back exactly once. It is how a handler carries a
@@ -59,17 +74,37 @@ func (s *Session) CurrentUserID(ctx context.Context) (int64, bool) {
 // it makes after a POST, so a reload re-fetches the page rather than resending
 // the form.
 func (s *Session) Flash(ctx context.Context, key, value string) {
-	s.sm.Put(ctx, key, value)
+	s.s.Update(ctx, func(d *Data) {
+		if d.Flash == nil {
+			d.Flash = make(map[string]string, 1)
+		}
+
+		d.Flash[key] = value
+	})
 }
 
 // PopFlash returns the value Flash stored under key and removes it, or "" when
 // there is none.
 func (s *Session) PopFlash(ctx context.Context, key string) string {
-	return s.sm.PopString(ctx, key)
+	d, ok := s.s.Current(ctx)
+	if !ok {
+		return ""
+	}
+
+	v, ok := d.Flash[key]
+	if !ok {
+		return ""
+	}
+
+	s.s.Update(ctx, func(d *Data) {
+		delete(d.Flash, key)
+	})
+
+	return v
 }
 
 // Logout ends the session -- Destroy under the name a caller of this package
 // actually wants.
 func (s *Session) Logout(ctx context.Context) error {
-	return s.sm.Destroy(ctx)
+	return s.s.Destroy(ctx)
 }

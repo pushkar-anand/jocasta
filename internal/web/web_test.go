@@ -177,7 +177,7 @@ func newWebHandlerWithAuth(t *testing.T, store *inventory.Store, a *auth.Auth) h
 		response.WithErrorDataFunc(ErrorPageData),
 	)
 
-	sm := auth.NewSession()
+	sm := auth.NewSession(testLogger())
 	h := NewHandler(testLogger(), testReader(t), store, hw, sm, a)
 
 	return sm.LoadAndSave(h)

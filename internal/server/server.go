@@ -57,7 +57,7 @@ func Start(
 		request.WithRejectUnknownFields(),
 		request.WithMaxBodyBytes(maxRequestBodyBytes),
 	)
-	sm := auth.NewSession()
+	sm := auth.NewSession(cfg.Logger)
 
 	jw := response.NewJSONWriter(
 		cfg.Logger,
