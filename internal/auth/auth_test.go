@@ -32,16 +32,6 @@ func (f *fakeQueries) GetUserByUsername(_ context.Context, username string) (*mo
 	return u, nil
 }
 
-func (f *fakeQueries) GetUserByID(_ context.Context, id int64) (*models.User, error) {
-	for _, u := range f.users {
-		if u.ID == id {
-			return u, nil
-		}
-	}
-
-	return nil, sql.ErrNoRows
-}
-
 func (f *fakeQueries) CreateUser(_ context.Context, arg models.CreateUserParams) (*models.User, error) {
 	f.nextID++
 
@@ -202,7 +192,7 @@ func TestLogin(t *testing.T) {
 	t.Parallel()
 
 	a := newTestAuth(t, map[string]*models.User{
-		"ada": {ID: 42, Username: "ada", PasswordHash: hashOf(t, "correct-password")},
+		"ada": {ID: 42, Username: "ada", PasswordHash: hashOf(t, "correct-password"), Role: dbtype.RoleReadWrite},
 	})
 
 	t.Run("matching credentials populate the session", func(t *testing.T) {
@@ -220,6 +210,8 @@ func TestLogin(t *testing.T) {
 		id, ok := sm.CurrentUserID(ctx)
 		require.True(t, ok)
 		assert.Equal(t, int64(42), id)
+
+		assert.Equal(t, dbtype.RoleReadWrite, sm.CurrentRole(ctx), "the account's role rides in on login")
 	})
 
 	t.Run("wrong credentials leave no session", func(t *testing.T) {
@@ -275,6 +267,7 @@ func TestCreateFirstUser(t *testing.T) {
 	id, ok := sm.CurrentUserID(ctx)
 	require.True(t, ok, "CreateFirstUser signs the new account straight in")
 	assert.Equal(t, user.ID, id)
+	assert.Equal(t, dbtype.RoleAdmin, sm.CurrentRole(ctx), "and the session carries the admin role")
 
 	_, err = a.CreateFirstUser(ctx, sm, "someone-else", "another-password")
 	assert.ErrorIs(t, err, ErrSetupComplete, "setup is one-time, not reachable a second time")
@@ -301,21 +294,4 @@ func TestCreateUser(t *testing.T) {
 		_, err := a.CreateUser(t.Context(), "ada", "another-password", dbtype.RoleRead)
 		assert.ErrorIs(t, err, ErrUsernameTaken)
 	})
-}
-
-func TestIsAdmin(t *testing.T) {
-	t.Parallel()
-
-	a := newTestAuth(t, map[string]*models.User{
-		"ada":   {ID: 1, Username: "ada", PasswordHash: hashOf(t, "x"), Role: dbtype.RoleAdmin},
-		"grace": {ID: 2, Username: "grace", PasswordHash: hashOf(t, "x"), Role: dbtype.RoleRead},
-	})
-
-	admin, err := a.IsAdmin(t.Context(), 1)
-	require.NoError(t, err)
-	assert.True(t, admin)
-
-	admin, err = a.IsAdmin(t.Context(), 2)
-	require.NoError(t, err)
-	assert.False(t, admin)
 }

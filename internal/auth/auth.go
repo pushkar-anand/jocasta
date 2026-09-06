@@ -23,7 +23,6 @@ type (
 	// account-related: verifying a credential, setup and admin management alike.
 	userManager interface {
 		GetUserByUsername(ctx context.Context, username string) (*models.User, error)
-		GetUserByID(ctx context.Context, id int64) (*models.User, error)
 		CreateUser(ctx context.Context, arg models.CreateUserParams) (*models.User, error)
 		CountUsers(ctx context.Context) (int64, error)
 		ListUsers(ctx context.Context) ([]*models.User, error)
@@ -120,7 +119,7 @@ func (a *Auth) Login(
 		return nil, err
 	}
 
-	if err := a.establishSession(ctx, sm, user.ID); err != nil {
+	if err := a.establishSession(ctx, sm, user); err != nil {
 		return nil, err
 	}
 
@@ -135,13 +134,15 @@ func (a *Auth) Login(
 // can't carry over into the authenticated session -- then records who the
 // session belongs to. Both signing in and completing setup need this exact
 // sequence to leave a visitor signed in afterward.
-func (a *Auth) establishSession(ctx context.Context, sm *Session, userID int64) error {
+func (a *Auth) establishSession(ctx context.Context, sm *Session, user *models.User) error {
 	if err := sm.s.Renew(ctx); err != nil {
 		return err
 	}
 
-	// Only the id goes into the session.
-	sm.s.Update(ctx, func(d *Data) { d.UserID = userID })
+	sm.s.Update(ctx, func(d *Data) {
+		d.UserID = user.ID
+		d.Role = user.Role
+	})
 
 	return nil
 }
@@ -188,7 +189,7 @@ func (a *Auth) CreateFirstUser(ctx context.Context, sm *Session, username, passw
 
 	a.hasUsers.Store(true)
 
-	if err := a.establishSession(ctx, sm, user.ID); err != nil {
+	if err := a.establishSession(ctx, sm, user); err != nil {
 		return nil, err
 	}
 
@@ -230,17 +231,6 @@ func (a *Auth) createUser(ctx context.Context, username, password string, role d
 	}
 
 	return user, nil
-}
-
-// IsAdmin reports whether id names an admin account, for a route only an
-// admin may reach.
-func (a *Auth) IsAdmin(ctx context.Context, id int64) (bool, error) {
-	user, err := a.q.GetUserByID(ctx, id)
-	if err != nil {
-		return false, fmt.Errorf("user %d: %w", id, err)
-	}
-
-	return user.Role == dbtype.RoleAdmin, nil
 }
 
 // ListUsers returns every account, newest first is not required here the way
