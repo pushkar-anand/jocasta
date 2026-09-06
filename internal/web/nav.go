@@ -1,5 +1,7 @@
 package web
 
+import "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+
 // crumb is the way back out of a page that is about one thing. Only such a page
 // sets one; every other page is reached from the rail, which is already there.
 type crumb struct {
@@ -21,9 +23,8 @@ type view struct {
 	// indicator in the topbar claims.
 	Live bool
 
-	// IsAdmin is whether the signed-in account may reach the admin-only pages,
-	// so the topbar shows the link to them only to someone it would let in.
-	IsAdmin bool
+	// Role is the signed-in account's role
+	Role dbtype.UserRole
 
 	// Note is the ambient line at the foot of the rail. Empty leaves it out.
 	Note string
