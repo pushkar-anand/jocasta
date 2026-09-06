@@ -129,3 +129,32 @@ func TestEnumValid(t *testing.T) {
 	assert.True(t, PortClosed.Valid())
 	assert.False(t, PortState("filtered").Valid())
 }
+
+func TestUserRoleAtLeast(t *testing.T) {
+	t.Parallel()
+
+	// The ladder: admin reaches every role, read_write reaches read and itself,
+	// read reaches only read.
+	assert.True(t, RoleAdmin.AtLeast(RoleAdmin))
+	assert.True(t, RoleAdmin.AtLeast(RoleReadWrite))
+	assert.True(t, RoleAdmin.AtLeast(RoleRead))
+
+	assert.False(t, RoleReadWrite.AtLeast(RoleAdmin))
+	assert.True(t, RoleReadWrite.AtLeast(RoleReadWrite))
+	assert.True(t, RoleReadWrite.AtLeast(RoleRead))
+
+	assert.False(t, RoleRead.AtLeast(RoleReadWrite))
+	assert.True(t, RoleRead.AtLeast(RoleRead))
+
+	// An unset role clears nothing, not even the read gate.
+	assert.False(t, UserRole("").AtLeast(RoleRead))
+}
+
+func TestUserRoleCanWrite(t *testing.T) {
+	t.Parallel()
+
+	assert.False(t, RoleRead.CanWrite())
+	assert.True(t, RoleReadWrite.CanWrite())
+	assert.True(t, RoleAdmin.CanWrite())
+	assert.False(t, UserRole("").CanWrite(), "an unset role cannot write")
+}
