@@ -55,6 +55,17 @@
         <section class="card panel">
             <p class="eyebrow">What you call it</p>
 
+            {{- if not .Role.CanWrite }}
+            <dl class="facts">
+                <div><dt>Label</dt><dd>{{ with .Device.Label }}{{ . }}{{ else }}<span class="dim">&mdash;</span>{{ end }}</dd></div>
+                <div><dt>Group</dt><dd>{{ with .Device.Group }}{{ . }}{{ else }}<span class="dim">&mdash;</span>{{ end }}</dd></div>
+                <div><dt>Notes</dt><dd>{{ with .Device.Notes }}{{ . }}{{ else }}<span class="dim">&mdash;</span>{{ end }}</dd></div>
+                {{- if .Device.Ignored }}
+                <div><dt>Ignored</dt><dd>Left out of the inventory</dd></div>
+                {{- end }}
+            </dl>
+            <p class="note">Your account is read-only, so these can't be changed here.</p>
+            {{- else }}
             <form class="curation"
                   hx-patch="/devices/{{ .Device.ID }}"
                   hx-target="#device-panel"
@@ -110,6 +121,7 @@
 
             <p class="note">These are yours. No sweep or plugin writes them, so they
                 survive the device changing address or being identified later.</p>
+            {{- end }}
         </section>
     </div>
 </div>

@@ -31,10 +31,12 @@
     <td class="dim">{{ dash .Group }}</td>
     <td class="dim">{{ ago .LastSeen }}</td>
     <td class="cell--end">
+        {{- if .CanWrite }}
         <button type="button" class="btn btn--quiet btn--sm"
                 hx-get="/devices/{{ .ID }}/edit"
                 hx-target="#device-row-{{ .ID }}"
                 hx-swap="outerHTML">Edit</button>
+        {{- end }}
     </td>
 </tr>
 {{ end }}
