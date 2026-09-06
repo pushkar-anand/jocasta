@@ -127,8 +127,10 @@ func testValidator(t *testing.T) *validator.Validator {
 // startServer runs Start in the background and returns the base URL and a
 // read-write API token good against it. The server is stopped, and its
 // shutdown asserted, when the test ends.
-func startServer(t *testing.T) (string, string) {
+func startServer(t *testing.T, mcpEnabled ...bool) (string, string) {
 	t.Helper()
+
+	enabled := len(mcpEnabled) > 0 && mcpEnabled[0]
 
 	port := freePort(t)
 
@@ -144,7 +146,7 @@ func startServer(t *testing.T) (string, string) {
 	ctx := t.Context()
 
 	go func() {
-		errCh <- Start(ctx, &Config{Addr: "127.0.0.1", Port: port, Logger: testLogger()}, store, testValidator(t), a)
+		errCh <- Start(ctx, &Config{Addr: "127.0.0.1", Port: port, Logger: testLogger(), MCPEnabled: enabled}, store, testValidator(t), a)
 	}()
 
 	t.Cleanup(func() {
@@ -203,6 +205,7 @@ func loginClient(t *testing.T, baseURL string) *http.Client {
 
 	res, err := client.Do(req)
 	require.NoError(t, err)
+
 	defer func() { _ = res.Body.Close() }()
 
 	require.Equal(t, http.StatusOK, res.StatusCode, "login should redirect through to the signed-in root")
@@ -581,5 +584,37 @@ func TestSafeMethod(t *testing.T) {
 
 	for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete} {
 		assert.False(t, safeMethod(method), method)
+	}
+}
+
+func TestMCPMountIsOptIn(t *testing.T) {
+	t.Parallel()
+
+	for _, enabled := range []bool{false, true} {
+		t.Run(strconv.FormatBool(enabled), func(t *testing.T) {
+			base, token := startServer(t, enabled)
+			for _, path := range []string{"/mcp", "/mcp/"} {
+				res := get(t, base+path)
+				require.NoError(t, res.Body.Close())
+
+				expected := http.StatusNotFound
+				if enabled {
+					expected = http.StatusUnauthorized
+				}
+
+				assert.Equal(t, expected, res.StatusCode)
+				assert.Empty(t, res.Header.Get("Location"))
+			}
+
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, base+"/api/networks", nil)
+			require.NoError(t, err)
+			req.Header.Set("Authorization", "Bearer "+token)
+			res, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+
+			defer func() { _ = res.Body.Close() }()
+
+			assert.Equal(t, http.StatusOK, res.StatusCode)
+		})
 	}
 }

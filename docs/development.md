@@ -22,7 +22,8 @@ make htmx           # refresh the vendored htmx
   handling, device classification and the change log.
 - `internal/classify`: the rules that guess a device's type from its vendor,
   name and open ports.
-- `internal/web`, `internal/api`: the HTML UI and the JSON API.
+- `internal/web`, `internal/api`, `internal/mcp`: HTML, JSON, and MCP transports.
+- `internal/inventoryapi`: shared JSON/MCP request types and inventory operations.
 - `internal/db`: connection, migrations, generated queries.
 
 Queries are SQLC-generated from `internal/db/queries/`. The schema is in

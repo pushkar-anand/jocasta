@@ -3,6 +3,9 @@ package config
 import (
 	"log/slog"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -155,4 +158,56 @@ func TestDefaultSourceNamesTheHost(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "sweep:"+host, defaultSource())
+}
+
+// Each child process gets a fresh configuration loader; its state is global.
+func TestMCPConfig(t *testing.T) {
+	if os.Getenv("JOCASTA_CONFIG_TEST_CHILD") == "1" {
+		cfg, err := New(DefaultConfigFile)
+		require.NoError(t, err)
+		assert.Equal(t, os.Getenv("JOCASTA_CONFIG_TEST_EXPECT") == "true", cfg.MCP.Enabled)
+
+		return
+	}
+
+	for _, tc := range []struct {
+		name, yaml, env string
+		want            bool
+	}{
+		{name: "omitted", yaml: "server:\n  port: 8080\n"},
+		{name: "disabled", yaml: "mcp:\n  enabled: false\n"},
+		{name: "enabled", yaml: "mcp:\n  enabled: true\n", want: true},
+		{name: "environment enables", yaml: "mcp:\n  enabled: false\n", env: "true", want: true},
+		{name: "environment disables", yaml: "mcp:\n  enabled: true\n", env: "false"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "jocasta.yaml")
+			require.NoError(t, os.WriteFile(path, []byte(tc.yaml), 0o600))
+
+			exe, err := os.Executable()
+			require.NoError(t, err)
+			cmd := exec.CommandContext(t.Context(), exe, "-test.run=^TestMCPConfig$") //nolint:gosec // Runs this test executable, never a caller-supplied command.
+
+			for _, entry := range os.Environ() {
+				if !strings.HasPrefix(entry, "JOCASTA_") {
+					cmd.Env = append(cmd.Env, entry)
+				}
+			}
+
+			expected := "false"
+			if tc.want {
+				expected = "true"
+			}
+
+			cmd.Dir = filepath.Dir(path)
+
+			cmd.Env = append(cmd.Env, "JOCASTA_CONFIG_TEST_CHILD=1", "JOCASTA_CONFIG_TEST_EXPECT="+expected)
+			if tc.env != "" {
+				cmd.Env = append(cmd.Env, "JOCASTA_MCP__ENABLED="+tc.env)
+			}
+
+			output, err := cmd.CombinedOutput()
+			require.NoError(t, err, "%s", output)
+		})
+	}
 }

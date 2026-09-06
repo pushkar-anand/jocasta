@@ -9,6 +9,7 @@ import (
 
 var defaults = map[string]any{
 	"server.host": "localhost",
+	"mcp.enabled": false,
 	"server.port": 8080,
 
 	"db.path": ".",
