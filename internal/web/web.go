@@ -86,6 +86,20 @@ func NewHandler(
 		log:        log,
 	}
 
+	// allow gates a route behind a minimum role, designed to wrap a handler
+	allow := func(want dbtype.UserRole) func(http.Handler) http.Handler {
+		return func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if !sm.CurrentRole(r.Context()).AtLeast(want) {
+					hw.ErrorPage(w, r, http.StatusForbidden)
+					return
+				}
+
+				next.ServeHTTP(w, r)
+			})
+		}
+	}
+
 	h.mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(staticFS)))
 
 	h.mux.HandleFunc("GET /setup", hw.Handle(h.setup()))
@@ -99,31 +113,32 @@ func NewHandler(
 	h.mux.HandleFunc("POST /logout", hw.Handle(h.logout(sm)))
 
 	h.mux.HandleFunc("GET /settings/tokens", hw.Handle(h.tokens(sm, a)))
+
 	h.mux.HandleFunc("POST /settings/tokens", hw.Handle(h.createToken(sm, a)))
 	h.mux.HandleFunc("DELETE /settings/tokens/{id}", hw.Handle(h.revokeToken(sm, a)))
 
-	h.mux.HandleFunc("GET /settings/users", hw.Handle(h.users(sm, a)))
-	h.mux.HandleFunc("POST /settings/users", hw.Handle(h.createUser(sm, a)))
+	h.mux.Handle("GET /settings/users", allow(dbtype.RoleAdmin)(hw.Handle(h.users(sm, a))))
+	h.mux.Handle("POST /settings/users", allow(dbtype.RoleAdmin)(hw.Handle(h.createUser(sm, a))))
 
 	// {$} matches only the root itself, so an unknown path reaches the
 	// catch-all below and is reported rather than quietly served the overview.
-	h.mux.HandleFunc("GET /{$}", hw.Handle(h.overview(sm, a)))
+	h.mux.HandleFunc("GET /{$}", hw.Handle(h.overview(sm)))
 	h.mux.HandleFunc("GET /overview/live", hw.Handle(h.overviewLive()))
 
 	// The literal is the more specific pattern, so it wins over {id}.
-	h.mux.HandleFunc("GET /devices", hw.Handle(h.listDevices(sm, a)))
-	h.mux.HandleFunc("GET /devices/rows", hw.Handle(h.deviceRows()))
-	h.mux.HandleFunc("GET /devices/{id}", hw.Handle(h.device(sm, a)))
-	h.mux.HandleFunc("PATCH /devices/{id}", hw.Handle(h.updateDevice()))
-	h.mux.HandleFunc("GET /devices/{id}/row", hw.Handle(h.deviceRow()))
-	h.mux.HandleFunc("GET /devices/{id}/edit", hw.Handle(h.deviceRowForm()))
-	h.mux.HandleFunc("PATCH /devices/{id}/row", hw.Handle(h.updateDeviceRow()))
+	h.mux.HandleFunc("GET /devices", hw.Handle(h.listDevices(sm)))
+	h.mux.HandleFunc("GET /devices/rows", hw.Handle(h.deviceRows(sm)))
+	h.mux.HandleFunc("GET /devices/{id}", hw.Handle(h.device(sm)))
+	h.mux.Handle("PATCH /devices/{id}", allow(dbtype.RoleReadWrite)(hw.Handle(h.updateDevice(sm))))
+	h.mux.HandleFunc("GET /devices/{id}/row", hw.Handle(h.deviceRow(sm)))
+	h.mux.Handle("GET /devices/{id}/edit", allow(dbtype.RoleReadWrite)(hw.Handle(h.deviceRowForm())))
+	h.mux.Handle("PATCH /devices/{id}/row", allow(dbtype.RoleReadWrite)(hw.Handle(h.updateDeviceRow(sm))))
 
-	h.mux.HandleFunc("GET /networks/{id}", hw.Handle(h.network(sm, a)))
-	h.mux.HandleFunc("GET /networks/{id}/rows", hw.Handle(h.networkRows()))
+	h.mux.HandleFunc("GET /networks/{id}", hw.Handle(h.network(sm)))
+	h.mux.HandleFunc("GET /networks/{id}/rows", hw.Handle(h.networkRows(sm)))
 
-	h.mux.HandleFunc("GET /events", hw.Handle(h.events(sm, a)))
-	h.mux.HandleFunc("GET /scans", hw.Handle(h.scans(sm, a)))
+	h.mux.HandleFunc("GET /events", hw.Handle(h.events(sm)))
+	h.mux.HandleFunc("GET /scans", hw.Handle(h.scans(sm)))
 
 	h.mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		hw.ErrorPage(w, r, http.StatusNotFound)
@@ -178,6 +193,7 @@ func ErrorPageData(_ *http.Request, _ error, status int) map[string]any {
 			"Section": "",
 			"Crumb":   nil,
 			"Live":    false,
+			"Role":    dbtype.UserRole(""),
 			"Note":    "",
 		}
 	case http.StatusUnauthorized:
@@ -203,6 +219,7 @@ func ErrorPageData(_ *http.Request, _ error, status int) map[string]any {
 			"Section": "",
 			"Crumb":   nil,
 			"Live":    false,
+			"Role":    dbtype.UserRole(""),
 			"Note":    "",
 		}
 	default:
@@ -214,6 +231,7 @@ func ErrorPageData(_ *http.Request, _ error, status int) map[string]any {
 			"Section": "",
 			"Crumb":   nil,
 			"Live":    false,
+			"Role":    dbtype.UserRole(""),
 			"Note":    "",
 		}
 	}
