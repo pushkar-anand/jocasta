@@ -99,7 +99,7 @@ func logCursor(raw string) (inventory.Cursor, string) {
 	return c, raw
 }
 
-func (h *Handler) events(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
+func (h *Handler) events(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 
@@ -111,7 +111,7 @@ func (h *Handler) events(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 		from, token := logCursor(q.Cursor)
 
 		data := &logData{
-			Title: "Events", Section: "Events", IsAdmin: isAdmin(sm, a, r),
+			Title: "Events", Section: "Events", Role: sm.CurrentRole(ctx),
 			Path:   "/events",
 			Cursor: token,
 		}
@@ -156,7 +156,7 @@ func (h *Handler) events(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	}
 }
 
-func (h *Handler) scans(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
+func (h *Handler) scans(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 
@@ -168,7 +168,7 @@ func (h *Handler) scans(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 		from, token := logCursor(q.Cursor)
 
 		data := &logData{
-			Title: "Scans", Section: "Scans", IsAdmin: isAdmin(sm, a, r),
+			Title: "Scans", Section: "Scans", Role: sm.CurrentRole(ctx),
 			Path:   "/scans",
 			Cursor: token,
 		}

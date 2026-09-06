@@ -67,7 +67,7 @@ func (h *Handler) tokens(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 		h.htmlWriter.Success(w, r, templatePageTokens, tokensData{
 			Title:          "API tokens",
 			Section:        "API tokens",
-			IsAdmin:        isAdmin(sm, a, r),
+			Role:           sm.CurrentRole(ctx),
 			Tokens:         list,
 			PlaintextToken: sm.PopFlash(ctx, flashTokenPlaintext),
 		})
@@ -97,6 +97,13 @@ func (h *Handler) createToken(sm *auth.Session, a *auth.Auth) response.HandlerFu
 		input, err := h.reader.ReadAndValidateForm[createTokenForm](r)
 		if err != nil {
 			return err
+		}
+
+		// A token cannot out-reach the account that mints it: a read user gets
+		// read tokens only, so a read-only session can't hand itself write
+		// access to the JSON API through one.
+		if dbtype.TokenScope(input.Scope) == dbtype.TokenReadWrite && !sm.CurrentRole(ctx).CanWrite() {
+			return auth.ErrForbidden
 		}
 
 		plaintext, _, err := a.CreateToken(ctx, userID, input.Name, dbtype.TokenScope(input.Scope))

@@ -11,12 +11,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// patch submits a form the way htmx does.
-func patch(t *testing.T, h http.Handler, target string, form url.Values) *httptest.ResponseRecorder {
+// editor is a handler over the seeded inventory plus the cookies of a signed-in
+// admin. Every route these tests exercise -- the PATCH curate endpoints and the
+// edit form -- is gated to an account that may write, so an unauthenticated
+// request gets the forbidden page rather than the handler.
+func editor(t *testing.T) (http.Handler, []*http.Cookie) {
+	t.Helper()
+
+	h := seeded(t)
+
+	return h, signIn(t, h)
+}
+
+// patch submits a form the way htmx does, carrying the signed-in cookies.
+func patch(t *testing.T, h http.Handler, cookies []*http.Cookie, target string, form url.Values) *httptest.ResponseRecorder {
 	t.Helper()
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPatch, target, strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
@@ -27,7 +43,9 @@ func patch(t *testing.T, h http.Handler, target string, form url.Values) *httpte
 func TestDeviceRowEditServesTheRowAsAForm(t *testing.T) {
 	t.Parallel()
 
-	rec := get(t, seeded(t), "/devices/1/edit")
+	h, cookies := editor(t)
+
+	rec := requestAs(t, h, cookies, http.MethodGet, "/devices/1/edit", "")
 
 	require.Equal(t, http.StatusOK, rec.Code)
 
@@ -48,9 +66,9 @@ func TestDeviceRowEditServesTheRowAsAForm(t *testing.T) {
 func TestDeviceRowFormCarriesTheFieldsItDoesNotShow(t *testing.T) {
 	t.Parallel()
 
-	h := seeded(t)
+	h, cookies := editor(t)
 
-	saved := patch(t, h, "/devices/1", url.Values{
+	saved := patch(t, h, cookies, "/devices/1", url.Values{
 		"label":   {"Office printer"},
 		"notes":   {"Second floor."},
 		"type":    {"printer"},
@@ -58,14 +76,14 @@ func TestDeviceRowFormCarriesTheFieldsItDoesNotShow(t *testing.T) {
 	})
 	require.Equal(t, http.StatusOK, saved.Code)
 
-	form := get(t, h, "/devices/1/edit").Body.String()
+	form := requestAs(t, h, cookies, http.MethodGet, "/devices/1/edit", "").Body.String()
 
 	assert.Contains(t, form, `name="notes" value="Second floor."`)
 	assert.Contains(t, form, `name="type" value="printer"`)
 	assert.Contains(t, form, `name="ignored" value="1"`)
 
 	// And submitting it unchanged leaves them as they were.
-	rec := patch(t, h, "/devices/1/row", url.Values{
+	rec := patch(t, h, cookies, "/devices/1/row", url.Values{
 		"label":   {"Office printer"},
 		"group":   {""},
 		"notes":   {"Second floor."},
@@ -82,7 +100,9 @@ func TestDeviceRowFormCarriesTheFieldsItDoesNotShow(t *testing.T) {
 func TestUpdateDeviceRowAnswersWithTheRow(t *testing.T) {
 	t.Parallel()
 
-	rec := patch(t, seeded(t), "/devices/1/row", url.Values{"label": {"Office printer"}})
+	h, cookies := editor(t)
+
+	rec := patch(t, h, cookies, "/devices/1/row", url.Values{"label": {"Office printer"}})
 
 	require.Equal(t, http.StatusOK, rec.Code)
 
@@ -105,7 +125,9 @@ func TestUpdateDeviceRowAnswersWithTheRow(t *testing.T) {
 func TestUpdateDeviceAnswersWithThePanel(t *testing.T) {
 	t.Parallel()
 
-	rec := patch(t, seeded(t), "/devices/1", url.Values{
+	h, cookies := editor(t)
+
+	rec := patch(t, h, cookies, "/devices/1", url.Values{
 		"label": {"Office printer"},
 		"group": {"office"},
 		"notes": {"Hallway."},
@@ -137,9 +159,9 @@ func TestDevicePageDoesNotClaimToHaveSaved(t *testing.T) {
 func TestCurationSurvivesInTheList(t *testing.T) {
 	t.Parallel()
 
-	h := seeded(t)
+	h, cookies := editor(t)
 
-	patch(t, h, "/devices/1/row", url.Values{"label": {"Office printer"}, "group": {"office"}})
+	patch(t, h, cookies, "/devices/1/row", url.Values{"label": {"Office printer"}, "group": {"office"}})
 
 	list := get(t, h, "/devices").Body.String()
 	assert.Contains(t, list, "Office printer")
@@ -157,9 +179,9 @@ func TestCurationSurvivesInTheList(t *testing.T) {
 func TestIgnoringADeviceHidesItFromTheList(t *testing.T) {
 	t.Parallel()
 
-	h := seeded(t)
+	h, cookies := editor(t)
 
-	patch(t, h, "/devices/1", url.Values{"ignored": {"1"}})
+	patch(t, h, cookies, "/devices/1", url.Values{"ignored": {"1"}})
 
 	assert.NotContains(t, get(t, h, "/devices").Body.String(), "printer.local")
 	assert.Contains(t, get(t, h, "/devices?ignored=1").Body.String(), "printer.local")
@@ -168,17 +190,17 @@ func TestIgnoringADeviceHidesItFromTheList(t *testing.T) {
 func TestEditingUnknownDeviceIsNotFound(t *testing.T) {
 	t.Parallel()
 
-	h := seeded(t)
+	h, cookies := editor(t)
 
 	for _, target := range []string{"/devices/4040/edit", "/devices/4040/row", "/devices/abc/edit"} {
 		t.Run(target, func(t *testing.T) {
-			assert.Equal(t, http.StatusNotFound, get(t, h, target).Code)
+			assert.Equal(t, http.StatusNotFound, requestAs(t, h, cookies, http.MethodGet, target, "").Code)
 		})
 	}
 
 	for _, target := range []string{"/devices/4040", "/devices/4040/row", "/devices/abc/row"} {
 		t.Run("patch "+target, func(t *testing.T) {
-			rec := patch(t, h, target, url.Values{"label": {"Nothing"}})
+			rec := patch(t, h, cookies, target, url.Values{"label": {"Nothing"}})
 			assert.Equal(t, http.StatusNotFound, rec.Code)
 		})
 	}
@@ -225,7 +247,9 @@ func TestDeviceEditIgnoredCheckbox(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			rec := patch(t, seeded(t), "/devices/1", tc.form)
+			h, cookies := editor(t)
+
+			rec := patch(t, h, cookies, "/devices/1", tc.form)
 
 			require.Equal(t, http.StatusOK, rec.Code)
 			assert.Equal(t, tc.ignored, strings.Contains(rec.Body.String(), `name="ignored" value="1" checked`))
@@ -239,7 +263,9 @@ func TestDeviceEditIgnoredCheckbox(t *testing.T) {
 func TestDeviceEditRejectsAMalformedCheckbox(t *testing.T) {
 	t.Parallel()
 
-	rec := patch(t, seeded(t), "/devices/1", url.Values{"ignored": {"maybe"}})
+	h, cookies := editor(t)
+
+	rec := patch(t, h, cookies, "/devices/1", url.Values{"ignored": {"maybe"}})
 
 	assert.NotEqual(t, http.StatusOK, rec.Code)
 }
@@ -249,13 +275,13 @@ func TestDeviceEditRejectsAMalformedCheckbox(t *testing.T) {
 func TestCurationIsEscaped(t *testing.T) {
 	t.Parallel()
 
-	h := seeded(t)
+	h, cookies := editor(t)
 
-	patch(t, h, "/devices/1", url.Values{"label": {`<script>alert(1)</script>`}})
+	patch(t, h, cookies, "/devices/1", url.Values{"label": {`<script>alert(1)</script>`}})
 
 	for _, target := range []string{"/devices/1", "/devices", "/devices/1/edit"} {
 		t.Run(target, func(t *testing.T) {
-			body := get(t, h, target).Body.String()
+			body := requestAs(t, h, cookies, http.MethodGet, target, "").Body.String()
 
 			assert.NotContains(t, body, "<script>alert(1)</script>")
 			assert.Contains(t, body, "&lt;script&gt;")

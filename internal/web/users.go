@@ -40,32 +40,6 @@ type usersData struct {
 	Error string
 }
 
-// isAdmin is requireAdmin as a bool, for the layout to decide whether to show
-// the admin-only links. The routes stay gated by requireAdmin itself.
-func isAdmin(sm *auth.Session, a *auth.Auth, r *http.Request) bool {
-	return requireAdmin(r.Context(), sm, a, r) == nil
-}
-
-// requireAdmin extends currentUserID's check with the one fact an admin-gated
-// route additionally needs: that the signed-in account is an admin.
-func requireAdmin(ctx context.Context, sm *auth.Session, a *auth.Auth, r *http.Request) error {
-	userID, err := currentUserID(sm, r)
-	if err != nil {
-		return err
-	}
-
-	ok, err := a.IsAdmin(ctx, userID)
-	if err != nil {
-		return err
-	}
-
-	if !ok {
-		return auth.ErrForbidden
-	}
-
-	return nil
-}
-
 // userList reads every account as the view the template renders.
 func userList(ctx context.Context, a *auth.Auth) ([]userRow, error) {
 	rows, err := a.ListUsers(ctx)
@@ -85,14 +59,11 @@ func userList(ctx context.Context, a *auth.Auth) ([]userRow, error) {
 // refused under, for the redirected-to GET to show once and clear.
 const flashUserError = "flash.user_error"
 
-// users serves the user management page.
+// users serves the user management page. The route is gated to an admin, so
+// the page always renders in the admin view.
 func (h *Handler) users(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
-
-		if err := requireAdmin(ctx, sm, a, r); err != nil {
-			return err
-		}
 
 		list, err := userList(ctx, a)
 		if err != nil {
@@ -100,7 +71,7 @@ func (h *Handler) users(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 		}
 
 		h.htmlWriter.Success(w, r, templatePageUsers, usersData{
-			Title: "Users", Section: "Users", IsAdmin: true,
+			Title: "Users", Section: "Users", Role: dbtype.RoleAdmin,
 			Users: list,
 			Error: sm.PopFlash(ctx, flashUserError),
 		})
@@ -121,10 +92,6 @@ func (h *Handler) createUser(sm *auth.Session, a *auth.Auth) response.HandlerFun
 
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
-
-		if err := requireAdmin(ctx, sm, a, r); err != nil {
-			return err
-		}
 
 		input, err := h.reader.ReadAndValidateForm[createUserForm](r)
 		if err != nil {

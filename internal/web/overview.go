@@ -30,7 +30,7 @@ type overviewData struct {
 	Events     []*inventory.Event
 }
 
-func (h *Handler) overview(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
+func (h *Handler) overview(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		data, err := buildOverviewData(r.Context(), h.store)
 		if err != nil {
@@ -43,7 +43,7 @@ func (h *Handler) overview(sm *auth.Session, a *auth.Auth) response.HandlerFunc 
 			return err
 		}
 
-		data.IsAdmin = isAdmin(sm, a, r)
+		data.Role = sm.CurrentRole(r.Context())
 
 		h.htmlWriter.Success(w, r, templatePageDashboard, data)
 		return nil

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/pushkar-anand/build-with-go/http/response"
+	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
@@ -63,7 +64,7 @@ func (e deviceEdit) toCuration() inventory.Curation {
 
 // deviceRow serves one row as it is displayed, which is how an edit is
 // cancelled.
-func (h *Handler) deviceRow() response.HandlerFunc {
+func (h *Handler) deviceRow(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		id, ok := pathID(r)
 		if !ok {
@@ -75,7 +76,10 @@ func (h *Handler) deviceRow() response.HandlerFunc {
 			return err
 		}
 
-		h.htmlWriter.Success(w, r, templatePartialDeviceRow, device)
+		h.htmlWriter.Success(w, r, templatePartialDeviceRow, deviceRowView{
+			Device:   device,
+			CanWrite: sm.CurrentRole(r.Context()).CanWrite(),
+		})
 		return nil
 	}
 }
@@ -104,8 +108,9 @@ func (h *Handler) deviceRowForm() response.HandlerFunc {
 }
 
 // updateDeviceRow applies an edit made from the list and answers with the row.
-func (h *Handler) updateDeviceRow() response.HandlerFunc {
-
+// The route is gated to a writer, so the row it answers with always carries the
+// Edit button.
+func (h *Handler) updateDeviceRow(sm *auth.Session) response.HandlerFunc {
 	type form struct {
 		deviceEdit
 	}
@@ -126,7 +131,10 @@ func (h *Handler) updateDeviceRow() response.HandlerFunc {
 			return err
 		}
 
-		h.htmlWriter.Success(w, r, templatePartialDeviceRow, device)
+		h.htmlWriter.Success(w, r, templatePartialDeviceRow, deviceRowView{
+			Device:   device,
+			CanWrite: sm.CurrentRole(r.Context()).CanWrite(),
+		})
 
 		return nil
 	}
@@ -134,8 +142,7 @@ func (h *Handler) updateDeviceRow() response.HandlerFunc {
 
 // updateDevice applies an edit made on the device's own page and answers with
 // the panel, which carries the heading a new label changes.
-func (h *Handler) updateDevice() response.HandlerFunc {
-
+func (h *Handler) updateDevice(sm *auth.Session) response.HandlerFunc {
 	type form struct {
 		deviceEdit
 	}
@@ -170,13 +177,16 @@ func (h *Handler) updateDevice() response.HandlerFunc {
 			return err
 		}
 
-		h.htmlWriter.Success(w, r, templatePartialDevicePanel, &curationForm{
+		panel := &curationForm{
 			Device:      device,
 			Groups:      groups,
 			Events:      events,
 			LastChecked: lastSweptAt(ctx, h.store),
 			Saved:       true,
-		})
+			Role:        sm.CurrentRole(ctx),
+		}
+
+		h.htmlWriter.Success(w, r, templatePartialDevicePanel, panel)
 		return nil
 	}
 }
