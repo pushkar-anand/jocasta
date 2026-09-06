@@ -25,7 +25,7 @@ type deviceQuery struct {
 	Page           int    `schema:"page" validate:"omitempty,min=1"`
 }
 
-func (h *Handler) listDevices(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
+func (h *Handler) listDevices(sm *auth.Session) response.HandlerFunc {
 	type query struct {
 		deviceQuery
 	}
@@ -43,7 +43,7 @@ func (h *Handler) listDevices(sm *auth.Session, a *auth.Auth) response.HandlerFu
 			return err
 		}
 
-		data.IsAdmin = isAdmin(sm, a, r)
+		data.Role = sm.CurrentRole(r.Context())
 
 		h.htmlWriter.Success(w, r, templatePageDevices, data)
 		return nil
@@ -52,7 +52,7 @@ func (h *Handler) listDevices(sm *auth.Session, a *auth.Auth) response.HandlerFu
 
 // deviceRows serves the table on its own, which is what the form fetches as it
 // is filled in.
-func (h *Handler) deviceRows() response.HandlerFunc {
+func (h *Handler) deviceRows(sm *auth.Session) response.HandlerFunc {
 	type query struct {
 		deviceQuery
 	}
@@ -70,6 +70,10 @@ func (h *Handler) deviceRows() response.HandlerFunc {
 			return err
 		}
 
+		// The fragment carries the Edit button too, so the row view still needs
+		// to know whether this account may use it.
+		data.Role = sm.CurrentRole(r.Context())
+
 		w.Header().Set("HX-Push-Url", data.canonical())
 
 		h.htmlWriter.Success(w, r, templatePartialDeviceRows, data)
@@ -77,7 +81,7 @@ func (h *Handler) deviceRows() response.HandlerFunc {
 	}
 }
 
-func (h *Handler) device(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
+func (h *Handler) device(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		// A device that is not there is a page that is not there, not a fault.
 		id, ok := pathID(r)
@@ -97,7 +101,7 @@ func (h *Handler) device(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 			return err
 		}
 
-		data.IsAdmin = isAdmin(sm, a, r)
+		data.Role = sm.CurrentRole(r.Context())
 
 		h.htmlWriter.Success(w, r, templatePageDevice, data)
 		return nil

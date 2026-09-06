@@ -36,6 +36,7 @@ jocasta.yaml
 # AI directories
 .junie/
 .claude/
+.codex*/
 
 # SQLite DB files
 *.db

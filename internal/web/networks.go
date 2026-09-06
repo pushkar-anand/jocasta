@@ -19,7 +19,7 @@ func networkPath(id int64) string {
 // filtered, paged list the Devices page draws, scoped to this network: the
 // filter form and pager address this page, and the network select is left out
 // since the path already names it.
-func (h *Handler) network(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
+func (h *Handler) network(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		id, ok := pathID(r)
 		if !ok {
@@ -40,7 +40,7 @@ func (h *Handler) network(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 			Title:   net.CIDR,
 			Section: "Devices",
 			Crumb:   &crumb{Label: "Devices", Href: "/devices"},
-			IsAdmin: isAdmin(sm, a, r),
+			Role:    sm.CurrentRole(r.Context()),
 		}, networkPath(net.ID), net)
 		if err != nil {
 			return err
@@ -53,7 +53,7 @@ func (h *Handler) network(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 
 // networkRows serves the device table on its own, which is what the filter form
 // on a network's page fetches as it is filled in.
-func (h *Handler) networkRows() response.HandlerFunc {
+func (h *Handler) networkRows(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		id, ok := pathID(r)
 		if !ok {
@@ -72,7 +72,7 @@ func (h *Handler) networkRows() response.HandlerFunc {
 
 		data, err := buildDeviceListData(
 			r.Context(), h.store, *q,
-			view{}, networkPath(net.ID), net,
+			view{Role: sm.CurrentRole(r.Context())}, networkPath(net.ID), net,
 		)
 		if err != nil {
 			return err

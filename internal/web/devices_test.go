@@ -561,10 +561,12 @@ func TestDeviceListShowsTheClassIcon(t *testing.T) {
 func TestDevicePanelOffersTheTypePicker(t *testing.T) {
 	t.Parallel()
 
+	// The picker is part of the curation form, which only a writer sees.
 	h := seeded(t)
+	cookies := signIn(t, h)
 	id := deviceIDFromBody(t, get(t, h, "/devices").Body.String())
 
-	body := get(t, h, "/devices/"+id).Body.String()
+	body := requestAs(t, h, cookies, http.MethodGet, "/devices/"+id, "").Body.String()
 
 	assert.Contains(t, body, `<select class="input" name="type">`)
 	assert.Contains(t, body, `<option value="printer"`)

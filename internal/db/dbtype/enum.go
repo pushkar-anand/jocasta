@@ -271,6 +271,29 @@ func (r UserRole) Value() (driver.Value, error) { return enumValue(r, userRoles,
 // Scan reads a stored user role back into r.
 func (r *UserRole) Scan(src any) error { return enumScan(r, userRoles, "user role", src) }
 
+// rank orders the roles so AtLeast can compare them. An unknown role, the zero
+// value included, ranks below every named one so it clears no gate.
+func (r UserRole) rank() int {
+	switch r {
+	case RoleRead:
+		return 1
+	case RoleReadWrite:
+		return 2
+	case RoleAdmin:
+		return 3
+	default:
+		return 0
+	}
+}
+
+// AtLeast reports whether r reaches want on the read < read_write < admin
+// ladder, so a route can name the least role it needs and let a higher one
+// through.
+func (r UserRole) AtLeast(want UserRole) bool { return r.rank() >= want.rank() && r.rank() > 0 }
+
+// CanWrite reports whether an account with this role may change the inventory.
+func (r UserRole) CanWrite() bool { return r.AtLeast(RoleReadWrite) }
+
 // enumValue renders v, refusing anything the column does not admit. The zero
 // value is refused with the rest: a column reached without its constant set is
 // a bug worth a name, not an empty string in the table.

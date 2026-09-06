@@ -32,16 +32,16 @@ func signInAs(t *testing.T, h http.Handler, username, password string) []*http.C
 	return rec.Result().Cookies()
 }
 
-// Nothing in the web package itself redirects a signed-out request the way
-// the session middleware does -- that gate lives at the server level -- so a
-// request with no session reaching this handler surfaces as an error page
-// instead, the same as TestTokensPageRequiresASession.
+// The route is behind the admin gate, which reads the session role directly:
+// a request with no session carries the empty role, which is not admin, so it
+// gets the forbidden page. (The server-level middleware would have redirected
+// it to sign in before it ever reached here.)
 func TestUsersPageRequiresASession(t *testing.T) {
 	t.Parallel()
 
 	rec := get(t, empty(t), "/settings/users")
 
-	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	assert.Equal(t, http.StatusForbidden, rec.Code)
 }
 
 func TestUsersPageForbidsANonAdmin(t *testing.T) {

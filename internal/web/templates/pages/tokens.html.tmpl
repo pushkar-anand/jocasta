@@ -21,10 +21,12 @@
                         <input type="radio" name="scope" value="read" checked>
                         Read
                     </label>
+                    {{- if .Role.CanWrite }}
                     <label class="check">
                         <input type="radio" name="scope" value="read_write">
                         Read &amp; write
                     </label>
+                    {{- end }}
                 </fieldset>
 
                 <button type="submit" class="btn btn--sm">Create token</button>

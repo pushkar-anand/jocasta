@@ -187,6 +187,27 @@ func (d *devicesData) canonical() string {
 	return d.address(d.Page)
 }
 
+// deviceRowView is one device as the row partial renders it: the device itself,
+// with embedded promotion so every existing field reference still resolves, plus
+// whether this viewer's role may edit it -- what the row's Edit button hangs on.
+type deviceRowView struct {
+	*inventory.Device
+	CanWrite bool
+}
+
+// Rows pairs each device on the shown page with the edit permission the row
+// partial needs. It reads Role, which the handler copied from the session.
+func (d *devicesData) Rows() []deviceRowView {
+	canWrite := d.Role.CanWrite()
+
+	rows := make([]deviceRowView, len(d.Devices))
+	for i, dev := range d.Devices {
+		rows[i] = deviceRowView{Device: dev, CanWrite: canWrite}
+	}
+
+	return rows
+}
+
 // paginate keeps the page of the sorted match that the form asked for, clamping
 // a page number past the end back to the last real one.
 func (d *devicesData) paginate(all []*inventory.Device) {

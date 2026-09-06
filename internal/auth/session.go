@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/pushkar-anand/build-with-go/security/session"
+	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
 
 // Data is the whole of what a session carries, as one typed document: a
@@ -15,6 +16,9 @@ import (
 type Data struct {
 	// UserID is the signed-in account, or 0 when nobody is signed in.
 	UserID int64
+
+	// Role is what the account was allowed to do at the moment it signed in.
+	Role dbtype.UserRole
 
 	// Flash holds values a handler leaves for the GET it redirects to and
 	// that are read back exactly once -- a message, or a secret shown a
@@ -67,6 +71,16 @@ func (s *Session) CurrentUserID(ctx context.Context) (int64, bool) {
 	}
 
 	return d.UserID, true
+}
+
+// CurrentRole returns the role for the User
+func (s *Session) CurrentRole(ctx context.Context) dbtype.UserRole {
+	d, ok := s.s.Current(ctx)
+	if !ok {
+		return ""
+	}
+
+	return d.Role
 }
 
 // Flash stores a value read back exactly once. It is how a handler carries a
