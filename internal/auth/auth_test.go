@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,14 +17,19 @@ import (
 
 // fakeQueries answers the store interface from memory, so Auth's logic can be
 // tested without a database. Tokens are keyed by hash, the way the real table
-// is looked up by.
+// is looked up by. A real store is safe to call from parallel subtests, so the
+// mutex guards every access to make this one behave the same.
 type fakeQueries struct {
+	mu     sync.Mutex
 	users  map[string]*models.User
 	tokens map[string]*models.ApiToken
 	nextID int64
 }
 
 func (f *fakeQueries) GetUserByUsername(_ context.Context, username string) (*models.User, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	u, ok := f.users[username]
 	if !ok {
 		return nil, sql.ErrNoRows
@@ -33,6 +39,9 @@ func (f *fakeQueries) GetUserByUsername(_ context.Context, username string) (*mo
 }
 
 func (f *fakeQueries) CreateUser(_ context.Context, arg models.CreateUserParams) (*models.User, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	f.nextID++
 
 	u := &models.User{
@@ -53,10 +62,16 @@ func (f *fakeQueries) CreateUser(_ context.Context, arg models.CreateUserParams)
 }
 
 func (f *fakeQueries) CountUsers(_ context.Context) (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	return int64(len(f.users)), nil
 }
 
 func (f *fakeQueries) ListUsers(_ context.Context) ([]*models.User, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	out := make([]*models.User, 0, len(f.users))
 	for _, u := range f.users {
 		out = append(out, u)
@@ -66,6 +81,9 @@ func (f *fakeQueries) ListUsers(_ context.Context) ([]*models.User, error) {
 }
 
 func (f *fakeQueries) CreateAPIToken(_ context.Context, arg models.CreateAPITokenParams) (*models.ApiToken, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	f.nextID++
 
 	t := &models.ApiToken{
@@ -87,6 +105,9 @@ func (f *fakeQueries) CreateAPIToken(_ context.Context, arg models.CreateAPIToke
 }
 
 func (f *fakeQueries) ListAPITokensByUser(_ context.Context, userID int64) ([]*models.ApiToken, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	var out []*models.ApiToken
 
 	for _, t := range f.tokens {
@@ -99,6 +120,9 @@ func (f *fakeQueries) ListAPITokensByUser(_ context.Context, userID int64) ([]*m
 }
 
 func (f *fakeQueries) TouchAPITokenByHash(_ context.Context, arg models.TouchAPITokenByHashParams) (*models.ApiToken, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	t, ok := f.tokens[arg.TokenHash]
 	if !ok {
 		return nil, sql.ErrNoRows
@@ -112,6 +136,9 @@ func (f *fakeQueries) TouchAPITokenByHash(_ context.Context, arg models.TouchAPI
 // DeleteAPIToken matches the real query's :exec semantics: a WHERE that names
 // no row is not an error, the same as SQL's DELETE affecting zero rows.
 func (f *fakeQueries) DeleteAPIToken(_ context.Context, arg models.DeleteAPITokenParams) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	for hash, t := range f.tokens {
 		if t.ID == arg.ID && t.UserID == arg.UserID {
 			delete(f.tokens, hash)

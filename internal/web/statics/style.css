@@ -27,17 +27,21 @@
 
     --text: #0b0b0b;
     --text-2: #52514e;
-    --text-3: #898781;
+    --text-3: #6b6a65;
 
     --sidebar: #15171c;
     --sidebar-hover: rgba(255, 255, 255, 0.07);
     --sidebar-rule: rgba(255, 255, 255, 0.08);
     --sidebar-text: #9ba0ad;
-    --sidebar-muted: #5c6170;
+    --sidebar-muted: #83889a;
     --sidebar-icon: #7d8291;
     --sidebar-icon-on: #5c9ee8;
 
-    --brand: #2a78d6;
+    --brand: #2367bb;
+    /* Brand as text: on white for links, on --brand-soft for chips. The fill
+       above is too light for either to clear 4.5:1, so text gets its own step. */
+    --brand-ink: #1f5fae;
+    --link: #2367bb;
     --brand-soft: #e3edfb;
     --good: #0ca30c;
     --good-soft: #e2f5e2;
@@ -85,7 +89,7 @@ body {
 }
 
 a {
-    color: var(--brand);
+    color: var(--link);
     text-decoration: none;
 }
 
@@ -836,7 +840,7 @@ a.netcard:hover {
 
 .chip--brand {
     background: var(--brand-soft);
-    color: var(--brand);
+    color: var(--brand-ink);
     text-transform: none;
 }
 
@@ -1666,7 +1670,11 @@ input[type="radio"] {
 
     --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5);
 
-    --brand-soft: rgba(42, 120, 214, 0.15);
+    /* The fill holds for button backgrounds; text on the dark ground needs to
+       come up the other way. */
+    --brand-ink: #8fc2ff;
+    --link: #6db0f5;
+    --brand-soft: rgba(35, 103, 187, 0.16);
     --good-soft: rgba(12, 163, 12, 0.15);
     --warning-soft: rgba(250, 178, 25, 0.15);
     --warning-ink: #fcc419;
