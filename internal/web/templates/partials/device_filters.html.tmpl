@@ -11,10 +11,12 @@
     and the server renders the filtered page.
 */ -}}
 {{ define "partial/device-filters" }}
-<form class="filters" role="search" action="{{ .FilterAction }}" method="get"
+<form id="device-filters" class="filters" role="search" action="{{ .FilterAction }}" method="get"
       hx-get="{{ .FilterRows }}"
       hx-target="#device-rows"
       hx-swap="outerHTML"
+      hx-sync="this:replace"
+      hx-request='{"timeout":15000}'
       hx-trigger="input changed delay:300ms, change, submit">
     <label class="field field--search">
         <span class="visually-hidden">Find</span>
@@ -90,4 +92,8 @@
            set. */}}
     <noscript><button type="submit" class="btn">Apply</button></noscript>
 </form>
+<div>
+    <p id="device-filter-status" role="status" aria-live="polite" aria-atomic="true"></p>
+    <button id="device-filter-retry" type="submit" form="device-filters" class="btn btn--sm" hidden>Retry</button>
+</div>
 {{ end }}
