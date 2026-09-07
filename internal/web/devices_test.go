@@ -721,8 +721,9 @@ func TestDevicePageShowsOpenPorts(t *testing.T) {
 	assert.NotContains(t, body, "ZgotmplZ")
 }
 
-// The list carries the open ports a scan has found, so a reader does not have to
-// open each device to see what it exposes.
+// The list carries the open ports a scan has found -- as chips beside the
+// address they answer on -- so a reader does not have to open each device to see
+// what it exposes.
 func TestDeviceListShowsOpenPorts(t *testing.T) {
 	t.Parallel()
 
@@ -740,11 +741,24 @@ func TestDeviceListShowsOpenPorts(t *testing.T) {
 	h := newWebHandler(t, store)
 
 	body := get(t, h, "/devices").Body.String()
-	assert.Contains(t, body, `<th scope="col">Ports</th>`)
-	assert.Contains(t, body, "80, 443, 9100", "the numbers are ordered, not left as the scan gave them")
 
-	// The fragment the filter form swaps carries the column too.
-	assert.Contains(t, get(t, h, "/devices/rows").Body.String(), "80, 443, 9100")
+	// Ports no longer have a column of their own; they ride in the address cell.
+	assert.NotContains(t, body, `<th scope="col">Ports</th>`)
+
+	for _, chip := range []string{
+		`<span class="chip chip--port">80</span>`,
+		`<span class="chip chip--port">443</span>`,
+		`<span class="chip chip--port">9100</span>`,
+	} {
+		assert.Contains(t, body, chip)
+	}
+
+	assert.Less(t, strings.Index(body, `chip--port">80<`), strings.Index(body, `chip--port">443<`),
+		"the numbers are ordered, not left as the scan gave them")
+	assert.Less(t, strings.Index(body, `chip--port">443<`), strings.Index(body, `chip--port">9100<`))
+
+	// The fragment the filter form swaps carries them too.
+	assert.Contains(t, get(t, h, "/devices/rows").Body.String(), `<span class="chip chip--port">443</span>`)
 }
 
 // The list names the prefix each device is on and links to it, so the network
@@ -757,6 +771,30 @@ func TestDeviceListShowsTheNetwork(t *testing.T) {
 	assert.Contains(t, body, `<th scope="col">Network</th>`)
 	assert.Contains(t, body, `href="/networks/1"`)
 	assert.Contains(t, body, "192.0.2.0/24")
+}
+
+// The list keeps every scanned fact but not a column apiece: ports fold into the
+// address cell, vendor into the hardware cell, so the table fits without a
+// sideways scroll. Each body cell carries a data-label for the stacked mobile
+// card layout.
+func TestDeviceListMergesHardwareAndPortColumns(t *testing.T) {
+	t.Parallel()
+
+	body := get(t, seeded(t), "/devices").Body.String()
+
+	assert.Contains(t, body, `<th scope="col">Hardware</th>`)
+	assert.NotContains(t, body, `<th scope="col">Vendor</th>`)
+	assert.NotContains(t, body, `<th scope="col">Ports</th>`)
+
+	for _, label := range []string{
+		`data-label="Addresses"`,
+		`data-label="Network"`,
+		`data-label="Hardware"`,
+		`data-label="Group"`,
+		`data-label="Last seen"`,
+	} {
+		assert.Contains(t, body, label)
+	}
 }
 
 // A device no port scan has reached leaves the section out rather than drawing
