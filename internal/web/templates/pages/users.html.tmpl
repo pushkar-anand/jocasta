@@ -8,7 +8,7 @@
         </div>
 
         {{- with .Error }}
-            <p class="failure">{{ . }}</p>
+            <p class="failure" id="username-error" role="alert">{{ . }} Choose another username and re-enter the password.</p>
         {{- end }}
 
         <div class="card panel">
@@ -16,22 +16,25 @@
                 <label class="stack">
                     <span class="eyebrow">Username</span>
                     <input class="input" type="text" name="username" autocomplete="off" minlength="3"
-                           maxlength="100" required>
+                           maxlength="100" value="{{ .Username }}" aria-describedby="username-help{{ if .Error }} username-error{{ end }}"
+                           {{ if .Error }}aria-invalid="true" autofocus{{ end }} required>
+                    <span class="dim" id="username-help">3–100 characters.</span>
                 </label>
 
                 <label class="stack">
                     <span class="eyebrow">Password</span>
                     <input class="input" type="password" name="password" autocomplete="new-password" minlength="8"
-                           maxlength="1000" required>
+                           maxlength="1000" aria-describedby="password-help" required>
+                    <span class="dim" id="password-help">8–1000 characters. Re-enter after a failed attempt.</span>
                 </label>
 
                 <fieldset class="tokenform__scope">
                     <label class="check">
-                        <input type="radio" name="role" value="read" checked>
+                        <input type="radio" name="role" value="read"{{ if ne .SelectedRole "read_write" }} checked{{ end }}>
                         Read
                     </label>
                     <label class="check">
-                        <input type="radio" name="role" value="read_write">
+                        <input type="radio" name="role" value="read_write"{{ if eq .SelectedRole "read_write" }} checked{{ end }}>
                         Read &amp; write
                     </label>
                 </fieldset>
