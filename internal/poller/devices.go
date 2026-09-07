@@ -202,7 +202,7 @@ func (d *Device) discoverAndSave(ctx context.Context, p plugin.HostDiscoverer) e
 		return fmt.Errorf("discover %s: %w", p.Name(), err)
 	case err != nil:
 		d.logger.WarnContext(ctx, "source answered in part",
-			slog.String("source", p.Name()),
+			slog.String("src", p.Name()),
 			slog.Int("facts", len(facts)),
 			logger.Err(err),
 		)
@@ -215,7 +215,7 @@ func (d *Device) discoverAndSave(ctx context.Context, p plugin.HostDiscoverer) e
 
 	d.logger.InfoContext(ctx,
 		"recorded source",
-		slog.String("source", p.Name()),
+		slog.String("src", p.Name()),
 		slog.Int64("scan", saved.ScanID),
 		slog.Int("seen", saved.Seen),
 		slog.Int("discovered", saved.Discovered),
@@ -237,7 +237,7 @@ func (d *Device) recordNetworks(ctx context.Context, p plugin.NetworkDiscoverer)
 
 	if err != nil && len(nets) == 0 {
 		d.logger.WarnContext(ctx, "source did not say which segments it serves",
-			slog.String("source", p.Name()),
+			slog.String("src", p.Name()),
 			logger.Err(err),
 		)
 
@@ -246,7 +246,7 @@ func (d *Device) recordNetworks(ctx context.Context, p plugin.NetworkDiscoverer)
 
 	if err != nil {
 		d.logger.WarnContext(ctx, "source described its segments in part",
-			slog.String("source", p.Name()),
+			slog.String("src", p.Name()),
 			slog.Int("networks", len(nets)),
 			logger.Err(err),
 		)
@@ -254,7 +254,7 @@ func (d *Device) recordNetworks(ctx context.Context, p plugin.NetworkDiscoverer)
 
 	if err := d.store.RecordNetworks(ctx, nets); err != nil {
 		d.logger.ErrorContext(ctx, "could not record the segments a source serves",
-			slog.String("source", p.Name()),
+			slog.String("src", p.Name()),
 			logger.Err(err),
 		)
 
@@ -262,7 +262,7 @@ func (d *Device) recordNetworks(ctx context.Context, p plugin.NetworkDiscoverer)
 	}
 
 	d.logger.InfoContext(ctx, "recorded segments",
-		slog.String("source", p.Name()),
+		slog.String("src", p.Name()),
 		slog.Int("networks", len(nets)),
 	)
 }

@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"maps"
 	"slices"
 	"strconv"
 	"time"
 
+	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
@@ -106,7 +108,7 @@ func (s *Store) RecordPorts(
 	// like the pass after a discovery: a stale icon is not worth failing a scan
 	// that recorded the ports correctly.
 	if err := s.reclassify(ctx, scanID, touched); err != nil {
-		s.log.WarnContext(ctx, "classify pass after port scan failed", "scan", scanID, "err", err)
+		s.log.WarnContext(ctx, "classify pass after port scan failed", slog.Int64("scan", scanID), logger.Err(err))
 	}
 
 	return sum, nil
@@ -162,7 +164,7 @@ func (s *Store) recordPorts(
 	}
 
 	if holder == nil {
-		s.log.DebugContext(ctx, "dropping a port result for an address no device holds", "addr", scan.Addr)
+		s.log.DebugContext(ctx, "dropping a port result for an address no device holds", slog.String("addr", scan.Addr.String()))
 
 		sum.Dropped++
 

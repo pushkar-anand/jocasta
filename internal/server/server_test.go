@@ -203,6 +203,7 @@ func loginClient(t *testing.T, baseURL string) *http.Client {
 
 	res, err := client.Do(req)
 	require.NoError(t, err)
+
 	defer func() { _ = res.Body.Close() }()
 
 	require.Equal(t, http.StatusOK, res.StatusCode, "login should redirect through to the signed-in root")

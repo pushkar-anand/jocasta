@@ -46,6 +46,7 @@ func (h *Handler) overview(sm *auth.Session) response.HandlerFunc {
 		data.Role = sm.CurrentRole(r.Context())
 
 		h.htmlWriter.Success(w, r, templatePageDashboard, data)
+
 		return nil
 	}
 }
@@ -64,6 +65,7 @@ func (h *Handler) overviewLive() response.HandlerFunc {
 		}
 
 		h.htmlWriter.Success(w, r, templatePartialLiveOverview, data)
+
 		return nil
 	}
 }

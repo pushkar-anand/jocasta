@@ -54,7 +54,7 @@ func (p *PluginRunCmd) Run(
 		// The segments decorate the devices rather than gating them, so a
 		// source that will not describe them is still worth reading.
 		log.WarnContext(ctx, "source did not describe its segments",
-			slog.String("source", src.Name()),
+			slog.String("src", src.Name()),
 			logger.Err(err),
 		)
 	}
@@ -69,7 +69,7 @@ func (p *PluginRunCmd) Run(
 
 	if err != nil {
 		log.WarnContext(ctx, "source answered in part",
-			slog.String("source", src.Name()),
+			slog.String("src", src.Name()),
 			slog.Int("facts", len(facts)),
 			logger.Err(err),
 		)
@@ -114,7 +114,7 @@ func (p *PluginRunCmd) save(
 	}
 
 	log.InfoContext(ctx, "recorded source",
-		slog.String("source", src.Name()),
+		slog.String("src", src.Name()),
 		slog.Int64("scan", res.ScanID),
 		slog.Int("seen", res.Seen),
 		slog.Int("discovered", res.Discovered),

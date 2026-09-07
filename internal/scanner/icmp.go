@@ -293,7 +293,7 @@ func readReplies(ctx context.Context, log *slog.Logger, c *conn, token []byte, r
 
 		rtt := time.Since(sent)
 		if res.record(addr, rtt) {
-			log.Debug("host replied", slog.String("addr", addr.String()), slog.Duration("rtt", rtt))
+			log.DebugContext(ctx, "host replied", slog.String("addr", addr.String()), slog.Duration("rtt", rtt))
 		}
 	}
 }

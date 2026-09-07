@@ -46,6 +46,7 @@ func (h *Handler) listDevices(sm *auth.Session) response.HandlerFunc {
 		data.Role = sm.CurrentRole(r.Context())
 
 		h.htmlWriter.Success(w, r, templatePageDevices, data)
+
 		return nil
 	}
 }
@@ -77,6 +78,7 @@ func (h *Handler) deviceRows(sm *auth.Session) response.HandlerFunc {
 		w.Header().Set("HX-Push-Url", data.canonical())
 
 		h.htmlWriter.Success(w, r, templatePartialDeviceRows, data)
+
 		return nil
 	}
 }
@@ -104,6 +106,7 @@ func (h *Handler) device(sm *auth.Session) response.HandlerFunc {
 		data.Role = sm.CurrentRole(r.Context())
 
 		h.htmlWriter.Success(w, r, templatePageDevice, data)
+
 		return nil
 	}
 }

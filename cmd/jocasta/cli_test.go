@@ -468,7 +468,7 @@ func TestHostDiscoverersSkipsDisabledInstances(t *testing.T) {
 		"spare":   {Enabled: false, Host: "203.0.113.1"},
 	}
 
-	ds, err := hostDiscoverers(cfg, slog.New(slog.DiscardHandler))
+	ds, err := hostDiscoverers(t.Context(), cfg, slog.New(slog.DiscardHandler))
 	require.NoError(t, err)
 
 	names := make([]string, len(ds))
@@ -512,7 +512,7 @@ func TestHostDiscoverersRejectsAnInstanceWithNoHost(t *testing.T) {
 		"gateway": {Enabled: true},
 	}
 
-	_, err := hostDiscoverers(cfg, slog.New(slog.DiscardHandler))
+	_, err := hostDiscoverers(t.Context(), cfg, slog.New(slog.DiscardHandler))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "gateway")
 }

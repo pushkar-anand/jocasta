@@ -69,9 +69,11 @@ func (q *Queries) ListEvents(ctx context.Context, arg PageParams) ([]*ListEvents
 	if arg.DeviceID != 0 {
 		sb = sb.Where(squirrel.Eq{"e.device_id": arg.DeviceID})
 	}
+
 	if len(arg.EventKinds) != 0 {
 		sb = sb.Where(squirrel.Eq{"e.kind": arg.EventKinds})
 	}
+
 	if arg.ExcludeIgnored {
 		sb = sb.Where(squirrel.Eq{"d.is_ignored": false})
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -29,7 +30,7 @@ import (
 // Instances are returned in name order because map iteration is not ordered,
 // and a poller that reads its sources in a different order every cycle is
 // harder to read in a log than one that does not.
-func hostDiscoverers(cfg *config.Config, log *slog.Logger) ([]plugin.HostDiscoverer, error) {
+func hostDiscoverers(ctx context.Context, cfg *config.Config, log *slog.Logger) ([]plugin.HostDiscoverer, error) {
 	names := slices.Sorted(maps.Keys(cfg.Plugins.RouterOS))
 	out := make([]plugin.HostDiscoverer, 0, len(names))
 
@@ -38,7 +39,7 @@ func hostDiscoverers(cfg *config.Config, log *slog.Logger) ([]plugin.HostDiscove
 		if !rc.Enabled {
 			// Said out loud, because a configured entry that reads nothing is
 			// indistinguishable from a source with nothing to report.
-			log.Info("source is configured but not enabled", slog.String("source", name))
+			log.InfoContext(ctx, "source is configured but not enabled", slog.String("src", name))
 
 			continue
 		}

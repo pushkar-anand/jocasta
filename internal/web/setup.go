@@ -29,8 +29,10 @@ func (h *Handler) setupForm(sm *auth.Session, a *auth.Auth) response.HandlerFunc
 		Username string `schema:"username" validate:"required,min=3,max=100"`
 		Password string `schema:"password" validate:"required,min=8,max=1000"`
 	}
+
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
+
 		input, err := h.reader.ReadAndValidateForm[setupForm](r)
 		if err != nil {
 			return err

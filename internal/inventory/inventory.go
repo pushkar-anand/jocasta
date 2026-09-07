@@ -18,6 +18,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 	"github.com/pushkar-anand/jocasta/internal/plugin"
@@ -359,7 +360,7 @@ func (s *Store) report(ctx context.Context, r reading) (*Result, error) {
 	// The classify pass is best-effort: a guess that failed to update is worth
 	// a log line, not a failed scan whose devices were folded correctly.
 	if err := s.reclassify(ctx, scanID, touched); err != nil {
-		s.log.WarnContext(ctx, "classify pass after discovery failed", "scan", scanID, "err", err)
+		s.log.WarnContext(ctx, "classify pass after discovery failed", slog.Int64("scan", scanID), logger.Err(err))
 	}
 
 	return res, nil
@@ -529,7 +530,7 @@ func (s *Store) record(ctx context.Context, p *pass, f plugin.Fact) error {
 
 	if target == nil {
 		s.log.DebugContext(ctx, "dropping a fact that identifies nothing",
-			"addr", f.Host.Address(), "mac", f.Host.MAC, "present", f.Present)
+			slog.String("addr", f.Host.Address().String()), slog.String("mac", f.Host.MAC), slog.Bool("present", f.Present))
 
 		p.res.Dropped++
 
@@ -644,7 +645,7 @@ func (s *Store) hardware(ctx context.Context, f plugin.Fact) dbtype.MAC {
 	mac, err := dbtype.ParseMAC(f.Host.MAC)
 	if err != nil {
 		s.log.DebugContext(ctx, "ignoring unusable hardware address",
-			"addr", f.Host.Address(), "mac", f.Host.MAC, "err", err)
+			slog.String("addr", f.Host.Address().String()), slog.String("mac", f.Host.MAC), logger.Err(err))
 
 		return dbtype.MAC{}
 	}
@@ -788,7 +789,7 @@ func (s *Store) fold(ctx context.Context, p *pass, ghost, into *models.Device) e
 		return fmt.Errorf("move events of device %d: %w", ghost.ID, err)
 	}
 
-	s.log.InfoContext(ctx, "folded device into its identified twin", "from", ghost.ID, "into", into.ID)
+	s.log.InfoContext(ctx, "folded device into its identified twin", slog.Int64("from", ghost.ID), slog.Int64("into", into.ID))
 
 	detail := fmt.Sprintf("device %d folded into %d", ghost.ID, into.ID)
 	if err := s.event(ctx, p, into.ID, dbtype.EventDevicesMerged, "", "", detail); err != nil {
