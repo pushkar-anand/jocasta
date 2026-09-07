@@ -123,14 +123,21 @@ func TestCreateUserRejectsADuplicateUsername(t *testing.T) {
 	h := empty(t)
 	cookies := signIn(t, h)
 
-	form := url.Values{"username": {testUsername}, "password": {"another-password-1"}, "role": {"read"}}
+	form := url.Values{"username": {testUsername}, "password": {"another-password-1"}, "role": {"read_write"}}
 	rec := requestAs(t, h, cookies, http.MethodPost, "/settings/users", form.Encode())
 	rec = follow(t, h, cookies, rec)
 
 	require.Equal(t, http.StatusOK, rec.Code, "a refused create lands back on the list, not an error")
 	assert.Contains(t, rec.Body.String(), "already taken")
+	assert.Contains(t, rec.Body.String(), `value="`+testUsername+`" aria-describedby="username-help username-error"`)
+	assert.Contains(t, rec.Body.String(), `name="role" value="read_write" checked`)
+	assert.NotContains(t, rec.Body.String(), `name="role" value="read" checked`)
+	assert.Contains(t, rec.Body.String(), `aria-invalid="true" autofocus`)
+	assert.NotContains(t, rec.Body.String(), "another-password-1", "passwords must never be redisplayed")
 
 	// The reason is a one-shot: reloading the list does not keep showing it.
 	reload := requestAs(t, h, cookies, http.MethodGet, "/settings/users", "")
 	assert.NotContains(t, reload.Body.String(), "already taken", "the message is shown once")
+	assert.Contains(t, reload.Body.String(), `value="" aria-describedby="username-help"`)
+	assert.Contains(t, reload.Body.String(), `name="role" value="read" checked`)
 }

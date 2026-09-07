@@ -37,7 +37,9 @@ type usersData struct {
 	// Error carries the reason a create was refused -- a username already
 	// taken -- from the createUser POST across its redirect to here, in a
 	// one-shot flash the GET reads and clears.
-	Error string
+	Error        string
+	Username     string
+	SelectedRole string
 }
 
 // userList reads every account as the view the template renders.
@@ -59,6 +61,10 @@ func userList(ctx context.Context, a *auth.Auth) ([]userRow, error) {
 // refused under, for the redirected-to GET to show once and clear.
 const flashUserError = "flash.user_error"
 
+// Preserve only non-secret form values across a failed creation redirect.
+const flashUserUsername = "flash.user_username"
+const flashUserRole = "flash.user_role"
+
 // users serves the user management page. The route is gated to an admin, so
 // the page always renders in the admin view.
 func (h *Handler) users(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
@@ -72,8 +78,10 @@ func (h *Handler) users(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 
 		h.htmlWriter.Success(w, r, templatePageUsers, usersData{
 			Title: "Users", Section: "Users", Role: dbtype.RoleAdmin,
-			Users: list,
-			Error: sm.PopFlash(ctx, flashUserError),
+			Users:        list,
+			Error:        sm.PopFlash(ctx, flashUserError),
+			Username:     sm.PopFlash(ctx, flashUserUsername),
+			SelectedRole: sm.PopFlash(ctx, flashUserRole),
 		})
 
 		return nil
@@ -105,6 +113,8 @@ func (h *Handler) createUser(sm *auth.Session, a *auth.Auth) response.HandlerFun
 
 		if errors.Is(createErr, auth.ErrUsernameTaken) {
 			sm.Flash(ctx, flashUserError, "That username is already taken.")
+			sm.Flash(ctx, flashUserUsername, input.Username)
+			sm.Flash(ctx, flashUserRole, input.Role)
 		}
 
 		http.Redirect(w, r, "/settings/users", http.StatusSeeOther)
