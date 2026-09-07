@@ -32,7 +32,6 @@ func TestDevicesPageListsThem(t *testing.T) {
 	assert.Contains(t, body, "printer.local")
 	assert.Contains(t, body, "nas.local")
 	assert.Contains(t, body, "192.0.2.10")
-	assert.Contains(t, body, macA)
 
 	// Each row links to the device it names.
 	assert.Contains(t, body, `href="/devices/1"`)
@@ -721,9 +720,10 @@ func TestDevicePageShowsOpenPorts(t *testing.T) {
 	assert.NotContains(t, body, "ZgotmplZ")
 }
 
-// The list carries the open ports a scan has found, so a reader does not have to
-// open each device to see what it exposes.
-func TestDeviceListShowsOpenPorts(t *testing.T) {
+// The list keeps to identity, address, network, group, and last seen. Hardware,
+// vendor, and open ports are the device page's to show, so a phone-width row is
+// a stacked card rather than a horizontal scroll.
+func TestDeviceListOmitsHardwareColumns(t *testing.T) {
 	t.Parallel()
 
 	store := testStore(t)
@@ -737,14 +737,12 @@ func TestDeviceListShowsOpenPorts(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	h := newWebHandler(t, store)
+	body := get(t, newWebHandler(t, store), "/devices").Body.String()
 
-	body := get(t, h, "/devices").Body.String()
-	assert.Contains(t, body, `<th scope="col">Ports</th>`)
-	assert.Contains(t, body, "80, 443, 9100", "the numbers are ordered, not left as the scan gave them")
-
-	// The fragment the filter form swaps carries the column too.
-	assert.Contains(t, get(t, h, "/devices/rows").Body.String(), "80, 443, 9100")
+	assert.NotContains(t, body, `<th scope="col">Ports</th>`)
+	assert.NotContains(t, body, `<th scope="col">Hardware</th>`)
+	assert.NotContains(t, body, `<th scope="col">Vendor</th>`)
+	assert.Contains(t, body, `data-label="Last seen"`)
 }
 
 // The list names the prefix each device is on and links to it, so the network

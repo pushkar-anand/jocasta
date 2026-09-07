@@ -12,8 +12,8 @@
             <a class="strong" href="/devices/{{ .ID }}">{{ .Name }}</a>
         </span>
     </td>
-    <td class="mono">{{ addrs .Current }}</td>
-    <td>
+    <td class="mono" data-label="Addresses">{{ addrs .Current }}</td>
+    <td data-label="Network">
         {{- if .Networks }}
         <span class="cell cell--wrap">
             {{- range .Networks }}
@@ -25,11 +25,8 @@
         <span class="dim">&mdash;</span>
         {{- end }}
     </td>
-    <td class="mono dim">{{ ports .OpenPorts }}</td>
-    <td class="mono dim">{{ dash .MAC }}{{ if .Randomised }} <span class="chip chip--warn">randomised</span>{{ end }}</td>
-    <td class="dim">{{ dash .Vendor }}</td>
-    <td class="dim">{{ dash .Group }}</td>
-    <td class="dim">{{ ago .LastSeen }}</td>
+    <td class="dim" data-label="Group">{{ dash .Group }}</td>
+    <td class="dim" data-label="Last seen">{{ ago .LastSeen }}</td>
     <td class="cell--end">
         {{- if .CanWrite }}
         <button type="button" class="btn btn--quiet btn--sm"

@@ -1517,6 +1517,75 @@ input[type="radio"] {
     }
 }
 
+/* The device list carries five columns and an action; a phone holds neither
+   those side by side nor a horizontal scroller that buries the address behind
+   the name. Below this each row becomes a stacked card: the name leads, and
+   every other cell sits on its own line under the label it carries in
+   data-label. Scoped to #device-rows so the shorter tables keep their shape. */
+@media (max-width: 40rem) {
+    #device-rows .card--table {
+        padding: 6px;
+    }
+
+    #device-rows .scroller {
+        overflow-x: visible;
+    }
+
+    #device-rows table,
+    #device-rows tbody,
+    #device-rows tr,
+    #device-rows td {
+        display: block;
+        width: auto;
+    }
+
+    #device-rows thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+    }
+
+    #device-rows tbody tr {
+        padding: 12px 8px;
+    }
+
+    #device-rows tbody tr:hover {
+        background: none;
+    }
+
+    #device-rows tbody td {
+        padding: 3px 0;
+        border: none;
+    }
+
+    #device-rows tbody td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 1px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-3);
+    }
+
+    /* The name is the card's heading and needs no label of its own. */
+    #device-rows tbody tr:not(.editing) td:first-child {
+        margin-bottom: 6px;
+        font-size: 14px;
+    }
+
+    /* Edit sits under the facts, aligned with them rather than to the right. */
+    #device-rows tbody td.cell--end {
+        margin-top: 10px;
+        text-align: left;
+    }
+}
+
 /* ---- Auth ---------------------------------------------------------------- */
 
 /* The one page with no sidebar and no topbar to anchor to, so the card is

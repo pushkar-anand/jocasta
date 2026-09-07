@@ -119,7 +119,6 @@ func TestUpdateDeviceRowAnswersWithTheRow(t *testing.T) {
 
 	// And it still shows what the sweep found, which an edit does not touch.
 	assert.Contains(t, body, "192.0.2.10")
-	assert.Contains(t, body, macA)
 }
 
 func TestUpdateDeviceAnswersWithThePanel(t *testing.T) {
