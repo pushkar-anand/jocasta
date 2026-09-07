@@ -1381,7 +1381,8 @@ input[type="radio"] {
 
     .sidebar {
         flex: 0 0 auto;
-        width: auto;
+        width: 100%;
+        min-width: 0;
         height: auto;
         flex-direction: row;
         align-items: center;
@@ -1393,10 +1394,12 @@ input[type="radio"] {
     }
 
     .brandmark {
+        flex-shrink: 0;
         padding: 0 8px 0 0;
     }
 
     .nav {
+        flex-shrink: 0;
         flex-direction: row;
         gap: 2px;
     }
@@ -1418,6 +1421,23 @@ input[type="radio"] {
         /* The rail is a sticky strip at this width; a second sticky bar under it
            would stack on top of the sections. */
         position: static;
+    }
+
+    .topbar__title {
+        flex-wrap: wrap;
+        overflow-wrap: anywhere;
+    }
+
+    .topbar__tools {
+        flex: 0 1 auto;
+        min-width: 0;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .topbar__live {
+        flex-basis: 100%;
+        white-space: normal;
     }
 
     .portdetail {
