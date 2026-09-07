@@ -1472,9 +1472,19 @@ input[type="radio"] {
         display: none;
     }
 
+    .act {
+        display: grid;
+        grid-template-columns: 26px minmax(0, 1fr);
+        gap: 4px 11px;
+    }
+
+    .act__text {
+        overflow-wrap: anywhere;
+    }
+
     .act__when {
-        flex-basis: 100%;
-        padding-left: 37px;
+        grid-column: 2;
+        white-space: normal;
     }
 }
 
