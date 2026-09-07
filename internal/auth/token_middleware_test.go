@@ -46,7 +46,7 @@ func TestTokenMiddlewareRejectsAMissingToken(t *testing.T) {
 	a := newTestAuth(t, nil)
 	h, reached := testTokenMiddleware(t, a)
 
-	req := httptest.NewRequest(http.MethodGet, "/devices", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/devices", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
@@ -66,8 +66,9 @@ func TestTokenMiddlewareRejectsAnInvalidToken(t *testing.T) {
 	a := newTestAuth(t, nil)
 	h, reached := testTokenMiddleware(t, a)
 
-	req := httptest.NewRequest(http.MethodGet, "/devices", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/devices", nil)
 	req.Header.Set(authHeaderName, "Bearer jct_notarealtoken")
+
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
@@ -84,8 +85,9 @@ func TestTokenMiddlewareRejectsAWriteFromAReadOnlyToken(t *testing.T) {
 
 	h, reached := testTokenMiddleware(t, a)
 
-	req := httptest.NewRequest(http.MethodPatch, "/devices/1", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPatch, "/devices/1", nil)
 	req.Header.Set(authHeaderName, "Bearer "+plaintext)
+
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
@@ -106,8 +108,9 @@ func TestTokenMiddlewareAllowsAValidToken(t *testing.T) {
 
 	h, reached := testTokenMiddleware(t, a)
 
-	req := httptest.NewRequest(http.MethodPatch, "/devices/1", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPatch, "/devices/1", nil)
 	req.Header.Set(authHeaderName, "Bearer "+plaintext)
+
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
@@ -121,7 +124,7 @@ func TestTokenMiddlewareBypassesNamedPaths(t *testing.T) {
 	a := newTestAuth(t, nil)
 	h, reached := testTokenMiddleware(t, a, regexp.MustCompile(`^/livez$`))
 
-	req := httptest.NewRequest(http.MethodGet, "/livez", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/livez", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 

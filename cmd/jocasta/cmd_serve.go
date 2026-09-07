@@ -45,7 +45,7 @@ func (s *ServeCmd) Run(
 
 	defer p.Stop()
 
-	discoverers, err := hostDiscoverers(cfg, log)
+	discoverers, err := hostDiscoverers(ctx, cfg, log)
 	if err != nil {
 		return err
 	}

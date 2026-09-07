@@ -1,3 +1,6 @@
+// Package auth verifies who is asking: password credentials and first-account
+// setup, browser sessions, and API tokens, with the HTTP middleware that
+// enforces each.
 package auth
 
 import (

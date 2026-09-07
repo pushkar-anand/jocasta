@@ -35,7 +35,7 @@ func TestSessionMiddlewareRedirectsToSetupWhileNoAccountExists(t *testing.T) {
 	a := newTestAuth(t, nil)
 	_, h, reached := testSessionMiddleware(t, a, nil, loginBypass)
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
@@ -50,7 +50,7 @@ func TestSessionMiddlewareAllowsSetupWhileNoAccountExists(t *testing.T) {
 	a := newTestAuth(t, nil)
 	_, h, reached := testSessionMiddleware(t, a, nil, loginBypass)
 
-	req := httptest.NewRequest(http.MethodGet, setupPath, nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, setupPath, nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
@@ -63,7 +63,7 @@ func TestSessionMiddlewareRedirectsSetupToLoginOnceAnAccountExists(t *testing.T)
 	a := newTestAuth(t, map[string]*models.User{"ada": {ID: 1, Username: "ada"}})
 	_, h, reached := testSessionMiddleware(t, a, nil, loginBypass)
 
-	req := httptest.NewRequest(http.MethodGet, setupPath, nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, setupPath, nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
@@ -79,7 +79,7 @@ func TestSessionMiddlewareBypassesAlwaysPathsRegardlessOfSetup(t *testing.T) {
 	always := []*regexp.Regexp{regexp.MustCompile(`^/static/.*$`)}
 	_, h, reached := testSessionMiddleware(t, a, always, loginBypass)
 
-	req := httptest.NewRequest(http.MethodGet, "/static/style.css", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/static/style.css", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 

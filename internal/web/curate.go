@@ -80,6 +80,7 @@ func (h *Handler) deviceRow(sm *auth.Session) response.HandlerFunc {
 			Device:   device,
 			CanWrite: sm.CurrentRole(r.Context()).CanWrite(),
 		})
+
 		return nil
 	}
 }
@@ -103,6 +104,7 @@ func (h *Handler) deviceRowForm() response.HandlerFunc {
 		}
 
 		h.htmlWriter.Success(w, r, templatePartialDeviceRowForm, &rowForm{Device: device, Groups: groups})
+
 		return nil
 	}
 }
@@ -126,7 +128,7 @@ func (h *Handler) updateDeviceRow(sm *auth.Session) response.HandlerFunc {
 			return err
 		}
 
-		device, err := h.store.UpdateCuration(r.Context(), id, data.deviceEdit.toCuration())
+		device, err := h.store.UpdateCuration(r.Context(), id, data.toCuration())
 		if err != nil {
 			return err
 		}
@@ -160,7 +162,7 @@ func (h *Handler) updateDevice(sm *auth.Session) response.HandlerFunc {
 			return err
 		}
 
-		device, err := h.store.UpdateCuration(r.Context(), id, data.deviceEdit.toCuration())
+		device, err := h.store.UpdateCuration(r.Context(), id, data.toCuration())
 		if err != nil {
 			return err
 		}
@@ -187,6 +189,7 @@ func (h *Handler) updateDevice(sm *auth.Session) response.HandlerFunc {
 		}
 
 		h.htmlWriter.Success(w, r, templatePartialDevicePanel, panel)
+
 		return nil
 	}
 }

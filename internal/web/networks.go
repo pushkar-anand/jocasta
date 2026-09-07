@@ -47,6 +47,7 @@ func (h *Handler) network(sm *auth.Session) response.HandlerFunc {
 		}
 
 		h.htmlWriter.Success(w, r, templatePageNetwork, data)
+
 		return nil
 	}
 }
@@ -81,6 +82,7 @@ func (h *Handler) networkRows(sm *auth.Session) response.HandlerFunc {
 		w.Header().Set("HX-Push-Url", data.canonical())
 
 		h.htmlWriter.Success(w, r, templatePartialDeviceRows, data)
+
 		return nil
 	}
 }

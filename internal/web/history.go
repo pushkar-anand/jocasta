@@ -152,6 +152,7 @@ func (h *Handler) events(sm *auth.Session) response.HandlerFunc {
 		}
 
 		h.htmlWriter.Success(w, r, templatePageEvents, data)
+
 		return nil
 	}
 }
@@ -188,6 +189,7 @@ func (h *Handler) scans(sm *auth.Session) response.HandlerFunc {
 		}
 
 		h.htmlWriter.Success(w, r, templatePageScans, data)
+
 		return nil
 	}
 }

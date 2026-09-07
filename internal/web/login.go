@@ -28,6 +28,7 @@ func (h *Handler) login(
 		}
 
 		h.htmlWriter.Success(w, r, TemplateLogin, loginData{Title: "Sign in"})
+
 		return nil
 	}
 }
@@ -41,8 +42,10 @@ func (h *Handler) loginForm(
 		Password   string `schema:"password" validate:"required,min=8,max=1000"`
 		RememberMe bool   `schema:"remember_me"`
 	}
+
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
+
 		input, err := h.reader.ReadAndValidateForm[loginForm](r)
 		if err != nil {
 			return err
@@ -69,6 +72,7 @@ func (h *Handler) logout(sm *auth.Session) response.HandlerFunc {
 		}
 
 		http.Redirect(w, r, "/login", http.StatusFound)
+
 		return nil
 	}
 }

@@ -319,6 +319,7 @@ func TestPortOverviewSummarisesCurrentServicesAndChanges(t *testing.T) {
 		ExcludeIgnored: true,
 	})
 	require.NoError(t, err)
+
 	for _, event := range changes.Events {
 		assert.Equal(t, "host-a", event.DeviceName)
 	}

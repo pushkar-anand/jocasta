@@ -1,9 +1,17 @@
 package web
 
+// These template names are rendered from outside this package: internal/server
+// maps HTTP status codes to them through the error pipeline.
 const (
 	TemplateLogin = "page/login"
 	TemplateSetup = "page/setup"
 
+	TemplateBadRequest = "page/badrequest"
+	TemplateNotFound   = "page/notfound"
+	TemplateForbidden  = "page/forbidden"
+)
+
+const (
 	templatePageDashboard = "page/dashboard"
 	templatePageDevices   = "page/devices"
 	templatePageDevice    = "page/device"
@@ -19,8 +27,4 @@ const (
 	templatePartialDeviceRow     = "partial/device-row"
 	templatePartialDeviceRowForm = "partial/device-row-form"
 	templatePartialDevicePanel   = "partial/device-panel"
-
-	TemplateBadRequest = "page/badrequest"
-	TemplateNotFound   = "page/notfound"
-	TemplateForbidden  = "page/forbidden"
 )
