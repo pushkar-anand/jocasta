@@ -1340,6 +1340,15 @@ input[type="radio"] {
     display: contents;
 }
 
+/* The search controller hides obsolete results while updating or on failure. */
+#device-rows[hidden] {
+    display: none;
+}
+
+#device-filter-status:empty {
+    margin: 0;
+}
+
 /* Declared here because the policy refuses the style element htmx would inject
    for them. Same rules, from a stylesheet this origin served. */
 .htmx-indicator {
