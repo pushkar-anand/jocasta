@@ -1018,6 +1018,29 @@ tbody tr:hover {
     gap: 6px 9px;
 }
 
+/* A cell that stacks a primary value over a secondary one -- an address over the
+   ports on it, a hardware address over its vendor -- so two facts share a column
+   without two columns' width. */
+.cell--lines {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+}
+
+/* Ports on an address: small numbers that wrap rather than stretch the column. */
+.chiprow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.chip--port {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    text-transform: none;
+    padding: 1px 6px;
+}
+
 .strong {
     font-weight: 600;
 }
@@ -1255,6 +1278,23 @@ input[type="radio"] {
     padding: 0 10px;
     font-size: 12px;
     font-weight: 500;
+}
+
+/* A button that is only its glyph -- the row's Edit action. Square and full
+   height so it stays a comfortable target where a text button would be cramped;
+   the accessible name rides on aria-label. */
+.btn--icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+}
+
+.btn--icon svg {
+    width: 16px;
+    height: 16px;
 }
 
 .more {
@@ -1497,6 +1537,80 @@ input[type="radio"] {
 
     .filters .check {
         flex-basis: 100%;
+    }
+}
+
+/* The device list carries more columns than a phone can lay side by side. Below
+   this width every row becomes a stacked card: the name leads, each other cell
+   sits on its own line keyed by its data-label, and nothing is left to scroll
+   sideways. Scoped to #device-rows so the shorter Users and Tokens tables keep
+   their ordinary shape. */
+@media (max-width: 40rem) {
+    #device-rows thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    #device-rows table,
+    #device-rows tbody,
+    #device-rows tr,
+    #device-rows td {
+        display: block;
+    }
+
+    #device-rows tbody tr {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    #device-rows tbody tr:last-child {
+        border-bottom: none;
+    }
+
+    #device-rows tbody tr:hover {
+        background: none;
+    }
+
+    #device-rows td {
+        padding: 4px 0;
+        border: none;
+    }
+
+    /* The one cell without a data-label is the name; it leads and needs no key. */
+    #device-rows td[data-label] {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+    }
+
+    #device-rows td[data-label]::before {
+        content: attr(data-label);
+        flex: 0 0 auto;
+        padding-top: 2px;
+        color: var(--text-3);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+
+    /* The value sits opposite its label. */
+    #device-rows td[data-label] .cell--lines,
+    #device-rows td[data-label] .cell--wrap {
+        align-items: flex-end;
+        text-align: right;
+    }
+
+    /* The colspan edit form is one block, not a labelled cell. */
+    #device-rows tr.editing td {
+        display: block;
+        padding: 0;
     }
 }
 

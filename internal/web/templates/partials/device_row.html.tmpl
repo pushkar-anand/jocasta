@@ -12,8 +12,20 @@
             <a class="strong" href="/devices/{{ .ID }}">{{ .Name }}</a>
         </span>
     </td>
-    <td class="mono">{{ addrs .Current }}</td>
-    <td>
+    {{- /* The addresses the device answers on, and the ports it answers on
+           there: a device's open ports are always on one of its addresses, so
+           they share the cell rather than take a column of their own. */}}
+    <td data-label="Addresses">
+        <span class="cell cell--lines">
+            <span class="mono">{{ addrs .Current }}</span>
+            {{- with .OpenPorts }}
+            <span class="chiprow">
+                {{- range . }}<span class="chip chip--port">{{ . }}</span>{{- end }}
+            </span>
+            {{- end }}
+        </span>
+    </td>
+    <td data-label="Network">
         {{- if .Networks }}
         <span class="cell cell--wrap">
             {{- range .Networks }}
@@ -25,17 +37,26 @@
         <span class="dim">&mdash;</span>
         {{- end }}
     </td>
-    <td class="mono dim">{{ ports .OpenPorts }}</td>
-    <td class="mono dim">{{ dash .MAC }}{{ if .Randomised }} <span class="chip chip--warn">randomised</span>{{ end }}</td>
-    <td class="dim">{{ dash .Vendor }}</td>
-    <td class="dim">{{ dash .Group }}</td>
-    <td class="dim">{{ ago .LastSeen }}</td>
+    {{- /* The hardware address and who made it: one fact about the silicon, so
+           one cell. */}}
+    <td data-label="Hardware">
+        <span class="cell cell--lines">
+            <span class="mono dim">{{ dash .MAC }}{{ if .Randomised }} <span class="chip chip--warn">randomised</span>{{ end }}</span>
+            {{- with .Vendor }}<span class="dim">{{ . }}</span>{{ end }}
+        </span>
+    </td>
+    <td class="dim" data-label="Group">{{ dash .Group }}</td>
+    <td class="dim" data-label="Last seen">{{ ago .LastSeen }}</td>
     <td class="cell--end">
         {{- if .CanWrite }}
-        <button type="button" class="btn btn--quiet btn--sm"
+        <button type="button" class="btn btn--quiet btn--icon"
+                aria-label="Edit {{ .Name }}" title="Edit"
                 hx-get="/devices/{{ .ID }}/edit"
                 hx-target="#device-row-{{ .ID }}"
-                hx-swap="outerHTML">Edit</button>
+                hx-swap="outerHTML">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10-10a2.8 2.8 0 10-4-4L4 16v4z"/></svg>
+        </button>
         {{- end }}
     </td>
 </tr>
