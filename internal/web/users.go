@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 type userRow struct {
 	ID        int64
 	Username  string
-	Role      string
+	Role      dbtype.UserRole
 	CreatedAt time.Time
 }
 
@@ -24,7 +25,7 @@ func newUserRow(u *models.User) userRow {
 	return userRow{
 		ID:        u.ID,
 		Username:  u.Username,
-		Role:      string(u.Role),
+		Role:      u.Role,
 		CreatedAt: u.CreatedAt.Time,
 	}
 }
@@ -34,9 +35,13 @@ type usersData struct {
 	view
 	Users []userRow
 
-	// Error carries the reason a create was refused -- a username already
-	// taken -- from the createUser POST across its redirect to here, in a
-	// one-shot flash the GET reads and clears.
+	// CurrentUserID marks the signed-in admin's own row.
+	CurrentUserID int64
+
+	// Created and Error are one-shot flashes from the createUser POST, read and
+	// cleared by the GET it redirects to. Username and SelectedRole preserve the
+	// non-secret form values alongside Error.
+	Created      string
 	Error        string
 	Username     string
 	SelectedRole string
@@ -57,13 +62,14 @@ func userList(ctx context.Context, a *auth.Auth) ([]userRow, error) {
 	return list, nil
 }
 
-// flashUserError is the session key createUser leaves the reason a create was
-// refused under, for the redirected-to GET to show once and clear.
-const flashUserError = "flash.user_error"
-
-// Preserve only non-secret form values across a failed creation redirect.
-const flashUserUsername = "flash.user_username"
-const flashUserRole = "flash.user_role"
+// One-shot flashes createUser leaves for the GET it redirects to. Only
+// non-secret form values are carried back.
+const (
+	flashUserError    = "flash.user_error"
+	flashUserCreated  = "flash.user_created"
+	flashUserUsername = "flash.user_username"
+	flashUserRole     = "flash.user_role"
+)
 
 // users serves the user management page. The route is gated to an admin, so
 // the page always renders in the admin view.
@@ -76,12 +82,17 @@ func (h *Handler) users(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 			return err
 		}
 
+		currentID, _ := sm.CurrentUserID(ctx)
+
 		h.htmlWriter.Success(w, r, templatePageUsers, usersData{
 			Title: "Users", Section: "Users", Role: dbtype.RoleAdmin,
-			Users:        list,
-			Error:        sm.PopFlash(ctx, flashUserError),
-			Username:     sm.PopFlash(ctx, flashUserUsername),
-			SelectedRole: sm.PopFlash(ctx, flashUserRole),
+			SignedInAs:    sm.CurrentUsername(ctx),
+			Users:         list,
+			CurrentUserID: currentID,
+			Created:       sm.PopFlash(ctx, flashUserCreated),
+			Error:         sm.PopFlash(ctx, flashUserError),
+			Username:      sm.PopFlash(ctx, flashUserUsername),
+			SelectedRole:  sm.PopFlash(ctx, flashUserRole),
 		})
 
 		return nil
@@ -111,10 +122,17 @@ func (h *Handler) createUser(sm *auth.Session, a *auth.Auth) response.HandlerFun
 			return createErr
 		}
 
-		if errors.Is(createErr, auth.ErrUsernameTaken) {
+		switch {
+		case errors.Is(createErr, auth.ErrUsernameTaken):
 			sm.Flash(ctx, flashUserError, "That username is already taken.")
 			sm.Flash(ctx, flashUserUsername, input.Username)
 			sm.Flash(ctx, flashUserRole, input.Role)
+		default:
+			// No invite flow, so the confirmation points at sign-in.
+			sm.Flash(ctx, flashUserCreated, fmt.Sprintf(
+				"%s added as %s. They sign in at /login.",
+				input.Username, roleDisplay(dbtype.UserRole(input.Role)),
+			))
 		}
 
 		http.Redirect(w, r, "/settings/users", http.StatusSeeOther)

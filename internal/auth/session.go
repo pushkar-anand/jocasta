@@ -17,6 +17,10 @@ type Data struct {
 	// UserID is the signed-in account, or 0 when nobody is signed in.
 	UserID int64
 
+	// Username is cached here so the topbar shows the signed-in account without
+	// a per-request lookup.
+	Username string
+
 	// Role is what the account was allowed to do at the moment it signed in.
 	Role dbtype.UserRole
 
@@ -71,6 +75,16 @@ func (s *Session) CurrentUserID(ctx context.Context) (int64, bool) {
 	}
 
 	return d.UserID, true
+}
+
+// CurrentUsername returns the signed-in account's name, or "".
+func (s *Session) CurrentUsername(ctx context.Context) string {
+	d, ok := s.s.Current(ctx)
+	if !ok {
+		return ""
+	}
+
+	return d.Username
 }
 
 // CurrentRole returns the role for the User

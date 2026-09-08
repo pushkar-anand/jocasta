@@ -1,0 +1,66 @@
+{{- /*
+    One topbar control for the signed-in identity and the account actions.
+    Native <details> so it opens without script; settings.js only adds
+    Escape/outside-click close. Users is admin-only. Renders with an empty
+    name/role on the error pages, where the identity block drops out.
+    Takes view: SignedInAs, Role, Section.
+*/ -}}
+{{ define "partial/user-menu" }}
+    <details class="usermenu">
+        <summary aria-label="Account menu">
+            <span class="usermenu__avatar" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="8" r="3.4"/>
+                    <path d="M5 20c1.2-3.6 4-5 7-5s5.8 1.4 7 5"/>
+                </svg>
+            </span>
+            {{- with .SignedInAs }}<span class="usermenu__name">{{ . }}</span>{{- end }}
+            <svg class="usermenu__caret" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6 9l6 6 6-6"/>
+            </svg>
+        </summary>
+
+        <div class="usermenu__panel" role="menu">
+            {{- with .SignedInAs }}
+            <div class="usermenu__id">
+                <span class="usermenu__idname">{{ . }}</span>
+                {{- with $.Role }}<span class="chip chip--brand">{{ roledisplay . }}</span>{{- end }}
+            </div>
+            {{- end }}
+
+            {{- if eq .Role "admin" }}
+            <p class="usermenu__group">Administration</p>
+            <a class="usermenu__item" href="/settings/users"{{ if eq .Section "Users" }} aria-current="page"{{ end }} role="menuitem">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="9" cy="8" r="3.2"/>
+                    <path d="M2.5 19c1-3 3.5-4.3 6.5-4.3s5.5 1.3 6.5 4.3"/>
+                    <path d="M17 8.2a3 3 0 0 0 0-5.4M19.5 19c-.5-2-1.7-3.3-3.5-4"/>
+                </svg>
+                Users
+            </a>
+            {{- end }}
+
+            <p class="usermenu__group">Account</p>
+            <a class="usermenu__item" href="/settings/tokens"{{ if eq .Section "API tokens" }} aria-current="page"{{ end }} role="menuitem">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="8" cy="15" r="4"/>
+                    <path d="M10.8 12.2 20 3M17 6l2.5 2.5M14 9l2 2"/>
+                </svg>
+                API tokens
+            </a>
+            <form class="usermenu__signout" method="post" action="/logout">
+                <button type="submit" class="usermenu__item usermenu__item--danger" role="menuitem">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l-5-5 5-5M5 12h11"/>
+                    </svg>
+                    Sign out
+                </button>
+            </form>
+        </div>
+    </details>
+{{ end }}

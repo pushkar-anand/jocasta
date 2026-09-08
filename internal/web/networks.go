@@ -37,10 +37,11 @@ func (h *Handler) network(sm *auth.Session) response.HandlerFunc {
 		}
 
 		data, err := buildDeviceListData(r.Context(), h.store, *q, view{
-			Title:   net.CIDR,
-			Section: "Devices",
-			Crumb:   &crumb{Label: "Devices", Href: "/devices"},
-			Role:    sm.CurrentRole(r.Context()),
+			Title:      net.CIDR,
+			Section:    "Devices",
+			Crumb:      &crumb{Label: "Devices", Href: "/devices"},
+			Role:       sm.CurrentRole(r.Context()),
+			SignedInAs: sm.CurrentUsername(r.Context()),
 		}, networkPath(net.ID), net)
 		if err != nil {
 			return err

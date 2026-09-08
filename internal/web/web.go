@@ -189,12 +189,13 @@ func ErrorPageData(_ *http.Request, _ error, status int) map[string]any {
 		// signed-in shell; setup and sign-in guard their own inputs in the
 		// markup, so a crafted request is the only way they land here.
 		return map[string]any{
-			"Title":   "Bad request",
-			"Section": "",
-			"Crumb":   nil,
-			"Live":    false,
-			"Role":    dbtype.UserRole(""),
-			"Note":    "",
+			"Title":      "Bad request",
+			"Section":    "",
+			"Crumb":      nil,
+			"Live":       false,
+			"Role":       dbtype.UserRole(""),
+			"SignedInAs": "",
+			"Note":       "",
 		}
 	case http.StatusUnauthorized:
 		// The sign-in page's own fields -- see loginData -- not the signed-in
@@ -215,24 +216,26 @@ func ErrorPageData(_ *http.Request, _ error, status int) map[string]any {
 		// it is signed in, just not as an admin -- so it needs view's fields
 		// the same way the 404 case below does.
 		return map[string]any{
-			"Title":   "Forbidden",
-			"Section": "",
-			"Crumb":   nil,
-			"Live":    false,
-			"Role":    dbtype.UserRole(""),
-			"Note":    "",
+			"Title":      "Forbidden",
+			"Section":    "",
+			"Crumb":      nil,
+			"Live":       false,
+			"Role":       dbtype.UserRole(""),
+			"SignedInAs": "",
+			"Note":       "",
 		}
 	default:
 		// The 404 page is built from layout/head and layout/foot like every
 		// other page, so it needs the same view fields; every one beyond Title
 		// is left at its zero value.
 		return map[string]any{
-			"Title":   "Not found",
-			"Section": "",
-			"Crumb":   nil,
-			"Live":    false,
-			"Role":    dbtype.UserRole(""),
-			"Note":    "",
+			"Title":      "Not found",
+			"Section":    "",
+			"Crumb":      nil,
+			"Live":       false,
+			"Role":       dbtype.UserRole(""),
+			"SignedInAs": "",
+			"Note":       "",
 		}
 	}
 }

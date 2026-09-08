@@ -1,0 +1,16 @@
+{{- /*
+    Viewer/Editor picker shared by the create-user and create-token forms.
+    Built by the permchoice func. Takes permChoiceView.
+*/ -}}
+{{ define "partial/permission-choice" }}
+    <fieldset class="permchoice">
+        <legend>{{ .Legend }}</legend>
+        {{- range .Options }}
+        <label class="permchoice__opt">
+            <input type="radio" name="{{ $.Field }}" value="{{ .Value }}"{{ if .Checked }} checked{{ end }}>
+            <span class="permchoice__name">{{ .Label }}</span>
+            <span class="permchoice__hint">{{ .Hint }}</span>
+        </label>
+        {{- end }}
+    </fieldset>
+{{ end }}

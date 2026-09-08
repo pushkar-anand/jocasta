@@ -26,6 +26,66 @@ type view struct {
 	// Role is the signed-in account's role
 	Role dbtype.UserRole
 
+	// SignedInAs is the signed-in account's name, shown in the topbar account
+	// menu. Empty on the pages that render outside the signed-in shell.
+	SignedInAs string
+
 	// Note is the ambient line at the foot of the rail. Empty leaves it out.
 	Note string
+}
+
+// roleDisplay maps a stored role value to its UI label. Forms still submit the
+// stored values (read, read_write).
+func roleDisplay(role dbtype.UserRole) string {
+	switch role {
+	case dbtype.RoleAdmin:
+		return "Admin"
+	case dbtype.RoleReadWrite:
+		return "Editor"
+	case dbtype.RoleRead:
+		return "Viewer"
+	default:
+		return string(role)
+	}
+}
+
+// permOption is one radio in a permission-choice fieldset.
+type permOption struct {
+	Value   string
+	Label   string
+	Hint    string
+	Checked bool
+}
+
+// permChoiceView backs partial/permission-choice, the Viewer/Editor picker
+// shared by the create-user and create-token forms. Field is the form field
+// name; the write option is omitted when allowWrite is false.
+type permChoiceView struct {
+	Field   string
+	Legend  string
+	Options []permOption
+}
+
+func permChoice(field, legend, selected string, allowWrite bool) permChoiceView {
+	v := permChoiceView{
+		Field:  field,
+		Legend: legend,
+		Options: []permOption{{
+			Value:   string(dbtype.RoleRead),
+			Label:   roleDisplay(dbtype.RoleRead),
+			Hint:    "Reads the inventory. Can create read tokens.",
+			Checked: selected != string(dbtype.RoleReadWrite),
+		}},
+	}
+
+	if allowWrite {
+		v.Options = append(v.Options, permOption{
+			Value:   string(dbtype.RoleReadWrite),
+			Label:   roleDisplay(dbtype.RoleReadWrite),
+			Hint:    "Also edits device labels and groups. Can create read/write tokens.",
+			Checked: selected == string(dbtype.RoleReadWrite),
+		})
+	}
+
+	return v
 }
