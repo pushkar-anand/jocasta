@@ -66,6 +66,16 @@
     --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 
+    /* Text levels, largest to smallest: page title, section heading, sub-section
+       and field label (same size, both uppercase), running text, supporting
+       text. A page reads down this ladder; nothing sets a size off it. */
+    --fs-h1: 22px;
+    --fs-h2: 15px;
+    --fs-h3: 12px;
+    --fs-label: 11px;
+    --fs-body: 14px;
+    --fs-support: 12.5px;
+
     --rail: 240px;
     --pad: 32px;
 }
@@ -86,7 +96,7 @@ body {
     background: var(--bg);
     color: var(--text);
     font-family: var(--sans);
-    font-size: 14px;
+    font-size: var(--fs-body);
     line-height: 1.55;
     -webkit-text-size-adjust: 100%;
 }
@@ -103,6 +113,41 @@ a:hover {
 :focus-visible {
     outline: 2px solid var(--brand);
     outline-offset: 2px;
+}
+
+/* First tab stop on every page in the shell: off-screen until focused, then
+   pinned over the sticky topbar (z-index 10) and the mobile rail (20). */
+.skip-link {
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    z-index: 30;
+    padding: 8px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-card);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    transform: translateY(-150%);
+}
+
+.skip-link:focus {
+    transform: none;
+    text-decoration: none;
+}
+
+/* The skip link's target. A programmatic focus stop, not a control -- the
+   content shifting into view and its heading are the cue, so no ring. */
+.main:focus {
+    outline: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .skip-link {
+        transition: transform 0.15s ease;
+    }
 }
 
 .shell {
@@ -303,9 +348,10 @@ a:hover {
 
 h1 {
     margin: 0;
-    font-size: 17px;
+    font-size: var(--fs-h1);
     font-weight: 700;
-    letter-spacing: -0.01em;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
 }
 
 .topbar__live {
@@ -351,12 +397,12 @@ h1 {
     color: var(--text-3);
 }
 
-/* A block is a titled run of content: the eyebrow, whatever sits opposite it,
-   and the thing itself. */
+/* A block is a titled run of content: the section heading, whatever sits
+   opposite it, and the thing itself. */
 .block {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
 }
 
 .block__head {
@@ -366,13 +412,51 @@ h1 {
     gap: 16px;
 }
 
-.eyebrow {
+/* h2. The section a page breaks into: named, in body colour, and carrying a
+   hairline the width of the block so the break is visible and not just a word. */
+.section {
     margin: 0;
-    font-size: 11px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    font-size: var(--fs-h2);
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    color: var(--text);
+}
+
+/* When a count or link sits opposite the heading, the rule spans the whole row
+   instead of stopping under the text. Every .block__head carries a heading. */
+.block__head {
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.block__head .section {
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+
+/* h3. A part within a section -- "Common services" under "Ports & services".
+   The old eyebrow look, now with a level in the outline behind it. */
+.sub {
+    margin: 0;
+    font-size: var(--fs-h3);
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--text-3);
+    color: var(--text-2);
+}
+
+/* A field label: the small caps above an input. Same size as h3, one step
+   darker than supporting text so it reads as a control's name. */
+.eyebrow {
+    margin: 0;
+    font-size: var(--fs-label);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-2);
 }
 
 /* The count or aside that sits at the far end of a block's heading. */
@@ -1082,7 +1166,7 @@ tbody tr:hover {
 
 .note {
     margin: 0;
-    font-size: 12.5px;
+    font-size: var(--fs-support);
     line-height: 1.55;
     color: var(--text-3);
     max-width: 56ch;
