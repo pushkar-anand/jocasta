@@ -20,7 +20,7 @@
                 {{- with change $event }} <span class="act__detail">{{ . }}</span>{{ end -}}
             </p>
 
-            <time class="act__when" datetime="{{ .At.Format "2006-01-02T15:04:05Z07:00" }}">{{ ago .At }}</time>
+            {{ stamp .At "act__when" }}
         </li>
         {{- end }}
     </ul>

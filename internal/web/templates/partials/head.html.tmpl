@@ -82,7 +82,9 @@
         </p>
         {{- end }}
 
-        <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
+        {{- /* theme.js sets aria-label to the next action and aria-pressed to the
+               current theme once it can see the button. */}}
+        <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Switch colour theme" aria-pressed="false">
             <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="5"></circle>
                 <line x1="12" y1="1" x2="12" y2="3"></line>

@@ -62,8 +62,8 @@
                                     <span class="chip chip--quiet chip--label">Viewer</span>
                                 {{- end }}
                             </td>
-                            <td class="dim">{{ ago .CreatedAt }}</td>
-                            <td class="dim">{{ ago .LastUsedAt }}</td>
+                            <td class="dim">{{ stamp .CreatedAt "" }}</td>
+                            <td class="dim">{{ stamp .LastUsedAt "" }}</td>
                             <td>
                                 <button type="button" class="btn btn--quiet btn--sm btn--danger"
                                         hx-delete="/settings/tokens/{{ .ID }}"

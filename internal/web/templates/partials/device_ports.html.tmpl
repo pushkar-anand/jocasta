@@ -31,10 +31,10 @@
                     {{- if .Open }}
                     <span class="chip chip--ok">open</span>
                     {{- else }}
-                    <span class="chip">closed {{ ago .ChangedAt }}</span>
+                    <span class="chip">closed {{ stamp .ChangedAt "" }}</span>
                     {{- end }}
                 </td>
-                <td class="dim">{{ ago .FirstSeen }}</td>
+                <td class="dim">{{ stamp .FirstSeen "" }}</td>
             </tr>
             {{- end }}
             </tbody>

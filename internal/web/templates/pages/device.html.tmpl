@@ -46,8 +46,8 @@
                         <span class="chip">released</span>
                         {{- end }}
                     </td>
-                    <td class="dim">{{ ago .FirstSeen }}</td>
-                    <td class="dim">{{ ago .LastSeen }}</td>
+                    <td class="dim">{{ stamp .FirstSeen "" }}</td>
+                    <td class="dim">{{ stamp .LastSeen "" }}</td>
                 </tr>
                 {{- end }}
                 </tbody>

@@ -51,7 +51,7 @@
         </span>
     </td>
     <td class="dim" data-label="Group">{{ dash .Group }}</td>
-    <td class="dim" data-label="Last seen">{{ ago .LastSeen }}</td>
+    <td class="dim" data-label="Last seen">{{ stamp .LastSeen "" }}</td>
     <td class="cell--end">
         {{- if .CanWrite }}
         <button type="button" class="btn btn--quiet btn--icon"
