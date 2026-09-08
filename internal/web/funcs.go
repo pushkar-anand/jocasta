@@ -31,6 +31,7 @@ const em = "—"
 func funcs(now func() time.Time) template.FuncMap {
 	return template.FuncMap{
 		"ago":          func(t time.Time) string { return ago(now(), t) },
+		"stamp":        func(t time.Time, class string) template.HTML { return stamp(now(), t, class) },
 		"decay":        func(t time.Time) string { return decay(now(), t) },
 		"dash":         dash,
 		"pct":          pct,
@@ -94,6 +95,40 @@ func ago(now, t time.Time) string {
 	}
 
 	return t.Format("2 Jan 2006")
+}
+
+// stamp renders t as a <time> element: the coarse relative label ago gives, with
+// the exact local time and zone on the title for anyone who needs the precise
+// moment. A zero time has no moment to place, so it stays a bare word. class,
+// when given, is a caller-set literal for the few timestamps that need styling.
+func stamp(now, t time.Time, class string) template.HTML {
+	var b strings.Builder
+
+	b.WriteString("<time")
+
+	if class != "" {
+		b.WriteString(` class="`)
+		b.WriteString(template.HTMLEscapeString(class))
+		b.WriteString(`"`)
+	}
+
+	if t.IsZero() {
+		b.WriteString(">never</time>")
+	} else {
+		local := t.Local()
+
+		b.WriteString(` datetime="`)
+		b.WriteString(local.Format(time.RFC3339))
+		b.WriteString(`" title="`)
+		b.WriteString(local.Format("Mon 2 Jan 2006, 15:04 MST"))
+		b.WriteString(`">`)
+		b.WriteString(ago(now, t))
+		b.WriteString("</time>")
+	}
+
+	// Fixed element shape, timestamps straight from time.Format, and a class
+	// that is always a template literal -- nothing here is caller-supplied text.
+	return template.HTML(b.String()) //nolint:gosec // G203: no user input in the parts
 }
 
 // decay is the class naming how stale t is.

@@ -41,6 +41,27 @@ func TestAgo(t *testing.T) {
 	}
 }
 
+func TestStamp(t *testing.T) {
+	t.Parallel()
+
+	seen := now.Add(-4 * time.Minute)
+	got := string(stamp(now, seen, ""))
+
+	assert.Contains(t, got, "<time ")
+	assert.Contains(t, got, ">4m ago</time>", "carries the relative label ago gives")
+	assert.Contains(t, got, `datetime="`+seen.Local().Format(time.RFC3339)+`"`)
+	assert.Contains(t, got, `title="`+seen.Local().Format("Mon 2 Jan 2006, 15:04 MST")+`"`,
+		"the exact moment and zone are on the title")
+
+	// A class rides through for the few timestamps that need styling.
+	assert.Contains(t, string(stamp(now, seen, "act__when")), `class="act__when"`)
+
+	// Nothing was ever seen: no moment to place, so no datetime or title.
+	zero := string(stamp(now, time.Time{}, ""))
+	assert.Equal(t, "<time>never</time>", zero)
+	assert.Equal(t, `<time class="act__when">never</time>`, string(stamp(now, time.Time{}, "act__when")))
+}
+
 func TestDecay(t *testing.T) {
 	t.Parallel()
 
@@ -201,7 +222,7 @@ func TestFuncsCoverEveryHelperTheTemplatesUse(t *testing.T) {
 
 	registered := funcs(func() time.Time { return now })
 
-	for _, name := range []string{"ago", "decay", "dash", "pct", "took", "phrase", "tone", "eventIcon", "health", "statusClass", "change"} {
+	for _, name := range []string{"ago", "stamp", "decay", "dash", "pct", "took", "phrase", "tone", "eventIcon", "health", "statusClass", "change"} {
 		assert.Contains(t, registered, name)
 	}
 }

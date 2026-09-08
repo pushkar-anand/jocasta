@@ -24,7 +24,7 @@
                 <tbody>
                 {{- range .Scans }}
                 <tr>
-                    <td class="dim">{{ ago .StartedAt }}</td>
+                    <td class="dim">{{ stamp .StartedAt "" }}</td>
                     <td class="strong">{{ .Source }}</td>
                     <td class="mono">{{ dash .Network }}</td>
                     <td class="num">{{ .Found }}</td>

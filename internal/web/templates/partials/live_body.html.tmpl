@@ -90,7 +90,7 @@
                 <div><dt>Found</dt><dd>{{ .Found }}</dd></div>
                 <div><dt>Took</dt><dd>{{ took . }}</dd></div>
                 <div><dt>Kind</dt><dd class="lower">{{ .Kind }}</dd></div>
-                <div><dt>Started</dt><dd class="dim">{{ ago .StartedAt }}</dd></div>
+                <div><dt>Started</dt><dd class="dim">{{ stamp .StartedAt "" }}</dd></div>
             </dl>
             {{- with .Error }}
             <p class="failure">{{ . }}</p>
@@ -150,7 +150,7 @@
                     <div><dt>Source</dt><dd>{{ .Source }}</dd></div>
                     <div><dt>Found</dt><dd>{{ .Found }} open</dd></div>
                     <div><dt>Took</dt><dd>{{ took . }}</dd></div>
-                    <div><dt>Started</dt><dd class="dim">{{ ago .StartedAt }}</dd></div>
+                    <div><dt>Started</dt><dd class="dim">{{ stamp .StartedAt "" }}</dd></div>
                 </dl>
                 {{- else }}
                 <p class="dim">No port scan has been recorded yet.</p>
@@ -168,7 +168,7 @@
                     <span class="dot"></span>
                     <a href="/devices/{{ .DeviceID }}">{{ .DeviceName }}</a>
                     <span>{{ phrase .Kind }}{{ with change $event }} {{ . }}{{ end }}</span>
-                    <time datetime="{{ .At.Format "2006-01-02T15:04:05Z07:00" }}">{{ ago .At }}</time>
+                    {{ stamp .At "" }}
                 </li>
                 {{- end }}
             </ul>
