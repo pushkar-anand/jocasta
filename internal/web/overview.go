@@ -111,6 +111,7 @@ func buildOverviewData(
 		// mounts the poller once it has an inventory to poll for -- an empty
 		// one renders the invitation instead, with nothing that ticks.
 		Title: "Overview", Section: "Overview", Live: stats.Total > 0,
+		Window:     windowWords(store.OnlineWindow()),
 		Stats:      stats,
 		Ports:      ports,
 		PortEvents: portActivity.Events,

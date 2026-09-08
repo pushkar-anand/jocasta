@@ -56,6 +56,12 @@ type Store struct {
 	addressGrace time.Duration
 }
 
+// OnlineWindow is how recently a device must have been seen to count as online.
+// The web layer shows it so "seen recently" is not an unexplained threshold.
+func (s *Store) OnlineWindow() time.Duration {
+	return s.onlineWindow
+}
+
 // Option configures a Store.
 type Option func(*Store)
 

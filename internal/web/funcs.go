@@ -33,6 +33,8 @@ func funcs(now func() time.Time) template.FuncMap {
 		"ago":          func(t time.Time) string { return ago(now(), t) },
 		"stamp":        func(t time.Time, class string) template.HTML { return stamp(now(), t, class) },
 		"decay":        func(t time.Time) string { return decay(now(), t) },
+		"dot":          func(t time.Time) template.HTML { return dot(now(), t) },
+		"healthLabel":  healthLabel,
 		"dash":         dash,
 		"pct":          pct,
 		"took":         took,
@@ -129,6 +131,40 @@ func stamp(now, t time.Time, class string) template.HTML {
 	// Fixed element shape, timestamps straight from time.Format, and a class
 	// that is always a template literal -- nothing here is caller-supplied text.
 	return template.HTML(b.String()) //nolint:gosec // G203: no user input in the parts
+}
+
+// presenceLabel is the spoken status behind a dot: the words the legends use, so
+// the dot and the legend agree for a reader who only hears one of them. It is
+// coarser than decay's four buckets on purpose -- "recently" covers both greens.
+func presenceLabel(now, t time.Time) string {
+	if t.IsZero() {
+		return "Not seen"
+	}
+
+	switch d := now.Sub(t); {
+	case d < decayRecent:
+		return "Seen recently"
+	case d < decayStale:
+		return "Quiet"
+	}
+
+	return "Long quiet"
+}
+
+// dot is a presence indicator: decay's shading with a text alternative, since
+// the colour alone says nothing to a screen reader or a reader who cannot tell
+// the two greens apart. The label pairs the coarse status with how long ago the
+// last sighting was.
+func dot(now, t time.Time) template.HTML {
+	label := presenceLabel(now, t)
+	if !t.IsZero() {
+		label += " — " + ago(now, t)
+	}
+
+	// Fixed element, class from decay, label from presenceLabel and ago --
+	// every part is this package's, none of it is caller-supplied text.
+	return template.HTML(`<span class="dot ` + decay(now, t) + `" role="img" aria-label="` + //nolint:gosec // G203: no user input in the parts
+		template.HTMLEscapeString(label) + `"></span>`)
 }
 
 // decay is the class naming how stale t is.
@@ -280,6 +316,40 @@ func health(n *inventory.Network) string {
 	}
 
 	return "dot--ok"
+}
+
+// healthLabel is the spoken form of health, for a reader who only hears the
+// network's status dot.
+func healthLabel(n *inventory.Network) string {
+	switch {
+	case n == nil || n.Total == 0:
+		return "Nothing recorded yet"
+	case n.Offline*3 > n.Total:
+		return "A third or more quiet"
+	}
+
+	return "Mostly answering"
+}
+
+// windowWords says a duration the way a caption would: the online window is
+// configured as a Go duration, and "15m0s" is not a sentence.
+func windowWords(d time.Duration) string {
+	switch {
+	case d <= 0:
+		return "a few minutes"
+	case d < time.Hour:
+		if m := int(d.Minutes()); m != 1 {
+			return strconv.Itoa(m) + " minutes"
+		}
+
+		return "1 minute"
+	case d%time.Hour != 0:
+		return strconv.Itoa(int(d.Minutes())) + " minutes"
+	case d == time.Hour:
+		return "1 hour"
+	}
+
+	return strconv.Itoa(int(d.Hours())) + " hours"
 }
 
 // statusClass is the chip a scan status is drawn as. Cancelled is not failure,

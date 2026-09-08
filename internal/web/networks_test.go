@@ -39,6 +39,9 @@ func TestNetworkPage(t *testing.T) {
 
 	// The way back leads to the device list, which the page is a scoped view of.
 	assert.Contains(t, body, `href="/devices"`)
+
+	// The presence legend explains the window it counts over.
+	assert.Contains(t, body, "answered a sweep in the last 15 minutes")
 }
 
 // The filter narrows the list without leaving the network's page.

@@ -25,10 +25,13 @@
         </svg>
 
         <ul class="legend">
-            <li><span class="dot dot--ok"></span>Seen recently <strong>{{ .Online }}</strong></li>
-            <li><span class="dot dot--warn"></span>Quiet <strong>{{ .Offline }}</strong></li>
-            <li><span class="dot dot--quiet"></span>On this network <strong>{{ .Total }}</strong></li>
+            <li><span class="dot dot--ok" aria-hidden="true"></span>Seen recently <strong>{{ .Online }}</strong></li>
+            <li><span class="dot dot--warn" aria-hidden="true"></span>Quiet <strong>{{ .Offline }}</strong></li>
+            <li><span class="dot dot--quiet" aria-hidden="true"></span>On this network <strong>{{ .Total }}</strong></li>
         </ul>
+        {{- with $.Window }}
+        <p class="note">&ldquo;Seen recently&rdquo; counts devices that answered a sweep in the last {{ . }}.</p>
+        {{- end }}
     </div>
 </section>
 {{- end }}
