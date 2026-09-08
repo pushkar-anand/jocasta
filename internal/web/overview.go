@@ -44,6 +44,7 @@ func (h *Handler) overview(sm *auth.Session) response.HandlerFunc {
 		}
 
 		data.Role = sm.CurrentRole(r.Context())
+		data.SignedInAs = sm.CurrentUsername(r.Context())
 
 		h.htmlWriter.Success(w, r, templatePageDashboard, data)
 

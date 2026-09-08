@@ -4,44 +4,29 @@
     <section class="block">
         <div class="block__head">
             <p class="eyebrow">Users</p>
-            <p class="block__aside">Accounts that can sign in to this instance.</p>
+            <div class="block__headend">
+                <p class="block__aside">{{ len .Users }} account{{ if ne (len .Users) 1 }}s{{ end }}</p>
+                <button type="button" class="btn btn--sm" data-open="user-dialog">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    Add user
+                </button>
+            </div>
         </div>
 
-        {{- with .Error }}
-            <p class="failure" id="username-error" role="alert">{{ . }} Choose another username and re-enter the password.</p>
+        {{- with .Created }}
+            <p class="notice notice--ok" role="status">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M20 6 9 17l-5-5"/>
+                </svg>
+                <span>{{ . }}</span>
+            </p>
         {{- end }}
 
-        <div class="card panel">
-            <form method="post" action="/settings/users" class="tokenform">
-                <label class="stack">
-                    <span class="eyebrow">Username</span>
-                    <input class="input" type="text" name="username" autocomplete="off" minlength="3"
-                           maxlength="100" value="{{ .Username }}" aria-describedby="username-help{{ if .Error }} username-error{{ end }}"
-                           {{ if .Error }}aria-invalid="true" autofocus{{ end }} required>
-                    <span class="dim" id="username-help">3–100 characters.</span>
-                </label>
-
-                <label class="stack">
-                    <span class="eyebrow">Password</span>
-                    <input class="input" type="password" name="password" autocomplete="new-password" minlength="8"
-                           maxlength="1000" aria-describedby="password-help" required>
-                    <span class="dim" id="password-help">8–1000 characters. Re-enter after a failed attempt.</span>
-                </label>
-
-                <fieldset class="tokenform__scope">
-                    <label class="check">
-                        <input type="radio" name="role" value="read"{{ if ne .SelectedRole "read_write" }} checked{{ end }}>
-                        Read
-                    </label>
-                    <label class="check">
-                        <input type="radio" name="role" value="read_write"{{ if eq .SelectedRole "read_write" }} checked{{ end }}>
-                        Read &amp; write
-                    </label>
-                </fieldset>
-
-                <button type="submit" class="btn btn--sm">Create user</button>
-            </form>
-        </div>
+        <p class="note">One admin per instance. Accounts you add are Viewer or Editor.</p>
 
         {{- if .Users }}
             <div class="card card--table">
@@ -57,14 +42,17 @@
                         <tbody>
                         {{- range .Users }}
                             <tr>
-                                <td class="strong">{{ .Username }}</td>
+                                <td class="cell strong">
+                                    {{ .Username }}
+                                    {{- if eq .ID $.CurrentUserID }} <span class="chip chip--quiet chip--label">You</span>{{ end }}
+                                </td>
                                 <td>
                                     {{- if eq .Role "admin" }}
                                         <span class="chip chip--brand">Admin</span>
                                     {{- else if eq .Role "read_write" }}
-                                        <span class="chip chip--brand">Read &amp; write</span>
+                                        <span class="chip chip--brand">Editor</span>
                                     {{- else }}
-                                        <span class="chip chip--quiet">Read</span>
+                                        <span class="chip chip--quiet chip--label">Viewer</span>
                                     {{- end }}
                                 </td>
                                 <td class="dim">{{ ago .CreatedAt }}</td>
@@ -77,6 +65,59 @@
         {{- else }}
             <p class="dim">No users yet.</p>
         {{- end }}
+
+        {{- /* open on error so the round-trip works without settings.js; the
+               script upgrades it to a real modal. */}}
+        <dialog class="modal" id="user-dialog" aria-labelledby="user-dialog-title"{{ if .Error }} open{{ end }}>
+            <div class="modal__head">
+                <div>
+                    <h2 class="modal__title" id="user-dialog-title">Add a user</h2>
+                    <p class="modal__sub">You set the first password and pass it on.</p>
+                </div>
+                <button type="button" class="modal__close" data-close aria-label="Close">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M6 6l12 12M18 6 6 18"/>
+                    </svg>
+                </button>
+            </div>
+
+            <form method="post" action="/settings/users">
+                <div class="modal__body">
+                    {{- with .Error }}
+                        <p class="failure" id="username-error" role="alert">{{ . }}</p>
+                    {{- end }}
+
+                    <label class="stack">
+                        <span class="eyebrow">Username</span>
+                        <input class="input" type="text" name="username" autocomplete="off" minlength="3"
+                               maxlength="100" value="{{ .Username }}" autofocus
+                               aria-describedby="username-help{{ if .Error }} username-error{{ end }}"
+                               {{ if .Error }}aria-invalid="true"{{ end }} required>
+                        <span class="dim" id="username-help">3&ndash;100 characters.</span>
+                    </label>
+
+                    <div class="formrow">
+                        <label class="eyebrow" for="new-user-password">Password</label>
+                        <div class="pw-field">
+                            <input class="input" id="new-user-password" type="password" name="password"
+                                   autocomplete="new-password" minlength="8" maxlength="1000"
+                                   aria-describedby="password-help" required>
+                            <button type="button" class="pw-toggle" data-pw-toggle
+                                    aria-controls="new-user-password" aria-pressed="false">Show</button>
+                        </div>
+                        <span class="dim" id="password-help">At least 8 characters.</span>
+                    </div>
+
+                    {{ template "partial/permission-choice" (permchoice "role" "Role" .SelectedRole true) }}
+                </div>
+
+                <div class="modal__foot">
+                    <button type="button" class="btn btn--quiet btn--sm" data-close>Cancel</button>
+                    <button type="submit" class="btn btn--sm">Create user</button>
+                </div>
+            </form>
+        </dialog>
     </section>
 
     {{- template "layout/foot" . }}

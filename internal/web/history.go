@@ -112,8 +112,9 @@ func (h *Handler) events(sm *auth.Session) response.HandlerFunc {
 
 		data := &logData{
 			Title: "Events", Section: "Events", Role: sm.CurrentRole(ctx),
-			Path:   "/events",
-			Cursor: token,
+			SignedInAs: sm.CurrentUsername(ctx),
+			Path:       "/events",
+			Cursor:     token,
 		}
 
 		window := inventory.Page{Limit: logPageSize, Cursor: from}
@@ -170,8 +171,9 @@ func (h *Handler) scans(sm *auth.Session) response.HandlerFunc {
 
 		data := &logData{
 			Title: "Scans", Section: "Scans", Role: sm.CurrentRole(ctx),
-			Path:   "/scans",
-			Cursor: token,
+			SignedInAs: sm.CurrentUsername(ctx),
+			Path:       "/scans",
+			Cursor:     token,
 		}
 
 		page, err := h.store.ListScans(ctx, inventory.Page{Limit: logPageSize, Cursor: from})

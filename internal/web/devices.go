@@ -44,6 +44,7 @@ func (h *Handler) listDevices(sm *auth.Session) response.HandlerFunc {
 		}
 
 		data.Role = sm.CurrentRole(r.Context())
+		data.SignedInAs = sm.CurrentUsername(r.Context())
 
 		h.htmlWriter.Success(w, r, templatePageDevices, data)
 
@@ -104,6 +105,7 @@ func (h *Handler) device(sm *auth.Session) response.HandlerFunc {
 		}
 
 		data.Role = sm.CurrentRole(r.Context())
+		data.SignedInAs = sm.CurrentUsername(r.Context())
 
 		h.htmlWriter.Success(w, r, templatePageDevice, data)
 

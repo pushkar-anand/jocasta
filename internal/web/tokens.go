@@ -68,6 +68,7 @@ func (h *Handler) tokens(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 			Title:          "API tokens",
 			Section:        "API tokens",
 			Role:           sm.CurrentRole(ctx),
+			SignedInAs:     sm.CurrentUsername(ctx),
 			Tokens:         list,
 			PlaintextToken: sm.PopFlash(ctx, flashTokenPlaintext),
 		})

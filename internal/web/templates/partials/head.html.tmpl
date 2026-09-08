@@ -19,6 +19,7 @@
     <script src="/static/js/theme.js"></script>
     <script src="/static/js/htmx.min.js" defer></script>
     <script src="/static/js/device-filters.js" defer></script>
+    <script src="/static/js/settings.js" defer></script>
 </head>
 <body>
 <div class="shell">
@@ -79,19 +80,6 @@
         </p>
         {{- end }}
 
-        {{- /* Account-level links, not a section of their own, so they sit here
-               rather than in the rail: reachable from every screen and at every
-               width, unlike the rail, which collapses to a strip on a phone.
-               Users is admin-only -- the page turns everyone else away, so the
-               link is not shown to them. */}}
-        {{- if eq .Role "admin" }}
-        <a class="btn btn--quiet btn--sm" href="/settings/users"{{ if eq .Section "Users" }} aria-current="page"{{ end }}>Users</a>
-        {{- end }}
-        <a class="btn btn--quiet btn--sm" href="/settings/tokens"{{ if eq .Section "API tokens" }} aria-current="page"{{ end }}>API tokens</a>
-        <form class="topbar__signout" method="post" action="/logout">
-            <button type="submit" class="btn btn--quiet btn--sm">Sign out</button>
-        </form>
-
         <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
             <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="5"></circle>
@@ -108,6 +96,8 @@
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
             </svg>
         </button>
+
+        {{ template "partial/user-menu" . }}
     </div>
 </header>
 <main class="main">

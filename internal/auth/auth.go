@@ -144,6 +144,7 @@ func (a *Auth) establishSession(ctx context.Context, sm *Session, user *models.U
 
 	sm.s.Update(ctx, func(d *Data) {
 		d.UserID = user.ID
+		d.Username = user.Username
 		d.Role = user.Role
 	})
 
