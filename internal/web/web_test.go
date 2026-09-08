@@ -269,6 +269,22 @@ func TestOverviewRendersTheInventory(t *testing.T) {
 	assert.Contains(t, body, prefix)
 }
 
+// Every page in the signed-in shell opens with a skip link that jumps past the
+// rail to the main region, and breaks into <h2> sections rather than exposing
+// only its <h1>.
+func TestShellHasSkipLinkAndSectionHeadings(t *testing.T) {
+	t.Parallel()
+
+	body := get(t, seeded(t), "/").Body.String()
+
+	skip := strings.Index(body, `<a class="skip-link" href="#main">Skip to content</a>`)
+	require.Positive(t, skip)
+	assert.Less(t, skip, strings.Index(body, `<aside class="sidebar"`),
+		"the skip link comes before the rail, so it is the first tab stop")
+	assert.Contains(t, body, `<main class="main" id="main" tabindex="-1">`)
+	assert.Contains(t, body, `<h2 class="section">Networks</h2>`)
+}
+
 // Nothing on the wire says which VLAN an address is on, so a segment the
 // router named is the only place the operator ever sees the tag.
 func TestOverviewShowsWhatASegmentIsCalled(t *testing.T) {

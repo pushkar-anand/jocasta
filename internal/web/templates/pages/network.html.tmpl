@@ -3,16 +3,14 @@
 
 {{- with .OnNetwork }}
 <section class="block">
-    <p class="eyebrow">Network</p>
+    <h2 class="section">Network</h2>
     <div class="card panel">
-        <div class="block__head">
-            <p class="netcard__top">
-                <span class="netcard__cidr">{{ .CIDR }}</span>
-                {{- if .VLAN }}
-                <span class="chip chip--brand">VLAN {{ .VLAN }}</span>
-                {{- end }}
-            </p>
-        </div>
+        <p class="netcard__top">
+            <span class="netcard__cidr">{{ .CIDR }}</span>
+            {{- if .VLAN }}
+            <span class="chip chip--brand">VLAN {{ .VLAN }}</span>
+            {{- end }}
+        </p>
         {{- with .Name }}
         <p class="dim">{{ . }}</p>
         {{- end }}
@@ -37,7 +35,7 @@
 
 <section class="block">
     <div class="block__head">
-        <p class="eyebrow">Devices</p>
+        <h2 class="section">Devices</h2>
     </div>
 
     {{ template "partial/device-filters" . }}

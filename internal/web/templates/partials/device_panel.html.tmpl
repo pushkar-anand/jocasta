@@ -8,7 +8,7 @@
         {{- with .Device }}
         <section class="card panel">
             <div class="block__head">
-                <p class="eyebrow">Identity</p>
+                <h2 class="section">Identity</h2>
                 <span class="chip">{{ .IdentitySource }}</span>
             </div>
 
@@ -53,7 +53,7 @@
         {{- end }}
 
         <section class="card panel">
-            <p class="eyebrow">What you call it</p>
+            <h2 class="section">What you call it</h2>
 
             {{- if not .Role.CanWrite }}
             <dl class="facts">

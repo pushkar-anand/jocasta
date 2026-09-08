@@ -707,7 +707,7 @@ func TestDevicePageShowsOpenPorts(t *testing.T) {
 
 	body := rec.Body.String()
 
-	assert.Contains(t, body, `<p class="eyebrow">Ports</p>`)
+	assert.Contains(t, body, `<h2 class="section">Ports</h2>`)
 	assert.Contains(t, body, "ssh")
 	assert.Contains(t, body, "https")
 	assert.Contains(t, body, "open")
@@ -805,7 +805,7 @@ func TestDevicePageWithoutPortsOmitsTheSection(t *testing.T) {
 	rec := get(t, seeded(t), "/devices/1")
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	assert.NotContains(t, rec.Body.String(), `<p class="eyebrow">Ports</p>`)
+	assert.NotContains(t, rec.Body.String(), `<h2 class="section">Ports</h2>`)
 }
 
 // A device nothing has claimed yet still renders: the section is left out
@@ -827,5 +827,5 @@ func TestDevicePageWithoutClaimsOmitsTheSection(t *testing.T) {
 	rec := get(t, newWebHandler(t, store), "/devices/1")
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	assert.NotContains(t, rec.Body.String(), `<p class="eyebrow">Sources</p>`)
+	assert.NotContains(t, rec.Body.String(), `<h2 class="section">Sources</h2>`)
 }

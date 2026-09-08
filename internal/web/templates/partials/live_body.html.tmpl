@@ -8,7 +8,7 @@
     {{- /* The prefixes first: what an operator looks at before anything else. */}}
     <section class="block">
         <div class="block__head">
-            <p class="eyebrow">Networks</p>
+            <h2 class="section">Networks</h2>
             <p class="block__aside">{{ len .Networks }} recorded</p>
         </div>
 
@@ -52,7 +52,7 @@
     <div class="glance">
         <section class="card panel">
             <div class="block__head">
-                <p class="eyebrow">Presence</p>
+                <h2 class="section">Presence</h2>
                 <p class="block__aside">
                     {{- .Stats.Total }} devices
                     {{- if .Stats.Ignored }} &middot; {{ .Stats.Ignored }} ignored{{ end -}}
@@ -77,7 +77,7 @@
 
         <section class="card panel">
             <div class="block__head">
-                <p class="eyebrow">Last sweep</p>
+                <h2 class="section">Last sweep</h2>
                 {{- with .Scan }}
                 <span class="{{ statusClass .Status }}">{{ .Status }}</span>
                 {{- end }}
@@ -103,7 +103,7 @@
 
     <section class="card portoverview">
         <div class="block__head">
-            <p class="eyebrow">Ports &amp; services</p>
+            <h2 class="section">Ports &amp; services</h2>
             <a class="more" href="/devices">View devices
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -121,7 +121,7 @@
 
         <div class="portdetail">
             <div>
-                <p class="eyebrow">Common services</p>
+                <h3 class="sub">Common services</h3>
                 {{- if .Ports.Services }}
                 <ul class="services">
                     {{- range .Ports.Services }}
@@ -143,7 +143,7 @@
             </div>
 
             <div class="portscan">
-                <p class="eyebrow">Port scan</p>
+                <h3 class="sub">Port scan</h3>
                 {{- with .PortScan }}
                 <p><span class="{{ statusClass .Status }}">{{ .Status }}</span></p>
                 <dl class="facts">
@@ -160,7 +160,7 @@
 
         {{- if .PortEvents }}
         <div class="portchanges">
-            <p class="eyebrow">Recent changes</p>
+            <h3 class="sub">Recent changes</h3>
             <ul>
                 {{- range .PortEvents }}
                 {{- $event := . }}
@@ -178,7 +178,7 @@
 
     <section class="block">
         <div class="block__head">
-            <p class="eyebrow">Recent</p>
+            <h2 class="section">Recent</h2>
             <a class="more" href="/events">View full log
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
