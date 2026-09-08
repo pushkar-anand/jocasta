@@ -108,7 +108,8 @@
                 <div class="curation__actions">
                     <button type="submit" class="btn">Save</button>
                     {{- if .Saved }}
-                    <p class="saved" role="status">Saved.</p>
+                    {{- /* tabindex so the swap can land focus on the outcome. */}}
+                    <p class="saved" role="status" tabindex="-1">Saved.</p>
                     {{- end }}
                 </div>
 

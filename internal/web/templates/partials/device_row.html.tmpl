@@ -1,6 +1,11 @@
-{{- /* One device. Takes the device itself, and replaces itself when edited. */ -}}
+{{- /*
+    One device. Takes the device itself, and replaces itself when edited.
+    data-focus-after-swap: when the inline edit form closes (save or cancel)
+    and this row swaps back in, focus returns to its Edit button rather than
+    falling to the page body.
+*/ -}}
 {{ define "partial/device-row" }}
-<tr id="device-row-{{ .ID }}">
+<tr id="device-row-{{ .ID }}" data-focus-after-swap=".btn--icon">
     <td>
         <span class="cell">
             <span class="dot {{ decay .LastSeen }}"></span>

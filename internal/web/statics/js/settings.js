@@ -1,9 +1,9 @@
 // Progressive enhancement for the settings screens: the account menu, the
-// add-user / create-token modals, password reveal, copy-to-clipboard, and
-// post-revoke focus. The
+// add-user / create-token modals, password reveal, and copy-to-clipboard. The
 // CSP forbids inline script, so this ships as a file. Everything degrades: the
 // menu is a native <details>, and a create rejected server-side comes back with
-// <dialog open> so its error shows without this running.
+// <dialog open> so its error shows without this running. Post-swap focus (the
+// revoke included) is handled once for the app in focus.js.
 (function () {
     'use strict';
 
@@ -129,16 +129,6 @@
         } else {
             selectText(target);
             restore();
-        }
-    });
-
-    // ---- Post-revoke focus ----
-    // htmx swaps #token-list wholesale on a revoke; move focus to it so the
-    // "Token revoked." status is where a screen reader and the keyboard land.
-    document.body.addEventListener('htmx:afterSwap', function () {
-        var list = document.getElementById('token-list');
-        if (list && list.querySelector('[role="status"]')) {
-            list.focus();
         }
     });
 })();
