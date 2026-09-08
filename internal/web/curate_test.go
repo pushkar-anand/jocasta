@@ -114,8 +114,10 @@ func TestUpdateDeviceRowAnswersWithTheRow(t *testing.T) {
 	assert.Contains(t, body, `id="device-row-1"`)
 	assert.Contains(t, body, "Office printer")
 
-	// The row a swap puts back has to be able to be edited again.
+	// The row a swap puts back has to be able to be edited again, and to hand
+	// focus back to its Edit button when the inline form closes.
 	assert.Contains(t, body, `hx-get="/devices/1/edit"`)
+	assert.Contains(t, body, `data-focus-after-swap=".btn--icon"`)
 
 	// And it still shows what the sweep found, which an edit does not touch.
 	assert.Contains(t, body, "192.0.2.10")
@@ -139,6 +141,10 @@ func TestUpdateDeviceAnswersWithThePanel(t *testing.T) {
 
 	assert.NotContains(t, body, "<!DOCTYPE html>")
 	assert.Contains(t, body, `id="device-panel"`)
+
+	// The "Saved." status takes a tabindex so the swap can land focus on the
+	// outcome rather than leaving the keyboard on the body.
+	assert.Contains(t, body, `<p class="saved" role="status" tabindex="-1">Saved.</p>`)
 
 	// The heading is drawn by the layout, outside this swap, so the panel
 	// updates it out of band: a new label shows up where the device is named
