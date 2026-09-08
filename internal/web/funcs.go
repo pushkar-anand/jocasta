@@ -48,7 +48,9 @@ func funcs(now func() time.Time) template.FuncMap {
 		"classChoices": classChoices,
 		"confidence":   confidence,
 		"roledisplay":  roleDisplay,
+		"scopedisplay": scopeDisplay,
 		"permchoice":   permChoice,
+		"scopechoice":  scopeChoice,
 	}
 }
 
