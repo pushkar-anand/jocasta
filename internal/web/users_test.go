@@ -179,6 +179,7 @@ func TestUsersPageLeadsWithTheList(t *testing.T) {
 
 	table := strings.Index(body, "<table>")
 	dialog := strings.Index(body, "<dialog")
+
 	require.Positive(t, table)
 	require.Positive(t, dialog)
 	assert.Less(t, table, dialog, "the table comes before the add-user dialog")
@@ -196,9 +197,11 @@ func TestUsersPageMarksTheSignedInRow(t *testing.T) {
 
 	// Exactly one row -- the seeded admin's -- carries the "You" marker.
 	assert.Equal(t, 1, strings.Count(body, ">You</span>"))
+
 	admin := strings.Index(body, testUsername)
 	other := strings.Index(body, "someone-else")
 	you := strings.Index(body, "You</span>")
+
 	assert.Less(t, admin, you)
 	assert.Less(t, you, other, "the marker is on the admin's row, not the other account's")
 }
