@@ -62,6 +62,39 @@ func TestStamp(t *testing.T) {
 	assert.Equal(t, `<time class="act__when">never</time>`, string(stamp(now, time.Time{}, "act__when")))
 }
 
+func TestPresenceLabel(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "Not seen", presenceLabel(now, time.Time{}))
+	assert.Equal(t, "Seen recently", presenceLabel(now, now.Add(-2*time.Minute)))
+	assert.Equal(t, "Seen recently", presenceLabel(now, now.Add(-50*time.Minute)))
+	assert.Equal(t, "Quiet", presenceLabel(now, now.Add(-3*time.Hour)))
+	assert.Equal(t, "Long quiet", presenceLabel(now, now.Add(-100*time.Hour)))
+}
+
+func TestDot(t *testing.T) {
+	t.Parallel()
+
+	seen := string(dot(now, now.Add(-30*time.Minute)))
+	assert.Contains(t, seen, `role="img"`)
+	assert.Contains(t, seen, `class="dot decay--recent"`)
+	assert.Contains(t, seen, `aria-label="Seen recently — 30m ago"`, "the colour has a text alternative")
+
+	// Nothing was ever seen: the status stands alone, with no relative time.
+	assert.Contains(t, string(dot(now, time.Time{})), `aria-label="Not seen"`)
+}
+
+func TestWindowWords(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "a few minutes", windowWords(0))
+	assert.Equal(t, "1 minute", windowWords(time.Minute))
+	assert.Equal(t, "15 minutes", windowWords(15*time.Minute))
+	assert.Equal(t, "1 hour", windowWords(time.Hour))
+	assert.Equal(t, "2 hours", windowWords(2*time.Hour))
+	assert.Equal(t, "90 minutes", windowWords(90*time.Minute))
+}
+
 func TestDecay(t *testing.T) {
 	t.Parallel()
 
@@ -175,6 +208,15 @@ func TestHealth(t *testing.T) {
 	assert.Equal(t, "dot--warn", health(&inventory.Network{Total: 12, Online: 7, Offline: 5}))
 }
 
+func TestHealthLabel(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "Nothing recorded yet", healthLabel(nil))
+	assert.Equal(t, "Nothing recorded yet", healthLabel(&inventory.Network{}))
+	assert.Equal(t, "Mostly answering", healthLabel(&inventory.Network{Total: 12, Online: 10, Offline: 2}))
+	assert.Equal(t, "A third or more quiet", healthLabel(&inventory.Network{Total: 12, Online: 7, Offline: 5}))
+}
+
 func TestStatusClass(t *testing.T) {
 	t.Parallel()
 
@@ -222,7 +264,7 @@ func TestFuncsCoverEveryHelperTheTemplatesUse(t *testing.T) {
 
 	registered := funcs(func() time.Time { return now })
 
-	for _, name := range []string{"ago", "stamp", "decay", "dash", "pct", "took", "phrase", "tone", "eventIcon", "health", "statusClass", "change"} {
+	for _, name := range []string{"ago", "stamp", "decay", "dot", "healthLabel", "dash", "pct", "took", "phrase", "tone", "eventIcon", "health", "statusClass", "change"} {
 		assert.Contains(t, registered, name)
 	}
 }

@@ -300,6 +300,7 @@ func buildDeviceListData(
 	data.view = v
 	data.Base = base
 	data.OnNetwork = onNetwork
+	data.Window = windowWords(store.OnlineWindow())
 
 	// On a network's page the prefix is the path, not a choice, so it is forced
 	// past whatever the query string asked for.

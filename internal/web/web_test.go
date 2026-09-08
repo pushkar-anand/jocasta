@@ -264,6 +264,9 @@ func TestOverviewRendersTheInventory(t *testing.T) {
 	assert.Contains(t, body, "printer.local")
 	assert.Contains(t, body, "discovered")
 
+	// "Seen recently" is not left as an unexplained threshold.
+	assert.Contains(t, body, "answered a sweep in the last 15 minutes")
+
 	// The sweep that produced all this is named.
 	assert.Contains(t, body, "test-sweep")
 	assert.Contains(t, body, prefix)

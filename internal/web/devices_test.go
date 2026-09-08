@@ -37,6 +37,10 @@ func TestDevicesPageListsThem(t *testing.T) {
 	// Each row links to the device it names.
 	assert.Contains(t, body, `href="/devices/1"`)
 
+	// The presence dot carries a spoken status, not colour alone.
+	assert.Contains(t, body, `class="dot `)
+	assert.Regexp(t, `<span class="dot [^"]*" role="img" aria-label="[^"]+">`, body)
+
 	// The form is present and fetches only the table.
 	assert.Contains(t, body, `hx-get="/devices/rows"`)
 	assert.Contains(t, body, `hx-target="#device-rows"`)

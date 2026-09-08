@@ -8,7 +8,7 @@
 <tr id="device-row-{{ .ID }}" data-focus-after-swap=".btn--icon">
     <td>
         <span class="cell">
-            <span class="dot {{ decay .LastSeen }}"></span>
+            {{ dot .LastSeen }}
             {{- with classIcon .Class }}
             <svg class="devicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                  stroke-linecap="round" stroke-linejoin="round" role="img"

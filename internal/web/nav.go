@@ -32,6 +32,10 @@ type view struct {
 
 	// Note is the ambient line at the foot of the rail. Empty leaves it out.
 	Note string
+
+	// Window is the configured online window, said in words ("15 minutes"), for
+	// the pages that explain what "seen recently" counts. Empty leaves it out.
+	Window string
 }
 
 // roleDisplay maps a stored role value to its UI label. Forms still submit the
