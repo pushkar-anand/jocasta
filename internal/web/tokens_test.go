@@ -98,6 +98,33 @@ func TestTokensPageListsNoneToStart(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), `href="/settings/tokens" aria-current="page"`)
 }
 
+// The list is the page; the create form is a dialog reached from it.
+func TestTokensPageLeadsWithTheList(t *testing.T) {
+	t.Parallel()
+
+	h := empty(t)
+	body := requestAs(t, h, signIn(t, h), http.MethodGet, "/settings/tokens", "").Body.String()
+
+	list := strings.Index(body, `id="token-list"`)
+	dialog := strings.Index(body, "<dialog")
+
+	require.Positive(t, list)
+	require.Positive(t, dialog)
+	assert.Less(t, list, dialog, "the list region comes before the create dialog")
+	assert.Contains(t, body, "<legend>Permission</legend>")
+}
+
+// The topbar account menu names the signed-in account on the tokens page too.
+func TestTokensPageShowsTheSignedInAccount(t *testing.T) {
+	t.Parallel()
+
+	h := empty(t)
+	body := requestAs(t, h, signIn(t, h), http.MethodGet, "/settings/tokens", "").Body.String()
+
+	assert.Contains(t, body, `<span class="usermenu__name">`+testUsername+`</span>`)
+	assert.Contains(t, body, "Personal to "+testUsername)
+}
+
 func TestCreateAndRevokeToken(t *testing.T) {
 	t.Parallel()
 
@@ -110,9 +137,11 @@ func TestCreateAndRevokeToken(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 
 	body := rec.Body.String()
-	assert.Contains(t, body, "CI script")
+	assert.Contains(t, body, "CI script created", "the completion state names what was made")
 	assert.Contains(t, body, "jct_", "the plaintext is shown once, on the page the create redirects to")
-	assert.Contains(t, body, "Read &amp; write")
+	assert.Contains(t, body, "Editor", "read_write renders as the Editor label")
+	assert.Contains(t, body, `data-copy="#token-plaintext"`, "the completion state offers a Copy control")
+	assert.Contains(t, body, "Authorization: Bearer", "and a runnable bearer-token example")
 
 	id := onlyTokenRowID(t, body)
 
@@ -129,6 +158,8 @@ func TestCreateAndRevokeToken(t *testing.T) {
 	rec = requestAs(t, h, cookies, http.MethodDelete, "/settings/tokens/"+strconv.FormatInt(id, 10), "")
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "No tokens yet.")
+	assert.Contains(t, rec.Body.String(), `role="status"`, "the revoke is announced")
+	assert.Contains(t, rec.Body.String(), "Token revoked.")
 	assert.NotContains(t, rec.Body.String(), "CI script")
 	assert.NotContains(t, rec.Body.String(), "jct_")
 

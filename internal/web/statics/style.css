@@ -1717,32 +1717,14 @@ input[type="radio"] {
 
 /* ---- API tokens ----------------------------------------------------------- */
 
-.tokenform {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    gap: 16px;
-}
-
-.tokenform .stack {
-    flex: 1 1 16rem;
-}
-
-.tokenform__scope {
-    display: flex;
-    gap: 16px;
-    margin: 0;
-    padding: 0;
-    border: none;
-}
-
 /* The one moment a token's plaintext is readable: called out rather than
    dropped quietly into the list, since there is no second chance to see it. */
 .tokenreveal {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    padding: 12px 14px;
+    gap: 8px;
+    margin-bottom: 18px;
+    padding: 14px 16px;
     border-radius: var(--radius-sm);
     background: var(--warning-soft);
     color: var(--warning-ink);
@@ -1750,12 +1732,29 @@ input[type="radio"] {
 
 .tokenreveal__label {
     margin: 0;
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 600;
 }
 
-.tokenreveal__value {
-    display: block;
+.tokenreveal__hint {
+    margin: 0;
+    font-size: 12px;
+}
+
+.tokenreveal__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tokenreveal__row .btn {
+    flex: 0 0 auto;
+}
+
+.tokenreveal__value,
+.tokenreveal__curl {
+    flex: 1 1 auto;
+    min-width: 0;
     padding: 8px 10px;
     background: var(--surface);
     border: 1px solid var(--border);
@@ -1765,6 +1764,15 @@ input[type="radio"] {
     color: var(--text);
     overflow-wrap: anywhere;
     user-select: all;
+}
+
+.tokenreveal__use {
+    font-size: 12px;
+}
+
+.tokenreveal__use > summary {
+    cursor: pointer;
+    margin-bottom: 8px;
 }
 
 .btn--danger {
@@ -2126,6 +2134,13 @@ input[type="radio"] {
     padding: 11px 13px;
     border-radius: var(--radius-sm);
     font-size: 12.5px;
+}
+
+/* Plain (no --ok): the "Token revoked." status line above the list. */
+.notice:not(.notice--ok) {
+    margin-bottom: 12px;
+    background: var(--surface-2);
+    color: var(--text-2);
 }
 
 .notice svg {

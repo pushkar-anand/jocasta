@@ -1,21 +1,41 @@
 {{- /*
-    The token reveal and the list, in one wrapper the revoke button swaps as a
-    whole (hx-target="#token-list"). Rendered inline by page/tokens on first
-    paint and returned on its own by revokeToken: swapping the wrapper rather
-    than the one row means the last revoke lands on the "none yet" line instead
-    of an empty table, and drops a plaintext still shown from a create just
-    before it.
+    The token completion state and the list, in one wrapper the revoke button
+    swaps whole (hx-target="#token-list"). Rendered inline by page/tokens on
+    first paint, returned on its own by revokeToken. Swapping the wrapper rather
+    than a row means the last revoke lands on the "none yet" line, not an empty
+    table, and drops a plaintext still shown from a create just before it.
 
-    Takes tokensData: PlaintextToken is set only on the GET a create redirects
-    to, Tokens is the caller's own list newest first.
+    Takes tokensData: PlaintextToken / NewName / NewScope are set only on the GET
+    a create redirects to; Revoked is set only on the revoke response; Tokens is
+    the caller's list, newest first.
 */ -}}
 {{ define "partial/token-list" }}
-<div id="token-list">
+<div id="token-list" tabindex="-1">
     {{- with .PlaintextToken }}
         <div class="tokenreveal">
-            <p class="tokenreveal__label">Copy this token now &mdash; it will not be shown again.</p>
-            <code class="tokenreveal__value">{{ . }}</code>
+            <p class="tokenreveal__label">
+                {{ $.NewName }} created{{ with $.NewScope }} &mdash; {{ scopedisplay . }}{{ end }}
+            </p>
+            <p class="tokenreveal__hint">Copy it now &mdash; it is not shown again. Lost tokens are revoked and
+                replaced, not recovered.</p>
+
+            <div class="tokenreveal__row">
+                <code class="tokenreveal__value" id="token-plaintext">{{ . }}</code>
+                <button type="button" class="btn btn--quiet btn--sm" data-copy="#token-plaintext">Copy</button>
+            </div>
+
+            <details class="tokenreveal__use">
+                <summary>Use it as a bearer token</summary>
+                <div class="tokenreveal__row">
+                    <code class="tokenreveal__curl" id="token-curl">curl -H 'Authorization: Bearer {{ . }}' "$JOCASTA_URL/api/devices"</code>
+                    <button type="button" class="btn btn--quiet btn--sm" data-copy="#token-curl">Copy</button>
+                </div>
+            </details>
         </div>
+    {{- end }}
+
+    {{- if .Revoked }}
+        <p class="notice" role="status">Token revoked.</p>
     {{- end }}
 
     {{- if .Tokens }}
@@ -25,7 +45,7 @@
                     <thead>
                     <tr>
                         <th scope="col">Name</th>
-                        <th scope="col">Scope</th>
+                        <th scope="col">Permission</th>
                         <th scope="col">Created</th>
                         <th scope="col">Last used</th>
                         <th scope="col"></th>
@@ -34,12 +54,12 @@
                     <tbody>
                     {{- range .Tokens }}
                         <tr id="token-row-{{ .ID }}">
-                            <td class="strong">{{ .Name }}</td>
+                            <td class="cell strong">{{ .Name }}</td>
                             <td>
                                 {{- if eq .Scope "read_write" }}
-                                    <span class="chip chip--brand">Read &amp; write</span>
+                                    <span class="chip chip--brand">Editor</span>
                                 {{- else }}
-                                    <span class="chip chip--quiet">Read</span>
+                                    <span class="chip chip--quiet chip--label">Viewer</span>
                                 {{- end }}
                             </td>
                             <td class="dim">{{ ago .CreatedAt }}</td>

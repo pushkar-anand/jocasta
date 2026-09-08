@@ -44,15 +44,27 @@ type tokensData struct {
 	view
 	Tokens []apiToken
 
-	// PlaintextToken is the token CreateToken just returned, shown once on the
-	// response to its own create -- it is never stored, so this is the only
-	// page load it can appear on.
+	// PlaintextToken, NewName and NewScope are the one-shot completion state for
+	// the token createToken just made. The plaintext is never stored, so the GET
+	// the create redirects to is the only load it appears on; name and scope
+	// ride the same flash so the block can label what was made.
 	PlaintextToken string
+	NewName        string
+	NewScope       string
+
+	// Revoked marks the list region revokeToken returns, so it announces the
+	// removal once rather than on every render of the list.
+	Revoked bool
 }
 
-// flashTokenPlaintext is the session key createToken leaves the new token's
-// plaintext under for the redirected-to GET to show once and clear.
-const flashTokenPlaintext = "flash.token_plaintext"
+// One-shot flashes createToken leaves for the GET it redirects to. The
+// plaintext is the one thing never stored; name and scope label the completion
+// block beside it.
+const (
+	flashTokenPlaintext = "flash.token_plaintext"
+	flashTokenName      = "flash.token_name"
+	flashTokenScope     = "flash.token_scope"
+)
 
 // tokens serves the token settings page.
 func (h *Handler) tokens(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
@@ -71,6 +83,8 @@ func (h *Handler) tokens(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 			SignedInAs:     sm.CurrentUsername(ctx),
 			Tokens:         list,
 			PlaintextToken: sm.PopFlash(ctx, flashTokenPlaintext),
+			NewName:        sm.PopFlash(ctx, flashTokenName),
+			NewScope:       sm.PopFlash(ctx, flashTokenScope),
 		})
 
 		return nil
@@ -113,6 +127,8 @@ func (h *Handler) createToken(sm *auth.Session, a *auth.Auth) response.HandlerFu
 		}
 
 		sm.Flash(ctx, flashTokenPlaintext, plaintext)
+		sm.Flash(ctx, flashTokenName, input.Name)
+		sm.Flash(ctx, flashTokenScope, input.Scope)
 		http.Redirect(w, r, "/settings/tokens", http.StatusSeeOther)
 
 		return nil
@@ -147,7 +163,7 @@ func (h *Handler) revokeToken(sm *auth.Session, a *auth.Auth) response.HandlerFu
 			return err
 		}
 
-		h.htmlWriter.Success(w, r, templatePartialTokenList, tokensData{Tokens: list})
+		h.htmlWriter.Success(w, r, templatePartialTokenList, tokensData{Tokens: list, Revoked: true})
 
 		return nil
 	}

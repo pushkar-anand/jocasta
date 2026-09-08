@@ -4,42 +4,61 @@
     <section class="block">
         <div class="block__head">
             <p class="eyebrow">API tokens</p>
-            <p class="block__aside">Bearer credentials for a script or dashboard that reads or edits this inventory
-                without signing in.</p>
+            <div class="block__headend">
+                <p class="block__aside">{{ len .Tokens }} token{{ if ne (len .Tokens) 1 }}s{{ end }}</p>
+                <button type="button" class="btn btn--sm" data-open="token-dialog">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    Create token
+                </button>
+            </div>
         </div>
 
-        <div class="card panel">
-            <form method="post" action="/settings/tokens" class="tokenform">
-                <label class="stack">
-                    <span class="eyebrow">Name</span>
-                    <input class="input" type="text" name="name" placeholder="e.g. Grafana dashboard"
-                           autocomplete="off" maxlength="100" required>
-                </label>
-
-                <fieldset class="tokenform__scope">
-                    <label class="check">
-                        <input type="radio" name="scope" value="read" checked>
-                        Read
-                    </label>
-                    {{- if .Role.CanWrite }}
-                    <label class="check">
-                        <input type="radio" name="scope" value="read_write">
-                        Read &amp; write
-                    </label>
-                    {{- end }}
-                </fieldset>
-
-                <button type="submit" class="btn btn--sm">Create token</button>
-            </form>
-        </div>
+        <p class="note">Bearer credentials for a script or dashboard that reads or edits this inventory without
+            signing in. Personal to {{ .SignedInAs }}.</p>
 
         {{- /*
-            Reveal and list share one wrapper so a revoke -- which swaps this
-            whole region -- also clears a plaintext left over from a create
-            just before it, and lands on the "none yet" line when it takes the
-            last row rather than on an empty table.
+            Reveal and list share one wrapper so a revoke -- which swaps the
+            whole region -- clears a plaintext left from a create just before it
+            and lands on the "none yet" line rather than an empty table.
         */ -}}
         {{ template "partial/token-list" . }}
+
+        {{- /* JS opens it; with no script the Create button is inert, as the
+               revoke buttons already are (both need htmx). */}}
+        <dialog class="modal" id="token-dialog" aria-labelledby="token-dialog-title">
+            <div class="modal__head">
+                <div>
+                    <h2 class="modal__title" id="token-dialog-title">Create a token</h2>
+                    <p class="modal__sub">Shown once, on the next screen.</p>
+                </div>
+                <button type="button" class="modal__close" data-close aria-label="Close">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M6 6l12 12M18 6 6 18"/>
+                    </svg>
+                </button>
+            </div>
+
+            <form method="post" action="/settings/tokens">
+                <div class="modal__body">
+                    <label class="stack">
+                        <span class="eyebrow">Name</span>
+                        <input class="input" type="text" name="name" placeholder="e.g. Grafana dashboard"
+                               autocomplete="off" maxlength="100" autofocus required>
+                    </label>
+
+                    {{ template "partial/permission-choice" (scopechoice "" .Role.CanWrite) }}
+                </div>
+
+                <div class="modal__foot">
+                    <button type="button" class="btn btn--quiet btn--sm" data-close>Cancel</button>
+                    <button type="submit" class="btn btn--sm">Create token</button>
+                </div>
+            </form>
+        </dialog>
     </section>
 
     {{- template "layout/foot" . }}

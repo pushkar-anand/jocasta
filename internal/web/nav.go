@@ -89,3 +89,35 @@ func permChoice(field, legend, selected string, allowWrite bool) permChoiceView 
 
 	return v
 }
+
+// scopeChoice is permChoice for the create-token form. Wire values match the
+// user roles (read, read_write); the hints describe what the token reaches
+// through the API, not what an account may do.
+func scopeChoice(selected string, allowWrite bool) permChoiceView {
+	v := permChoiceView{
+		Field:  "scope",
+		Legend: "Permission",
+		Options: []permOption{{
+			Value:   string(dbtype.TokenRead),
+			Label:   roleDisplay(dbtype.RoleRead),
+			Hint:    "Reads the inventory through the API.",
+			Checked: selected != string(dbtype.TokenReadWrite),
+		}},
+	}
+
+	if allowWrite {
+		v.Options = append(v.Options, permOption{
+			Value:   string(dbtype.TokenReadWrite),
+			Label:   roleDisplay(dbtype.RoleReadWrite),
+			Hint:    "Also edits device labels and groups through the API.",
+			Checked: selected == string(dbtype.TokenReadWrite),
+		})
+	}
+
+	return v
+}
+
+// scopeDisplay is roleDisplay for an API token's scope string.
+func scopeDisplay(scope string) string {
+	return roleDisplay(dbtype.UserRole(scope))
+}
