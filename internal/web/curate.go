@@ -34,6 +34,11 @@ type curationForm struct {
 	// panel swap has nothing to say about them.
 	Claims []*inventory.Claim
 
+	// PortScanConfigured is whether any port scan has ever finished, which is
+	// how the Ports section tells "nothing is open" from "nothing has looked".
+	// Only the full page fills it.
+	PortScanConfigured bool
+
 	// Saved marks the panel as having just been saved, which is the only way a
 	// swapped-in fragment can say that anything happened.
 	Saved bool

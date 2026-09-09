@@ -433,6 +433,11 @@ func TestPagerLinks(t *testing.T) {
 	scoped := logData{Path: "/events", Device: &inventory.Device{ID: 7}, Next: "tok"}
 	assert.Equal(t, "/events?device=7", scoped.Top())
 	assert.Equal(t, "/events?device=7&cursor=tok", scoped.Older())
+
+	// The scan log narrows by kind the same way.
+	byKind := logData{Path: "/scans", Kind: "ports", Next: "tok"}
+	assert.Equal(t, "/scans?kind=ports", byKind.Top())
+	assert.Equal(t, "/scans?kind=ports&cursor=tok", byKind.Older())
 }
 
 func TestCanonicalURL(t *testing.T) {
@@ -830,15 +835,15 @@ func TestDeviceListMergesHardwareAndPortColumns(t *testing.T) {
 	}
 }
 
-// A device no port scan has reached leaves the section out rather than drawing
-// it empty.
-func TestDevicePageWithoutPortsOmitsTheSection(t *testing.T) {
+// When a device has no recorded ports the section still renders, and says
+// which of the two reasons it is: nothing has scanned, or nothing is open.
+func TestDevicePageWithoutPortsExplainsWhy(t *testing.T) {
 	t.Parallel()
 
-	rec := get(t, seeded(t), "/devices/1")
-	require.Equal(t, http.StatusOK, rec.Code)
-
-	assert.NotContains(t, rec.Body.String(), `<h2 class="section">Ports</h2>`)
+	// The seed runs a discovery sweep only, so no port scan has ever finished.
+	body := get(t, seeded(t), "/devices/1").Body.String()
+	assert.Contains(t, body, `<h2 class="section">Ports</h2>`)
+	assert.Contains(t, body, "Port scanning is not configured")
 }
 
 // A device nothing has claimed yet still renders: the section is left out

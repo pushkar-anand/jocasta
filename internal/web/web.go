@@ -185,6 +185,16 @@ func lastSweptAt(ctx context.Context, store *inventory.Store) time.Time {
 	return at
 }
 
+// portScanConfigured reports whether any port scan has ever finished. It is an
+// instance-wide signal, not per-device: enough for the Ports section to say
+// "port scanning is not set up" rather than imply a device was scanned and
+// found closed.
+func portScanConfigured(ctx context.Context, store *inventory.Store) bool {
+	_, err := store.LastSuccessfulScanAt(ctx, dbtype.ScanPorts)
+
+	return err == nil
+}
+
 // ErrorPageData is the response.WithErrorDataFunc hook the server wires into
 // the shared HTMLWriter, keyed by status the same way WithErrorTemplates is --
 // each case supplies whatever its own template needs.

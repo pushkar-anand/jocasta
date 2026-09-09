@@ -11,7 +11,10 @@
     {{- if .Devices }}
     <div class="card card--table">
         <div class="scroller">
-            <table>
+            {{- /* On a network's own page the Network column would repeat the
+                   page on every row; the row partial stays context-free and
+                   this container, which knows, hides column 3. */}}
+            <table{{ if .OnNetwork }} class="on-network"{{ end }}>
                 <thead>
                 <tr>
                     <th scope="col">Device</th>

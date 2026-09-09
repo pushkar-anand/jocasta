@@ -357,14 +357,15 @@ func buildDevicePageData(
 	}
 
 	data := &curationForm{
-		Title:       device.Name(),
-		Section:     "Devices",
-		Crumb:       &crumb{Label: "Devices", Href: "/devices"},
-		Device:      device,
-		Groups:      groups,
-		Events:      events,
-		Claims:      claims,
-		LastChecked: lastSweptAt(ctx, store),
+		Title:              device.Name(),
+		Section:            "Devices",
+		Crumb:              &crumb{Label: "Devices", Href: "/devices"},
+		Device:             device,
+		Groups:             groups,
+		Events:             events,
+		Claims:             claims,
+		LastChecked:        lastSweptAt(ctx, store),
+		PortScanConfigured: portScanConfigured(ctx, store),
 	}
 
 	if scan, err := store.LatestScan(ctx); err == nil {

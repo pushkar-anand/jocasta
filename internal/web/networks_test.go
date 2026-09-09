@@ -93,7 +93,25 @@ func TestNetworkPageShowsTheTag(t *testing.T) {
 	body := get(t, newWebHandler(t, store), "/networks/1").Body.String()
 
 	assert.Contains(t, body, "VLAN 10")
-	assert.Contains(t, body, "Home")
+
+	// The friendly name leads the page: it is the heading and the browser title.
+	assert.Contains(t, body, `<h1 id="page-title">Home</h1>`)
+	assert.Contains(t, body, "<title>Home &middot; jocasta</title>")
+
+	// The CIDR is still shown, one line down in the summary card.
+	assert.Contains(t, body, prefix)
+}
+
+// The device table on a network's page drops the Network column: every row is
+// on that network, so the column would repeat the page.
+func TestNetworkPageDropsTheRedundantColumn(t *testing.T) {
+	t.Parallel()
+
+	body := get(t, seeded(t), "/networks/1").Body.String()
+	assert.Contains(t, body, `<table class="on-network">`)
+
+	// The full device list keeps it.
+	assert.NotContains(t, get(t, seeded(t), "/devices").Body.String(), `class="on-network"`)
 }
 
 // The route admits any segment, so a name or an id nothing has is a page that
