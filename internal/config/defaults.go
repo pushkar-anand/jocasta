@@ -34,9 +34,9 @@ var defaults = map[string]any{
 	"scan.ports.custom":          "",
 	"scan.ports.concurrency":     scanner.DefaultConcurrency,
 
-	"session.lifetime":      "168h",
-	"session.idle_timeout":  "24h",
-	"session.cookie_secure": true,
+	"auth.session_lifetime": "168h",
+	"auth.idle_timeout":     "24h",
+	"auth.cookie_secure":    true,
 }
 
 // defaultSource names the vantage point sweeps are taken from when nothing

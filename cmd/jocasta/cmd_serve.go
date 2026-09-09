@@ -41,9 +41,9 @@ func (s *ServeCmd) Run(
 		Port:                port,
 		Logger:              log,
 		CORSAllowedOrigins:  cfg.Server.CORS.AllowedOrigins,
-		SessionLifetime:     cfg.Session.Lifetime,
-		SessionIdleTimeout:  cfg.Session.IdleTimeout,
-		SessionCookieSecure: cfg.Session.CookieSecure,
+		SessionLifetime:     cfg.Auth.SessionLifetime,
+		SessionIdleTimeout:  cfg.Auth.IdleTimeout,
+		SessionCookieSecure: cfg.Auth.CookieSecure,
 	}
 
 	p := poller.New(log)

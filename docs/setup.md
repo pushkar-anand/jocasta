@@ -104,10 +104,10 @@ scan:
     custom: ""           # ports to probe, e.g. "22,80,443,8000-8100"; blank uses a curated preset
     concurrency: 64      # max connections a scan opens at once; lower it on a cheap router
 
-session:
-  lifetime: "168h"       # longest a sign-in lasts, regardless of activity
-  idle_timeout: "24h"    # how long a session survives with no requests
-  cookie_secure: true    # confine the session cookie to HTTPS; set false only to sign in over plain HTTP in dev
+auth:
+  session_lifetime: "168h"  # longest a sign-in lasts, regardless of activity
+  idle_timeout: "24h"       # how long a session survives with no requests
+  cookie_secure: true       # confine the session cookie to HTTPS; set false only to sign in over plain HTTP in dev
 
 # Sources beyond the sweep. Each block is keyed by an instance name, which
 # becomes the source its facts are filed under, so two routers stay separate.
@@ -140,7 +140,7 @@ JOCASTA_DB__PATH=/data
 JOCASTA_INVENTORY__ONLINE_WINDOW=30m
 JOCASTA_SCAN__DEVICES__INTERVAL=10m
 JOCASTA_SCAN__PORTS__ENABLED=true
-JOCASTA_SESSION__COOKIE_SECURE=false
+JOCASTA_AUTH__COOKIE_SECURE=false
 JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD=change-me
 ```
 

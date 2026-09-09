@@ -116,11 +116,11 @@ func TestLoadConfig(t *testing.T) {
 	// scanner's default rather than falling to a zero that means "no limit".
 	assert.Equal(t, scanner.DefaultConcurrency, cfg.Scan.Ports.Concurrency)
 
-	// Session knobs are durations configured as text and a bool that defaults
-	// on: all three have to reach the struct from the defaults.
-	assert.Equal(t, 168*time.Hour, cfg.Session.Lifetime)
-	assert.Equal(t, 24*time.Hour, cfg.Session.IdleTimeout)
-	assert.True(t, cfg.Session.CookieSecure)
+	// Auth knobs are durations configured as text and a bool that defaults on:
+	// all three have to reach the struct from the defaults.
+	assert.Equal(t, 168*time.Hour, cfg.Auth.SessionLifetime)
+	assert.Equal(t, 24*time.Hour, cfg.Auth.IdleTimeout)
+	assert.True(t, cfg.Auth.CookieSecure)
 
 	// A map-keyed block collapses to a single zero-valued entry, with a nil
 	// error, if its shape is ever changed to a list. Both instances surviving an

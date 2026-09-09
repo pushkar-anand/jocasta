@@ -126,13 +126,13 @@ type (
 		Timeout time.Duration `koanf:"timeout"`
 	}
 
-	// Session controls how long a signed-in browser stays signed in and
-	// whether its cookie is confined to HTTPS. The cookie's name, path and
-	// other flags are jocasta's to set and are deliberately not here.
-	Session struct {
-		// Lifetime is the longest a session lasts from sign-in, regardless of
-		// activity.
-		Lifetime time.Duration `koanf:"lifetime"`
+	// Auth controls how long a signed-in browser stays signed in and whether
+	// its cookie is confined to HTTPS. The cookie's name, path and other flags
+	// are jocasta's to set and are deliberately not here.
+	Auth struct {
+		// SessionLifetime is the longest a session lasts from sign-in,
+		// regardless of activity.
+		SessionLifetime time.Duration `koanf:"session_lifetime"`
 
 		// IdleTimeout is how long a session survives without a request before
 		// it is dropped.
@@ -163,7 +163,7 @@ type (
 		Inventory Inventory `koanf:"inventory"`
 		Networks  []string  `koanf:"networks"`
 		Scan      Scan      `koanf:"scan"`
-		Session   Session   `koanf:"session"`
+		Auth      Auth      `koanf:"auth"`
 		Plugins   Plugins   `koanf:"plugins"`
 	}
 )
