@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"time"
 
 	"github.com/pushkar-anand/build-with-go/http/middleware"
 	"github.com/pushkar-anand/build-with-go/http/request"
@@ -37,6 +38,14 @@ type (
 		// gets for free by same-origin rules -- CORS only starts to matter once
 		// something outside that address needs in.
 		CORSAllowedOrigins []string
+
+		// SessionLifetime caps how long a signed-in browser stays signed in
+		// from sign-in; SessionIdleTimeout drops it after that long without a
+		// request. SessionCookieSecure confines the session cookie to HTTPS and
+		// is false only to allow signing in over plain HTTP in development.
+		SessionLifetime     time.Duration
+		SessionIdleTimeout  time.Duration
+		SessionCookieSecure bool
 	}
 )
 
@@ -60,7 +69,12 @@ func Start(
 		request.WithRejectUnknownFields(),
 		request.WithMaxBodyBytes(maxRequestBodyBytes),
 	)
-	sm := auth.NewSession(cfg.Logger, auth.WithSessionStore(conn))
+	sm := auth.NewSession(cfg.Logger,
+		auth.WithSessionStore(conn),
+		auth.WithLifetime(cfg.SessionLifetime),
+		auth.WithIdleTimeout(cfg.SessionIdleTimeout),
+		auth.WithCookieSecure(cfg.SessionCookieSecure),
+	)
 
 	jw := response.NewJSONWriter(
 		cfg.Logger,
