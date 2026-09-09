@@ -94,9 +94,23 @@
                 <div><dt>Took</dt><dd>{{ took . }}</dd></div>
                 <div><dt>Kind</dt><dd class="lower">{{ .Kind }}</dd></div>
                 <div><dt>Started</dt><dd class="dim">{{ stamp .StartedAt "" }}</dd></div>
+                {{- /* When collection last succeeded, not only when the newest
+                       run started: the two differ exactly when the collector is
+                       failing, which is when the presence counts stop meaning
+                       what they say. */}}
+                <div><dt>Last complete sweep</dt><dd class="dim">{{ stamp $.LastCollected "" }}</dd></div>
             </dl>
             {{- with .Error }}
             <p class="failure">{{ . }}</p>
+            {{- end }}
+            {{- if $.Stale }}
+            <p class="failure">The presence counts may be behind &mdash;
+                {{- if $.LastCollected.IsZero }} no sweep has ever finished cleanly.
+                {{- else }} the last sweep to finish cleanly was {{ stamp $.LastCollected "" }}.{{ end }}</p>
+            <a class="more" href="/scans">Review sweeps
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+            </a>
             {{- end }}
             {{- else }}
             <p class="dim">No sweep has been recorded yet.</p>

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/pushkar-anand/build-with-go/http/response"
 	"github.com/pushkar-anand/build-with-go/logger"
@@ -15,6 +16,11 @@ import (
 const (
 	overviewServiceLimit   = 5
 	overviewPortEventLimit = 2
+
+	// collectionStaleFloor is the shortest gap after a clean sweep before the
+	// overview will call the presence counts stale. Below it, a missed run is
+	// more likely scheduling jitter than a stalled collector.
+	collectionStaleFloor = 30 * time.Minute
 )
 
 // overviewData is the whole overview, and also every part of it that refreshes
@@ -28,6 +34,13 @@ type overviewData struct {
 	PortEvents []*inventory.Event
 	Networks   []*inventory.Network
 	Events     []*inventory.Event
+
+	// LastCollected is when a device sweep last finished with something to
+	// show for it; zero before the first. Stale is set when the newest sweep
+	// did not finish cleanly, or nothing has for long enough that the presence
+	// counts are probably behind rather than the devices actually quiet.
+	LastCollected time.Time
+	Stale         bool
 }
 
 func (h *Handler) overview(sm *auth.Session) response.HandlerFunc {
@@ -130,5 +143,27 @@ func buildOverviewData(
 		data.PortScan = scan
 	}
 
+	data.LastCollected = lastSweptAt(ctx, store)
+	data.Stale = staleCollection(ctx, store, data.LastCollected, stats.Total)
+
 	return data, nil
+}
+
+// staleCollection reports whether the presence counts on the overview should be
+// read with suspicion: the newest sweep failed or was cut off, or a clean one
+// has not finished in long enough that a stalled collector is the likelier
+// reason a device looks quiet.
+func staleCollection(ctx context.Context, store *inventory.Store, lastCollected time.Time, devices int) bool {
+	if latest, err := store.LatestScanOfKind(ctx, dbtype.ScanDiscovery); err == nil &&
+		(latest.Status == dbtype.StatusFailed || latest.Status == dbtype.StatusCancelled) {
+		return true
+	}
+
+	if devices == 0 {
+		return false
+	}
+
+	behind := 2 * max(store.OnlineWindow(), collectionStaleFloor)
+
+	return lastCollected.IsZero() || time.Since(lastCollected) > behind
 }

@@ -270,6 +270,49 @@ func TestOverviewRendersTheInventory(t *testing.T) {
 	// The sweep that produced all this is named.
 	assert.Contains(t, body, "test-sweep")
 	assert.Contains(t, body, prefix)
+
+	// The last-sweep panel anchors freshness to when collection last succeeded,
+	// and a healthy collector raises no staleness warning.
+	assert.Contains(t, body, "Last complete sweep")
+	assert.NotContains(t, body, "presence counts may be behind")
+}
+
+// A collector that keeps recording scan rows while failing every one of them
+// leaves the presence counts aging with no visible cause. The overview says so
+// and points at the sweep log.
+func TestOverviewFlagsAStalledCollector(t *testing.T) {
+	t.Parallel()
+
+	store, conn := testStoreWithConn(t)
+
+	swept := []scanner.Host{host("192.0.2.10", macA, "printer.local")}
+	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix), swept)
+	require.NoError(t, err)
+
+	// A later discovery run that finished but failed: newer than the clean one,
+	// so it is what the panel's status reads from.
+	_, err = conn.ExecContext(t.Context(),
+		`INSERT INTO scans (source_id, kind, status, error, started_at, finished_at)
+		 VALUES ((SELECT id FROM sources WHERE name = 'test-sweep'), 'DISCOVERY', 'FAILED', 'boom',
+		         '2999-01-01T00:00:00.000Z', '2999-01-01T00:00:05.000Z')`)
+	require.NoError(t, err)
+
+	body := get(t, newWebHandler(t, store), "/").Body.String()
+
+	assert.Contains(t, body, "presence counts may be behind")
+	assert.Contains(t, body, `href="/scans"`)
+}
+
+// The rail's ambient "Last sweep" line reads as healthy off a relative time
+// alone, so a failed run has to say it failed.
+func TestSweepNoteMarksAFailure(t *testing.T) {
+	t.Parallel()
+
+	ok := sweepNote(&inventory.Scan{Status: dbtype.StatusOK, StartedAt: time.Now().Add(-4 * time.Minute)})
+	assert.Equal(t, "4m ago", ok)
+
+	failed := sweepNote(&inventory.Scan{Status: dbtype.StatusFailed, StartedAt: time.Now().Add(-4 * time.Minute)})
+	assert.Equal(t, "4m ago · failed", failed)
 }
 
 // Every page in the signed-in shell opens with a skip link that jumps past the
@@ -386,8 +429,9 @@ func TestOverviewLivePolls(t *testing.T) {
 	assert.Contains(t, page, `hx-trigger="every 30s"`)
 	assert.Contains(t, page, `hx-swap="innerHTML"`)
 
-	// An inventory that is being polled says so in the topbar.
-	assert.Contains(t, page, "Refreshing every 30s")
+	// An inventory that is being polled says so in the topbar -- and says it is
+	// the page refreshing, not the collector.
+	assert.Contains(t, page, "Page refreshes every 30s")
 }
 
 // The fragment endpoint comes back on its own rather than wrapped in a document,
