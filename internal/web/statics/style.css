@@ -1791,15 +1791,22 @@ input[type="radio"] {
     }
 
     /* The edit form is one block, not a labelled cell; the identity cell above
-       it drops its desktop nowrap and sits on its own line. */
+       it drops its desktop nowrap and sits on its own line. width resets the
+       1% the last cell in a table row otherwise carries here. */
     #device-rows tr.editing td {
         display: block;
+        width: auto;
         padding: 0;
     }
 
     #device-rows tr.editing .editing__id {
         white-space: normal;
         padding: 0 0 8px;
+    }
+
+    /* Each field takes the row: side by side they are too narrow to type in. */
+    #device-rows tr.editing .stack {
+        flex: 1 1 100%;
     }
 }
 
@@ -2431,4 +2438,47 @@ input[type="radio"] {
 .block__headend .btn svg {
     width: 15px;
     height: 15px;
+}
+
+/* ---- Coarse pointers -------------------------------------------------------- */
+
+/* A finger is a blunter instrument than a mouse pointer: 34px is comfortable to
+   click and cramped to tap. Where the pointer is coarse, the controls grow.
+   Scoped to the pointer, so a fine-pointer desktop is untouched. */
+@media (pointer: coarse) {
+    .btn,
+    .input,
+    .theme-toggle,
+    .usermenu > summary,
+    .editpanel > summary {
+        min-height: 40px;
+    }
+
+    .theme-toggle,
+    .btn--icon {
+        width: 40px;
+        height: 40px;
+    }
+
+    .btn--sm {
+        min-height: 36px;
+    }
+
+    /* Text links that act as controls get a taller hit area from padding; the
+       text stays where it was. */
+    .pager .more,
+    .logfilter a,
+    .clear {
+        padding-top: 9px;
+        padding-bottom: 9px;
+    }
+
+    .pager {
+        gap: 10px 24px;
+    }
+
+    .navitem {
+        padding-top: 11px;
+        padding-bottom: 11px;
+    }
 }
