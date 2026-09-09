@@ -161,7 +161,15 @@ func (h *Handler) sweepNote(ctx context.Context) (string, error) {
 
 func sweepNote(scan *inventory.Scan) string {
 	// The rail labels the line "Last sweep", so the verb would be said twice.
-	return ago(time.Now(), scan.StartedAt)
+	note := ago(time.Now(), scan.StartedAt)
+
+	// A collector that still records scan rows while failing every one of them
+	// would otherwise keep this line reading as healthy.
+	if scan.Status == dbtype.StatusFailed {
+		note += " · failed"
+	}
+
+	return note
 }
 
 // lastSweptAt is when a device sweep last finished with something to show for
