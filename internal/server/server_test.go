@@ -1,6 +1,7 @@
 package server
 
 import (
+	"database/sql"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -48,6 +49,20 @@ func testStore(t *testing.T) *inventory.Store {
 	t.Cleanup(func() { _ = conn.Close() })
 
 	return inventory.New(conn, testLogger())
+}
+
+// testConn opens a migrated database for the parts of Start that take one
+// directly -- the session store. These tests assert on the HTTP surface, not on
+// sessions surviving anything, so it need not be the store's or auth's DB.
+func testConn(t *testing.T) *sql.DB {
+	t.Helper()
+
+	conn, err := db.New(&db.Config{Path: t.TempDir(), Name: "server.db"})
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = conn.Close() })
+
+	return conn
 }
 
 // testAuth builds an Auth over its own migrated database, separate from
@@ -132,8 +147,9 @@ func startServer(t *testing.T) (string, string) {
 
 	port := freePort(t)
 
-	// Opened here rather than in the goroutine below: testDB registers a
-	// cleanup, and t.Cleanup must not be called from another goroutine.
+	// Opened here rather than in the goroutine below: these helpers register
+	// cleanups, and t.Cleanup must not be called from another goroutine.
+	conn := testConn(t)
 	store := testStore(t)
 	a, apiToken := testAuth(t)
 
@@ -144,7 +160,7 @@ func startServer(t *testing.T) (string, string) {
 	ctx := t.Context()
 
 	go func() {
-		errCh <- Start(ctx, &Config{Addr: "127.0.0.1", Port: port, Logger: testLogger()}, store, testValidator(t), a)
+		errCh <- Start(ctx, &Config{Addr: "127.0.0.1", Port: port, Logger: testLogger()}, conn, store, testValidator(t), a)
 	}()
 
 	t.Cleanup(func() {
@@ -328,7 +344,7 @@ func TestStartFailsOnPortInUse(t *testing.T) {
 		Addr:   "127.0.0.1",
 		Port:   ln.Addr().(*net.TCPAddr).Port,
 		Logger: testLogger(),
-	}, testStore(t), testValidator(t), a)
+	}, testConn(t), testStore(t), testValidator(t), a)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "error binding")
@@ -445,6 +461,7 @@ func startServerWithOrigins(t *testing.T, origins []string) string {
 	t.Helper()
 
 	port := freePort(t)
+	conn := testConn(t)
 	store := testStore(t)
 	a, _ := testAuth(t)
 
@@ -457,7 +474,7 @@ func startServerWithOrigins(t *testing.T, origins []string) string {
 			Port:               port,
 			Logger:             testLogger(),
 			CORSAllowedOrigins: origins,
-		}, store, testValidator(t), a)
+		}, conn, store, testValidator(t), a)
 	}()
 
 	t.Cleanup(func() {

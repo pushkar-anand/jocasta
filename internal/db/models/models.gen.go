@@ -100,6 +100,12 @@ type Scan struct {
 	FinishedAt dbtype.NullTime   `json:"finished_at"`
 }
 
+type Session struct {
+	Token  string `json:"token"`
+	Data   []byte `json:"data"`
+	Expiry int64  `json:"expiry"`
+}
+
 type Source struct {
 	ID        int64             `json:"id"`
 	Kind      dbtype.SourceKind `json:"kind"`

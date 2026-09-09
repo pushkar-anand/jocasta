@@ -67,7 +67,7 @@ func TestNewRunsMigrations(t *testing.T) {
 	assert.False(t, dirty, "migrations left the schema in a dirty state")
 
 	for _, table := range []string{
-		"users", "sources", "networks", "devices", "addresses", "scans", "events", "device_ports",
+		"users", "sources", "networks", "devices", "addresses", "scans", "events", "device_ports", "sessions",
 	} {
 		var name string
 

@@ -2,11 +2,13 @@ package auth
 
 import (
 	"context"
+	"database/sql"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/pushkar-anand/build-with-go/security/session"
+	"github.com/pushkar-anand/build-with-go/security/session/sqlitestore"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
 
@@ -37,22 +39,45 @@ type Session struct {
 	s *session.Session[Data]
 }
 
+// SessionOption configures NewSession.
+type SessionOption func(*sessionConfig)
+
+type sessionConfig struct {
+	db *sql.DB
+}
+
+// WithSessionStore persists sessions in db (the jocasta SQLite database) so a
+// signed-in browser stays signed in across a restart. Without it, sessions
+// live only in memory -- which is what the tests want, and why this is opt-in.
+func WithSessionStore(db *sql.DB) SessionOption {
+	return func(c *sessionConfig) { c.db = db }
+}
+
 // NewSession sets every cookie and lifetime option explicitly rather than
 // leaning on the library defaults, so a change to those defaults can't quietly
 // move jocasta's session semantics.
-func NewSession(log *slog.Logger) *Session {
-	s := session.New[Data](
+func NewSession(log *slog.Logger, opts ...SessionOption) *Session {
+	var cfg sessionConfig
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
+	sopts := []session.Option{
 		session.WithLogger(log),
-		session.WithLifetime(7*24*time.Hour),
-		session.WithIdleTimeout(24*time.Hour),
+		session.WithLifetime(7 * 24 * time.Hour),
+		session.WithIdleTimeout(24 * time.Hour),
 		session.WithCookieName("jocasta_session"),
 		session.WithCookiePath("/"),
 		session.WithCookieHttpOnly(true),
 		session.WithCookieSameSite(http.SameSiteStrictMode),
 		session.WithCookiePersist(false),
-	)
+	}
 
-	return &Session{s: s}
+	if cfg.db != nil {
+		sopts = append(sopts, session.WithStore(sqlitestore.New(cfg.db)))
+	}
+
+	return &Session{s: session.New[Data](sopts...)}
 }
 
 // LoadAndSave wraps next with the session middleware every request must pass

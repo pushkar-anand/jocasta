@@ -3,6 +3,7 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -43,10 +44,12 @@ type (
 //
 // The store arrives built rather than opened here: the poller writes through
 // the same one, and how the inventory is read must not depend on which caller
-// constructed it.
+// constructed it. conn is the same database, handed on to back the session
+// store so a sign-in outlives a restart.
 func Start(
 	ctx context.Context,
 	cfg *Config,
+	conn *sql.DB,
 	store *inventory.Store,
 	validator *validator.Validator,
 	a *auth.Auth,
@@ -57,7 +60,7 @@ func Start(
 		request.WithRejectUnknownFields(),
 		request.WithMaxBodyBytes(maxRequestBodyBytes),
 	)
-	sm := auth.NewSession(cfg.Logger)
+	sm := auth.NewSession(cfg.Logger, auth.WithSessionStore(conn))
 
 	jw := response.NewJSONWriter(
 		cfg.Logger,

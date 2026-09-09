@@ -3,6 +3,7 @@ package main
 import (
 	"cmp"
 	"context"
+	"database/sql"
 	"fmt"
 	"log/slog"
 
@@ -25,6 +26,7 @@ func (s *ServeCmd) Run(
 	ctx context.Context,
 	cfg *config.Config,
 	log *slog.Logger,
+	conn *sql.DB,
 	validator *validator.Validator,
 	store *inventory.Store,
 	sweeper *scanner.Scanner,
@@ -84,7 +86,7 @@ func (s *ServeCmd) Run(
 	grp, ctx := errgroup.WithContext(ctx)
 
 	grp.Go(func() error {
-		err := server.Start(ctx, sCfg, store, validator, a)
+		err := server.Start(ctx, sCfg, conn, store, validator, a)
 		if err != nil {
 			return fmt.Errorf("start server: %w", err)
 		}
