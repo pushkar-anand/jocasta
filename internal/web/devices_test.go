@@ -578,6 +578,35 @@ func TestDevicePanelOffersTheTypePicker(t *testing.T) {
 	assert.Contains(t, body, "Auto")
 }
 
+// A writer's device page leads with the curation values as facts and folds the
+// form behind an explicit action, rather than opening on an always-live form.
+func TestDevicePanelLeadsWithFactsThenTheForm(t *testing.T) {
+	t.Parallel()
+
+	h := seeded(t)
+	cookies := signIn(t, h)
+	id := deviceIDFromBody(t, get(t, h, "/devices").Body.String())
+
+	body := requestAs(t, h, cookies, http.MethodGet, "/devices/"+id, "").Body.String()
+
+	assert.Contains(t, body, "<dt>Label</dt>")
+	assert.Contains(t, body, "<summary>Edit details</summary>")
+
+	// The facts come before the form that changes them.
+	assert.Less(t,
+		strings.Index(body, "<dt>Label</dt>"),
+		strings.Index(body, `<details class="editpanel">`),
+	)
+
+	// Landing on the page has not pre-opened the form.
+	assert.NotContains(t, body, `<details class="editpanel" open>`)
+
+	// A read user sees the same facts but no form and no toggle.
+	plain := get(t, h, "/devices/"+id).Body.String()
+	assert.Contains(t, plain, "<dt>Label</dt>")
+	assert.NotContains(t, plain, "Edit details")
+}
+
 // The panel says how sure the classifier was, so "auto" is not a bare claim.
 func TestDevicePanelShowsClassifierConfidence(t *testing.T) {
 	t.Parallel()

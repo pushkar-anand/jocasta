@@ -59,6 +59,11 @@ func TestDeviceRowEditServesTheRowAsAForm(t *testing.T) {
 
 	// Cancelling asks for the row back.
 	assert.Contains(t, body, `hx-get="/devices/1/row"`)
+
+	// The identity cell stays, so the row being edited is still recognisable.
+	assert.Contains(t, body, `class="editing__id"`)
+	assert.Contains(t, body, "printer.local")
+	assert.Contains(t, body, `class="dot `)
 }
 
 // A form that shows only two fields still applies all of them, so the ones it
@@ -145,6 +150,9 @@ func TestUpdateDeviceAnswersWithThePanel(t *testing.T) {
 	// The "Saved." status takes a tabindex so the swap can land focus on the
 	// outcome rather than leaving the keyboard on the body.
 	assert.Contains(t, body, `<p class="saved" role="status" tabindex="-1">Saved.</p>`)
+
+	// The edit form is folded away again after a save: the facts lead.
+	assert.Contains(t, body, `<details class="editpanel">`)
 
 	// The heading is drawn by the layout, outside this swap, so the panel
 	// updates it out of band: a new label shows up where the device is named

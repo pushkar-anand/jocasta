@@ -1,12 +1,24 @@
 {{- /*
-    The same row as a form. Only the two fields worth editing from a list are
-    shown; the rest travel as hidden inputs, because an edit applies every
-    user-owned field and a field the form omits would be cleared. The whole
+    The same row as a form. The identity cell stays as it was -- dot, class
+    icon, name -- so the row you are editing is still recognisably the row you
+    picked; only the rest of it becomes the form. Two fields are worth editing
+    from a list; the others travel as hidden inputs, because an edit applies
+    every user-owned field and one the form omits would be cleared. The whole
     set is editable on the device's own page.
 */ -}}
 {{ define "partial/device-row-form" }}
 <tr id="device-row-{{ .Device.ID }}" class="editing">
-    <td colspan="7">
+    <td class="editing__id">
+        <span class="cell">
+            {{ dot .Device.LastSeen }}
+            {{- with classIcon .Device.Class }}
+            <svg class="devicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{{ . }}</svg>
+            {{- end }}
+            <span class="strong">{{ .Device.Name }}</span>
+        </span>
+    </td>
+    <td colspan="6">
         <form class="inline-form"
               hx-patch="/devices/{{ .Device.ID }}/row"
               hx-target="#device-row-{{ .Device.ID }}"
