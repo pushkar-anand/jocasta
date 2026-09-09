@@ -14,7 +14,7 @@ require (
 	github.com/alecthomas/kong v1.16.1
 	github.com/go-playground/validator/v10 v10.30.4
 	github.com/golang-migrate/migrate/v4 v4.19.1
-	github.com/pushkar-anand/build-with-go v0.1.11-0.20260909082336-468e1503f50c
+	github.com/pushkar-anand/build-with-go v0.1.11
 	github.com/rs/cors v1.11.1
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/net v0.58.0
