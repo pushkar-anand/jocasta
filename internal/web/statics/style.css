@@ -1456,6 +1456,47 @@ input[type="radio"] {
     background: var(--surface-2);
 }
 
+/* The identity cell keeps its shape while the rest of the row is a form, so the
+   row being edited still reads as the row that was picked. */
+.editing__id {
+    vertical-align: top;
+    white-space: nowrap;
+    padding-top: 12px;
+}
+
+/* Lead with the facts, fold the form: a native <details>, styled so the summary
+   reads as the button it is. A save renders it closed again. */
+.editpanel {
+    margin-top: 4px;
+}
+
+.editpanel > summary {
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.editpanel > summary::-webkit-details-marker {
+    display: none;
+}
+
+.editpanel > summary:hover {
+    background: var(--surface-2);
+}
+
+.editpanel[open] > summary {
+    margin-bottom: 14px;
+}
+
 /* Only a swapped-in fragment can report that anything happened, since the page
    around it never reloaded. */
 .saved {
@@ -1700,10 +1741,16 @@ input[type="radio"] {
         text-align: right;
     }
 
-    /* The colspan edit form is one block, not a labelled cell. */
+    /* The edit form is one block, not a labelled cell; the identity cell above
+       it drops its desktop nowrap and sits on its own line. */
     #device-rows tr.editing td {
         display: block;
         padding: 0;
+    }
+
+    #device-rows tr.editing .editing__id {
+        white-space: normal;
+        padding: 0 0 8px;
     }
 }
 

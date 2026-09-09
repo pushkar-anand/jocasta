@@ -55,7 +55,10 @@
         <section class="card panel">
             <h2 class="section">What you call it</h2>
 
-            {{- if not .Role.CanWrite }}
+            {{- /* The facts lead, for every reader: what the device is called
+                   now, not the form that changes it. A writer opens the form
+                   from here; a save closes it again and these values are what
+                   moved. */}}
             <dl class="facts">
                 <div><dt>Label</dt><dd>{{ with .Device.Label }}{{ . }}{{ else }}<span class="dim">&mdash;</span>{{ end }}</dd></div>
                 <div><dt>Group</dt><dd>{{ with .Device.Group }}{{ . }}{{ else }}<span class="dim">&mdash;</span>{{ end }}</dd></div>
@@ -64,61 +67,67 @@
                 <div><dt>Ignored</dt><dd>Left out of the inventory</dd></div>
                 {{- end }}
             </dl>
+
+            {{- if not .Role.CanWrite }}
             <p class="note">Your account is read-only, so these can't be changed here.</p>
             {{- else }}
-            <form class="curation"
-                  hx-patch="/devices/{{ .Device.ID }}"
-                  hx-target="#device-panel"
-                  hx-swap="outerHTML">
-                <div class="curation__fields">
+            {{- if .Saved }}
+            {{- /* tabindex so the swap can land focus on the outcome; sits by the
+                   summary because the form it came from is now folded away. */}}
+            <p class="saved" role="status" tabindex="-1">Saved.</p>
+            {{- end }}
+            <details class="editpanel">
+                <summary>Edit details</summary>
+                <form class="curation"
+                      hx-patch="/devices/{{ .Device.ID }}"
+                      hx-target="#device-panel"
+                      hx-swap="outerHTML">
+                    <div class="curation__fields">
+                        <label class="stack">
+                            <span class="eyebrow">Label</span>
+                            <input class="input" name="label" value="{{ .Device.Label }}"
+                                   placeholder="{{ .Device.Hostname }}" autocomplete="off">
+                        </label>
+                        <label class="stack">
+                            <span class="eyebrow">Group</span>
+                            <input class="input" name="group" value="{{ .Device.Group }}"
+                                   list="device-groups" autocomplete="off">
+                        </label>
+                        <label class="stack">
+                            <span class="eyebrow">Type</span>
+                            <select class="input" name="type">
+                                <option value="">
+                                    {{- with classLabel .Device.ClassGuess }}Auto &middot; {{ . }}{{ else }}Auto{{ end -}}
+                                </option>
+                                {{- range classChoices }}
+                                <option value="{{ .Value }}"{{ if eq .Value $.Device.Type }} selected{{ end }}>{{ .Label }}</option>
+                                {{- end }}
+                            </select>
+                        </label>
+                    </div>
+
                     <label class="stack">
-                        <span class="eyebrow">Label</span>
-                        <input class="input" name="label" value="{{ .Device.Label }}"
-                               placeholder="{{ .Device.Hostname }}" autocomplete="off">
+                        <span class="eyebrow">Notes</span>
+                        <textarea class="input" name="notes" rows="3"
+                                  placeholder="Where it is, what it does, why it is here">{{ .Device.Notes }}</textarea>
                     </label>
-                    <label class="stack">
-                        <span class="eyebrow">Group</span>
-                        <input class="input" name="group" value="{{ .Device.Group }}"
-                               list="device-groups" autocomplete="off">
+
+                    <label class="check">
+                        <input type="checkbox" name="ignored" value="1"{{ if .Device.Ignored }} checked{{ end }}>
+                        <span>Leave this device out of the inventory</span>
                     </label>
-                    <label class="stack">
-                        <span class="eyebrow">Type</span>
-                        <select class="input" name="type">
-                            <option value="">
-                                {{- with classLabel .Device.ClassGuess }}Auto &middot; {{ . }}{{ else }}Auto{{ end -}}
-                            </option>
-                            {{- range classChoices }}
-                            <option value="{{ .Value }}"{{ if eq .Value $.Device.Type }} selected{{ end }}>{{ .Label }}</option>
-                            {{- end }}
-                        </select>
-                    </label>
-                </div>
 
-                <label class="stack">
-                    <span class="eyebrow">Notes</span>
-                    <textarea class="input" name="notes" rows="3"
-                              placeholder="Where it is, what it does, why it is here">{{ .Device.Notes }}</textarea>
-                </label>
+                    <div class="curation__actions">
+                        <button type="submit" class="btn">Save</button>
+                    </div>
 
-                <label class="check">
-                    <input type="checkbox" name="ignored" value="1"{{ if .Device.Ignored }} checked{{ end }}>
-                    <span>Leave this device out of the inventory</span>
-                </label>
-
-                <div class="curation__actions">
-                    <button type="submit" class="btn">Save</button>
-                    {{- if .Saved }}
-                    {{- /* tabindex so the swap can land focus on the outcome. */}}
-                    <p class="saved" role="status" tabindex="-1">Saved.</p>
-                    {{- end }}
-                </div>
-
-                <datalist id="device-groups">
-                    {{- range .Groups }}
-                    <option value="{{ . }}"></option>
-                    {{- end }}
-                </datalist>
-            </form>
+                    <datalist id="device-groups">
+                        {{- range .Groups }}
+                        <option value="{{ . }}"></option>
+                        {{- end }}
+                    </datalist>
+                </form>
+            </details>
 
             <p class="note">These are yours. No sweep or plugin writes them, so they
                 survive the device changing address or being identified later.</p>
