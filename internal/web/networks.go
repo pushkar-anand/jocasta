@@ -1,6 +1,7 @@
 package web
 
 import (
+	"cmp"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -37,7 +38,7 @@ func (h *Handler) network(sm *auth.Session) response.HandlerFunc {
 		}
 
 		data, err := buildDeviceListData(r.Context(), h.store, *q, view{
-			Title:      net.CIDR,
+			Title:      cmp.Or(net.Name, net.CIDR),
 			Section:    "Devices",
 			Crumb:      &crumb{Label: "Devices", Href: "/devices"},
 			Role:       sm.CurrentRole(r.Context()),

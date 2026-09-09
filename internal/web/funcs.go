@@ -38,6 +38,7 @@ func funcs(now func() time.Time) template.FuncMap {
 		"dash":         dash,
 		"pct":          pct,
 		"took":         took,
+		"found":        scanFound,
 		"phrase":       phrase,
 		"tone":         tone,
 		"eventIcon":    eventIcon,
@@ -46,6 +47,7 @@ func funcs(now func() time.Time) template.FuncMap {
 		"change":       change,
 		"addrs":        addrs,
 		"standing":     standing,
+		"sourcekey":    sourceKey,
 		"classLabel":   classLabel,
 		"classIcon":    classIcon,
 		"classChoices": classChoices,
@@ -72,6 +74,34 @@ func standing(s dbtype.HostnameSource) string {
 	// A standing added in Go and not yet worded here still has to render as
 	// something, and its own name is the most truthful fallback.
 	return strings.ToLower(strings.ReplaceAll(string(s), "_", " "))
+}
+
+// sourceKeys words the detail keys a source files a claim under, for a reader
+// who has no reason to know a router's column names.
+var sourceKeys = map[string]string{
+	"interface":    "Interface",
+	"arp_status":   "ARP status",
+	"arp_dynamic":  "Dynamic ARP",
+	"dhcp_server":  "DHCP server",
+	"dhcp_status":  "Lease status",
+	"dhcp_dynamic": "Dynamic lease",
+	"dhcp_comment": "Lease note",
+}
+
+// sourceKey words one detail key. A key with no wording here still has to
+// render as something, so its own name, de-underscored, is the fallback -- the
+// same shape standing and phrase use.
+func sourceKey(k string) string {
+	if label, ok := sourceKeys[k]; ok {
+		return label
+	}
+
+	s := strings.ReplaceAll(k, "_", " ")
+	if s == "" {
+		return s
+	}
+
+	return strings.ToUpper(s[:1]) + s[1:]
 }
 
 // ago renders how long before now t was, at the coarsest useful precision. An
@@ -225,6 +255,21 @@ func took(s *inventory.Scan) string {
 	}
 
 	return d.Truncate(100 * time.Millisecond).String()
+}
+
+// scanFound says what a scan's Found count counts, since a discovery sweep and
+// a port scan put incommensurable numbers in the same column.
+func scanFound(s *inventory.Scan) string {
+	n := strconv.Itoa(s.Found)
+
+	switch s.Kind {
+	case dbtype.ScanPorts:
+		return n + " ports"
+	case dbtype.ScanImport:
+		return n + " records"
+	}
+
+	return n + " hosts"
 }
 
 // phrase renders a stored event kind as what it did, worded for a reader. The

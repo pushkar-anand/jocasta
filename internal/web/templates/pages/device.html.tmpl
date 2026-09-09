@@ -57,12 +57,16 @@
 </section>
 {{- end }}
 
-{{- with .Device.Ports }}
 <section class="block">
     <h2 class="section">Ports</h2>
-    {{- template "partial/device-ports" . }}
+    {{- if .Device.Ports }}
+    {{- template "partial/device-ports" .Device.Ports }}
+    {{- else if .PortScanConfigured }}
+    <p class="dim">No open ports found on this device.</p>
+    {{- else }}
+    <p class="dim">Port scanning is not configured, so the services on this device are unknown.</p>
+    {{- end }}
 </section>
-{{- end }}
 
 {{- if .Claims }}
 <section class="block">

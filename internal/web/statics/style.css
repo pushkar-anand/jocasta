@@ -556,6 +556,26 @@ a.netcard:hover {
     color: var(--text-3);
 }
 
+/* The network-detail summary card: the friendly name leads, the CIDR is the
+   line under it. */
+.nethead__name {
+    font-size: 15px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+}
+
+.nethead__cidr {
+    margin: -8px 0 0;
+    font-size: 12.5px;
+    color: var(--text-3);
+}
+
+/* On a network's own page the Network column repeats the page on every row. */
+.on-network th:nth-child(3),
+.on-network td:nth-child(3) {
+    display: none;
+}
+
 /* A pair of counts read as one fact, so the number leads and the label follows
    it rather than the other way round. */
 .stats {
@@ -1328,6 +1348,35 @@ input[type="radio"] {
     font-family: var(--sans);
     font-weight: 600;
     color: var(--brand);
+}
+
+/* A row of plain links that narrow a log to one kind. The current one is not a
+   link to somewhere else, it is where you are. */
+.logfilter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    margin-bottom: 4px;
+}
+
+.logfilter a {
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--text-2);
+    font-size: 12.5px;
+    font-weight: 500;
+}
+
+.logfilter a:hover {
+    border-color: var(--border-strong);
+    text-decoration: none;
+}
+
+.logfilter a[aria-current="page"] {
+    border-color: var(--brand);
+    background: var(--brand-soft);
+    color: var(--brand-ink);
 }
 
 .btn {

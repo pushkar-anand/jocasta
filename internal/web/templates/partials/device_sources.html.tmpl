@@ -39,7 +39,7 @@
                     {{- if .Detail }}
                     <dl class="detail">
                         {{- range .Detail }}
-                        <div><dt>{{ .Key }}</dt><dd class="mono">{{ .Value }}</dd></div>
+                        <div><dt title="{{ .Key }}">{{ sourcekey .Key }}</dt><dd class="mono">{{ .Value }}</dd></div>
                         {{- end }}
                     </dl>
                     {{- else }}

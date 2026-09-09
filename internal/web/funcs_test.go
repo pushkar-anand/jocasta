@@ -153,6 +153,24 @@ func TestTook(t *testing.T) {
 	assert.Equal(t, em, took(&inventory.Scan{StartedAt: start}))
 }
 
+func TestScanFound(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "12 hosts", scanFound(&inventory.Scan{Kind: dbtype.ScanDiscovery, Found: 12}))
+	assert.Equal(t, "8 ports", scanFound(&inventory.Scan{Kind: dbtype.ScanPorts, Found: 8}))
+	assert.Equal(t, "40 records", scanFound(&inventory.Scan{Kind: dbtype.ScanImport, Found: 40}))
+}
+
+func TestSourceKey(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "Lease status", sourceKey("dhcp_status"))
+	assert.Equal(t, "Dynamic ARP", sourceKey("arp_dynamic"))
+
+	// A key with no wording falls back to its own name, de-underscored.
+	assert.Equal(t, "Vlan pool", sourceKey("vlan_pool"))
+}
+
 func TestPhrase(t *testing.T) {
 	t.Parallel()
 
@@ -264,7 +282,7 @@ func TestFuncsCoverEveryHelperTheTemplatesUse(t *testing.T) {
 
 	registered := funcs(func() time.Time { return now })
 
-	for _, name := range []string{"ago", "stamp", "decay", "dot", "healthLabel", "dash", "pct", "took", "phrase", "tone", "eventIcon", "health", "statusClass", "change"} {
+	for _, name := range []string{"ago", "stamp", "decay", "dot", "healthLabel", "dash", "pct", "took", "found", "sourcekey", "phrase", "tone", "eventIcon", "health", "statusClass", "change"} {
 		assert.Contains(t, registered, name)
 	}
 }

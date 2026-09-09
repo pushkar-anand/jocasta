@@ -9,6 +9,7 @@ import (
 	"github.com/pushkar-anand/build-with-go/http/response"
 	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/jocasta/internal/auth"
+	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
@@ -28,6 +29,10 @@ type logData struct {
 	// full log. Only the event log is ever narrowed.
 	Device *inventory.Device
 
+	// Kind narrows the scan log to one kind ("discovery", "ports", "import"),
+	// and is empty for every kind. Only the scan log is ever narrowed this way.
+	Kind string
+
 	// Cursor is the token this page was reached by, and is empty at the top of
 	// the log.
 	Cursor string
@@ -43,14 +48,24 @@ func (d logData) AtTop() bool { return d.Cursor == "" }
 // HasOlder reports whether there is another page behind this one.
 func (d logData) HasOlder() bool { return d.Next != "" }
 
-// Top is the address of the first page of this log, carrying the device filter
-// where there is one so walking back to the top does not widen the log.
+// Top is the address of the first page of this log, carrying whatever narrows
+// it so walking back to the top does not widen the log.
 func (d logData) Top() string {
-	if d.Device == nil {
+	q := url.Values{}
+
+	if d.Device != nil {
+		q.Set("device", strconv.FormatInt(d.Device.ID, 10))
+	}
+
+	if d.Kind != "" {
+		q.Set("kind", d.Kind)
+	}
+
+	if len(q) == 0 {
 		return d.Path
 	}
 
-	return d.Path + "?device=" + strconv.FormatInt(d.Device.ID, 10)
+	return d.Path + "?" + q.Encode()
 }
 
 // Older is the address of the page behind this one, keeping the filter.
@@ -66,6 +81,28 @@ func (d logData) Older() string {
 // logQuery is the cursor a log page continues from.
 type logQuery struct {
 	Cursor string `schema:"cursor" validate:"omitempty,max=512"`
+}
+
+// scansQuery is the scan log's own query string: its cursor, plus the kind it
+// narrows to when there is one.
+type scansQuery struct {
+	logQuery
+	Kind string `schema:"kind" validate:"omitempty,oneof=discovery ports import"`
+}
+
+// scanKind maps the query-string spelling to the stored value; an empty or
+// unrecognised value means every kind.
+func scanKind(s string) dbtype.ScanKind {
+	switch s {
+	case "discovery":
+		return dbtype.ScanDiscovery
+	case "ports":
+		return dbtype.ScanPorts
+	case "import":
+		return dbtype.ScanImport
+	}
+
+	return ""
 }
 
 // eventsQuery is the events log's own query string: its cursor, plus the
@@ -162,7 +199,7 @@ func (h *Handler) scans(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 
-		q, err := h.reader.ReadAndValidateQueryParams[logQuery](r)
+		q, err := h.reader.ReadAndValidateQueryParams[scansQuery](r)
 		if err != nil {
 			return err
 		}
@@ -174,9 +211,12 @@ func (h *Handler) scans(sm *auth.Session) response.HandlerFunc {
 			SignedInAs: sm.CurrentUsername(ctx),
 			Path:       "/scans",
 			Cursor:     token,
+			Kind:       q.Kind,
 		}
 
-		page, err := h.store.ListScans(ctx, inventory.Page{Limit: logPageSize, Cursor: from})
+		page, err := h.store.ListScans(ctx, inventory.Page{
+			Limit: logPageSize, Cursor: from, ScanKind: scanKind(q.Kind),
+		})
 		if err != nil {
 			h.log.ErrorContext(ctx, "failed to list scans", logger.Err(err))
 

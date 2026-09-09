@@ -3,9 +3,18 @@
 
 <section class="block">
     <div class="block__head">
-        <h2 class="section">Sweeps</h2>
+        <h2 class="section">Scans</h2>
         <p class="block__aside">Scheduled by <code>jocasta serve</code>, or run with <code>jocasta scan</code></p>
     </div>
+
+    {{- /* Discovery sweeps and port scans share this log; the filter is how you
+           read one without the other. */}}
+    <nav class="logfilter" aria-label="Filter scans by kind">
+        <a href="/scans"{{ if not .Kind }} aria-current="page"{{ end }}>All</a>
+        <a href="/scans?kind=discovery"{{ if eq .Kind "discovery" }} aria-current="page"{{ end }}>Discovery</a>
+        <a href="/scans?kind=ports"{{ if eq .Kind "ports" }} aria-current="page"{{ end }}>Ports</a>
+        <a href="/scans?kind=import"{{ if eq .Kind "import" }} aria-current="page"{{ end }}>Import</a>
+    </nav>
 
     {{- if .Scans }}
     <div class="card card--table">
@@ -14,6 +23,7 @@
                 <thead>
                 <tr>
                     <th scope="col">Started</th>
+                    <th scope="col">Kind</th>
                     <th scope="col">Source</th>
                     <th scope="col">Network</th>
                     <th scope="col">Found</th>
@@ -25,15 +35,16 @@
                 {{- range .Scans }}
                 <tr>
                     <td class="dim">{{ stamp .StartedAt "" }}</td>
+                    <td class="lower">{{ .Kind }}</td>
                     <td class="strong">{{ .Source }}</td>
                     <td class="mono">{{ dash .Network }}</td>
-                    <td class="num">{{ .Found }}</td>
+                    <td>{{ found . }}</td>
                     <td class="dim num">{{ took . }}</td>
                     <td><span class="{{ statusClass .Status }}">{{ .Status }}</span></td>
                 </tr>
                 {{- with .Error }}
                 <tr class="row--note">
-                    <td colspan="6"><p class="failure">{{ . }}</p></td>
+                    <td colspan="7"><p class="failure">{{ . }}</p></td>
                 </tr>
                 {{- end }}
                 {{- end }}
@@ -41,6 +52,8 @@
             </table>
         </div>
     </div>
+    {{- else if .Kind }}
+    <p class="dim">No scan of that kind has been recorded yet.</p>
     {{- else }}
     <p class="dim">No sweep has been recorded yet.</p>
     {{- end }}
