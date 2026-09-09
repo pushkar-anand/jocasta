@@ -44,6 +44,10 @@ type SessionOption func(*sessionConfig)
 
 type sessionConfig struct {
 	db *sql.DB
+
+	lifetime     time.Duration
+	idleTimeout  time.Duration
+	cookieSecure bool
 }
 
 // WithSessionStore persists sessions in db (the jocasta SQLite database) so a
@@ -53,23 +57,60 @@ func WithSessionStore(db *sql.DB) SessionOption {
 	return func(c *sessionConfig) { c.db = db }
 }
 
+// WithLifetime caps how long a session lasts from sign-in, regardless of
+// activity. A non-positive d is ignored, leaving the default in place rather
+// than a zero that would expire every session at once.
+func WithLifetime(d time.Duration) SessionOption {
+	return func(c *sessionConfig) {
+		if d > 0 {
+			c.lifetime = d
+		}
+	}
+}
+
+// WithIdleTimeout sets how long a session survives without a request before it
+// is dropped. A non-positive d is ignored, leaving the default in place.
+func WithIdleTimeout(d time.Duration) SessionOption {
+	return func(c *sessionConfig) {
+		if d > 0 {
+			c.idleTimeout = d
+		}
+	}
+}
+
+// WithCookieSecure sets whether the session cookie is restricted to HTTPS. It
+// is true in every real deployment; passing false only exists so a browser can
+// sign in over plain HTTP during local development.
+func WithCookieSecure(secure bool) SessionOption {
+	return func(c *sessionConfig) { c.cookieSecure = secure }
+}
+
 // NewSession sets every cookie and lifetime option explicitly rather than
 // leaning on the library defaults, so a change to those defaults can't quietly
 // move jocasta's session semantics.
+//
+// The lifetime, idle timeout, and cookie-secure flag start at the values a
+// deployment can override through config; the cookie name, path, SameSite and
+// HttpOnly flags are jocasta's to decide and are not configurable.
 func NewSession(log *slog.Logger, opts ...SessionOption) *Session {
-	var cfg sessionConfig
+	cfg := sessionConfig{
+		lifetime:     7 * 24 * time.Hour,
+		idleTimeout:  24 * time.Hour,
+		cookieSecure: true,
+	}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
 
 	sopts := []session.Option{
 		session.WithLogger(log),
-		session.WithLifetime(7 * 24 * time.Hour),
-		session.WithIdleTimeout(24 * time.Hour),
+		session.WithLifetime(cfg.lifetime),
+		session.WithIdleTimeout(cfg.idleTimeout),
 		session.WithCookieName("jocasta_session"),
 		session.WithCookiePath("/"),
 		session.WithCookieHttpOnly(true),
 		session.WithCookieSameSite(http.SameSiteStrictMode),
+		session.WithCookieSecure(cfg.cookieSecure),
 		session.WithCookiePersist(false),
 	}
 
