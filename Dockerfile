@@ -47,17 +47,14 @@ FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /out/jocasta /usr/local/bin/jocasta
 COPY --from=build --chown=65532:65532 /out/data /data
 
-# The port the image is built around. A caller who wants a different one can
-# either build with --build-arg PORT=..., which keeps the listening port and
-# the EXPOSE metadata in step, or override JOCASTA_SERVER__PORT at run time,
-# which moves the listening port on its own.
+# EXPOSE metadata only, and not mirrored into JOCASTA_SERVER__PORT: a baked ENV
+# outranks the config file, so pinning the port here would keep server.port in a
+# mounted jocasta.yaml from ever taking effect. The app's own default is 8080.
 ARG PORT=8080
 
-# Defaults for a container: bind on every interface (the application's own
-# default is localhost, which would be unreachable from outside) and keep the
-# SQLite file on /data so it can be given a volume.
+# Bind on every interface (the app's own default is localhost, unreachable from
+# outside a container) and keep the SQLite file on the /data volume.
 ENV JOCASTA_SERVER__HOST=0.0.0.0 \
-    JOCASTA_SERVER__PORT=${PORT} \
     JOCASTA_DB__PATH=/data \
     JOCASTA_DB__NAME=jocasta.db
 
