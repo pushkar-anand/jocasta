@@ -718,8 +718,8 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:xMI15A0UPsDsEKsMN9yxemIoYk6Tm2C1GtYGdfGttqA=
-github.com/pushkar-anand/build-with-go v0.1.10 h1:zpqWOTw8jqLET7FhUAybUI3CubiFa4u/L/AALovHn4k=
-github.com/pushkar-anand/build-with-go v0.1.10/go.mod h1:STVZPpesdXxRq7GBUciEWuFIvhE3IaLNghvFE+og/z0=
+github.com/pushkar-anand/build-with-go v0.1.11 h1:jCbmt5Z+eZeBDF0EgetiLM/4mpwaYQu36pse5rN7S8I=
+github.com/pushkar-anand/build-with-go v0.1.11/go.mod h1:gUDb2Mol8RwzpJ6Kiu+d1nWXCdgNscZfyAQ1q+bKkWc=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec h1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
 github.com/riza-io/grpc-go v0.2.0 h1:2HxQKFVE7VuYstcJ8zqpN84VnAoJ4dCL6YFhJewNcHQ=
