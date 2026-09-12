@@ -20,10 +20,11 @@ import (
 // is looked up by. A real store is safe to call from parallel subtests, so the
 // mutex guards every access to make this one behave the same.
 type fakeQueries struct {
-	mu     sync.Mutex
-	users  map[string]*models.User
-	tokens map[string]*models.ApiToken
-	nextID int64
+	mu            sync.Mutex
+	users         map[string]*models.User
+	tokens        map[string]*models.ApiToken
+	recoveryCodes map[string]*models.UserRecoveryCode
+	nextID        int64
 }
 
 func (f *fakeQueries) GetUserByUsername(_ context.Context, username string) (*models.User, error) {
@@ -36,6 +37,19 @@ func (f *fakeQueries) GetUserByUsername(_ context.Context, username string) (*mo
 	}
 
 	return u, nil
+}
+
+func (f *fakeQueries) GetUserByID(_ context.Context, id int64) (*models.User, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	for _, u := range f.users {
+		if u.ID == id {
+			return u, nil
+		}
+	}
+
+	return nil, sql.ErrNoRows
 }
 
 func (f *fakeQueries) CreateUser(_ context.Context, arg models.CreateUserParams) (*models.User, error) {
@@ -149,6 +163,117 @@ func (f *fakeQueries) DeleteAPIToken(_ context.Context, arg models.DeleteAPIToke
 	return nil
 }
 
+func (f *fakeQueries) SetUserTOTPSecret(_ context.Context, arg models.SetUserTOTPSecretParams) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	for _, u := range f.users {
+		if u.ID == arg.ID {
+			u.TOTPSecret = arg.TOTPSecret
+			return nil
+		}
+	}
+
+	return sql.ErrNoRows
+}
+
+func (f *fakeQueries) EnableUserTOTP(_ context.Context, arg models.EnableUserTOTPParams) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	for _, u := range f.users {
+		if u.ID == arg.ID {
+			u.TOTPEnabled = true
+			u.TOTPConfirmedAt = arg.TOTPConfirmedAt
+
+			return nil
+		}
+	}
+
+	return sql.ErrNoRows
+}
+
+func (f *fakeQueries) DisableUserTOTP(_ context.Context, id int64) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	for _, u := range f.users {
+		if u.ID == id {
+			u.TOTPSecret = sql.NullString{}
+			u.TOTPEnabled = false
+			u.TOTPConfirmedAt = dbtype.NullTime{}
+
+			return nil
+		}
+	}
+
+	return sql.ErrNoRows
+}
+
+func (f *fakeQueries) CreateRecoveryCode(_ context.Context, arg models.CreateRecoveryCodeParams) (*models.UserRecoveryCode, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	f.nextID++
+
+	c := &models.UserRecoveryCode{
+		ID:        f.nextID,
+		UserID:    arg.UserID,
+		CodeHash:  arg.CodeHash,
+		CreatedAt: dbtype.NewTime(time.Now()),
+	}
+
+	if f.recoveryCodes == nil {
+		f.recoveryCodes = map[string]*models.UserRecoveryCode{}
+	}
+
+	f.recoveryCodes[arg.CodeHash] = c
+
+	return c, nil
+}
+
+func (f *fakeQueries) DeleteRecoveryCodesByUser(_ context.Context, userID int64) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	for hash, c := range f.recoveryCodes {
+		if c.UserID == userID {
+			delete(f.recoveryCodes, hash)
+		}
+	}
+
+	return nil
+}
+
+func (f *fakeQueries) RedeemRecoveryCode(_ context.Context, arg models.RedeemRecoveryCodeParams) (*models.UserRecoveryCode, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	c, ok := f.recoveryCodes[arg.CodeHash]
+	if !ok || c.UserID != arg.UserID || c.UsedAt.Valid {
+		return nil, sql.ErrNoRows
+	}
+
+	c.UsedAt = arg.UsedAt
+
+	return c, nil
+}
+
+func (f *fakeQueries) CountUnusedRecoveryCodesByUser(_ context.Context, userID int64) (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	var n int64
+
+	for _, c := range f.recoveryCodes {
+		if c.UserID == userID && !c.UsedAt.Valid {
+			n++
+		}
+	}
+
+	return n, nil
+}
+
 func testLogger() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
 }
@@ -230,9 +355,10 @@ func TestLogin(t *testing.T) {
 		ctx, err := sm.Load(t.Context(), "")
 		require.NoError(t, err)
 
-		user, err := a.Login(ctx, sm, "ada", "correct-password", false)
+		result, err := a.Login(ctx, sm, "ada", "correct-password", false)
 		require.NoError(t, err)
-		assert.Equal(t, int64(42), user.ID)
+		require.False(t, result.TOTPPending)
+		assert.Equal(t, int64(42), result.User.ID)
 
 		id, ok := sm.CurrentUserID(ctx)
 		require.True(t, ok)

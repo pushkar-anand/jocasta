@@ -91,15 +91,27 @@ func Start(
 			http.StatusUnprocessableEntity:   web.TemplateBadRequest,
 			http.StatusNotFound:              web.TemplateNotFound,
 			http.StatusUnauthorized:          web.TemplateLogin,
+			http.StatusPreconditionRequired:  web.TemplateTOTP,
 			http.StatusConflict:              web.TemplateSetup,
 			http.StatusForbidden:             web.TemplateForbidden,
 		}),
 		response.WithErrorStatusMapper(func(err error) int {
 			switch {
-			case errors.Is(err, inventory.ErrNotFound):
+			case errors.Is(err, inventory.ErrNotFound), errors.Is(err, auth.ErrNoTOTPEnrollment):
 				return http.StatusNotFound
 			case errors.Is(err, auth.ErrInvalidCredentials):
 				return http.StatusUnauthorized
+			// ErrInvalidTOTPCode is the one failure that needs its own page
+			// (TemplateTOTP) rather than reusing TemplateLogin's 401 -- 428 is
+			// otherwise unused in this app and carries no special browser or
+			// proxy handling to work around, unlike 401/407.
+			case errors.Is(err, auth.ErrInvalidTOTPCode):
+				return http.StatusPreconditionRequired
+			// Both reached only from the settings page, already signed in: the
+			// generic bad-request page they share is the right shell for a
+			// retry, not the standalone sign-in one 401 renders.
+			case errors.Is(err, auth.ErrInvalidEnrollmentCode), errors.Is(err, auth.ErrInvalidPassword):
+				return http.StatusUnprocessableEntity
 			case errors.Is(err, auth.ErrSetupComplete):
 				return http.StatusConflict
 			case errors.Is(err, auth.ErrForbidden):
@@ -122,7 +134,10 @@ func Start(
 	sessionMiddleware := auth.NewSessionMiddleware(
 		sm, a,
 		[]*regexp.Regexp{regexp.MustCompile(`^/static/.*$`)},
-		[]*regexp.Regexp{regexp.MustCompile(`^/login$`)},
+		[]*regexp.Regexp{
+			regexp.MustCompile(`^/login$`),
+			regexp.MustCompile(`^/login/totp$`),
+		},
 	)
 
 	mux := http.NewServeMux()

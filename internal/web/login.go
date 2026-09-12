@@ -55,8 +55,14 @@ func (h *Handler) loginForm(
 		// handler error does: the status mapper and error-page data configured
 		// on htmlWriter turn it into the sign-in page with its message, rather
 		// than this handler rendering that page itself.
-		if _, err := a.Login(ctx, sm, input.Username, input.Password, input.RememberMe); err != nil {
+		result, err := a.Login(ctx, sm, input.Username, input.Password, input.RememberMe)
+		if err != nil {
 			return err
+		}
+
+		if result.TOTPPending {
+			http.Redirect(w, r, "/login/totp", http.StatusFound)
+			return nil
 		}
 
 		http.Redirect(w, r, "/", http.StatusFound)

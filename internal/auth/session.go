@@ -30,6 +30,21 @@ type Data struct {
 	// that are read back exactly once -- a message, or a secret shown a
 	// single time. nil until the first Flash call.
 	Flash map[string]string
+
+	// PendingUserID is set once Verify succeeds for an account with 2FA
+	// enabled, and cleared the moment a second factor also succeeds. A
+	// nonzero value here is not itself proof of anything -- UserID staying
+	// zero until then is what every other check keys off.
+	PendingUserID int64
+
+	// PendingUsername mirrors PendingUserID the way Username mirrors UserID,
+	// so the second-factor page can address the account without a lookup.
+	PendingUsername string
+
+	// PendingAttempts counts consecutive wrong codes against PendingUserID.
+	// It bounds guesswork against a second factor already down to a 6-digit
+	// space, not a general rate limit -- see Auth.VerifyTOTP.
+	PendingAttempts int
 }
 
 // Session adapts the generic typed session to jocasta's own vocabulary
@@ -201,4 +216,11 @@ func (s *Session) PopFlash(ctx context.Context, key string) string {
 // actually wants.
 func (s *Session) Logout(ctx context.Context) error {
 	return s.s.Destroy(ctx)
+}
+
+// HasPendingTOTP reports whether Login left this session waiting on a second
+// factor.
+func (s *Session) HasPendingTOTP(ctx context.Context) bool {
+	d, ok := s.s.Current(ctx)
+	return ok && d.PendingUserID != 0
 }

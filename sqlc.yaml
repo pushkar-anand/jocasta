@@ -15,7 +15,7 @@ sql:
         output_models_file_name: "models.gen.go"
         output_files_suffix: ".gen.go"
         emit_result_struct_pointers: true
-        initialisms: [ "id","ip","mac" ]
+        initialisms: [ "id","ip","mac","totp" ]
 
 
         # Timestamps are TEXT in ISO-8601, which the driver will not scan into
@@ -64,6 +64,16 @@ sql:
           - column: "device_ports.changed_at"
             go_type: *timestamp
           - column: "scans.finished_at"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "NullTime"
+          - column: "users.totp_confirmed_at"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "NullTime"
+          - column: "user_recovery_codes.created_at"
+            go_type: *timestamp
+          - column: "user_recovery_codes.used_at"
             go_type:
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
               type: "NullTime"
@@ -136,6 +146,8 @@ sql:
           - column: "devices.is_ignored"
             go_type: "bool"
           - column: "addresses.is_current"
+            go_type: "bool"
+          - column: "users.totp_enabled"
             go_type: "bool"
 
     strict_function_checks: true
