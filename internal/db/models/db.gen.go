@@ -39,6 +39,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.commonOpenServicesStmt, err = db.PrepareContext(ctx, commonOpenServices); err != nil {
 		return nil, fmt.Errorf("error preparing query CommonOpenServices: %w", err)
 	}
+	if q.countUnusedRecoveryCodesByUserStmt, err = db.PrepareContext(ctx, countUnusedRecoveryCodesByUser); err != nil {
+		return nil, fmt.Errorf("error preparing query CountUnusedRecoveryCodesByUser: %w", err)
+	}
 	if q.countUsersStmt, err = db.PrepareContext(ctx, countUsers); err != nil {
 		return nil, fmt.Errorf("error preparing query CountUsers: %w", err)
 	}
@@ -50,6 +53,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.createEventStmt, err = db.PrepareContext(ctx, createEvent); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateEvent: %w", err)
+	}
+	if q.createRecoveryCodeStmt, err = db.PrepareContext(ctx, createRecoveryCode); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateRecoveryCode: %w", err)
 	}
 	if q.createScanStmt, err = db.PrepareContext(ctx, createScan); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateScan: %w", err)
@@ -66,11 +72,20 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deleteDeviceStmt, err = db.PrepareContext(ctx, deleteDevice); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteDevice: %w", err)
 	}
+	if q.deleteRecoveryCodesByUserStmt, err = db.PrepareContext(ctx, deleteRecoveryCodesByUser); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteRecoveryCodesByUser: %w", err)
+	}
 	if q.deviceNetworkNamesStmt, err = db.PrepareContext(ctx, deviceNetworkNames); err != nil {
 		return nil, fmt.Errorf("error preparing query DeviceNetworkNames: %w", err)
 	}
 	if q.deviceStatsStmt, err = db.PrepareContext(ctx, deviceStats); err != nil {
 		return nil, fmt.Errorf("error preparing query DeviceStats: %w", err)
+	}
+	if q.disableUserTOTPStmt, err = db.PrepareContext(ctx, disableUserTOTP); err != nil {
+		return nil, fmt.Errorf("error preparing query DisableUserTOTP: %w", err)
+	}
+	if q.enableUserTOTPStmt, err = db.PrepareContext(ctx, enableUserTOTP); err != nil {
+		return nil, fmt.Errorf("error preparing query EnableUserTOTP: %w", err)
 	}
 	if q.finishScanStmt, err = db.PrepareContext(ctx, finishScan); err != nil {
 		return nil, fmt.Errorf("error preparing query FinishScan: %w", err)
@@ -144,6 +159,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.portStatsStmt, err = db.PrepareContext(ctx, portStats); err != nil {
 		return nil, fmt.Errorf("error preparing query PortStats: %w", err)
 	}
+	if q.redeemRecoveryCodeStmt, err = db.PrepareContext(ctx, redeemRecoveryCode); err != nil {
+		return nil, fmt.Errorf("error preparing query RedeemRecoveryCode: %w", err)
+	}
 	if q.refreshAddressStmt, err = db.PrepareContext(ctx, refreshAddress); err != nil {
 		return nil, fmt.Errorf("error preparing query RefreshAddress: %w", err)
 	}
@@ -158,6 +176,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.setDeviceHostnameStmt, err = db.PrepareContext(ctx, setDeviceHostname); err != nil {
 		return nil, fmt.Errorf("error preparing query SetDeviceHostname: %w", err)
+	}
+	if q.setUserTOTPSecretStmt, err = db.PrepareContext(ctx, setUserTOTPSecret); err != nil {
+		return nil, fmt.Errorf("error preparing query SetUserTOTPSecret: %w", err)
 	}
 	if q.touchAPITokenByHashStmt, err = db.PrepareContext(ctx, touchAPITokenByHash); err != nil {
 		return nil, fmt.Errorf("error preparing query TouchAPITokenByHash: %w", err)
@@ -213,6 +234,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing commonOpenServicesStmt: %w", cerr)
 		}
 	}
+	if q.countUnusedRecoveryCodesByUserStmt != nil {
+		if cerr := q.countUnusedRecoveryCodesByUserStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing countUnusedRecoveryCodesByUserStmt: %w", cerr)
+		}
+	}
 	if q.countUsersStmt != nil {
 		if cerr := q.countUsersStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing countUsersStmt: %w", cerr)
@@ -231,6 +257,11 @@ func (q *Queries) Close() error {
 	if q.createEventStmt != nil {
 		if cerr := q.createEventStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createEventStmt: %w", cerr)
+		}
+	}
+	if q.createRecoveryCodeStmt != nil {
+		if cerr := q.createRecoveryCodeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createRecoveryCodeStmt: %w", cerr)
 		}
 	}
 	if q.createScanStmt != nil {
@@ -258,6 +289,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing deleteDeviceStmt: %w", cerr)
 		}
 	}
+	if q.deleteRecoveryCodesByUserStmt != nil {
+		if cerr := q.deleteRecoveryCodesByUserStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteRecoveryCodesByUserStmt: %w", cerr)
+		}
+	}
 	if q.deviceNetworkNamesStmt != nil {
 		if cerr := q.deviceNetworkNamesStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deviceNetworkNamesStmt: %w", cerr)
@@ -266,6 +302,16 @@ func (q *Queries) Close() error {
 	if q.deviceStatsStmt != nil {
 		if cerr := q.deviceStatsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deviceStatsStmt: %w", cerr)
+		}
+	}
+	if q.disableUserTOTPStmt != nil {
+		if cerr := q.disableUserTOTPStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing disableUserTOTPStmt: %w", cerr)
+		}
+	}
+	if q.enableUserTOTPStmt != nil {
+		if cerr := q.enableUserTOTPStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing enableUserTOTPStmt: %w", cerr)
 		}
 	}
 	if q.finishScanStmt != nil {
@@ -388,6 +434,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing portStatsStmt: %w", cerr)
 		}
 	}
+	if q.redeemRecoveryCodeStmt != nil {
+		if cerr := q.redeemRecoveryCodeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing redeemRecoveryCodeStmt: %w", cerr)
+		}
+	}
 	if q.refreshAddressStmt != nil {
 		if cerr := q.refreshAddressStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing refreshAddressStmt: %w", cerr)
@@ -411,6 +462,11 @@ func (q *Queries) Close() error {
 	if q.setDeviceHostnameStmt != nil {
 		if cerr := q.setDeviceHostnameStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing setDeviceHostnameStmt: %w", cerr)
+		}
+	}
+	if q.setUserTOTPSecretStmt != nil {
+		if cerr := q.setUserTOTPSecretStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing setUserTOTPSecretStmt: %w", cerr)
 		}
 	}
 	if q.touchAPITokenByHashStmt != nil {
@@ -497,17 +553,22 @@ type Queries struct {
 	allNetworksStmt                    *sql.Stmt
 	closePortStmt                      *sql.Stmt
 	commonOpenServicesStmt             *sql.Stmt
+	countUnusedRecoveryCodesByUserStmt *sql.Stmt
 	countUsersStmt                     *sql.Stmt
 	createAPITokenStmt                 *sql.Stmt
 	createDeviceStmt                   *sql.Stmt
 	createEventStmt                    *sql.Stmt
+	createRecoveryCodeStmt             *sql.Stmt
 	createScanStmt                     *sql.Stmt
 	createUserStmt                     *sql.Stmt
 	currentAddressesStmt               *sql.Stmt
 	deleteAPITokenStmt                 *sql.Stmt
 	deleteDeviceStmt                   *sql.Stmt
+	deleteRecoveryCodesByUserStmt      *sql.Stmt
 	deviceNetworkNamesStmt             *sql.Stmt
 	deviceStatsStmt                    *sql.Stmt
+	disableUserTOTPStmt                *sql.Stmt
+	enableUserTOTPStmt                 *sql.Stmt
 	finishScanStmt                     *sql.Stmt
 	getAddressStmt                     *sql.Stmt
 	getDeviceStmt                      *sql.Stmt
@@ -532,11 +593,13 @@ type Queries struct {
 	moveDeviceSourcesStmt              *sql.Stmt
 	moveEventsStmt                     *sql.Stmt
 	portStatsStmt                      *sql.Stmt
+	redeemRecoveryCodeStmt             *sql.Stmt
 	refreshAddressStmt                 *sql.Stmt
 	releaseAddressStmt                 *sql.Stmt
 	retireAddressStmt                  *sql.Stmt
 	setDeviceClassStmt                 *sql.Stmt
 	setDeviceHostnameStmt              *sql.Stmt
+	setUserTOTPSecretStmt              *sql.Stmt
 	touchAPITokenByHashStmt            *sql.Stmt
 	touchDeviceStmt                    *sql.Stmt
 	updateDeviceCurationStmt           *sql.Stmt
@@ -556,17 +619,22 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		allNetworksStmt:                    q.allNetworksStmt,
 		closePortStmt:                      q.closePortStmt,
 		commonOpenServicesStmt:             q.commonOpenServicesStmt,
+		countUnusedRecoveryCodesByUserStmt: q.countUnusedRecoveryCodesByUserStmt,
 		countUsersStmt:                     q.countUsersStmt,
 		createAPITokenStmt:                 q.createAPITokenStmt,
 		createDeviceStmt:                   q.createDeviceStmt,
 		createEventStmt:                    q.createEventStmt,
+		createRecoveryCodeStmt:             q.createRecoveryCodeStmt,
 		createScanStmt:                     q.createScanStmt,
 		createUserStmt:                     q.createUserStmt,
 		currentAddressesStmt:               q.currentAddressesStmt,
 		deleteAPITokenStmt:                 q.deleteAPITokenStmt,
 		deleteDeviceStmt:                   q.deleteDeviceStmt,
+		deleteRecoveryCodesByUserStmt:      q.deleteRecoveryCodesByUserStmt,
 		deviceNetworkNamesStmt:             q.deviceNetworkNamesStmt,
 		deviceStatsStmt:                    q.deviceStatsStmt,
+		disableUserTOTPStmt:                q.disableUserTOTPStmt,
+		enableUserTOTPStmt:                 q.enableUserTOTPStmt,
 		finishScanStmt:                     q.finishScanStmt,
 		getAddressStmt:                     q.getAddressStmt,
 		getDeviceStmt:                      q.getDeviceStmt,
@@ -591,11 +659,13 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		moveDeviceSourcesStmt:              q.moveDeviceSourcesStmt,
 		moveEventsStmt:                     q.moveEventsStmt,
 		portStatsStmt:                      q.portStatsStmt,
+		redeemRecoveryCodeStmt:             q.redeemRecoveryCodeStmt,
 		refreshAddressStmt:                 q.refreshAddressStmt,
 		releaseAddressStmt:                 q.releaseAddressStmt,
 		retireAddressStmt:                  q.retireAddressStmt,
 		setDeviceClassStmt:                 q.setDeviceClassStmt,
 		setDeviceHostnameStmt:              q.setDeviceHostnameStmt,
+		setUserTOTPSecretStmt:              q.setUserTOTPSecretStmt,
 		touchAPITokenByHashStmt:            q.touchAPITokenByHashStmt,
 		touchDeviceStmt:                    q.touchDeviceStmt,
 		updateDeviceCurationStmt:           q.updateDeviceCurationStmt,

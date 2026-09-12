@@ -120,3 +120,24 @@ func TestSessionMiddlewareAllowsASignedInVisitor(t *testing.T) {
 
 	assert.True(t, *reached)
 }
+
+// TestSessionMiddlewareAllowsTheSecondFactorPageWithoutASession covers
+// /login/totp sitting in the signIn list beside /login: a visitor mid sign-in
+// carries no UserID yet either, only a pending one, so this route needs the
+// same bypass.
+func TestSessionMiddlewareAllowsTheSecondFactorPageWithoutASession(t *testing.T) {
+	t.Parallel()
+
+	a := newTestAuth(t, map[string]*models.User{"ada": {ID: 1, Username: "ada"}})
+	signIn := []*regexp.Regexp{regexp.MustCompile(`^/login$`), regexp.MustCompile(`^/login/totp$`)}
+	sm, h, reached := testSessionMiddleware(t, a, nil, signIn)
+
+	ctx, err := sm.Load(t.Context(), "")
+	require.NoError(t, err)
+
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/login/totp", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	assert.True(t, *reached)
+}

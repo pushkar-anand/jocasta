@@ -108,9 +108,19 @@ func NewHandler(
 	h.mux.HandleFunc("GET /login", hw.Handle(h.login(sm)))
 	h.mux.HandleFunc("POST /login", hw.Handle(h.loginForm(sm, a)))
 
+	h.mux.HandleFunc("GET /login/totp", hw.Handle(h.loginTOTP(sm)))
+	h.mux.HandleFunc("POST /login/totp", hw.Handle(h.loginTOTPForm(sm, a)))
+
 	// Signing out changes state, so it is a POST the sameOrigin guard covers,
 	// not a link another page can spend.
 	h.mux.HandleFunc("POST /logout", hw.Handle(h.logout(sm)))
+
+	h.mux.HandleFunc("GET /settings/security", hw.Handle(h.security(sm, a)))
+	h.mux.HandleFunc("POST /settings/security/totp/enroll", hw.Handle(h.securityEnroll(sm, a)))
+	h.mux.HandleFunc("GET /settings/security/totp-qr.png", hw.Handle(h.totpQR(sm, a)))
+	h.mux.HandleFunc("POST /settings/security/totp/confirm", hw.Handle(h.securityConfirm(sm, a)))
+	h.mux.HandleFunc("POST /settings/security/totp/disable", hw.Handle(h.securityDisable(sm, a)))
+	h.mux.HandleFunc("POST /settings/security/recovery-codes/regenerate", hw.Handle(h.securityRegenerateRecoveryCodes(sm, a)))
 
 	h.mux.HandleFunc("GET /settings/tokens", hw.Handle(h.tokens(sm, a)))
 
@@ -221,6 +231,13 @@ func ErrorPageData(_ *http.Request, _ error, status int) map[string]any {
 		return map[string]any{
 			"Title": "Sign in",
 			"Error": "Incorrect username or password.",
+		}
+	case http.StatusPreconditionRequired:
+		// The second-factor page's own fields -- see totpData -- not the
+		// signed-in shell's, since TemplateTOTP renders standalone too.
+		return map[string]any{
+			"Title": "Enter your code",
+			"Error": "Invalid code. Try again.",
 		}
 	case http.StatusConflict:
 		// The setup page's own fields, the same reason the 401 case above uses

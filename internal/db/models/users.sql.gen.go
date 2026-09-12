@@ -7,6 +7,7 @@ package models
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
@@ -30,7 +31,7 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (username, password_hash, role)
 VALUES (?, ?, ?)
-RETURNING id, username, password_hash, role, created_at
+RETURNING id, username, password_hash, role, created_at, totp_secret, totp_enabled, totp_confirmed_at
 `
 
 type CreateUserParams struct {
@@ -43,7 +44,7 @@ type CreateUserParams struct {
 //
 //	INSERT INTO users (username, password_hash, role)
 //	VALUES (?, ?, ?)
-//	RETURNING id, username, password_hash, role, created_at
+//	RETURNING id, username, password_hash, role, created_at, totp_secret, totp_enabled, totp_confirmed_at
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (*User, error) {
 	row := q.queryRow(ctx, q.createUserStmt, createUser, arg.Username, arg.PasswordHash, arg.Role)
 	var i User
@@ -53,19 +54,65 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (*User, 
 		&i.PasswordHash,
 		&i.Role,
 		&i.CreatedAt,
+		&i.TOTPSecret,
+		&i.TOTPEnabled,
+		&i.TOTPConfirmedAt,
 	)
 	return &i, err
 }
 
+const disableUserTOTP = `-- name: DisableUserTOTP :exec
+UPDATE users
+SET totp_enabled      = 0,
+    totp_secret       = NULL,
+    totp_confirmed_at = NULL
+WHERE id = ?
+`
+
+// DisableUserTOTP
+//
+//	UPDATE users
+//	SET totp_enabled      = 0,
+//	    totp_secret       = NULL,
+//	    totp_confirmed_at = NULL
+//	WHERE id = ?
+func (q *Queries) DisableUserTOTP(ctx context.Context, id int64) error {
+	_, err := q.exec(ctx, q.disableUserTOTPStmt, disableUserTOTP, id)
+	return err
+}
+
+const enableUserTOTP = `-- name: EnableUserTOTP :exec
+UPDATE users
+SET totp_enabled      = 1,
+    totp_confirmed_at = ?
+WHERE id = ?
+`
+
+type EnableUserTOTPParams struct {
+	TOTPConfirmedAt dbtype.NullTime `json:"totp_confirmed_at"`
+	ID              int64           `json:"id"`
+}
+
+// EnableUserTOTP
+//
+//	UPDATE users
+//	SET totp_enabled      = 1,
+//	    totp_confirmed_at = ?
+//	WHERE id = ?
+func (q *Queries) EnableUserTOTP(ctx context.Context, arg EnableUserTOTPParams) error {
+	_, err := q.exec(ctx, q.enableUserTOTPStmt, enableUserTOTP, arg.TOTPConfirmedAt, arg.ID)
+	return err
+}
+
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, password_hash, role, created_at
+SELECT id, username, password_hash, role, created_at, totp_secret, totp_enabled, totp_confirmed_at
 FROM users
 WHERE id = ?
 `
 
 // GetUserByID
 //
-//	SELECT id, username, password_hash, role, created_at
+//	SELECT id, username, password_hash, role, created_at, totp_secret, totp_enabled, totp_confirmed_at
 //	FROM users
 //	WHERE id = ?
 func (q *Queries) GetUserByID(ctx context.Context, id int64) (*User, error) {
@@ -77,19 +124,22 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (*User, error) {
 		&i.PasswordHash,
 		&i.Role,
 		&i.CreatedAt,
+		&i.TOTPSecret,
+		&i.TOTPEnabled,
+		&i.TOTPConfirmedAt,
 	)
 	return &i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, password_hash, role, created_at
+SELECT id, username, password_hash, role, created_at, totp_secret, totp_enabled, totp_confirmed_at
 FROM users
 WHERE username = ?
 `
 
 // GetUserByUsername
 //
-//	SELECT id, username, password_hash, role, created_at
+//	SELECT id, username, password_hash, role, created_at, totp_secret, totp_enabled, totp_confirmed_at
 //	FROM users
 //	WHERE username = ?
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (*User, error) {
@@ -101,19 +151,22 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (*User
 		&i.PasswordHash,
 		&i.Role,
 		&i.CreatedAt,
+		&i.TOTPSecret,
+		&i.TOTPEnabled,
+		&i.TOTPConfirmedAt,
 	)
 	return &i, err
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, password_hash, role, created_at
+SELECT id, username, password_hash, role, created_at, totp_secret, totp_enabled, totp_confirmed_at
 FROM users
 ORDER BY created_at
 `
 
 // ListUsers
 //
-//	SELECT id, username, password_hash, role, created_at
+//	SELECT id, username, password_hash, role, created_at, totp_secret, totp_enabled, totp_confirmed_at
 //	FROM users
 //	ORDER BY created_at
 func (q *Queries) ListUsers(ctx context.Context) ([]*User, error) {
@@ -131,6 +184,9 @@ func (q *Queries) ListUsers(ctx context.Context) ([]*User, error) {
 			&i.PasswordHash,
 			&i.Role,
 			&i.CreatedAt,
+			&i.TOTPSecret,
+			&i.TOTPEnabled,
+			&i.TOTPConfirmedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -143,4 +199,25 @@ func (q *Queries) ListUsers(ctx context.Context) ([]*User, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const setUserTOTPSecret = `-- name: SetUserTOTPSecret :exec
+UPDATE users
+SET totp_secret = ?
+WHERE id = ?
+`
+
+type SetUserTOTPSecretParams struct {
+	TOTPSecret sql.NullString `json:"totp_secret"`
+	ID         int64          `json:"id"`
+}
+
+// SetUserTOTPSecret
+//
+//	UPDATE users
+//	SET totp_secret = ?
+//	WHERE id = ?
+func (q *Queries) SetUserTOTPSecret(ctx context.Context, arg SetUserTOTPSecretParams) error {
+	_, err := q.exec(ctx, q.setUserTOTPSecretStmt, setUserTOTPSecret, arg.TOTPSecret, arg.ID)
+	return err
 }

@@ -1,0 +1,81 @@
+{{ define "page/security" }}
+    {{- template "layout/head" . }}
+
+    <section class="block">
+        <div class="block__head">
+            <h2 class="section">Security</h2>
+        </div>
+
+        <p class="note">Two-factor authentication for {{ .SignedInAs }}. Personal to this account -- it does not
+            change what anyone else signing in needs.</p>
+
+        {{- with .RecoveryCodes }}
+            <div class="tokenreveal">
+                <p class="tokenreveal__label">Recovery codes</p>
+                <p class="tokenreveal__hint">Save these now -- they are not shown again. Each one signs you in once,
+                    in place of a code from your authenticator app, if you lose access to it.</p>
+                <div class="tokenreveal__row">
+                    <code class="tokenreveal__value">{{ range . }}{{ . }}&#10;{{ end }}</code>
+                </div>
+            </div>
+        {{- end }}
+
+        <div class="card">
+            {{- if .Enrolling }}
+                <p>Scan this code with your authenticator app, then enter the current 6-digit code to finish
+                    turning two-factor authentication on.</p>
+
+                <img src="/settings/security/totp-qr.png" width="256" height="256"
+                     alt="QR code for two-factor authentication setup">
+
+                <p class="note">Can't scan it? Enter this key manually: <code>{{ .Secret }}</code></p>
+
+                <form method="post" action="/settings/security/totp/confirm" class="stack">
+                    <label class="stack">
+                        <span class="eyebrow">Code</span>
+                        <input class="input" type="text" name="code" inputmode="numeric" autocomplete="one-time-code"
+                               minlength="6" maxlength="6" autofocus required>
+                    </label>
+                    <button type="submit" class="btn">Confirm</button>
+                </form>
+            {{- else if .TOTPEnabled }}
+                <p class="notice notice--ok" role="status">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M20 6 9 17l-5-5"/>
+                    </svg>
+                    <span>Two-factor authentication is on.</span>
+                </p>
+
+                <p class="note">{{ .RecoveryCodesRemaining }} recovery code{{ if ne .RecoveryCodesRemaining 1 }}s{{ end }} remaining.</p>
+
+                <form method="post" action="/settings/security/recovery-codes/regenerate" class="stack">
+                    <label class="stack">
+                        <span class="eyebrow">Password</span>
+                        <input class="input" type="password" name="password" autocomplete="current-password"
+                               minlength="8" maxlength="1000" required>
+                    </label>
+                    <button type="submit" class="btn btn--quiet">Regenerate recovery codes</button>
+                </form>
+
+                <form method="post" action="/settings/security/totp/disable" class="stack">
+                    <label class="stack">
+                        <span class="eyebrow">Password</span>
+                        <input class="input" type="password" name="password" autocomplete="current-password"
+                               minlength="8" maxlength="1000" required>
+                    </label>
+                    <button type="submit" class="btn btn--danger">Turn off two-factor authentication</button>
+                </form>
+            {{- else }}
+                <p>Two-factor authentication is off. Turning it on requires an authenticator app (Google
+                    Authenticator, 1Password, and similar all work).</p>
+
+                <form method="post" action="/settings/security/totp/enroll">
+                    <button type="submit" class="btn">Turn on two-factor authentication</button>
+                </form>
+            {{- end }}
+        </div>
+    </section>
+
+    {{- template "layout/foot" . }}
+{{ end }}
