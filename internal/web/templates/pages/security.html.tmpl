@@ -6,16 +6,22 @@
             <h2 class="section">Security</h2>
         </div>
 
-        <p class="note">Two-factor authentication for {{ .SignedInAs }}. Personal to this account -- it does not
-            change what anyone else signing in needs.</p>
+        <p class="note">A second step at sign-in, from an authenticator app on your phone. Personal to
+            {{ .SignedInAs }}.</p>
 
         {{- with .RecoveryCodes }}
             <div class="tokenreveal">
                 <p class="tokenreveal__label">Recovery codes</p>
                 <p class="tokenreveal__hint">Save these now -- they are not shown again. Each one signs you in once,
                     in place of a code from your authenticator app, if you lose access to it.</p>
-                <div class="tokenreveal__row">
-                    <code class="tokenreveal__value">{{ range . }}{{ . }}&#10;{{ end }}</code>
+
+                <pre class="reccodes" id="recovery-codes">{{ range . }}{{ . }}
+{{ end -}}</pre>
+
+                <div class="reccodes__actions">
+                    <button type="button" class="btn btn--quiet btn--sm" data-copy="#recovery-codes">Copy all</button>
+                    <button type="button" class="btn btn--quiet btn--sm" data-download="#recovery-codes"
+                            data-filename="jocasta-recovery-codes.txt">Download .txt</button>
                 </div>
             </div>
         {{- end }}
@@ -49,23 +55,72 @@
 
                 <p class="note">{{ .RecoveryCodesRemaining }} recovery code{{ if ne .RecoveryCodesRemaining 1 }}s{{ end }} remaining.</p>
 
-                <form method="post" action="/settings/security/recovery-codes/regenerate" class="stack">
-                    <label class="stack">
-                        <span class="eyebrow">Password</span>
-                        <input class="input" type="password" name="password" autocomplete="current-password"
-                               minlength="8" maxlength="1000" required>
-                    </label>
-                    <button type="submit" class="btn btn--quiet">Regenerate recovery codes</button>
-                </form>
+                <div class="security__actions">
+                    <button type="button" class="btn btn--quiet btn--sm" data-open="regenerate-dialog">
+                        Regenerate recovery codes
+                    </button>
+                    <button type="button" class="btn btn--quiet btn--sm btn--danger" data-open="disable-dialog">
+                        Turn off two-factor authentication
+                    </button>
+                </div>
 
-                <form method="post" action="/settings/security/totp/disable" class="stack">
-                    <label class="stack">
-                        <span class="eyebrow">Password</span>
-                        <input class="input" type="password" name="password" autocomplete="current-password"
-                               minlength="8" maxlength="1000" required>
-                    </label>
-                    <button type="submit" class="btn btn--danger">Turn off two-factor authentication</button>
-                </form>
+                <dialog class="modal" id="regenerate-dialog" aria-labelledby="regenerate-dialog-title">
+                    <div class="modal__head">
+                        <div>
+                            <h2 class="modal__title" id="regenerate-dialog-title">Regenerate recovery codes</h2>
+                            <p class="modal__sub">Your current codes stop working immediately.</p>
+                        </div>
+                        <button type="button" class="modal__close" data-close aria-label="Close">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M6 6l12 12M18 6 6 18"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <form method="post" action="/settings/security/recovery-codes/regenerate">
+                        <div class="modal__body">
+                            <label class="stack">
+                                <span class="eyebrow">Password</span>
+                                <input class="input" type="password" name="password" autocomplete="current-password"
+                                       minlength="8" maxlength="1000" autofocus required>
+                            </label>
+                        </div>
+                        <div class="modal__foot">
+                            <button type="button" class="btn btn--quiet btn--sm" data-close>Cancel</button>
+                            <button type="submit" class="btn btn--sm">Regenerate</button>
+                        </div>
+                    </form>
+                </dialog>
+
+                <dialog class="modal" id="disable-dialog" aria-labelledby="disable-dialog-title">
+                    <div class="modal__head">
+                        <div>
+                            <h2 class="modal__title" id="disable-dialog-title">Turn off two-factor authentication</h2>
+                            <p class="modal__sub">Signing in will need only a password again, for this account.</p>
+                        </div>
+                        <button type="button" class="modal__close" data-close aria-label="Close">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M6 6l12 12M18 6 6 18"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <form method="post" action="/settings/security/totp/disable">
+                        <div class="modal__body">
+                            <label class="stack">
+                                <span class="eyebrow">Password</span>
+                                <input class="input" type="password" name="password" autocomplete="current-password"
+                                       minlength="8" maxlength="1000" autofocus required>
+                            </label>
+                        </div>
+                        <div class="modal__foot">
+                            <button type="button" class="btn btn--quiet btn--sm" data-close>Cancel</button>
+                            <button type="submit" class="btn btn--quiet btn--sm btn--danger">Turn off</button>
+                        </div>
+                    </form>
+                </dialog>
             {{- else }}
                 <p>Two-factor authentication is off. Turning it on requires an authenticator app (Google
                     Authenticator, 1Password, and similar all work).</p>
