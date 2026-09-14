@@ -1985,11 +1985,22 @@ input[type="radio"] {
     margin-top: 8px;
 }
 
+/* A divider, the same way .modal__foot separates actions from the body
+   above it -- without one these sat flush against the status text with
+   nothing marking them as a distinct control group. */
 .security__actions {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
-    margin-top: 4px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+/* .btn--quiet's background is var(--surface), same as the plain .card it
+   sits on here -- everywhere else it sits on a table row or a tinted panel
+   instead, so it reads as a button, not just a faint outline. */
+.security__actions .btn--quiet {
+    background: var(--surface-2);
 }
 
 .btn--danger {
