@@ -14,6 +14,7 @@ require (
 	github.com/alecthomas/kong v1.16.1
 	github.com/go-playground/validator/v10 v10.30.4
 	github.com/golang-migrate/migrate/v4 v4.19.1
+	github.com/pquerna/otp v1.5.0
 	github.com/pushkar-anand/build-with-go v0.1.11
 	github.com/rs/cors v1.11.1
 	github.com/stretchr/testify v1.12.1
@@ -73,6 +74,7 @@ require (
 	github.com/bep/godartsass/v2 v2.5.0 // indirect
 	github.com/bep/golibsass v1.2.0 // indirect
 	github.com/bits-and-blooms/bitset v1.24.5 // indirect
+	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
 	github.com/cenkalti/backoff/v4 v4.1.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudflare/golz4 v0.0.0-20150217214814-ef862a3cdc58 // indirect

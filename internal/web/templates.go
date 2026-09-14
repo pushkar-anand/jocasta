@@ -5,6 +5,7 @@ package web
 const (
 	TemplateLogin = "page/login"
 	TemplateSetup = "page/setup"
+	TemplateTOTP  = "page/totp"
 
 	TemplateBadRequest = "page/badrequest"
 	TemplateNotFound   = "page/notfound"
@@ -20,6 +21,7 @@ const (
 	templatePageScans     = "page/scans"
 	templatePageTokens    = "page/tokens"
 	templatePageUsers     = "page/users"
+	templatePageSecurity  = "page/security"
 
 	templatePartialTokenList     = "partial/token-list"
 	templatePartialLiveOverview  = "partial/live-body"

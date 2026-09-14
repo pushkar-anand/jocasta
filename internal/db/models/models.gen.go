@@ -114,9 +114,20 @@ type Source struct {
 }
 
 type User struct {
-	ID           int64           `json:"id"`
-	Username     string          `json:"username"`
-	PasswordHash string          `json:"password_hash"`
-	Role         dbtype.UserRole `json:"role"`
-	CreatedAt    dbtype.Time     `json:"created_at"`
+	ID              int64           `json:"id"`
+	Username        string          `json:"username"`
+	PasswordHash    string          `json:"password_hash"`
+	Role            dbtype.UserRole `json:"role"`
+	CreatedAt       dbtype.Time     `json:"created_at"`
+	TOTPSecret      sql.NullString  `json:"totp_secret"`
+	TOTPEnabled     bool            `json:"totp_enabled"`
+	TOTPConfirmedAt dbtype.NullTime `json:"totp_confirmed_at"`
+}
+
+type UserRecoveryCode struct {
+	ID        int64           `json:"id"`
+	UserID    int64           `json:"user_id"`
+	CodeHash  string          `json:"code_hash"`
+	CreatedAt dbtype.Time     `json:"created_at"`
+	UsedAt    dbtype.NullTime `json:"used_at"`
 }

@@ -1962,6 +1962,47 @@ input[type="radio"] {
     margin-bottom: 8px;
 }
 
+/* One code per line, not a single value crammed into a row the way a token
+   or curl snippet is -- there are ten of these, not one. */
+.reccodes {
+    margin: 0;
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--text);
+    white-space: pre;
+    overflow-x: auto;
+    user-select: all;
+}
+
+.reccodes__actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+/* A divider, the same way .modal__foot separates actions from the body
+   above it -- without one these sat flush against the status text with
+   nothing marking them as a distinct control group. */
+.security__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+/* .btn--quiet's background is var(--surface), same as the plain .card it
+   sits on here -- everywhere else it sits on a table row or a tinted panel
+   instead, so it reads as a button, not just a faint outline. */
+.security__actions .btn--quiet {
+    background: var(--surface-2);
+}
+
 .btn--danger {
     color: var(--critical-ink);
 }

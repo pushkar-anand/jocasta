@@ -26,6 +26,7 @@ type (
 	// account-related: verifying a credential, setup and admin management alike.
 	userManager interface {
 		GetUserByUsername(ctx context.Context, username string) (*models.User, error)
+		GetUserByID(ctx context.Context, id int64) (*models.User, error)
 		CreateUser(ctx context.Context, arg models.CreateUserParams) (*models.User, error)
 		CountUsers(ctx context.Context) (int64, error)
 		ListUsers(ctx context.Context) ([]*models.User, error)
@@ -44,6 +45,7 @@ type (
 	store interface {
 		userManager
 		tokenManager
+		totpManager
 	}
 )
 
@@ -53,6 +55,7 @@ type (
 type Auth struct {
 	q      userManager
 	tokens tokenManager
+	totp   totpManager
 	hasher hasher
 
 	// now is a field so a test can pin the timestamps it asserts on.
@@ -83,6 +86,7 @@ func New(s store, hasher hasher) (*Auth, error) {
 	return &Auth{
 		q:               s,
 		tokens:          s,
+		totp:            s,
 		hasher:          hasher,
 		now:             time.Now,
 		unknownUserHash: unknownUserHash,
@@ -109,34 +113,67 @@ func (a *Auth) Verify(ctx context.Context, username, password string) (*models.U
 	return user, nil
 }
 
+// LoginResult reports how a Login attempt landed. Exactly one of User and
+// TOTPPending is meaningful.
+type LoginResult struct {
+	// User is set once a full session is established -- 2FA is off for this
+	// account.
+	User *models.User
+
+	// TOTPPending is true when the password matched but the account has 2FA
+	// enabled: the caller sends the visitor to the second-factor page rather
+	// than treating this as a completed sign-in.
+	TOTPPending bool
+}
+
 // Login is a util over Verify that also generates the new session token and
-// stores it in the session.
+// stores it in the session -- unless the account has 2FA enabled, in which
+// case it leaves the visitor signed out and pending on VerifyTOTP instead.
 func (a *Auth) Login(
 	ctx context.Context,
 	sm *Session,
 	username, password string,
 	rememberMe bool,
-) (*models.User, error) {
+) (LoginResult, error) {
 	user, err := a.Verify(ctx, username, password)
 	if err != nil {
-		return nil, err
+		return LoginResult{}, err
+	}
+
+	// Set before either branch: RememberMe writes into the session's own
+	// persisted record, which survives the Renew a completed 2FA sign-in does
+	// later just as it survives establishSession's Renew below -- so a choice
+	// made now still holds once the second factor succeeds.
+	sm.s.RememberMe(ctx, rememberMe)
+
+	if user.TOTPEnabled {
+		if err := sm.s.Renew(ctx); err != nil {
+			return LoginResult{}, err
+		}
+
+		sm.s.Update(ctx, func(d *Data) {
+			d.PendingUserID = user.ID
+			d.PendingUsername = user.Username
+			d.PendingAttempts = 0
+		})
+
+		return LoginResult{TOTPPending: true}, nil
 	}
 
 	if err := a.establishSession(ctx, sm, user); err != nil {
-		return nil, err
+		return LoginResult{}, err
 	}
 
-	if rememberMe {
-		sm.s.RememberMe(ctx, true)
-	}
-
-	return user, nil
+	return LoginResult{User: user}, nil
 }
 
 // establishSession renews the session token -- so a token held while anonymous
 // can't carry over into the authenticated session -- then records who the
 // session belongs to. Both signing in and completing setup need this exact
-// sequence to leave a visitor signed in afterward.
+// sequence to leave a visitor signed in afterward. It also clears any
+// pending-2FA state, so a session that reaches here by way of VerifyTOTP
+// doesn't carry stale pending fields into an otherwise fully signed-in
+// session.
 func (a *Auth) establishSession(ctx context.Context, sm *Session, user *models.User) error {
 	if err := sm.s.Renew(ctx); err != nil {
 		return err
@@ -146,6 +183,9 @@ func (a *Auth) establishSession(ctx context.Context, sm *Session, user *models.U
 		d.UserID = user.ID
 		d.Username = user.Username
 		d.Role = user.Role
+		d.PendingUserID = 0
+		d.PendingUsername = ""
+		d.PendingAttempts = 0
 	})
 
 	return nil

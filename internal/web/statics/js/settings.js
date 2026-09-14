@@ -1,9 +1,11 @@
 // Progressive enhancement for the settings screens: the account menu, the
-// add-user / create-token modals, password reveal, and copy-to-clipboard. The
-// CSP forbids inline script, so this ships as a file. Everything degrades: the
-// menu is a native <details>, and a create rejected server-side comes back with
-// <dialog open> so its error shows without this running. Post-swap focus (the
-// revoke included) is handled once for the app in focus.js.
+// add-user / create-token / 2FA confirmation modals, password reveal, and
+// copy-to-clipboard / download-as-file for a reveal like a token or recovery
+// codes. The CSP forbids inline script, so this ships as a file. Everything
+// degrades: the menu is a native <details>, and a create rejected
+// server-side comes back with <dialog open> so its error shows without this
+// running. Post-swap focus (the revoke included) is handled once for the app
+// in focus.js.
 (function () {
     'use strict';
 
@@ -130,5 +132,27 @@
             selectText(target);
             restore();
         }
+    });
+
+    // ---- Download as a file ----
+    // blob: needs no CSP allowance -- the file is built here, not fetched.
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-download]');
+        if (!btn) {
+            return;
+        }
+        var target = document.querySelector(btn.getAttribute('data-download'));
+        if (!target) {
+            return;
+        }
+        var blob = new Blob([target.textContent], {type: 'text/plain'});
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = btn.getAttribute('data-filename') || 'download.txt';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
     });
 })();

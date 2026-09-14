@@ -157,15 +157,20 @@ func newWebHandlerWithAuth(t *testing.T, store *inventory.Store, a *auth.Auth) h
 			http.StatusUnprocessableEntity:   TemplateBadRequest,
 			http.StatusNotFound:              TemplateNotFound,
 			http.StatusUnauthorized:          TemplateLogin,
+			http.StatusPreconditionRequired:  TemplateTOTP,
 			http.StatusConflict:              TemplateSetup,
 			http.StatusForbidden:             TemplateForbidden,
 		}),
 		response.WithErrorStatusMapper(func(err error) int {
 			switch {
-			case errors.Is(err, inventory.ErrNotFound):
+			case errors.Is(err, inventory.ErrNotFound), errors.Is(err, auth.ErrNoTOTPEnrollment):
 				return http.StatusNotFound
 			case errors.Is(err, auth.ErrInvalidCredentials):
 				return http.StatusUnauthorized
+			case errors.Is(err, auth.ErrInvalidTOTPCode):
+				return http.StatusPreconditionRequired
+			case errors.Is(err, auth.ErrInvalidEnrollmentCode), errors.Is(err, auth.ErrInvalidPassword):
+				return http.StatusUnprocessableEntity
 			case errors.Is(err, auth.ErrSetupComplete):
 				return http.StatusConflict
 			case errors.Is(err, auth.ErrForbidden):
@@ -516,9 +521,9 @@ func TestEveryNamedTemplateExists(t *testing.T) {
 	for _, name := range []string{
 		templatePageDashboard, templatePageDevices, templatePageDevice,
 		templatePageNetwork, templatePageEvents, templatePageScans,
-		templatePartialLiveOverview, templatePartialDeviceRows,
+		templatePageSecurity, templatePartialLiveOverview, templatePartialDeviceRows,
 		templatePartialDeviceRow, templatePartialDeviceRowForm,
-		templatePartialDevicePanel, TemplateNotFound,
+		templatePartialDevicePanel, TemplateNotFound, TemplateTOTP,
 		"partial/live", "partial/activity", "partial/device-filters",
 		"layout/head", "layout/foot",
 	} {
