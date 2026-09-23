@@ -308,6 +308,8 @@ func toFlow(m *protoproducer.ProtoProducerMessage, received time.Time) (Flow, bo
 		SrcPort:  uint16(m.SrcPort), //nolint:gosec // a port field is 16 bits on the wire.
 		DstPort:  uint16(m.DstPort), //nolint:gosec // as above.
 		Protocol: uint8(m.Proto),    //nolint:gosec // the protocol field is 8 bits on the wire.
+		TCPFlags: uint8(m.TcpFlags), //nolint:gosec // the low byte holds the flags a flow can show.
+		ICMPType: uint8(m.IcmpType), //nolint:gosec // an ICMP type is 8 bits on the wire.
 		Bytes:    m.Bytes * scale,
 		Packets:  m.Packets * scale,
 		End:      end.UTC(),

@@ -78,6 +78,17 @@ type Flow struct {
 	// Protocol is the IANA protocol number: 6 TCP, 17 UDP, 1 ICMP.
 	Protocol uint8
 
+	// TCPFlags is the TCP flags the source reported, zero when it exports
+	// none. Sources differ on what that means -- some OR every packet's
+	// flags, a MikroTik reports only the first packet's -- so only what
+	// both readings share is relied on: a flow opening a connection shows
+	// SYN, and the answer to it SYN and ACK, or RST when refused.
+	TCPFlags uint8
+
+	// ICMPType is the ICMP message type, telling an echo request (8, or 128
+	// for ICMPv6) from its reply. Zero when not ICMP or not exported.
+	ICMPType uint8
+
 	// Bytes and Packets are what the source estimates crossed, already scaled
 	// by its sampling rate. A source that samples one packet in a hundred
 	// reports what it saw times a hundred, which is an estimate, but the only

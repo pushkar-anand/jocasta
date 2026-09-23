@@ -10,13 +10,14 @@ import (
 
 // Pruned counts what one prune deleted.
 type Pruned struct {
-	Events  int64
-	Scans   int64
-	Traffic int64
+	Events   int64
+	Scans    int64
+	Traffic  int64
+	Attempts int64
 }
 
 // Prune deletes every event and every finished scan older than retention, and
-// every hourly traffic total older than trafficRetention. A retention of zero
+// every hourly traffic total and attempt count older than trafficRetention. A retention of zero
 // keeps that kind forever.
 //
 // Events go first and in the same transaction, so a reader never sees an event
@@ -60,6 +61,10 @@ func (s *Store) Prune(ctx context.Context, retention, trafficRetention time.Dura
 
 		if res.Traffic, err = q.DeleteTrafficBefore(ctx, cutoff); err != nil {
 			return nil, fmt.Errorf("prune traffic: %w", err)
+		}
+
+		if res.Attempts, err = q.DeleteAttemptsBefore(ctx, cutoff); err != nil {
+			return nil, fmt.Errorf("prune attempts: %w", err)
 		}
 	}
 

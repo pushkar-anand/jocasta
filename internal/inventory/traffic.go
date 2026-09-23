@@ -58,6 +58,11 @@ type TrafficRecorder struct {
 	pending map[trafficKey]*trafficTotals
 	dropped uint64
 
+	// ports is the ports each device tried on each peer this hour, kept
+	// across flushes so an hour's count is of distinct ports. Only Flush
+	// touches it.
+	ports map[attemptKey]*portSet
+
 	names map[netip.Addr]peerName
 }
 
@@ -73,6 +78,16 @@ type trafficKey struct {
 
 type trafficTotals struct {
 	bytes, packets, connections uint64
+
+	// flows is how many flows were added up; flags every TCP flag they
+	// showed. toService is set when they were addressed to the service port,
+	// which makes this the direction that started the exchange.
+	flows     uint64
+	flags     uint8
+	toService bool
+
+	// echoRequests and echoReplies count pings and their answers.
+	echoRequests, echoReplies uint64
 }
 
 type peerName struct {
@@ -93,6 +108,7 @@ func NewTrafficRecorder(store *Store, log *slog.Logger, resolve func(context.Con
 		resolve: resolve,
 		pending: make(map[trafficKey]*trafficTotals),
 		names:   make(map[netip.Addr]peerName),
+		ports:   make(map[attemptKey]*portSet),
 	}
 }
 
@@ -131,12 +147,27 @@ func (r *TrafficRecorder) Add(src plugin.Plugin, flows []plugin.Flow) {
 
 		t.bytes += f.Bytes
 		t.packets += f.Packets
+		t.flows++
+		t.flags |= f.TCPFlags
 
 		// A conversation is usually exported as two flows, one each way.
 		// Only the one addressed to the service counts as a connection, so
 		// the reply does not count it twice.
 		if key.service == 0 || f.DstPort == key.service {
 			t.connections++
+		}
+
+		if key.service != 0 && f.DstPort == key.service {
+			t.toService = true
+		}
+
+		if f.Protocol == protoICMP || f.Protocol == protoICMPv6 {
+			switch f.ICMPType {
+			case icmpEchoRequest, icmpv6EchoRequest:
+				t.echoRequests++
+			case icmpEchoReply, icmpv6EchoReply:
+				t.echoReplies++
+			}
 		}
 	}
 }
@@ -188,7 +219,10 @@ func (r *TrafficRecorder) Flush(ctx context.Context) error {
 		return nil
 	}
 
-	return r.store.recordTraffic(ctx, pending, r.peerNames)
+	conversations, attempts := splitAttempts(pending)
+	r.samplePorts(attempts, r.store.now())
+
+	return r.store.recordTraffic(ctx, conversations, attempts, r.peerNames)
 }
 
 // peerNames returns names for the peers in addrs, resolving the ones the cache
@@ -249,6 +283,7 @@ func (r *TrafficRecorder) peerNames(ctx context.Context, addrs []netip.Addr) map
 func (s *Store) recordTraffic(
 	ctx context.Context,
 	pending map[trafficKey]*trafficTotals,
+	attempts map[attemptKey]*attemptSample,
 	names func(context.Context, []netip.Addr) map[netip.Addr]string,
 ) error {
 	holders := make(map[netip.Addr]int64)
@@ -283,7 +318,13 @@ func (s *Store) recordTraffic(
 		}
 	}
 
-	dropUnanswered(pending, holders)
+	for k := range attempts {
+		for _, a := range []netip.Addr{k.src, k.dst} {
+			if _, err := holder(s.q, a); err != nil {
+				return err
+			}
+		}
+	}
 
 	var unnamed []netip.Addr
 
@@ -314,16 +355,25 @@ func (s *Store) recordTraffic(
 	sources := make(map[string]int64)
 	at := s.stamp()
 
-	for k, t := range pending {
-		srcID, ok := sources[k.source]
-		if !ok {
-			row, err := q.UpsertSource(ctx, models.UpsertSourceParams{Kind: k.kind, Name: k.source, CreatedAt: at})
-			if err != nil {
-				return fmt.Errorf("source %s: %w", k.source, err)
-			}
+	sourceID := func(name string, kind dbtype.SourceKind) (int64, error) {
+		if id, ok := sources[name]; ok {
+			return id, nil
+		}
 
-			srcID = row.ID
-			sources[k.source] = srcID
+		row, err := q.UpsertSource(ctx, models.UpsertSourceParams{Kind: kind, Name: name, CreatedAt: at})
+		if err != nil {
+			return 0, fmt.Errorf("source %s: %w", name, err)
+		}
+
+		sources[name] = row.ID
+
+		return row.ID, nil
+	}
+
+	for k, t := range pending {
+		srcID, err := sourceID(k.source, k.kind)
+		if err != nil {
+			return err
 		}
 
 		sender, receiver := holders[k.src], holders[k.dst]
@@ -341,6 +391,10 @@ func (s *Store) recordTraffic(
 				return fmt.Errorf("traffic for device %d: %w", receiver, err)
 			}
 		}
+	}
+
+	if err := s.writeAttempts(ctx, q, attempts, holders, sourceID); err != nil {
+		return err
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -364,48 +418,6 @@ func conversational(f plugin.Flow) bool {
 }
 
 var limitedBroadcast = netip.AddrFrom4([4]byte{255, 255, 255, 255})
-
-// pairKey is a direction of a conversation regardless of hour and service.
-type pairKey struct {
-	src, dst netip.Addr
-	protocol uint8
-}
-
-// dropUnanswered removes the traffic between a device and a local address no
-// device holds that went one way only within the flush.
-//
-// A scanner sweeping a subnet pings every address in it, and each silent one
-// would otherwise become a peer: one row per address per hour, a /16 at a
-// time, all of it saying only that nothing answered. An address that answers
-// keeps its traffic. Only private-use and link-local addresses are dropped
-// this way: anything else is grouped by organisation, so it cannot flood a
-// view, and an unanswered connection out to it is worth seeing. A reply
-// exported in the next flush loses at most a minute.
-func dropUnanswered(pending map[trafficKey]*trafficTotals, holders map[netip.Addr]int64) {
-	sent := make(map[pairKey]bool, len(pending))
-	for k := range pending {
-		sent[pairKey{k.src, k.dst, k.protocol}] = true
-	}
-
-	for k := range pending {
-		if holders[k.src] != 0 && holders[k.dst] != 0 {
-			continue
-		}
-
-		stranger := k.dst
-		if holders[k.dst] != 0 {
-			stranger = k.src
-		}
-
-		if !stranger.IsPrivate() && !stranger.IsLinkLocalUnicast() {
-			continue
-		}
-
-		if !sent[pairKey{k.dst, k.src, k.protocol}] {
-			delete(pending, k)
-		}
-	}
-}
 
 // trafficRow is one side's view of a buffered direction. sent says whether
 // the device is the side that sent it.

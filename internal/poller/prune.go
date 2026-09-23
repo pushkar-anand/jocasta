@@ -62,6 +62,7 @@ func (p *Prune) Run(ctx context.Context) error {
 		slog.Int64("events", res.Events),
 		slog.Int64("scans", res.Scans),
 		slog.Int64("traffic", res.Traffic),
+		slog.Int64("attempts", res.Attempts),
 	)
 
 	return nil
