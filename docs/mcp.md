@@ -14,7 +14,7 @@ default.
 
 The endpoint is `/mcp`, using the Streamable HTTP transport, with the token
 sent as `Authorization: Bearer <token>`. Clients discover the available tools
-when they connect.
+and [prompts](#prompts) when they connect.
 
 Device hostnames and vendor names are reported by the devices themselves, so
 anything on your network can choose what an agent reads there. Give an agent
@@ -62,6 +62,17 @@ Any client that supports Streamable HTTP and lets you set a request header
 works. For clients that can only launch a local server over stdio, a bridge
 such as [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) can forward to
 the endpoint.
+
+## Prompts
+
+Prompts are saved procedures you start yourself; the agent then carries them
+out with the tools. In Claude Code they appear as slash commands, such as
+`/mcp__jocasta__weekly_report`.
+
+| Prompt | What it does |
+|---|---|
+| `triage_devices` | Finds the devices that need attention: unlabelled, doubtfully classified, or likely duplicates left by a randomised hardware address. Proposes a label, group and type for each. With a `read_write` token the agent applies the proposals you confirm; with a `read` token it only proposes. |
+| `weekly_report` | Summarises what changed over the last 7 days: new devices, devices gone quiet, port changes, identity changes, and what may need a look. Takes an optional `days` argument, from 1 to 90. It can reach back only as far as `inventory.retention` keeps the change log. |
 
 ## Errors
 
