@@ -82,6 +82,7 @@ func TestLoadConfig(t *testing.T) {
 				"JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD=from-environment",
 				"JOCASTA_SCAN__PORTS__ENABLED=true",
 				"JOCASTA_SCAN__PORTS__CUSTOM=22,80,8000-8100",
+				"JOCASTA_MCP__ENABLED=true",
 				"UNRELATED=ignored",
 			}
 		}),
@@ -123,6 +124,10 @@ func TestLoadConfig(t *testing.T) {
 	assert.Equal(t, 24*time.Hour, cfg.Auth.IdleTimeout)
 	assert.True(t, cfg.Auth.CookieSecure)
 
+	// MCP is off by default (see TestMCPIsOffByDefault); the environment turns
+	// it on.
+	assert.True(t, cfg.MCP.Enabled)
+
 	// A map-keyed block collapses to a single zero-valued entry, with a nil
 	// error, if its shape is ever changed to a list. Both instances surviving an
 	// override aimed at one of them is what says it did not.
@@ -153,6 +158,15 @@ func TestNewRejectsAMissingConfigFile(t *testing.T) {
 
 	_, err := New("testdata/does-not-exist.yaml")
 	require.Error(t, err)
+}
+
+// Serving the inventory to AI agents is opt-in. Read off the defaults map
+// rather than through config.Load, which TestLoadConfig must be the only
+// caller of.
+func TestMCPIsOffByDefault(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, false, defaults["mcp.enabled"])
 }
 
 func TestDefaultSourceNamesTheHost(t *testing.T) {

@@ -21,6 +21,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/api"
 	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
+	"github.com/pushkar-anand/jocasta/internal/mcp"
 	"github.com/pushkar-anand/jocasta/internal/web"
 	"github.com/rs/cors"
 )
@@ -46,6 +47,11 @@ type (
 		SessionLifetime     time.Duration
 		SessionIdleTimeout  time.Duration
 		SessionCookieSecure bool
+
+		// MCPEnabled serves the Model Context Protocol endpoint at /mcp. Off,
+		// the path answers that it is off rather than falling through to the
+		// web UI.
+		MCPEnabled bool
 	}
 )
 
@@ -148,6 +154,15 @@ func Start(
 	// caller can actually satisfy keeps that distinction enforced.
 	mux.Handle("/api/", http.StripPrefix("/api", tokenMiddleware(ap)))
 	mux.Handle("/", sessionMiddleware(wh))
+
+	// An agent is a script by that reasoning: /mcp takes the same bearer
+	// tokens, checked by the MCP handler itself because a token's scope there
+	// decides which tools are offered rather than which methods are allowed.
+	if cfg.MCPEnabled {
+		mux.Handle("/mcp", mcp.NewHandler(cfg.Logger, a, store))
+	} else {
+		mux.Handle("/mcp", mcpDisabled(jw))
+	}
 
 	origins := cfg.CORSAllowedOrigins
 	if len(origins) == 0 {
@@ -273,6 +288,19 @@ func fromSameOrigin(r *http.Request) bool {
 	}
 
 	return u.Host == r.Host
+}
+
+// mcpDisabled answers /mcp while the endpoint is switched off. Left unmounted,
+// the path would fall through to the web UI and an agent would be handed the
+// sign-in page, which says nothing about why.
+func mcpDisabled(jw *response.JSONWriter) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		jw.WriteProblem(w, r, response.NewProblem().
+			WithStatus(http.StatusNotFound).
+			WithTitle(http.StatusText(http.StatusNotFound)).
+			WithDetail("the MCP endpoint is disabled; set mcp.enabled to serve it").
+			Build())
+	})
 }
 
 // problemFor renders the errors the inventory returns that are not simply

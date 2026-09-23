@@ -460,21 +460,28 @@ func TestCrossOriginReadIsAllowed(t *testing.T) {
 func startServerWithOrigins(t *testing.T, origins []string) string {
 	t.Helper()
 
+	return startServerWith(t, Config{CORSAllowedOrigins: origins})
+}
+
+// startServerWith is startServer with the settings in cfg; the address, port
+// and logger are filled in here.
+func startServerWith(t *testing.T, cfg Config) string {
+	t.Helper()
+
 	port := freePort(t)
 	conn := testConn(t)
 	store := testStore(t)
 	a, _ := testAuth(t)
 
+	cfg.Addr = "127.0.0.1"
+	cfg.Port = port
+	cfg.Logger = testLogger()
+
 	errCh := make(chan error, 1)
 	ctx := t.Context()
 
 	go func() {
-		errCh <- Start(ctx, &Config{
-			Addr:               "127.0.0.1",
-			Port:               port,
-			Logger:             testLogger(),
-			CORSAllowedOrigins: origins,
-		}, conn, store, testValidator(t), a)
+		errCh <- Start(ctx, &cfg, conn, store, testValidator(t), a)
 	}()
 
 	t.Cleanup(func() {
@@ -588,6 +595,52 @@ func TestRequestBodyTooLargeIsRejected(t *testing.T) {
 	t.Cleanup(func() { _ = res.Body.Close() })
 
 	assert.Equal(t, http.StatusRequestEntityTooLarge, res.StatusCode)
+}
+
+// postMCP sends an MCP request with no token and returns the response.
+func postMCP(t *testing.T, baseURL string) *http.Response {
+	t.Helper()
+
+	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, baseURL+"/mcp", strings.NewReader(body))
+	require.NoError(t, err)
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
+
+	res, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = res.Body.Close() })
+
+	return res
+}
+
+// With MCP off, /mcp says so in a problem document rather than falling
+// through to the web UI's sign-in redirect.
+func TestMCPDisabledSaysSo(t *testing.T) {
+	baseURL, _ := startServer(t)
+
+	res := postMCP(t, baseURL)
+	defer func() { _ = res.Body.Close() }()
+
+	assert.Equal(t, http.StatusNotFound, res.StatusCode)
+	assert.Contains(t, res.Header.Get("Content-Type"), "application/problem+json")
+
+	b, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(b), "mcp.enabled")
+}
+
+// With MCP on, /mcp reaches the MCP handler, which wants a token.
+func TestMCPEnabledIsMounted(t *testing.T) {
+	baseURL := startServerWith(t, Config{MCPEnabled: true})
+
+	res := postMCP(t, baseURL)
+	defer func() { _ = res.Body.Close() }()
+
+	assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
 }
 
 func TestSafeMethod(t *testing.T) {

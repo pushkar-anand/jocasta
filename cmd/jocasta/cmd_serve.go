@@ -44,6 +44,7 @@ func (s *ServeCmd) Run(
 		SessionLifetime:     cfg.Auth.SessionLifetime,
 		SessionIdleTimeout:  cfg.Auth.IdleTimeout,
 		SessionCookieSecure: cfg.Auth.CookieSecure,
+		MCPEnabled:          cfg.MCP.Enabled,
 	}
 
 	p := poller.New(log)
