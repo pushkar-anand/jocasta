@@ -58,10 +58,41 @@ continuously.
 
 More screenshots: [docs/ui.md](docs/ui.md).
 
+## Quick start
+
+Write a minimal `jocasta.yaml` naming the networks to sweep:
+
+```yaml
+networks:
+  - "192.0.2.0/24"
+
+auth:
+  cookie_secure: false   # only while you reach it over plain HTTP, not HTTPS
+```
+
+Run the container on the host network, so it can read hardware addresses:
+
+```bash
+docker run -d --name jocasta --network host \
+  -v jocasta-data:/data \
+  -v ./jocasta.yaml:/data/jocasta.yaml:ro \
+  ghcr.io/pushkar-anand/jocasta:latest
+```
+
+Open `http://<host>:8080` and create the admin account. The first sweep runs
+straight away and then every five minutes.
+
+Every other setting, with its default, is in
+[`jocasta.example.yaml`](jocasta.example.yaml). For binaries, building from
+source and reading your router, see [setup](docs/setup.md).
+
 ## Documentation
 
-- [Setup](docs/setup.md): install, configure and run jocasta, with the CLI and
-  API reference.
+- [Setup](docs/setup.md): other ways to install, configuration, and reading
+  devices from your router.
+- [CLI](docs/cli.md): one-off sweeps, port scans and source reads from the
+  command line.
+- [MCP server](docs/mcp.md): connecting AI agents to the inventory.
 - [The web UI](docs/ui.md): a tour of the interface.
 - [Development](docs/development.md): building and working on jocasta.
 
