@@ -40,6 +40,13 @@ service, or by a search over names, addresses and organisations.
 
 ![Device page](img/device.png)
 
+## Traffic page
+
+When traffic collection is set up, the Traffic page summarises the whole
+network over the last 24 hours, 7 days or 30 days: the busiest devices, the
+organisations the network exchanges the most with, and which devices started
+talking to an organisation for the first time this week.
+
 ## Network page
 
 One segment, its VLAN tag and name, and the devices on it.

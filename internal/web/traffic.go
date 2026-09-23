@@ -10,7 +10,9 @@ import (
 	"time"
 
 	"github.com/pushkar-anand/build-with-go/http/response"
+	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
+	"github.com/pushkar-anand/jocasta/pkg/asn"
 )
 
 // trafficWindow is one period the traffic view can cover.
@@ -154,6 +156,80 @@ func (h *Handler) deviceTraffic() response.HandlerFunc {
 		w.Header().Set("HX-Push-Url", devicePath(id, data.Window, data.Filter))
 
 		h.htmlWriter.Success(w, r, templatePartialDeviceTraffic, data)
+
+		return nil
+	}
+}
+
+// Traffic page sizes: a card is a glance, not a report.
+const (
+	trafficCardRows  = 10
+	firstContactRows = 25
+
+	// firstContactSpan is how far back "first contact" looks. Fixed rather
+	// than following the period switch: it answers "anything new this week?",
+	// and a month of first contacts is mostly the month collection started.
+	firstContactSpan = 7 * 24 * time.Hour
+)
+
+// trafficPage is the network-wide traffic view.
+type trafficPage struct {
+	view
+
+	Window  trafficWindow
+	Windows []trafficWindow
+
+	// Recorded is whether any traffic has been recorded at all.
+	Recorded bool
+
+	Busiest []*inventory.DeviceTotal
+	TopOrgs []*inventory.OrgTotal
+	First   *inventory.FirstContacts
+
+	// Attribution credits the organisation names, as their licence requires.
+	Attribution string
+}
+
+// traffic serves the network-wide traffic page.
+func (h *Handler) traffic(sm *auth.Session) response.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		ctx := r.Context()
+		now := time.Now()
+		win := windowFor(r.URL.Query().Get("window"))
+
+		data := &trafficPage{
+			view: view{
+				Title: "Traffic", Section: "Traffic",
+				Role: sm.CurrentRole(ctx), SignedInAs: sm.CurrentUsername(ctx),
+			},
+			Window:      win,
+			Windows:     trafficWindows,
+			Attribution: asn.Attribution,
+		}
+
+		var err error
+
+		if data.Recorded, err = h.store.TrafficRecorded(ctx); err != nil {
+			return err
+		}
+
+		if data.Busiest, err = h.store.BusiestDevices(ctx, now.Add(-win.span), trafficCardRows); err != nil {
+			return err
+		}
+
+		if data.TopOrgs, err = h.store.TopOrganisations(ctx, now.Add(-win.span), trafficCardRows); err != nil {
+			return err
+		}
+
+		if data.First, err = h.store.FirstContacts(ctx, now.Add(-firstContactSpan), firstContactRows); err != nil {
+			return err
+		}
+
+		if note, err := h.sweepNote(ctx); err == nil {
+			data.Note = note
+		}
+
+		h.htmlWriter.Success(w, r, templatePageTraffic, data)
 
 		return nil
 	}

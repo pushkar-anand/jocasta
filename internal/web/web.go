@@ -148,6 +148,7 @@ func NewHandler(
 	h.mux.HandleFunc("GET /networks/{id}", hw.Handle(h.network(sm)))
 	h.mux.HandleFunc("GET /networks/{id}/rows", hw.Handle(h.networkRows(sm)))
 
+	h.mux.HandleFunc("GET /traffic", hw.Handle(h.traffic(sm)))
 	h.mux.HandleFunc("GET /events", hw.Handle(h.events(sm)))
 	h.mux.HandleFunc("GET /scans", hw.Handle(h.scans(sm)))
 

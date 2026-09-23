@@ -19,6 +19,7 @@ const (
 	templatePageNetwork   = "page/network"
 	templatePageEvents    = "page/events"
 	templatePageScans     = "page/scans"
+	templatePageTraffic   = "page/traffic"
 	templatePageTokens    = "page/tokens"
 	templatePageUsers     = "page/users"
 	templatePageSecurity  = "page/security"
