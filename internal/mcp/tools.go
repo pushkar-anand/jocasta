@@ -35,6 +35,7 @@ func tools(store *inventory.Store) []tool {
 		{register: getStats(store)},
 		{register: listGroups(store)},
 		{register: getPortOverview(store)},
+		{register: listScans(store)},
 	}
 }
 
