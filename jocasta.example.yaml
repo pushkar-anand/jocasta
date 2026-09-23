@@ -1,0 +1,70 @@
+# Every jocasta setting, shown with its default value.
+#
+# Copy the parts you want to change into jocasta.yaml. Settings you leave out
+# keep their default. Any setting can also be set from the environment:
+# JOCASTA_ followed by the path, with a double underscore between levels, e.g.
+# JOCASTA_SCAN__DEVICES__INTERVAL=10m.
+
+server:
+  host: "localhost"       # 0.0.0.0 to listen on every interface
+  port: 8080
+  cors:
+    allowed_origins: []   # browser origins besides the server's own that may read /api
+
+db:
+  path: "."               # directory the SQLite file lives in
+  name: "jocasta.db"
+
+logger:
+  level: "info"           # debug | info | warn | error
+  format: "json"          # text | json
+
+inventory:
+  online_window: "15m"    # how long after its last sighting a device counts as online
+  address_grace: "6h"     # how long an address can go unseen before a later sweep retires it
+  retention: "2160h"      # events and scans older than this are deleted; "0s" keeps them forever
+
+# Segments the poller sweeps on a timer. Also used to match each discovered
+# address to the network that contains it. Empty by default; this is an example.
+networks:
+  - "192.0.2.0/24"
+
+scan:
+  source: ""              # origin recorded for timed sweeps; defaults to "sweep:<hostname>"
+  devices:
+    enabled: true
+    interval: "5m"
+    rate: 1000            # max ICMP probes per second
+    rounds: 2             # probes per address before calling it down
+    wait: "2s"            # how long to wait for replies after the last probe
+    resolve_names: true   # reverse DNS on addresses that answered
+    resolve_macs: true    # read the neighbour table for hardware addresses
+  ports:
+    enabled: false
+    interval: "6h"
+    custom: ""            # ports to probe, e.g. "22,80,443,8000-8100"; blank uses a curated preset
+    concurrency: 64       # max connections a scan opens at once; lower it on a cheap router
+
+auth:
+  session_lifetime: "168h"  # longest a sign-in lasts, regardless of activity
+  idle_timeout: "24h"       # how long a session survives with no requests
+  cookie_secure: true       # HTTPS-only session cookie; false to sign in over plain HTTP
+
+mcp:
+  enabled: false          # serve the MCP endpoint at /mcp; see docs/mcp.md
+
+# Sources beyond the sweep. None are configured by default; the block below is
+# an example instance, not defaults. Each block is keyed by an instance name,
+# which becomes the source its facts are filed under, so two routers stay
+# separate.
+plugins:
+  routeros:
+    gateway:
+      enabled: true
+      host: "192.0.2.1"
+      port: 443
+      user: "jocasta"
+      password: "change-me"   # a read-only RouterOS user is enough
+      ssl: true
+      insecure: true          # RouterOS serves a self-signed cert unless you import one
+      timeout: "15s"
