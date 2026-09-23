@@ -180,6 +180,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.moveEventsStmt, err = db.PrepareContext(ctx, moveEvents); err != nil {
 		return nil, fmt.Errorf("error preparing query MoveEvents: %w", err)
 	}
+	if q.organisationDevicesStmt, err = db.PrepareContext(ctx, organisationDevices); err != nil {
+		return nil, fmt.Errorf("error preparing query OrganisationDevices: %w", err)
+	}
 	if q.portStatsStmt, err = db.PrepareContext(ctx, portStats); err != nil {
 		return nil, fmt.Errorf("error preparing query PortStats: %w", err)
 	}
@@ -499,6 +502,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing moveEventsStmt: %w", cerr)
 		}
 	}
+	if q.organisationDevicesStmt != nil {
+		if cerr := q.organisationDevicesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing organisationDevicesStmt: %w", cerr)
+		}
+	}
 	if q.portStatsStmt != nil {
 		if cerr := q.portStatsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing portStatsStmt: %w", cerr)
@@ -680,6 +688,7 @@ type Queries struct {
 	moveAddressesStmt                  *sql.Stmt
 	moveDeviceSourcesStmt              *sql.Stmt
 	moveEventsStmt                     *sql.Stmt
+	organisationDevicesStmt            *sql.Stmt
 	portStatsStmt                      *sql.Stmt
 	redeemRecoveryCodeStmt             *sql.Stmt
 	refreshAddressStmt                 *sql.Stmt
@@ -756,6 +765,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		moveAddressesStmt:                  q.moveAddressesStmt,
 		moveDeviceSourcesStmt:              q.moveDeviceSourcesStmt,
 		moveEventsStmt:                     q.moveEventsStmt,
+		organisationDevicesStmt:            q.organisationDevicesStmt,
 		portStatsStmt:                      q.portStatsStmt,
 		redeemRecoveryCodeStmt:             q.redeemRecoveryCodeStmt,
 		refreshAddressStmt:                 q.refreshAddressStmt,

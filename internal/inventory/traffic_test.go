@@ -423,21 +423,21 @@ func TestNetworkTrafficSummaries(t *testing.T) {
 	})
 	require.NoError(t, rec.Flush(t.Context()))
 
-	busiest, err := s.BusiestDevices(t.Context(), now.Add(-24*time.Hour), 10)
+	busiest, err := s.BusiestDevices(t.Context(), now.Add(-24*time.Hour), "", 10)
 	require.NoError(t, err)
 	require.Len(t, busiest, 2)
 	assert.Equal(t, b, busiest[0].DeviceID)
 	assert.Equal(t, "tv.example", busiest[0].DeviceName)
 	assert.Equal(t, int64(7_000), busiest[0].Sent)
 
-	orgs, err := s.TopOrganisations(t.Context(), now.Add(-24*time.Hour), 10)
+	orgs, err := s.TopOrganisations(t.Context(), now.Add(-24*time.Hour), "", 10)
 	require.NoError(t, err)
 	require.Len(t, orgs, 2)
 	assert.Equal(t, "Google", orgs[0].Short)
 	assert.Equal(t, int64(2), orgs[0].Devices)
 	assert.Equal(t, "Cloudflare", orgs[1].Short)
 
-	first, err := s.FirstContacts(t.Context(), now.Add(-7*24*time.Hour), 10)
+	first, err := s.FirstContacts(t.Context(), now.Add(-7*24*time.Hour), "", 10)
 	require.NoError(t, err)
 	assert.False(t, first.Partial, "ten days of records cover a seven-day look back")
 
@@ -449,11 +449,43 @@ func TestNetworkTrafficSummaries(t *testing.T) {
 
 	assert.Equal(t, map[int64][]string{a: {"Google"}, b: {"Google"}}, got)
 
+	// Each organisation breaks down by device, busiest first.
+	byOrg, err := s.OrganisationDevices(t.Context(), now.Add(-24*time.Hour), "")
+	require.NoError(t, err)
+	require.Len(t, byOrg[15169], 2)
+	assert.Equal(t, b, byOrg[15169][0].DeviceID)
+	assert.Equal(t, int64(7_000), byOrg[15169][0].Sent)
+	assert.Equal(t, a, byOrg[15169][1].DeviceID)
+
+	// A group narrows every summary to its devices.
+	_, err = s.UpdateCuration(t.Context(), a, Curation{Group: "family"})
+	require.NoError(t, err)
+
+	busiest, err = s.BusiestDevices(t.Context(), now.Add(-24*time.Hour), "family", 10)
+	require.NoError(t, err)
+	require.Len(t, busiest, 1)
+	assert.Equal(t, a, busiest[0].DeviceID)
+
+	orgs, err = s.TopOrganisations(t.Context(), now.Add(-24*time.Hour), "family", 10)
+	require.NoError(t, err)
+	require.Len(t, orgs, 2)
+	assert.Equal(t, "Cloudflare", orgs[0].Short, "the laptop moved more with Cloudflare than Google")
+	assert.Equal(t, int64(1), orgs[1].Devices)
+
+	first, err = s.FirstContacts(t.Context(), now.Add(-7*24*time.Hour), "family", 10)
+	require.NoError(t, err)
+	require.Len(t, first.Contacts, 1)
+	assert.Equal(t, a, first.Contacts[0].DeviceID)
+
+	byOrg, err = s.OrganisationDevices(t.Context(), now.Add(-24*time.Hour), "family")
+	require.NoError(t, err)
+	assert.Len(t, byOrg[15169], 1)
+
 	// An ignored device drops out of every summary.
 	_, err = s.UpdateCuration(t.Context(), b, Curation{Ignored: true})
 	require.NoError(t, err)
 
-	busiest, err = s.BusiestDevices(t.Context(), now.Add(-24*time.Hour), 10)
+	busiest, err = s.BusiestDevices(t.Context(), now.Add(-24*time.Hour), "", 10)
 	require.NoError(t, err)
 	require.Len(t, busiest, 1)
 	assert.Equal(t, a, busiest[0].DeviceID)
@@ -469,7 +501,7 @@ func TestFirstContactsSaysWhenRecordsAreShorterThanTheLookBack(t *testing.T) {
 	rec.Add(trafficSource{}, []plugin.Flow{flow("192.0.2.10", "1.1.1.1", 51000, 443, 100, s.now())})
 	require.NoError(t, rec.Flush(t.Context()))
 
-	first, err := s.FirstContacts(t.Context(), s.now().Add(-7*24*time.Hour), 10)
+	first, err := s.FirstContacts(t.Context(), s.now().Add(-7*24*time.Hour), "", 10)
 	require.NoError(t, err)
 	assert.True(t, first.Partial)
 	assert.False(t, first.Started.IsZero())

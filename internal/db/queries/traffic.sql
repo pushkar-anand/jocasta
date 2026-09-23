@@ -62,11 +62,12 @@ SELECT d.id,
        CAST(SUM(t.bytes_in) AS INTEGER)       AS bytes_in
 FROM traffic_hourly t
          JOIN devices d ON d.id = t.device_id
-WHERE t.hour >= ?
+WHERE t.hour >= sqlc.arg(since)
   AND d.is_ignored = 0
+  AND (CAST(sqlc.narg(group_name) AS TEXT) IS NULL OR d.group_name = CAST(sqlc.narg(group_name) AS TEXT))
 GROUP BY d.id
 ORDER BY SUM(t.bytes_out + t.bytes_in) DESC, d.id
-LIMIT ?;
+LIMIT sqlc.arg(limit_rows);
 
 -- name: FirstContacts :many
 -- Each device's first exchange with an organisation, when it fell at or after
@@ -85,6 +86,7 @@ FROM traffic_hourly t
          JOIN devices d ON d.id = t.device_id
 WHERE t.peer_asn IS NOT NULL
   AND d.is_ignored = 0
+  AND (CAST(sqlc.narg(group_name) AS TEXT) IS NULL OR d.group_name = CAST(sqlc.narg(group_name) AS TEXT))
 GROUP BY d.id, t.peer_asn
 HAVING MIN(t.hour) >= sqlc.arg(since)
 ORDER BY MIN(t.hour) DESC, d.id
@@ -101,11 +103,32 @@ SELECT CAST(t.peer_asn AS INTEGER)              AS peer_asn,
 FROM traffic_hourly t
          JOIN devices d ON d.id = t.device_id
 WHERE t.peer_asn IS NOT NULL
-  AND t.hour >= ?
+  AND t.hour >= sqlc.arg(since)
   AND d.is_ignored = 0
+  AND (CAST(sqlc.narg(group_name) AS TEXT) IS NULL OR d.group_name = CAST(sqlc.narg(group_name) AS TEXT))
 GROUP BY t.peer_asn
 ORDER BY SUM(t.bytes_out + t.bytes_in) DESC, t.peer_asn
-LIMIT ?;
+LIMIT sqlc.arg(limit_rows);
+
+-- name: OrganisationDevices :many
+-- What each device exchanged with each organisation since a given hour, for
+-- the breakdown under the busiest organisations. Every pair comes back; the
+-- caller keeps the organisations it shows.
+SELECT CAST(t.peer_asn AS INTEGER)            AS peer_asn,
+       d.id,
+       CAST(COALESCE(d.label, '') AS TEXT)    AS label,
+       CAST(COALESCE(d.hostname, '') AS TEXT) AS hostname,
+       CAST(COALESCE(d.mac, '') AS TEXT)      AS mac,
+       CAST(SUM(t.bytes_out) AS INTEGER)      AS bytes_out,
+       CAST(SUM(t.bytes_in) AS INTEGER)       AS bytes_in
+FROM traffic_hourly t
+         JOIN devices d ON d.id = t.device_id
+WHERE t.peer_asn IS NOT NULL
+  AND t.hour >= sqlc.arg(since)
+  AND d.is_ignored = 0
+  AND (CAST(sqlc.narg(group_name) AS TEXT) IS NULL OR d.group_name = CAST(sqlc.narg(group_name) AS TEXT))
+GROUP BY t.peer_asn, d.id
+ORDER BY t.peer_asn, SUM(t.bytes_out + t.bytes_in) DESC, d.id;
 
 -- name: EarliestTraffic :one
 -- The first hour anything was recorded, or empty when nothing has been: how

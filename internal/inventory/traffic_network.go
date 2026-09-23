@@ -58,11 +58,13 @@ type FirstContacts struct {
 }
 
 // BusiestDevices returns the devices that moved the most data since the start
-// of the hour containing since, busiest first.
-func (s *Store) BusiestDevices(ctx context.Context, since time.Time, limit int) ([]*DeviceTotal, error) {
+// of the hour containing since, busiest first. A non-empty group keeps only
+// the devices in it.
+func (s *Store) BusiestDevices(ctx context.Context, since time.Time, group string, limit int) ([]*DeviceTotal, error) {
 	rows, err := s.q.BusiestDevices(ctx, models.BusiestDevicesParams{
-		Hour:  dbtype.NewTime(since.UTC().Truncate(time.Hour)),
-		Limit: int64(limit),
+		Since:     dbtype.NewTime(since.UTC().Truncate(time.Hour)),
+		GroupName: nullString(group),
+		LimitRows: int64(limit),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("busiest devices: %w", err)
@@ -82,11 +84,13 @@ func (s *Store) BusiestDevices(ctx context.Context, since time.Time, limit int) 
 }
 
 // TopOrganisations returns the organisations the network exchanged the most
-// with since the start of the hour containing since.
-func (s *Store) TopOrganisations(ctx context.Context, since time.Time, limit int) ([]*OrgTotal, error) {
+// with since the start of the hour containing since. A non-empty group counts
+// only the devices in it.
+func (s *Store) TopOrganisations(ctx context.Context, since time.Time, group string, limit int) ([]*OrgTotal, error) {
 	rows, err := s.q.TopOrganisations(ctx, models.TopOrganisationsParams{
-		Hour:  dbtype.NewTime(since.UTC().Truncate(time.Hour)),
-		Limit: int64(limit),
+		Since:     dbtype.NewTime(since.UTC().Truncate(time.Hour)),
+		GroupName: nullString(group),
+		LimitRows: int64(limit),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("top organisations: %w", err)
@@ -108,8 +112,9 @@ func (s *Store) TopOrganisations(ctx context.Context, since time.Time, limit int
 }
 
 // FirstContacts returns the organisations devices exchanged data with for the
-// first time since the start of the hour containing since, newest first.
-func (s *Store) FirstContacts(ctx context.Context, since time.Time, limit int) (*FirstContacts, error) {
+// first time since the start of the hour containing since, newest first. A
+// non-empty group keeps only the devices in it.
+func (s *Store) FirstContacts(ctx context.Context, since time.Time, group string, limit int) (*FirstContacts, error) {
 	since = since.UTC().Truncate(time.Hour)
 
 	out := &FirstContacts{Since: since, Contacts: []*FirstContact{}}
@@ -131,6 +136,7 @@ func (s *Store) FirstContacts(ctx context.Context, since time.Time, limit int) (
 
 	rows, err := s.q.FirstContacts(ctx, models.FirstContactsParams{
 		Since:     dbtype.NewTime(since),
+		GroupName: nullString(group),
 		LimitRows: int64(limit),
 	})
 	if err != nil {
@@ -151,6 +157,33 @@ func (s *Store) FirstContacts(ctx context.Context, since time.Time, limit int) (
 			DeviceName: displayName(r.Label, r.Hostname, r.MAC, "", r.ID),
 			ASN:        number, Name: name, Short: short,
 			First: first, Bytes: r.Bytes,
+		})
+	}
+
+	return out, nil
+}
+
+// OrganisationDevices returns, for each organisation, what each device
+// exchanged with it since the start of the hour containing since, busiest
+// device first. A non-empty group keeps only the devices in it.
+func (s *Store) OrganisationDevices(ctx context.Context, since time.Time, group string) (map[uint32][]*DeviceTotal, error) {
+	rows, err := s.q.OrganisationDevices(ctx, models.OrganisationDevicesParams{
+		Since:     dbtype.NewTime(since.UTC().Truncate(time.Hour)),
+		GroupName: nullString(group),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("organisation devices: %w", err)
+	}
+
+	out := make(map[uint32][]*DeviceTotal)
+
+	for _, r := range rows {
+		number := uint32(r.PeerASN) //nolint:gosec // an ASN is 32 bits.
+		out[number] = append(out[number], &DeviceTotal{
+			DeviceID:   r.ID,
+			DeviceName: displayName(r.Label, r.Hostname, r.MAC, "", r.ID),
+			Sent:       r.BytesOut,
+			Received:   r.BytesIn,
 		})
 	}
 
