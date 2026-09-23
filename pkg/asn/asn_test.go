@@ -44,18 +44,18 @@ func TestLookupSkipsAddressesOffThePublicInternet(t *testing.T) {
 	t.Parallel()
 
 	for _, addr := range []string{
-		"192.0.2.10",    // documentation
-		"198.51.100.10", // documentation
-		"203.0.113.10",  // documentation
-		"2001:db8::1",   // documentation
-		"10.0.0.1",      // private
-		"192.168.1.1",   // private
-		"100.64.0.1",    // carrier-grade NAT
-		"127.0.0.1",     // loopback
-		"169.254.1.1",   // link-local
-		"fe80::1",       // link-local
-		"224.0.0.1",     // multicast
-		"fd00::1",       // unique local
+		"192.0.2.10",     // documentation
+		"198.51.100.10",  // documentation
+		"203.0.113.10",   // documentation
+		"2001:db8::1",    // documentation
+		"10.255.255.254", // private
+		"172.31.255.254", // private
+		"100.64.0.1",     // carrier-grade NAT
+		"127.0.0.1",      // loopback
+		"169.254.1.1",    // link-local
+		"fe80::1",        // link-local
+		"224.0.0.1",      // multicast
+		"fd00::1",        // unique local
 	} {
 		t.Run(addr, func(t *testing.T) {
 			t.Parallel()
