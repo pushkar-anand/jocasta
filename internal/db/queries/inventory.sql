@@ -220,6 +220,21 @@ WHERE id = sqlc.arg(id);
 INSERT INTO events (device_id, scan_id, kind, old_value, new_value, detail, occurred_at)
 VALUES (?, ?, ?, ?, ?, ?, ?);
 
+-- Retention.
+
+-- name: DeleteEventsBefore :execrows
+DELETE
+FROM events
+WHERE occurred_at < ?;
+
+-- A scan still RUNNING is never pruned, however old: it is either in progress
+-- or the record of a crash, and its row is what a later close writes to.
+-- name: DeleteScansBefore :execrows
+DELETE
+FROM scans
+WHERE started_at < ?
+  AND status <> 'RUNNING';
+
 -- Reads.
 
 -- The current addresses come back on the device's own row rather than through a

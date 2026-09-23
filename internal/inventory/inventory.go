@@ -34,6 +34,10 @@ const DefaultOnlineWindow = 15 * time.Minute
 // sweep concludes the lease is gone and retires it.
 const DefaultAddressGrace = 6 * time.Hour
 
+// DefaultRetention is how long events and scans are kept when no retention is
+// configured.
+const DefaultRetention = 90 * 24 * time.Hour
+
 // Store reads the inventory and writes scan results into it.
 type Store struct {
 	conn *sql.DB

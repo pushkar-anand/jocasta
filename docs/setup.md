@@ -80,6 +80,7 @@ logger:
 inventory:
   online_window: "15m"  # how long after its last sighting a device counts as online
   address_grace: "0s"   # how long a stale address is kept before a later sweep retires it
+  retention: "2160h"    # events and scans older than this are deleted; "0s" keeps them forever
 
 # Segments the poller sweeps on a timer. Also used to match each discovered
 # address to the network that contains it.

@@ -72,8 +72,14 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deleteDeviceStmt, err = db.PrepareContext(ctx, deleteDevice); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteDevice: %w", err)
 	}
+	if q.deleteEventsBeforeStmt, err = db.PrepareContext(ctx, deleteEventsBefore); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteEventsBefore: %w", err)
+	}
 	if q.deleteRecoveryCodesByUserStmt, err = db.PrepareContext(ctx, deleteRecoveryCodesByUser); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteRecoveryCodesByUser: %w", err)
+	}
+	if q.deleteScansBeforeStmt, err = db.PrepareContext(ctx, deleteScansBefore); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteScansBefore: %w", err)
 	}
 	if q.deviceNetworkNamesStmt, err = db.PrepareContext(ctx, deviceNetworkNames); err != nil {
 		return nil, fmt.Errorf("error preparing query DeviceNetworkNames: %w", err)
@@ -289,9 +295,19 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing deleteDeviceStmt: %w", cerr)
 		}
 	}
+	if q.deleteEventsBeforeStmt != nil {
+		if cerr := q.deleteEventsBeforeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteEventsBeforeStmt: %w", cerr)
+		}
+	}
 	if q.deleteRecoveryCodesByUserStmt != nil {
 		if cerr := q.deleteRecoveryCodesByUserStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteRecoveryCodesByUserStmt: %w", cerr)
+		}
+	}
+	if q.deleteScansBeforeStmt != nil {
+		if cerr := q.deleteScansBeforeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteScansBeforeStmt: %w", cerr)
 		}
 	}
 	if q.deviceNetworkNamesStmt != nil {
@@ -564,7 +580,9 @@ type Queries struct {
 	currentAddressesStmt               *sql.Stmt
 	deleteAPITokenStmt                 *sql.Stmt
 	deleteDeviceStmt                   *sql.Stmt
+	deleteEventsBeforeStmt             *sql.Stmt
 	deleteRecoveryCodesByUserStmt      *sql.Stmt
+	deleteScansBeforeStmt              *sql.Stmt
 	deviceNetworkNamesStmt             *sql.Stmt
 	deviceStatsStmt                    *sql.Stmt
 	disableUserTOTPStmt                *sql.Stmt
@@ -630,7 +648,9 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		currentAddressesStmt:               q.currentAddressesStmt,
 		deleteAPITokenStmt:                 q.deleteAPITokenStmt,
 		deleteDeviceStmt:                   q.deleteDeviceStmt,
+		deleteEventsBeforeStmt:             q.deleteEventsBeforeStmt,
 		deleteRecoveryCodesByUserStmt:      q.deleteRecoveryCodesByUserStmt,
+		deleteScansBeforeStmt:              q.deleteScansBeforeStmt,
 		deviceNetworkNamesStmt:             q.deviceNetworkNamesStmt,
 		deviceStatsStmt:                    q.deviceStatsStmt,
 		disableUserTOTPStmt:                q.disableUserTOTPStmt,
