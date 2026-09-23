@@ -43,6 +43,7 @@ What the records mean:
 - Online means the device was seen within the configured online window, not that it answered just now.
 - Open ports are TCP ports a scan found accepting connections. A service name is the service usually found on that port number, not software that was detected. No recorded ports does not mean every port is closed: port scanning may be off, or may not have reached the device.
 - Devices the owner marked as ignored are left out unless asked for.
+- The label, group, type, notes and ignored flag are the owner's. update_device_curation, offered only to a read_write token, is the one tool that changes anything, and it changes only those.
 
 A tool that fails returns an RFC 9457 problem document, the same one the JSON API answers with.
 
