@@ -87,3 +87,65 @@ func listDevicesSchema() *jsonschema.Schema {
 
 	return s
 }
+
+// getDeviceInput names one device.
+type getDeviceInput struct {
+	ID int64 `json:"id" jsonschema:"The device's id, as list_devices reports it."`
+}
+
+// getDeviceOutput is one device in full, with what each source that reported it
+// claims. The two are kept apart, as the device page shows them: the device is
+// the settled picture, and the sources are the evidence behind it, which can
+// disagree.
+type getDeviceOutput struct {
+	Device  *inventory.Device  `json:"device"`
+	Sources []*inventory.Claim `json:"sources"`
+}
+
+// getDevice is inventory.Store.Device and DeviceSources, offered as one tool.
+func getDevice(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
+	t := &mcpsdk.Tool{
+		Name:  "get_device",
+		Title: "Get a device",
+		Description: "Get one device in full: its identity, the label, group, type, notes and ignored flag its owner set, " +
+			"its classification, every address it has held and when, and every TCP port a scan has recorded open, " +
+			"with when each opened or closed. Also returns what each discovery source (a network sweep, a router's " +
+			"ARP or DHCP table) claims about the device and when that source last saw it; sources can disagree. " +
+			"Use list_events with this id for the device's history, including why its classification changed.",
+		InputSchema:  getDeviceSchema(),
+		OutputSchema: schemaFor[getDeviceOutput](),
+		Annotations: &mcpsdk.ToolAnnotations{
+			ReadOnlyHint:  true,
+			OpenWorldHint: new(false),
+		},
+	}
+
+	handler := func(
+		ctx context.Context,
+		_ *mcpsdk.CallToolRequest,
+		in getDeviceInput,
+	) (*mcpsdk.CallToolResult, getDeviceOutput, error) {
+		device, err := store.Device(ctx, in.ID)
+		if err != nil {
+			return nil, getDeviceOutput{}, err
+		}
+
+		sources, err := store.DeviceSources(ctx, in.ID)
+		if err != nil {
+			return nil, getDeviceOutput{}, err
+		}
+
+		return nil, getDeviceOutput{Device: device, Sources: sources}, nil
+	}
+
+	return func(s *mcpsdk.Server, log *slog.Logger) { addTool(s, log, t, handler) }
+}
+
+// getDeviceSchema is the schema inferred from getDeviceInput, with ids held to
+// the positive numbers the inventory issues.
+func getDeviceSchema() *jsonschema.Schema {
+	s := schemaFor[getDeviceInput]()
+	s.Properties["id"].Minimum = new(1.0)
+
+	return s
+}

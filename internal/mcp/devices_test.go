@@ -142,3 +142,88 @@ func TestListDevicesIsReadOnly(t *testing.T) {
 	require.NotNil(t, ann.OpenWorldHint)
 	assert.False(t, *ann.OpenWorldHint)
 }
+
+// deviceID finds a seeded device's id through list_devices, the way an agent
+// would.
+func deviceID(t *testing.T, cs *mcpsdk.ClientSession, q string) int64 {
+	t.Helper()
+
+	out := decodeDevices(t, callListDevices(t, cs, map[string]any{"q": q}))
+	require.Equal(t, 1, out.Count, "exactly one device should match %q", q)
+
+	return out.Devices[0].ID
+}
+
+func callTool(t *testing.T, cs *mcpsdk.ClientSession, name string, args map[string]any) *mcpsdk.CallToolResult {
+	t.Helper()
+
+	res, err := cs.CallTool(t.Context(), &mcpsdk.CallToolParams{Name: name, Arguments: args})
+	require.NoError(t, err)
+
+	return res
+}
+
+// decodeAs reads a tool's structured result back into T.
+func decodeAs[T any](t *testing.T, res *mcpsdk.CallToolResult) T {
+	t.Helper()
+
+	require.False(t, res.IsError, "the call failed: %v", res.Content)
+
+	raw, err := json.Marshal(res.StructuredContent)
+	require.NoError(t, err)
+
+	var out T
+	require.NoError(t, json.Unmarshal(raw, &out))
+
+	return out
+}
+
+func TestGetDevice(t *testing.T) {
+	t.Parallel()
+
+	store := seededStore(t)
+	cs := connect(t, func(s *mcpsdk.Server, log *slog.Logger) {
+		listDevices(store)(s, log)
+		getDevice(store)(s, log)
+	})
+
+	id := deviceID(t, cs, "printer")
+
+	t.Run("the device in full, with its sources", func(t *testing.T) {
+		t.Parallel()
+
+		out := decodeAs[getDeviceOutput](t, callTool(t, cs, "get_device", map[string]any{"id": id}))
+
+		require.NotNil(t, out.Device)
+		assert.Equal(t, id, out.Device.ID)
+		assert.Equal(t, "printer.local", out.Device.Hostname)
+
+		require.Len(t, out.Device.Addresses, 1, "the full address history, not just current addresses")
+		assert.Equal(t, "192.0.2.10", out.Device.Addresses[0].IP.String())
+
+		require.Len(t, out.Sources, 1)
+		assert.Equal(t, "test-sweep", out.Sources[0].Source)
+	})
+
+	t.Run("a device that does not exist is a 404", func(t *testing.T) {
+		t.Parallel()
+
+		doc := problemOf(t, callTool(t, cs, "get_device", map[string]any{"id": 9999}))
+		assert.Equal(t, float64(http.StatusNotFound), doc["status"])
+		assert.Equal(t, "get_device", doc["instance"])
+	})
+
+	t.Run("an id the inventory never issues is refused", func(t *testing.T) {
+		t.Parallel()
+
+		doc := problemOf(t, callTool(t, cs, "get_device", map[string]any{"id": 0}))
+		assert.Equal(t, float64(http.StatusBadRequest), doc["status"])
+	})
+
+	t.Run("the id is required", func(t *testing.T) {
+		t.Parallel()
+
+		doc := problemOf(t, callTool(t, cs, "get_device", nil))
+		assert.Equal(t, float64(http.StatusBadRequest), doc["status"])
+	})
+}

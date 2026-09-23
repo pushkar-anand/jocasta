@@ -173,6 +173,10 @@ var eventKinds = []EventKind{
 // Valid reports whether k is one of the known event kinds.
 func (k EventKind) Valid() bool { return slices.Contains(eventKinds, k) }
 
+// EventKinds returns every known event kind, in the order the log's filters
+// list them. It is a copy, so a caller cannot change what Valid admits.
+func EventKinds() []EventKind { return slices.Clone(eventKinds) }
+
 // Value renders k for the driver, refusing anything the column does not admit.
 func (k EventKind) Value() (driver.Value, error) { return enumValue(k, eventKinds, "event kind") }
 
