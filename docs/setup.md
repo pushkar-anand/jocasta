@@ -273,6 +273,7 @@ token is also offered any tool that changes it.
 | `get_network` | One network by id. |
 | `get_stats` | Device counts: total, online, offline, ignored, and discovered in the last day. |
 | `list_groups` | The group names devices are filed under. |
+| `get_port_overview` | Open ports across the network, changes in the last day, and the commonest services. |
 
 Errors use the same [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem
 documents as the HTTP API. A refused token gets one as the HTTP response. A
