@@ -266,9 +266,11 @@ token is also offered any tool that changes it.
 
 | Tool | Purpose |
 |---|---|
-| `list_devices` | List devices, filtered by search term, group or online status. |
+| `list_devices` | List devices, filtered by search term, group, network, device class or online status. |
 | `get_device` | One device in full: addresses held, ports recorded, and what each discovery source claims. |
 | `list_events` | The change log, newest first, filtered by device or event kind and paged with a cursor. |
+| `list_networks` | The recorded networks, with prefix, name, VLAN and device counts. |
+| `get_network` | One network by id. |
 
 Errors use the same [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem
 documents as the HTTP API. A refused token gets one as the HTTP response. A

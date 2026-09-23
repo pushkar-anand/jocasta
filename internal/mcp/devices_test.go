@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/pushkar-anand/jocasta/internal/classify"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -224,6 +225,55 @@ func TestGetDevice(t *testing.T) {
 		t.Parallel()
 
 		doc := problemOf(t, callTool(t, cs, "get_device", nil))
+		assert.Equal(t, float64(http.StatusBadRequest), doc["status"])
+	})
+}
+
+func TestListDevicesByNetworkAndType(t *testing.T) {
+	t.Parallel()
+
+	store := seededStore(t)
+
+	networks, err := store.ListNetworks(t.Context())
+	require.NoError(t, err)
+	require.Len(t, networks, 1, "the sweep records the prefix it covered")
+
+	cs := connect(t, listDevices(store))
+
+	// The owner's answer is what the type filter matches when they gave one.
+	id := deviceID(t, cs, "printer")
+	_, err = store.UpdateCuration(t.Context(), id, inventory.Curation{Type: string(classify.Printer)})
+	require.NoError(t, err)
+
+	t.Run("network", func(t *testing.T) {
+		t.Parallel()
+
+		on := decodeDevices(t, callListDevices(t, cs, map[string]any{"network_id": networks[0].ID}))
+		assert.Equal(t, 2, on.Count)
+
+		elsewhere := decodeDevices(t, callListDevices(t, cs, map[string]any{"network_id": networks[0].ID + 1}))
+		assert.Equal(t, 0, elsewhere.Count)
+	})
+
+	t.Run("type", func(t *testing.T) {
+		t.Parallel()
+
+		out := decodeDevices(t, callListDevices(t, cs, map[string]any{"type": string(classify.Printer)}))
+		require.Equal(t, 1, out.Count)
+		assert.Equal(t, id, out.Devices[0].ID)
+	})
+
+	t.Run("an unknown type is refused", func(t *testing.T) {
+		t.Parallel()
+
+		doc := problemOf(t, callListDevices(t, cs, map[string]any{"type": "toaster"}))
+		assert.Equal(t, float64(http.StatusBadRequest), doc["status"])
+	})
+
+	t.Run("a network id the inventory never issues is refused", func(t *testing.T) {
+		t.Parallel()
+
+		doc := problemOf(t, callListDevices(t, cs, map[string]any{"network_id": 0}))
 		assert.Equal(t, float64(http.StatusBadRequest), doc["status"])
 	})
 }

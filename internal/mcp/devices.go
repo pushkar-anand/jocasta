@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/jsonschema-go/jsonschema"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/pushkar-anand/jocasta/internal/classify"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
@@ -14,6 +15,8 @@ import (
 type listDevicesInput struct {
 	Q              string `json:"q,omitempty" jsonschema:"Case-insensitive substring matched against each device's label, hostname, vendor, hardware (MAC) address and current IP addresses."`
 	Group          string `json:"group,omitempty" jsonschema:"Only devices in this group, exactly as the user named it."`
+	NetworkID      int64  `json:"network_id,omitempty" jsonschema:"Only devices holding a current address on this network, by the id list_networks reports."`
+	Type           string `json:"type,omitempty" jsonschema:"Only devices of this class: the owner's type where they set one, the classifier's guess otherwise."`
 	Status         string `json:"status,omitempty" jsonschema:"Only devices seen recently (online) or not (offline). Omit for both."`
 	Sort           string `json:"sort,omitempty" jsonschema:"Order of the list. Defaults to last_seen, the most recently seen device first."`
 	IncludeIgnored bool   `json:"include_ignored,omitempty" jsonschema:"Also list the devices the user marked as ignored."`
@@ -31,8 +34,9 @@ func listDevices(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	t := &mcpsdk.Tool{
 		Name:  "list_devices",
 		Title: "List devices",
-		Description: "List the devices in the network inventory, optionally filtered by a search term, group or online status. " +
-			"Each device carries its id, hardware address, current IP addresses, vendor, hostname, class, open ports, " +
+		Description: "List the devices in the network inventory, optionally filtered by a search term, group, network, " +
+			"device class or online status. " +
+			"Each device carries its id, hardware address, current IP addresses, vendor, hostname, class, open port numbers, " +
 			"when it was first and last seen, and the label, group and notes its owner gave it.",
 		InputSchema:  listDevicesSchema(),
 		OutputSchema: schemaFor[listDevicesOutput](),
@@ -50,6 +54,8 @@ func listDevices(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 		devices, err := store.ListDevices(ctx, inventory.DeviceFilter{
 			Query:          in.Q,
 			Group:          in.Group,
+			Network:        in.NetworkID,
+			Type:           classify.Class(in.Type),
 			Status:         inventory.Status(in.Status),
 			Sort:           inventory.Sort(in.Sort),
 			IncludeIgnored: in.IncludeIgnored,
@@ -65,12 +71,13 @@ func listDevices(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 }
 
 // listDevicesSchema is the schema inferred from listDevicesInput, with the
-// closed sets its two string filters admit spelled out, so the model is shown
-// the choices rather than left to guess them, and the SDK turns away anything
-// else before the handler runs.
+// closed sets its string filters admit spelled out, so the model is shown the
+// choices rather than left to guess them, and the SDK turns away anything else
+// before the handler runs.
 //
-// The values are the ones inventory.Status and inventory.Sort name, less the
-// empty string each uses for "unset" -- here that is the field left out.
+// The values are the ones inventory.Status, inventory.Sort and the classifier
+// name, less the empty string each uses for "unset" -- here that is the field
+// left out.
 func listDevicesSchema() *jsonschema.Schema {
 	s := schemaFor[listDevicesInput]()
 
@@ -84,6 +91,8 @@ func listDevicesSchema() *jsonschema.Schema {
 		string(inventory.SortAddress),
 		string(inventory.SortType),
 	}
+	s.Properties["type"].Enum = classEnum()
+	s.Properties["network_id"].Minimum = new(1.0)
 
 	return s
 }
@@ -148,4 +157,15 @@ func getDeviceSchema() *jsonschema.Schema {
 	s.Properties["id"].Minimum = new(1.0)
 
 	return s
+}
+
+// classEnum is every device class the classifier knows, for a schema that
+// takes one.
+func classEnum() []any {
+	classes := make([]any, 0, len(classify.Classes()))
+	for _, c := range classify.Classes() {
+		classes = append(classes, string(c))
+	}
+
+	return classes
 }
