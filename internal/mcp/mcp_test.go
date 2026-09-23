@@ -281,3 +281,16 @@ func fakeTool(name string) func(*mcpsdk.Server, *slog.Logger) {
 		})
 	}
 }
+
+// The real tool list keeps its write tool from a read-scoped token.
+func TestHandlerKeepsCurationFromAReadToken(t *testing.T) {
+	t.Parallel()
+
+	a, tok := testAuth(t)
+
+	srv := httptest.NewServer(NewHandler(testLogger(), testJSONWriter(), a, seededStore(t)))
+	t.Cleanup(srv.Close)
+
+	assert.NotContains(t, toolNames(t, connectHTTP(t, srv.URL, tok.read)), "update_device_curation")
+	assert.Contains(t, toolNames(t, connectHTTP(t, srv.URL, tok.readWrite)), "update_device_curation")
+}
