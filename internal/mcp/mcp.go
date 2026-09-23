@@ -11,6 +11,7 @@ package mcp
 import (
 	"log/slog"
 	"net/http"
+	"time"
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/pushkar-anand/build-with-go/http/response"
@@ -107,7 +108,8 @@ func canWrite(token *models.ApiToken) bool {
 // newServers builds the two servers a caller can be handed: one listing only
 // the tools that read, for a read-scoped token, and one listing every tool.
 // Choosing between whole servers, rather than refusing a call, means a
-// read-scoped caller is never even shown a tool it could not use.
+// read-scoped caller is never even shown a tool it could not use. Both offer
+// every prompt, each told which of the two it is on.
 func newServers(log *slog.Logger, ts []tool) (read, readWrite *mcpsdk.Server) {
 	read, readWrite = newServer(), newServer()
 
@@ -117,6 +119,11 @@ func newServers(log *slog.Logger, ts []tool) (read, readWrite *mcpsdk.Server) {
 		if !t.writes {
 			t.register(read, log)
 		}
+	}
+
+	for _, p := range prompts(time.Now) {
+		p(read, false)
+		p(readWrite, true)
 	}
 
 	return read, readWrite
