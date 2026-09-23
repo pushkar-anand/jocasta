@@ -106,7 +106,7 @@ func TestListEvents(t *testing.T) {
 		}{
 			"a cursor this server did not issue": {map[string]any{"cursor": "not-a-cursor"}, http.StatusBadRequest},
 			"an unknown kind":                    {map[string]any{"kinds": []string{"DEVICE_EXPLODED"}}, http.StatusBadRequest},
-			"a page past the ceiling":            {map[string]any{"limit": eventPageLimit + 1}, http.StatusBadRequest},
+			"a page past the ceiling":            {map[string]any{"limit": pageLimit + 1}, http.StatusBadRequest},
 			"a device that does not exist":       {map[string]any{"device_id": 9999}, http.StatusNotFound},
 		} {
 			t.Run(name, func(t *testing.T) {

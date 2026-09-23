@@ -67,6 +67,10 @@ const (
 
 var scanKinds = []ScanKind{ScanDiscovery, ScanPorts, ScanImport}
 
+// ScanKinds returns every known scan kind. It is a copy, so a caller cannot
+// change what Valid admits.
+func ScanKinds() []ScanKind { return slices.Clone(scanKinds) }
+
 // Valid reports whether k is one of the known scan kinds.
 func (k ScanKind) Valid() bool { return slices.Contains(scanKinds, k) }
 
