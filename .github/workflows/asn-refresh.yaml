@@ -1,0 +1,99 @@
+name: Refresh ASN tables
+
+on:
+  schedule:
+    # DB-IP publishes monthly, a few days into the month; the 9th at 04:37 UTC
+    # is safely after. Deliberately off the hour: GitHub delays scheduled runs
+    # under load and drops some outright, and the top of every hour is when
+    # that load peaks.
+    - cron: '37 4 9 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    name: Rebuild from DB-IP
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Rebuild the table
+        run: make asn
+
+      # A pull request opened with GITHUB_TOKEN does not trigger other
+      # workflows, so the usual CI will not run on it. The table is only worth
+      # proposing if it still passes, so the tests run here instead.
+      - name: Test against the new table
+        run: go test ./pkg/asn/...
+
+      - name: Propose the change
+        env:
+          GH_TOKEN: ${{ secrets.JOCASTA_OUI_REFRESH_TOKEN }}
+          BRANCH: chore/asn-refresh
+        run: |
+          set -euo pipefail
+
+          if git diff --quiet -- pkg/asn/ranges.gz pkg/asn/orgs.gz; then
+            echo "Tables are unchanged; nothing to propose."
+            exit 0
+          fi
+
+          # The tables are compressed, so git cannot show a line diff; the
+          # counts are what a reviewer has to go on. Counted against the
+          # default branch, so an unmerged pull request keeps reporting the
+          # full change being merged.
+          count() { git show "HEAD:$1" | gzip -dc | wc -l; }
+          ranges_before=$(count pkg/asn/ranges.gz)
+          ranges_after=$(gzip -dc pkg/asn/ranges.gz | wc -l)
+          orgs_before=$(count pkg/asn/orgs.gz)
+          orgs_after=$(gzip -dc pkg/asn/orgs.gz | wc -l)
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # One long-lived branch, rebuilt from the default branch every run,
+          # for the same reasons as the OUI refresh.
+          git switch -C "$BRANCH"
+          git add pkg/asn/ranges.gz pkg/asn/orgs.gz
+          git commit -m "chore(asn): refresh the ASN tables
+
+          Ranges ${ranges_before} -> ${ranges_after}, organisations ${orgs_before} -> ${orgs_after}."
+          git push --force origin "$BRANCH"
+
+          body=$(cat <<EOF
+          Rebuilt from DB-IP's IP to ASN Lite database by the monthly workflow.
+
+          | | Before | After |
+          |---|---|---|
+          | Range lines | ${ranges_before} | ${ranges_after} |
+          | Organisations | ${orgs_before} | ${orgs_after} |
+
+          \`go test ./pkg/asn/...\` passed against these tables in the run that produced
+          them. The usual CI does not run here: a pull request opened with
+          \`GITHUB_TOKEN\` cannot trigger other workflows.
+
+          This pull request is rebuilt from \`main\` and force-pushed every month, so the
+          figures above always describe the whole change being merged.
+          EOF
+          )
+
+          number=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+
+          if [ -n "$number" ]; then
+            gh pr edit "$number" --body "$body"
+            echo "Updated pull request #${number}."
+          else
+            gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "chore(asn): refresh the ASN tables" \
+              --body "$body"
+          fi
