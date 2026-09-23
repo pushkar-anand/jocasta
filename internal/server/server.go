@@ -22,6 +22,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/mcp"
+	"github.com/pushkar-anand/jocasta/internal/problem"
 	"github.com/pushkar-anand/jocasta/internal/web"
 	"github.com/rs/cors"
 )
@@ -84,7 +85,7 @@ func Start(
 
 	jw := response.NewJSONWriter(
 		cfg.Logger,
-		response.WithErrorProblemMapper(problemFor),
+		response.WithErrorProblemMapper(problem.For),
 	)
 
 	// The templates are set up in the web handler, passing nil here.
@@ -136,7 +137,7 @@ func Start(
 	ap := api.NewHandler(cfg.Logger, reader, store, jw)
 	wh := web.NewHandler(cfg.Logger, reader, store, hw, sm, a)
 
-	tokenMiddleware := auth.NewTokenMiddleware(jw, a, regexp.MustCompile(`^/livez$`))
+	tokenMiddleware := auth.NewTokenMiddleware(jw, a, auth.WithTokenBypass(regexp.MustCompile(`^/livez$`)))
 	sessionMiddleware := auth.NewSessionMiddleware(
 		sm, a,
 		[]*regexp.Regexp{regexp.MustCompile(`^/static/.*$`)},
@@ -159,7 +160,7 @@ func Start(
 	// tokens, checked by the MCP handler itself because a token's scope there
 	// decides which tools are offered rather than which methods are allowed.
 	if cfg.MCPEnabled {
-		mux.Handle("/mcp", mcp.NewHandler(cfg.Logger, a, store))
+		mux.Handle("/mcp", mcp.NewHandler(cfg.Logger, jw, a, store))
 	} else {
 		mux.Handle("/mcp", mcpDisabled(jw))
 	}
@@ -301,19 +302,4 @@ func mcpDisabled(jw *response.JSONWriter) http.Handler {
 			WithDetail("the MCP endpoint is disabled; set mcp.enabled to serve it").
 			Build())
 	})
-}
-
-// problemFor renders the errors the inventory returns that are not simply
-// failures. Anything else falls through to a generic 500, which is what an
-// unexpected error deserves.
-func problemFor(err error) response.Problem {
-	if errors.Is(err, inventory.ErrNotFound) {
-		return response.NewProblem().
-			WithStatus(http.StatusNotFound).
-			WithTitle(http.StatusText(http.StatusNotFound)).
-			WithDetail(err.Error()).
-			Build()
-	}
-
-	return nil
 }

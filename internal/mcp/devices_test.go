@@ -2,6 +2,8 @@ package mcp
 
 import (
 	"encoding/json"
+	"log/slog"
+	"net/http"
 	"testing"
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -12,11 +14,19 @@ import (
 
 // connect joins a client to a server holding only the given tool over an
 // in-memory transport, so a tool is tested without HTTP or a token.
-func connect(t *testing.T, register func(*mcpsdk.Server)) *mcpsdk.ClientSession {
+func connect(t *testing.T, register func(*mcpsdk.Server, *slog.Logger)) *mcpsdk.ClientSession {
+	t.Helper()
+
+	return connectLogging(t, testLogger(), register)
+}
+
+// connectLogging is connect with the server logging to log, for a test that
+// asserts on what a failure logged.
+func connectLogging(t *testing.T, log *slog.Logger, register func(*mcpsdk.Server, *slog.Logger)) *mcpsdk.ClientSession {
 	t.Helper()
 
 	s := newServer()
-	register(s)
+	register(s, log)
 
 	clientTransport, serverTransport := mcpsdk.NewInMemoryTransports()
 
@@ -101,15 +111,17 @@ func TestListDevices(t *testing.T) {
 	t.Run("an unknown status is refused", func(t *testing.T) {
 		t.Parallel()
 
-		res := callListDevices(t, cs, map[string]any{"status": "asleep"})
-		assert.True(t, res.IsError)
+		doc := problemOf(t, callListDevices(t, cs, map[string]any{"status": "asleep"}))
+		assert.Equal(t, float64(http.StatusBadRequest), doc["status"])
+		assert.Contains(t, doc["detail"], "online")
+		assert.Contains(t, doc["detail"], "offline")
 	})
 
 	t.Run("an unknown sort is refused", func(t *testing.T) {
 		t.Parallel()
 
-		res := callListDevices(t, cs, map[string]any{"sort": "vendor"})
-		assert.True(t, res.IsError)
+		doc := problemOf(t, callListDevices(t, cs, map[string]any{"sort": "vendor"}))
+		assert.Equal(t, float64(http.StatusBadRequest), doc["status"])
 	})
 }
 

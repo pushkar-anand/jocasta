@@ -10,6 +10,7 @@ import (
 
 	"github.com/pushkar-anand/build-with-go/http/response"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
+	"github.com/pushkar-anand/jocasta/internal/db/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -26,7 +27,7 @@ func testTokenMiddleware(t *testing.T, a *Auth, bypass ...*regexp.Regexp) (http.
 		reached = true
 	})
 
-	return NewTokenMiddleware(jw, a, bypass...)(next), &reached
+	return NewTokenMiddleware(jw, a, WithTokenBypass(bypass...))(next), &reached
 }
 
 // problemBody decodes a response body as the problem document the API's
@@ -130,4 +131,55 @@ func TestTokenMiddlewareBypassesNamedPaths(t *testing.T) {
 
 	assert.True(t, *reached)
 	assert.Equal(t, http.StatusOK, rec.Code)
+}
+
+// Without the method check, a read-only token's write reaches the handler,
+// carrying the token so the handler can decide by its scope instead.
+func TestTokenMiddlewareWithoutMethodScopeLeavesScopeToTheHandler(t *testing.T) {
+	t.Parallel()
+
+	a := newTestAuth(t, nil)
+	plaintext, _, err := a.CreateToken(t.Context(), 1, "read-only", dbtype.TokenRead)
+	require.NoError(t, err)
+
+	var seen *models.ApiToken
+
+	next := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		seen = TokenFromContext(r.Context())
+	})
+
+	jw := response.NewJSONWriter(slog.New(slog.DiscardHandler))
+	h := NewTokenMiddleware(jw, a, WithoutMethodScope())(next)
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/mcp", nil)
+	req.Header.Set(authHeaderName, "Bearer "+plaintext)
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	require.NotNil(t, seen, "the handler should find the verified token in the context")
+	assert.Equal(t, dbtype.TokenRead, seen.Scope)
+}
+
+// A bypassed path never had a token checked, so there is none to find.
+func TestTokenFromContextIsNilOnABypassedPath(t *testing.T) {
+	t.Parallel()
+
+	a := newTestAuth(t, nil)
+
+	var seen *models.ApiToken
+
+	next := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		seen = TokenFromContext(r.Context())
+	})
+
+	jw := response.NewJSONWriter(slog.New(slog.DiscardHandler))
+	h := NewTokenMiddleware(jw, a, WithTokenBypass(regexp.MustCompile(`^/livez$`)))(next)
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/livez", nil))
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Nil(t, seen)
 }

@@ -1,7 +1,9 @@
 package mcp
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"net/netip"
 	"reflect"
 
@@ -16,9 +18,9 @@ type tool struct {
 	// is shown one.
 	writes bool
 
-	// register adds the tool to a server. It is called once per server the
-	// tool belongs on.
-	register func(*mcpsdk.Server)
+	// register adds the tool to a server, usually through addTool. It is
+	// called once per server the tool belongs on.
+	register func(*mcpsdk.Server, *slog.Logger)
 }
 
 // tools is every tool the server offers. A new tool is a file defining it and
@@ -27,6 +29,20 @@ func tools(store *inventory.Store) []tool {
 	return []tool{
 		{register: listDevices(store)},
 	}
+}
+
+// addTool is mcpsdk.AddTool with the handler's errors answered the way the
+// JSON API answers them: as a problem document, and with the cause of an
+// unexpected one logged rather than shown to the agent.
+func addTool[In, Out any](s *mcpsdk.Server, log *slog.Logger, t *mcpsdk.Tool, h mcpsdk.ToolHandlerFor[In, Out]) {
+	mcpsdk.AddTool(s, t, func(ctx context.Context, req *mcpsdk.CallToolRequest, in In) (*mcpsdk.CallToolResult, Out, error) {
+		res, out, err := h(ctx, req, in)
+		if err != nil {
+			return nil, out, toolProblem(ctx, log, t.Name, err)
+		}
+
+		return res, out, nil
+	})
 }
 
 // schemaTypes overrides what schema inference makes of a type whose JSON is

@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/google/jsonschema-go/jsonschema"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -26,7 +27,7 @@ type listDevicesOutput struct {
 }
 
 // listDevices is inventory.Store.ListDevices, offered as a tool.
-func listDevices(store *inventory.Store) func(*mcpsdk.Server) {
+func listDevices(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	t := &mcpsdk.Tool{
 		Name:  "list_devices",
 		Title: "List devices",
@@ -60,7 +61,7 @@ func listDevices(store *inventory.Store) func(*mcpsdk.Server) {
 		return nil, listDevicesOutput{Devices: devices, Count: len(devices)}, nil
 	}
 
-	return func(s *mcpsdk.Server) { mcpsdk.AddTool(s, t, handler) }
+	return func(s *mcpsdk.Server, log *slog.Logger) { addTool(s, log, t, handler) }
 }
 
 // listDevicesSchema is the schema inferred from listDevicesInput, with the
