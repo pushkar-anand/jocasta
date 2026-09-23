@@ -409,6 +409,48 @@ func (q *Queries) DeleteDevice(ctx context.Context, id int64) error {
 	return err
 }
 
+const deleteEventsBefore = `-- name: DeleteEventsBefore :execrows
+
+DELETE
+FROM events
+WHERE occurred_at < ?
+`
+
+// Retention.
+//
+//	DELETE
+//	FROM events
+//	WHERE occurred_at < ?
+func (q *Queries) DeleteEventsBefore(ctx context.Context, occurredAt dbtype.Time) (int64, error) {
+	result, err := q.exec(ctx, q.deleteEventsBeforeStmt, deleteEventsBefore, occurredAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteScansBefore = `-- name: DeleteScansBefore :execrows
+DELETE
+FROM scans
+WHERE started_at < ?
+  AND status <> 'RUNNING'
+`
+
+// A scan still RUNNING is never pruned, however old: it is either in progress
+// or the record of a crash, and its row is what a later close writes to.
+//
+//	DELETE
+//	FROM scans
+//	WHERE started_at < ?
+//	  AND status <> 'RUNNING'
+func (q *Queries) DeleteScansBefore(ctx context.Context, startedAt dbtype.Time) (int64, error) {
+	result, err := q.exec(ctx, q.deleteScansBeforeStmt, deleteScansBefore, startedAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deviceNetworkNames = `-- name: DeviceNetworkNames :many
 SELECT DISTINCT n.name AS name
 FROM addresses a

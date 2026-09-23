@@ -101,6 +101,7 @@ func TestLoadConfig(t *testing.T) {
 	// A duration is configured as text and has to reach the struct as one.
 	assert.Equal(t, inventory.DefaultOnlineWindow, cfg.Inventory.OnlineWindow)
 	assert.Equal(t, inventory.DefaultAddressGrace, cfg.Inventory.AddressGrace)
+	assert.Equal(t, inventory.DefaultRetention, cfg.Inventory.Retention)
 
 	// Derived rather than written down, so assert it is the derivation and not
 	// merely non-empty: an unnamed source files every sweep under one blank row.

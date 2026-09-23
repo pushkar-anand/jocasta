@@ -61,6 +61,11 @@ type (
 		// the prefix retires it. Raise it on a network with long DHCP leases
 		// and hosts that hold an address without using it.
 		AddressGrace time.Duration `koanf:"address_grace"`
+
+		// Retention is how long the event log and the scan log are kept: rows
+		// older than this are deleted on an hourly prune. Zero keeps both
+		// forever.
+		Retention time.Duration `koanf:"retention"`
 	}
 
 	// Scan holds settings for how and when the poller sweeps the network.

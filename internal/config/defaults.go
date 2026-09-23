@@ -19,6 +19,7 @@ var defaults = map[string]any{
 
 	"inventory.online_window": inventory.DefaultOnlineWindow.String(),
 	"inventory.address_grace": inventory.DefaultAddressGrace.String(),
+	"inventory.retention":     inventory.DefaultRetention.String(),
 
 	"scan.source": defaultSource(),
 
