@@ -32,6 +32,8 @@ func tools(store *inventory.Store) []tool {
 		{register: listEvents(store)},
 		{register: listNetworks(store)},
 		{register: getNetwork(store)},
+		{register: getStats(store)},
+		{register: listGroups(store)},
 	}
 }
 
