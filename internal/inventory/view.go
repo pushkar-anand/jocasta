@@ -122,20 +122,23 @@ type Port struct {
 }
 
 // PortOverview is the compact service picture shown on the overview page.
+//
+// Open is how many ports are open now, across Devices devices. Opened and
+// Closed count the ports that changed state within PortChangeWindow.
 type PortOverview struct {
-	Open     int
-	Devices  int
-	Opened   int
-	Closed   int
-	Services []*ServiceCount
+	Open     int             `json:"open"`
+	Devices  int             `json:"devices"`
+	Opened   int             `json:"opened"`
+	Closed   int             `json:"closed"`
+	Services []*ServiceCount `json:"services"`
 }
 
 // ServiceCount reports how many devices currently answer on one known service
 // or, where the static map has no name for it, one port number.
 type ServiceCount struct {
-	Port    uint16
-	Service string
-	Devices int
+	Port    uint16 `json:"port"`
+	Service string `json:"service,omitempty"`
+	Devices int    `json:"devices"`
 }
 
 // Name is the recognisable service name, falling back to the port when the
