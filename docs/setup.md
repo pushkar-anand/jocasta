@@ -268,6 +268,13 @@ token is also offered any tool that changes it.
 |---|---|
 | `list_devices` | List devices, filtered by search term, group or online status. |
 
+Errors use the same [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem
+documents as the HTTP API. A refused token gets one as the HTTP response. A
+tool call that fails returns one as the text of an error result, with the tool
+name as `instance`: a 400 for arguments that don't match the tool's schema, a
+404 for something that doesn't exist, and a bare 500 for anything else. The
+cause of a 500 is logged on the server, not sent to the agent.
+
 ### Connecting a client
 
 Any MCP client that supports the Streamable HTTP transport and lets you set a

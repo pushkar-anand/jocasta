@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,7 @@ import (
 	"testing"
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/pushkar-anand/build-with-go/http/response"
 	"github.com/pushkar-anand/build-with-go/security/password"
 	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/db"
@@ -37,6 +39,12 @@ const (
 
 func testLogger() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
+}
+
+// testJSONWriter builds the writer the server hands the MCP handler, the one
+// the JSON API answers with.
+func testJSONWriter() *response.JSONWriter {
+	return response.NewJSONWriter(testLogger())
 }
 
 // testStore opens an inventory over a migrated database scoped to the test.
@@ -162,13 +170,14 @@ func toolNames(t *testing.T, cs *mcpsdk.ClientSession) []string {
 }
 
 // postWithToken sends a bare JSON-RPC request, for the cases a real client
-// refuses to get as far as sending.
-func postWithToken(t *testing.T, url, token string) int {
+// refuses to get as far as sending, and returns the status and the decoded
+// body.
+func postWithToken(t *testing.T, url, token string) (int, map[string]any) {
 	t.Helper()
 
-	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`
+	payload := `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`
 
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, url, strings.NewReader(body))
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, url, strings.NewReader(payload))
 	require.NoError(t, err)
 
 	req.Header.Set("Content-Type", "application/json")
@@ -180,9 +189,13 @@ func postWithToken(t *testing.T, url, token string) int {
 
 	res, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
-	require.NoError(t, res.Body.Close())
 
-	return res.StatusCode
+	defer func() { _ = res.Body.Close() }()
+
+	var body map[string]any
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&body))
+
+	return res.StatusCode, body
 }
 
 func TestHandlerRequiresAToken(t *testing.T) {
@@ -190,20 +203,23 @@ func TestHandlerRequiresAToken(t *testing.T) {
 
 	a, _ := testAuth(t)
 
-	srv := httptest.NewServer(NewHandler(testLogger(), a, testStore(t)))
+	srv := httptest.NewServer(NewHandler(testLogger(), testJSONWriter(), a, testStore(t)))
 	t.Cleanup(srv.Close)
 
-	t.Run("none", func(t *testing.T) {
-		t.Parallel()
+	// The refusal is the JSON API's own problem document, word for word.
+	for name, token := range map[string]string{
+		"none":                   "",
+		"not one jocasta issued": "jct_not-a-real-token",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 
-		assert.Equal(t, http.StatusUnauthorized, postWithToken(t, srv.URL, ""))
-	})
-
-	t.Run("not one jocasta issued", func(t *testing.T) {
-		t.Parallel()
-
-		assert.Equal(t, http.StatusUnauthorized, postWithToken(t, srv.URL, "jct_not-a-real-token"))
-	})
+			status, body := postWithToken(t, srv.URL, token)
+			assert.Equal(t, http.StatusUnauthorized, status)
+			assert.Equal(t, float64(http.StatusUnauthorized), body["status"])
+			assert.Equal(t, "missing or invalid API token", body["detail"])
+		})
+	}
 }
 
 // A read-scoped token can use the read tools end to end over HTTP.
@@ -212,7 +228,7 @@ func TestHandlerServesAReadToken(t *testing.T) {
 
 	a, tok := testAuth(t)
 
-	srv := httptest.NewServer(NewHandler(testLogger(), a, seededStore(t)))
+	srv := httptest.NewServer(NewHandler(testLogger(), testJSONWriter(), a, seededStore(t)))
 	t.Cleanup(srv.Close)
 
 	cs := connectHTTP(t, srv.URL, tok.read)
@@ -238,7 +254,7 @@ func TestHandlerOffersWriteToolsOnlyToAReadWriteToken(t *testing.T) {
 		{writes: true, register: fakeTool("writer")},
 	}
 
-	srv := httptest.NewServer(newHandler(testLogger(), a, ts))
+	srv := httptest.NewServer(newHandler(testLogger(), testJSONWriter(), a, ts))
 	t.Cleanup(srv.Close)
 
 	t.Run("read", func(t *testing.T) {
@@ -256,8 +272,8 @@ func TestHandlerOffersWriteToolsOnlyToAReadWriteToken(t *testing.T) {
 
 // fakeTool registers a tool that does nothing, for tests about which tools are
 // offered rather than what any of them does.
-func fakeTool(name string) func(*mcpsdk.Server) {
-	return func(s *mcpsdk.Server) {
+func fakeTool(name string) func(*mcpsdk.Server, *slog.Logger) {
+	return func(s *mcpsdk.Server, _ *slog.Logger) {
 		mcpsdk.AddTool(s, &mcpsdk.Tool{Name: name}, func(
 			context.Context, *mcpsdk.CallToolRequest, struct{},
 		) (*mcpsdk.CallToolResult, any, error) {

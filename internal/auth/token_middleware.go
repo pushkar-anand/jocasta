@@ -1,12 +1,14 @@
 package auth
 
 import (
+	"context"
 	"net/http"
 	"regexp"
 	"strings"
 
 	"github.com/pushkar-anand/build-with-go/http/response"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
+	"github.com/pushkar-anand/jocasta/internal/db/models"
 )
 
 const authHeaderName = "Authorization"
@@ -18,21 +20,61 @@ type TokenMiddleware struct {
 	jw     *response.JSONWriter
 	a      *Auth
 	bypass []*regexp.Regexp
-	next   http.Handler
+
+	// methodScope refuses a request that changes something when the token
+	// is read-only, judging "changes something" by the HTTP method.
+	methodScope bool
+
+	next http.Handler
 }
 
-// NewTokenMiddleware builds the API's auth gate. jw is the same writer the
-// API handlers answer with, so a request this middleware refuses gets the
-// same problem-document shape as one the API itself turned down. bypass
-// exempts a path -- typically a health check -- from needing a token at all.
+// TokenOption adjusts what a TokenMiddleware checks.
+type TokenOption func(*TokenMiddleware)
+
+// WithTokenBypass exempts the paths matching any of bypass -- typically a
+// health check -- from needing a token at all.
+func WithTokenBypass(bypass ...*regexp.Regexp) TokenOption {
+	return func(m *TokenMiddleware) { m.bypass = append(m.bypass, bypass...) }
+}
+
+// WithoutMethodScope leaves a token's scope for the handler to enforce, for a
+// surface where the method says nothing about what a request does: over MCP,
+// every call is a POST, whether it reads or writes. The handler reads the
+// token's scope off [TokenFromContext].
+func WithoutMethodScope() TokenOption {
+	return func(m *TokenMiddleware) { m.methodScope = false }
+}
+
+// NewTokenMiddleware builds a bearer-token gate. jw is the same writer the
+// guarded handlers answer with, so a request this middleware refuses gets the
+// same problem-document shape as one a handler itself turned down.
+//
+// By default a read-only token is refused any method but a read.
 func NewTokenMiddleware(
 	jw *response.JSONWriter,
 	a *Auth,
-	bypass ...*regexp.Regexp,
+	opts ...TokenOption,
 ) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		return &TokenMiddleware{jw, a, bypass, next}
+		m := &TokenMiddleware{jw: jw, a: a, methodScope: true, next: next}
+		for _, opt := range opts {
+			opt(m)
+		}
+
+		return m
 	}
+}
+
+// tokenKey is the context key the verified token travels under.
+type tokenKey struct{}
+
+// TokenFromContext returns the token TokenMiddleware verified for this
+// request, or nil if none was -- a bypassed path, or a request that never
+// passed through the middleware.
+func TokenFromContext(ctx context.Context) *models.ApiToken {
+	token, _ := ctx.Value(tokenKey{}).(*models.ApiToken)
+
+	return token
 }
 
 func (m *TokenMiddleware) ServeHTTP(
@@ -63,7 +105,7 @@ func (m *TokenMiddleware) ServeHTTP(
 		return
 	}
 
-	if !readOnly(r.Method) && token.Scope != dbtype.TokenReadWrite {
+	if m.methodScope && !readOnly(r.Method) && token.Scope != dbtype.TokenReadWrite {
 		m.jw.WriteProblem(w, r, response.NewProblem().
 			WithStatus(http.StatusForbidden).
 			WithDetail("this token is read-only").
@@ -72,7 +114,7 @@ func (m *TokenMiddleware) ServeHTTP(
 		return
 	}
 
-	m.next.ServeHTTP(w, r)
+	m.next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), tokenKey{}, token)))
 }
 
 // readOnly reports whether method only reads -- the same distinction a token
