@@ -1,0 +1,141 @@
+package mcp
+
+import (
+	"net/http"
+	"net/netip"
+	"testing"
+	"time"
+
+	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
+	"github.com/pushkar-anand/jocasta/internal/inventory"
+	"github.com/pushkar-anand/jocasta/internal/plugin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+type trafficSource struct{}
+
+func (trafficSource) Name() string            { return "netflow:test" }
+func (trafficSource) Kind() dbtype.SourceKind { return dbtype.SourceRouter }
+
+func tcp(src, dst string, dstPort uint16, bytes uint64) plugin.Flow {
+	return plugin.Flow{
+		Src: netip.MustParseAddr(src), Dst: netip.MustParseAddr(dst),
+		SrcPort: 51000, DstPort: dstPort, Protocol: 6,
+		Bytes: bytes, Packets: 1, End: time.Now(),
+	}
+}
+
+// trafficStore is seededStore with traffic recorded: the printer (1) reaches
+// the NAS (2) and two public resolvers of one organisation, the NAS reaches
+// another. The public addresses are the ones the asn tests use.
+func trafficStore(t *testing.T) *inventory.Store {
+	t.Helper()
+
+	store := seededStore(t)
+
+	rec := inventory.NewTrafficRecorder(store, testLogger(), nil)
+	rec.Add(trafficSource{}, []plugin.Flow{
+		tcp("192.0.2.10", "192.0.2.11", 445, 5_000),
+		tcp("192.0.2.10", "1.1.1.1", 443, 700),
+		tcp("192.0.2.10", "1.0.0.1", 443, 300),
+		tcp("192.0.2.11", "8.8.8.8", 53, 9_000),
+	})
+	require.NoError(t, rec.Flush(t.Context()))
+
+	return store
+}
+
+func TestListTraffic(t *testing.T) {
+	t.Parallel()
+
+	cs := connect(t, listTraffic(trafficStore(t), time.Now))
+
+	t.Run("one device's peers", func(t *testing.T) {
+		t.Parallel()
+
+		out := decodeAs[listTrafficOutput](t, callTool(t, cs, "list_traffic", map[string]any{"device_id": 1}))
+		assert.True(t, out.Recorded)
+		require.NotNil(t, out.Device)
+
+		require.Len(t, out.Device.Local, 1)
+		assert.Equal(t, int64(2), out.Device.Local[0].DeviceID)
+		assert.Equal(t, "smb", out.Device.Local[0].Service)
+
+		require.Len(t, out.Device.Internet, 1)
+		assert.Equal(t, "Cloudflare", out.Device.Internet[0].Short)
+		assert.Equal(t, int64(1_000), out.Device.Internet[0].Sent)
+		assert.Len(t, out.Device.Internet[0].Peers, 2)
+
+		assert.Nil(t, out.BusiestDevices, "only the view asked for")
+	})
+
+	t.Run("scoped to the internet", func(t *testing.T) {
+		t.Parallel()
+
+		out := decodeAs[listTrafficOutput](t, callTool(t, cs, "list_traffic",
+			map[string]any{"device_id": 1, "scope": "internet"}))
+		assert.Empty(t, out.Device.Local)
+		assert.NotNil(t, out.Device.Local, "empty, not absent")
+		assert.Len(t, out.Device.Internet, 1)
+	})
+
+	t.Run("the network summary", func(t *testing.T) {
+		t.Parallel()
+
+		out := decodeAs[listTrafficOutput](t, callTool(t, cs, "list_traffic", nil))
+		require.Len(t, out.BusiestDevices, 2)
+		assert.Equal(t, int64(2), out.BusiestDevices[0].DeviceID, "the NAS moved the most")
+
+		require.Len(t, out.Organisations, 2)
+		assert.Equal(t, "Google", out.Organisations[0].Short)
+		assert.Nil(t, out.Device)
+	})
+
+	t.Run("first contacts, for one device", func(t *testing.T) {
+		t.Parallel()
+
+		out := decodeAs[listTrafficOutput](t, callTool(t, cs, "list_traffic",
+			map[string]any{"first_contact_only": true, "days": 7, "device_id": 2}))
+		require.NotNil(t, out.FirstContacts)
+		assert.True(t, out.FirstContacts.Partial, "records began moments ago")
+
+		require.Len(t, out.FirstContacts.Contacts, 1)
+		assert.Equal(t, "Google", out.FirstContacts.Contacts[0].Short)
+	})
+
+	t.Run("a device that does not exist", func(t *testing.T) {
+		t.Parallel()
+
+		doc := problemOf(t, callTool(t, cs, "list_traffic", map[string]any{"device_id": 99}))
+		assert.Equal(t, float64(http.StatusNotFound), doc["status"])
+	})
+
+	t.Run("days past the ceiling are refused", func(t *testing.T) {
+		t.Parallel()
+
+		doc := problemOf(t, callTool(t, cs, "list_traffic", map[string]any{"days": trafficMaxDays + 1}))
+		assert.Equal(t, float64(http.StatusBadRequest), doc["status"])
+	})
+
+	t.Run("an unknown scope is refused", func(t *testing.T) {
+		t.Parallel()
+
+		doc := problemOf(t, callTool(t, cs, "list_traffic", map[string]any{"device_id": 1, "scope": "lan"}))
+		assert.Equal(t, float64(http.StatusBadRequest), doc["status"])
+	})
+}
+
+// Nothing collecting reads differently from a quiet network, and lists are
+// empty rather than null.
+func TestListTrafficWithNothingRecorded(t *testing.T) {
+	t.Parallel()
+
+	cs := connect(t, listTraffic(seededStore(t), time.Now))
+
+	out := decodeAs[listTrafficOutput](t, callTool(t, cs, "list_traffic", map[string]any{"device_id": 1}))
+	assert.False(t, out.Recorded)
+	require.NotNil(t, out.Device)
+	assert.NotNil(t, out.Device.Local)
+	assert.NotNil(t, out.Device.Internet)
+}

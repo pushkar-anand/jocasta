@@ -72,7 +72,7 @@ out with the tools. In Claude Code they appear as slash commands, such as
 | Prompt | What it does |
 |---|---|
 | `triage_devices` | Finds the devices that need attention: unlabelled, doubtfully classified, or likely duplicates left by a randomised hardware address. Proposes a label, group and type for each. With a `read_write` token the agent applies the proposals you confirm; with a `read` token it only proposes. |
-| `weekly_report` | Summarises what changed over the last 7 days: new devices, devices gone quiet, port changes, identity changes, and what may need a look. Takes an optional `days` argument, from 1 to 90. It can reach back only as far as `inventory.retention` keeps the change log. |
+| `weekly_report` | Summarises what changed over the last 7 days: new devices, devices gone quiet, organisations a device reached for the first time (when traffic collection is set up), port changes, identity changes, and what may need a look. Takes an optional `days` argument, from 1 to 90. It can reach back only as far as `inventory.retention` keeps the change log. |
 
 ## Errors
 

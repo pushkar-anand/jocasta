@@ -361,3 +361,24 @@ func TestListDevicesAcceptsSortType(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 	assert.Equal(t, float64(2), body["count"])
 }
+
+func TestDeviceTraffic(t *testing.T) {
+	t.Parallel()
+
+	h := seeded(t)
+
+	status, _, body := get(t, h, "/devices/1/traffic?days=7")
+	require.Equal(t, http.StatusOK, status)
+
+	// Nothing collects traffic in this test, and the answer says so rather
+	// than reading as a silent device.
+	assert.Equal(t, false, body["recorded"])
+	assert.Empty(t, list(t, body, "local"))
+	assert.Empty(t, list(t, body, "internet"))
+
+	status, _, _ = get(t, h, "/devices/4040/traffic")
+	assert.Equal(t, http.StatusNotFound, status)
+
+	status, _, _ = get(t, h, "/devices/1/traffic?days=91")
+	assert.Equal(t, http.StatusUnprocessableEntity, status)
+}
