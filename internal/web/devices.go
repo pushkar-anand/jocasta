@@ -97,7 +97,7 @@ func (h *Handler) device(sm *auth.Session) response.HandlerFunc {
 			return err
 		}
 
-		data, err := buildDevicePageData(r.Context(), h.store, device, r.URL.Query().Get("traffic"))
+		data, err := buildDevicePageData(r.Context(), h.store, device, r.URL.Query())
 		if err != nil {
 			h.log.ErrorContext(r.Context(), "failed to build device page", logger.Err(err))
 

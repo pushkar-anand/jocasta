@@ -3,6 +3,7 @@ package web
 import (
 	"net/http"
 	"net/netip"
+	"strings"
 	"testing"
 	"time"
 
@@ -125,8 +126,120 @@ func TestDeviceTrafficFragmentSwitchesPeriod(t *testing.T) {
 
 	body := rec.Body.String()
 	assert.Contains(t, body, `id="device-traffic"`)
-	assert.Contains(t, body, `aria-current="page">Last 7 days</a>`)
+	assert.Contains(t, body, `<option value="7d" selected>Last 7 days</option>`)
 	assert.NotContains(t, body, "<html", "a fragment, not a page")
+}
+
+func TestDeviceTrafficCollapsesServicesAndUnknownNeighbours(t *testing.T) {
+	t.Parallel()
+
+	store := sweptPair(t)
+
+	recordTraffic(t, store,
+		// Two services on the same device: one row.
+		tcp("192.0.2.10", "192.0.2.11", 445, 2_000),
+		tcp("192.0.2.10", "192.0.2.11", 22, 1_000),
+		// Two addresses no device holds, in one subnet: one row.
+		tcp("192.0.2.10", "198.51.100.7", 80, 300),
+		tcp("192.0.2.10", "198.51.100.8", 80, 200),
+	)
+
+	rec := get(t, newWebHandler(t, store), "/devices/1/traffic")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+	assert.Equal(t, 1, strings.Count(body, `<a href="/devices/2">nas.example.com</a>`))
+	assert.Contains(t, body, "smb, ssh")
+	assert.Contains(t, body, "2 addresses in <span class=\"mono\">198.51.100.0/24</span>")
+	assert.Contains(t, body, "not in your inventory")
+}
+
+func TestDeviceTrafficFilters(t *testing.T) {
+	t.Parallel()
+
+	store := sweptPair(t)
+
+	recordTraffic(t, store,
+		tcp("192.0.2.10", "192.0.2.11", 445, 2_000),
+		tcp("192.0.2.10", "1.1.1.1", 443, 1_200),
+		tcp("192.0.2.10", "8.8.8.8", 443, 900),
+	)
+
+	h := newWebHandler(t, store)
+
+	tests := []struct {
+		name        string
+		query       string
+		push        string
+		want, avoid []string
+	}{
+		{
+			name: "internet only", query: "scope=internet", push: "/devices/1?scope=internet",
+			want: []string{"Cloudflare", "Google"}, avoid: []string{"nas.example.com"},
+		},
+		{
+			name: "local only", query: "scope=local", push: "/devices/1?scope=local",
+			want: []string{"nas.example.com"}, avoid: []string{"Cloudflare"},
+		},
+		{
+			name: "one service", query: "service=6%2F445", push: "/devices/1?service=6%2F445",
+			want: []string{"nas.example.com"}, avoid: []string{"Cloudflare"},
+		},
+		{
+			name: "search matches an organisation", query: "q=google&traffic=7d", push: "/devices/1?q=google&traffic=7d",
+			want: []string{"Google"}, avoid: []string{"Cloudflare", "nas.example.com"},
+		},
+		{
+			name: "nothing matches", query: "q=nothing-here", push: "/devices/1?q=nothing-here",
+			want: []string{"Nothing in the last 24 hours matches.", "Clear filters"},
+		},
+		{
+			name: "unknown values are dropped", query: "scope=moon&service=https", push: "/devices/1",
+			want: []string{"Cloudflare", "nas.example.com"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			rec := get(t, h, "/devices/1/traffic?"+tt.query)
+			require.Equal(t, http.StatusOK, rec.Code)
+			assert.Equal(t, tt.push, rec.Header().Get("HX-Push-Url"))
+
+			// Only the tables, not the filter's service choices, which list
+			// everything whatever is picked.
+			body := rec.Body.String()
+			if i := strings.Index(body, "</form>"); i >= 0 {
+				body = body[i:]
+			}
+
+			for _, w := range tt.want {
+				assert.Contains(t, body, w)
+			}
+
+			for _, a := range tt.avoid {
+				assert.NotContains(t, body, a)
+			}
+		})
+	}
+}
+
+func TestDevicePageAppliesTheTrafficFilterFromItsAddress(t *testing.T) {
+	t.Parallel()
+
+	store := sweptPair(t)
+	recordTraffic(t, store,
+		tcp("192.0.2.10", "192.0.2.11", 445, 2_000),
+		tcp("192.0.2.10", "1.1.1.1", 443, 1_200),
+	)
+
+	rec := get(t, newWebHandler(t, store), "/devices/1?scope=internet")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+	assert.Contains(t, body, `<option value="internet" selected>Internet</option>`)
+	assert.NotContains(t, body, `<a href="/devices/2">nas.example.com</a>`)
 }
 
 func TestDeviceTrafficFragmentFallsBackToTheDefaultPeriod(t *testing.T) {
