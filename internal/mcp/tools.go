@@ -28,6 +28,8 @@ type tool struct {
 func tools(store *inventory.Store) []tool {
 	return []tool{
 		{register: listDevices(store)},
+		{register: getDevice(store)},
+		{register: listEvents(store)},
 	}
 }
 
@@ -50,6 +52,9 @@ func addTool[In, Out any](s *mcpsdk.Server, log *slog.Logger, t *mcpsdk.Tool, h 
 // and the SDK validates every result against the schema before sending it.
 var schemaTypes = map[reflect.Type]*jsonschema.Schema{
 	reflect.TypeFor[netip.Addr](): {Type: "string", Description: "An IPv4 or IPv6 address."},
+
+	// A cursor travels as the opaque token it encodes itself to.
+	reflect.TypeFor[inventory.Cursor](): {Type: "string", Description: "An opaque page cursor."},
 }
 
 // schemaFor infers the schema of T, a tool's input or output, with the
