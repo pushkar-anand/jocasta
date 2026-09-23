@@ -271,6 +271,8 @@ token is also offered any tool that changes it.
 | `list_events` | The change log, newest first, filtered by device or event kind and paged with a cursor. |
 | `list_networks` | The recorded networks, with prefix, name, VLAN and device counts. |
 | `get_network` | One network by id. |
+| `get_stats` | Device counts: total, online, offline, ignored, and discovered in the last day. |
+| `list_groups` | The group names devices are filed under. |
 
 Errors use the same [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem
 documents as the HTTP API. A refused token gets one as the HTTP response. A
