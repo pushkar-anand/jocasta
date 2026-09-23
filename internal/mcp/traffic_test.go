@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"fmt"
 	"net/http"
 	"net/netip"
 	"testing"
@@ -144,6 +145,39 @@ func TestListTrafficNarrowsToAGroup(t *testing.T) {
 
 	require.Len(t, out.Organisations, 1)
 	assert.Equal(t, "Cloudflare", out.Organisations[0].Short, "Google was reached only by the NAS")
+}
+
+func TestListTrafficReportsProbingAndAttempts(t *testing.T) {
+	t.Parallel()
+
+	store := trafficStore(t)
+
+	// The printer pings 25 addresses nobody answers from.
+	var flows []plugin.Flow
+	for i := 1; i <= 25; i++ {
+		flows = append(flows, plugin.Flow{
+			Src: netip.MustParseAddr("192.0.2.10"), Dst: netip.MustParseAddr(fmt.Sprintf("198.51.100.%d", i)),
+			Protocol: 1, ICMPType: 8, Bytes: 84, Packets: 1, End: time.Now(),
+		})
+	}
+
+	rec := inventory.NewTrafficRecorder(store, testLogger(), nil)
+	rec.Add(trafficSource{}, flows)
+	require.NoError(t, rec.Flush(t.Context()))
+
+	cs := connect(t, listTraffic(store, time.Now))
+
+	out := decodeAs[listTrafficOutput](t, callTool(t, cs, "list_traffic", nil))
+	require.Len(t, out.Probing, 1)
+	assert.Equal(t, int64(1), out.Probing[0].DeviceID)
+	assert.Equal(t, int64(25), out.Probing[0].Peers)
+
+	out = decodeAs[listTrafficOutput](t, callTool(t, cs, "list_traffic", map[string]any{"device_id": 1, "limit": 5}))
+	assert.Len(t, out.Attempts, 5, "limited like the peers")
+	assert.Nil(t, out.Probing, "only with the network summary")
+
+	out = decodeAs[listTrafficOutput](t, callTool(t, cs, "list_traffic", map[string]any{"device_id": 2}))
+	assert.Empty(t, out.Attempts, "the NAS tried nothing")
 }
 
 func TestListTrafficWithNothingRecorded(t *testing.T) {

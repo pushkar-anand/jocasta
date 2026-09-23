@@ -38,6 +38,12 @@ reached on, and local addresses no device holds collapse into one row per
 subnet. The section can be narrowed to your network or the internet, to one
 service, or by a search over names, addresses and organisations.
 
+Connections the device started that never carried data -- a port that
+refused, one nobody answered, a ping -- are listed apart under "Tried, but
+nothing came of it", with how many were answered and the ports tried. When
+they add up to probing the network, a notice at the top of the section says
+so.
+
 ![Device page](img/device.png)
 
 ## Traffic page
@@ -48,6 +54,11 @@ organisations the network exchanges the most with, and which devices started
 talking to an organisation for the first time this week. Each organisation is
 one row that opens to the devices behind it, and the page can be narrowed to
 one group's devices.
+
+Its first card, "Probing your network", lists devices that within one hour
+tried 20 or more addresses on your network, or 20 or more ports on one of
+them, without the connections carrying data: what a scan looks like. A host
+you run scans from appears there too.
 
 ## Network page
 

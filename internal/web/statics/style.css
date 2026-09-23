@@ -2424,6 +2424,13 @@ input[type="radio"] {
     color: var(--ok-ink);
 }
 
+/* Something the owner should look at: a device probing the network. */
+.notice--warn {
+    margin-bottom: 12px;
+    background: var(--warning-soft);
+    color: var(--warning-ink);
+}
+
 /* ---- Permission choice --------------------------------------------------- */
 
 .permchoice {

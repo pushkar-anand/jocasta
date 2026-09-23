@@ -66,11 +66,24 @@ type trafficSection struct {
 	// Local and Internet are Traffic after the filter, grouped for reading.
 	Local    []*localEntry
 	Internet []*orgEntry
+
+	// Attempts are the connections the device tried that never carried
+	// data, after the filter; HasAttempts is whether there were any before
+	// it. Probing is set when they add up to probing the network.
+	Attempts    []*attemptEntry
+	HasAttempts bool
+	Probing     *inventory.Prober
+}
+
+// Empty reports whether the device neither talked nor tried anything in the
+// window.
+func (t *trafficSection) Empty() bool {
+	return t.Traffic.Empty() && !t.HasAttempts
 }
 
 // Matched reports whether anything is left once the filter is applied.
 func (t *trafficSection) Matched() bool {
-	return len(t.Local) > 0 || len(t.Internet) > 0
+	return len(t.Local) > 0 || len(t.Internet) > 0 || len(t.Attempts) > 0
 }
 
 // ClearPath is the device page with the period kept and every filter dropped.
@@ -106,6 +119,21 @@ func buildTrafficSection(
 	}
 
 	sec.Local, sec.Internet = groupTraffic(traffic, f)
+
+	attempts, err := store.DeviceAttempts(ctx, id, now.Add(-w.span))
+	if err != nil {
+		return nil, err
+	}
+
+	sec.HasAttempts = len(attempts) > 0
+	sec.Attempts = groupAttempts(attempts, f)
+
+	probers, err := store.ProbingDevices(ctx, now.Add(-w.span), "")
+	if err != nil {
+		return nil, err
+	}
+
+	sec.Probing = proberFor(probers, id)
 
 	return sec, nil
 }
@@ -191,6 +219,9 @@ type trafficPage struct {
 
 	// Recorded is whether any traffic has been recorded at all.
 	Recorded bool
+
+	// Probers are the devices that probed the local network in the window.
+	Probers []*inventory.Prober
 
 	Busiest []*inventory.DeviceTotal
 	TopOrgs []*orgDevices
@@ -283,6 +314,10 @@ func (h *Handler) traffic(sm *auth.Session) response.HandlerFunc {
 		}
 
 		since := now.Add(-win.span)
+
+		if data.Probers, err = h.store.ProbingDevices(ctx, since, data.Group); err != nil {
+			return err
+		}
 
 		if data.Busiest, err = h.store.BusiestDevices(ctx, since, data.Group, trafficCardRows); err != nil {
 			return err

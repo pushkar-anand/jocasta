@@ -48,6 +48,14 @@ type listTrafficOutput struct {
 
 	Device *inventory.DeviceTraffic `json:"device,omitempty"`
 
+	// Attempts are the connections the device started that never carried
+	// data, with the device view.
+	Attempts []*inventory.Attempt `json:"attempts,omitempty"`
+
+	// Probing lists the devices that probed the local network, with the
+	// network summary.
+	Probing []*inventory.Prober `json:"probing,omitempty"`
+
 	BusiestDevices []*inventory.DeviceTotal `json:"busiest_devices,omitempty"`
 	Organisations  []*inventory.OrgTotal    `json:"organisations,omitempty"`
 
@@ -64,7 +72,11 @@ func listTraffic(store *inventory.Store, now func() time.Time) func(*mcpsdk.Serv
 			"and internet ones grouped by the organisation (autonomous system) announcing each address, with bytes sent and received each way. " +
 			"With first_contact_only: organisations a device exchanged data with for the first time within the period; " +
 			"first_contacts.partial says records do not reach back that far yet, so everything looks new. " +
-			"With neither: the busiest devices and the organisations the whole network exchanged the most with. " +
+			"With neither: the busiest devices, the organisations the whole network exchanged the most with, " +
+			"and probing: devices that within one hour tried 20 or more local addresses, or 20 or more ports on one, " +
+			"without the connections carrying data -- what a scan looks like; a host the owner runs scans from shows there too. " +
+			"A device view also lists attempts: connections the device started that never carried data (a refused or unanswered port, a ping), " +
+			"per peer with how many were answered and the lowest ports tried; no attempts field means there were none. " +
 			"Totals are per hour, not individual connections, and cover only what the router exported. " +
 			"recorded false means nothing is collecting traffic, not that the network is quiet.",
 		InputSchema:  listTrafficSchema(),
@@ -127,12 +139,23 @@ func listTraffic(store *inventory.Store, now func() time.Time) func(*mcpsdk.Serv
 
 			out.Device = scoped(dt, cmp.Or(in.Scope, scopeAll), limit)
 
+			attempts, err := store.DeviceAttempts(ctx, in.DeviceID, since)
+			if err != nil {
+				return nil, listTrafficOutput{}, err
+			}
+
+			out.Attempts = scopedAttempts(attempts, cmp.Or(in.Scope, scopeAll), limit)
+
 		default:
 			if out.BusiestDevices, err = store.BusiestDevices(ctx, since, in.Group, limit); err != nil {
 				return nil, listTrafficOutput{}, err
 			}
 
 			if out.Organisations, err = store.TopOrganisations(ctx, since, in.Group, limit); err != nil {
+				return nil, listTrafficOutput{}, err
+			}
+
+			if out.Probing, err = store.ProbingDevices(ctx, since, in.Group); err != nil {
 				return nil, listTrafficOutput{}, err
 			}
 		}
@@ -157,6 +180,22 @@ func scoped(dt *inventory.DeviceTraffic, scope string, limit int) *inventory.Dev
 	dt.Internet = dt.Internet[:min(len(dt.Internet), limit)]
 
 	return dt
+}
+
+// scopedAttempts trims a device's attempts to the scope and limit asked for.
+// The list stays empty rather than absent, like the peers.
+func scopedAttempts(attempts []*inventory.Attempt, scope string, limit int) []*inventory.Attempt {
+	out := []*inventory.Attempt{}
+
+	for _, a := range attempts {
+		if (scope == scopeLocal && a.Internet) || (scope == scopeInternet && !a.Internet) {
+			continue
+		}
+
+		out = append(out, a)
+	}
+
+	return out[:min(len(out), limit)]
 }
 
 // listTrafficSchema is the schema inferred from listTrafficInput, with its

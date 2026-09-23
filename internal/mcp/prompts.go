@@ -107,17 +107,19 @@ const reportSteps = `Write a report of what changed on my network in the %[1]d d
 1. Call get_stats for the current totals.
 2. Read the change log with list_events, exclude_ignored true and limit 500, following next_cursor until you reach an event that occurred before %[2]s. Leave out the events before that. If the log ends before reaching it, say how far back it goes.
 3. Call list_devices with status offline. A device whose last_seen falls in the period went quiet during it: the change log has no event for a device going offline.
-4. Call list_traffic with first_contact_only true and days %[1]d. If recorded is false, nothing collects traffic: leave out the first contacts section. If first_contacts.partial is true, say traffic records only begin at first_contacts.started.
+4. Call list_traffic with first_contact_only true and days %[1]d. If recorded is false, nothing collects traffic: leave out the first contacts and probing sections. If first_contacts.partial is true, say traffic records only begin at first_contacts.started.
+   Then call list_traffic with days %[1]d and no other arguments, and keep its probing list.
 5. Report in this order, leaving out a section with nothing in it:
    - Summary: the totals now and the headline changes, in two or three sentences.
    - New devices: each DEVICE_DISCOVERED in the period, with what the device is, its network, whether it is online now, and whether I have labelled it.
    - Gone quiet: the devices from step 3, with when each was last seen.
    - First contacts: from step 4, the organisations each device exchanged data with for the first time, grouped by device.
+   - Probing: from step 4, each device that probed the network, with how many addresses or ports it tried and when. Say which ones look like a host I run scans from (its label, name or notes suggest it) and which do not.
    - Ports: PORT_OPENED and PORT_CLOSED, grouped by device. Call out a newly opened port for remote access or administration, such as SSH, Telnet, RDP or VNC.
    - Identity: HOSTNAME_CHANGED, DEVICE_IDENTIFIED, DEVICES_MERGED and DEVICE_CLASSIFIED.
    - Addresses: how many ADDRESS_ADDED and ADDRESS_RELEASED events there were, naming only the devices with unusually many.
    - My edits: DEVICE_EDITED, briefly.
-   - Worth a look: the few things I may want to act on, such as unlabelled new devices, newly opened remote-access ports, or a device first contacting an organisation it has no obvious reason to reach.
+   - Worth a look: the few things I may want to act on, such as unlabelled new devices, newly opened remote-access ports, a device first contacting an organisation it has no obvious reason to reach, or a device probing the network that is not a scanner I run.
 
 Name each device the way the tools do, with its id. Counts and times come from the tools; do not estimate them.`
 

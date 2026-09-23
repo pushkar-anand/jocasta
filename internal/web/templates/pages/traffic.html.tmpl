@@ -57,6 +57,47 @@
 
 <div id="traffic-cards">
 <section class="block">
+    <h2 class="section">Probing your network</h2>
+    <p class="note">Devices that, within one hour, tried many addresses on your
+        network or many ports on one of them, without the connections carrying
+        any data. It is what a scan looks like; a device you run scans from will
+        be here too.</p>
+    {{- if .Probers }}
+    <div class="card card--table">
+        <div class="scroller">
+            <table>
+                <thead>
+                <tr>
+                    <th scope="col">Device</th>
+                    <th scope="col">What it did</th>
+                    <th scope="col" class="num">Answered</th>
+                    <th scope="col">Last seen</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{- range .Probers }}
+                <tr>
+                    <td><a href="/devices/{{ .DeviceID }}#traffic">{{ .DeviceName }}</a></td>
+                    <td>
+                        {{- if .SweptAddresses }}Tried {{ .Peers }} addresses{{ if .SweptPorts }}, up to {{ .MaxPorts }} ports on one{{ end }}
+                        {{- else }}Tried {{ .MaxPorts }} ports on one address{{ end }}
+                        {{- if gt .Hours 1 }} <span class="dim">in {{ .Hours }} hours</span>{{ end }}
+                        {{- with .Ports }}<br><span class="dim">ports {{ portList . }}</span>{{ end }}
+                    </td>
+                    <td class="num">{{ .Answered }} of {{ .Attempts }}</td>
+                    <td class="dim">{{ stamp .LastHour "" }}</td>
+                </tr>
+                {{- end }}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{- else }}
+    <p class="dim">No device probed your network in the last {{ .Window.Label }}{{ with .Group }} among devices in {{ . }}{{ end }}.</p>
+    {{- end }}
+</section>
+
+<section class="block">
     <h2 class="section">Busiest devices</h2>
     {{- if .Busiest }}
     <div class="card card--table">

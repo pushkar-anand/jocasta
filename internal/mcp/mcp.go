@@ -43,7 +43,7 @@ What the records mean:
 - They are what past scans recorded, not a live view. These tools never start a scan.
 - Online means the device was seen within the configured online window, not that it answered just now.
 - Open ports are TCP ports a scan found accepting connections. A service name is the service usually found on that port number, not software that was detected. No recorded ports does not mean every port is closed: port scanning may be off, or may not have reached the device.
-- Traffic is hourly totals the router exported, not live connections. It covers only what passed the router while collection was on, so no traffic does not mean a device is silent. An internet peer's organisation is the network announcing its address, which for a cloud or CDN address is the provider, not the service behind it.
+- Traffic is hourly totals the router exported, not live connections. It covers only what passed the router while collection was on, so no traffic does not mean a device is silent. An internet peer's organisation is the network announcing its address, which for a cloud or CDN address is the provider, not the service behind it. Attempts are connections that never carried data; a few are ordinary, many to many addresses or ports is probing, and a device flagged as probing may simply be one the owner runs scans from.
 - Devices the owner marked as ignored are left out unless asked for.
 - The label, group, type, notes and ignored flag are the owner's. update_device_curation, offered only to a read_write token, is the one tool that changes anything, and it changes only those.
 
