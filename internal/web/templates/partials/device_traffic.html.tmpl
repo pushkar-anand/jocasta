@@ -1,0 +1,129 @@
+{{- /*
+    Takes a trafficSection. Who one device talked to over a period, from the
+    hourly totals the router's traffic exports add up to. The period switch
+    fetches this fragment and swaps it whole; without htmx its links load the
+    page with the period in the query.
+
+    "On your network" are known devices, linked, and local addresses no device
+    holds. "Internet" is grouped by the organisation that announces each
+    address, with the addresses themselves one click down.
+*/ -}}
+{{ define "partial/device-traffic" }}
+<div id="device-traffic" class="traffic">
+    {{- if .Recorded }}
+    <nav class="logfilter" aria-label="Traffic period">
+        {{- range .Windows }}
+        <a href="/devices/{{ $.DeviceID }}{{ if ne .Key "24h" }}?traffic={{ .Key }}{{ end }}"
+           hx-get="/devices/{{ $.DeviceID }}/traffic?window={{ .Key }}"
+           hx-target="#device-traffic"
+           hx-swap="outerHTML"
+           {{- if eq .Key $.Window.Key }} aria-current="page"{{ end }}>Last {{ .Label }}</a>
+        {{- end }}
+    </nav>
+    {{- end }}
+
+    {{- if not .Recorded }}
+    <p class="dim">Traffic collection is not set up, so who this device talks to is unknown.</p>
+    {{- else if .Traffic.Empty }}
+    <p class="dim">No traffic recorded for this device in the last {{ .Window.Label }}.</p>
+    {{- else }}
+
+    {{- with .Traffic.Local }}
+    <h3 class="sub">On your network</h3>
+    <div class="card card--table">
+        <div class="scroller">
+            <table>
+                <thead>
+                <tr>
+                    <th scope="col">Talks to</th>
+                    <th scope="col">Service</th>
+                    <th scope="col" class="num">Sent</th>
+                    <th scope="col" class="num">Received</th>
+                    <th scope="col">Last seen</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{- range . }}
+                <tr>
+                    <td>
+                        {{- if .DeviceID }}
+                        <a href="/devices/{{ .DeviceID }}">{{ .DeviceName }}</a>
+                        {{- else }}
+                        <span class="mono">{{ .IP }}</span>
+                        {{- with .Name }} <span class="dim">{{ . }}</span>{{ end }}
+                        {{- end }}
+                    </td>
+                    <td>{{ template "partial/traffic-service" . }}</td>
+                    <td class="num">{{ bytes .Sent }}</td>
+                    <td class="num">{{ bytes .Received }}</td>
+                    <td class="dim">{{ stamp .LastHour "" }}</td>
+                </tr>
+                {{- end }}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{- end }}
+
+    {{- with .Traffic.Internet }}
+    <h3 class="sub">Internet</h3>
+    <div class="card card--table">
+        <div class="scroller">
+            <table>
+                <thead>
+                <tr>
+                    <th scope="col">Talks to</th>
+                    <th scope="col" class="num">Sent</th>
+                    <th scope="col" class="num">Received</th>
+                    <th scope="col">Last seen</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{- range . }}
+                <tr>
+                    <td>
+                        <details class="peers">
+                            <summary>
+                                <span class="strong" title="{{ .Name }}">{{ .Short }}</span>
+                                <span class="dim">{{ len .Peers }} {{ if eq (len .Peers) 1 }}address{{ else }}addresses{{ end }}</span>
+                            </summary>
+                            <ul class="peers__list">
+                                {{- range .Peers }}
+                                <li>
+                                    <span class="mono">{{ .IP }}</span>
+                                    {{- with .Name }} <span class="dim">{{ . }}</span>{{ end }}
+                                    <span class="peers__detail">
+                                        {{ template "partial/traffic-service" . }}
+                                        &middot; {{ bytes .Sent }} sent &middot; {{ bytes .Received }} received
+                                    </span>
+                                </li>
+                                {{- end }}
+                            </ul>
+                        </details>
+                    </td>
+                    <td class="num">{{ bytes .Sent }}</td>
+                    <td class="num">{{ bytes .Received }}</td>
+                    <td class="dim">{{ stamp .LastHour "" }}</td>
+                </tr>
+                {{- end }}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{- end }}
+
+    <p class="note">Hourly totals from your router. Names come from DNS and from
+        IP to ASN data by <a href="https://db-ip.com">DB-IP</a>.</p>
+    {{- end }}
+</div>
+{{ end }}
+
+{{- /* One peer's service: the usual name for its port, then the port, then the
+       protocol when it is not TCP. ICMP has no port to show. */ -}}
+{{ define "partial/traffic-service" }}
+{{- if .ServicePort -}}
+{{ with .Service }}{{ . }} {{ end }}<span class="mono dim">{{ .ServicePort }}{{ with proto .Protocol }} {{ . }}{{ end }}</span>
+{{- else -}}
+{{ dash (proto .Protocol) }}
+{{- end -}}
+{{ end }}

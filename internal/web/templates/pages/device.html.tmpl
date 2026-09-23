@@ -68,6 +68,11 @@
     {{- end }}
 </section>
 
+<section class="block" id="traffic">
+    <h2 class="section">Talks to</h2>
+    {{- template "partial/device-traffic" .Traffic }}
+</section>
+
 {{- if .Claims }}
 <section class="block">
     <h2 class="section">Sources</h2>

@@ -330,3 +330,71 @@ func TestServicePortPicksTheServerSide(t *testing.T) {
 		})
 	}
 }
+
+func TestDeviceTrafficSplitsLocalFromInternetByOrganisation(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, ""), host("192.0.2.11", macB, "nas.example"))
+
+	a, b := deviceIDByMAC(t, conn, macA), deviceIDByMAC(t, conn, macB)
+	now := s.now()
+
+	rec := newRecorder(s, nil)
+	rec.Add(trafficSource{}, []plugin.Flow{
+		flow("192.0.2.10", "192.0.2.11", 51000, 445, 5000, now),
+		// A local address no device holds stays local.
+		flow("192.0.2.10", "192.0.2.99", 51000, 80, 10, now),
+		// Two addresses one organisation announces fold into one entry.
+		// These are public resolvers, the addresses the asn tests use too.
+		flow("192.0.2.10", "1.1.1.1", 51000, 443, 700, now),
+		flow("192.0.2.10", "1.0.0.1", 51000, 443, 300, now),
+		// Outside the window.
+		flow("192.0.2.10", "1.1.1.1", 51000, 443, 999_999, now.Add(-72*time.Hour)),
+	})
+	require.NoError(t, rec.Flush(t.Context()))
+
+	got, err := s.DeviceTraffic(t.Context(), a, now.Add(-24*time.Hour))
+	require.NoError(t, err)
+
+	require.Len(t, got.Local, 2)
+	assert.Equal(t, b, got.Local[0].DeviceID)
+	assert.Equal(t, "nas.example", got.Local[0].DeviceName)
+	assert.Equal(t, int64(5000), got.Local[0].Sent)
+	assert.Equal(t, "smb", got.Local[0].Service)
+	assert.Zero(t, got.Local[1].DeviceID)
+	assert.Equal(t, "192.0.2.99", got.Local[1].IP.String())
+
+	require.Len(t, got.Internet, 1)
+	org := got.Internet[0]
+	assert.Equal(t, uint32(13335), org.ASN)
+	assert.Equal(t, "Cloudflare", org.Short)
+	assert.Equal(t, int64(1000), org.Sent)
+	assert.Len(t, org.Peers, 2)
+
+	// The other side sees the same conversation as received.
+	other, err := s.DeviceTraffic(t.Context(), b, now.Add(-24*time.Hour))
+	require.NoError(t, err)
+	require.Len(t, other.Local, 1)
+	assert.Equal(t, int64(5000), other.Local[0].Received)
+
+	recorded, err := s.TrafficRecorded(t.Context())
+	require.NoError(t, err)
+	assert.True(t, recorded)
+}
+
+func TestDeviceTrafficIsEmptyNotNil(t *testing.T) {
+	t.Parallel()
+
+	s, _ := newStore(t)
+
+	got, err := s.DeviceTraffic(t.Context(), 1, s.now())
+	require.NoError(t, err)
+	assert.True(t, got.Empty())
+	assert.NotNil(t, got.Local)
+	assert.NotNil(t, got.Internet)
+
+	recorded, err := s.TrafficRecorded(t.Context())
+	require.NoError(t, err)
+	assert.False(t, recorded)
+}
