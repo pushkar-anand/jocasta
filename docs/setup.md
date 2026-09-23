@@ -109,6 +109,9 @@ auth:
   idle_timeout: "24h"       # how long a session survives with no requests
   cookie_secure: true       # confine the session cookie to HTTPS; set false only to sign in over plain HTTP in dev
 
+mcp:
+  enabled: false            # serve the MCP endpoint at /mcp for AI agents; see "MCP server" below
+
 # Sources beyond the sweep. Each block is keyed by an instance name, which
 # becomes the source its facts are filed under, so two routers stay separate.
 plugins:
@@ -141,6 +144,7 @@ JOCASTA_INVENTORY__ONLINE_WINDOW=30m
 JOCASTA_SCAN__DEVICES__INTERVAL=10m
 JOCASTA_SCAN__PORTS__ENABLED=true
 JOCASTA_AUTH__COOKIE_SECURE=false
+JOCASTA_MCP__ENABLED=true
 JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD=change-me
 ```
 
@@ -245,3 +249,31 @@ Mounted under `/api`. Non-GET requests must come from the same origin.
 | `GET /api/devices/{id}/events` | One device's change log. |
 | `GET /api/events` | The whole change log. |
 | `GET /api/scans` | Sweep and source-read history. |
+
+## MCP server
+
+Jocasta can serve the inventory to AI agents such as Claude Code over the
+[Model Context Protocol](https://modelcontextprotocol.io). It is off by
+default. Turn it on with `mcp.enabled: true` in the config file or
+`JOCASTA_MCP__ENABLED=true`. While it is off, `/mcp` answers 404.
+
+The endpoint is `/mcp`, using the Streamable HTTP transport. Every request
+needs an API token, the same kind the JSON API takes, sent as
+`Authorization: Bearer <token>`. Create one under Settings, API tokens. A
+`read` token is offered only the tools that read the inventory. A `read_write`
+token is also offered any tool that changes it.
+
+| Tool | Purpose |
+|---|---|
+| `list_devices` | List devices, filtered by search term, group or online status. |
+
+To add it to Claude Code:
+
+```bash
+claude mcp add --transport http jocasta https://jocasta.example.test/mcp \
+  --header "Authorization: Bearer <token>"
+```
+
+Device hostnames and vendor names are reported by the devices themselves, so
+anything on your network can choose what an agent reads there. Give an agent
+a `read` token unless it needs to change something.

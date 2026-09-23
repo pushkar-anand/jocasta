@@ -144,6 +144,14 @@ type (
 		CookieSecure bool `koanf:"cookie_secure"`
 	}
 
+	// MCP controls the Model Context Protocol endpoint AI agents connect to.
+	MCP struct {
+		// Enabled serves /mcp. It is off unless asked for: the endpoint still
+		// needs an API token, but a feature that hands the inventory to an
+		// agent is one to opt into rather than one to find already running.
+		Enabled bool `koanf:"enabled"`
+	}
+
 	// Plugins holds the sources beyond the sweep, each block keyed by an
 	// instance name that becomes the source these facts are filed under.
 	//
@@ -164,6 +172,7 @@ type (
 		Networks  []string  `koanf:"networks"`
 		Scan      Scan      `koanf:"scan"`
 		Auth      Auth      `koanf:"auth"`
+		MCP       MCP       `koanf:"mcp"`
 		Plugins   Plugins   `koanf:"plugins"`
 	}
 )
