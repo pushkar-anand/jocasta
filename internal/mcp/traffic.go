@@ -34,6 +34,7 @@ type listTrafficInput struct {
 	Days             int    `json:"days,omitempty" jsonschema:"How many days back to cover. Defaults to 1."`
 	Scope            string `json:"scope,omitempty" jsonschema:"For one device: all peers, only local ones, or only internet organisations. Defaults to all."`
 	FirstContactOnly bool   `json:"first_contact_only,omitempty" jsonschema:"Only organisations a device exchanged data with for the first time within days. Combine with device_id to ask about one device."`
+	Group            string `json:"group,omitempty" jsonschema:"Only devices in this group, from list_groups. Applies to the network summary and first contacts."`
 	Limit            int    `json:"limit,omitempty" jsonschema:"Most rows in each list. Defaults to 50."`
 }
 
@@ -99,7 +100,7 @@ func listTraffic(store *inventory.Store, now func() time.Time) func(*mcpsdk.Serv
 
 		switch {
 		case in.FirstContactOnly:
-			fc, err := store.FirstContacts(ctx, since, limit)
+			fc, err := store.FirstContacts(ctx, since, in.Group, limit)
 			if err != nil {
 				return nil, listTrafficOutput{}, err
 			}
@@ -127,11 +128,11 @@ func listTraffic(store *inventory.Store, now func() time.Time) func(*mcpsdk.Serv
 			out.Device = scoped(dt, cmp.Or(in.Scope, scopeAll), limit)
 
 		default:
-			if out.BusiestDevices, err = store.BusiestDevices(ctx, since, limit); err != nil {
+			if out.BusiestDevices, err = store.BusiestDevices(ctx, since, in.Group, limit); err != nil {
 				return nil, listTrafficOutput{}, err
 			}
 
-			if out.Organisations, err = store.TopOrganisations(ctx, since, limit); err != nil {
+			if out.Organisations, err = store.TopOrganisations(ctx, since, in.Group, limit); err != nil {
 				return nil, listTrafficOutput{}, err
 			}
 		}

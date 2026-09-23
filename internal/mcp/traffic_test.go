@@ -128,6 +128,24 @@ func TestListTraffic(t *testing.T) {
 
 // Nothing collecting reads differently from a quiet network, and lists are
 // empty rather than null.
+func TestListTrafficNarrowsToAGroup(t *testing.T) {
+	t.Parallel()
+
+	store := trafficStore(t)
+
+	_, err := store.UpdateCuration(t.Context(), 1, inventory.Curation{Group: "office"})
+	require.NoError(t, err)
+
+	cs := connect(t, listTraffic(store, time.Now))
+
+	out := decodeAs[listTrafficOutput](t, callTool(t, cs, "list_traffic", map[string]any{"group": "office"}))
+	require.Len(t, out.BusiestDevices, 1)
+	assert.Equal(t, int64(1), out.BusiestDevices[0].DeviceID)
+
+	require.Len(t, out.Organisations, 1)
+	assert.Equal(t, "Cloudflare", out.Organisations[0].Short, "Google was reached only by the NAS")
+}
+
 func TestListTrafficWithNothingRecorded(t *testing.T) {
 	t.Parallel()
 
