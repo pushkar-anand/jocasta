@@ -256,6 +256,38 @@ func TestAnUnansweredUDPDatagramIsAnAttempt(t *testing.T) {
 	assert.Equal(t, "161", rows[0].Ports)
 }
 
+// The router answers DHCP by broadcast, or from itself, and exports neither,
+// so a renewal is a one-way request every time. It is a conversation, not a
+// try; one-way UDP to another of the router's ports still is a try.
+func TestDHCPIsNeverAnAttempt(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, ""))
+
+	udp := func(src, dst uint16) plugin.Flow {
+		return plugin.Flow{
+			Src: netip.MustParseAddr("192.0.2.10"), Dst: netip.MustParseAddr("192.0.2.1"),
+			SrcPort: src, DstPort: dst, Protocol: protoUDP, Bytes: 330, Packets: 1, End: s.now(),
+		}
+	}
+
+	rec := newRecorder(s, nil)
+	rec.Add(trafficSource{}, []plugin.Flow{udp(68, 67), udp(546, 547), udp(50000, 161)})
+	require.NoError(t, rec.Flush(t.Context()))
+
+	rows := attemptRows(t, conn)
+	require.Len(t, rows, 1)
+	assert.Equal(t, "161", rows[0].Ports)
+
+	var services []int64
+	for _, r := range trafficRows(t, conn) {
+		services = append(services, r.Service)
+	}
+
+	assert.ElementsMatch(t, []int64{67, 546}, services, "DHCP and DHCPv6 are kept as traffic")
+}
+
 func TestAttemptPortsAddUpAcrossFlushesAndRestarts(t *testing.T) {
 	t.Parallel()
 

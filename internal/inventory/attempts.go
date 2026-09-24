@@ -146,6 +146,19 @@ func pairOf(k trafficKey) pairID {
 // answered, a ping, a one-off UDP datagram. The first become traffic rows; the
 // second are counted per peer, so a scan that knocks on a thousand ports is
 // one row a peer rather than a thousand.
+// oneWayByDesign reports whether UDP on service is one-way in what a router
+// exports: DHCP. A client's request goes to the router, and the answer is a
+// broadcast or comes from the router itself, neither of which the router's
+// export carries -- so every renewal would look like a try nobody answered.
+func oneWayByDesign(service uint16) bool {
+	switch service {
+	case 67, 68, 546, 547: // DHCP server and client, DHCPv6 client and server.
+		return true
+	}
+
+	return false
+}
+
 func splitAttempts(pending map[trafficKey]*trafficTotals) (map[trafficKey]*trafficTotals, map[attemptKey]*attemptSample) {
 	pairs := make(map[pairID][]trafficKey)
 
@@ -217,7 +230,7 @@ func splitAttempts(pending map[trafficKey]*trafficTotals) (map[trafficKey]*traff
 			}
 
 			t := pending[keys[0]]
-			if !t.toService || t.packets > udpStreamPackets {
+			if !t.toService || t.packets > udpStreamPackets || oneWayByDesign(keys[0].service) {
 				keep(keys)
 
 				continue
