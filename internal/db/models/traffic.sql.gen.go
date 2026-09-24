@@ -144,6 +144,7 @@ SELECT CAST(COALESCE(t.peer_device_id, 0) AS INTEGER)    AS peer_device_id,
        CAST(SUM(t.bytes_out) AS INTEGER)                 AS bytes_out,
        CAST(SUM(t.bytes_in) AS INTEGER)                  AS bytes_in,
        CAST(SUM(t.connections) AS INTEGER)               AS connections,
+       CAST(SUM(t.connections_in) AS INTEGER)            AS connections_in,
        CAST(MAX(t.hour) AS TEXT)                         AS last_hour
 FROM traffic_hourly t
          LEFT JOIN devices pd ON pd.id = t.peer_device_id
@@ -161,19 +162,20 @@ type DeviceTrafficParams struct {
 }
 
 type DeviceTrafficRow struct {
-	PeerDeviceID int64  `json:"peer_device_id"`
-	PeerIP       string `json:"peer_ip"`
-	PeerName     string `json:"peer_name"`
-	PeerASN      int64  `json:"peer_asn"`
-	PeerLabel    string `json:"peer_label"`
-	PeerHostname string `json:"peer_hostname"`
-	PeerMAC      string `json:"peer_mac"`
-	Protocol     int64  `json:"protocol"`
-	ServicePort  int64  `json:"service_port"`
-	BytesOut     int64  `json:"bytes_out"`
-	BytesIn      int64  `json:"bytes_in"`
-	Connections  int64  `json:"connections"`
-	LastHour     string `json:"last_hour"`
+	PeerDeviceID  int64  `json:"peer_device_id"`
+	PeerIP        string `json:"peer_ip"`
+	PeerName      string `json:"peer_name"`
+	PeerASN       int64  `json:"peer_asn"`
+	PeerLabel     string `json:"peer_label"`
+	PeerHostname  string `json:"peer_hostname"`
+	PeerMAC       string `json:"peer_mac"`
+	Protocol      int64  `json:"protocol"`
+	ServicePort   int64  `json:"service_port"`
+	BytesOut      int64  `json:"bytes_out"`
+	BytesIn       int64  `json:"bytes_in"`
+	Connections   int64  `json:"connections"`
+	ConnectionsIn int64  `json:"connections_in"`
+	LastHour      string `json:"last_hour"`
 }
 
 // One device's conversations since a given hour, one row per peer and
@@ -193,6 +195,7 @@ type DeviceTrafficRow struct {
 //	       CAST(SUM(t.bytes_out) AS INTEGER)                 AS bytes_out,
 //	       CAST(SUM(t.bytes_in) AS INTEGER)                  AS bytes_in,
 //	       CAST(SUM(t.connections) AS INTEGER)               AS connections,
+//	       CAST(SUM(t.connections_in) AS INTEGER)            AS connections_in,
 //	       CAST(MAX(t.hour) AS TEXT)                         AS last_hour
 //	FROM traffic_hourly t
 //	         LEFT JOIN devices pd ON pd.id = t.peer_device_id
@@ -223,6 +226,7 @@ func (q *Queries) DeviceTraffic(ctx context.Context, arg DeviceTrafficParams) ([
 			&i.BytesOut,
 			&i.BytesIn,
 			&i.Connections,
+			&i.ConnectionsIn,
 			&i.LastHour,
 		); err != nil {
 			return nil, err
@@ -332,6 +336,114 @@ func (q *Queries) FirstContacts(ctx context.Context, arg FirstContactsParams) ([
 			&i.PeerIP,
 			&i.FirstHour,
 			&i.Bytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const incomingFromInternet = `-- name: IncomingFromInternet :many
+SELECT d.id,
+       CAST(COALESCE(d.label, '') AS TEXT)          AS label,
+       CAST(COALESCE(d.hostname, '') AS TEXT)       AS hostname,
+       CAST(COALESCE(d.mac, '') AS TEXT)            AS mac,
+       t.protocol,
+       t.service_port,
+       CAST(SUM(t.connections_in) AS INTEGER)       AS connections,
+       CAST(COUNT(DISTINCT t.peer_ip) AS INTEGER)   AS peers,
+       CAST(COUNT(DISTINCT t.peer_asn) AS INTEGER)  AS orgs,
+       CAST(SUM(t.bytes_in) AS INTEGER)             AS bytes_in,
+       CAST(SUM(t.bytes_out) AS INTEGER)            AS bytes_out,
+       CAST(MAX(t.hour) AS TEXT)                    AS last_hour
+FROM traffic_hourly t
+         JOIN devices d ON d.id = t.device_id
+WHERE t.peer_asn IS NOT NULL
+  AND t.connections_in > 0
+  AND t.hour >= ?1
+  AND d.is_ignored = 0
+  AND (CAST(?2 AS TEXT) IS NULL OR d.group_name = CAST(?2 AS TEXT))
+GROUP BY d.id, t.protocol, t.service_port
+ORDER BY SUM(t.connections_in) DESC, d.id, t.service_port
+LIMIT ?3
+`
+
+type IncomingFromInternetParams struct {
+	Since     dbtype.Time    `json:"since"`
+	GroupName sql.NullString `json:"group_name"`
+	LimitRows int64          `json:"limit_rows"`
+}
+
+type IncomingFromInternetRow struct {
+	ID          int64  `json:"id"`
+	Label       string `json:"label"`
+	Hostname    string `json:"hostname"`
+	MAC         string `json:"mac"`
+	Protocol    int64  `json:"protocol"`
+	ServicePort int64  `json:"service_port"`
+	Connections int64  `json:"connections"`
+	Peers       int64  `json:"peers"`
+	Orgs        int64  `json:"orgs"`
+	BytesIn     int64  `json:"bytes_in"`
+	BytesOut    int64  `json:"bytes_out"`
+	LastHour    string `json:"last_hour"`
+}
+
+// The devices internet peers opened connections to since a given hour, one
+// row per device and service: what the network exposes, as used. Only peers an
+// organisation announces count as the internet.
+//
+//	SELECT d.id,
+//	       CAST(COALESCE(d.label, '') AS TEXT)          AS label,
+//	       CAST(COALESCE(d.hostname, '') AS TEXT)       AS hostname,
+//	       CAST(COALESCE(d.mac, '') AS TEXT)            AS mac,
+//	       t.protocol,
+//	       t.service_port,
+//	       CAST(SUM(t.connections_in) AS INTEGER)       AS connections,
+//	       CAST(COUNT(DISTINCT t.peer_ip) AS INTEGER)   AS peers,
+//	       CAST(COUNT(DISTINCT t.peer_asn) AS INTEGER)  AS orgs,
+//	       CAST(SUM(t.bytes_in) AS INTEGER)             AS bytes_in,
+//	       CAST(SUM(t.bytes_out) AS INTEGER)            AS bytes_out,
+//	       CAST(MAX(t.hour) AS TEXT)                    AS last_hour
+//	FROM traffic_hourly t
+//	         JOIN devices d ON d.id = t.device_id
+//	WHERE t.peer_asn IS NOT NULL
+//	  AND t.connections_in > 0
+//	  AND t.hour >= ?1
+//	  AND d.is_ignored = 0
+//	  AND (CAST(?2 AS TEXT) IS NULL OR d.group_name = CAST(?2 AS TEXT))
+//	GROUP BY d.id, t.protocol, t.service_port
+//	ORDER BY SUM(t.connections_in) DESC, d.id, t.service_port
+//	LIMIT ?3
+func (q *Queries) IncomingFromInternet(ctx context.Context, arg IncomingFromInternetParams) ([]*IncomingFromInternetRow, error) {
+	rows, err := q.query(ctx, q.incomingFromInternetStmt, incomingFromInternet, arg.Since, arg.GroupName, arg.LimitRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*IncomingFromInternetRow
+	for rows.Next() {
+		var i IncomingFromInternetRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.Hostname,
+			&i.MAC,
+			&i.Protocol,
+			&i.ServicePort,
+			&i.Connections,
+			&i.Peers,
+			&i.Orgs,
+			&i.BytesIn,
+			&i.BytesOut,
+			&i.LastHour,
 		); err != nil {
 			return nil, err
 		}
@@ -508,8 +620,9 @@ func (q *Queries) TopOrganisations(ctx context.Context, arg TopOrganisationsPara
 
 const upsertTraffic = `-- name: UpsertTraffic :exec
 INSERT INTO traffic_hourly (source_id, device_id, hour, peer_device_id, peer_ip, peer_name, peer_asn,
-                            protocol, service_port, bytes_out, bytes_in, packets_out, packets_in, connections)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            protocol, service_port, bytes_out, bytes_in, packets_out, packets_in, connections,
+                            connections_in)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (device_id, hour, source_id, peer_ip, protocol, service_port) DO UPDATE
     SET peer_device_id = COALESCE(excluded.peer_device_id, peer_device_id),
         peer_name      = COALESCE(excluded.peer_name, peer_name),
@@ -518,24 +631,26 @@ ON CONFLICT (device_id, hour, source_id, peer_ip, protocol, service_port) DO UPD
         bytes_in       = bytes_in + excluded.bytes_in,
         packets_out    = packets_out + excluded.packets_out,
         packets_in     = packets_in + excluded.packets_in,
-        connections    = connections + excluded.connections
+        connections    = connections + excluded.connections,
+        connections_in = connections_in + excluded.connections_in
 `
 
 type UpsertTrafficParams struct {
-	SourceID     int64          `json:"source_id"`
-	DeviceID     int64          `json:"device_id"`
-	Hour         dbtype.Time    `json:"hour"`
-	PeerDeviceID sql.NullInt64  `json:"peer_device_id"`
-	PeerIP       dbtype.Addr    `json:"peer_ip"`
-	PeerName     sql.NullString `json:"peer_name"`
-	PeerASN      sql.NullInt64  `json:"peer_asn"`
-	Protocol     int64          `json:"protocol"`
-	ServicePort  int64          `json:"service_port"`
-	BytesOut     int64          `json:"bytes_out"`
-	BytesIn      int64          `json:"bytes_in"`
-	PacketsOut   int64          `json:"packets_out"`
-	PacketsIn    int64          `json:"packets_in"`
-	Connections  int64          `json:"connections"`
+	SourceID      int64          `json:"source_id"`
+	DeviceID      int64          `json:"device_id"`
+	Hour          dbtype.Time    `json:"hour"`
+	PeerDeviceID  sql.NullInt64  `json:"peer_device_id"`
+	PeerIP        dbtype.Addr    `json:"peer_ip"`
+	PeerName      sql.NullString `json:"peer_name"`
+	PeerASN       sql.NullInt64  `json:"peer_asn"`
+	Protocol      int64          `json:"protocol"`
+	ServicePort   int64          `json:"service_port"`
+	BytesOut      int64          `json:"bytes_out"`
+	BytesIn       int64          `json:"bytes_in"`
+	PacketsOut    int64          `json:"packets_out"`
+	PacketsIn     int64          `json:"packets_in"`
+	Connections   int64          `json:"connections"`
+	ConnectionsIn int64          `json:"connections_in"`
 }
 
 // One flush adds to the hour's running totals. The peer's identity columns
@@ -543,8 +658,9 @@ type UpsertTrafficParams struct {
 // flush should not erase one that resolved on the last.
 //
 //	INSERT INTO traffic_hourly (source_id, device_id, hour, peer_device_id, peer_ip, peer_name, peer_asn,
-//	                            protocol, service_port, bytes_out, bytes_in, packets_out, packets_in, connections)
-//	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+//	                            protocol, service_port, bytes_out, bytes_in, packets_out, packets_in, connections,
+//	                            connections_in)
+//	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 //	ON CONFLICT (device_id, hour, source_id, peer_ip, protocol, service_port) DO UPDATE
 //	    SET peer_device_id = COALESCE(excluded.peer_device_id, peer_device_id),
 //	        peer_name      = COALESCE(excluded.peer_name, peer_name),
@@ -553,7 +669,8 @@ type UpsertTrafficParams struct {
 //	        bytes_in       = bytes_in + excluded.bytes_in,
 //	        packets_out    = packets_out + excluded.packets_out,
 //	        packets_in     = packets_in + excluded.packets_in,
-//	        connections    = connections + excluded.connections
+//	        connections    = connections + excluded.connections,
+//	        connections_in = connections_in + excluded.connections_in
 func (q *Queries) UpsertTraffic(ctx context.Context, arg UpsertTrafficParams) error {
 	_, err := q.exec(ctx, q.upsertTrafficStmt, upsertTraffic,
 		arg.SourceID,
@@ -570,6 +687,7 @@ func (q *Queries) UpsertTraffic(ctx context.Context, arg UpsertTrafficParams) er
 		arg.PacketsOut,
 		arg.PacketsIn,
 		arg.Connections,
+		arg.ConnectionsIn,
 	)
 	return err
 }

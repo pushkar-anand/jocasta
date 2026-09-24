@@ -3,8 +3,9 @@
 -- take the newest non-empty answer: a name that failed to resolve on one
 -- flush should not erase one that resolved on the last.
 INSERT INTO traffic_hourly (source_id, device_id, hour, peer_device_id, peer_ip, peer_name, peer_asn,
-                            protocol, service_port, bytes_out, bytes_in, packets_out, packets_in, connections)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            protocol, service_port, bytes_out, bytes_in, packets_out, packets_in, connections,
+                            connections_in)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (device_id, hour, source_id, peer_ip, protocol, service_port) DO UPDATE
     SET peer_device_id = COALESCE(excluded.peer_device_id, peer_device_id),
         peer_name      = COALESCE(excluded.peer_name, peer_name),
@@ -13,7 +14,8 @@ ON CONFLICT (device_id, hour, source_id, peer_ip, protocol, service_port) DO UPD
         bytes_in       = bytes_in + excluded.bytes_in,
         packets_out    = packets_out + excluded.packets_out,
         packets_in     = packets_in + excluded.packets_in,
-        connections    = connections + excluded.connections;
+        connections    = connections + excluded.connections,
+        connections_in = connections_in + excluded.connections_in;
 
 -- name: DeleteTrafficBefore :execrows
 DELETE
@@ -37,6 +39,7 @@ SELECT CAST(COALESCE(t.peer_device_id, 0) AS INTEGER)    AS peer_device_id,
        CAST(SUM(t.bytes_out) AS INTEGER)                 AS bytes_out,
        CAST(SUM(t.bytes_in) AS INTEGER)                  AS bytes_in,
        CAST(SUM(t.connections) AS INTEGER)               AS connections,
+       CAST(SUM(t.connections_in) AS INTEGER)            AS connections_in,
        CAST(MAX(t.hour) AS TEXT)                         AS last_hour
 FROM traffic_hourly t
          LEFT JOIN devices pd ON pd.id = t.peer_device_id
@@ -45,6 +48,33 @@ WHERE t.device_id = ?
 GROUP BY COALESCE(t.peer_device_id, 0), t.peer_ip, t.protocol, t.service_port
 ORDER BY SUM(t.bytes_out + t.bytes_in) DESC, t.peer_ip, t.service_port
 LIMIT ?;
+
+-- name: IncomingFromInternet :many
+-- The devices internet peers opened connections to since a given hour, one
+-- row per device and service: what the network exposes, as used. Only peers an
+-- organisation announces count as the internet.
+SELECT d.id,
+       CAST(COALESCE(d.label, '') AS TEXT)          AS label,
+       CAST(COALESCE(d.hostname, '') AS TEXT)       AS hostname,
+       CAST(COALESCE(d.mac, '') AS TEXT)            AS mac,
+       t.protocol,
+       t.service_port,
+       CAST(SUM(t.connections_in) AS INTEGER)       AS connections,
+       CAST(COUNT(DISTINCT t.peer_ip) AS INTEGER)   AS peers,
+       CAST(COUNT(DISTINCT t.peer_asn) AS INTEGER)  AS orgs,
+       CAST(SUM(t.bytes_in) AS INTEGER)             AS bytes_in,
+       CAST(SUM(t.bytes_out) AS INTEGER)            AS bytes_out,
+       CAST(MAX(t.hour) AS TEXT)                    AS last_hour
+FROM traffic_hourly t
+         JOIN devices d ON d.id = t.device_id
+WHERE t.peer_asn IS NOT NULL
+  AND t.connections_in > 0
+  AND t.hour >= sqlc.arg(since)
+  AND d.is_ignored = 0
+  AND (CAST(sqlc.narg(group_name) AS TEXT) IS NULL OR d.group_name = CAST(sqlc.narg(group_name) AS TEXT))
+GROUP BY d.id, t.protocol, t.service_port
+ORDER BY SUM(t.connections_in) DESC, d.id, t.service_port
+LIMIT sqlc.arg(limit_rows);
 
 -- name: AnyTraffic :one
 -- Whether any traffic has been recorded at all, which is how a view tells
