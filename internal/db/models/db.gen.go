@@ -153,6 +153,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.identifyDeviceStmt, err = db.PrepareContext(ctx, identifyDevice); err != nil {
 		return nil, fmt.Errorf("error preparing query IdentifyDevice: %w", err)
 	}
+	if q.incomingFromInternetStmt, err = db.PrepareContext(ctx, incomingFromInternet); err != nil {
+		return nil, fmt.Errorf("error preparing query IncomingFromInternet: %w", err)
+	}
 	if q.insertAddressStmt, err = db.PrepareContext(ctx, insertAddress); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertAddress: %w", err)
 	}
@@ -484,6 +487,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing identifyDeviceStmt: %w", cerr)
 		}
 	}
+	if q.incomingFromInternetStmt != nil {
+		if cerr := q.incomingFromInternetStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing incomingFromInternetStmt: %w", cerr)
+		}
+	}
 	if q.insertAddressStmt != nil {
 		if cerr := q.insertAddressStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing insertAddressStmt: %w", cerr)
@@ -751,6 +759,7 @@ type Queries struct {
 	getUserByIDStmt                    *sql.Stmt
 	getUserByUsernameStmt              *sql.Stmt
 	identifyDeviceStmt                 *sql.Stmt
+	incomingFromInternetStmt           *sql.Stmt
 	insertAddressStmt                  *sql.Stmt
 	latestSuccessfulScanFinishedAtStmt *sql.Stmt
 	listAPITokensByUserStmt            *sql.Stmt
@@ -837,6 +846,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getUserByIDStmt:                    q.getUserByIDStmt,
 		getUserByUsernameStmt:              q.getUserByUsernameStmt,
 		identifyDeviceStmt:                 q.identifyDeviceStmt,
+		incomingFromInternetStmt:           q.incomingFromInternetStmt,
 		insertAddressStmt:                  q.insertAddressStmt,
 		latestSuccessfulScanFinishedAtStmt: q.latestSuccessfulScanFinishedAtStmt,
 		listAPITokensByUserStmt:            q.listAPITokensByUserStmt,

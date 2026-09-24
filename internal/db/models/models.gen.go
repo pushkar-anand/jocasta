@@ -140,20 +140,21 @@ type Source struct {
 }
 
 type TrafficHourly struct {
-	SourceID     int64          `json:"source_id"`
-	DeviceID     int64          `json:"device_id"`
-	Hour         dbtype.Time    `json:"hour"`
-	PeerDeviceID sql.NullInt64  `json:"peer_device_id"`
-	PeerIP       dbtype.Addr    `json:"peer_ip"`
-	PeerName     sql.NullString `json:"peer_name"`
-	PeerASN      sql.NullInt64  `json:"peer_asn"`
-	Protocol     int64          `json:"protocol"`
-	ServicePort  int64          `json:"service_port"`
-	BytesOut     int64          `json:"bytes_out"`
-	BytesIn      int64          `json:"bytes_in"`
-	PacketsOut   int64          `json:"packets_out"`
-	PacketsIn    int64          `json:"packets_in"`
-	Connections  int64          `json:"connections"`
+	SourceID      int64          `json:"source_id"`
+	DeviceID      int64          `json:"device_id"`
+	Hour          dbtype.Time    `json:"hour"`
+	PeerDeviceID  sql.NullInt64  `json:"peer_device_id"`
+	PeerIP        dbtype.Addr    `json:"peer_ip"`
+	PeerName      sql.NullString `json:"peer_name"`
+	PeerASN       sql.NullInt64  `json:"peer_asn"`
+	Protocol      int64          `json:"protocol"`
+	ServicePort   int64          `json:"service_port"`
+	BytesOut      int64          `json:"bytes_out"`
+	BytesIn       int64          `json:"bytes_in"`
+	PacketsOut    int64          `json:"packets_out"`
+	PacketsIn     int64          `json:"packets_in"`
+	Connections   int64          `json:"connections"`
+	ConnectionsIn int64          `json:"connections_in"`
 }
 
 type User struct {
