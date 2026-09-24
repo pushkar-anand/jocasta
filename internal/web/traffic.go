@@ -76,12 +76,16 @@ type trafficSection struct {
 	// up to probing the network.
 	HasAttempts bool
 	Probing     *inventory.Prober
+
+	// HasBroadcasts is whether the device sent anything to everyone, which
+	// gives it a Broadcasts tab.
+	HasBroadcasts bool
 }
 
 // Empty reports whether the device neither talked nor tried anything in the
 // window.
 func (t *trafficSection) Empty() bool {
-	return t.Traffic.Empty() && !t.HasAttempts
+	return t.Traffic.Empty() && !t.HasAttempts && !t.HasBroadcasts
 }
 
 // query is the section's address with f in place of its filter.
@@ -181,6 +185,11 @@ func buildTrafficSection(
 		return nil, err
 	}
 
+	broadcasts, err := store.DeviceBroadcasts(ctx, id, since)
+	if err != nil {
+		return nil, err
+	}
+
 	sec := &trafficSection{
 		DeviceID:    id,
 		Window:      w,
@@ -191,6 +200,8 @@ func buildTrafficSection(
 		Summary:     summarise(traffic, attempts),
 		HasAttempts: len(attempts) > 0,
 		Probing:     proberFor(probers, id),
+
+		HasBroadcasts: len(broadcasts) > 0,
 	}
 
 	var tried []*inventory.Attempt
@@ -200,6 +211,11 @@ func buildTrafficSection(
 
 	local := filterPeers(traffic.Local, f.Service, strings.ToLower(f.Query), "")
 	sec.Tabs = segmentTabs(nets, local, traffic.Internet, tried, f)
+
+	if sec.HasBroadcasts {
+		sec.Tabs = append(sec.Tabs, broadcastTab(nets, broadcasts, f))
+	}
+
 	sec.Tab = pickTab(sec.Tabs, f.Tab)
 
 	// A tab that is not there any more is dropped from the address rather

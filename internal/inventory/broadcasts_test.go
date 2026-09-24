@@ -148,3 +148,52 @@ func TestNetworksBroadcast(t *testing.T) {
 		assert.Equal(t, want, ns.broadcast(netip.MustParseAddr(addr)), addr)
 	}
 }
+
+func TestDeviceBroadcastsNamesWhatWasSent(t *testing.T) {
+	t.Parallel()
+
+	s, _ := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, ""))
+
+	at := s.now()
+
+	rec := newRecorder(s, nil)
+	rec.Add(trafficSource{}, []plugin.Flow{
+		udp("192.0.2.10", "239.255.255.250", 50000, 1900, 400, at),
+		udp("192.0.2.10", "239.255.255.250", 50000, 1900, 400, at),
+		udp("192.0.2.10", "224.0.0.251", 5353, 5353, 300, at),
+	})
+	require.NoError(t, rec.Flush(t.Context()))
+
+	got, err := s.DeviceBroadcasts(t.Context(), 1, at.Add(-time.Hour))
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+
+	assert.Equal(t, "SSDP", got[0].Service, "most packets first")
+	assert.Equal(t, int64(2), got[0].Packets)
+	assert.Equal(t, "multicast", got[0].Kind)
+	assert.Equal(t, "mDNS", got[1].Service)
+}
+
+func TestBroadcastService(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		protocol uint8
+		port     uint16
+		dst      string
+		want     string
+	}{
+		{protoUDP, 5353, "224.0.0.251", "mDNS"},
+		{protoUDP, 1900, "239.255.255.250", "SSDP"},
+		{protoUDP, 50000, "239.255.255.250", "SSDP"}, // the group says it
+		{protoUDP, 67, "255.255.255.255", "DHCP"},
+		{protoUDP, 40000, "255.255.255.255", ""},
+		{2, 0, "224.0.0.22", "multicast membership (IGMP)"},
+		{protoICMPv6, 0, "ff02::1", "IPv6 neighbour discovery"},
+	}
+
+	for _, tt := range tests {
+		assert.Equal(t, tt.want, broadcastService(tt.protocol, tt.port, netip.MustParseAddr(tt.dst)), "%d/%d %s", tt.protocol, tt.port, tt.dst)
+	}
+}
