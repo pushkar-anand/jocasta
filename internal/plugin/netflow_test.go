@@ -247,6 +247,8 @@ func TestNetFlowDecodesEachExportVersion(t *testing.T) {
 			}
 
 			require.Len(t, flows, 1)
+
+			tt.want.Exporter = nfExporter
 			assert.Equal(t, tt.want, flows[0])
 		})
 	}
@@ -279,6 +281,40 @@ func TestNetFlowCreditsARepliedPacketToWhereNATDeliveredIt(t *testing.T) {
 			assert.Equal(t, tt.wantPort, flows[0].DstPort)
 		})
 	}
+}
+
+// On the way out, a NATing router rewrites the device's address to its public
+// one; the export names that address, which is how the router's public address
+// is learned. A reply is not translated on the source side, and says nothing.
+func TestNetFlowReportsTheAddressNATSentAFlowFrom(t *testing.T) {
+	t.Parallel()
+
+	fields := [][2]uint16{
+		{8, 4},   // sourceIPv4Address
+		{12, 4},  // destinationIPv4Address
+		{7, 2},   // sourceTransportPort
+		{11, 2},  // destinationTransportPort
+		{4, 1},   // protocolIdentifier
+		{1, 8},   // octetDeltaCount
+		{2, 8},   // packetDeltaCount
+		{225, 4}, // postNATSourceIPv4Address
+		{226, 4}, // postNATDestinationIPv4Address
+	}
+
+	outbound := ipfixMessage(258, fields, be{}.ip4(nfSrc).ip4(nfDst).u16(51000).u16(443).u8(6).
+		u64(900).u64(3).ip4(nfPublic).ip4(nfDst))
+
+	flows, err := testNetFlow(t).decode(nfExporter, outbound, nfExported)
+	require.NoError(t, err)
+	require.Len(t, flows, 1)
+	assert.Equal(t, nfSrc, flows[0].Src, "the device, not the public address")
+	assert.Equal(t, nfPublic, flows[0].NATSrc)
+	assert.Equal(t, nfExporter, flows[0].Exporter)
+
+	flows, err = testNetFlow(t).decode(nfExporter, ipfixNATReply(nfSrc, 51000), nfExported)
+	require.NoError(t, err)
+	require.Len(t, flows, 1)
+	assert.False(t, flows[0].NATSrc.IsValid(), "a reply's source is not translated")
 }
 
 func TestNetFlowDropsItsOwnFeed(t *testing.T) {
