@@ -25,6 +25,14 @@
                 <span class="netmap__key-label">More</span>
             </li>
         </ul>
+        {{- if .Home }}
+        <ul class="netmap__keys netmap__keys--lines">
+            <li class="netmap__key">
+                <span class="worldmap__home-key" aria-hidden="true"></span>
+                <span class="netmap__key-label">{{ .Home.Name }}</span>
+            </li>
+        </ul>
+        {{- end }}
         {{- if $watching }}
         <ul class="netmap__keys netmap__keys--lines">
             <li class="netmap__key">
@@ -44,6 +52,7 @@
             <path class="worldmap__country" d="{{ .Path }}" data-code="{{ .Code }}" data-key="c{{ .Code }}" data-name="{{ .Name }}"><title>{{ .Name }}</title></path>
             {{- end }}
         </g>
+        <g class="worldmap__arcs"></g>
         <g class="worldmap__markers">
             {{- range .Outline }}
             <circle class="worldmap__marker" data-code="{{ .Code }}" cx="{{ .LabelX }}" cy="{{ .LabelY }}" r="3"/>

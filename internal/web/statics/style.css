@@ -3040,6 +3040,48 @@ td .traffic__tried {
     stroke-width: 1.5;
 }
 
+/* Lines from home to each country the network talked to. */
+.worldmap__arc {
+    fill: none;
+    stroke: var(--violet);
+    opacity: 0.45;
+    vector-effect: non-scaling-stroke;
+    stroke-linecap: round;
+    pointer-events: none;
+    transition: opacity 0.15s;
+}
+
+.worldmap__arc--active {
+    stroke: var(--brand);
+    opacity: 0.8;
+    stroke-dasharray: 6 6;
+}
+
+.netmap__svg--selected .worldmap__arc:not(.is-on) {
+    opacity: 0.06;
+}
+
+.netmap__svg--selected .worldmap__arc.is-on {
+    stroke: var(--brand);
+    opacity: 1;
+}
+
+.worldmap__marker.is-home {
+    display: inline;
+    fill: var(--surface);
+    stroke: var(--text);
+    stroke-width: 2;
+}
+
+.worldmap__home-key {
+    flex: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 2px solid var(--text);
+}
+
 .worldmap__marker {
     display: none;
     fill: var(--aqua);
@@ -3163,7 +3205,8 @@ td .traffic__tried {
 
 @media (prefers-reduced-motion: no-preference) {
     .netmap__line--active,
-    .netmap__link--active {
+    .netmap__link--active,
+    .worldmap__arc--active {
         animation: netmap-flow 1.2s linear infinite;
     }
 

@@ -5,9 +5,11 @@
 */ -}}
 {{ define "partial/map-world-body" }}
 {{- with .World }}
-<ul id="world-data" hidden>
+{{- $home := .HomeKey }}
+<ul id="world-data" hidden{{ with .Home }} data-home="{{ .Code }}"{{ end }}>
     {{- range .Countries }}
-    <li data-code="{{ .Code }}" data-shade="{{ .Shade }}"{{ if .Active }} data-active{{ end }}></li>
+    <li data-code="{{ .Code }}" data-shade="{{ .Shade }}"{{ if .Active }} data-active{{ end }}
+        {{- with .Arc }} data-arc="{{ . }}" data-a="{{ $home }}"{{ end }}{{ with .ArcWidth }} data-width="{{ . }}"{{ end }}></li>
     {{- end }}
 </ul>
 

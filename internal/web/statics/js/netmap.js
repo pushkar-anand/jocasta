@@ -164,18 +164,48 @@
 
         svg.querySelectorAll('.worldmap__country, .worldmap__marker').forEach(function(n) {
             n.classList.remove('worldmap__shade-1', 'worldmap__shade-2', 'worldmap__shade-3',
-                'worldmap__shade-4', 'worldmap__shade-5', 'is-active');
+                'worldmap__shade-4', 'worldmap__shade-5', 'is-active', 'is-home');
         });
 
+        var home = data.dataset.home;
+        if (home) {
+            svg.querySelectorAll('[data-code="' + home + '"]').forEach(function(n) {
+                n.classList.add('is-home');
+            });
+        }
+
+        // The lines from home are drawn afresh each minute, busiest last so
+        // they sit on top.
+        var arcs = svg.querySelector('.worldmap__arcs');
+        if (arcs) arcs.replaceChildren();
+
+        var drawn = [];
         data.querySelectorAll('li').forEach(function(li) {
             var code = li.dataset.code;
             var country = svg.querySelector('.worldmap__country[data-code="' + code + '"]');
             if (country) country.classList.add('worldmap__shade-' + li.dataset.shade);
-            if (li.hasAttribute('data-active')) {
+
+            var active = li.hasAttribute('data-active');
+            if (active) {
                 var marker = svg.querySelector('.worldmap__marker[data-code="' + code + '"]');
                 if (marker) marker.classList.add('is-active');
             }
+
+            if (arcs && li.dataset.arc) {
+                var p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                p.setAttribute('class', 'worldmap__arc' + (active ? ' worldmap__arc--active' : ''));
+                p.setAttribute('d', li.dataset.arc);
+                p.setAttribute('stroke-width', li.dataset.width || '1');
+                p.dataset.a = li.dataset.a;
+                p.dataset.b = 'c' + code;
+                drawn.push(p);
+            }
         });
+
+        drawn.sort(function(x, y) {
+            return +x.getAttribute('stroke-width') - +y.getAttribute('stroke-width');
+        });
+        drawn.forEach(function(p) { arcs.appendChild(p); });
     }
 
     function select(svg, key) {
@@ -274,6 +304,9 @@
     // The world view's first data comes with the page.
     document.addEventListener('DOMContentLoaded', function() {
         var svg = mapSVG();
-        if (svg) applyWorld(svg);
+        if (svg) {
+            applyWorld(svg);
+            applySelection(svg);
+        }
     });
 })();
