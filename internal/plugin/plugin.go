@@ -99,6 +99,15 @@ type Flow struct {
 	// hour it is counted in. A long transfer exported in pieces lands each
 	// piece in the hour it ended.
 	End time.Time
+
+	// Exporter is the address of the router that reported the flow, which
+	// is how traffic to the router itself is told apart.
+	Exporter netip.Addr
+
+	// NATSrc is the address the router rewrote Src to on the way out, when it
+	// did: on a router doing NAT, its public address. Zero when the source
+	// was not translated or the exporter does not say.
+	NATSrc netip.Addr
 }
 
 // Network is one segment a source serves.

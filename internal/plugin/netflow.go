@@ -246,6 +246,12 @@ func (n *NetFlow) decode(sender netip.Addr, payload []byte, received time.Time) 
 			continue
 		}
 
+		f.Exporter = sender
+
+		if i < len(nat) && nat[i].src.IsValid() && nat[i].src != f.Src {
+			f.NATSrc = nat[i].src
+		}
+
 		if i < len(nat) && nat[i].addr.IsValid() {
 			f.Dst = nat[i].addr
 
@@ -316,19 +322,22 @@ func toFlow(m *protoproducer.ProtoProducerMessage, received time.Time) (Flow, bo
 	}, true
 }
 
-// IPFIX information elements for where a packet went after the router's NAT.
+// IPFIX information elements for a packet's addresses after the router's NAT.
 // v9 numbers them the same.
 const (
+	iePostNATSrcV4    = 225
 	iePostNATDstV4    = 226
 	iePostNAPTDstPort = 228
+	iePostNATSrcV6    = 281
 	iePostNATDstV6    = 282
 )
 
-// natDestination is where one record's packets were delivered after NAT,
-// zero when the exporter did not say.
+// natDestination is where one record's packets were delivered after NAT, and
+// the source they left with, zero when the exporter did not say.
 type natDestination struct {
 	addr netip.Addr
 	port uint16
+	src  netip.Addr
 }
 
 // postNATDestinations reads each data record's post-NAT destination, in the
@@ -364,6 +373,10 @@ func postNATDestinations(sets []netflow.DataFlowSet, messages int) []natDestinat
 					}
 				case v.Type == iePostNAPTDstPort && len(b) == 2:
 					d.port = binary.BigEndian.Uint16(b)
+				case (v.Type == iePostNATSrcV4 && len(b) == 4) || (v.Type == iePostNATSrcV6 && len(b) == 16):
+					if a, ok := netip.AddrFromSlice(b); ok && !a.IsUnspecified() {
+						d.src = a.Unmap()
+					}
 				}
 			}
 
