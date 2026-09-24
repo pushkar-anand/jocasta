@@ -9,7 +9,7 @@ how configuration is read, and reading devices from your router.
 ### Container image
 
 Multi-arch images (amd64 and arm64) are on the GitHub Container Registry,
-tagged `latest` and with each release version, e.g. `:v0.2.0`. The image is
+tagged `latest` and with each release version, e.g. `:v0.3.0`. The image is
 distroless and runs as a non-root user. It listens on `0.0.0.0:8080`, keeps its
 SQLite file on the `/data` volume, and reads `/data/jocasta.yaml` if one is
 mounted.
@@ -76,6 +76,15 @@ JOCASTA_SCAN__DEVICES__INTERVAL=10m      # scan.devices.interval
 JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD=change-me
 ```
 
+Times are shown in the server's time zone, which in a container is UTC. Name
+yours to see them in local time. This changes only how times are shown; they are
+stored in UTC.
+
+```yaml
+location:
+  timezone: "Australia/Sydney"   # an IANA zone name
+```
+
 Don't commit a `jocasta.yaml` that holds real addresses or credentials.
 `jocasta.yaml` and `*.db` are already in `.gitignore`.
 
@@ -120,6 +129,9 @@ plugins:
 `exporters` is required. Flow records arrive over UDP, which anyone on the
 network can forge, so only the listed routers are read.
 
+With host networking the listener is reachable as it is. On a bridge network,
+publish the port as UDP: `-p 2055:2055/udp`.
+
 On MikroTik RouterOS, point Traffic Flow at the Jocasta host (here
 `192.0.2.10`):
 
@@ -152,21 +164,15 @@ location:
 Only the country is used, to start the lines from its middle; nothing finer
 is asked for or stored.
 
-Times are shown in the server's time zone, which in a container is UTC. Name
-yours to see them in local time:
-
-```yaml
-location:
-  timezone: "Australia/Sydney"
-```
-
 ## Optional features
 
 - **Port scanning**: set `scan.ports.enabled: true` to probe every known
   address for open TCP ports on a timer. See [CLI](cli.md#ports) for one-off
   scans.
-- **Traffic**: who each device talks to, from your router's flow exports. See
-  [Seeing who devices talk to](#seeing-who-devices-talk-to).
+- **Traffic**: who each device talks to, from your router's flow exports,
+  with a Traffic page and a live Map. See
+  [Seeing who devices talk to](#seeing-who-devices-talk-to) and
+  [the web UI](ui.md#traffic-page).
 - **MCP server**: lets AI agents query the inventory. See [MCP](mcp.md).
 - **JSON API**: under `/api`, for scripts and dashboards. It takes the same API
   tokens as MCP, sent as `Authorization: Bearer <token>`.

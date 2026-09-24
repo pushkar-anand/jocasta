@@ -43,6 +43,12 @@ written to a change log you can review. Jocasta looks at the network only when
 you tell it to, on a schedule you set or on demand. It does not scan
 continuously.
 
+If your router exports flow records (NetFlow or IPFIX), Jocasta also records
+who each device talks to: the other devices on your network and the
+organisations and countries on the internet. It keeps hourly totals per device,
+never individual connections, and points out devices that probe the network and
+what the internet tried to reach.
+
 ## What you get
 
 | | |
@@ -51,6 +57,8 @@ continuously.
 | Your own labels | Give a device a label, a group and notes, or mark it to ignore. Scans never overwrite these. |
 | Network view | Each segment, and its VLAN, as its own page with the devices on it. |
 | Change log | A timestamped record of discoveries, moves and renames, per device and across the whole network. |
+| Traffic | Who each device talks to, on your network and on the internet, over the last day, week or month. Also shows what the internet reached or tried to reach, and devices that scan the network. Needs your router's flow exports. |
+| Map | The last hour's traffic as a live tree, from the router out to each network, device and organisation, and a world map of the countries the network talked to. |
 | Web interface | Overview dashboard, searchable and filterable device list, per-device and per-network pages, light and dark themes. |
 | API | A JSON API over the same data, for scripts and dashboards. |
 | MCP server | An optional [MCP](https://modelcontextprotocol.io) endpoint, so AI agents such as Claude Code can query the inventory, triage devices and report on changes. |
@@ -89,8 +97,8 @@ source and reading your router, see [setup](docs/setup.md).
 
 ## Documentation
 
-- [Setup](docs/setup.md): other ways to install, configuration, and reading
-  devices from your router.
+- [Setup](docs/setup.md): other ways to install, configuration, reading
+  devices from your router, and recording traffic from its flow exports.
 - [CLI](docs/cli.md): one-off sweeps, port scans and source reads from the
   command line.
 - [MCP server](docs/mcp.md): connecting AI agents to the inventory.
