@@ -36,7 +36,7 @@
                 <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>
             </svg>
             <input id="traffic-q" type="search" name="q" value="{{ .Filter.Query }}"
-                   placeholder="name, address, organisation" autocomplete="off">
+                   placeholder="Search name, address or organisation" autocomplete="off">
         </label>
 
         <label class="field">
@@ -84,16 +84,16 @@
         <p><strong>This device probed your network.</strong>
             {{- if .SweptAddresses }} In one hour it tried {{ .Peers }} addresses on your network{{ if .SweptPorts }}, and up to {{ .MaxPorts }} ports on one of them{{ end }}.
             {{- else }} In one hour it tried {{ .MaxPorts }} ports on one address.{{ end }}
-            {{ count .Answered }} of {{ count .Attempts }} tries were answered{{ with .Ports }}; ports tried include {{ portList . }}{{ end }}.
-            Last seen doing it {{ stamp .LastHour "" }}.</p>
+            {{ if .Answered }}{{ count .Answered }} of {{ count .Attempts }} tries got an answer.{{ else }}None of its {{ count .Attempts }} tries got an answer.{{ end }}{{ with .Ports }} Ports tried include {{ portList . }}.{{ end }}
+            Last seen {{ stamp .LastHour "" }}.</p>
     </div>
     {{- end }}
 
     {{- range .Probed }}
     <div class="notice" role="note">
-        <p><strong>{{ if .Outside }}This router's outside address was tried from the internet.{{ else }}This device was tried from the internet.{{ end }}</strong>
+        <p><strong>{{ if .Outside }}The internet tried this router's outside address.{{ else }}The internet tried this device.{{ end }}</strong>
             {{ count .Peers }} {{ if eq .Peers 1 }}address{{ else }}addresses{{ end }} from {{ .Orgs }} {{ if eq .Orgs 1 }}organisation{{ else }}organisations{{ end }}
-            made {{ count .Attempts }} {{ if eq .Attempts 1 }}try{{ else }}tries{{ end }} that carried nothing, {{ count .Answered }} of them answered{{ with .Ports }}; ports tried include {{ portList . }}{{ end }}.
+            made {{ count .Attempts }} {{ if eq .Attempts 1 }}try{{ else }}tries{{ end }} with no data, and {{ if .Answered }}{{ count .Answered }}{{ else }}none{{ end }} got an answer.{{ with .Ports }} Ports tried include {{ portList . }}.{{ end }}
             Last seen {{ stamp .LastHour "" }}.</p>
     </div>
     {{- end }}
@@ -117,7 +117,7 @@
             {{- end }}
         </dl>
         {{- if .Tries }}
-        <p class="traffic__tried dim">{{ count .Answered }} of those answered, across {{ .TriedPeers }} {{ if eq .TriedPeers 1 }}peer{{ else }}peers{{ end }}.
+        <p class="traffic__tried dim">Sent to {{ .TriedPeers }} {{ if eq .TriedPeers 1 }}peer{{ else }}peers{{ end }}; {{ if .Answered }}{{ count .Answered }}{{ else }}none{{ end }} answered.
             <a href="{{ $.TriedPath }}#traffic"
                hx-get="{{ $.TriedFragment }}"
                hx-target="#device-traffic"
@@ -148,7 +148,7 @@
            hx-target="#device-traffic"
            hx-swap="outerHTML">Clear filters</a></p>
     {{- else }}
-    <p class="dim">This device exchanged nothing {{ if .IsInternet }}with the internet{{ else }}on {{ .Label }}{{ end }} in the last {{ $.Window.Label }}{{ if and $.HasAttempts (not $.Filter.Tried) }}; it may have tried, which &ldquo;Show tries with no data&rdquo; adds{{ end }}.</p>
+    <p class="dim">This device exchanged nothing {{ if .IsInternet }}with the internet{{ else }}on {{ .Label }}{{ end }} in the last {{ $.Window.Label }}{{ if and $.HasAttempts (not $.Filter.Tried) }}. To see connections it tried, tick &ldquo;Show tries with no data&rdquo;{{ end }}.</p>
     {{- end }}
 
     {{- else if .IsBroadcasts }}
@@ -178,9 +178,8 @@
             </table>
         </div>
     </div>
-    <p class="note">What this device sent to everyone rather than to one host:
-        discovery protocols announcing it, or looking for others. Names are
-        guessed from the port and group, not read from the packets.</p>
+    <p class="note">Packets sent to a whole subnet or multicast group. Mostly the device announcing itself or looking for others.
+        Names are guessed from the port and group.</p>
 
     {{- else if .IsInternet }}
     <div class="card card--table">
@@ -248,7 +247,7 @@
                     <td colspan="2">
                         <details class="peers">
                             <summary>
-                                <span class="strong">{{ len .Peers }} addresses in <span class="mono">{{ .Prefix }}</span></span>
+                                <span class="strong">{{ len .Peers }} {{ if eq (len .Peers) 1 }}address{{ else }}addresses{{ end }} in <span class="mono">{{ .Prefix }}</span></span>
                                 <span class="dim">not in your inventory</span>
                                 {{- if .Tries }} <span class="chip chip--warn">{{ count .Tries }} tried, {{ count .Answered }} answered</span>{{ end }}
                             </summary>

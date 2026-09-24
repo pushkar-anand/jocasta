@@ -5,10 +5,10 @@
 <section class="block">
     <h2 class="section">Traffic</h2>
     <div class="card empty">
-        <p>No traffic recorded yet. Once your router sends its traffic records
-            to Jocasta, this page shows which devices are busiest, where on the
-            internet they connect, and who they started talking to lately.</p>
-        <p>See &ldquo;Seeing who devices talk to&rdquo; in the setup guide.</p>
+        <p>No traffic recorded yet. Once your router sends its flow records to
+            Jocasta, this page shows the busiest devices, where they connect on
+            the internet, and who they have started talking to.</p>
+        <p>To set it up, see <a href="https://github.com/pushkar-anand/jocasta/blob/main/docs/setup.md#record-who-devices-talk-to">Record who devices talk to</a>.</p>
     </div>
 </section>
 {{- else }}
@@ -42,7 +42,7 @@
         <label class="field">
             <span class="visually-hidden">Group</span>
             <select id="traffic-page-group" name="group">
-                <option value="">Every group</option>
+                <option value="">Any group</option>
                 {{- range .Groups }}
                 <option value="{{ . }}"{{ if eq . $.Group }} selected{{ end }}>{{ . }}</option>
                 {{- end }}
@@ -84,10 +84,9 @@
 
 <section class="block">
     <h2 class="section">Probing your network</h2>
-    <p class="note">Devices that, within one hour, tried many addresses on your
-        network or many ports on one of them, without the connections carrying
-        any data. It is what a scan looks like; a device you run scans from will
-        be here too.</p>
+    <p class="note">Devices that, within an hour, tried many addresses or many
+        ports on one address without exchanging any data. A device you run scans
+        from shows up here too.</p>
     {{- if .Probers }}
     <div class="card card--table">
         <div class="scroller">
@@ -128,17 +127,16 @@
     {{- with .BehindNAT }}
     <div class="notice" role="note">
         <p><strong>Your router is behind another NAT.</strong>
-            Its outside address is <span class="mono">{{ .Addr }}</span>, a
-            {{ if .CGNAT }}carrier-grade NAT address{{ else }}private address{{ end }}:
-            {{ if .CGNAT }}your ISP shares public addresses between customers{{ else }}another NAT sits between it and the internet, usually your ISP's carrier-grade NAT, sometimes another router in front of this one{{ end }}.
-            Nothing on the internet can open a connection to your network over
-            IPv4 unless that NAT forwards it, so this card and the next stay
-            empty. IPv6, where your ISP provides it, is not affected.</p>
+            Its outside address, <span class="mono">{{ .Addr }}</span>, is
+            {{ if .CGNAT }}one your ISP shares between customers (carrier-grade NAT){{ else }}a private address, so something sits between it and the internet: usually your ISP's NAT, sometimes another router{{ end }}.
+            Nothing on the internet can connect in over IPv4 unless that NAT
+            forwards it, so this card and the next stay empty. IPv6 is not
+            affected.</p>
     </div>
     {{- end }}
-    <p class="note">Services on your devices that someone on the internet opened
-        a connection to: what your network exposes, as it was used. A port you
-        forward that shows no one here was not reached in this period.</p>
+    <p class="note">Services on your devices that someone on the internet
+        connected to. A forwarded port missing from this list was not reached in
+        this period.</p>
     {{- if .Incoming }}
     <div class="card card--table">
         <div class="scroller">
@@ -176,11 +174,10 @@
 
 <section class="block">
     <h2 class="section">Probed from the internet</h2>
-    <p class="note">Connections someone on the internet tried on your network
-        that carried nothing: a port forwarded to a device knocked on, or your
-        router's outside address, which is counted under the router. Some of this is
-        the background noise of being online; answered tries are the ones to
-        look at.</p>
+    <p class="note">Connections from the internet that carried no data: knocks on
+        a forwarded port, or on your router's outside address, which is counted
+        under the router. Most of this is routine internet scanning. Check the
+        answered ones.</p>
     {{- if .Probed }}
     <div class="card card--table">
         <div class="scroller">
@@ -293,10 +290,10 @@
 
 <section class="block">
     <h2 class="section">New this week</h2>
-    <p class="note">Organisations a device exchanged data with for the first time
-        in the last 7 days{{ if .First.Partial }}, the most data first{{ end }}.{{ if .First.Partial }} Traffic has only been recorded
-        since {{ stamp .First.Started "" }}, so until a week has passed everything
-        counts as new.{{ end }}</p>
+    <p class="note">Organisations a device first exchanged data with in the last
+        7 days{{ if .First.Partial }}, the most data first{{ end }}.{{ if .First.Partial }} Traffic has only been recorded
+        since {{ stamp .First.Started "" }}, so for the first week
+        everything counts as new.{{ end }}</p>
     {{- if .NewOrgs }}
     <div class="card card--table">
         <div class="scroller">
@@ -334,7 +331,7 @@
         </div>
     </div>
     {{- with .MoreNewOrgs }}
-    <p class="note">And {{ . }} more {{ if eq . 1 }}organisation{{ else }}organisations{{ end }}{{ if $.First.Partial }}, all new because recording has only just started{{ end }}.</p>
+    <p class="note">And {{ . }} more {{ if eq . 1 }}organisation{{ else }}organisations{{ end }}{{ if $.First.Partial }}, all new because recording started recently{{ end }}.</p>
     {{- end }}
     {{- else }}
     <p class="dim">No device reached a new organisation this week.</p>

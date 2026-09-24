@@ -279,7 +279,7 @@ func TestOverviewRendersTheInventory(t *testing.T) {
 	// The last-sweep panel anchors freshness to when collection last succeeded,
 	// and a healthy collector raises no staleness warning.
 	assert.Contains(t, body, "Last complete sweep")
-	assert.NotContains(t, body, "presence counts may be behind")
+	assert.NotContains(t, body, "presence counts may be out of date")
 }
 
 // A collector that keeps recording scan rows while failing every one of them
@@ -304,7 +304,7 @@ func TestOverviewFlagsAStalledCollector(t *testing.T) {
 
 	body := get(t, newWebHandler(t, store), "/").Body.String()
 
-	assert.Contains(t, body, "presence counts may be behind")
+	assert.Contains(t, body, "presence counts may be out of date")
 	assert.Contains(t, body, `href="/scans"`)
 }
 
@@ -379,14 +379,14 @@ func TestOverviewShowsPortsAndServices(t *testing.T) {
 
 	body := get(t, newWebHandler(t, store), "/").Body.String()
 
-	assert.Contains(t, body, "Ports &amp; services")
+	assert.Contains(t, body, "Ports and services")
 	assert.Contains(t, body, "Devices with services")
 	assert.Contains(t, body, "Common services")
 	assert.Contains(t, body, "http")
 	assert.Contains(t, body, "ssh")
 	assert.Contains(t, body, "Port scan")
-	assert.Contains(t, body, "Recent changes")
-	assert.Contains(t, body, "began answering on")
+	assert.Contains(t, body, "Port changes")
+	assert.Contains(t, body, "started listening on")
 	assert.NotContains(t, body, "Devices exposed")
 }
 
@@ -412,7 +412,7 @@ func TestOverviewWithoutAnySweepInvitesOne(t *testing.T) {
 
 	body := rec.Body.String()
 	assert.Contains(t, body, "No devices yet")
-	assert.Contains(t, body, "jocasta scan 192.168.1.0/24 --save")
+	assert.Contains(t, body, "jocasta scan 192.0.2.0/24 --save")
 
 	// The invitation replaces the live block rather than sitting under an empty
 	// one: a ledger of nothing says less than the instruction does.
@@ -467,7 +467,7 @@ func TestUnknownPathIsNotFound(t *testing.T) {
 
 	require.Equal(t, http.StatusNotFound, rec.Code)
 	assert.Equal(t, "text/html; charset=utf-8", rec.Header().Get("Content-Type"))
-	assert.Contains(t, rec.Body.String(), "There is nothing at this address")
+	assert.Contains(t, rec.Body.String(), "This page does not exist")
 }
 
 func TestStaticFiles(t *testing.T) {

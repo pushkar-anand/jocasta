@@ -64,7 +64,7 @@
     {{- else if .PortScanConfigured }}
     <p class="dim">No open ports found on this device.</p>
     {{- else }}
-    <p class="dim">Port scanning is not configured, so the services on this device are unknown.</p>
+    <p class="dim">Port scanning is not configured, so the services on this device are unknown. Set <code>scan.ports.enabled: true</code>, or run <code>jocasta ports --save</code>.</p>
     {{- end }}
 </section>
 

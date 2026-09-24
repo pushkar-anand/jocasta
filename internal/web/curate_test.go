@@ -147,9 +147,9 @@ func TestUpdateDeviceAnswersWithThePanel(t *testing.T) {
 	assert.NotContains(t, body, "<!DOCTYPE html>")
 	assert.Contains(t, body, `id="device-panel"`)
 
-	// The "Saved." status takes a tabindex so the swap can land focus on the
+	// The "Details saved." status takes a tabindex so the swap can land focus on the
 	// outcome rather than leaving the keyboard on the body.
-	assert.Contains(t, body, `<p class="saved" role="status" tabindex="-1">Saved.</p>`)
+	assert.Contains(t, body, `<p class="saved" role="status" tabindex="-1">Details saved.</p>`)
 
 	// The edit form is folded away again after a save: the facts lead.
 	assert.Contains(t, body, `<details class="editpanel">`)
@@ -161,13 +161,13 @@ func TestUpdateDeviceAnswersWithThePanel(t *testing.T) {
 	assert.Contains(t, body, "Hallway.")
 
 	// A swapped fragment is the only thing that can report the save.
-	assert.Contains(t, body, "Saved.")
+	assert.Contains(t, body, "Details saved.")
 }
 
 func TestDevicePageDoesNotClaimToHaveSaved(t *testing.T) {
 	t.Parallel()
 
-	assert.NotContains(t, get(t, seeded(t), "/devices/1").Body.String(), "Saved.")
+	assert.NotContains(t, get(t, seeded(t), "/devices/1").Body.String(), "Details saved.")
 }
 
 func TestCurationSurvivesInTheList(t *testing.T) {

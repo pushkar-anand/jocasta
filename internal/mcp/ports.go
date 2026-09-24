@@ -35,8 +35,8 @@ func getPortOverview(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) 
 		Title: "Summarise open ports",
 		Description: "Summarise the open TCP ports across the network: how many are open now and on how many devices, " +
 			"how many opened and closed in the last 24 hours, and the commonest services with how many devices offer each. " +
-			"Ignored devices are left out. A service name is the service usually found on that port number, not software " +
-			"that was detected; a port with no usual service is listed by number alone. " +
+			"Ignored devices are left out. A service name is the service usually found on that port number; Jocasta does not " +
+			"detect the software behind it. A port with no usual service is listed by number alone. " +
 			"Use get_device for one device's ports, and list_events with PORT_OPENED or PORT_CLOSED for which ports changed.",
 		InputSchema:  getPortOverviewSchema(),
 		OutputSchema: schemaFor[getPortOverviewOutput](),

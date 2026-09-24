@@ -116,7 +116,7 @@ func TestLoginTOTPWithNoPendingSessionBehavesLikeLogin(t *testing.T) {
 	rec := requestAs(t, h, nil, http.MethodGet, "/login/totp", "")
 
 	require.Equal(t, http.StatusUnauthorized, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Incorrect username or password.")
+	assert.Contains(t, rec.Body.String(), "That username and password do not match.")
 }
 
 func TestLoginTOTPRejectsWrongCode(t *testing.T) {
@@ -132,7 +132,7 @@ func TestLoginTOTPRejectsWrongCode(t *testing.T) {
 	rec := requestAs(t, h, cookies, http.MethodPost, "/login/totp", form.Encode())
 
 	require.Equal(t, http.StatusPreconditionRequired, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Invalid code.")
+	assert.Contains(t, rec.Body.String(), "That code did not work.")
 }
 
 func TestLoginTOTPAcceptsCorrectCode(t *testing.T) {

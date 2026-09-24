@@ -16,8 +16,8 @@
             </div>
         </div>
 
-        <p class="note">Bearer credentials for a script or dashboard that reads or edits this inventory without
-            signing in. Personal to {{ .SignedInAs }}.</p>
+        <p class="note">Let a script or dashboard use the API without signing in.
+            Tokens belong to {{ .SignedInAs }}.</p>
 
         {{- /*
             Reveal and list share one wrapper so a revoke -- which swaps the
@@ -46,7 +46,7 @@
                 <div class="modal__body">
                     <label class="stack">
                         <span class="eyebrow">Name</span>
-                        <input class="input" type="text" name="name" placeholder="e.g. Grafana dashboard"
+                        <input class="input" type="text" name="name" placeholder="For example, Grafana dashboard"
                                autocomplete="off" maxlength="100" autofocus required>
                     </label>
 

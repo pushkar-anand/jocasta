@@ -9,7 +9,7 @@ how configuration is read, and reading devices from your router.
 ### Container image
 
 Multi-arch images (amd64 and arm64) are on the GitHub Container Registry,
-tagged `latest` and with each release version, e.g. `:v0.3.0`. The image is
+tagged `latest` and with each release version, such as `:v0.3.0`. The image is
 distroless and runs as a non-root user. It listens on `0.0.0.0:8080`, keeps its
 SQLite file on the `/data` volume, and reads `/data/jocasta.yaml` if one is
 mounted.
@@ -17,7 +17,7 @@ mounted.
 Use host networking (`--network host`) if you can. On a bridge network
 (`-p 8080:8080`) the sweep still finds hosts, but it can only read the
 container's own neighbour table, so devices have no hardware address, and
-Jocasta identifies devices by hardware address. Reading your router (below)
+Jocasta identifies devices by hardware address. [Reading the router](#read-devices-from-your-router)
 fills this gap. No added capability or sysctl is needed either way.
 
 ### Prebuilt binaries
@@ -49,7 +49,7 @@ On first visit the web UI asks you to create the admin account. Further users
 and API tokens are under Settings.
 
 The session cookie is HTTPS-only by default. If you reach Jocasta over plain
-HTTP from anywhere but `localhost`, sign-in won't stick until you set
+HTTP from anywhere but `localhost`, sign-in does not stick until you set
 `server.auth.cookie_secure: false`. Putting it behind a TLS reverse proxy is better.
 
 The database schema is embedded, and migrations run when the binary opens the
@@ -85,10 +85,10 @@ location:
   timezone: "Australia/Sydney"   # an IANA zone name
 ```
 
-Don't commit a `jocasta.yaml` that holds real addresses or credentials.
+Do not commit a `jocasta.yaml` that holds real addresses or credentials.
 `jocasta.yaml` and `*.db` are already in `.gitignore`.
 
-## Reading your router
+## Read devices from your router
 
 A sweep from one machine only sees hardware addresses on its own segment. On a
 network split into VLANs, reading the router's ARP and DHCP tables identifies
@@ -109,7 +109,7 @@ plugins:
 Check it with `jocasta plugin run gateway` before starting the server. See
 [CLI](cli.md#plugin-run).
 
-## Seeing who devices talk to
+## Record who devices talk to
 
 Jocasta can record which devices talk to which, and to where on the internet,
 from the flow records your router exports (NetFlow v5, v9 or IPFIX). It keeps
@@ -151,8 +151,8 @@ placed on the map by the country they are registered in, using
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
 The world map draws a line from the network's country to each country it
-talked to. Jocasta finds its country from the router's outside address; when
-that address is private -- the ISP puts the router behind carrier-grade NAT --
+talked to. Jocasta finds its country from the router's outside address. When that
+address is private, because the ISP puts the router behind carrier-grade NAT,
 name the country instead, by its two-letter code. A country named here is
 used whatever the outside address says:
 
@@ -171,7 +171,7 @@ is asked for or stored.
   scans.
 - **Traffic**: who each device talks to, from your router's flow exports,
   with a Traffic page and a live Map. See
-  [Seeing who devices talk to](#seeing-who-devices-talk-to) and
+  [Record who devices talk to](#record-who-devices-talk-to) and
   [the web UI](ui.md#traffic-page).
 - **MCP server**: lets AI agents query the inventory. See [MCP](mcp.md).
 - **JSON API**: under `/api`, for scripts and dashboards. It takes the same API

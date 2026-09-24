@@ -2,7 +2,7 @@
 #
 # Copy the parts you want to change into jocasta.yaml. Settings you leave out
 # keep their default. Any setting can also be set from the environment:
-# JOCASTA_ followed by the path, with a double underscore between levels, e.g.
+# JOCASTA_ followed by the path, with a double underscore between levels, for example
 # JOCASTA_SCAN__DEVICES__INTERVAL=10m.
 
 server:
@@ -37,10 +37,10 @@ retention:
 
 # Where the network is.
 location:
-  country: ""             # two-letter code the world map draws lines from, e.g. "AU";
+  country: ""             # two-letter code the world map draws lines from, such as "AU";
                           # blank uses the router's outside address, which cannot
                           # place a network behind the ISP's CGNAT
-  timezone: ""            # IANA zone times are shown in, e.g. "Australia/Sydney";
+  timezone: ""            # IANA zone times are shown in, such as "Australia/Sydney";
                           # blank uses TZ or the system's, which is UTC in a container
 
 # Segments the poller sweeps on a timer. Also used to match each discovered
@@ -61,11 +61,11 @@ scan:
   ports:
     enabled: false
     interval: "6h"
-    custom: ""            # ports to probe, e.g. "22,80,443,8000-8100"; blank uses a curated preset
+    custom: ""            # ports to probe, such as "22,80,443,8000-8100"; blank uses a curated preset
     concurrency: 64       # max connections a scan opens at once; lower it on a cheap router
 
 # Sources beyond the sweep. None are configured by default; the block below is
-# an example instance, not defaults. Each block is keyed by an instance name,
+# an example instance. Each block is keyed by an instance name,
 # which becomes the source its facts are filed under, so two routers stay
 # separate.
 plugins:

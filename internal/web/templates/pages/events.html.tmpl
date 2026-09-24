@@ -10,11 +10,11 @@
                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
         </a>
         {{- else }}
-        <p class="block__aside">Everything a sweep or an edit changed</p>
+        <p class="block__aside">Every change from sweeps and edits</p>
         {{- end }}
     </div>
     {{- with .Device }}
-    <p class="block__aside">Only what a sweep or an edit changed on {{ .Name }}</p>
+    <p class="block__aside">Changes to {{ .Name }} only</p>
     {{- end }}
     {{ template "partial/activity" .Events }}
     {{ template "partial/pager" . }}

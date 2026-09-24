@@ -4,6 +4,16 @@ Jocasta can serve the inventory to AI agents such as Claude Code over the
 [Model Context Protocol](https://modelcontextprotocol.io). It is off by
 default.
 
+An agent connected this way can answer questions such as:
+
+- What joined the network this week?
+- Which devices have SSH open?
+- What is 192.0.2.47, and when was it first seen?
+- Which devices talked to a new organisation today?
+
+With a `read_write` token it can also label and group devices. It reads what
+past scans recorded and never starts a scan.
+
 ## Turn it on
 
 1. Set `server.mcp.enabled: true` in the config file, or
@@ -35,8 +45,8 @@ claude mcp add --transport http jocasta https://jocasta.example.test/mcp \
 
 **Codex**
 
-Codex reads the token from an environment variable rather than storing it in
-its config:
+Codex reads the token from an environment variable, which keeps it out of
+its config file:
 
 ```bash
 export JOCASTA_TOKEN=<token>
@@ -64,6 +74,21 @@ works. For clients that can only launch a local server over stdio, a bridge
 such as [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) can forward to
 the endpoint.
 
+## Tools
+
+| Tool | What it answers |
+|---|---|
+| `list_devices` | Which devices match a search, group, network, type or online status. |
+| `get_device` | Everything about one device: addresses, ports, sources, your labels. |
+| `list_events` | What changed, across the network or for one device. |
+| `list_networks`, `get_network` | The network segments, and how many devices are on each. |
+| `list_groups` | The groups you filed devices under. |
+| `get_stats` | How many devices, online, offline, ignored and new in the last 24 hours. |
+| `get_port_overview` | Open ports across the network, and the commonest services. |
+| `list_scans` | When scans ran, and what they found. |
+| `list_traffic` | Who devices exchanged data with. Needs traffic collection. |
+| `update_device_curation` | Sets a device's label, group, type, notes and ignored flag. `read_write` tokens only. |
+
 ## Prompts
 
 Prompts are saved procedures you start yourself; the agent then carries them
@@ -79,5 +104,5 @@ out with the tools. In Claude Code they appear as slash commands, such as
 
 Errors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem
 documents, as in the HTTP API. A failed tool call returns one as the text of an
-error result, with the tool name as `instance`. The cause of a 500 is logged on
-the server, not sent to the agent.
+error result, with the tool name as `instance`. The cause of a 500 stays in
+the server log.
