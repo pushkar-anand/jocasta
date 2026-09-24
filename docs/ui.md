@@ -5,7 +5,8 @@ Pages are server-rendered; htmx handles in-place updates and the periodic
 refresh.
 
 The screenshots below use synthetic data: addresses from RFC 5737, hardware
-addresses from RFC 7042, invented names.
+addresses from RFC 7042, invented names. The internet peers are well-known
+public services, so their organisations resolve.
 
 ## Overview
 
@@ -89,10 +90,13 @@ tried 20 or more addresses on your network, or 20 or more ports on one of
 them, without the connections carrying data: what a scan looks like. A host
 you run scans from appears there too.
 
+![Traffic page](img/traffic.png)
+
 ## Map
 
-The Map draws the last hour's traffic as a tree. The router is in the
-middle, with a hub for each network and one for the internet around it. Each
+When traffic collection is set up, the Map draws the last hour's traffic as
+a tree. The router is in the middle, with a hub for each network and one for
+the internet around it. Each
 network's devices, and the internet's organisations, fan out around their
 hub. A branch is thicker the more traffic passed along it, and moves when
 anything under it was active in the last 15 minutes. The page redraws itself
@@ -112,6 +116,8 @@ search are kept across each redraw, and devices keep their place. The legend
 in the top right names each network's colour with its device count; pointing
 at one picks its devices out. The busiest 60 devices and 12 organisations are
 drawn, and each device links to its page.
+
+![Map](img/map.png)
 
 The World tab places the same hour's internet traffic on a map of the world.
 A country is shaded darker the more

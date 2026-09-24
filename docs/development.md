@@ -32,4 +32,5 @@ Queries are SQLC-generated from `internal/db/queries/`. The schema is in
 
 The images in [`docs/ui.md`](ui.md) are taken against a database of fabricated
 devices, never real network data: addresses from RFC 5737, hardware addresses
-from RFC 7042, invented names.
+from RFC 7042, invented names. Internet peers are well-known public services,
+so their organisations and countries resolve.
