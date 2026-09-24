@@ -702,3 +702,111 @@ func TestIncomingConnectionsAreShown(t *testing.T) {
                     <td>ssh`, "the NAS is on the network, not the internet")
 	assert.NotContains(t, body, "ZgotmplZ")
 }
+
+// What the internet tried on the network is listed on the Traffic page and
+// noted on the device it was tried on: a port forwarded to the laptop, and
+// the router's outside address, counted under the router -- here, the NAS.
+func TestProbesFromTheInternetAreShown(t *testing.T) {
+	t.Parallel()
+
+	store := sweptPair(t)
+
+	router := netip.MustParseAddr("192.0.2.11")
+	syn := func(dst string, port uint16) plugin.Flow {
+		return plugin.Flow{
+			Src: netip.MustParseAddr("1.1.1.1"), Dst: netip.MustParseAddr(dst),
+			SrcPort: 50000, DstPort: port, Protocol: 6, TCPFlags: 0x02,
+			Bytes: 60, Packets: 1, End: time.Now(), Exporter: router,
+		}
+	}
+
+	out := tcp("192.0.2.10", "8.8.8.8", 443, 5_000)
+	out.Exporter, out.NATSrc = router, netip.MustParseAddr("203.0.113.1")
+
+	recordTraffic(t, store, out, syn("203.0.113.1", 22), syn("203.0.113.1", 3389), syn("192.0.2.10", 443))
+
+	h := newWebHandler(t, store)
+
+	rec := get(t, h, "/traffic")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+	assert.Contains(t, body, "Probed from the internet")
+	assert.Contains(t, body, `Outside address <span class="dim">of</span> <a href="/devices/2#traffic">nas.example.com</a>`)
+	assert.Contains(t, body, "ports 22, 3389")
+	assert.Contains(t, body, `<a href="/devices/1#traffic">laptop.example.com</a>`)
+	assert.NotContains(t, body, "ZgotmplZ")
+
+	rec = get(t, h, "/devices/1")
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "This device was tried from the internet.")
+
+	rec = get(t, h, "/devices/2")
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "This router's outside address was tried from the internet.")
+}
+
+func TestBehindNATFrom(t *testing.T) {
+	t.Parallel()
+
+	addrs := func(ss ...string) []netip.Addr {
+		var out []netip.Addr
+		for _, s := range ss {
+			out = append(out, netip.MustParseAddr(s))
+		}
+
+		return out
+	}
+
+	tests := []struct {
+		name    string
+		outside []netip.Addr
+		want    *behindNAT
+	}{
+		{"not known yet", nil, nil},
+		{"public", addrs("203.0.113.1"), nil},
+		{"private", addrs("10.0.0.2"), &behindNAT{Addr: netip.MustParseAddr("10.0.0.2")}},
+		{"carrier-grade", addrs("100.64.0.1"), &behindNAT{Addr: netip.MustParseAddr("100.64.0.1"), CGNAT: true}},
+		{"a public one among them", addrs("10.0.0.2", "203.0.113.1"), nil},
+		{"only IPv6", addrs("2001:db8::1"), nil},
+	}
+
+	for _, tt := range tests {
+		assert.Equal(t, tt.want, behindNATFrom(tt.outside), tt.name)
+	}
+}
+
+// The Traffic page says the router is behind another NAT when its outside
+// address is private, and says nothing when it is public.
+func TestTrafficPageSaysWhenTheRouterIsBehindNAT(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		outside string
+		want    bool
+	}{
+		{"10.0.0.2", true},
+		{"203.0.113.1", false},
+	} {
+		t.Run(tt.outside, func(t *testing.T) {
+			t.Parallel()
+
+			store := sweptPair(t)
+
+			out := tcp("192.0.2.10", "8.8.8.8", 443, 5_000)
+			out.Exporter, out.NATSrc = netip.MustParseAddr("192.0.2.11"), netip.MustParseAddr(tt.outside)
+			recordTraffic(t, store, out)
+
+			rec := get(t, newWebHandler(t, store), "/traffic")
+			require.Equal(t, http.StatusOK, rec.Code)
+
+			body := rec.Body.String()
+			if tt.want {
+				assert.Contains(t, body, "Your router is behind another NAT.")
+				assert.Contains(t, body, `<span class="mono">10.0.0.2</span>`)
+			} else {
+				assert.NotContains(t, body, "behind another NAT")
+			}
+		})
+	}
+}

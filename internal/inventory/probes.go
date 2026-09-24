@@ -212,3 +212,67 @@ func (s *Store) OutsideAddresses(ctx context.Context, since time.Time) ([]netip.
 
 	return out, nil
 }
+
+// Probed is a device the internet tried over a window without the connections
+// carrying data.
+type Probed struct {
+	DeviceID   int64  `json:"device_id"`
+	DeviceName string `json:"device_name"`
+
+	// Outside says the router's outside address was what was tried, and the
+	// device is the router.
+	Outside bool `json:"outside,omitempty"`
+
+	// Peers is how many addresses tried, Orgs how many organisations they
+	// belong to.
+	Peers int64 `json:"peers"`
+	Orgs  int64 `json:"orgs"`
+
+	Attempts int64 `json:"attempts"`
+	Answered int64 `json:"answered"`
+
+	// MaxPorts is the most ports one address tried in an hour, and Ports
+	// the lowest of those tried.
+	MaxPorts int64    `json:"max_ports"`
+	Ports    []uint16 `json:"ports,omitempty"`
+
+	LastHour time.Time `json:"last_hour"`
+}
+
+// ProbedDevices returns the devices the internet probed since the start of the
+// hour containing since, most probes first. A device tried both on its own
+// and through the router's outside address is listed once for each. A
+// non-empty group keeps only the devices in it.
+func (s *Store) ProbedDevices(ctx context.Context, since time.Time, group string) ([]*Probed, error) {
+	rows, err := s.q.ProbedDevices(ctx, models.ProbedDevicesParams{
+		Since:     dbtype.NewTime(since.UTC().Truncate(time.Hour)),
+		GroupName: nullString(group),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("probed devices: %w", err)
+	}
+
+	out := make([]*Probed, 0, len(rows))
+
+	for _, r := range rows {
+		last, err := time.Parse(dbtype.Layout, r.LastHour)
+		if err != nil {
+			return nil, fmt.Errorf("probe hour %q: %w", r.LastHour, err)
+		}
+
+		out = append(out, &Probed{
+			DeviceID:   r.ID,
+			DeviceName: displayName(r.Label, r.Hostname, r.MAC, "", r.ID),
+			Outside:    r.Outside != 0,
+			Peers:      r.Peers,
+			Orgs:       r.Orgs,
+			Attempts:   r.Attempts,
+			Answered:   r.Answered,
+			MaxPorts:   r.MaxPorts,
+			Ports:      mergePorts(nil, parsePortList(r.Ports)),
+			LastHour:   last,
+		})
+	}
+
+	return out, nil
+}
