@@ -99,3 +99,11 @@ source and reading your router, see [setup](docs/setup.md).
 ## License
 
 Jocasta is released under the [GNU AGPL-3.0](LICENSE).
+
+Jocasta embeds third-party data:
+
+- MAC vendor names from the [IEEE registries](https://standards.ieee.org/products-programs/regauth/)
+  and [Wireshark's manufacturer table](https://www.wireshark.org/).
+- [IP to ASN data](https://db-ip.com/db/download/ip-to-asn-lite) by
+  [DB-IP](https://db-ip.com), licensed under
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
