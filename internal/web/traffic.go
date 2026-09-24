@@ -326,6 +326,9 @@ type trafficPage struct {
 	// Probers are the devices that probed the local network in the window.
 	Probers []*inventory.Prober
 
+	// Incoming are the device services the internet opened connections to.
+	Incoming []*inventory.Incoming
+
 	Busiest []*inventory.DeviceTotal
 	TopOrgs []*orgDevices
 	First   *inventory.FirstContacts
@@ -625,6 +628,17 @@ func (h *Handler) traffic(sm *auth.Session) response.HandlerFunc {
 		}
 
 		data.Summary.Probing = len(data.Probers)
+
+		incoming, err := h.store.IncomingFromInternet(ctx, since, data.Group, trafficAllRows)
+		if err != nil {
+			return err
+		}
+
+		for _, in := range incoming {
+			if data.Tab.has(in.DeviceID) && len(data.Incoming) < trafficCardRows {
+				data.Incoming = append(data.Incoming, in)
+			}
+		}
 
 		orgs, err := h.store.TopOrganisations(ctx, since, data.Group, trafficAllRows)
 		if err != nil {

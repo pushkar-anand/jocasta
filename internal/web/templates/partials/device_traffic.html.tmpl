@@ -90,6 +90,9 @@
             <div><dd>{{ bytes .Sent }}</dd><dt>Sent</dt></div>
             <div><dd>{{ .Local }}</dd><dt>On your network</dt></div>
             <div><dd>{{ .Orgs }}</dd><dt>{{ if eq .Orgs 1 }}Organisation{{ else }}Organisations{{ end }} on the internet</dt></div>
+            {{- if .FromInternet }}
+            <div><dd>{{ count .FromInternet }}</dd><dt>Opened from the internet</dt></div>
+            {{- end }}
             {{- if .Tries }}
             <div{{ if not $.Probing }} class="stat--quiet"{{ end }}><dd>{{ count .Tries }}</dd><dt>Tries with no data</dt></div>
             {{- end }}
@@ -180,6 +183,7 @@
                             <summary>
                                 <span class="strong" title="{{ .Name }}">{{ .Short }}</span>
                                 <span class="dim">{{ len .Peers }} {{ if eq (len .Peers) 1 }}address{{ else }}addresses{{ end }}</span>
+                                {{- if .Incoming }} {{ template "partial/traffic-incoming" .Incoming }}{{ end }}
                                 {{- if .Tries }} <span class="chip chip--warn">{{ count .Tries }} tried, {{ count .Answered }} answered</span>{{ end }}
                             </summary>
                             <ul class="peers__list">
@@ -252,6 +256,7 @@
                         <span class="mono">{{ .IP }}</span>
                         {{- with .Name }} <span class="dim">{{ . }}</span>{{ end }}
                         {{- end }}
+                        {{- if .Incoming }} {{ template "partial/traffic-incoming" .Incoming }}{{ end }}
                     </td>
                     <td>
                         {{- if .Services }}{{ template "partial/traffic-services" . }}{{ end }}
@@ -289,6 +294,7 @@
 {{ define "partial/traffic-peer" }}
 <span class="mono">{{ .IP }}</span>
 {{- with .Name }} <span class="dim">{{ . }}</span>{{ end }}
+{{- if .Incoming }} {{ template "partial/traffic-incoming" .Incoming }}{{ end }}
 <span class="peers__detail">
     {{- if .Services }}
     {{ .ServiceSummary }} &middot; {{ bytes .Sent }} sent &middot; {{ bytes .Received }} received
@@ -308,7 +314,8 @@
     <ul class="peers__list">
         {{- range .Services }}
         <li>{{ $.ServiceLabel . }}
-            <span class="peers__detail">{{ bytes .Sent }} sent &middot; {{ bytes .Received }} received</span></li>
+            <span class="peers__detail">{{ bytes .Sent }} sent &middot; {{ bytes .Received }} received
+                {{- with .ConnectionsIn }} &middot; opened {{ count . }} {{ if eq . 1 }}time{{ else }}times{{ end }} by them{{ end }}</span></li>
         {{- end }}
     </ul>
 </details>
@@ -316,3 +323,7 @@
 {{ .ServiceSummary }}
 {{- end -}}
 {{ end }}
+
+{{- /* Marks a peer that opened connections on the device, rather than the other
+       way round: something reached in. */ -}}
+{{ define "partial/traffic-incoming" }}<span class="chip chip--brand chip--label" title="Opened {{ count . }} {{ if eq . 1 }}connection{{ else }}connections{{ end }} to this device">incoming</span>{{ end }}

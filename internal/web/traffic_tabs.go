@@ -264,6 +264,10 @@ type trafficSummary struct {
 	// TriedPeers how many peers they went to.
 	Tries, Answered int64
 	TriedPeers      int
+
+	// FromInternet counts the connections internet peers opened on the
+	// device.
+	FromInternet int64
 }
 
 func summarise(t *inventory.DeviceTraffic, attempts []*inventory.Attempt) trafficSummary {
@@ -278,6 +282,10 @@ func summarise(t *inventory.DeviceTraffic, attempts []*inventory.Attempt) traffi
 	for _, o := range t.Internet {
 		s.Sent += o.Sent
 		s.Received += o.Received
+
+		for _, p := range o.Peers {
+			s.FromInternet += p.ConnectionsIn
+		}
 	}
 
 	s.Orgs = len(t.Internet)

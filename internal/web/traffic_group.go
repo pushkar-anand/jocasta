@@ -156,6 +156,9 @@ type peerRow struct {
 	Sent, Received  int64
 	Tries, Answered int64
 	LastHour        time.Time
+
+	// Incoming counts the connections the peer opened on the device.
+	Incoming int64
 }
 
 // ServiceSummary names the peer's two busiest services and how many more.
@@ -200,6 +203,7 @@ func (r *peerRow) add(p *inventory.TrafficPeer) {
 	r.Services = append(r.Services, p)
 	r.Sent += p.Sent
 	r.Received += p.Received
+	r.Incoming += p.ConnectionsIn
 	r.seen(p.LastHour)
 }
 
@@ -225,12 +229,14 @@ func busier(aBytes, aTries, bBytes, bTries int64) int {
 type peerTally struct {
 	Sent, Received  int64
 	Tries, Answered int64
+	Incoming        int64
 	LastHour        time.Time
 }
 
 func (t *peerTally) add(r *peerRow) {
 	t.Sent += r.Sent
 	t.Received += r.Received
+	t.Incoming += r.Incoming
 	t.Tries += r.Tries
 	t.Answered += r.Answered
 

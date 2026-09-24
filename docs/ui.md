@@ -40,6 +40,12 @@ holds collapse into one row per subnet. The Internet tab groups addresses by
 the organisation that announces them. The section can be narrowed to one
 service, or by a search over names, addresses and organisations.
 
+A peer that opened a connection to the device, rather than the other way
+round, is marked "incoming", and the figures at the top count how many
+connections the internet opened. On the Traffic page, "Reached from the
+internet" lists each device and service someone on the internet connected to:
+what the network exposes, as it was used.
+
 Connections the device started that never carried data -- a port that
 refused, one nobody answered, a ping -- are counted at the top and left out of
 the tabs until "Show tries with no data" is ticked; then each sits on the row
