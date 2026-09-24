@@ -131,8 +131,10 @@ On MikroTik RouterOS, point Traffic Flow at the Jocasta host (here
 Export from one router only. Two routers that both see a conversation both
 report it, and it is counted twice.
 
-Internet addresses are shown by the organisation that announces them, using
-[IP to ASN data](https://db-ip.com/db/download/ip-to-asn-lite) by
+Internet addresses are shown by the organisation that announces them, and
+placed on the map by the country they are registered in, using
+[IP to ASN data](https://db-ip.com/db/download/ip-to-asn-lite) and
+[IP to Country data](https://db-ip.com/db/download/ip-to-country-lite) by
 [DB-IP](https://db-ip.com), licensed under
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
