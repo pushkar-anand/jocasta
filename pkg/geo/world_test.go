@@ -47,3 +47,15 @@ func TestWorldDrawsEveryCountry(t *testing.T) {
 	_, ok := CountryOf("AQ")
 	assert.False(t, ok, "Antarctica is left off")
 }
+
+// A country sharing its code with small territories is named and marked as the
+// country, not as whichever territory the source listed last.
+func TestCountryOfNamesTheCountryNotATerritory(t *testing.T) {
+	t.Parallel()
+
+	for code, name := range map[string]string{"AU": "Australia", "BR": "Brazil", "FR": "France"} {
+		c, ok := CountryOf(code)
+		require.True(t, ok, code)
+		assert.Equal(t, name, c.Name)
+	}
+}
