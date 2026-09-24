@@ -104,6 +104,7 @@ Jocasta embeds third-party data:
 
 - MAC vendor names from the [IEEE registries](https://standards.ieee.org/products-programs/regauth/)
   and [Wireshark's manufacturer table](https://www.wireshark.org/).
-- [IP to ASN data](https://db-ip.com/db/download/ip-to-asn-lite) by
+- [IP to ASN data](https://db-ip.com/db/download/ip-to-asn-lite) and
+  [IP to Country data](https://db-ip.com/db/download/ip-to-country-lite) by
   [DB-IP](https://db-ip.com), licensed under
   [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
