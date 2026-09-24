@@ -36,6 +36,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.answerAttemptsStmt, err = db.PrepareContext(ctx, answerAttempts); err != nil {
 		return nil, fmt.Errorf("error preparing query AnswerAttempts: %w", err)
 	}
+	if q.answerProbesStmt, err = db.PrepareContext(ctx, answerProbes); err != nil {
+		return nil, fmt.Errorf("error preparing query AnswerProbes: %w", err)
+	}
 	if q.anyTrafficStmt, err = db.PrepareContext(ctx, anyTraffic); err != nil {
 		return nil, fmt.Errorf("error preparing query AnyTraffic: %w", err)
 	}
@@ -92,6 +95,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.deleteEventsBeforeStmt, err = db.PrepareContext(ctx, deleteEventsBefore); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteEventsBefore: %w", err)
+	}
+	if q.deleteProbesBeforeStmt, err = db.PrepareContext(ctx, deleteProbesBefore); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteProbesBefore: %w", err)
 	}
 	if q.deleteRecoveryCodesByUserStmt, err = db.PrepareContext(ctx, deleteRecoveryCodesByUser); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteRecoveryCodesByUser: %w", err)
@@ -204,8 +210,17 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.organisationDevicesStmt, err = db.PrepareContext(ctx, organisationDevices); err != nil {
 		return nil, fmt.Errorf("error preparing query OrganisationDevices: %w", err)
 	}
+	if q.outsideAddressesStmt, err = db.PrepareContext(ctx, outsideAddresses); err != nil {
+		return nil, fmt.Errorf("error preparing query OutsideAddresses: %w", err)
+	}
 	if q.portStatsStmt, err = db.PrepareContext(ctx, portStats); err != nil {
 		return nil, fmt.Errorf("error preparing query PortStats: %w", err)
+	}
+	if q.probePortsStmt, err = db.PrepareContext(ctx, probePorts); err != nil {
+		return nil, fmt.Errorf("error preparing query ProbePorts: %w", err)
+	}
+	if q.probedDevicesStmt, err = db.PrepareContext(ctx, probedDevices); err != nil {
+		return nil, fmt.Errorf("error preparing query ProbedDevices: %w", err)
 	}
 	if q.probingHoursStmt, err = db.PrepareContext(ctx, probingHours); err != nil {
 		return nil, fmt.Errorf("error preparing query ProbingHours: %w", err)
@@ -261,6 +276,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.upsertOpenPortStmt, err = db.PrepareContext(ctx, upsertOpenPort); err != nil {
 		return nil, fmt.Errorf("error preparing query UpsertOpenPort: %w", err)
 	}
+	if q.upsertOutsideAddressStmt, err = db.PrepareContext(ctx, upsertOutsideAddress); err != nil {
+		return nil, fmt.Errorf("error preparing query UpsertOutsideAddress: %w", err)
+	}
+	if q.upsertProbesStmt, err = db.PrepareContext(ctx, upsertProbes); err != nil {
+		return nil, fmt.Errorf("error preparing query UpsertProbes: %w", err)
+	}
 	if q.upsertSourceStmt, err = db.PrepareContext(ctx, upsertSource); err != nil {
 		return nil, fmt.Errorf("error preparing query UpsertSource: %w", err)
 	}
@@ -290,6 +311,11 @@ func (q *Queries) Close() error {
 	if q.answerAttemptsStmt != nil {
 		if cerr := q.answerAttemptsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing answerAttemptsStmt: %w", cerr)
+		}
+	}
+	if q.answerProbesStmt != nil {
+		if cerr := q.answerProbesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing answerProbesStmt: %w", cerr)
 		}
 	}
 	if q.anyTrafficStmt != nil {
@@ -385,6 +411,11 @@ func (q *Queries) Close() error {
 	if q.deleteEventsBeforeStmt != nil {
 		if cerr := q.deleteEventsBeforeStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteEventsBeforeStmt: %w", cerr)
+		}
+	}
+	if q.deleteProbesBeforeStmt != nil {
+		if cerr := q.deleteProbesBeforeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteProbesBeforeStmt: %w", cerr)
 		}
 	}
 	if q.deleteRecoveryCodesByUserStmt != nil {
@@ -572,9 +603,24 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing organisationDevicesStmt: %w", cerr)
 		}
 	}
+	if q.outsideAddressesStmt != nil {
+		if cerr := q.outsideAddressesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing outsideAddressesStmt: %w", cerr)
+		}
+	}
 	if q.portStatsStmt != nil {
 		if cerr := q.portStatsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing portStatsStmt: %w", cerr)
+		}
+	}
+	if q.probePortsStmt != nil {
+		if cerr := q.probePortsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing probePortsStmt: %w", cerr)
+		}
+	}
+	if q.probedDevicesStmt != nil {
+		if cerr := q.probedDevicesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing probedDevicesStmt: %w", cerr)
 		}
 	}
 	if q.probingHoursStmt != nil {
@@ -667,6 +713,16 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing upsertOpenPortStmt: %w", cerr)
 		}
 	}
+	if q.upsertOutsideAddressStmt != nil {
+		if cerr := q.upsertOutsideAddressStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing upsertOutsideAddressStmt: %w", cerr)
+		}
+	}
+	if q.upsertProbesStmt != nil {
+		if cerr := q.upsertProbesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing upsertProbesStmt: %w", cerr)
+		}
+	}
 	if q.upsertSourceStmt != nil {
 		if cerr := q.upsertSourceStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing upsertSourceStmt: %w", cerr)
@@ -720,6 +776,7 @@ type Queries struct {
 	allCurrentAddressesStmt            *sql.Stmt
 	allNetworksStmt                    *sql.Stmt
 	answerAttemptsStmt                 *sql.Stmt
+	answerProbesStmt                   *sql.Stmt
 	anyTrafficStmt                     *sql.Stmt
 	attemptPortsStmt                   *sql.Stmt
 	busiestDevicesStmt                 *sql.Stmt
@@ -739,6 +796,7 @@ type Queries struct {
 	deleteBroadcastsBeforeStmt         *sql.Stmt
 	deleteDeviceStmt                   *sql.Stmt
 	deleteEventsBeforeStmt             *sql.Stmt
+	deleteProbesBeforeStmt             *sql.Stmt
 	deleteRecoveryCodesByUserStmt      *sql.Stmt
 	deleteScansBeforeStmt              *sql.Stmt
 	deleteTrafficBeforeStmt            *sql.Stmt
@@ -776,7 +834,10 @@ type Queries struct {
 	moveDeviceSourcesStmt              *sql.Stmt
 	moveEventsStmt                     *sql.Stmt
 	organisationDevicesStmt            *sql.Stmt
+	outsideAddressesStmt               *sql.Stmt
 	portStatsStmt                      *sql.Stmt
+	probePortsStmt                     *sql.Stmt
+	probedDevicesStmt                  *sql.Stmt
 	probingHoursStmt                   *sql.Stmt
 	redeemRecoveryCodeStmt             *sql.Stmt
 	refreshAddressStmt                 *sql.Stmt
@@ -795,6 +856,8 @@ type Queries struct {
 	upsertNetworkStmt                  *sql.Stmt
 	upsertNetworkIdentityStmt          *sql.Stmt
 	upsertOpenPortStmt                 *sql.Stmt
+	upsertOutsideAddressStmt           *sql.Stmt
+	upsertProbesStmt                   *sql.Stmt
 	upsertSourceStmt                   *sql.Stmt
 	upsertTrafficStmt                  *sql.Stmt
 }
@@ -807,6 +870,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		allCurrentAddressesStmt:            q.allCurrentAddressesStmt,
 		allNetworksStmt:                    q.allNetworksStmt,
 		answerAttemptsStmt:                 q.answerAttemptsStmt,
+		answerProbesStmt:                   q.answerProbesStmt,
 		anyTrafficStmt:                     q.anyTrafficStmt,
 		attemptPortsStmt:                   q.attemptPortsStmt,
 		busiestDevicesStmt:                 q.busiestDevicesStmt,
@@ -826,6 +890,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deleteBroadcastsBeforeStmt:         q.deleteBroadcastsBeforeStmt,
 		deleteDeviceStmt:                   q.deleteDeviceStmt,
 		deleteEventsBeforeStmt:             q.deleteEventsBeforeStmt,
+		deleteProbesBeforeStmt:             q.deleteProbesBeforeStmt,
 		deleteRecoveryCodesByUserStmt:      q.deleteRecoveryCodesByUserStmt,
 		deleteScansBeforeStmt:              q.deleteScansBeforeStmt,
 		deleteTrafficBeforeStmt:            q.deleteTrafficBeforeStmt,
@@ -863,7 +928,10 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		moveDeviceSourcesStmt:              q.moveDeviceSourcesStmt,
 		moveEventsStmt:                     q.moveEventsStmt,
 		organisationDevicesStmt:            q.organisationDevicesStmt,
+		outsideAddressesStmt:               q.outsideAddressesStmt,
 		portStatsStmt:                      q.portStatsStmt,
+		probePortsStmt:                     q.probePortsStmt,
+		probedDevicesStmt:                  q.probedDevicesStmt,
 		probingHoursStmt:                   q.probingHoursStmt,
 		redeemRecoveryCodeStmt:             q.redeemRecoveryCodeStmt,
 		refreshAddressStmt:                 q.refreshAddressStmt,
@@ -882,6 +950,8 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		upsertNetworkStmt:                  q.upsertNetworkStmt,
 		upsertNetworkIdentityStmt:          q.upsertNetworkIdentityStmt,
 		upsertOpenPortStmt:                 q.upsertOpenPortStmt,
+		upsertOutsideAddressStmt:           q.upsertOutsideAddressStmt,
+		upsertProbesStmt:                   q.upsertProbesStmt,
 		upsertSourceStmt:                   q.upsertSourceStmt,
 		upsertTrafficStmt:                  q.upsertTrafficStmt,
 	}

@@ -114,6 +114,27 @@ type Network struct {
 	CreatedAt dbtype.Time    `json:"created_at"`
 }
 
+type OutsideAddress struct {
+	SourceID  int64       `json:"source_id"`
+	Address   dbtype.Addr `json:"address"`
+	FirstSeen dbtype.Time `json:"first_seen"`
+	LastSeen  dbtype.Time `json:"last_seen"`
+}
+
+type ProbesHourly struct {
+	SourceID  int64         `json:"source_id"`
+	DeviceID  int64         `json:"device_id"`
+	Hour      dbtype.Time   `json:"hour"`
+	PeerIP    dbtype.Addr   `json:"peer_ip"`
+	PeerASN   sql.NullInt64 `json:"peer_asn"`
+	Protocol  int64         `json:"protocol"`
+	Attempts  int64         `json:"attempts"`
+	Answered  int64         `json:"answered"`
+	PortCount int64         `json:"port_count"`
+	Ports     string        `json:"ports"`
+	Outside   int64         `json:"outside"`
+}
+
 type Scan struct {
 	ID         int64             `json:"id"`
 	SourceID   int64             `json:"source_id"`
