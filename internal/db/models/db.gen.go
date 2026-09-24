@@ -81,6 +81,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deleteScansBeforeStmt, err = db.PrepareContext(ctx, deleteScansBefore); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteScansBefore: %w", err)
 	}
+	if q.deleteTrafficBeforeStmt, err = db.PrepareContext(ctx, deleteTrafficBefore); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteTrafficBefore: %w", err)
+	}
 	if q.deviceNetworkNamesStmt, err = db.PrepareContext(ctx, deviceNetworkNames); err != nil {
 		return nil, fmt.Errorf("error preparing query DeviceNetworkNames: %w", err)
 	}
@@ -210,6 +213,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.upsertSourceStmt, err = db.PrepareContext(ctx, upsertSource); err != nil {
 		return nil, fmt.Errorf("error preparing query UpsertSource: %w", err)
 	}
+	if q.upsertTrafficStmt, err = db.PrepareContext(ctx, upsertTraffic); err != nil {
+		return nil, fmt.Errorf("error preparing query UpsertTraffic: %w", err)
+	}
 	return &q, nil
 }
 
@@ -308,6 +314,11 @@ func (q *Queries) Close() error {
 	if q.deleteScansBeforeStmt != nil {
 		if cerr := q.deleteScansBeforeStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteScansBeforeStmt: %w", cerr)
+		}
+	}
+	if q.deleteTrafficBeforeStmt != nil {
+		if cerr := q.deleteTrafficBeforeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteTrafficBeforeStmt: %w", cerr)
 		}
 	}
 	if q.deviceNetworkNamesStmt != nil {
@@ -525,6 +536,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing upsertSourceStmt: %w", cerr)
 		}
 	}
+	if q.upsertTrafficStmt != nil {
+		if cerr := q.upsertTrafficStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing upsertTrafficStmt: %w", cerr)
+		}
+	}
 	return err
 }
 
@@ -583,6 +599,7 @@ type Queries struct {
 	deleteEventsBeforeStmt             *sql.Stmt
 	deleteRecoveryCodesByUserStmt      *sql.Stmt
 	deleteScansBeforeStmt              *sql.Stmt
+	deleteTrafficBeforeStmt            *sql.Stmt
 	deviceNetworkNamesStmt             *sql.Stmt
 	deviceStatsStmt                    *sql.Stmt
 	disableUserTOTPStmt                *sql.Stmt
@@ -626,6 +643,7 @@ type Queries struct {
 	upsertNetworkIdentityStmt          *sql.Stmt
 	upsertOpenPortStmt                 *sql.Stmt
 	upsertSourceStmt                   *sql.Stmt
+	upsertTrafficStmt                  *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
@@ -651,6 +669,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deleteEventsBeforeStmt:             q.deleteEventsBeforeStmt,
 		deleteRecoveryCodesByUserStmt:      q.deleteRecoveryCodesByUserStmt,
 		deleteScansBeforeStmt:              q.deleteScansBeforeStmt,
+		deleteTrafficBeforeStmt:            q.deleteTrafficBeforeStmt,
 		deviceNetworkNamesStmt:             q.deviceNetworkNamesStmt,
 		deviceStatsStmt:                    q.deviceStatsStmt,
 		disableUserTOTPStmt:                q.disableUserTOTPStmt,
@@ -694,5 +713,6 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		upsertNetworkIdentityStmt:          q.upsertNetworkIdentityStmt,
 		upsertOpenPortStmt:                 q.upsertOpenPortStmt,
 		upsertSourceStmt:                   q.upsertSourceStmt,
+		upsertTrafficStmt:                  q.upsertTrafficStmt,
 	}
 }
