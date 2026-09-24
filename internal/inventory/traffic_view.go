@@ -45,8 +45,9 @@ type TrafficPeer struct {
 	Received int64 `json:"received"`
 
 	// Connections counts the conversations the device started to this peer
-	// and service.
-	Connections int64 `json:"connections"`
+	// and service, ConnectionsIn the ones the peer started to the device's.
+	Connections   int64 `json:"connections"`
+	ConnectionsIn int64 `json:"connections_in,omitempty"`
 
 	// LastHour is the start of the most recent hour the two exchanged
 	// anything.
@@ -195,15 +196,16 @@ func trafficPeer(row *models.DeviceTrafficRow) (*TrafficPeer, error) {
 	}
 
 	p := &TrafficPeer{
-		DeviceID:    row.PeerDeviceID,
-		IP:          ip,
-		Name:        row.PeerName,
-		Protocol:    uint8(row.Protocol),     //nolint:gosec // written from a uint8.
-		ServicePort: uint16(row.ServicePort), //nolint:gosec // range enforced by the column CHECK.
-		Sent:        row.BytesOut,
-		Received:    row.BytesIn,
-		Connections: row.Connections,
-		LastHour:    last,
+		DeviceID:      row.PeerDeviceID,
+		IP:            ip,
+		Name:          row.PeerName,
+		Protocol:      uint8(row.Protocol),     //nolint:gosec // written from a uint8.
+		ServicePort:   uint16(row.ServicePort), //nolint:gosec // range enforced by the column CHECK.
+		Sent:          row.BytesOut,
+		Received:      row.BytesIn,
+		Connections:   row.Connections,
+		ConnectionsIn: row.ConnectionsIn,
+		LastHour:      last,
 	}
 
 	p.Service = scanner.ServiceName(p.ServicePort)
