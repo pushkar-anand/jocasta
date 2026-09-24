@@ -1,4 +1,4 @@
-.PHONY: tidy fmt build run gen new_migration docker oui asn geo htmx test lint dev
+.PHONY: tidy fmt build run gen new_migration docker oui asn geo world htmx test lint dev
 
 .DEFAULT_GOAL := build
 
@@ -29,6 +29,9 @@ asn: ## Rebuild the embedded IP-to-ASN tables from DB-IP.
 
 geo: ## Rebuild the embedded IP-to-country table from DB-IP.
 	cd pkg/geo && go run ./internal/gen
+
+world: ## Rebuild the embedded world outline from Natural Earth.
+	cd pkg/geo && go run ./internal/world
 
 # htmx is vendored rather than loaded from a CDN because the content security
 # policy admits scripts from this origin only.
