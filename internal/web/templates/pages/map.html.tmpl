@@ -14,7 +14,10 @@
 {{- else }}
 <section class="block">
     <div class="block__head">
-        <h2 class="section">Who talks to whom</h2>
+        <nav class="tabs" aria-label="Which map">
+            <a class="tabs__tab" href="/map"{{ if not .World }} aria-current="page"{{ end }}>Network</a>
+            <a class="tabs__tab" href="/map?view=world"{{ if .World }} aria-current="page"{{ end }}>World</a>
+        </nav>
         <p class="block__aside">Last hour</p>
     </div>
 
@@ -24,12 +27,16 @@
            inside it, which is what /map/live answers with. */}}
     <div class="netmap-wrap">
         <label class="netmap__search">
-            <span class="visually-hidden">Find a device or organisation</span>
+            <span class="visually-hidden">Find {{ if .World }}a country{{ else }}a device or organisation{{ end }}</span>
             <input id="netmap-search" type="search" placeholder="Search" autocomplete="off" spellcheck="false">
         </label>
+        {{- if .World }}
+        {{- template "partial/map-world" . }}
+        {{- else }}
         <div id="map-live" hx-get="/map/live" hx-trigger="every 60s" hx-swap="innerHTML">
             {{- template "partial/map-body" . }}
         </div>
+        {{- end }}
     </div>
 </section>
 {{- end }}

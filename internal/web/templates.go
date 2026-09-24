@@ -33,4 +33,5 @@ const (
 	templatePartialDevicePanel   = "partial/device-panel"
 	templatePartialDeviceTraffic = "partial/device-traffic"
 	templatePartialMapBody       = "partial/map-body"
+	templatePartialMapWorldBody  = "partial/map-world-body" //nolint:gosec // G101: a template name, not a credential
 )
