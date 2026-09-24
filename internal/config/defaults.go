@@ -11,6 +11,12 @@ var defaults = map[string]any{
 	"server.host": "localhost",
 	"server.port": 8080,
 
+	"server.auth.session_lifetime": "168h",
+	"server.auth.idle_timeout":     "24h",
+	"server.auth.cookie_secure":    true,
+
+	"server.mcp.enabled": false,
+
 	"db.path": ".",
 	"db.name": "jocasta.db",
 
@@ -19,7 +25,12 @@ var defaults = map[string]any{
 
 	"inventory.online_window": inventory.DefaultOnlineWindow.String(),
 	"inventory.address_grace": inventory.DefaultAddressGrace.String(),
-	"inventory.retention":     inventory.DefaultRetention.String(),
+
+	"retention.history": inventory.DefaultRetention.String(),
+	"retention.traffic": inventory.DefaultTrafficRetention.String(),
+
+	"location.country":  "",
+	"location.timezone": "",
 
 	"scan.source": defaultSource(),
 
@@ -34,14 +45,6 @@ var defaults = map[string]any{
 	"scan.ports.interval":        "6h",
 	"scan.ports.custom":          "",
 	"scan.ports.concurrency":     scanner.DefaultConcurrency,
-
-	"auth.session_lifetime": "168h",
-	"auth.idle_timeout":     "24h",
-	"auth.cookie_secure":    true,
-
-	"mcp.enabled": false,
-
-	"traffic.retention": inventory.DefaultTrafficRetention.String(),
 }
 
 // DefaultNetFlowListen is the UDP address a NetFlow instance binds when it

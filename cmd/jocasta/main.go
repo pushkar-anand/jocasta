@@ -8,6 +8,8 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
+	_ "time/tzdata" // location.timezone must resolve on a host without a zone database
 
 	"github.com/alecthomas/kong"
 	"github.com/pushkar-anand/build-with-go/logger"
@@ -153,5 +155,34 @@ func loadConfig(cli *CLI) (*config.Config, error) {
 		cfg.Logger.Format = cli.LogFormat
 	}
 
+	// Set process-wide, before anything reads the clock, so every command
+	// shows times in the same zone.
+	loc, err := timezone(cfg.Location.Timezone)
+	if err != nil {
+		return nil, err
+	}
+
+	if loc != nil {
+		time.Local = loc
+	}
+
 	return cfg, nil
+}
+
+// timezone resolves location.timezone, the zone times are shown in; a
+// container's is otherwise UTC whatever the network's is. Empty returns nil,
+// leaving the TZ variable and the system to decide, and a name that does not
+// resolve fails startup rather than quietly showing UTC.
+func timezone(name string) (*time.Location, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, nil //nolint:nilnil // nil means "leave time.Local alone"
+	}
+
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		return nil, fmt.Errorf("location.timezone: %q is not a known time zone: %w", name, err)
+	}
+
+	return loc, nil
 }
