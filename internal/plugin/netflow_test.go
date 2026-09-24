@@ -214,7 +214,7 @@ func TestNetFlowDecodesEachExportVersion(t *testing.T) {
 		{
 			name:    "v5",
 			packets: [][]byte{v5Packet(0)},
-			want: Flow{Src: nfSrc, Dst: nfDst, SrcPort: 51000, DstPort: 443, Protocol: 6,
+			want: Flow{Src: nfSrc, Dst: nfDst, SrcPort: 51000, DstPort: 443, Protocol: 6, TCPFlags: 0x18,
 				Bytes: 1500, Packets: 10, End: nfExported},
 		},
 		{

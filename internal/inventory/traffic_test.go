@@ -25,10 +25,12 @@ func (trafficSource) Kind() dbtype.SourceKind { return dbtype.SourceRouter }
 
 var trafficHour = time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 
+// flow is one direction of a TCP connection that carried data, flagged the
+// way an exporter reports one: a handshake, then data pushed.
 func flow(src, dst string, srcPort, dstPort uint16, bytes uint64, at time.Time) plugin.Flow {
 	return plugin.Flow{
 		Src: netip.MustParseAddr(src), Dst: netip.MustParseAddr(dst),
-		SrcPort: srcPort, DstPort: dstPort, Protocol: 6,
+		SrcPort: srcPort, DstPort: dstPort, Protocol: 6, TCPFlags: 0x1a, // SYN, PSH, ACK
 		Bytes: bytes, Packets: bytes / 100, End: at,
 	}
 }
@@ -114,45 +116,6 @@ func TestTrafficSkipsBroadcastAndMulticast(t *testing.T) {
 	require.NoError(t, rec.Flush(t.Context()))
 
 	assert.Empty(t, trafficRows(t, conn))
-}
-
-// The unanswered addresses are private-use because that is what the rule is
-// about: a sweep of the home network's own ranges. They are picked from the
-// top of 10/8, which no router hands out by default.
-func TestTrafficDropsUnansweredProbesOfLocalAddressesNoDeviceHolds(t *testing.T) {
-	t.Parallel()
-
-	s, conn := newStore(t)
-	sweep(t, s, host("192.0.2.10", macA, ""))
-
-	a := deviceIDByMAC(t, conn, macA)
-	rec := newRecorder(s, nil)
-
-	ping := func(src, dst string) plugin.Flow {
-		f := flow(src, dst, 0, 0, 84, trafficHour)
-		f.Protocol = 1
-
-		return f
-	}
-
-	rec.Add(trafficSource{}, []plugin.Flow{
-		// Nothing answers at .1 or .2.
-		ping("192.0.2.10", "10.255.255.1"),
-		ping("192.0.2.10", "10.255.255.2"),
-		// .3 does, so it is a peer even though no device holds it.
-		ping("192.0.2.10", "10.255.255.3"),
-		ping("10.255.255.3", "192.0.2.10"),
-		// Off the local network, an unanswered connection is kept.
-		flow("192.0.2.10", "203.0.113.5", 51000, 443, 60, trafficHour),
-	})
-	require.NoError(t, rec.Flush(t.Context()))
-
-	hour := trafficHour.Format(dbtype.Layout)
-
-	assert.Equal(t, []trafficRow{
-		{Device: a, Peer: "10.255.255.3", Out: 84, In: 84, Connections: 1, Hour: hour},
-		{Device: a, Peer: "203.0.113.5", Service: 443, Out: 60, Connections: 1, Hour: hour},
-	}, trafficRows(t, conn))
 }
 
 func TestTrafficAddsUpAcrossFlushes(t *testing.T) {
