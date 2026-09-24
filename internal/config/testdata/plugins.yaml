@@ -17,3 +17,9 @@ plugins:
       port: 8080
       user: reader
       password: also-from-file
+  netflow:
+    gateway:
+      enabled: true
+      listen: ":2055"
+      exporters:
+        - 192.0.2.1

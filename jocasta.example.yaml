@@ -71,3 +71,9 @@ plugins:
       ssl: true
       insecure: true          # RouterOS serves a self-signed cert unless you import one
       timeout: "15s"
+  netflow:
+    gateway:
+      enabled: true
+      listen: ":2055"         # UDP address the router exports flows to
+      exporters:              # only these may send; UDP is trivially spoofed
+        - "192.0.2.1"
