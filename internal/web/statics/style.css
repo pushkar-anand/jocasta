@@ -2643,6 +2643,403 @@ td .traffic__tried {
     height: 15px;
 }
 
+/* ---- Network map ------------------------------------------------------------ */
+
+/* The map is an SVG laid out on the server; everything that colours or moves
+   it is here, so the policy's ban on inline style holds and the dark theme
+   follows the tokens. The search and zoom float top left, the legend top
+   right. */
+.netmap-wrap {
+    position: relative;
+}
+
+.netmap {
+    position: relative;
+    height: min(82vh, 1000px);
+    min-height: 440px;
+    padding: 0;
+    overflow: hidden;
+}
+
+.netmap__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    font-family: var(--sans);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+
+.netmap__svg--dragging {
+    cursor: grabbing;
+}
+
+.netmap__search {
+    position: absolute;
+    z-index: 2;
+    top: 12px;
+    left: 12px;
+    width: min(240px, calc(100% - 24px));
+}
+
+.netmap__search input {
+    width: 100%;
+    height: 34px;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: var(--fs-support);
+    box-shadow: var(--shadow-card);
+}
+
+.netmap__zoom {
+    position: absolute;
+    z-index: 1;
+    top: 56px;
+    left: 12px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+}
+
+.netmap__zoom-btn {
+    width: 32px;
+    height: 32px;
+    border: 0;
+    background: transparent;
+    color: var(--text-2);
+    font: 600 16px/1 var(--sans);
+    cursor: pointer;
+}
+
+.netmap__zoom-btn + .netmap__zoom-btn {
+    border-top: 1px solid var(--border);
+}
+
+.netmap__zoom-btn:hover,
+.netmap__zoom-btn:focus-visible {
+    background: var(--surface-2);
+    color: var(--text);
+}
+
+.netmap__legend {
+    position: absolute;
+    z-index: 1;
+    top: 12px;
+    right: 12px;
+    max-width: 260px;
+    max-height: calc(100% - 24px);
+    overflow-y: auto;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    box-shadow: var(--shadow-card);
+    font-size: var(--fs-support);
+}
+
+.netmap__keys {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.netmap__keys--lines {
+    border-top: 1px solid var(--border);
+    margin-top: 6px;
+    padding-top: 6px;
+}
+
+.netmap__key {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    color: var(--text-2);
+}
+
+.netmap__key[tabindex]:hover,
+.netmap__key[tabindex]:focus-visible {
+    background: var(--surface-2);
+    color: var(--text);
+    outline: none;
+}
+
+.netmap__swatch {
+    flex: none;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--tone);
+}
+
+.netmap__swatch--hollow {
+    background: var(--surface);
+    border: 1.5px solid var(--text-2);
+}
+
+.netmap__key-label {
+    flex: 1;
+    min-width: 0;
+}
+
+.netmap__key-count {
+    color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+}
+
+.netmap__key-line {
+    flex: none;
+    width: 36px;
+    height: 10px;
+}
+
+.netmap__tone-0 { --tone: var(--brand); }
+.netmap__tone-1 { --tone: var(--aqua); }
+.netmap__tone-2 { --tone: var(--violet); }
+.netmap__tone-3 { --tone: var(--warning); }
+.netmap__tone-4 { --tone: var(--critical); }
+.netmap__tone-5 { --tone: var(--good); }
+
+.netmap__line {
+    fill: none;
+    stroke: var(--border-strong);
+    opacity: 0.8;
+    transition: opacity 0.15s;
+}
+
+.netmap__line--active {
+    stroke: var(--brand);
+    opacity: 0.9;
+    stroke-dasharray: 6 6;
+}
+
+.netmap__line:hover {
+    stroke: var(--brand-ink);
+    opacity: 1;
+}
+
+.netmap__router {
+    fill: var(--brand);
+    stroke: var(--surface);
+    stroke-width: 2;
+}
+
+.netmap__hub {
+    fill: var(--tone, var(--surface));
+    stroke: var(--surface);
+    stroke-width: 2.5;
+}
+
+.netmap__hubnode--internet .netmap__hub {
+    fill: var(--surface);
+    stroke: var(--text-2);
+}
+
+.netmap__hub-label {
+    fill: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    paint-order: stroke;
+    stroke: var(--surface);
+    stroke-width: 4px;
+    stroke-linejoin: round;
+}
+
+.netmap__dev {
+    transition: opacity 0.15s;
+}
+
+.netmap__node {
+    fill: var(--tone);
+    stroke: var(--surface);
+    stroke-width: 1.5;
+}
+
+.netmap__org {
+    fill: var(--surface);
+    stroke: var(--text-2);
+    stroke-width: 1.5;
+}
+
+.netmap__node--active {
+    stroke: var(--brand);
+    stroke-width: 3;
+}
+
+.netmap__label {
+    fill: var(--text-2);
+    font-size: 11px;
+}
+
+.netmap a:hover .netmap__label,
+.netmap a:focus-visible .netmap__label {
+    fill: var(--link);
+    text-decoration: underline;
+}
+
+/* Links join a device to what it talked to, over the tree: faint until one
+   end is selected, which lights its links, names their services and dims the
+   rest. */
+.netmap__link {
+    fill: none;
+    stroke: var(--violet);
+    opacity: 0.22;
+    transition: opacity 0.15s;
+}
+
+.netmap__link--active {
+    stroke: var(--brand);
+    opacity: 0.5;
+    stroke-dasharray: 6 6;
+}
+
+.netmap__link-label {
+    display: none;
+    fill: var(--text);
+    font-size: 12px;
+    font-weight: 600;
+    paint-order: stroke;
+    stroke: var(--surface);
+    stroke-width: 4px;
+    stroke-linejoin: round;
+    pointer-events: none;
+}
+
+.netmap__svg--selected .netmap__dev:not(.is-selected):not(.is-peer) {
+    opacity: 0.12;
+}
+
+.netmap__svg--selected .netmap__line {
+    opacity: 0.12;
+}
+
+.netmap__svg--selected .netmap__link:not(.is-on) {
+    opacity: 0.03;
+}
+
+.netmap__svg--selected .netmap__link.is-on {
+    stroke: var(--brand);
+    opacity: 0.95;
+}
+
+.netmap__svg--selected .netmap__link-label.is-on {
+    display: inline;
+}
+
+.netmap__dev.is-selected circle {
+    stroke: var(--brand-ink);
+    stroke-width: 4;
+}
+
+.netmap__dev.is-selected .netmap__label,
+.netmap__dev.is-peer .netmap__label {
+    fill: var(--text);
+    font-weight: 600;
+}
+
+/* A search dims everything it did not find. */
+.netmap__svg--searching .netmap__dev:not(.netmap__dev--match),
+.netmap__svg--searching .netmap__line {
+    opacity: 0.12;
+}
+
+.netmap__dev--match .netmap__label {
+    fill: var(--text);
+    font-weight: 600;
+}
+
+/* Pointing at a network in the legend picks its devices out on the map. */
+.netmap:has(.netmap__key.netmap__tone-0:hover) .netmap__dev:not(.netmap__tone-0),
+.netmap:has(.netmap__key.netmap__tone-0:focus) .netmap__dev:not(.netmap__tone-0) {
+    opacity: 0.15;
+}
+
+.netmap:has(.netmap__key.netmap__tone-1:hover) .netmap__dev:not(.netmap__tone-1),
+.netmap:has(.netmap__key.netmap__tone-1:focus) .netmap__dev:not(.netmap__tone-1) {
+    opacity: 0.15;
+}
+
+.netmap:has(.netmap__key.netmap__tone-2:hover) .netmap__dev:not(.netmap__tone-2),
+.netmap:has(.netmap__key.netmap__tone-2:focus) .netmap__dev:not(.netmap__tone-2) {
+    opacity: 0.15;
+}
+
+.netmap:has(.netmap__key.netmap__tone-3:hover) .netmap__dev:not(.netmap__tone-3),
+.netmap:has(.netmap__key.netmap__tone-3:focus) .netmap__dev:not(.netmap__tone-3) {
+    opacity: 0.15;
+}
+
+.netmap:has(.netmap__key.netmap__tone-4:hover) .netmap__dev:not(.netmap__tone-4),
+.netmap:has(.netmap__key.netmap__tone-4:focus) .netmap__dev:not(.netmap__tone-4) {
+    opacity: 0.15;
+}
+
+.netmap:has(.netmap__key.netmap__tone-5:hover) .netmap__dev:not(.netmap__tone-5),
+.netmap:has(.netmap__key.netmap__tone-5:focus) .netmap__dev:not(.netmap__tone-5) {
+    opacity: 0.15;
+}
+
+.netmap:has(.netmap__key--internet:hover) .netmap__dev:not(.netmap__dev--org),
+.netmap:has(.netmap__key--internet:focus) .netmap__dev:not(.netmap__dev--org) {
+    opacity: 0.15;
+}
+
+.netmap:has(.netmap__key[tabindex]:hover) .netmap__line,
+.netmap:has(.netmap__key[tabindex]:focus) .netmap__line {
+    opacity: 0.15;
+}
+
+/* On a phone the legend would cover the map; it goes under it instead. */
+@media (max-width: 700px) {
+    .netmap {
+        height: auto;
+        min-height: 0;
+    }
+
+    .netmap__svg {
+        height: 65vh;
+    }
+
+    .netmap__legend {
+        position: static;
+        max-width: none;
+        max-height: none;
+        border-width: 1px 0 0;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .netmap__keys:first-child {
+        flex-flow: row wrap;
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .netmap__line--active,
+    .netmap__link--active {
+        animation: netmap-flow 1.2s linear infinite;
+    }
+}
+
+@keyframes netmap-flow {
+    to {
+        stroke-dashoffset: -12;
+    }
+}
+
 /* ---- Coarse pointers -------------------------------------------------------- */
 
 /* A finger is a blunter instrument than a mouse pointer: 34px is comfortable to

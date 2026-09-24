@@ -12,6 +12,16 @@ type crumb struct {
 // view is what the layout needs from every page. The sidebar's sections are
 // static markup in partial/nav, not built from this; Section only says which
 // of them to mark current.
+// liveEvery is a view's Live: every when the page refreshes itself, and empty
+// when it does not.
+func liveEvery(live bool, every string) string {
+	if !live {
+		return ""
+	}
+
+	return every
+}
+
 type view struct {
 	Title   string
 	Section string
@@ -19,9 +29,9 @@ type view struct {
 	// Crumb is the way back, shown before the title. Nil leaves it out.
 	Crumb *crumb
 
-	// Live marks a page that refreshes itself, which is the only thing the
-	// indicator in the topbar claims.
-	Live bool
+	// Live is how often a page that refreshes itself does so, as the
+	// indicator in the topbar says it; empty on a page that does not.
+	Live string
 
 	// Role is the signed-in account's role
 	Role dbtype.UserRole

@@ -1,0 +1,128 @@
+{{- /*
+    The network map as a tree: the router in the middle, a hub for each
+    network and the internet around it, and what hangs off each hub around it.
+    Over the tree, a link joins each device to what it exchanged traffic with;
+    selecting a node lights its links and names their services.
+    Laid out by netmap.Place; every colour and motion comes from classes in
+    style.css, which the policy requires and which gives the dark theme for
+    free. netmap.js zooms, pans and searches, and restores all three after
+    each redraw.
+*/ -}}
+{{ define "partial/map-body" }}
+{{- if not .Map.Devices }}
+<div class="card empty">
+    <p>No traffic in the last hour. The map fills in as devices talk.</p>
+</div>
+{{- else }}
+{{- $watching := .Watching }}
+{{- with .Layout }}
+<div class="card netmap">
+    <div class="netmap__zoom" role="group" aria-label="Zoom">
+        <button type="button" class="netmap__zoom-btn" data-netmap-zoom="in" aria-label="Zoom in">+</button>
+        <button type="button" class="netmap__zoom-btn" data-netmap-zoom="out" aria-label="Zoom out">&minus;</button>
+        <button type="button" class="netmap__zoom-btn" data-netmap-zoom="reset" aria-label="Show the whole map">&#x2922;</button>
+    </div>
+
+    <aside class="netmap__legend" aria-label="Legend">
+        <ul class="netmap__keys">
+            {{- range .Hubs }}
+            {{- if .Internet }}
+            <li class="netmap__key netmap__key--internet" tabindex="0">
+                <span class="netmap__swatch netmap__swatch--hollow" aria-hidden="true"></span>
+                <span class="netmap__key-label">Internet</span>
+                <span class="netmap__key-count">{{ .Nodes }}</span>
+            </li>
+            {{- else }}
+            <li class="netmap__key netmap__tone-{{ segtone .Index }}" tabindex="0">
+                <span class="netmap__swatch" aria-hidden="true"></span>
+                <span class="netmap__key-label">{{ .Label }}</span>
+                <span class="netmap__key-count">{{ .Nodes }}</span>
+            </li>
+            {{- end }}
+            {{- end }}
+        </ul>
+        <ul class="netmap__keys netmap__keys--lines">
+            <li class="netmap__key">
+                <svg class="netmap__key-line" viewBox="0 0 36 10" aria-hidden="true"><path class="netmap__link" d="M 2 8 Q 18 0 34 8" stroke-width="2.5"/></svg>
+                <span class="netmap__key-label">Talks to</span>
+            </li>
+        </ul>
+        {{- if $watching }}
+        <ul class="netmap__keys netmap__keys--lines">
+            <li class="netmap__key">
+                <svg class="netmap__key-line" viewBox="0 0 36 10" aria-hidden="true"><path class="netmap__line netmap__line--active" d="M 2 5 L 34 5" stroke-width="3"/></svg>
+                <span class="netmap__key-label">Active now</span>
+            </li>
+        </ul>
+        {{- end }}
+    </aside>
+
+    <svg class="netmap__svg" viewBox="0 0 {{ .Width }} {{ .Height }}"
+         data-width="{{ .Width }}" data-height="{{ .Height }}"
+         preserveAspectRatio="xMidYMid meet" role="img"
+         aria-label="Map of the devices on each network and the organisations on the internet that exchanged traffic in the last hour">
+
+        <g class="netmap__lines">
+            {{- range .Lines }}
+            <path class="netmap__line{{ if .Active }} netmap__line--active{{ end }}"
+                  d="{{ .Path }}" stroke-width="{{ .Width }}"><title>{{ .Title }}</title></path>
+            {{- end }}
+        </g>
+
+        <g class="netmap__links">
+            {{- range .Links }}
+            <path class="netmap__link{{ if .Active }} netmap__link--active{{ end }}" data-a="{{ .A }}" data-b="{{ .B }}"
+                  d="{{ .Path }}" stroke-width="{{ .Width }}"><title>{{ .Title }}{{ with services .Services }} &middot; {{ . }}{{ end }}</title></path>
+            {{- end }}
+        </g>
+
+        <g class="netmap__devices">
+            {{- range .Devices }}
+            <a class="netmap__dev netmap__tone-{{ segtone .Sector }}" href="/devices/{{ .ID }}" data-name="{{ .Name }}" data-key="{{ .Key }}">
+                <circle class="netmap__node{{ if .Active }} netmap__node--active{{ end }}"
+                        cx="{{ .At.X }}" cy="{{ .At.Y }}" r="7"><title>{{ .Name }} &middot; {{ bytes .Bytes }}</title></circle>
+                <text class="netmap__label" x="{{ .Label.At.X }}" y="{{ .Label.At.Y }}" dy="4"
+                      text-anchor="{{ .Label.Anchor }}"
+                      transform="rotate({{ .Label.Rotate }} {{ .Label.At.X }} {{ .Label.At.Y }})">{{ .Label.Text }}</text>
+            </a>
+            {{- end }}
+        </g>
+
+        <g class="netmap__orgs">
+            {{- range .Orgs }}
+            <g class="netmap__dev netmap__dev--org" data-name="{{ .Name }} {{ .Short }}" data-key="{{ .Key }}">
+                <circle class="netmap__org{{ if .Active }} netmap__node--active{{ end }}"
+                        cx="{{ .At.X }}" cy="{{ .At.Y }}" r="8"><title>{{ .Name }} &middot; {{ bytes .Bytes }}</title></circle>
+                <text class="netmap__label" x="{{ .Label.At.X }}" y="{{ .Label.At.Y }}" dy="4"
+                      text-anchor="{{ .Label.Anchor }}"
+                      transform="rotate({{ .Label.Rotate }} {{ .Label.At.X }} {{ .Label.At.Y }})">{{ .Label.Text }}</text>
+            </g>
+            {{- end }}
+        </g>
+
+        <g class="netmap__link-labels">
+            {{- range .Links }}
+            {{- $link := . }}
+            {{- with services .Services }}
+            <text class="netmap__link-label" data-a="{{ $link.A }}" data-b="{{ $link.B }}"
+                  x="{{ $link.LabelAt.X }}" y="{{ $link.LabelAt.Y }}" text-anchor="middle">{{ . }}</text>
+            {{- end }}
+            {{- end }}
+        </g>
+
+        <g class="netmap__hubs">
+            {{- range .Hubs }}
+            <g class="netmap__hubnode{{ if .Internet }} netmap__hubnode--internet{{ else }} netmap__tone-{{ segtone .Index }}{{ end }}">
+                <circle class="netmap__hub" cx="{{ .At.X }}" cy="{{ .At.Y }}" r="13"><title>{{ .Label }} &middot; {{ .Nodes }}</title></circle>
+                <text class="netmap__hub-label" x="{{ .LabelAt.X }}" y="{{ .LabelAt.Y }}" text-anchor="{{ .Anchor }}">{{ .Label }}</text>
+            </g>
+            {{- end }}
+            <rect class="netmap__router" x="{{ .Router.X }}" y="{{ .Router.Y }}" width="36" height="36" rx="7"
+                  transform="translate(-18 -18)"><title>Router</title></rect>
+            <text class="netmap__hub-label" x="{{ .Router.X }}" y="{{ .Router.Y }}" dy="36" text-anchor="middle">Router</text>
+        </g>
+    </svg>
+</div>
+{{- end }}
+{{- end }}
+{{ end }}

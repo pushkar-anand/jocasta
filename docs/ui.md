@@ -89,6 +89,30 @@ tried 20 or more addresses on your network, or 20 or more ports on one of
 them, without the connections carrying data: what a scan looks like. A host
 you run scans from appears there too.
 
+## Map
+
+The Map draws the last hour's traffic as a tree. The router is in the
+middle, with a hub for each network and one for the internet around it. Each
+network's devices, and the internet's organisations, fan out around their
+hub. A branch is thicker the more traffic passed along it, and moves when
+anything under it was active in the last 15 minutes. The page redraws itself
+every minute, which is how often new traffic is recorded.
+
+Over the tree, a faint line joins each device to what it exchanged traffic
+with: an organisation, or a device on another network. Click a device or an
+organisation to light its lines, name the services on each ("https", "port
+8883") and dim everything else; click the device again to open its page, and
+click the empty map or press Escape to go back. A device talking to one on the
+same network is not drawn, since that traffic never passes the router.
+
+Scroll or pinch to zoom, drag to pan, and double-click to zoom in on a spot;
+the buttons zoom and show the whole map again. The search box dims everything
+that does not match, and Enter zooms to the first match and selects it. The view and the
+search are kept across each redraw, and devices keep their place. The legend
+in the top right names each network's colour with its device count; pointing
+at one picks its devices out. The busiest 60 devices and 12 organisations are
+drawn, and each device links to its page.
+
 ## Network page
 
 One segment, its VLAN tag and name, and the devices on it.
