@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/netip"
 	"sync"
 	"time"
@@ -62,6 +63,12 @@ type TrafficRecorder struct {
 	// since they have no peer.
 	broadcasts map[broadcastKey]*broadcastTotals
 
+	// outside are the routers' outside addresses, learned from what they
+	// translated flows to, with who last named each and when; routers are the
+	// exporters' own addresses.
+	outside map[netip.Addr]outsideSeen
+	routers map[netip.Addr]bool
+
 	// ports is the ports each device tried on each peer this hour, kept
 	// across flushes so an hour's count is of distinct ports. Only Flush
 	// touches it.
@@ -112,6 +119,8 @@ func NewTrafficRecorder(store *Store, log *slog.Logger, resolve func(context.Con
 		resolve:    resolve,
 		pending:    make(map[trafficKey]*trafficTotals),
 		broadcasts: make(map[broadcastKey]*broadcastTotals),
+		outside:    make(map[netip.Addr]outsideSeen),
+		routers:    make(map[netip.Addr]bool),
 		names:      make(map[netip.Addr]peerName),
 		ports:      make(map[attemptKey]*portSet),
 	}
@@ -123,7 +132,11 @@ func (r *TrafficRecorder) Add(src plugin.Plugin, flows []plugin.Flow) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	r.learnOutside(src, flows)
+
 	for _, f := range flows {
+		f = r.toRouter(f)
+
 		if !conversational(f) {
 			if scope, ok := broadcastScope(f); ok {
 				r.addBroadcast(src, f, scope)
@@ -217,6 +230,10 @@ func (r *TrafficRecorder) Flush(ctx context.Context) error {
 	r.mu.Lock()
 	pending, broadcasts, dropped := r.pending, r.broadcasts, r.dropped
 	r.pending, r.broadcasts, r.dropped = make(map[trafficKey]*trafficTotals), make(map[broadcastKey]*broadcastTotals), 0
+
+	r.forgetOutside(r.store.now())
+	routers := maps.Clone(r.routers)
+	outside := maps.Clone(r.outside)
 	r.mu.Unlock()
 
 	if dropped > 0 {
@@ -238,7 +255,11 @@ func (r *TrafficRecorder) Flush(ctx context.Context) error {
 	conversations, attempts := splitAttempts(pending)
 	r.samplePorts(attempts, r.store.now())
 
-	return r.store.recordTraffic(ctx, conversations, attempts, broadcasts, r.peerNames)
+	if err := r.store.recordTraffic(ctx, conversations, attempts, broadcasts, routers, r.peerNames); err != nil {
+		return err
+	}
+
+	return r.store.recordOutside(ctx, outside)
 }
 
 // peerNames returns names for the peers in addrs, resolving the ones the cache
@@ -301,6 +322,7 @@ func (s *Store) recordTraffic(
 	pending map[trafficKey]*trafficTotals,
 	attempts map[attemptKey]*attemptSample,
 	broadcasts map[broadcastKey]*broadcastTotals,
+	routers map[netip.Addr]bool,
 	names func(context.Context, []netip.Addr) map[netip.Addr]string,
 ) error {
 	holders := make(map[netip.Addr]int64)
@@ -416,7 +438,7 @@ func (s *Store) recordTraffic(
 		}
 	}
 
-	if err := s.writeAttempts(ctx, q, attempts, holders, sourceID); err != nil {
+	if err := s.writeAttempts(ctx, q, attempts, holders, routers, sourceID); err != nil {
 		return err
 	}
 

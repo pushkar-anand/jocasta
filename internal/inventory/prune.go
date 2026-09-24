@@ -15,6 +15,7 @@ type Pruned struct {
 	Traffic    int64
 	Attempts   int64
 	Broadcasts int64
+	Probes     int64
 }
 
 // Prune deletes every event and every finished scan older than retention, and
@@ -70,6 +71,10 @@ func (s *Store) Prune(ctx context.Context, retention, trafficRetention time.Dura
 
 		if res.Broadcasts, err = q.DeleteBroadcastsBefore(ctx, cutoff); err != nil {
 			return nil, fmt.Errorf("prune broadcasts: %w", err)
+		}
+
+		if res.Probes, err = q.DeleteProbesBefore(ctx, cutoff); err != nil {
+			return nil, fmt.Errorf("prune probes: %w", err)
 		}
 	}
 
