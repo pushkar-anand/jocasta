@@ -52,3 +52,9 @@ func resolveName(ctx context.Context, addr netip.Addr) string {
 
 	return resolved
 }
+
+// ResolveName returns the reverse DNS name for addr, or the empty string when
+// it has none or the lookup does not answer within a lookup's bound.
+func ResolveName(ctx context.Context, addr netip.Addr) string {
+	return resolveName(ctx, addr)
+}

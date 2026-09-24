@@ -1,0 +1,247 @@
+package inventory
+
+import (
+	"context"
+	"database/sql"
+	"log/slog"
+	"net/netip"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
+	"github.com/pushkar-anand/jocasta/internal/plugin"
+)
+
+// trafficSource stands in for a traffic plugin: the recorder only needs to
+// know what to file the flows under.
+type trafficSource struct{}
+
+func (trafficSource) Name() string            { return "netflow:test" }
+func (trafficSource) Kind() dbtype.SourceKind { return dbtype.SourceRouter }
+
+var trafficHour = time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+
+func flow(src, dst string, srcPort, dstPort uint16, bytes uint64, at time.Time) plugin.Flow {
+	return plugin.Flow{
+		Src: netip.MustParseAddr(src), Dst: netip.MustParseAddr(dst),
+		SrcPort: srcPort, DstPort: dstPort, Protocol: 6,
+		Bytes: bytes, Packets: bytes / 100, End: at,
+	}
+}
+
+type trafficRow struct {
+	Device, PeerDevice   int64
+	Peer, PeerName       string
+	Service              int64
+	Out, In, Connections int64
+	Hour                 string
+}
+
+func trafficRows(t *testing.T, conn *sql.DB) []trafficRow {
+	t.Helper()
+
+	rows, err := conn.QueryContext(t.Context(), `
+		SELECT device_id, COALESCE(peer_device_id, 0), peer_ip, COALESCE(peer_name, ''),
+		       service_port, bytes_out, bytes_in, connections, hour
+		FROM traffic_hourly
+		ORDER BY device_id, hour, peer_ip, service_port`)
+	require.NoError(t, err)
+
+	defer func() { _ = rows.Close() }()
+
+	var out []trafficRow
+
+	for rows.Next() {
+		var r trafficRow
+		require.NoError(t, rows.Scan(&r.Device, &r.PeerDevice, &r.Peer, &r.PeerName,
+			&r.Service, &r.Out, &r.In, &r.Connections, &r.Hour))
+		out = append(out, r)
+	}
+
+	require.NoError(t, rows.Err())
+
+	return out
+}
+
+func newRecorder(s *Store, resolve func(context.Context, netip.Addr) string) *TrafficRecorder {
+	return NewTrafficRecorder(s, slog.New(slog.DiscardHandler), resolve)
+}
+
+func TestTrafficLandsOnEachDeviceInTheConversation(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, ""), host("192.0.2.11", macB, ""))
+
+	a, b := deviceIDByMAC(t, conn, macA), deviceIDByMAC(t, conn, macB)
+	rec := newRecorder(s, nil)
+
+	rec.Add(trafficSource{}, []plugin.Flow{
+		// A connects to B's SSH, and B replies.
+		flow("192.0.2.10", "192.0.2.11", 51000, 22, 1000, trafficHour.Add(5*time.Minute)),
+		flow("192.0.2.11", "192.0.2.10", 22, 51000, 4000, trafficHour.Add(5*time.Minute)),
+		// Two addresses no device holds: nothing to record.
+		flow("198.51.100.1", "198.51.100.2", 51000, 443, 999, trafficHour),
+	})
+	require.NoError(t, rec.Flush(t.Context()))
+
+	hour := trafficHour.Format(dbtype.Layout)
+
+	assert.Equal(t, []trafficRow{
+		{Device: a, PeerDevice: b, Peer: "192.0.2.11", Service: 22, Out: 1000, In: 4000, Connections: 1, Hour: hour},
+		{Device: b, PeerDevice: a, Peer: "192.0.2.10", Service: 22, Out: 4000, In: 1000, Connections: 0, Hour: hour},
+	}, trafficRows(t, conn))
+}
+
+func TestTrafficAddsUpAcrossFlushes(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, ""))
+
+	rec := newRecorder(s, nil)
+
+	for range 3 {
+		rec.Add(trafficSource{}, []plugin.Flow{flow("192.0.2.10", "203.0.113.5", 51000, 443, 100, trafficHour)})
+		require.NoError(t, rec.Flush(t.Context()))
+	}
+
+	rows := trafficRows(t, conn)
+	require.Len(t, rows, 1)
+	assert.Equal(t, int64(300), rows[0].Out)
+	assert.Equal(t, int64(3), rows[0].Connections)
+	assert.Equal(t, int64(443), rows[0].Service)
+}
+
+func TestTrafficCountsEachFlowInTheHourItEnded(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, ""))
+
+	rec := newRecorder(s, nil)
+	rec.Add(trafficSource{}, []plugin.Flow{
+		flow("192.0.2.10", "203.0.113.5", 51000, 443, 100, trafficHour.Add(59*time.Minute)),
+		flow("192.0.2.10", "203.0.113.5", 51000, 443, 200, trafficHour.Add(61*time.Minute)),
+	})
+	require.NoError(t, rec.Flush(t.Context()))
+
+	rows := trafficRows(t, conn)
+	require.Len(t, rows, 2)
+	assert.Equal(t, trafficHour.Format(dbtype.Layout), rows[0].Hour)
+	assert.Equal(t, trafficHour.Add(time.Hour).Format(dbtype.Layout), rows[1].Hour)
+}
+
+// The reason traffic is resolved to a device when it arrives: the address is a
+// lease, and history recorded under it belongs to whoever held it then.
+func TestTrafficStaysWithTheDeviceAfterItsAddressMoves(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, ""))
+
+	a := deviceIDByMAC(t, conn, macA)
+	rec := newRecorder(s, nil)
+
+	rec.Add(trafficSource{}, []plugin.Flow{flow("192.0.2.10", "203.0.113.5", 51000, 443, 100, trafficHour)})
+	require.NoError(t, rec.Flush(t.Context()))
+
+	// A moves, and another device takes its old address.
+	sweep(t, s, host("192.0.2.20", macA, ""), host("192.0.2.10", macB, ""))
+
+	b := deviceIDByMAC(t, conn, macB)
+
+	rec.Add(trafficSource{}, []plugin.Flow{flow("192.0.2.20", "203.0.113.5", 51000, 443, 50, trafficHour)})
+	rec.Add(trafficSource{}, []plugin.Flow{flow("192.0.2.10", "203.0.113.5", 51000, 443, 7, trafficHour)})
+	require.NoError(t, rec.Flush(t.Context()))
+
+	total := map[int64]int64{}
+	for _, r := range trafficRows(t, conn) {
+		total[r.Device] += r.Out
+	}
+
+	assert.Equal(t, map[int64]int64{a: 150, b: 7}, total)
+}
+
+func TestTrafficNamesPeersOnceAndOnlyAcrossFromADevice(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, ""))
+
+	var lookups atomic.Int32
+
+	rec := newRecorder(s, func(_ context.Context, a netip.Addr) string {
+		lookups.Add(1)
+
+		if a == netip.MustParseAddr("203.0.113.5") {
+			return "cdn.example.com"
+		}
+
+		return ""
+	})
+
+	for range 2 {
+		rec.Add(trafficSource{}, []plugin.Flow{
+			flow("192.0.2.10", "203.0.113.5", 51000, 443, 100, trafficHour),
+			flow("198.51.100.1", "198.51.100.2", 51000, 443, 100, trafficHour),
+		})
+		require.NoError(t, rec.Flush(t.Context()))
+	}
+
+	rows := trafficRows(t, conn)
+	require.Len(t, rows, 1)
+	assert.Equal(t, "cdn.example.com", rows[0].PeerName)
+	assert.Equal(t, int32(1), lookups.Load(), "cached after the first flush, never asked about the unrelated pair")
+}
+
+func TestTrafficDropsFlowsPastTheBufferCap(t *testing.T) {
+	t.Parallel()
+
+	s, _ := newStore(t)
+	rec := newRecorder(s, nil)
+
+	flows := make([]plugin.Flow, 0, maxPendingTraffic+10)
+	for i := range maxPendingTraffic + 10 {
+		flows = append(flows, flow("192.0.2.10", "203.0.113.5", uint16(i%60000)+1024, 443, 1, //nolint:gosec // bounded above.
+			trafficHour.Add(time.Duration(i/60000)*time.Hour)))
+	}
+
+	rec.Add(trafficSource{}, flows)
+
+	rec.mu.Lock()
+	defer rec.mu.Unlock()
+
+	assert.LessOrEqual(t, len(rec.pending), maxPendingTraffic)
+}
+
+func TestServicePortPicksTheServerSide(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		protocol uint8
+		src, dst uint16
+		want     uint16
+	}{
+		{"client to a known service", 6, 51000, 443, 443},
+		{"reply from a known service", 6, 443, 51000, 443},
+		{"known over unknown, both high", 6, 40000, 32400, 32400},
+		{"privileged over unprivileged", 17, 20002, 999, 999},
+		{"outside the ephemeral range over inside it", 6, 50000, 12345, 12345},
+		{"lower when nothing decides", 6, 20001, 20000, 20000},
+		{"ICMP has no ports", 1, 0, 0, 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tt.want, servicePort(tt.protocol, tt.src, tt.dst))
+		})
+	}
+}
