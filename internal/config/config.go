@@ -147,11 +147,19 @@ type (
 		Exporters []string `koanf:"exporters"`
 	}
 
-	// Traffic controls how long the hourly traffic totals are kept.
+	// Traffic controls how long the hourly traffic totals are kept, and where
+	// the world map draws the network.
 	Traffic struct {
 		// Retention is how long hourly traffic totals are kept. They are
 		// pruned with the event and scan logs. Zero keeps them forever.
 		Retention time.Duration `koanf:"retention"`
+
+		// HomeCountry is the two-letter code of the country the network is
+		// in, which the world map draws its lines from. It is needed only
+		// when the router's outside address is private -- behind an ISP's
+		// carrier-grade NAT -- and so cannot be placed. Empty draws no lines
+		// then.
+		HomeCountry string `koanf:"home_country"`
 	}
 
 	// Auth controls how long a signed-in browser stays signed in and whether

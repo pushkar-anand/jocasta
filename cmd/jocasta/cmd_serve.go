@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/pushkar-anand/build-with-go/validator"
 	"github.com/pushkar-anand/jocasta/internal/auth"
@@ -16,6 +17,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/poller"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/pushkar-anand/jocasta/internal/server"
+	"github.com/pushkar-anand/jocasta/pkg/geo"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -109,6 +111,10 @@ func (s *ServeCmd) Run(
 		sCfg.RecentTraffic = startTraffic(ctx, grp, log, store, reporters)
 	}
 
+	if sCfg.HomeCountry, err = homeCountry(cfg.Traffic.HomeCountry); err != nil {
+		return err
+	}
+
 	grp.Go(func() error {
 		err := server.Start(ctx, sCfg, conn, store, validator, a)
 		if err != nil {
@@ -155,6 +161,22 @@ func portsPoller(cfg *config.Config, log *slog.Logger, store *inventory.Store) (
 	sc := scanner.NewPortScanner(log, opts...)
 
 	return poller.NewPorts(log, sc, store, cfg.Scan.Source, cfg.Scan.Ports.Interval), nil
+}
+
+// homeCountry checks traffic.home_country against the countries the world map
+// draws, so a typo fails startup rather than quietly drawing no lines. Case
+// does not matter; empty is fine.
+func homeCountry(code string) (string, error) {
+	code = strings.ToUpper(strings.TrimSpace(code))
+	if code == "" {
+		return "", nil
+	}
+
+	if _, ok := geo.CountryOf(code); !ok {
+		return "", fmt.Errorf("traffic.home_country: %q is not the two-letter code of a country on the map", code)
+	}
+
+	return code, nil
 }
 
 // startTraffic runs every traffic source's listener and the recorder they feed,

@@ -47,6 +47,9 @@ type Handler struct {
 	// recent is what the traffic recorder saw lately; nil when no traffic
 	// source is configured.
 	recent RecentTraffic
+
+	// homeCountry is the configured country the world map draws from.
+	homeCountry string
 }
 
 // ServeHTTP routes a request to the page or fragment handler that matches it.
