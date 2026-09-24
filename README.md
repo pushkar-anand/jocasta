@@ -33,28 +33,47 @@ Jocasta identifies a device by its hardware (MAC) address rather than its IP.
 An IP is treated as a lease the device currently holds, so the label, group and
 notes you attach to a device stay with it when the address changes.
 
-Alongside its own network sweep, Jocasta reads the ARP and DHCP tables from
-your router. The router sees every network segment, so devices that a
-single-machine scan would miss are identified properly, with a vendor and a
-name.
+On its own, Jocasta sweeps the networks you name. Connect your router and it
+also reads the router's ARP and DHCP tables. The router sees every network
+segment, so devices that a single-machine scan would miss are identified
+properly, with a vendor and a name.
 
 Every device discovered, every address gained or dropped, and every rename is
 written to a change log you can review. Jocasta looks at the network only when
 you tell it to, on a schedule you set or on demand. It does not scan
 continuously.
 
+If your router also exports flow records (NetFlow or IPFIX), Jocasta records
+who each device talks to: the other devices on your network and the
+organisations and countries on the internet. It keeps hourly totals per device,
+never individual connections, and points out devices that probe the network and
+what the internet tried to reach.
+
 ## What you get
 
-| | |
-|---|---|
-| Device inventory | Every device, its addresses, the segment each address is on, its vendor and name, and when it was last seen. |
-| Your own labels | Give a device a label, a group and notes, or mark it to ignore. Scans never overwrite these. |
-| Network view | Each segment, and its VLAN, as its own page with the devices on it. |
-| Change log | A timestamped record of discoveries, moves and renames, per device and across the whole network. |
-| Web interface | Overview dashboard, searchable and filterable device list, per-device and per-network pages, light and dark themes. |
-| API | A JSON API over the same data, for scripts and dashboards. |
-| MCP server | An optional [MCP](https://modelcontextprotocol.io) endpoint, so AI agents such as Claude Code can query the inventory, triage devices and report on changes. |
-| Self-contained | A single binary with an embedded database. No separate services to run. |
+Some features only work once you connect a source. The **Needs** column says
+which.
+
+| | | Needs |
+|---|---|---|
+| Device inventory | Every device, its addresses, the segment each address is on, its vendor and name, and when it was last seen. | Nothing. Without the router, only devices on Jocasta's own segment get a hardware address, vendor and name. |
+| Your own labels | Give a device a label, a group and notes, or mark it to ignore. Scans never overwrite these. | Nothing |
+| Network view | Each segment as its own page with the devices on it. | Nothing. Segment names and VLAN tags come from the router. |
+| Change log | A timestamped record of discoveries, moves and renames, per device and across the whole network. | Nothing |
+| Open ports | Which TCP ports each device listens on, and when that changes. | Port scanning turned on |
+| Traffic | Who each device talks to, on your network and on the internet, over the last day, week or month. Also shows what the internet reached or tried to reach, and devices that scan the network. | Router flow exports |
+| Map | The last hour's traffic as a live tree, from the router out to each network, device and organisation, and a world map of the countries the network talked to. | Router flow exports |
+| Web interface | Overview dashboard, searchable and filterable device list, per-device and per-network pages, light and dark themes. | Nothing |
+| API | A JSON API over the same data, for scripts and dashboards. | Nothing |
+| MCP server | An [MCP](https://modelcontextprotocol.io) endpoint, so AI agents such as Claude Code can query the inventory, triage devices and report on changes. | Turned on in config |
+| Self-contained | A single binary with an embedded database. No separate services to run. | |
+
+Sources supported today:
+
+- **Router tables:** MikroTik RouterOS, read over its REST API. See
+  [Reading your router](docs/setup.md#reading-your-router).
+- **Router flow exports:** any router that sends NetFlow v5, v9 or IPFIX. See
+  [Seeing who devices talk to](docs/setup.md#seeing-who-devices-talk-to).
 
 More screenshots: [docs/ui.md](docs/ui.md).
 
@@ -89,8 +108,8 @@ source and reading your router, see [setup](docs/setup.md).
 
 ## Documentation
 
-- [Setup](docs/setup.md): other ways to install, configuration, and reading
-  devices from your router.
+- [Setup](docs/setup.md): other ways to install, configuration, reading
+  devices from your router, and recording traffic from its flow exports.
 - [CLI](docs/cli.md): one-off sweeps, port scans and source reads from the
   command line.
 - [MCP server](docs/mcp.md): connecting AI agents to the inventory.
