@@ -615,3 +615,50 @@ func TestTrafficPageTabsBySegment(t *testing.T) {
 	assert.Contains(t, body, "<div><dd>1</dd><dt>Device active</dt></div>")
 	assert.NotContains(t, body, "ZgotmplZ")
 }
+
+// What a device sends to everyone gets a tab of its own, named by the
+// protocol it most likely is and who it reached.
+func TestDevicePageShowsWhatTheDeviceBroadcasts(t *testing.T) {
+	t.Parallel()
+
+	store := sweptPair(t)
+
+	udp := func(dst string, port uint16) plugin.Flow {
+		return plugin.Flow{
+			Src: netip.MustParseAddr("192.0.2.10"), Dst: netip.MustParseAddr(dst),
+			SrcPort: port, DstPort: port, Protocol: 17, Bytes: 300, Packets: 3, End: time.Now(),
+		}
+	}
+
+	recordTraffic(t, store, udp("224.0.0.251", 5353), udp("192.0.2.255", 21027), udp("255.255.255.255", 40000))
+
+	h := newWebHandler(t, store)
+
+	// Nothing else was exchanged, so the Broadcasts tab is the one that opens.
+	rec := get(t, h, "/devices/1")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+	assert.NotContains(t, body, "No traffic recorded for this device")
+	assert.Contains(t, body, `aria-current="page">Broadcasts`)
+	assert.Contains(t, body, "<td>mDNS</td>")
+	assert.Contains(t, body, `multicast group <span class="mono dim">224.0.0.251:5353</span>`)
+	assert.Contains(t, body, "<td>Syncthing discovery</td>")
+	assert.Contains(t, body, `everyone on home <span class="mono dim">192.0.2.255:21027</span>`)
+	assert.Contains(t, body, "<td>UDP port 40000</td>")
+	assert.Contains(t, body, "everyone on its segment")
+	assert.NotContains(t, body, "ZgotmplZ")
+
+	// The search narrows it like every other tab.
+	rec = get(t, h, "/devices/1/traffic?tab=broadcasts&q=mdns")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body = afterForm(rec.Body.String())
+	assert.Contains(t, body, "<td>mDNS</td>")
+	assert.NotContains(t, body, "Syncthing")
+
+	// A device that sent nothing to everyone has no such tab.
+	rec = get(t, h, "/devices/2")
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.NotContains(t, rec.Body.String(), ">Broadcasts")
+}

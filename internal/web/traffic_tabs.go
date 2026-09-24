@@ -1,6 +1,7 @@
 package web
 
 import (
+	"cmp"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -17,6 +18,9 @@ const (
 	// the router never reported, or every local address when none is
 	// recorded.
 	tabElsewhere = "local"
+
+	// tabBroadcasts holds what the device sent to everyone.
+	tabBroadcasts = "broadcasts"
 )
 
 // trafficTab is one segment of a device's "Talks to" section: a recorded
@@ -27,9 +31,10 @@ type trafficTab struct {
 	VLAN  int
 
 	// Local are the rows of a local tab, Internet the rows of the Internet
-	// tab.
-	Local    []*localEntry
-	Internet []*orgEntry
+	// tab, Broadcasts the rows of the Broadcasts tab.
+	Local      []*localEntry
+	Internet   []*orgEntry
+	Broadcasts []*broadcastRow
 
 	// Count is how many peers the tab holds: devices and addresses on a local
 	// tab, organisations on the Internet tab.
@@ -44,6 +49,9 @@ type trafficTab struct {
 
 // IsInternet reports whether the tab is the internet one.
 func (t *trafficTab) IsInternet() bool { return t.Key == tabInternet }
+
+// IsBroadcasts reports whether the tab is the broadcasts one.
+func (t *trafficTab) IsBroadcasts() bool { return t.Key == tabBroadcasts }
 
 // Empty reports whether the tab has no rows.
 func (t *trafficTab) Empty() bool { return t.Count == 0 }
@@ -149,6 +157,76 @@ func segmentTabs(
 	}
 
 	return append(tabs, internet)
+}
+
+// broadcastRow is one broadcast as the Broadcasts tab reads it.
+type broadcastRow struct {
+	*inventory.Broadcast
+
+	// What is the protocol it most likely is, or the port it went to; To
+	// is who it went to.
+	What string
+	To   string
+}
+
+// broadcastTab is the tab for what the device sent to everyone, after the
+// service and query filter. nets name the subnet a broadcast went to.
+func broadcastTab(nets []*inventory.Network, all []*inventory.Broadcast, f trafficFilter) *trafficTab {
+	t := &trafficTab{Key: tabBroadcasts, Label: "Broadcasts"}
+	query := strings.ToLower(f.Query)
+	protocol, port, hasService := parseServiceKey(f.Service)
+
+	for _, b := range all {
+		if hasService && (b.Protocol != protocol || b.Port != port) {
+			continue
+		}
+
+		r := &broadcastRow{Broadcast: b, What: broadcastWhat(b), To: broadcastTo(b, nets)}
+
+		if query != "" && !strings.Contains(strings.ToLower(r.What+" "+r.To+" "+b.Dst.String()), query) {
+			continue
+		}
+
+		t.Broadcasts = append(t.Broadcasts, r)
+		t.bytes += b.Bytes
+	}
+
+	t.Count = len(t.Broadcasts)
+
+	return t
+}
+
+// broadcastWhat is what a broadcast most likely was, or where it went when
+// nothing says.
+func broadcastWhat(b *inventory.Broadcast) string {
+	if b.Service != "" {
+		return b.Service
+	}
+
+	proto := cmp.Or(protoName(b.Protocol), "TCP")
+	if b.Port == 0 {
+		return proto
+	}
+
+	return proto + " port " + strconv.Itoa(int(b.Port))
+}
+
+// broadcastTo says who a broadcast reached.
+func broadcastTo(b *inventory.Broadcast, nets []*inventory.Network) string {
+	switch b.Kind {
+	case "subnet":
+		for _, n := range nets {
+			if pfx, err := netip.ParsePrefix(n.CIDR); err == nil && pfx.Contains(b.Dst) {
+				return "everyone on " + cmp.Or(n.Name, pfx.Masked().String())
+			}
+		}
+
+		return "everyone on its subnet"
+	case "all":
+		return "everyone on its segment"
+	}
+
+	return "multicast group"
 }
 
 // pickTab is the tab key names, or the busiest when key names none: most

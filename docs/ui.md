@@ -47,6 +47,13 @@ of the peer it went to, with how many were answered and the ports tried. When
 they add up to probing the network, a notice at the top of the section says
 so.
 
+What a device sent to everyone rather than to one host -- a broadcast to its
+subnet or to every host on the segment, or a packet to a multicast group -- has
+a Broadcasts tab of its own: discovery protocols announcing the device or
+looking for others, such as mDNS, SSDP, DHCP or a sync tool finding its peers,
+with how many packets went and when. Names are guessed from the port and
+group, not read from the packets.
+
 ![Device page](img/device.png)
 
 ## Traffic page

@@ -120,7 +120,7 @@
     {{- with .Tab }}
     {{- if .Empty }}
     {{- if $.Filter.Active }}
-    <p class="dim">Nothing {{ if .IsInternet }}on the internet{{ else }}on {{ .Label }}{{ end }} in the last {{ $.Window.Label }} matches.
+    <p class="dim">Nothing {{ if .IsInternet }}on the internet{{ else if .IsBroadcasts }}it broadcast{{ else }}on {{ .Label }}{{ end }} in the last {{ $.Window.Label }} matches.
         <a href="{{ $.ClearPath }}#traffic"
            hx-get="{{ $.ClearFragment }}"
            hx-target="#device-traffic"
@@ -128,6 +128,37 @@
     {{- else }}
     <p class="dim">This device exchanged nothing {{ if .IsInternet }}with the internet{{ else }}on {{ .Label }}{{ end }} in the last {{ $.Window.Label }}{{ if and $.HasAttempts (not $.Filter.Tried) }}; it may have tried, which &ldquo;Show tries with no data&rdquo; adds{{ end }}.</p>
     {{- end }}
+
+    {{- else if .IsBroadcasts }}
+    <div class="card card--table">
+        <div class="scroller">
+            <table>
+                <thead>
+                <tr>
+                    <th scope="col">What</th>
+                    <th scope="col">Sent to</th>
+                    <th scope="col" class="num">Packets</th>
+                    <th scope="col" class="num">Sent</th>
+                    <th scope="col">Last seen</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{- range .Broadcasts }}
+                <tr>
+                    <td>{{ .What }}</td>
+                    <td>{{ .To }} <span class="mono dim">{{ .Dst }}{{ with .Port }}:{{ . }}{{ end }}</span></td>
+                    <td class="num">{{ count .Packets }}</td>
+                    <td class="num">{{ bytes .Bytes }}</td>
+                    <td class="dim">{{ stamp .LastHour "" }}</td>
+                </tr>
+                {{- end }}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <p class="note">What this device sent to everyone rather than to one host:
+        discovery protocols announcing it, or looking for others. Names are
+        guessed from the port and group, not read from the packets.</p>
 
     {{- else if .IsInternet }}
     <div class="card card--table">
