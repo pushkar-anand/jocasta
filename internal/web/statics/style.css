@@ -1692,6 +1692,13 @@ td .traffic__tried {
     background: var(--surface-2);
 }
 
+/* Who opened a row's connections, "→ 12 · ← 3": one unit, never broken
+   across lines. */
+.conns {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
 /* A checkbox in the filter row: its label is visible, since a bare box says
    nothing. */
 .field--check {

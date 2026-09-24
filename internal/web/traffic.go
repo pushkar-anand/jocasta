@@ -221,11 +221,13 @@ func buildTrafficSection(
 	}
 
 	var tried []*inventory.Attempt
-	if f.Tried {
+	// Tries are always the device's own, so they have no place among what
+	// others opened.
+	if f.Tried && f.Direction != dirIn {
 		tried = filterAttempts(attempts, f)
 	}
 
-	local := filterPeers(traffic.Local, f.Service, strings.ToLower(f.Query), "")
+	local := filterPeers(traffic.Local, f, "")
 	sec.Tabs = segmentTabs(nets, local, traffic.Internet, tried, f)
 
 	if sec.HasBroadcasts {

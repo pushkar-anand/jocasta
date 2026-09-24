@@ -28,7 +28,18 @@ type trafficFilter struct {
 
 	// Tried adds the connections that never carried data to the rows.
 	Tried bool
+
+	// Direction keeps only the peers connections went to one way: dirOut
+	// those this device opened connections to, dirIn those that opened
+	// connections to it. Empty keeps both.
+	Direction string
 }
+
+// Directions the traffic can be narrowed to.
+const (
+	dirOut = "out"
+	dirIn  = "in"
+)
 
 // trafficFilterFrom reads a filter from a query string. A value it does not
 // know is dropped rather than refused: they only ever arrive from the form.
@@ -39,6 +50,10 @@ func trafficFilterFrom(q url.Values) trafficFilter {
 		Service: strings.TrimSpace(q.Get("service")),
 		Query:   strings.TrimSpace(q.Get("q")),
 		Tried:   q.Get("tried") == "1",
+	}
+
+	if d := q.Get("dir"); d == dirOut || d == dirIn {
+		f.Direction = d
 	}
 
 	if _, _, ok := parseServiceKey(f.Service); !ok {
@@ -52,11 +67,11 @@ func trafficFilterFrom(q url.Values) trafficFilter {
 // switch choose what is shown rather than narrowing it, so clearing the
 // filter keeps them.
 func (f trafficFilter) Active() bool {
-	return f.Service != "" || f.Query != ""
+	return f.Service != "" || f.Query != "" || f.Direction != ""
 }
 
 func (f trafficFilter) encode(q url.Values) {
-	for k, v := range map[string]string{"tab": f.Tab, "service": f.Service, "q": f.Query} {
+	for k, v := range map[string]string{"tab": f.Tab, "service": f.Service, "q": f.Query, "dir": f.Direction} {
 		if v != "" {
 			q.Set(k, v)
 		}
@@ -157,8 +172,9 @@ type peerRow struct {
 	Tries, Answered int64
 	LastHour        time.Time
 
-	// Incoming counts the connections the peer opened on the device.
-	Incoming int64
+	// Outgoing counts the connections the device opened on the peer,
+	// Incoming the ones the peer opened on the device.
+	Outgoing, Incoming int64
 }
 
 // ServiceSummary names the peer's two busiest services and how many more.
@@ -203,6 +219,7 @@ func (r *peerRow) add(p *inventory.TrafficPeer) {
 	r.Services = append(r.Services, p)
 	r.Sent += p.Sent
 	r.Received += p.Received
+	r.Outgoing += p.Connections
 	r.Incoming += p.ConnectionsIn
 	r.seen(p.LastHour)
 }
@@ -229,6 +246,7 @@ func busier(aBytes, aTries, bBytes, bTries int64) int {
 type peerTally struct {
 	Sent, Received  int64
 	Tries, Answered int64
+	Outgoing        int64
 	Incoming        int64
 	LastHour        time.Time
 }
@@ -236,6 +254,7 @@ type peerTally struct {
 func (t *peerTally) add(r *peerRow) {
 	t.Sent += r.Sent
 	t.Received += r.Received
+	t.Outgoing += r.Outgoing
 	t.Incoming += r.Incoming
 	t.Tries += r.Tries
 	t.Answered += r.Answered
@@ -292,14 +311,19 @@ type orgEntry struct {
 	Peers       peerList
 }
 
-// filterPeers keeps the peers on service (a serviceChoice key, or empty for
-// any) whose names contain query. org is the lowercased organisation the peers
-// belong to, which matches all of them.
-func filterPeers(peers []*inventory.TrafficPeer, service, query, org string) []*inventory.TrafficPeer {
+// filterPeers keeps the peers on f's service, connected the way f's direction
+// asks, whose names contain its query. org is the lowercased organisation the
+// peers belong to, which matches all of them.
+func filterPeers(peers []*inventory.TrafficPeer, f trafficFilter, org string) []*inventory.TrafficPeer {
 	var out []*inventory.TrafficPeer
 
+	query := strings.ToLower(f.Query)
+
 	for _, p := range peers {
-		if service != "" && serviceKey(p) != service {
+		switch {
+		case f.Service != "" && serviceKey(p) != f.Service,
+			f.Direction == dirOut && p.Connections == 0,
+			f.Direction == dirIn && p.ConnectionsIn == 0:
 			continue
 		}
 
@@ -451,7 +475,7 @@ func orgKey(asn uint32, short string, ip netip.Addr) string {
 // device exchanged data with, and adds the tries, already filtered, to the
 // organisation announcing each address. An address no organisation announces
 // is its own entry.
-func groupInternet(orgs []*inventory.TrafficOrg, tried []*inventory.Attempt, service, query string) []*orgEntry {
+func groupInternet(orgs []*inventory.TrafficOrg, tried []*inventory.Attempt, f trafficFilter) []*orgEntry {
 	type staged struct {
 		entry *orgEntry
 		peers []*inventory.TrafficPeer
@@ -474,7 +498,7 @@ func groupInternet(orgs []*inventory.TrafficOrg, tried []*inventory.Attempt, ser
 	}
 
 	for _, o := range orgs {
-		peers := filterPeers(o.Peers, service, query, strings.ToLower(o.Name+" "+o.Short))
+		peers := filterPeers(o.Peers, f, strings.ToLower(o.Name+" "+o.Short))
 		if len(peers) == 0 {
 			continue
 		}

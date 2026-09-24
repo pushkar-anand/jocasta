@@ -663,9 +663,10 @@ func TestDevicePageShowsWhatTheDeviceBroadcasts(t *testing.T) {
 	assert.NotContains(t, rec.Body.String(), ">Broadcasts")
 }
 
-// A connection the peer opened is marked on the device page, and the device
-// and service it reached are listed on the Traffic page.
-func TestIncomingConnectionsAreShown(t *testing.T) {
+// Who opened each row's connections is shown -- the device (→) or the peer
+// (←) -- the direction filter narrows to one side, and the device and service
+// the internet reached are listed on the Traffic page.
+func TestConnectionDirectionsAreShown(t *testing.T) {
 	t.Parallel()
 
 	store := sweptPair(t)
@@ -674,7 +675,7 @@ func TestIncomingConnectionsAreShown(t *testing.T) {
 		// Cloudflare's address opens the laptop's 443; the NAS its ssh.
 		tcp("1.1.1.1", "192.0.2.10", 443, 3_000),
 		tcp("192.0.2.11", "192.0.2.10", 22, 3_000),
-		// And the laptop reaches out to Google, which is not incoming.
+		// And the laptop opens Google's 443.
 		tcp("192.0.2.10", "8.8.8.8", 443, 5_000),
 	)
 
@@ -685,11 +686,31 @@ func TestIncomingConnectionsAreShown(t *testing.T) {
 
 	body := rec.Body.String()
 	assert.Contains(t, body, "<div><dd>1</dd><dt>Opened from the internet</dt></div>")
-	assert.Equal(t, 2, strings.Count(body, ">incoming</span>"), "on Cloudflare's row and its address, not Google's")
+	assert.Contains(t, body, `<th scope="col" class="num">Connections</th>`)
+	assert.Contains(t, body, `<span title="They opened 1 connection to this device">&larr; 1</span>`)
+	assert.Contains(t, body, `<span title="This device opened 1 connection">&rarr; 1</span>`)
+	assert.NotContains(t, body, ">incoming</span>", "the column replaces the marker")
 
 	rec = get(t, h, "/devices/1/traffic?tab="+tabKey(t, store, prefix))
 	require.Equal(t, http.StatusOK, rec.Code)
-	assert.Contains(t, rec.Body.String(), `<a href="/devices/2">nas.example.com</a> <span class="chip chip--brand chip--label" title="Opened 1 connection to this device">incoming</span>`)
+	assert.Contains(t, rec.Body.String(), "&larr; 1", "the NAS opened the laptop's ssh")
+
+	// Opened by them: Cloudflare, not Google; opened by this device: the
+	// other way round.
+	rec = get(t, h, "/devices/1/traffic?tab=internet&dir=in")
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "/devices/1?dir=in&tab=internet", rec.Header().Get("HX-Push-Url"))
+
+	body = afterForm(rec.Body.String())
+	assert.Contains(t, body, "Cloudflare")
+	assert.NotContains(t, body, "Google")
+
+	rec = get(t, h, "/devices/1/traffic?tab=internet&dir=out")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body = afterForm(rec.Body.String())
+	assert.Contains(t, body, "Google")
+	assert.NotContains(t, body, "Cloudflare")
 
 	rec = get(t, h, "/traffic")
 	require.Equal(t, http.StatusOK, rec.Code)
@@ -698,8 +719,6 @@ func TestIncomingConnectionsAreShown(t *testing.T) {
 	assert.Contains(t, body, "Reached from the internet")
 	assert.Contains(t, body, `<a href="/devices/1?tab=internet#traffic">laptop.example.com</a>`)
 	assert.Contains(t, body, `https <span class="dim">443</span>`)
-	assert.NotContains(t, body, `nas.example.com</a></td>
-                    <td>ssh`, "the NAS is on the network, not the internet")
 	assert.NotContains(t, body, "ZgotmplZ")
 }
 
