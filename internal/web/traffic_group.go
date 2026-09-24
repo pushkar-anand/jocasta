@@ -13,16 +13,11 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// Traffic scopes the device section can be narrowed to.
-const (
-	trafficScopeLocal    = "local"
-	trafficScopeInternet = "internet"
-)
-
-// trafficFilter narrows a device's traffic. The zero value shows everything.
+// trafficFilter narrows a device's traffic. The zero value shows the busiest
+// tab, conversations only, unfiltered.
 type trafficFilter struct {
-	// Scope is empty for both halves, or one of the trafficScope constants.
-	Scope string
+	// Tab is the key of the segment tab shown, empty for the busiest.
+	Tab string
 
 	// Service is a serviceChoice key: protocol and port, "6/443".
 	Service string
@@ -30,18 +25,20 @@ type trafficFilter struct {
 	// Query matches, ignoring case, anything the section names a peer by:
 	// device name, address, DNS name, organisation, service.
 	Query string
+
+	// Tried adds the connections that never carried data to the rows.
+	Tried bool
 }
 
 // trafficFilterFrom reads a filter from a query string. A value it does not
 // know is dropped rather than refused: they only ever arrive from the form.
+// An unknown tab is dropped once the tabs are known.
 func trafficFilterFrom(q url.Values) trafficFilter {
 	f := trafficFilter{
+		Tab:     strings.TrimSpace(q.Get("tab")),
 		Service: strings.TrimSpace(q.Get("service")),
 		Query:   strings.TrimSpace(q.Get("q")),
-	}
-
-	if s := q.Get("scope"); s == trafficScopeLocal || s == trafficScopeInternet {
-		f.Scope = s
+		Tried:   q.Get("tried") == "1",
 	}
 
 	if _, _, ok := parseServiceKey(f.Service); !ok {
@@ -51,16 +48,22 @@ func trafficFilterFrom(q url.Values) trafficFilter {
 	return f
 }
 
-// Active reports whether the filter narrows anything.
+// Active reports whether the filter narrows the rows. The tab and the tries
+// switch choose what is shown rather than narrowing it, so clearing the
+// filter keeps them.
 func (f trafficFilter) Active() bool {
-	return f != trafficFilter{}
+	return f.Service != "" || f.Query != ""
 }
 
 func (f trafficFilter) encode(q url.Values) {
-	for k, v := range map[string]string{"scope": f.Scope, "service": f.Service, "q": f.Query} {
+	for k, v := range map[string]string{"tab": f.Tab, "service": f.Service, "q": f.Query} {
 		if v != "" {
 			q.Set(k, v)
 		}
+	}
+
+	if f.Tried {
+		q.Set("tried", "1")
 	}
 }
 
@@ -135,7 +138,8 @@ func allPeers(t *inventory.DeviceTraffic) []*inventory.TrafficPeer {
 	return out
 }
 
-// peerRow is everything a device exchanged with one peer, across services.
+// peerRow is everything a device exchanged with one peer, across services,
+// and what it tried there that never carried data.
 type peerRow struct {
 	DeviceID   int64
 	DeviceName string
@@ -145,8 +149,13 @@ type peerRow struct {
 	// Services are the per-service rows behind this one, busiest first.
 	Services []*inventory.TrafficPeer
 
-	Sent, Received int64
-	LastHour       time.Time
+	// Tried are the connections to the peer that carried nothing, when the
+	// section shows them.
+	Tried []*inventory.Attempt
+
+	Sent, Received  int64
+	Tries, Answered int64
+	LastHour        time.Time
 }
 
 // ServiceSummary names the peer's two busiest services and how many more.
@@ -165,95 +174,116 @@ func (r *peerRow) ServiceSummary() string {
 	return out
 }
 
+// TriedSummary says what was tried at the peer: pings, or which ports.
+func (r *peerRow) TriedSummary() string {
+	var names []string
+
+	for _, a := range r.Tried[:min(2, len(r.Tried))] {
+		names = append(names, attemptWhat(a))
+	}
+
+	out := strings.Join(names, "; ")
+	if more := len(r.Tried) - len(names); more > 0 {
+		out += fmt.Sprintf(" +%d more", more)
+	}
+
+	return out
+}
+
 // ServiceLabel is one of the row's services as a person reads it, for the
 // template's breakdown.
 func (r *peerRow) ServiceLabel(p *inventory.TrafficPeer) string { return serviceLabel(p) }
+
+func (r *peerRow) total() int64 { return r.Sent + r.Received }
 
 func (r *peerRow) add(p *inventory.TrafficPeer) {
 	r.Services = append(r.Services, p)
 	r.Sent += p.Sent
 	r.Received += p.Received
+	r.seen(p.LastHour)
+}
 
-	if p.LastHour.After(r.LastHour) {
-		r.LastHour = p.LastHour
+func (r *peerRow) try(a *inventory.Attempt) {
+	r.Tried = append(r.Tried, a)
+	r.Tries += a.Attempts
+	r.Answered += a.Answered
+	r.seen(a.LastHour)
+}
+
+func (r *peerRow) seen(hour time.Time) {
+	if hour.After(r.LastHour) {
+		r.LastHour = hour
 	}
 }
+
+// busier orders rows by what they moved, then by how often they were tried.
+func busier(aBytes, aTries, bBytes, bTries int64) int {
+	return cmp.Or(cmp.Compare(bBytes, aBytes), cmp.Compare(bTries, aTries))
+}
+
+// peerTally is what a set of rows adds up to.
+type peerTally struct {
+	Sent, Received  int64
+	Tries, Answered int64
+	LastHour        time.Time
+}
+
+func (t *peerTally) add(r *peerRow) {
+	t.Sent += r.Sent
+	t.Received += r.Received
+	t.Tries += r.Tries
+	t.Answered += r.Answered
+
+	if r.LastHour.After(t.LastHour) {
+		t.LastHour = r.LastHour
+	}
+}
+
+// peerListHead is how many addresses a folded row opens to before the rest
+// are only counted: a sweep of a subnet is hundreds of near-identical lines.
+const peerListHead = 20
+
+// peerList is the peers a folded row opens to.
+type peerList []*peerRow
+
+// Head is the busiest of them, as many as a person reads.
+func (l peerList) Head() peerList { return l[:min(peerListHead, len(l))] }
+
+// Rest counts the ones Head leaves out.
+func (l peerList) Rest() int64 { return int64(max(0, len(l)-peerListHead)) }
 
 // strangerGroup is local addresses no device holds, collapsed by the subnet
 // they sit in: a device reaching many unknown hosts next to each other is one
 // fact, not a screenful.
 type strangerGroup struct {
-	Prefix         netip.Prefix
-	Peers          []*peerRow
-	Sent, Received int64
-	LastHour       time.Time
+	peerTally
+
+	Prefix netip.Prefix
+	Peers  peerList
 }
 
-// localEntry is one row of "On your network": a peer on its own, or a group.
+// localEntry is one row of a segment tab: a peer on its own, or a group.
 type localEntry struct {
 	Peer  *peerRow
 	Group *strangerGroup
 }
 
-func (e *localEntry) total() int64 {
+func (e *localEntry) order() (bytes, tries int64) {
 	if e.Group != nil {
-		return e.Group.Sent + e.Group.Received
+		return e.Group.Sent + e.Group.Received, e.Group.Tries
 	}
 
-	return e.Peer.Sent + e.Peer.Received
+	return e.Peer.total(), e.Peer.Tries
 }
 
-// orgEntry is one organisation in "Internet", with its addresses merged across
-// services.
+// orgEntry is one organisation on the Internet tab, with its addresses merged
+// across services.
 type orgEntry struct {
-	ASN            uint32
-	Name, Short    string
-	Peers          []*peerRow
-	Sent, Received int64
-	LastHour       time.Time
-}
+	peerTally
 
-// groupTraffic applies f to t and groups what is left: local peers one row
-// each, with the unknown ones collapsed by subnet, and internet peers by
-// organisation.
-func groupTraffic(t *inventory.DeviceTraffic, f trafficFilter) ([]*localEntry, []*orgEntry) {
-	query := strings.ToLower(f.Query)
-
-	var (
-		local    []*localEntry
-		internet []*orgEntry
-	)
-
-	if f.Scope != trafficScopeInternet {
-		local = groupLocal(filterPeers(t.Local, f.Service, query, ""))
-	}
-
-	if f.Scope != trafficScopeLocal {
-		for _, o := range t.Internet {
-			peers := filterPeers(o.Peers, f.Service, query, strings.ToLower(o.Name+" "+o.Short))
-			if len(peers) == 0 {
-				continue
-			}
-
-			e := &orgEntry{ASN: o.ASN, Name: o.Name, Short: o.Short, Peers: mergePeers(peers)}
-			for _, r := range e.Peers {
-				e.Sent += r.Sent
-				e.Received += r.Received
-
-				if r.LastHour.After(e.LastHour) {
-					e.LastHour = r.LastHour
-				}
-			}
-
-			internet = append(internet, e)
-		}
-
-		slices.SortStableFunc(internet, func(a, b *orgEntry) int {
-			return cmp.Compare(b.Sent+b.Received, a.Sent+a.Received)
-		})
-	}
-
-	return local, internet
+	ASN         uint32
+	Name, Short string
+	Peers       peerList
 }
 
 // filterPeers keeps the peers on service (a serviceChoice key, or empty for
@@ -287,10 +317,10 @@ func peerMatches(p *inventory.TrafficPeer, query string) bool {
 	return false
 }
 
-// mergePeers folds per-service rows into one row per peer, busiest first. A
-// known device is one peer whatever address it used; anything else is its
-// address.
-func mergePeers(peers []*inventory.TrafficPeer) []*peerRow {
+// mergePeers folds per-service rows and tries into one row per peer, busiest
+// first. A known device is one peer whatever address it used; anything else
+// is its address.
+func mergePeers(peers []*inventory.TrafficPeer, tried []*inventory.Attempt) []*peerRow {
 	type key struct {
 		device int64
 		ip     netip.Addr
@@ -300,20 +330,30 @@ func mergePeers(peers []*inventory.TrafficPeer) []*peerRow {
 
 	var out []*peerRow
 
-	for _, p := range peers {
-		k := key{device: p.DeviceID}
-		if p.DeviceID == 0 {
-			k.ip = p.IP
+	row := func(device int64, name string, ip netip.Addr) *peerRow {
+		k := key{device: device}
+		if device == 0 {
+			k.ip = ip
 		}
 
 		r, ok := byPeer[k]
 		if !ok {
-			r = &peerRow{DeviceID: p.DeviceID, DeviceName: p.DeviceName, IP: p.IP, Name: p.Name}
+			r = &peerRow{DeviceID: device, DeviceName: name, IP: ip}
 			byPeer[k] = r
 			out = append(out, r)
 		}
 
+		return r
+	}
+
+	for _, p := range peers {
+		r := row(p.DeviceID, p.DeviceName, p.IP)
+		r.Name = cmp.Or(r.Name, p.Name)
 		r.add(p)
+	}
+
+	for _, a := range tried {
+		row(a.PeerDeviceID, a.PeerDeviceName, a.IP).try(a)
 	}
 
 	for _, r := range out {
@@ -323,22 +363,22 @@ func mergePeers(peers []*inventory.TrafficPeer) []*peerRow {
 	}
 
 	slices.SortStableFunc(out, func(a, b *peerRow) int {
-		return cmp.Compare(b.Sent+b.Received, a.Sent+a.Received)
+		return busier(a.total(), a.Tries, b.total(), b.Tries)
 	})
 
 	return out
 }
 
-// groupLocal turns local peers into rows, collapsing two or more unknown
-// addresses in one subnet into a single entry.
-func groupLocal(peers []*inventory.TrafficPeer) []*localEntry {
+// groupLocal turns local peers and tries into rows, collapsing two or more
+// unknown addresses in one subnet into a single entry.
+func groupLocal(peers []*inventory.TrafficPeer, tried []*inventory.Attempt) []*localEntry {
 	var (
 		out     []*localEntry
 		byNet   = make(map[netip.Prefix][]*peerRow)
 		netList []netip.Prefix
 	)
 
-	for _, r := range mergePeers(peers) {
+	for _, r := range mergePeers(peers, tried) {
 		if r.DeviceID != 0 {
 			out = append(out, &localEntry{Peer: r})
 
@@ -374,18 +414,91 @@ func groupLocal(peers []*inventory.TrafficPeer) []*localEntry {
 
 		g := &strangerGroup{Prefix: pfx, Peers: rows}
 		for _, r := range rows {
-			g.Sent += r.Sent
-			g.Received += r.Received
-
-			if r.LastHour.After(g.LastHour) {
-				g.LastHour = r.LastHour
-			}
+			g.add(r)
 		}
 
 		out = append(out, &localEntry{Group: g})
 	}
 
-	slices.SortStableFunc(out, func(a, b *localEntry) int { return cmp.Compare(b.total(), a.total()) })
+	slices.SortStableFunc(out, func(a, b *localEntry) int {
+		ab, at := a.order()
+		bb, bt := b.order()
+
+		return busier(ab, at, bb, bt)
+	})
+
+	return out
+}
+
+// orgKey is what folds internet peers into one row: the organisation's short
+// name, so one company announcing from several ASNs is one row, or the address
+// when no organisation announces it.
+func orgKey(asn uint32, short string, ip netip.Addr) string {
+	if asn == 0 {
+		return "ip:" + ip.String()
+	}
+
+	return "org:" + short
+}
+
+// groupInternet applies the service and query filter to the organisations a
+// device exchanged data with, and adds the tries, already filtered, to the
+// organisation announcing each address. An address no organisation announces
+// is its own entry.
+func groupInternet(orgs []*inventory.TrafficOrg, tried []*inventory.Attempt, service, query string) []*orgEntry {
+	type staged struct {
+		entry *orgEntry
+		peers []*inventory.TrafficPeer
+		tried []*inventory.Attempt
+	}
+
+	var order []*staged
+
+	byKey := make(map[string]*staged)
+
+	stage := func(key string, e *orgEntry) *staged {
+		st, ok := byKey[key]
+		if !ok {
+			st = &staged{entry: e}
+			byKey[key] = st
+			order = append(order, st)
+		}
+
+		return st
+	}
+
+	for _, o := range orgs {
+		peers := filterPeers(o.Peers, service, query, strings.ToLower(o.Name+" "+o.Short))
+		if len(peers) == 0 {
+			continue
+		}
+
+		st := stage(orgKey(o.ASN, o.Short, peers[0].IP), &orgEntry{ASN: o.ASN, Name: o.Name, Short: o.Short})
+		st.peers = append(st.peers, peers...)
+	}
+
+	for _, a := range tried {
+		label := cmp.Or(a.OrgShort, a.IP.String())
+		st := stage(orgKey(a.ASN, a.OrgShort, a.IP), &orgEntry{ASN: a.ASN, Name: label, Short: label})
+		st.tried = append(st.tried, a)
+	}
+
+	out := make([]*orgEntry, 0, len(order))
+
+	for _, st := range order {
+		e := st.entry
+		e.Peers = mergePeers(st.peers, st.tried)
+
+		for _, r := range e.Peers {
+			e.add(r)
+		}
+
+		out = append(out, e)
+	}
+
+	slices.SortStableFunc(out, func(a, b *orgEntry) int {
+		return busier(a.Sent+a.Received, a.Tries, b.Sent+b.Received, b.Tries)
+	})
 
 	return out
 }

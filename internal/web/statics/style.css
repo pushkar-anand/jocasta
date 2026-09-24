@@ -1596,6 +1596,111 @@ input[type="radio"] {
     color: var(--text-2);
 }
 
+/* The period at a glance, before any filter: the same figures the network
+   cards lead with, wrapping on a narrow screen. */
+.traffic__summary {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px 20px;
+}
+
+.traffic__summary .stats {
+    flex-wrap: wrap;
+    row-gap: 14px;
+}
+
+.traffic__tried {
+    margin: 0;
+    font-size: var(--fs-support);
+}
+
+/* A row that opens grows downward; its figures stay level with its name
+   rather than drifting to the middle of the list it opened. */
+#device-traffic td,
+#traffic-cards td {
+    vertical-align: top;
+}
+
+/* A row's tries sit under its services, on a line of their own. */
+td .traffic__tried {
+    display: block;
+    margin-top: 4px;
+    color: var(--text-2);
+}
+
+/* One tab per network segment. They are links, each a view the address bar
+   can hold, so the current one is aria-current rather than a selected tab. */
+.tabs {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    border-bottom: 1px solid var(--border);
+}
+
+/* The Traffic page's two lists of names and totals sit side by side where
+   there is room: one table the width of a wide screen leaves its numbers a
+   long way from the names they belong to. */
+.traffic-cols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 32rem), 1fr));
+    gap: 22px;
+    align-items: start;
+}
+
+.tabs__tab {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 8px 12px;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-2);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.tabs__tab:hover {
+    color: var(--text);
+}
+
+.tabs__tab[aria-current="page"] {
+    border-bottom-color: var(--brand);
+    color: var(--brand-ink);
+}
+
+/* A segment the device reached nothing on stays, so the tabs read the same
+   on every device, but steps back. */
+.tabs__tab--empty {
+    color: var(--text-3);
+}
+
+.tabs__vlan,
+.tabs__count {
+    font-size: 11px;
+    color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+}
+
+.tabs__count {
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--surface-2);
+}
+
+/* A checkbox in the filter row: its label is visible, since a bare box says
+   nothing. */
+.field--check {
+    gap: 7px;
+    font-size: 13px;
+    color: var(--text-2);
+    cursor: pointer;
+}
+
 /* ---- htmx --------------------------------------------------------------------- */
 
 /* These wrappers exist only so htmx has something to swap. display: contents
@@ -1604,7 +1709,8 @@ input[type="radio"] {
    each wrapper having to restate it. */
 #live,
 #device-rows,
-#device-panel {
+#device-panel,
+#traffic-cards {
     display: contents;
 }
 
@@ -2424,8 +2530,9 @@ input[type="radio"] {
     color: var(--ok-ink);
 }
 
-/* Something the owner should look at: a device probing the network. */
-.notice--warn {
+/* Something the owner should look at: a device probing the network. Doubled
+   to outrank the plain notice's :not(.notice--ok). */
+.notice.notice--warn {
     margin-bottom: 12px;
     background: var(--warning-soft);
     color: var(--warning-ink);

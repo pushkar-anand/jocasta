@@ -30,17 +30,20 @@ found listening on, and the ones it has since stopped answering on as closed.
 
 When traffic collection is set up (see
 [Seeing who devices talk to](setup.md#seeing-who-devices-talk-to)), a Talks to
-section lists who the device exchanged data with over the last 24 hours, 7 days
-or 30 days: other devices on your network, linked to their pages, and internet
-addresses grouped by the organisation that announces them, with how much was
-sent and received each way. Each peer is one row whatever services it was
-reached on, and local addresses no device holds collapse into one row per
-subnet. The section can be narrowed to your network or the internet, to one
+section shows who the device exchanged data with over the last 24 hours, 7 days
+or 30 days. It opens with the period at a glance -- received, sent, how many
+peers on your network and organisations on the internet -- and then has one tab
+per network segment and one for the internet, each with a count, opening on the
+busiest. On a segment's tab each peer is one row whatever services it was
+reached on, linked to its page when it is a device, and addresses no device
+holds collapse into one row per subnet. The Internet tab groups addresses by
+the organisation that announces them. The section can be narrowed to one
 service, or by a search over names, addresses and organisations.
 
 Connections the device started that never carried data -- a port that
-refused, one nobody answered, a ping -- are listed apart under "Tried, but
-nothing came of it", with how many were answered and the ports tried. When
+refused, one nobody answered, a ping -- are counted at the top and left out of
+the tabs until "Show tries with no data" is ticked; then each sits on the row
+of the peer it went to, with how many were answered and the ports tried. When
 they add up to probing the network, a notice at the top of the section says
 so.
 
@@ -52,8 +55,9 @@ When traffic collection is set up, the Traffic page summarises the whole
 network over the last 24 hours, 7 days or 30 days: the busiest devices, the
 organisations the network exchanges the most with, and which devices started
 talking to an organisation for the first time this week. Each organisation is
-one row that opens to the devices behind it, and the page can be narrowed to
-one group's devices.
+one row that opens to the devices behind it. A tab per network segment narrows
+every card to the devices on that segment, with the segment's totals at the
+top, and the page can be narrowed to one group's devices as well.
 
 Its first card, "Probing your network", lists devices that within one hour
 tried 20 or more addresses on your network, or 20 or more ports on one of

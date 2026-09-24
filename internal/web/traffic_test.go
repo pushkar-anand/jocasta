@@ -44,6 +44,10 @@ func sweptPair(t *testing.T) *inventory.Store {
 
 	store := testStore(t)
 
+	require.NoError(t, store.RecordNetworks(t.Context(), []plugin.Network{{
+		Prefix: netip.MustParsePrefix(prefix), Name: "home", VLAN: 10,
+	}}))
+
 	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix), []scanner.Host{
 		host("192.0.2.10", macA, "laptop.example.com"),
 		host("192.0.2.11", macB, "nas.example.com"),
@@ -51,6 +55,34 @@ func sweptPair(t *testing.T) *inventory.Store {
 	require.NoError(t, err)
 
 	return store
+}
+
+// tabKey is the tab key of the recorded network cidr.
+func tabKey(t *testing.T, store *inventory.Store, cidr string) string {
+	t.Helper()
+
+	nets, err := store.ListNetworks(t.Context())
+	require.NoError(t, err)
+
+	for _, n := range nets {
+		if n.CIDR == cidr {
+			return networkTabKey(n.ID)
+		}
+	}
+
+	t.Fatalf("no network %s", cidr)
+
+	return ""
+}
+
+// afterForm is the section below its filter form, whose service choices list
+// everything whatever is shown.
+func afterForm(body string) string {
+	if i := strings.Index(body, "</form>"); i >= 0 {
+		return body[i:]
+	}
+
+	return body
 }
 
 func TestDevicePageSaysWhenTrafficIsNotCollected(t *testing.T) {
@@ -90,20 +122,24 @@ func TestDevicePageShowsWhoTheDeviceTalksTo(t *testing.T) {
 		tcp("192.0.2.10", "1.0.0.1", 443, 800),
 	)
 
-	rec := get(t, newWebHandler(t, store), "/devices/1")
+	h := newWebHandler(t, store)
+
+	rec := get(t, h, "/devices/1")
 	require.Equal(t, http.StatusOK, rec.Code)
 
 	body := rec.Body.String()
 
-	assert.Contains(t, body, "On your network")
+	// The figures cover everything; the busiest tab, the home network, opens.
+	assert.Contains(t, body, "<dt>Received</dt>")
+	assert.Contains(t, body, "<div><dd>1</dd><dt>On your network</dt></div>")
+	assert.Contains(t, body, "<div><dd>1</dd><dt>Organisation on the internet</dt></div>")
+	assert.Contains(t, body, `aria-current="page">home <span class="tabs__vlan">VLAN 10</span>`)
+	assert.Contains(t, body, `>Internet
+            <span class="tabs__count">1</span>`)
 	assert.Contains(t, body, `<a href="/devices/2">nas.example.com</a>`)
 	assert.Contains(t, body, "smb")
 	assert.Contains(t, body, "2.5 MB")
-
-	assert.Contains(t, body, "Internet")
-	assert.Contains(t, body, "Cloudflare")
-	assert.Contains(t, body, "2 addresses")
-	assert.Contains(t, body, "2.0 kB")
+	assert.NotContains(t, afterForm(body), "Cloudflare", "the internet is another tab")
 	assert.Contains(t, body, "DB-IP", "the ASN data's licence asks for credit")
 
 	// The page speaks plainly: no protocol jargon reaches it.
@@ -111,6 +147,17 @@ func TestDevicePageShowsWhoTheDeviceTalksTo(t *testing.T) {
 		assert.NotContains(t, body, word)
 	}
 
+	assert.NotContains(t, body, "ZgotmplZ")
+
+	rec = get(t, h, "/devices/1/traffic?tab=internet")
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "/devices/1?tab=internet", rec.Header().Get("HX-Push-Url"))
+
+	body = rec.Body.String()
+	assert.Contains(t, body, "Cloudflare")
+	assert.Contains(t, body, "2 addresses")
+	assert.Contains(t, body, "2.0 kB")
+	assert.NotContains(t, body, `<a href="/devices/2">nas.example.com</a>`)
 	assert.NotContains(t, body, "ZgotmplZ")
 }
 
@@ -140,19 +187,31 @@ func TestDeviceTrafficCollapsesServicesAndUnknownNeighbours(t *testing.T) {
 		// Two services on the same device: one row.
 		tcp("192.0.2.10", "192.0.2.11", 445, 2_000),
 		tcp("192.0.2.10", "192.0.2.11", 22, 1_000),
-		// Two addresses no device holds, in one subnet: one row.
+		// Two addresses no device holds, on no recorded network: one row, on
+		// a tab of their own.
 		tcp("192.0.2.10", "198.51.100.7", 80, 300),
 		tcp("192.0.2.10", "198.51.100.8", 80, 200),
 	)
 
-	rec := get(t, newWebHandler(t, store), "/devices/1/traffic")
+	h := newWebHandler(t, store)
+
+	rec := get(t, h, "/devices/1/traffic")
 	require.Equal(t, http.StatusOK, rec.Code)
 
 	body := rec.Body.String()
 	assert.Equal(t, 1, strings.Count(body, `<a href="/devices/2">nas.example.com</a>`))
 	assert.Contains(t, body, "smb, ssh")
+	assert.Contains(t, body, `>Elsewhere on your network
+            <span class="tabs__count">2</span>`)
+	assert.NotContains(t, body, "198.51.100.0/24")
+
+	rec = get(t, h, "/devices/1/traffic?tab=local")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body = rec.Body.String()
 	assert.Contains(t, body, "2 addresses in <span class=\"mono\">198.51.100.0/24</span>")
 	assert.Contains(t, body, "not in your inventory")
+	assert.NotContains(t, body, `<a href="/devices/2">nas.example.com</a>`)
 }
 
 func TestDeviceTrafficFilters(t *testing.T) {
@@ -175,28 +234,28 @@ func TestDeviceTrafficFilters(t *testing.T) {
 		want, avoid []string
 	}{
 		{
-			name: "internet only", query: "scope=internet", push: "/devices/1?scope=internet",
+			name: "internet tab", query: "tab=internet", push: "/devices/1?tab=internet",
 			want: []string{"Cloudflare", "Google"}, avoid: []string{"nas.example.com"},
-		},
-		{
-			name: "local only", query: "scope=local", push: "/devices/1?scope=local",
-			want: []string{"nas.example.com"}, avoid: []string{"Cloudflare"},
 		},
 		{
 			name: "one service", query: "service=6%2F445", push: "/devices/1?service=6%2F445",
 			want: []string{"nas.example.com"}, avoid: []string{"Cloudflare"},
 		},
 		{
-			name: "search matches an organisation", query: "q=google&traffic=7d", push: "/devices/1?q=google&traffic=7d",
+			// Nothing on the home network matches, so the busiest tab left
+			// is the internet.
+			name: "search opens the tab it matches on", query: "q=google&traffic=7d", push: "/devices/1?q=google&traffic=7d",
 			want: []string{"Google"}, avoid: []string{"Cloudflare", "nas.example.com"},
 		},
 		{
-			name: "nothing matches", query: "q=nothing-here", push: "/devices/1?q=nothing-here",
-			want: []string{"Nothing in the last 24 hours matches.", "Clear filters"},
+			name: "search on a tab it does not match", query: "q=google&tab=internet&service=6%2F445",
+			push: "/devices/1?q=google&service=6%2F445&tab=internet",
+			want: []string{"Nothing on the internet in the last 24 hours matches.", "Clear filters"},
 		},
 		{
-			name: "unknown values are dropped", query: "scope=moon&service=https", push: "/devices/1",
-			want: []string{"Cloudflare", "nas.example.com"},
+			// The internet moved the most, so it is the tab that opens.
+			name: "unknown values are dropped", query: "tab=moon&service=https", push: "/devices/1",
+			want: []string{"Cloudflare", "Google"},
 		},
 	}
 
@@ -208,12 +267,7 @@ func TestDeviceTrafficFilters(t *testing.T) {
 			require.Equal(t, http.StatusOK, rec.Code)
 			assert.Equal(t, tt.push, rec.Header().Get("HX-Push-Url"))
 
-			// Only the tables, not the filter's service choices, which list
-			// everything whatever is picked.
-			body := rec.Body.String()
-			if i := strings.Index(body, "</form>"); i >= 0 {
-				body = body[i:]
-			}
+			body := afterForm(rec.Body.String())
 
 			for _, w := range tt.want {
 				assert.Contains(t, body, w)
@@ -226,7 +280,7 @@ func TestDeviceTrafficFilters(t *testing.T) {
 	}
 }
 
-func TestDevicePageAppliesTheTrafficFilterFromItsAddress(t *testing.T) {
+func TestDevicePageOpensTheTabFromItsAddress(t *testing.T) {
 	t.Parallel()
 
 	store := sweptPair(t)
@@ -235,12 +289,40 @@ func TestDevicePageAppliesTheTrafficFilterFromItsAddress(t *testing.T) {
 		tcp("192.0.2.10", "1.1.1.1", 443, 1_200),
 	)
 
-	rec := get(t, newWebHandler(t, store), "/devices/1?scope=internet")
+	rec := get(t, newWebHandler(t, store), "/devices/1?tab=internet")
 	require.Equal(t, http.StatusOK, rec.Code)
 
 	body := rec.Body.String()
-	assert.Contains(t, body, `<option value="internet" selected>Internet</option>`)
+	assert.Contains(t, body, `aria-current="page">Internet`)
+	assert.Contains(t, body, `<input type="hidden" name="tab" value="internet">`)
 	assert.NotContains(t, body, `<a href="/devices/2">nas.example.com</a>`)
+}
+
+func TestSegmentTabsPickTheNarrowestNetwork(t *testing.T) {
+	t.Parallel()
+
+	nets := []*inventory.Network{
+		{ID: 1, CIDR: "192.0.2.0/24", Name: "home"},
+		{ID: 2, CIDR: "192.0.2.128/25", VLAN: 20},
+		{ID: 3, CIDR: "203.0.113.0/24", Name: "guest"},
+	}
+
+	local := []*inventory.TrafficPeer{
+		{IP: netip.MustParseAddr("192.0.2.5"), Sent: 1},
+		{IP: netip.MustParseAddr("192.0.2.200"), Sent: 1},
+		{IP: netip.MustParseAddr("198.51.100.9"), Sent: 1},
+	}
+
+	tabs := segmentTabs(nets, local, nil, nil, trafficFilter{})
+
+	var got []string
+	for _, tab := range tabs {
+		got = append(got, tab.Label+"="+strconv.Itoa(tab.Count))
+	}
+
+	assert.Equal(t, []string{
+		"home=1", "192.0.2.128/25=1", "guest=0", "Elsewhere on your network=1", "Internet=0",
+	}, got, "every recorded network is a tab, even an empty one; the leftovers get one when there are any")
 }
 
 func TestDeviceTrafficFragmentFallsBackToTheDefaultPeriod(t *testing.T) {
@@ -279,6 +361,14 @@ func TestHumanBytes(t *testing.T) {
 
 	for _, tt := range tests {
 		assert.Equal(t, tt.want, humanBytes(tt.n), "%d", tt.n)
+	}
+}
+
+func TestHumanCount(t *testing.T) {
+	t.Parallel()
+
+	for n, want := range map[int64]string{0: "0", 999: "999", 1000: "1,000", 15187: "15,187", 1234567: "1,234,567", -4200: "-4,200"} {
+		assert.Equal(t, want, humanCount(n), "%d", n)
 	}
 }
 
@@ -423,7 +513,7 @@ func TestTrafficPageSaysWhenNothingProbed(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "No device probed your network in the last 24 hours.")
 }
 
-func TestDevicePageShowsWhatTheDeviceTried(t *testing.T) {
+func TestDevicePageShowsWhatTheDeviceTriedWhenAsked(t *testing.T) {
 	t.Parallel()
 
 	store := sweptPair(t)
@@ -434,24 +524,94 @@ func TestDevicePageShowsWhatTheDeviceTried(t *testing.T) {
 	rec := get(t, h, "/devices/1")
 	require.Equal(t, http.StatusOK, rec.Code)
 
+	// Tries are counted at the top but left out of the rows by default.
 	body := rec.Body.String()
 	assert.Contains(t, body, "This device probed your network.")
 	assert.Contains(t, body, "In one hour it tried 26 addresses on your network.")
-	assert.Contains(t, body, "Tried, but nothing came of it")
+	assert.Contains(t, body, "<div><dd>26</dd><dt>Tries with no data</dt></div>")
+	assert.Contains(t, body, "0 of those answered, across 26 peers.")
+	assert.Contains(t, body, "Show tries with no data")
+	assert.NotContains(t, body, "198.51.100.0/24")
+
+	// Asked for, they open on the busiest tab: the sweep.
+	rec = get(t, h, "/devices/1/traffic?tried=1")
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "/devices/1?tried=1", rec.Header().Get("HX-Push-Url"))
+
+	body = rec.Body.String()
 	assert.Contains(t, body, "25 addresses in <span class=\"mono\">198.51.100.0/24</span>")
+	assert.Contains(t, body, `<span class="chip chip--warn">25 tried, 0 answered</span>`)
+	assert.Contains(t, body, `<li class="dim">and 5 more</li>`, "a sweep opens to the first 20 addresses")
+	assert.Contains(t, body, "Hide them")
+
+	rec = get(t, h, "/devices/1/traffic?tried=1&tab="+tabKey(t, store, prefix))
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body = rec.Body.String()
 	assert.Contains(t, body, `<a href="/devices/2">nas.example.com</a>`)
 	assert.Contains(t, body, "port 23")
+	assert.Contains(t, body, "1 tried, 0 answered")
 
 	// The NAS tried nothing, so it carries no notice.
 	rec = get(t, h, "/devices/2")
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.NotContains(t, rec.Body.String(), "This device probed your network.")
 
-	// The search narrows attempts like everything else.
-	rec = get(t, h, "/devices/1/traffic?q=nas")
+	// The search narrows tries like everything else.
+	rec = get(t, h, "/devices/1/traffic?tried=1&q=nas")
 	require.Equal(t, http.StatusOK, rec.Code)
 
 	body = rec.Body.String()
 	assert.Contains(t, body, "nas.example.com")
 	assert.NotContains(t, body, "198.51.100.0/24")
+	assert.NotContains(t, body, "ZgotmplZ")
+}
+
+func TestTrafficPageTabsBySegment(t *testing.T) {
+	t.Parallel()
+
+	store := sweptPair(t)
+
+	iot := "198.51.100.0/24"
+	require.NoError(t, store.RecordNetworks(t.Context(), []plugin.Network{
+		{Prefix: netip.MustParsePrefix(prefix), Name: "home", VLAN: 10},
+		{Prefix: netip.MustParsePrefix(iot), Name: "iot", VLAN: 20},
+	}))
+
+	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(iot), []scanner.Host{
+		host("198.51.100.20", "00:00:5e:00:53:03", "plug.example.com"),
+	})
+	require.NoError(t, err)
+
+	recordTraffic(t, store,
+		tcp("192.0.2.10", "8.8.8.8", 443, 1_000),
+		tcp("198.51.100.20", "1.1.1.1", 443, 5_000),
+	)
+
+	h := newWebHandler(t, store)
+
+	rec := get(t, h, "/traffic")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+	assert.Contains(t, body, `aria-current="page">Whole network`)
+	assert.Contains(t, body, `>iot <span class="tabs__vlan">VLAN 20</span>
+            <span class="tabs__count">1</span>`)
+	assert.Contains(t, body, "laptop.example.com")
+	assert.Contains(t, body, "plug.example.com")
+
+	key := tabKey(t, store, iot)
+
+	rec = get(t, h, "/traffic?tab="+key+"&window=7d")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body = rec.Body.String()
+	assert.Contains(t, body, `aria-current="page">iot`)
+	assert.Contains(t, body, `<input type="hidden" name="tab" value="`+key+`">`)
+	assert.Contains(t, body, "plug.example.com")
+	assert.Contains(t, body, "Cloudflare")
+	assert.NotContains(t, body, "laptop.example.com")
+	assert.NotContains(t, body, ">Google<")
+	assert.Contains(t, body, "<div><dd>1</dd><dt>Device active</dt></div>")
+	assert.NotContains(t, body, "ZgotmplZ")
 }
