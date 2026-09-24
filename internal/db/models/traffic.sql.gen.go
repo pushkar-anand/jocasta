@@ -618,6 +618,165 @@ func (q *Queries) TopOrganisations(ctx context.Context, arg TopOrganisationsPara
 	return items, nil
 }
 
+const trafficMapDevices = `-- name: TrafficMapDevices :many
+SELECT d.id,
+       CAST(COALESCE(d.label, '') AS TEXT)       AS label,
+       CAST(COALESCE(d.hostname, '') AS TEXT)    AS hostname,
+       CAST(COALESCE(d.mac, '') AS TEXT)         AS mac,
+       CAST(COALESCE(d.device_type, '') AS TEXT) AS device_type,
+       CAST(COALESCE((SELECT MIN(a.network_id)
+                      FROM addresses a
+                      WHERE a.device_id = d.id
+                        AND a.is_current = 1), 0) AS INTEGER) AS network_id,
+       CAST(SUM(t.bytes_out + t.bytes_in) AS INTEGER) AS bytes
+FROM traffic_hourly t
+         JOIN devices d ON d.id = t.device_id
+WHERE t.hour >= ?1
+  AND d.is_ignored = 0
+GROUP BY d.id
+ORDER BY bytes DESC, d.id
+`
+
+type TrafficMapDevicesRow struct {
+	ID         int64  `json:"id"`
+	Label      string `json:"label"`
+	Hostname   string `json:"hostname"`
+	MAC        string `json:"mac"`
+	DeviceType string `json:"device_type"`
+	NetworkID  int64  `json:"network_id"`
+	Bytes      int64  `json:"bytes"`
+}
+
+// The devices with traffic since a given hour, for the map: who each is, the
+// network one of its current addresses sits on, and how much it moved.
+//
+//	SELECT d.id,
+//	       CAST(COALESCE(d.label, '') AS TEXT)       AS label,
+//	       CAST(COALESCE(d.hostname, '') AS TEXT)    AS hostname,
+//	       CAST(COALESCE(d.mac, '') AS TEXT)         AS mac,
+//	       CAST(COALESCE(d.device_type, '') AS TEXT) AS device_type,
+//	       CAST(COALESCE((SELECT MIN(a.network_id)
+//	                      FROM addresses a
+//	                      WHERE a.device_id = d.id
+//	                        AND a.is_current = 1), 0) AS INTEGER) AS network_id,
+//	       CAST(SUM(t.bytes_out + t.bytes_in) AS INTEGER) AS bytes
+//	FROM traffic_hourly t
+//	         JOIN devices d ON d.id = t.device_id
+//	WHERE t.hour >= ?1
+//	  AND d.is_ignored = 0
+//	GROUP BY d.id
+//	ORDER BY bytes DESC, d.id
+func (q *Queries) TrafficMapDevices(ctx context.Context, since dbtype.Time) ([]*TrafficMapDevicesRow, error) {
+	rows, err := q.query(ctx, q.trafficMapDevicesStmt, trafficMapDevices, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*TrafficMapDevicesRow
+	for rows.Next() {
+		var i TrafficMapDevicesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.Hostname,
+			&i.MAC,
+			&i.DeviceType,
+			&i.NetworkID,
+			&i.Bytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const trafficMapLinks = `-- name: TrafficMapLinks :many
+SELECT t.device_id,
+       CAST(COALESCE(t.peer_device_id, 0) AS INTEGER) AS peer_device_id,
+       CAST(COALESCE(t.peer_asn, 0) AS INTEGER)       AS peer_asn,
+       CAST(MIN(t.peer_ip) AS TEXT)                   AS peer_ip,
+       CAST(SUM(t.bytes_out + t.bytes_in) AS INTEGER) AS bytes,
+       -- Each protocol and service port the pair used, as "6/443,17/123".
+       CAST(GROUP_CONCAT(DISTINCT t.protocol || '/' || t.service_port) AS TEXT) AS services
+FROM traffic_hourly t
+         JOIN devices d ON d.id = t.device_id
+         LEFT JOIN devices p ON p.id = t.peer_device_id
+WHERE t.hour >= ?1
+  AND d.is_ignored = 0
+  AND ((t.peer_device_id IS NOT NULL AND t.peer_device_id > t.device_id AND p.is_ignored = 0)
+    OR (t.peer_device_id IS NULL AND t.peer_asn IS NOT NULL))
+GROUP BY t.device_id, t.peer_device_id, t.peer_asn
+ORDER BY bytes DESC, t.device_id, peer_device_id, peer_asn
+`
+
+type TrafficMapLinksRow struct {
+	DeviceID     int64  `json:"device_id"`
+	PeerDeviceID int64  `json:"peer_device_id"`
+	PeerASN      int64  `json:"peer_asn"`
+	PeerIP       string `json:"peer_ip"`
+	Bytes        int64  `json:"bytes"`
+	Services     string `json:"services"`
+}
+
+// What each device exchanged since a given hour with each other device and
+// each organisation, for the map. A conversation between two devices is
+// written from both sides; only the side with the lower id is kept, so each
+// pair comes back once, with the services it used. Peers that are neither a
+// device nor an organisation have nowhere to go on the map and are left out.
+//
+//	SELECT t.device_id,
+//	       CAST(COALESCE(t.peer_device_id, 0) AS INTEGER) AS peer_device_id,
+//	       CAST(COALESCE(t.peer_asn, 0) AS INTEGER)       AS peer_asn,
+//	       CAST(MIN(t.peer_ip) AS TEXT)                   AS peer_ip,
+//	       CAST(SUM(t.bytes_out + t.bytes_in) AS INTEGER) AS bytes,
+//	       -- Each protocol and service port the pair used, as "6/443,17/123".
+//	       CAST(GROUP_CONCAT(DISTINCT t.protocol || '/' || t.service_port) AS TEXT) AS services
+//	FROM traffic_hourly t
+//	         JOIN devices d ON d.id = t.device_id
+//	         LEFT JOIN devices p ON p.id = t.peer_device_id
+//	WHERE t.hour >= ?1
+//	  AND d.is_ignored = 0
+//	  AND ((t.peer_device_id IS NOT NULL AND t.peer_device_id > t.device_id AND p.is_ignored = 0)
+//	    OR (t.peer_device_id IS NULL AND t.peer_asn IS NOT NULL))
+//	GROUP BY t.device_id, t.peer_device_id, t.peer_asn
+//	ORDER BY bytes DESC, t.device_id, peer_device_id, peer_asn
+func (q *Queries) TrafficMapLinks(ctx context.Context, since dbtype.Time) ([]*TrafficMapLinksRow, error) {
+	rows, err := q.query(ctx, q.trafficMapLinksStmt, trafficMapLinks, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*TrafficMapLinksRow
+	for rows.Next() {
+		var i TrafficMapLinksRow
+		if err := rows.Scan(
+			&i.DeviceID,
+			&i.PeerDeviceID,
+			&i.PeerASN,
+			&i.PeerIP,
+			&i.Bytes,
+			&i.Services,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertTraffic = `-- name: UpsertTraffic :exec
 INSERT INTO traffic_hourly (source_id, device_id, hour, peer_device_id, peer_ip, peer_name, peer_asn,
                             protocol, service_port, bytes_out, bytes_in, packets_out, packets_in, connections,
