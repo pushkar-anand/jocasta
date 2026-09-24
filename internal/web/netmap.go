@@ -3,6 +3,7 @@ package web
 import (
 	"cmp"
 	"context"
+	"fmt"
 	"math"
 	"net/http"
 	"strconv"
@@ -99,11 +100,24 @@ type worldView struct {
 	Attribution string
 }
 
-// worldCountry is one country's traffic and how dark it is shaded.
+// worldCountry is one country's traffic and how dark it is shaded, with the
+// line to it from home: empty when home is not known or is this country.
 type worldCountry struct {
 	*inventory.CountryTraffic
 
 	Shade int
+
+	Arc      string
+	ArcWidth float64
+}
+
+// HomeKey is home's name for selection, the other end of every arc.
+func (w *worldView) HomeKey() string {
+	if w.Home == nil {
+		return ""
+	}
+
+	return countryKey(w.Home.Code)
 }
 
 // Key is the country's name for selection, as a device's is.
@@ -237,10 +251,53 @@ func (h *Handler) buildWorld(ctx context.Context, now time.Time, recent []invent
 	}
 
 	for _, c := range countries {
-		w.Countries = append(w.Countries, &worldCountry{CountryTraffic: c, Shade: shade(c.Bytes, top)})
+		wc := &worldCountry{CountryTraffic: c, Shade: shade(c.Bytes, top)}
+
+		if to, ok := geo.CountryOf(c.Code); ok && w.Home != nil && to.Code != w.Home.Code {
+			wc.Arc = arc(w.Home.LabelX, w.Home.LabelY, to.LabelX, to.LabelY)
+			wc.ArcWidth = arcWidth(c.Bytes, top)
+		}
+
+		w.Countries = append(w.Countries, wc)
 	}
 
 	return w, nil
+}
+
+// arcBow is how far an arc bows up from the straight line, as a share of its
+// length: enough to read as a route, not a border.
+const arcBow = 0.25
+
+// arc is a curve from one point on the world map to another, bowed upwards
+// so the lines out of one country fan apart rather than overlap.
+func arc(x1, y1, x2, y2 float64) string {
+	dx, dy := x2-x1, y2-y1
+	length := math.Hypot(dx, dy)
+
+	// The normal to the line, turned to point up the map.
+	nx, ny := -dy/length, dx/length
+	if ny > 0 {
+		nx, ny = -nx, -ny
+	}
+
+	cx := (x1+x2)/2 + nx*length*arcBow
+	cy := (y1+y2)/2 + ny*length*arcBow
+
+	return fmt.Sprintf("M %.1f %.1f Q %.1f %.1f %.1f %.1f", x1, y1, cx, cy, x2, y2)
+}
+
+// arcWidth is an arc's width for n bytes against the busiest country's top,
+// on a log scale.
+func arcWidth(n, top int64) float64 {
+	const thinnest, thickest = 0.6, 3.5
+
+	if n <= 1 || top <= 1 {
+		return thinnest
+	}
+
+	f := math.Log(float64(n)) / math.Log(float64(top))
+
+	return math.Round((thinnest+(thickest-thinnest)*min(max(f, 0), 1))*10) / 10
 }
 
 // homeOf is the country the network is in: the one configured, or else the

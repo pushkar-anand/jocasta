@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"net/http"
 	"net/netip"
 	"strings"
@@ -183,4 +184,51 @@ func TestWorldMapFindsHome(t *testing.T) {
 	home, err = (&Handler{store: store, homeCountry: "AU"}).homeOf(t.Context(), now)
 	require.NoError(t, err)
 	assert.Equal(t, "AU", home.Code, "a country named in the config wins")
+}
+
+// With a home, each country the network reached gets a line from it, which
+// selecting the country lights; home itself gets none.
+func TestWorldMapDrawsLinesFromHome(t *testing.T) {
+	t.Parallel()
+
+	store := sweptPair(t)
+	recordTraffic(t, store, tcp("192.0.2.10", "1.1.1.1", 443, 5_000))
+
+	code, ok := geo.Lookup(netip.MustParseAddr("1.1.1.1"))
+	require.True(t, ok)
+
+	home := "IN"
+	if code == home {
+		home = "NZ"
+	}
+
+	body := get(t, newWebHandlerWithAuth(t, store, testAuth(t), WithHomeCountry(home)), "/map?view=world").Body.String()
+	assert.Contains(t, body, `data-home="`+home+`"`)
+	assert.Contains(t, body, `data-arc="M `)
+	assert.Contains(t, body, `data-a="c`+home+`"`, "the line's other end is home, for selection")
+
+	country, _ := geo.CountryOf(home)
+	assert.Contains(t, body, country.Name, "the legend names home")
+
+	// Traffic that stayed in the home country draws no line.
+	same := get(t, newWebHandlerWithAuth(t, store, testAuth(t), WithHomeCountry(code)), "/map?view=world").Body.String()
+	assert.NotContains(t, same, "data-arc=")
+
+	// Without a home there is nothing to draw from.
+	none := get(t, newWebHandler(t, store), "/map?view=world").Body.String()
+	assert.NotContains(t, none, "data-arc=")
+	assert.NotContains(t, none, "data-home=")
+}
+
+// An arc bows up the map whichever way it runs.
+func TestArcBowsUpwards(t *testing.T) {
+	t.Parallel()
+
+	for _, ends := range [][4]float64{{100, 200, 500, 200}, {500, 200, 100, 200}, {100, 300, 400, 100}} {
+		var x1, y1, cx, cy, x2, y2 float64
+
+		_, err := fmt.Sscanf(arc(ends[0], ends[1], ends[2], ends[3]), "M %f %f Q %f %f %f %f", &x1, &y1, &cx, &cy, &x2, &y2)
+		require.NoError(t, err)
+		assert.Less(t, cy, (y1+y2)/2, "%v", ends)
+	}
 }

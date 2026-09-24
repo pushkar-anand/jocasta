@@ -116,7 +116,11 @@ drawn, and each device links to its page.
 The World tab places the same hour's internet traffic on a map of the world.
 A country is shaded darker the more
 traffic went to addresses registered there, and a marker pulses on the ones
-active in the last 15 minutes. Click a country for the devices and
+active in the last 15 minutes. A line runs from the network's own country to
+each of the others, thicker the more it carried and moving while active; the
+network's country comes from the router's outside address, or from
+`traffic.home_country` when that address is private (see
+[Seeing who devices talk to](setup.md#seeing-who-devices-talk-to)). Click a country for the devices and
 organisations behind its traffic; the search finds countries by name. A
 country is where an address is registered, which for a big provider is often
 its home rather than where the server stands.
