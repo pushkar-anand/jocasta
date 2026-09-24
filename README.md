@@ -108,3 +108,5 @@ Jocasta embeds third-party data:
   [IP to Country data](https://db-ip.com/db/download/ip-to-country-lite) by
   [DB-IP](https://db-ip.com), licensed under
   [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+- Country outlines from [Natural Earth](https://www.naturalearthdata.com/),
+  in the public domain.
