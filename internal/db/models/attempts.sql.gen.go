@@ -12,6 +12,48 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
 
+const answerAttempts = `-- name: AnswerAttempts :exec
+UPDATE attempts_hourly
+SET answered = MIN(attempts, answered + CAST(?1 AS INTEGER))
+WHERE device_id = ?2
+  AND hour = ?3
+  AND source_id = ?4
+  AND peer_ip = ?5
+  AND protocol = ?6
+`
+
+type AnswerAttemptsParams struct {
+	Late     int64       `json:"late"`
+	DeviceID int64       `json:"device_id"`
+	Hour     dbtype.Time `json:"hour"`
+	SourceID int64       `json:"source_id"`
+	PeerIP   dbtype.Addr `json:"peer_ip"`
+	Protocol int64       `json:"protocol"`
+}
+
+// A reply that arrived a flush after the knock it answers: the knock is on
+// record as unanswered, so it is marked answered now. Never past the attempts
+// made, and a no-op when the knock is not on record.
+//
+//	UPDATE attempts_hourly
+//	SET answered = MIN(attempts, answered + CAST(?1 AS INTEGER))
+//	WHERE device_id = ?2
+//	  AND hour = ?3
+//	  AND source_id = ?4
+//	  AND peer_ip = ?5
+//	  AND protocol = ?6
+func (q *Queries) AnswerAttempts(ctx context.Context, arg AnswerAttemptsParams) error {
+	_, err := q.exec(ctx, q.answerAttemptsStmt, answerAttempts,
+		arg.Late,
+		arg.DeviceID,
+		arg.Hour,
+		arg.SourceID,
+		arg.PeerIP,
+		arg.Protocol,
+	)
+	return err
+}
+
 const attemptPorts = `-- name: AttemptPorts :one
 SELECT port_count, ports
 FROM attempts_hourly
