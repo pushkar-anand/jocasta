@@ -75,6 +75,9 @@ type TrafficRecorder struct {
 	ports map[attemptKey]*portSet
 
 	names map[netip.Addr]peerName
+
+	// recent is the last few flushes' conversations, for what is active now.
+	recent recentActivity
 }
 
 // trafficKey is one conversation direction in one hour, as a source saw it.
@@ -262,6 +265,7 @@ func (r *TrafficRecorder) Flush(ctx context.Context) error {
 
 	conversations, attempts := splitAttempts(pending)
 	r.samplePorts(attempts, r.store.now())
+	r.recent.push(r.store.now(), conversations)
 
 	if err := r.store.recordTraffic(ctx, conversations, attempts, broadcasts, routers, r.peerNames); err != nil {
 		return err
