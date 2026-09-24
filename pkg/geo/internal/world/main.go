@@ -71,6 +71,9 @@ type country struct {
 	code, name string
 	x, y       float64
 	path       strings.Builder
+
+	// area is the size of the feature the name and marker came from.
+	area float64
 }
 
 func main() {
@@ -142,15 +145,19 @@ func build(features []feature) ([]*country, error) {
 			byCode[code] = c
 		}
 
-		// A folded territory lends its outline, not its name or marker.
-		if !isFold {
-			c.name = p.Name
-			c.x, c.y = geo.Project(p.LabelX, p.LabelY)
-		}
-
 		polygons, err := polygonsOf(f.Geometry.Type, f.Geometry.Coordinates)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", p.Name, err)
+		}
+
+		// A folded territory lends its outline, not its name or marker. So
+		// does any smaller feature sharing a country's code: Natural Earth
+		// files territories such as Ashmore and Cartier Is. under AU, and the
+		// country is the biggest of them whatever order they come in.
+		if a := area(polygons); !isFold && a > c.area {
+			c.name = p.Name
+			c.x, c.y = geo.Project(p.LabelX, p.LabelY)
+			c.area = a
 		}
 
 		for _, ring := range keptRings(polygons) {
@@ -192,6 +199,29 @@ func polygonsOf(kind string, raw json.RawMessage) ([][][][2]float64, error) {
 	default:
 		return nil, fmt.Errorf("unexpected geometry %s", kind)
 	}
+}
+
+// area is the size of the polygons' outer rings in square degrees, which is
+// enough to tell a country from an island filed under its code.
+func area(polygons [][][][2]float64) float64 {
+	var total float64
+
+	for _, poly := range polygons {
+		if len(poly) == 0 {
+			continue
+		}
+
+		ring := poly[0]
+
+		var twice float64
+		for i := range len(ring) - 1 {
+			twice += ring[i][0]*ring[i+1][1] - ring[i+1][0]*ring[i][1]
+		}
+
+		total += math.Abs(twice) / 2
+	}
+
+	return total
 }
 
 // keptRings is every ring of the polygons big enough to see, or the biggest
