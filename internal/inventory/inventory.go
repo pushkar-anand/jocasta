@@ -38,6 +38,11 @@ const DefaultAddressGrace = 6 * time.Hour
 // configured.
 const DefaultRetention = 90 * 24 * time.Hour
 
+// DefaultTrafficRetention is how long hourly traffic totals are kept when no
+// retention is configured. Shorter than the event log's: traffic grows with
+// how busy the network is, not with how often it changes.
+const DefaultTrafficRetention = 30 * 24 * time.Hour
+
 // Store reads the inventory and writes scan results into it.
 type Store struct {
 	conn *sql.DB

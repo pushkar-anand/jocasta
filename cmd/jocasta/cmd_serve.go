@@ -87,9 +87,10 @@ func (s *ServeCmd) Run(
 		}
 	}
 
-	// Zero retention keeps the logs forever, so there is nothing to schedule.
-	if cfg.Inventory.Retention > 0 {
-		err := p.Register(poller.NewPrune(log, store, cfg.Inventory.Retention))
+	// Zero retention keeps a log forever; with both at zero there is nothing
+	// to schedule.
+	if cfg.Inventory.Retention > 0 || cfg.Traffic.Retention > 0 {
+		err := p.Register(poller.NewPrune(log, store, cfg.Inventory.Retention, cfg.Traffic.Retention))
 		if err != nil {
 			return fmt.Errorf("register pruner: %w", err)
 		}

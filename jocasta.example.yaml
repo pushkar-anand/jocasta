@@ -53,6 +53,9 @@ auth:
 mcp:
   enabled: false          # serve the MCP endpoint at /mcp; see docs/mcp.md
 
+traffic:
+  retention: "720h"       # how long hourly traffic totals are kept; 0 keeps them forever
+
 # Sources beyond the sweep. None are configured by default; the block below is
 # an example instance, not defaults. Each block is keyed by an instance name,
 # which becomes the source its facts are filed under, so two routers stay
