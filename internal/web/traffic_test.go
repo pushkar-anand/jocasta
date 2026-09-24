@@ -662,3 +662,43 @@ func TestDevicePageShowsWhatTheDeviceBroadcasts(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.NotContains(t, rec.Body.String(), ">Broadcasts")
 }
+
+// A connection the peer opened is marked on the device page, and the device
+// and service it reached are listed on the Traffic page.
+func TestIncomingConnectionsAreShown(t *testing.T) {
+	t.Parallel()
+
+	store := sweptPair(t)
+
+	recordTraffic(t, store,
+		// Cloudflare's address opens the laptop's 443; the NAS its ssh.
+		tcp("1.1.1.1", "192.0.2.10", 443, 3_000),
+		tcp("192.0.2.11", "192.0.2.10", 22, 3_000),
+		// And the laptop reaches out to Google, which is not incoming.
+		tcp("192.0.2.10", "8.8.8.8", 443, 5_000),
+	)
+
+	h := newWebHandler(t, store)
+
+	rec := get(t, h, "/devices/1/traffic?tab=internet")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+	assert.Contains(t, body, "<div><dd>1</dd><dt>Opened from the internet</dt></div>")
+	assert.Equal(t, 2, strings.Count(body, ">incoming</span>"), "on Cloudflare's row and its address, not Google's")
+
+	rec = get(t, h, "/devices/1/traffic?tab="+tabKey(t, store, prefix))
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), `<a href="/devices/2">nas.example.com</a> <span class="chip chip--brand chip--label" title="Opened 1 connection to this device">incoming</span>`)
+
+	rec = get(t, h, "/traffic")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body = rec.Body.String()
+	assert.Contains(t, body, "Reached from the internet")
+	assert.Contains(t, body, `<a href="/devices/1?tab=internet#traffic">laptop.example.com</a>`)
+	assert.Contains(t, body, `https <span class="dim">443</span>`)
+	assert.NotContains(t, body, `nas.example.com</a></td>
+                    <td>ssh`, "the NAS is on the network, not the internet")
+	assert.NotContains(t, body, "ZgotmplZ")
+}

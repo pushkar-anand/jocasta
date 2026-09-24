@@ -123,6 +123,46 @@
     {{- end }}
 </section>
 
+<section class="block">
+    <h2 class="section">Reached from the internet</h2>
+    <p class="note">Services on your devices that someone on the internet opened
+        a connection to: what your network exposes, as it was used. A port you
+        forward that shows no one here was not reached in this period.</p>
+    {{- if .Incoming }}
+    <div class="card card--table">
+        <div class="scroller">
+            <table>
+                <thead>
+                <tr>
+                    <th scope="col">Device</th>
+                    <th scope="col">Service</th>
+                    <th scope="col">From</th>
+                    <th scope="col" class="num">Connections</th>
+                    <th scope="col" class="num">Sent</th>
+                    <th scope="col">Last seen</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{- range .Incoming }}
+                <tr>
+                    <td><a href="/devices/{{ .DeviceID }}?tab=internet#traffic">{{ .DeviceName }}</a></td>
+                    <td>{{ with .Service }}{{ . }} {{ end }}<span class="dim">{{ with proto .Protocol }}{{ . }} {{ end }}{{ .Port }}</span></td>
+                    <td>{{ count .Peers }} {{ if eq .Peers 1 }}address{{ else }}addresses{{ end }}
+                        <span class="dim">&middot; {{ .Orgs }} {{ if eq .Orgs 1 }}organisation{{ else }}organisations{{ end }}</span></td>
+                    <td class="num">{{ count .Connections }}</td>
+                    <td class="num">{{ bytes .Sent }}</td>
+                    <td class="dim">{{ stamp .LastHour "" }}</td>
+                </tr>
+                {{- end }}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{- else }}
+    <p class="dim">Nothing on the internet opened a connection to a device{{ if .Tab.Key }} on {{ .Tab.Label }}{{ end }} in the last {{ .Window.Label }}.</p>
+    {{- end }}
+</section>
+
 <div class="traffic-cols">
 <section class="block">
     <h2 class="section">Busiest devices</h2>
