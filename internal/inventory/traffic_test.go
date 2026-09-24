@@ -97,6 +97,64 @@ func TestTrafficLandsOnEachDeviceInTheConversation(t *testing.T) {
 	}, trafficRows(t, conn))
 }
 
+func TestTrafficSkipsBroadcastAndMulticast(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, ""))
+
+	rec := newRecorder(s, nil)
+
+	rec.Add(trafficSource{}, []plugin.Flow{
+		flow("192.0.2.10", "255.255.255.255", 9999, 9999, 57, trafficHour),
+		flow("192.0.2.10", "224.0.0.251", 5353, 5353, 90, trafficHour),
+		flow("192.0.2.10", "ff02::fb", 5353, 5353, 90, trafficHour),
+		flow("0.0.0.0", "192.0.2.10", 68, 67, 300, trafficHour),
+	})
+	require.NoError(t, rec.Flush(t.Context()))
+
+	assert.Empty(t, trafficRows(t, conn))
+}
+
+// The unanswered addresses are private-use because that is what the rule is
+// about: a sweep of the home network's own ranges. They are picked from the
+// top of 10/8, which no router hands out by default.
+func TestTrafficDropsUnansweredProbesOfLocalAddressesNoDeviceHolds(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, ""))
+
+	a := deviceIDByMAC(t, conn, macA)
+	rec := newRecorder(s, nil)
+
+	ping := func(src, dst string) plugin.Flow {
+		f := flow(src, dst, 0, 0, 84, trafficHour)
+		f.Protocol = 1
+
+		return f
+	}
+
+	rec.Add(trafficSource{}, []plugin.Flow{
+		// Nothing answers at .1 or .2.
+		ping("192.0.2.10", "10.255.255.1"),
+		ping("192.0.2.10", "10.255.255.2"),
+		// .3 does, so it is a peer even though no device holds it.
+		ping("192.0.2.10", "10.255.255.3"),
+		ping("10.255.255.3", "192.0.2.10"),
+		// Off the local network, an unanswered connection is kept.
+		flow("192.0.2.10", "203.0.113.5", 51000, 443, 60, trafficHour),
+	})
+	require.NoError(t, rec.Flush(t.Context()))
+
+	hour := trafficHour.Format(dbtype.Layout)
+
+	assert.Equal(t, []trafficRow{
+		{Device: a, Peer: "10.255.255.3", Out: 84, In: 84, Connections: 1, Hour: hour},
+		{Device: a, Peer: "203.0.113.5", Service: 443, Out: 60, Connections: 1, Hour: hour},
+	}, trafficRows(t, conn))
+}
+
 func TestTrafficAddsUpAcrossFlushes(t *testing.T) {
 	t.Parallel()
 
@@ -234,6 +292,9 @@ func TestServicePortPicksTheServerSide(t *testing.T) {
 		{"privileged over unprivileged", 17, 20002, 999, 999},
 		{"outside the ephemeral range over inside it", 6, 50000, 12345, 12345},
 		{"lower when nothing decides", 6, 20001, 20000, 20000},
+		{"a client's source port that happens to be known", 17, 51820, 7777, 7777},
+		{"a server on a known port inside the ephemeral range", 17, 45000, 51820, 51820},
+		{"a privileged client port to a known service", 6, 700, 2049, 2049},
 		{"ICMP has no ports", 1, 0, 0, 0},
 	}
 
