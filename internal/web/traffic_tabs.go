@@ -148,7 +148,7 @@ func segmentTabs(
 	}
 
 	internet := &trafficTab{Key: tabInternet, Label: "Internet"}
-	internet.Internet = groupInternet(orgs, internetTried, f.Service, strings.ToLower(f.Query))
+	internet.Internet = groupInternet(orgs, internetTried, f)
 	internet.Count = len(internet.Internet)
 
 	for _, o := range internet.Internet {
@@ -177,7 +177,8 @@ func broadcastTab(nets []*inventory.Network, all []*inventory.Broadcast, f traff
 	protocol, port, hasService := parseServiceKey(f.Service)
 
 	for _, b := range all {
-		if hasService && (b.Protocol != protocol || b.Port != port) {
+		// A broadcast is always the device's own.
+		if f.Direction == dirIn || hasService && (b.Protocol != protocol || b.Port != port) {
 			continue
 		}
 

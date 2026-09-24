@@ -11,9 +11,10 @@
     one tab per network segment, and one for the internet: on a local tab each
     peer is one row whatever services it was reached on, with unknown
     addresses collapsed by subnet; on the Internet tab each organisation is one
-    row that opens to the addresses behind it. Connections that carried no data
-    are left out unless asked for, and then sit on the row of the peer they
-    went to.
+    row that opens to the addresses behind it. Each row says who opened its
+    connections, this device (→) or the peer (←), and the direction filter
+    keeps one side. Connections that carried no data are left out unless asked
+    for, and then sit on the row of the peer they went to.
 */ -}}
 {{ define "partial/device-traffic" }}
 <div id="device-traffic" class="traffic">
@@ -58,6 +59,15 @@
             </select>
         </label>
         {{- end }}
+
+        <label class="field">
+            <span class="visually-hidden">Direction</span>
+            <select id="traffic-dir" name="dir">
+                <option value="">Any direction</option>
+                <option value="out"{{ if eq .Filter.Direction "out" }} selected{{ end }}>Opened by this device</option>
+                <option value="in"{{ if eq .Filter.Direction "in" }} selected{{ end }}>Opened by them</option>
+            </select>
+        </label>
 
         {{- if .HasAttempts }}
         <label class="field field--check">
@@ -179,6 +189,7 @@
                 <thead>
                 <tr>
                     <th scope="col">Organisation</th>
+                    <th scope="col" class="num">Connections</th>
                     <th scope="col" class="num">Sent</th>
                     <th scope="col" class="num">Received</th>
                     <th scope="col">Last seen</th>
@@ -192,7 +203,6 @@
                             <summary>
                                 <span class="strong" title="{{ .Name }}">{{ .Short }}</span>
                                 <span class="dim">{{ len .Peers }} {{ if eq (len .Peers) 1 }}address{{ else }}addresses{{ end }}</span>
-                                {{- if .Incoming }} {{ template "partial/traffic-incoming" .Incoming }}{{ end }}
                                 {{- if .Tries }} <span class="chip chip--warn">{{ count .Tries }} tried, {{ count .Answered }} answered</span>{{ end }}
                             </summary>
                             <ul class="peers__list">
@@ -205,6 +215,7 @@
                             </ul>
                         </details>
                     </td>
+                    <td class="num">{{ template "partial/traffic-conns" . }}</td>
                     <td class="num">{{ template "partial/traffic-bytes" .Sent }}</td>
                     <td class="num">{{ template "partial/traffic-bytes" .Received }}</td>
                     <td class="dim">{{ stamp .LastHour "" }}</td>
@@ -223,6 +234,7 @@
                 <tr>
                     <th scope="col">Talks to</th>
                     <th scope="col">Services</th>
+                    <th scope="col" class="num">Connections</th>
                     <th scope="col" class="num">Sent</th>
                     <th scope="col" class="num">Received</th>
                     <th scope="col">Last seen</th>
@@ -250,6 +262,7 @@
                             </ul>
                         </details>
                     </td>
+                    <td class="num">{{ template "partial/traffic-conns" . }}</td>
                     <td class="num">{{ template "partial/traffic-bytes" .Sent }}</td>
                     <td class="num">{{ template "partial/traffic-bytes" .Received }}</td>
                     <td class="dim">{{ stamp .LastHour "" }}</td>
@@ -265,7 +278,6 @@
                         <span class="mono">{{ .IP }}</span>
                         {{- with .Name }} <span class="dim">{{ . }}</span>{{ end }}
                         {{- end }}
-                        {{- if .Incoming }} {{ template "partial/traffic-incoming" .Incoming }}{{ end }}
                     </td>
                     <td>
                         {{- if .Services }}{{ template "partial/traffic-services" . }}{{ end }}
@@ -274,6 +286,7 @@
                             {{ .TriedSummary }} &middot; {{ count .Tries }} tried, {{ count .Answered }} answered</span>
                         {{- end }}
                     </td>
+                    <td class="num">{{ template "partial/traffic-conns" . }}</td>
                     <td class="num">{{ template "partial/traffic-bytes" .Sent }}</td>
                     <td class="num">{{ template "partial/traffic-bytes" .Received }}</td>
                     <td class="dim">{{ stamp .LastHour "" }}</td>
@@ -303,10 +316,10 @@
 {{ define "partial/traffic-peer" }}
 <span class="mono">{{ .IP }}</span>
 {{- with .Name }} <span class="dim">{{ . }}</span>{{ end }}
-{{- if .Incoming }} {{ template "partial/traffic-incoming" .Incoming }}{{ end }}
 <span class="peers__detail">
     {{- if .Services }}
     {{ .ServiceSummary }} &middot; {{ bytes .Sent }} sent &middot; {{ bytes .Received }} received
+    {{- if or .Outgoing .Incoming }} &middot; {{ template "partial/traffic-conns" . }}{{ end }}
     {{- end }}
     {{- if .Tried }}
     {{ if .Services }}&middot; {{ end }}tried {{ .TriedSummary }} &middot; {{ count .Tries }} tried, {{ count .Answered }} answered
@@ -324,7 +337,9 @@
         {{- range .Services }}
         <li>{{ $.ServiceLabel . }}
             <span class="peers__detail">{{ bytes .Sent }} sent &middot; {{ bytes .Received }} received
-                {{- with .ConnectionsIn }} &middot; opened {{ count . }} {{ if eq . 1 }}time{{ else }}times{{ end }} by them{{ end }}</span></li>
+                {{- if or .Connections .ConnectionsIn }} &middot;
+                {{- with .Connections }} &rarr; {{ count . }}{{ end }}
+                {{- with .ConnectionsIn }} &larr; {{ count . }}{{ end }}{{ end }}</span></li>
         {{- end }}
     </ul>
 </details>
@@ -333,6 +348,16 @@
 {{- end -}}
 {{ end }}
 
-{{- /* Marks a peer that opened connections on the device, rather than the other
-       way round: something reached in. */ -}}
-{{ define "partial/traffic-incoming" }}<span class="chip chip--brand chip--label" title="Opened {{ count . }} {{ if eq . 1 }}connection{{ else }}connections{{ end }} to this device">incoming</span>{{ end }}
+{{- /* Who opened a row's connections: this device (→) or the peer (←), with
+       how many. Takes anything with Outgoing and Incoming counts. */ -}}
+{{ define "partial/traffic-conns" -}}
+{{- if or .Outgoing .Incoming -}}
+<span class="conns">
+    {{- with .Outgoing }}<span title="This device opened {{ count . }} {{ if eq . 1 }}connection{{ else }}connections{{ end }}">&rarr; {{ count . }}</span>{{ end }}
+    {{- if and .Outgoing .Incoming }} &middot; {{ end }}
+    {{- with .Incoming }}<span title="They opened {{ count . }} {{ if eq . 1 }}connection{{ else }}connections{{ end }} to this device">&larr; {{ count . }}</span>{{ end -}}
+</span>
+{{- else -}}
+<span class="dim">&ndash;</span>
+{{- end -}}
+{{- end }}

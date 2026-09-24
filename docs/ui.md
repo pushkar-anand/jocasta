@@ -40,9 +40,11 @@ holds collapse into one row per subnet. The Internet tab groups addresses by
 the organisation that announces them. The section can be narrowed to one
 service, or by a search over names, addresses and organisations.
 
-A peer that opened a connection to the device, rather than the other way
-round, is marked "incoming", and the figures at the top count how many
-connections the internet opened. On the Traffic page, "Reached from the
+Each row, organisation and service says who opened its connections: "→ 12"
+the device opened twelve, "← 3" the peer opened three, and a row can carry
+both. A direction filter keeps only the peers the device opened connections to,
+or only those that opened connections to it, and the figures at the top count
+how many connections the internet opened. On the Traffic page, "Reached from the
 internet" lists each device and service someone on the internet connected to:
 what the network exposes, as it was used.
 
