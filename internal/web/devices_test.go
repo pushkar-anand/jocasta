@@ -292,7 +292,7 @@ func TestDevicePageUnknownIDIsNotFound(t *testing.T) {
 			rec := get(t, h, target)
 
 			require.Equal(t, http.StatusNotFound, rec.Code)
-			assert.Contains(t, rec.Body.String(), "There is nothing at this address")
+			assert.Contains(t, rec.Body.String(), "This page does not exist")
 		})
 	}
 }
@@ -644,7 +644,7 @@ func TestDevicePanelShowsTheGuessBehindAnOverride(t *testing.T) {
 	body := get(t, newWebHandler(t, store), "/devices/1").Body.String()
 
 	assert.NotContains(t, body, `chip--quiet">auto`, "the type is the user's now, not the classifier's")
-	assert.Contains(t, body, "Left to itself the classifier reads this as")
+	assert.Contains(t, body, "Auto-detected as")
 	assert.Contains(t, body, "Printer (medium confidence).")
 }
 
@@ -752,8 +752,8 @@ func TestDevicePageShowsOpenPorts(t *testing.T) {
 	assert.Contains(t, body, "closed")
 
 	// The history renders the port events as sentences, not as stored constants.
-	assert.Contains(t, body, "began answering on")
-	assert.Contains(t, body, "stopped answering on")
+	assert.Contains(t, body, "started listening on")
+	assert.Contains(t, body, "stopped listening on")
 	assert.Contains(t, body, "port 443 (https)")
 	assert.NotContains(t, body, "PORT_OPENED")
 	assert.NotContains(t, body, "ZgotmplZ")

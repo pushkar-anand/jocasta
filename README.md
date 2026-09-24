@@ -1,9 +1,10 @@
 # jocasta
 
-Jocasta keeps an inventory of the devices on your network. It finds them, works
-out which physical device each one is, follows them as they move between
-addresses, and records what changes over time. A web interface shows the
-current picture and the history behind it.
+Jocasta keeps an inventory of the devices on your network. It recognises each
+device by its hardware address, so a device keeps its label and notes when its
+IP changes, and it logs every change it sees. Connect your router and Jocasta
+also identifies devices on other VLANs and shows who each device talks to. It
+runs as a single binary with a web interface.
 
 > **Pre-1.0 and under active development.** A release can change the
 > configuration format, the database schema or the HTTP API with no upgrade
@@ -13,67 +14,59 @@ current picture and the history behind it.
 
 ## The problem
 
-Keeping track of what is connected to a network is harder than it sounds:
+The usual ways of listing what is connected have these gaps:
 
-- Devices come and go, and one that changes its address or its Wi-Fi MAC looks
-  like a new device.
-- The tools that can list what is connected (an ARP scan, the router's lease
-  list, a port scanner) each show one slice of the picture at one moment, and
-  none of them remembers.
-- A scan from a single machine can only fully identify devices on its own
-  network segment. On a network split into VLANs, most devices show up as an
-  address and nothing else.
+- A device that changes its IP address, or picks a new random Wi-Fi hardware
+  address, looks like a new device.
+- An ARP scan, the router's lease list and a port scanner each show one slice
+  of the network at one moment. None of them remembers.
+- A scan from one machine fully identifies devices only on its own segment. On
+  a network split into VLANs, most devices show up as an address and nothing
+  else.
 
-Jocasta exists to give one durable answer to "what is on the network, and what
-changed".
+Jocasta keeps one record of what is on the network and what changed.
 
 ## How it works
 
-Jocasta identifies a device by its hardware (MAC) address rather than its IP.
-An IP is treated as a lease the device currently holds, so the label, group and
-notes you attach to a device stay with it when the address changes.
+Jocasta identifies a device by its hardware (MAC) address. An IP address is
+treated as a lease the device holds for now, so the label, group and notes you
+give a device stay with it when the address changes.
 
-On its own, Jocasta sweeps the networks you name. Connect your router and it
-also reads the router's ARP and DHCP tables. The router sees every network
-segment, so devices that a single-machine scan would miss are identified
-properly, with a vendor and a name.
+On its own, Jocasta sweeps the networks you list. Connect your router and it
+also reads the router's ARP and DHCP tables. The router sees every segment, so
+devices a single machine cannot reach still get a vendor and a name.
 
-Every device discovered, every address gained or dropped, and every rename is
-written to a change log you can review. Jocasta looks at the network only when
-you tell it to, on a schedule you set or on demand. It does not scan
-continuously.
+New devices, addresses gained or dropped, and hostname changes go into a
+change log. Sweeps run on a timer, every five minutes by default, or when you
+run one by hand.
 
-If your router also exports flow records (NetFlow or IPFIX), Jocasta records
-who each device talks to: the other devices on your network and the
-organisations and countries on the internet. It keeps hourly totals per device,
-never individual connections, and points out devices that probe the network and
-what the internet tried to reach.
+If your router exports flow records (NetFlow or IPFIX), Jocasta also records
+who each device talks to: other devices, and organisations and countries on
+the internet. It stores only hourly totals per device.
 
 ## What you get
 
-Some features only work once you connect a source. The **Needs** column says
-which.
+Some features need a source connected first. The **Needs** column says which.
 
-| | | Needs |
+| Feature | What it does | Needs |
 |---|---|---|
-| Device inventory | Every device, its addresses, the segment each address is on, its vendor and name, and when it was last seen. | Nothing. Without the router, only devices on Jocasta's own segment get a hardware address, vendor and name. |
-| Your own labels | Give a device a label, a group and notes, or mark it to ignore. Scans never overwrite these. | Nothing |
+| Device inventory | Every device with its addresses, segment, vendor, name, and when it was last seen. Search and filter by group, network or presence. | Nothing. Without the router, only devices on Jocasta's own segment get a hardware address, vendor and name. |
+| Your own labels | Give a device a label, a group and notes, or mark it ignored. Scans never overwrite them. | Nothing |
 | Network view | Each segment as its own page with the devices on it. | Nothing. Segment names and VLAN tags come from the router. |
-| Change log | A timestamped record of discoveries, moves and renames, per device and across the whole network. | Nothing |
-| Open ports | Which TCP ports each device listens on, and when that changes. | Port scanning turned on |
-| Traffic | Who each device talks to, on your network and on the internet, over the last day, week or month. Also shows what the internet reached or tried to reach, and devices that scan the network. | Router flow exports |
+| Change log | What appeared, moved or was renamed, and when, for one device or the whole network. | Nothing |
+| Open ports | Which TCP ports each device listens on, and when that changed. | Port scanning turned on |
+| Traffic | Who each device talks to, on your network and on the internet, over the last day, week or month. Shows devices probing the network, and which of your services the internet reached or tried to reach. | Router flow exports |
 | Map | The last hour's traffic as a live tree, from the router out to each network, device and organisation, and a world map of the countries the network talked to. | Router flow exports |
-| Web interface | Overview dashboard, searchable and filterable device list, per-device and per-network pages, light and dark themes. | Nothing |
-| API | A JSON API over the same data, for scripts and dashboards. | Nothing |
-| MCP server | An [MCP](https://modelcontextprotocol.io) endpoint, so AI agents such as Claude Code can query the inventory, triage devices and report on changes. | Turned on in config |
-| Self-contained | A single binary with an embedded database. No separate services to run. | |
+| API | A JSON API over the same data, for scripts. | Nothing |
+| MCP server | An [MCP](https://modelcontextprotocol.io) endpoint, so AI agents such as Claude Code can look up devices, label them, and report what changed. | Turned on in config |
+| One binary | An embedded database, no other services to run. | |
 
 Sources supported today:
 
 - **Router tables:** MikroTik RouterOS, read over its REST API. See
-  [Reading your router](docs/setup.md#reading-your-router).
+  [Read devices from your router](docs/setup.md#read-devices-from-your-router).
 - **Router flow exports:** any router that sends NetFlow v5, v9 or IPFIX. See
-  [Seeing who devices talk to](docs/setup.md#seeing-who-devices-talk-to).
+  [Record who devices talk to](docs/setup.md#record-who-devices-talk-to).
 
 More screenshots: [docs/ui.md](docs/ui.md).
 
@@ -115,6 +108,11 @@ source and reading your router, see [setup](docs/setup.md).
 - [MCP server](docs/mcp.md): connecting AI agents to the inventory.
 - [The web UI](docs/ui.md): a tour of the interface.
 - [Development](docs/development.md): building and working on jocasta.
+
+## Help and feedback
+
+Report bugs and ask questions in
+[GitHub issues](https://github.com/pushkar-anand/jocasta/issues).
 
 ## License
 

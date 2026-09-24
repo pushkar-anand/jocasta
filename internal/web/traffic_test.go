@@ -409,7 +409,7 @@ func TestTrafficPageSummarisesTheNetwork(t *testing.T) {
 	assert.Contains(t, body, "New this week")
 	assert.Contains(t, body, "Cloudflare")
 	assert.Contains(t, body, "Google")
-	assert.Contains(t, body, "everything\n        counts as new")
+	assert.Contains(t, body, "everything counts as new")
 
 	assert.Contains(t, body, "Top internet destinations")
 	assert.Contains(t, body, "DB-IP")
@@ -529,7 +529,7 @@ func TestDevicePageShowsWhatTheDeviceTriedWhenAsked(t *testing.T) {
 	assert.Contains(t, body, "This device probed your network.")
 	assert.Contains(t, body, "In one hour it tried 26 addresses on your network.")
 	assert.Contains(t, body, "<div><dd>26</dd><dt>Tries with no data</dt></div>")
-	assert.Contains(t, body, "0 of those answered, across 26 peers.")
+	assert.Contains(t, body, "Sent to 26 peers; none answered.")
 	assert.Contains(t, body, "Show tries with no data")
 	assert.NotContains(t, body, "198.51.100.0/24")
 
@@ -758,11 +758,11 @@ func TestProbesFromTheInternetAreShown(t *testing.T) {
 
 	rec = get(t, h, "/devices/1")
 	require.Equal(t, http.StatusOK, rec.Code)
-	assert.Contains(t, rec.Body.String(), "This device was tried from the internet.")
+	assert.Contains(t, rec.Body.String(), "The internet tried this device.")
 
 	rec = get(t, h, "/devices/2")
 	require.Equal(t, http.StatusOK, rec.Code)
-	assert.Contains(t, rec.Body.String(), "This router's outside address was tried from the internet.")
+	assert.Contains(t, rec.Body.String(), "The internet tried this router's outside address.")
 }
 
 func TestBehindNATFrom(t *testing.T) {

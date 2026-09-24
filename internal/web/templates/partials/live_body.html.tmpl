@@ -28,13 +28,13 @@
                 {{- end }}
 
                 <dl class="stats">
-                    <div><dd>{{ .Online }}</dd><dt>Recent</dt></div>
+                    <div><dd>{{ .Online }}</dd><dt>Seen recently</dt></div>
                     <div class="stat--quiet"><dd>{{ .Offline }}</dd><dt>Quiet</dt></div>
                 </dl>
 
                 {{- /* Attribute widths, not styles: see the ledger in the stylesheet. */}}
                 <svg class="ledger ledger--thin" viewBox="0 0 100 6" preserveAspectRatio="none" role="img"
-                     aria-label="{{ .Online }} of {{ .Total }} devices seen recently">
+                     aria-label="{{ .Online }} of {{ .Total }} {{ if eq .Total 1 }}device{{ else }}devices{{ end }} seen recently">
                     <rect class="ledger__track" x="0" y="0" width="100" height="6"></rect>
                     <rect class="ledger__online" x="0" y="0"
                           width="{{ pct .Online .Total }}" height="6"></rect>
@@ -54,13 +54,13 @@
             <div class="block__head">
                 <h2 class="section">Presence</h2>
                 <p class="block__aside">
-                    {{- .Stats.Total }} devices
+                    {{- .Stats.Total }} {{ if eq .Stats.Total 1 }}device{{ else }}devices{{ end }}
                     {{- if .Stats.Ignored }} &middot; {{ .Stats.Ignored }} ignored{{ end -}}
                 </p>
             </div>
 
             <svg class="ledger" viewBox="0 0 100 10" preserveAspectRatio="none" role="img"
-                 aria-label="{{ .Stats.Online }} of {{ .Stats.Total }} devices seen recently">
+                 aria-label="{{ .Stats.Online }} of {{ .Stats.Total }} {{ if eq .Stats.Total 1 }}device{{ else }}devices{{ end }} seen recently">
                 <rect class="ledger__track" x="0" y="0" width="100" height="10"></rect>
                 <rect class="ledger__online" x="0" y="0"
                       width="{{ pct .Stats.Online .Stats.Total }}" height="10"></rect>
@@ -104,9 +104,9 @@
             <p class="failure">{{ . }}</p>
             {{- end }}
             {{- if $.Stale }}
-            <p class="failure">The presence counts may be behind &mdash;
-                {{- if $.LastCollected.IsZero }} no sweep has ever finished cleanly.
-                {{- else }} the last sweep to finish cleanly was {{ stamp $.LastCollected "" }}.{{ end }}</p>
+            <p class="failure">The presence counts may be out of date.
+                {{- if $.LastCollected.IsZero }} No sweep has finished cleanly yet.
+                {{- else }} The last sweep to finish cleanly was {{ stamp $.LastCollected "" }}.{{ end }}</p>
             <a class="more" href="/scans">Review sweeps
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
@@ -120,7 +120,7 @@
 
     <section class="card portoverview">
         <div class="block__head">
-            <h2 class="section">Ports &amp; services</h2>
+            <h2 class="section">Ports and services</h2>
             <a class="more" href="/devices">View devices
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -145,7 +145,7 @@
                     <li>
                         <span>{{ .Name }}</span>
                         <svg class="ledger ledger--thin" viewBox="0 0 100 6" preserveAspectRatio="none"
-                             role="img" aria-label="{{ .Devices }} devices">
+                             role="img" aria-label="{{ .Devices }} {{ if eq .Devices 1 }}device{{ else }}devices{{ end }}">
                             <rect class="ledger__track" x="0" y="0" width="100" height="6"></rect>
                             <rect class="ledger__online" x="0" y="0"
                                   width="{{ pct .Devices $.Ports.Devices }}" height="6"></rect>
@@ -170,14 +170,14 @@
                     <div><dt>Started</dt><dd class="dim">{{ stamp .StartedAt "" }}</dd></div>
                 </dl>
                 {{- else }}
-                <p class="dim">No port scan has been recorded yet.</p>
+                <p class="dim">No port scan has been recorded yet. Set <code>scan.ports.enabled: true</code>, or run <code>jocasta ports --save</code>.</p>
                 {{- end }}
             </div>
         </div>
 
         {{- if .PortEvents }}
         <div class="portchanges">
-            <h3 class="sub">Recent changes</h3>
+            <h3 class="sub">Port changes</h3>
             <ul>
                 {{- range .PortEvents }}
                 {{- $event := . }}
@@ -195,7 +195,7 @@
 
     <section class="block">
         <div class="block__head">
-            <h2 class="section">Recent</h2>
+            <h2 class="section">Recent changes</h2>
             <a class="more" href="/events">View full log
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

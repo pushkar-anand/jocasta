@@ -30,7 +30,7 @@ func TestLoginFormRejectsWrongPassword(t *testing.T) {
 	h.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusUnauthorized, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Incorrect username or password.")
+	assert.Contains(t, rec.Body.String(), "That username and password do not match.")
 }
 
 // Signing out is a POST -- a link would let another site spend the session

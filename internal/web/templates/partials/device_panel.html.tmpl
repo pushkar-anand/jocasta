@@ -9,7 +9,7 @@
         <section class="card panel">
             <div class="block__head">
                 <h2 class="section">Identity</h2>
-                <span class="chip">{{ .IdentitySource }}</span>
+                <span class="chip">{{ if eq (print .IdentitySource) "MAC" }}by hardware address{{ else }}by IP address{{ end }}</span>
             </div>
 
             <dl class="facts">
@@ -37,16 +37,15 @@
             </dl>
 
             {{- if .Randomised }}
-            <p class="note">This hardware address is locally administered: the device
-                generated it for itself, so it names no vendor and will not survive the
-                next time the device associates.</p>
+            <p class="note">The device made up this hardware address itself, so it names
+                no vendor and may change the next time the device connects.</p>
             {{- end }}
 
             {{- /* The type is yours, and the classifier would have said something
                    else. Worth showing: its guess is why "auto" would land elsewhere
                    if you cleared the override. */}}
             {{- if and .Type .ClassGuess (ne .ClassGuess .Class) }}
-            <p class="note">Left to itself the classifier reads this as
+            <p class="note">Auto-detected as
                 {{ classLabel .ClassGuess }}{{ with confidence .ClassConfidence }} ({{ . }} confidence){{ end }}.</p>
             {{- end }}
         </section>
@@ -64,17 +63,17 @@
                 <div><dt>Group</dt><dd>{{ with .Device.Group }}{{ . }}{{ else }}<span class="dim">&mdash;</span>{{ end }}</dd></div>
                 <div><dt>Notes</dt><dd>{{ with .Device.Notes }}{{ . }}{{ else }}<span class="dim">&mdash;</span>{{ end }}</dd></div>
                 {{- if .Device.Ignored }}
-                <div><dt>Ignored</dt><dd>Left out of the inventory</dd></div>
+                <div><dt>Ignored</dt><dd>Yes, hidden from lists</dd></div>
                 {{- end }}
             </dl>
 
             {{- if not .Role.CanWrite }}
-            <p class="note">Your account is read-only, so these can't be changed here.</p>
+            <p class="note">Your account is read-only, so it cannot change these.</p>
             {{- else }}
             {{- if .Saved }}
             {{- /* tabindex so the swap can land focus on the outcome; sits by the
                    summary because the form it came from is now folded away. */}}
-            <p class="saved" role="status" tabindex="-1">Saved.</p>
+            <p class="saved" role="status" tabindex="-1">Details saved.</p>
             {{- end }}
             <details class="editpanel">
                 <summary>Edit details</summary>
@@ -109,12 +108,12 @@
                     <label class="stack">
                         <span class="eyebrow">Notes</span>
                         <textarea class="input" name="notes" rows="3"
-                                  placeholder="Where it is, what it does, why it is here">{{ .Device.Notes }}</textarea>
+                                  placeholder="For example, upstairs hallway">{{ .Device.Notes }}</textarea>
                     </label>
 
                     <label class="check">
                         <input type="checkbox" name="ignored" value="1"{{ if .Device.Ignored }} checked{{ end }}>
-                        <span>Leave this device out of the inventory</span>
+                        <span>Ignore this device (hide it from lists)</span>
                     </label>
 
                     <div class="curation__actions">
@@ -129,8 +128,8 @@
                 </form>
             </details>
 
-            <p class="note">These are yours. No sweep or plugin writes them, so they
-                survive the device changing address or being identified later.</p>
+            <p class="note">Scans never change these. They stay with the device when its
+                address changes.</p>
             {{- end }}
         </section>
     </div>

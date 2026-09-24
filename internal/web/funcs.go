@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pushkar-anand/jocasta/internal/classify"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
@@ -353,19 +354,19 @@ func phrase(k dbtype.EventKind) string {
 	case dbtype.EventDeviceIdentified:
 		return "was identified"
 	case dbtype.EventDevicesMerged:
-		return "merged with a duplicate record"
+		return "was merged with a duplicate"
 	case dbtype.EventAddressAdded:
-		return "picked up a new address"
+		return "got a new address"
 	case dbtype.EventAddressReleased:
-		return "let go of an address"
+		return "dropped an address"
 	case dbtype.EventHostnameChanged:
-		return "was relabelled"
+		return "changed its hostname"
 	case dbtype.EventDeviceEdited:
 		return "was edited"
 	case dbtype.EventPortOpened:
-		return "began answering on"
+		return "started listening on"
 	case dbtype.EventPortClosed:
-		return "stopped answering on"
+		return "stopped listening on"
 	case dbtype.EventDeviceClassified:
 		return "was reclassified"
 	}
@@ -498,6 +499,15 @@ func addrs(list []netip.Addr) string {
 	return strings.Join(out, ", ")
 }
 
+// labelOf is a stored class's display name, and empty for no class.
+func labelOf(class string) string {
+	if class == "" {
+		return ""
+	}
+
+	return classLabel(classify.Class(class))
+}
+
 // change describes what an event changed, where it changed a value. An event
 // that changed nothing -- a discovery -- has nothing to show here.
 func change(e *inventory.Event) string {
@@ -519,6 +529,21 @@ func change(e *inventory.Event) string {
 		default:
 			return "port " + port
 		}
+	}
+
+	// A released address has nothing after it, and "→ cleared" would read as
+	// though the user emptied a field.
+	if e.Kind == dbtype.EventAddressReleased {
+		return e.OldValue
+	}
+
+	// A class is stored as its identifier; the log shows the name the device
+	// page uses for it.
+	if e.Kind == dbtype.EventDeviceClassified {
+		return change(&inventory.Event{
+			OldValue: labelOf(e.OldValue),
+			NewValue: labelOf(e.NewValue),
+		})
 	}
 
 	// An edit says which field it was about, since the user owns several. A

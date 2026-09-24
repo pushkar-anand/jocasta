@@ -14,10 +14,10 @@
     {{- with .PlaintextToken }}
         <div class="tokenreveal">
             <p class="tokenreveal__label">
-                {{ $.NewName }} created{{ with $.NewScope }} &mdash; {{ scopedisplay . }}{{ end }}
+                {{ $.NewName }} created{{ with $.NewScope }} ({{ scopedisplay . }}){{ end }}
             </p>
-            <p class="tokenreveal__hint">Copy it now &mdash; it is not shown again. Lost tokens are revoked and
-                replaced, not recovered.</p>
+            <p class="tokenreveal__hint">Copy it now. It will not be shown again. If you lose it, revoke it
+                and create a new one.</p>
 
             <div class="tokenreveal__row">
                 <code class="tokenreveal__value" id="token-plaintext">{{ . }}</code>
@@ -66,10 +66,7 @@
                             <td class="dim">{{ stamp .LastUsedAt "" }}</td>
                             <td>
                                 <button type="button" class="btn btn--quiet btn--sm btn--danger"
-                                        hx-delete="/settings/tokens/{{ .ID }}"
-                                        hx-target="#token-list"
-                                        hx-swap="outerHTML"
-                                        hx-confirm="Revoke &quot;{{ .Name }}&quot;? Anything using it stops working immediately.">
+                                        data-open="revoke-dialog-{{ .ID }}">
                                     Revoke
                                 </button>
                             </td>
@@ -79,8 +76,32 @@
                 </table>
             </div>
         </div>
+
+        {{- range .Tokens }}
+        <dialog class="modal" id="revoke-dialog-{{ .ID }}" aria-labelledby="revoke-dialog-{{ .ID }}-title">
+            <div class="modal__head">
+                <div>
+                    <h2 class="modal__title" id="revoke-dialog-{{ .ID }}-title">Revoke &ldquo;{{ .Name }}&rdquo;</h2>
+                    <p class="modal__sub">Anything using this token stops working immediately.</p>
+                </div>
+                <button type="button" class="modal__close" data-close aria-label="Close">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M6 6l12 12M18 6 6 18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal__foot">
+                <button type="button" class="btn btn--quiet btn--sm" data-close>Cancel</button>
+                <button type="button" class="btn btn--quiet btn--sm btn--danger"
+                        hx-delete="/settings/tokens/{{ .ID }}"
+                        hx-target="#token-list"
+                        hx-swap="outerHTML">Revoke token</button>
+            </div>
+        </dialog>
+        {{- end }}
     {{- else }}
-        <p class="dim">No tokens yet.</p>
+        <p class="dim">No tokens yet. Create one to use the API or the MCP server.</p>
     {{- end }}
 </div>
 {{ end }}

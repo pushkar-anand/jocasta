@@ -65,5 +65,5 @@ func TestSetupFormRefusesOnceAnAccountExists(t *testing.T) {
 	rec := requestAs(t, h, nil, http.MethodPost, "/setup", form.Encode())
 
 	assert.Equal(t, http.StatusConflict, rec.Code)
-	assert.Contains(t, rec.Body.String(), "already been completed")
+	assert.Contains(t, rec.Body.String(), "admin account already exists")
 }

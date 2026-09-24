@@ -6,14 +6,14 @@
             <h2 class="section">Security</h2>
         </div>
 
-        <p class="note">A second step at sign-in, from an authenticator app on your phone. Personal to
-            {{ .SignedInAs }}.</p>
+        <p class="note">Signing in as {{ .SignedInAs }} can ask for a code from your phone
+            as well as your password.</p>
 
         {{- with .RecoveryCodes }}
             <div class="tokenreveal">
                 <p class="tokenreveal__label">Recovery codes</p>
-                <p class="tokenreveal__hint">Save these now -- they are not shown again. Each one signs you in once,
-                    in place of a code from your authenticator app, if you lose access to it.</p>
+                <p class="tokenreveal__hint">Save these now. They will not be shown again. If you lose your
+                    phone, each code signs you in once in place of an app code.</p>
 
                 <pre class="reccodes" id="recovery-codes">{{ range . }}{{ . }}
 {{ end -}}</pre>
@@ -21,20 +21,20 @@
                 <div class="reccodes__actions">
                     <button type="button" class="btn btn--quiet btn--sm" data-copy="#recovery-codes">Copy all</button>
                     <button type="button" class="btn btn--quiet btn--sm" data-download="#recovery-codes"
-                            data-filename="jocasta-recovery-codes.txt">Download .txt</button>
+                            data-filename="jocasta-recovery-codes.txt">Download as text</button>
                 </div>
             </div>
         {{- end }}
 
         <div class="card panel">
             {{- if .Enrolling }}
-                <p>Scan this code with your authenticator app, then enter the current 6-digit code to finish
-                    turning two-factor authentication on.</p>
+                <p>Scan this code with your authenticator app, then enter the
+                    6-digit code it shows.</p>
 
                 <img src="/settings/security/totp-qr.png" width="256" height="256"
                      alt="QR code for two-factor authentication setup">
 
-                <p class="note">Can't scan it? Enter this key manually: <code>{{ .Secret }}</code></p>
+                <p class="note">If you cannot scan it, enter this key in the app: <code>{{ .Secret }}</code></p>
 
                 <form method="post" action="/settings/security/totp/confirm" class="stack">
                     <label class="stack">
@@ -42,7 +42,7 @@
                         <input class="input" type="text" name="code" inputmode="numeric" autocomplete="one-time-code"
                                minlength="6" maxlength="6" autofocus required>
                     </label>
-                    <button type="submit" class="btn">Confirm</button>
+                    <button type="submit" class="btn">Turn on</button>
                 </form>
             {{- else if .TOTPEnabled }}
                 <p class="notice notice--ok" role="status">
@@ -97,7 +97,7 @@
                     <div class="modal__head">
                         <div>
                             <h2 class="modal__title" id="disable-dialog-title">Turn off two-factor authentication</h2>
-                            <p class="modal__sub">Signing in will need only a password again, for this account.</p>
+                            <p class="modal__sub">Signing in will ask for your password only.</p>
                         </div>
                         <button type="button" class="modal__close" data-close aria-label="Close">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -122,8 +122,8 @@
                     </form>
                 </dialog>
             {{- else }}
-                <p>Two-factor authentication is off. Turning it on requires an authenticator app (Google
-                    Authenticator, 1Password, and similar all work).</p>
+                <p>Two-factor authentication is off. To turn it on, you need an
+                    authenticator app, such as Google Authenticator or 1Password.</p>
 
                 <form method="post" action="/settings/security/totp/enroll">
                     <button type="submit" class="btn">Turn on two-factor authentication</button>

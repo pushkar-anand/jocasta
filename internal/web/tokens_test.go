@@ -122,7 +122,7 @@ func TestTokensPageShowsTheSignedInAccount(t *testing.T) {
 	body := requestAs(t, h, signIn(t, h), http.MethodGet, "/settings/tokens", "").Body.String()
 
 	assert.Contains(t, body, `<span class="usermenu__name">`+testUsername+`</span>`)
-	assert.Contains(t, body, "Personal to "+testUsername)
+	assert.Contains(t, body, "Tokens belong to "+testUsername)
 }
 
 func TestCreateAndRevokeToken(t *testing.T) {
@@ -144,6 +144,12 @@ func TestCreateAndRevokeToken(t *testing.T) {
 	assert.Contains(t, body, "Authorization: Bearer", "and a runnable bearer-token example")
 
 	id := onlyTokenRowID(t, body)
+
+	// Revoking asks first, in a page dialog whose button names the action,
+	// not the browser's OK/Cancel box.
+	assert.NotContains(t, body, "hx-confirm")
+	assert.Contains(t, body, `data-open="revoke-dialog-`+strconv.FormatInt(id, 10)+`"`)
+	assert.Contains(t, body, ">Revoke token</button>")
 
 	// The plaintext is a one-shot: a reload of the same page re-fetches it
 	// without the secret, and without minting another token.

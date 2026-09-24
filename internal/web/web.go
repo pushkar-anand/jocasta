@@ -246,21 +246,21 @@ func ErrorPageData(_ *http.Request, _ error, status int) map[string]any {
 		// shell's, since TemplateLogin renders standalone like login itself does.
 		return map[string]any{
 			"Title": "Sign in",
-			"Error": "Incorrect username or password.",
+			"Error": "That username and password do not match. Check both and try again.",
 		}
 	case http.StatusPreconditionRequired:
 		// The second-factor page's own fields -- see totpData -- not the
 		// signed-in shell's, since TemplateTOTP renders standalone too.
 		return map[string]any{
 			"Title": "Enter your code",
-			"Error": "Invalid code. Try again.",
+			"Error": "That code did not work. Enter the code your authenticator app shows now, or a recovery code.",
 		}
 	case http.StatusConflict:
 		// The setup page's own fields, the same reason the 401 case above uses
 		// loginData's rather than view's: TemplateSetup renders standalone too.
 		return map[string]any{
 			"Title": "Set up admin account",
-			"Error": "Setup has already been completed. Sign in instead.",
+			"Error": "An admin account already exists. Sign in instead.",
 		}
 	case http.StatusForbidden:
 		// Forbidden renders inside the signed-in shell -- the visitor reaching

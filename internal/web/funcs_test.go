@@ -176,12 +176,12 @@ func TestPhrase(t *testing.T) {
 
 	assert.Equal(t, "was discovered", phrase(dbtype.EventDeviceDiscovered))
 	assert.Equal(t, "was identified", phrase(dbtype.EventDeviceIdentified))
-	assert.Equal(t, "was relabelled", phrase(dbtype.EventHostnameChanged))
+	assert.Equal(t, "changed its hostname", phrase(dbtype.EventHostnameChanged))
 	assert.Equal(t, "was edited", phrase(dbtype.EventDeviceEdited))
-	assert.Equal(t, "picked up a new address", phrase(dbtype.EventAddressAdded))
-	assert.Equal(t, "let go of an address", phrase(dbtype.EventAddressReleased))
-	assert.Equal(t, "began answering on", phrase(dbtype.EventPortOpened))
-	assert.Equal(t, "stopped answering on", phrase(dbtype.EventPortClosed))
+	assert.Equal(t, "got a new address", phrase(dbtype.EventAddressAdded))
+	assert.Equal(t, "dropped an address", phrase(dbtype.EventAddressReleased))
+	assert.Equal(t, "started listening on", phrase(dbtype.EventPortOpened))
+	assert.Equal(t, "stopped listening on", phrase(dbtype.EventPortClosed))
 
 	// events.kind carries no CHECK, so a kind added in Go without a phrase here
 	// still has to render as something, and its own name is the most truthful
@@ -273,6 +273,14 @@ func TestChange(t *testing.T) {
 	// Emptying a field is a change, not the setting of the value that went away.
 	edit.NewValue = ""
 	assert.Equal(t, "label: Printer → cleared", change(edit))
+
+	// A released address is named on its own, not as a field emptied.
+	assert.Equal(t, "192.0.2.55",
+		change(&inventory.Event{Kind: dbtype.EventAddressReleased, OldValue: "192.0.2.55", Detail: "unanswered"}))
+
+	// A reclassification shows the names the device page uses, not identifiers.
+	assert.Equal(t, "Smart-home hub → Camera",
+		change(&inventory.Event{Kind: dbtype.EventDeviceClassified, OldValue: "iot_hub", NewValue: "camera"}))
 }
 
 // The map is what the templates are parsed against, so a helper renamed in one
