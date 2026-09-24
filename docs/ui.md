@@ -100,8 +100,8 @@ every minute, which is how often new traffic is recorded.
 
 Over the tree, a faint line joins each device to what it exchanged traffic
 with: an organisation, or a device on another network. Click a device or an
-organisation to light its lines, name the services on each ("https", "port
-8883") and dim everything else; click the device again to open its page, and
+organisation to light its lines, name the services on each ("https",
+"mqtts", "port 123 UDP") and dim everything else; click the device again to open its page, and
 click the empty map or press Escape to go back. A device talking to one on the
 same network is not drawn, since that traffic never passes the router.
 

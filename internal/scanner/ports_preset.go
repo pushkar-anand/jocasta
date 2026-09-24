@@ -95,6 +95,7 @@ var presetServices = map[uint16]string{
 	8443:  "https-alt",
 	8500:  "consul",
 	8581:  "homebridge",
+	8883:  "mqtts",
 	8888:  "http-alt",
 	8989:  "sonarr",
 	9000:  "portainer",
