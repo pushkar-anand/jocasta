@@ -77,13 +77,47 @@ func ipfixPacket(templateID uint16) []byte {
 		{153, 8}, // flowEndMilliseconds
 	}
 
+	rec := be{}.ip4(nfSrc).ip4(nfDst).u16(51000).u16(443).u8(6).
+		u64(2048).u64(4).u64(uint64(nfExported.UnixMilli())) //nolint:gosec // a 2026 timestamp is positive.
+
+	return ipfixMessage(templateID, fields, rec)
+}
+
+// nfPublic is the router's public address in the NAT packets: what a reply
+// from the internet is addressed to before the router translates it.
+var nfPublic = netip.MustParseAddr("203.0.113.1")
+
+// ipfixNATReply is the reply half of a conversation through a NATing router,
+// laid out as a MikroTik exports it: addressed to the router's public address,
+// delivered to postNAT, whose unspecified value means "not translated".
+func ipfixNATReply(postNAT netip.Addr, postPort uint16) []byte {
+	fields := [][2]uint16{
+		{8, 4},   // sourceIPv4Address
+		{12, 4},  // destinationIPv4Address
+		{7, 2},   // sourceTransportPort
+		{11, 2},  // destinationTransportPort
+		{4, 1},   // protocolIdentifier
+		{1, 8},   // octetDeltaCount
+		{2, 8},   // packetDeltaCount
+		{225, 4}, // postNATSourceIPv4Address
+		{226, 4}, // postNATDestinationIPv4Address
+		{227, 2}, // postNAPTSourceTransportPort
+		{228, 2}, // postNAPTDestinationTransportPort
+	}
+
+	rec := be{}.ip4(nfDst).ip4(nfPublic).u16(443).u16(40000).u8(6).
+		u64(9000).u64(9).
+		ip4(nfDst).ip4(postNAT).u16(443).u16(postPort)
+
+	return ipfixMessage(257, fields, rec)
+}
+
+// ipfixMessage wraps one template and one record using it into a message.
+func ipfixMessage(templateID uint16, fields [][2]uint16, rec []byte) []byte {
 	tmpl := be{}.u16(templateID).u16(u16len(len(fields)))
 	for _, f := range fields {
 		tmpl = tmpl.u16(f[0]).u16(f[1])
 	}
-
-	rec := be{}.ip4(nfSrc).ip4(nfDst).u16(51000).u16(443).u8(6).
-		u64(2048).u64(4).u64(uint64(nfExported.UnixMilli())) //nolint:gosec // a 2026 timestamp is positive.
 
 	body := set(2, tmpl)
 	body = append(body, set(templateID, rec)...)
@@ -216,6 +250,48 @@ func TestNetFlowDecodesEachExportVersion(t *testing.T) {
 			assert.Equal(t, tt.want, flows[0])
 		})
 	}
+}
+
+func TestNetFlowCreditsARepliedPacketToWhereNATDeliveredIt(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		postNAT  netip.Addr
+		postPort uint16
+		wantDst  netip.Addr
+		wantPort uint16
+	}{
+		{"translated", nfSrc, 51000, nfSrc, 51000},
+		{"not translated", netip.IPv4Unspecified(), 0, nfPublic, 40000},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			flows, err := testNetFlow(t).decode(nfExporter, ipfixNATReply(tt.postNAT, tt.postPort), nfExported)
+			require.NoError(t, err)
+			require.Len(t, flows, 1)
+
+			assert.Equal(t, nfDst, flows[0].Src, "the source is never translated back")
+			assert.Equal(t, tt.wantDst, flows[0].Dst)
+			assert.Equal(t, tt.wantPort, flows[0].DstPort)
+		})
+	}
+}
+
+func TestNetFlowDropsItsOwnFeed(t *testing.T) {
+	t.Parallel()
+
+	n := testNetFlow(t)
+	feed := Flow{Src: nfExporter, Dst: nfDst, SrcPort: 40000, DstPort: 2055, Protocol: 17}
+	fromElsewhere := Flow{Src: nfSrc, Dst: nfDst, SrcPort: 40000, DstPort: 2055, Protocol: 17}
+	otherPort := Flow{Src: nfExporter, Dst: nfDst, SrcPort: 40000, DstPort: 53, Protocol: 17}
+
+	got := n.withoutOwnExports([]Flow{feed, fromElsewhere, otherPort}, 2055)
+
+	assert.Equal(t, []Flow{fromElsewhere, otherPort}, got)
 }
 
 func TestNetFlowScalesBySamplingRate(t *testing.T) {

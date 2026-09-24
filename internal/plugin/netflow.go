@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"slices"
 	"sync"
 	"time"
 
@@ -134,6 +135,7 @@ func (n *NetFlow) Listen(ctx context.Context, emit func(context.Context, []Flow)
 
 	var refused uint64
 
+	port := listenPort(conn.LocalAddr())
 	buf := make([]byte, maxDatagram)
 
 	for {
@@ -172,6 +174,8 @@ func (n *NetFlow) Listen(ctx context.Context, emit func(context.Context, []Flow)
 			continue
 		}
 
+		flows = n.withoutOwnExports(flows, port)
+
 		if len(flows) > 0 {
 			emit(ctx, flows)
 		}
@@ -186,8 +190,9 @@ func (n *NetFlow) decode(sender netip.Addr, payload []byte, received time.Time) 
 	}
 
 	var (
-		msgs []producer.ProducerMessage
-		err  error
+		msgs    []producer.ProducerMessage
+		records []netflow.DataFlowSet
+		err     error
 	)
 
 	switch version := binary.BigEndian.Uint16(payload); version {
@@ -213,8 +218,10 @@ func (n *NetFlow) decode(sender netip.Addr, payload []byte, received time.Time) 
 
 		if version == 9 {
 			msgs, err = protoproducer.ProcessMessageNetFlowV9Config(&v9, st.sampling, nil)
+			records, _, _, _ = protoproducer.SplitNetFlowSets(v9)
 		} else {
 			msgs, err = protoproducer.ProcessMessageIPFIXConfig(&ipfix, st.sampling, nil)
+			records, _, _, _ = protoproducer.SplitIPFIXSets(ipfix)
 		}
 
 	default:
@@ -225,17 +232,31 @@ func (n *NetFlow) decode(sender netip.Addr, payload []byte, received time.Time) 
 		return nil, err
 	}
 
+	nat := postNATDestinations(records, len(msgs))
 	flows := make([]Flow, 0, len(msgs))
 
-	for _, m := range msgs {
+	for i, m := range msgs {
 		pm, ok := m.(*protoproducer.ProtoProducerMessage)
 		if !ok {
 			continue
 		}
 
-		if f, ok := toFlow(pm, received); ok {
-			flows = append(flows, f)
+		f, ok := toFlow(pm, received)
+		if !ok {
+			continue
 		}
+
+		if i < len(nat) && nat[i].addr.IsValid() {
+			f.Dst = nat[i].addr
+
+			// A record may name the translated address without the port;
+			// ICMP has neither port to translate.
+			if nat[i].port != 0 {
+				f.DstPort = nat[i].port
+			}
+		}
+
+		flows = append(flows, f)
 	}
 
 	return flows, nil
@@ -291,6 +312,92 @@ func toFlow(m *protoproducer.ProtoProducerMessage, received time.Time) (Flow, bo
 		Packets:  m.Packets * scale,
 		End:      end.UTC(),
 	}, true
+}
+
+// IPFIX information elements for where a packet went after the router's NAT.
+// v9 numbers them the same.
+const (
+	iePostNATDstV4    = 226
+	iePostNAPTDstPort = 228
+	iePostNATDstV6    = 282
+)
+
+// natDestination is where one record's packets were delivered after NAT,
+// zero when the exporter did not say.
+type natDestination struct {
+	addr netip.Addr
+	port uint16
+}
+
+// postNATDestinations reads each data record's post-NAT destination, in the
+// order goflow2's producer turns records into messages: one message per record,
+// sets in packet order.
+//
+// goflow2 maps only the pre-NAT addresses, and on a router doing NAT those are
+// the wrong ones for every reply. A reply from the internet is addressed to the
+// router's public address and only reaches the device after translation, so
+// without this every download would be credited to an address no device holds
+// and dropped. The source needs no such fix: an outgoing packet's pre-NAT
+// source is already the device.
+//
+// It returns nothing when the counts disagree, rather than pairing a record
+// with the wrong message.
+func postNATDestinations(sets []netflow.DataFlowSet, messages int) []natDestination {
+	var out []natDestination
+
+	for _, s := range sets {
+		for _, r := range s.Records {
+			var d natDestination
+
+			for _, v := range r.Values {
+				b, ok := v.Value.([]byte)
+				if !ok || v.PenProvided {
+					continue
+				}
+
+				switch {
+				case (v.Type == iePostNATDstV4 && len(b) == 4) || (v.Type == iePostNATDstV6 && len(b) == 16):
+					if a, ok := netip.AddrFromSlice(b); ok && !a.IsUnspecified() {
+						d.addr = a.Unmap()
+					}
+				case v.Type == iePostNAPTDstPort && len(b) == 2:
+					d.port = binary.BigEndian.Uint16(b)
+				}
+			}
+
+			out = append(out, d)
+		}
+	}
+
+	if len(out) != messages {
+		return nil
+	}
+
+	return out
+}
+
+// withoutOwnExports drops the flows that carried the exports themselves: an
+// exporter sending to this listener sees its own datagrams go by and reports
+// them too, so a collector left to count them charts its own feed.
+func (n *NetFlow) withoutOwnExports(flows []Flow, port uint16) []Flow {
+	return slices.DeleteFunc(flows, func(f Flow) bool {
+		_, exporter := n.exporters[f.Src]
+
+		return exporter && f.Protocol == protoUDP && f.DstPort == port
+	})
+}
+
+// protoUDP is UDP's IANA protocol number, which exports travel over.
+const protoUDP = 17
+
+// listenPort is the port a bound socket took, which differs from the
+// configured one when that asked for port zero.
+func listenPort(a net.Addr) uint16 {
+	if ua, ok := a.(*net.UDPAddr); ok {
+		return uint16(ua.Port) //nolint:gosec // a bound UDP port fits 16 bits.
+	}
+
+	return 0
 }
 
 // senderAddr reads the source address off a received datagram, unmapped so an
