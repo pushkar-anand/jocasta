@@ -147,7 +147,7 @@ func newWebHandler(t *testing.T, store *inventory.Store) http.Handler {
 // newWebHandlerWithAuth is newWebHandler for a test that needs its own handle
 // on the Auth it signs in against -- to look up what a token's create just
 // gave the user's id, say, rather than scraping it back out of a response.
-func newWebHandlerWithAuth(t *testing.T, store *inventory.Store, a *auth.Auth) http.Handler {
+func newWebHandlerWithAuth(t *testing.T, store *inventory.Store, a *auth.Auth, opts ...Option) http.Handler {
 	t.Helper()
 
 	hw := response.NewHTMLWriter(testLogger(), nil,
@@ -183,7 +183,7 @@ func newWebHandlerWithAuth(t *testing.T, store *inventory.Store, a *auth.Auth) h
 	)
 
 	sm := auth.NewSession(testLogger())
-	h := NewHandler(testLogger(), testReader(t), store, hw, sm, a)
+	h := NewHandler(testLogger(), testReader(t), store, hw, sm, a, opts...)
 
 	return sm.LoadAndSave(h)
 }

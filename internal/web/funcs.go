@@ -61,8 +61,16 @@ func funcs(now func() time.Time) template.FuncMap {
 		"proto":        protoName,
 		"attemptWhat":  attemptWhat,
 		"portList":     portList,
+		"segtone":      segmentTone,
+		"services":     mapServices,
 	}
 }
+
+// segmentTones is how many colours the map cycles through for its networks.
+const segmentTones = 6
+
+// segmentTone is the colour the map gives the i-th network.
+func segmentTone(i int) int { return i % segmentTones }
 
 // humanCount is a count with its thousands separated: "15,187".
 func humanCount(n int64) string {

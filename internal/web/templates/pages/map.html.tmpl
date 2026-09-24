@@ -1,0 +1,38 @@
+{{ define "page/map" }}
+{{- template "layout/head" . }}
+
+{{- if not .Recorded }}
+<section class="block">
+    <h2 class="section">Map</h2>
+    <div class="card empty">
+        <p>No traffic recorded yet. Once your router sends its traffic records
+            to Jocasta, this page draws which devices talk to each other and to
+            which organisations on the internet.</p>
+        <p>See &ldquo;Seeing who devices talk to&rdquo; in the setup guide.</p>
+    </div>
+</section>
+{{- else }}
+<section class="block">
+    <div class="block__head">
+        <h2 class="section">Who talks to whom</h2>
+        <p class="block__aside">Last hour</p>
+    </div>
+
+    {{- /* The search sits outside what the poll swaps, so what was typed
+           outlives each redraw; netmap.js applies it to the new map. The
+           wrapper polls and outlives every tick; the poll swaps only what is
+           inside it, which is what /map/live answers with. */}}
+    <div class="netmap-wrap">
+        <label class="netmap__search">
+            <span class="visually-hidden">Find a device or organisation</span>
+            <input id="netmap-search" type="search" placeholder="Search" autocomplete="off" spellcheck="false">
+        </label>
+        <div id="map-live" hx-get="/map/live" hx-trigger="every 60s" hx-swap="innerHTML">
+            {{- template "partial/map-body" . }}
+        </div>
+    </div>
+</section>
+{{- end }}
+
+{{- template "layout/foot" . }}
+{{ end }}

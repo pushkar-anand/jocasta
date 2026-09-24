@@ -123,7 +123,7 @@ func buildOverviewData(
 		// Live drives the topbar's "refreshing" line, and the page only
 		// mounts the poller once it has an inventory to poll for -- an empty
 		// one renders the invitation instead, with nothing that ticks.
-		Title: "Overview", Section: "Overview", Live: stats.Total > 0,
+		Title: "Overview", Section: "Overview", Live: liveEvery(stats.Total > 0, "30s"),
 		Window:     windowWords(store.OnlineWindow()),
 		Stats:      stats,
 		Ports:      ports,

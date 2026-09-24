@@ -53,6 +53,10 @@ type (
 		// the path answers that it is off rather than falling through to the
 		// web UI.
 		MCPEnabled bool
+
+		// RecentTraffic is what the traffic recorder saw lately, for the map
+		// to mark what is active. Nil when no traffic source is configured.
+		RecentTraffic web.RecentTraffic
 	}
 )
 
@@ -135,7 +139,13 @@ func Start(
 	)
 
 	ap := api.NewHandler(cfg.Logger, reader, store, jw)
-	wh := web.NewHandler(cfg.Logger, reader, store, hw, sm, a)
+
+	var webOpts []web.Option
+	if cfg.RecentTraffic != nil {
+		webOpts = append(webOpts, web.WithRecentTraffic(cfg.RecentTraffic))
+	}
+
+	wh := web.NewHandler(cfg.Logger, reader, store, hw, sm, a, webOpts...)
 
 	tokenMiddleware := auth.NewTokenMiddleware(jw, a, auth.WithTokenBypass(regexp.MustCompile(`^/livez$`)))
 	sessionMiddleware := auth.NewSessionMiddleware(

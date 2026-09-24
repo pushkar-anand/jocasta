@@ -106,7 +106,7 @@ func (s *ServeCmd) Run(
 	grp, ctx := errgroup.WithContext(ctx)
 
 	if len(reporters) > 0 {
-		startTraffic(ctx, grp, log, store, reporters)
+		sCfg.RecentTraffic = startTraffic(ctx, grp, log, store, reporters)
 	}
 
 	grp.Go(func() error {
@@ -157,7 +157,8 @@ func portsPoller(cfg *config.Config, log *slog.Logger, store *inventory.Store) (
 	return poller.NewPorts(log, sc, store, cfg.Scan.Source, cfg.Scan.Ports.Interval), nil
 }
 
-// startTraffic runs every traffic source's listener and the recorder they feed.
+// startTraffic runs every traffic source's listener and the recorder they feed,
+// and returns the recorder for the map to read what is active from.
 // A listener that cannot bind fails startup through the group, the same as a
 // server that cannot: a configured source that silently received nothing would
 // read as a network with no traffic.
@@ -167,7 +168,7 @@ func startTraffic(
 	log *slog.Logger,
 	store *inventory.Store,
 	reporters []plugin.TrafficReporter,
-) {
+) *inventory.TrafficRecorder {
 	rec := inventory.NewTrafficRecorder(store, log, hosts.ResolveName)
 
 	grp.Go(func() error { return rec.Run(ctx) })
@@ -177,4 +178,6 @@ func startTraffic(
 			return r.Listen(ctx, func(_ context.Context, flows []plugin.Flow) { rec.Add(r, flows) })
 		})
 	}
+
+	return rec
 }

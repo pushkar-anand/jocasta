@@ -43,6 +43,10 @@ type Handler struct {
 	htmlWriter *response.HTMLWriter
 	reader     *request.Reader
 	log        *slog.Logger
+
+	// recent is what the traffic recorder saw lately; nil when no traffic
+	// source is configured.
+	recent RecentTraffic
 }
 
 // ServeHTTP routes a request to the page or fragment handler that matches it.
@@ -59,6 +63,7 @@ func NewHandler(
 	hw *response.HTMLWriter,
 	sm *auth.Session,
 	a *auth.Auth,
+	opts ...Option,
 ) *Handler {
 	// A template that does not parse is a broken build, not a runtime
 	// condition: every one of them is compiled into the binary.
@@ -84,6 +89,10 @@ func NewHandler(
 		htmlWriter: hw,
 		reader:     reader,
 		log:        log,
+	}
+
+	for _, o := range opts {
+		o(h)
 	}
 
 	// allow gates a route behind a minimum role, designed to wrap a handler
@@ -149,6 +158,8 @@ func NewHandler(
 	h.mux.HandleFunc("GET /networks/{id}/rows", hw.Handle(h.networkRows(sm)))
 
 	h.mux.HandleFunc("GET /traffic", hw.Handle(h.traffic(sm)))
+	h.mux.HandleFunc("GET /map", hw.Handle(h.networkMap(sm)))
+	h.mux.HandleFunc("GET /map/live", hw.Handle(h.networkMapLive()))
 	h.mux.HandleFunc("GET /events", hw.Handle(h.events(sm)))
 	h.mux.HandleFunc("GET /scans", hw.Handle(h.scans(sm)))
 

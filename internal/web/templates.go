@@ -20,6 +20,7 @@ const (
 	templatePageEvents    = "page/events"
 	templatePageScans     = "page/scans"
 	templatePageTraffic   = "page/traffic"
+	templatePageMap       = "page/map"
 	templatePageTokens    = "page/tokens"
 	templatePageUsers     = "page/users"
 	templatePageSecurity  = "page/security"
@@ -31,4 +32,5 @@ const (
 	templatePartialDeviceRowForm = "partial/device-row-form"
 	templatePartialDevicePanel   = "partial/device-panel"
 	templatePartialDeviceTraffic = "partial/device-traffic"
+	templatePartialMapBody       = "partial/map-body"
 )
