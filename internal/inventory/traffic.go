@@ -58,6 +58,10 @@ type TrafficRecorder struct {
 	pending map[trafficKey]*trafficTotals
 	dropped uint64
 
+	// broadcasts are what devices sent to everyone, kept apart from pending
+	// since they have no peer.
+	broadcasts map[broadcastKey]*broadcastTotals
+
 	// ports is the ports each device tried on each peer this hour, kept
 	// across flushes so an hour's count is of distinct ports. Only Flush
 	// touches it.
@@ -103,12 +107,13 @@ func NewTrafficRecorder(store *Store, log *slog.Logger, resolve func(context.Con
 	}
 
 	return &TrafficRecorder{
-		store:   store,
-		log:     log.With(slog.String("component", "traffic")),
-		resolve: resolve,
-		pending: make(map[trafficKey]*trafficTotals),
-		names:   make(map[netip.Addr]peerName),
-		ports:   make(map[attemptKey]*portSet),
+		store:      store,
+		log:        log.With(slog.String("component", "traffic")),
+		resolve:    resolve,
+		pending:    make(map[trafficKey]*trafficTotals),
+		broadcasts: make(map[broadcastKey]*broadcastTotals),
+		names:      make(map[netip.Addr]peerName),
+		ports:      make(map[attemptKey]*portSet),
 	}
 }
 
@@ -120,6 +125,10 @@ func (r *TrafficRecorder) Add(src plugin.Plugin, flows []plugin.Flow) {
 
 	for _, f := range flows {
 		if !conversational(f) {
+			if scope, ok := broadcastScope(f); ok {
+				r.addBroadcast(src, f, scope)
+			}
+
 			continue
 		}
 
@@ -206,8 +215,8 @@ func (r *TrafficRecorder) Run(ctx context.Context) error {
 // for two flushes at once.
 func (r *TrafficRecorder) Flush(ctx context.Context) error {
 	r.mu.Lock()
-	pending, dropped := r.pending, r.dropped
-	r.pending, r.dropped = make(map[trafficKey]*trafficTotals), 0
+	pending, broadcasts, dropped := r.pending, r.broadcasts, r.dropped
+	r.pending, r.broadcasts, r.dropped = make(map[trafficKey]*trafficTotals), make(map[broadcastKey]*broadcastTotals), 0
 	r.mu.Unlock()
 
 	if dropped > 0 {
@@ -215,14 +224,21 @@ func (r *TrafficRecorder) Flush(ctx context.Context) error {
 			slog.Uint64("dropped", dropped), slog.Int("cap", maxPendingTraffic))
 	}
 
-	if len(pending) == 0 {
+	if len(pending) == 0 && len(broadcasts) == 0 {
 		return nil
 	}
+
+	nets, err := loadNetworks(ctx, r.store.q)
+	if err != nil {
+		return err
+	}
+
+	takeSubnetBroadcasts(pending, broadcasts, nets)
 
 	conversations, attempts := splitAttempts(pending)
 	r.samplePorts(attempts, r.store.now())
 
-	return r.store.recordTraffic(ctx, conversations, attempts, r.peerNames)
+	return r.store.recordTraffic(ctx, conversations, attempts, broadcasts, r.peerNames)
 }
 
 // peerNames returns names for the peers in addrs, resolving the ones the cache
@@ -284,6 +300,7 @@ func (s *Store) recordTraffic(
 	ctx context.Context,
 	pending map[trafficKey]*trafficTotals,
 	attempts map[attemptKey]*attemptSample,
+	broadcasts map[broadcastKey]*broadcastTotals,
 	names func(context.Context, []netip.Addr) map[netip.Addr]string,
 ) error {
 	holders := make(map[netip.Addr]int64)
@@ -323,6 +340,12 @@ func (s *Store) recordTraffic(
 			if _, err := holder(s.q, a); err != nil {
 				return err
 			}
+		}
+	}
+
+	for k := range broadcasts {
+		if _, err := holder(s.q, k.src); err != nil {
+			return err
 		}
 	}
 
@@ -397,6 +420,10 @@ func (s *Store) recordTraffic(
 		return err
 	}
 
+	if err := writeBroadcasts(ctx, q, broadcasts, holders, sourceID); err != nil {
+		return err
+	}
+
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit traffic: %w", err)
 	}
@@ -405,8 +432,9 @@ func (s *Store) recordTraffic(
 }
 
 // conversational reports whether a flow is between two hosts. Broadcast and
-// multicast go to everyone listening, so "who did it talk to" has no answer,
-// and an unspecified address is a host that has none yet, asking for one.
+// multicast go to everyone listening, so "who did it talk to" has no answer --
+// they are kept as broadcasts instead -- and an unspecified address is a host
+// that has none yet, asking for one.
 func conversational(f plugin.Flow) bool {
 	for _, a := range []netip.Addr{f.Src, f.Dst} {
 		if !a.IsValid() || a.IsUnspecified() || a.IsMulticast() || a == limitedBroadcast {

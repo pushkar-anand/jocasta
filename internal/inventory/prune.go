@@ -10,10 +10,11 @@ import (
 
 // Pruned counts what one prune deleted.
 type Pruned struct {
-	Events   int64
-	Scans    int64
-	Traffic  int64
-	Attempts int64
+	Events     int64
+	Scans      int64
+	Traffic    int64
+	Attempts   int64
+	Broadcasts int64
 }
 
 // Prune deletes every event and every finished scan older than retention, and
@@ -65,6 +66,10 @@ func (s *Store) Prune(ctx context.Context, retention, trafficRetention time.Dura
 
 		if res.Attempts, err = q.DeleteAttemptsBefore(ctx, cutoff); err != nil {
 			return nil, fmt.Errorf("prune attempts: %w", err)
+		}
+
+		if res.Broadcasts, err = q.DeleteBroadcastsBefore(ctx, cutoff); err != nil {
+			return nil, fmt.Errorf("prune broadcasts: %w", err)
 		}
 	}
 
