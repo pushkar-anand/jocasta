@@ -57,10 +57,25 @@ func funcs(now func() time.Time) template.FuncMap {
 		"permchoice":   permChoice,
 		"scopechoice":  scopeChoice,
 		"bytes":        humanBytes,
+		"count":        humanCount,
 		"proto":        protoName,
 		"attemptWhat":  attemptWhat,
 		"portList":     portList,
 	}
+}
+
+// humanCount is a count with its thousands separated: "15,187".
+func humanCount(n int64) string {
+	s := strconv.FormatInt(n, 10)
+	if n < 0 {
+		return "-" + humanCount(-n)
+	}
+
+	for i := len(s) - 3; i > 0; i -= 3 {
+		s = s[:i] + "," + s[i:]
+	}
+
+	return s
 }
 
 // humanBytes is a byte count as a person reads one: "1.2 GB", "640 kB". Units

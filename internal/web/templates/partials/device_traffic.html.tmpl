@@ -2,13 +2,18 @@
     Takes a trafficSection. Who one device talked to over a period, from the
     hourly totals the router's traffic exports add up to.
 
-    The filter form fetches this fragment and swaps it whole; htmx keeps focus
-    in the search box across the swap because it has an id. Without htmx the
-    form submits to the device page, which renders the same section.
+    The filter form, the tabs and the tries switch all fetch this fragment and
+    swap it whole; htmx keeps focus in the search box across the swap because
+    it has an id. Without htmx they are plain links and a form submitting to
+    the device page, which renders the same section.
 
-    Each peer is one row whatever services it was reached on, with the services
-    one click down. Local addresses no device holds collapse by subnet, and the
-    internet is grouped by the organisation announcing each address.
+    The figures at the top are the whole period, before any filter. Under them
+    one tab per network segment, and one for the internet: on a local tab each
+    peer is one row whatever services it was reached on, with unknown
+    addresses collapsed by subnet; on the Internet tab each organisation is one
+    row that opens to the addresses behind it. Connections that carried no data
+    are left out unless asked for, and then sit on the row of the peer they
+    went to.
 */ -}}
 {{ define "partial/device-traffic" }}
 <div id="device-traffic" class="traffic">
@@ -21,6 +26,8 @@
           hx-swap="outerHTML"
           hx-sync="this:replace"
           hx-trigger="input changed delay:300ms, change, submit">
+        <input type="hidden" name="tab" value="{{ .Tab.Key }}">
+
         <label class="field field--search">
             <span class="visually-hidden">Find</span>
             <svg class="field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -40,15 +47,6 @@
             </select>
         </label>
 
-        <label class="field">
-            <span class="visually-hidden">Where</span>
-            <select id="traffic-scope" name="scope">
-                <option value="">Everywhere</option>
-                <option value="local"{{ if eq .Filter.Scope "local" }} selected{{ end }}>On your network</option>
-                <option value="internet"{{ if eq .Filter.Scope "internet" }} selected{{ end }}>Internet</option>
-            </select>
-        </label>
-
         {{- if .Services }}
         <label class="field">
             <span class="visually-hidden">Service</span>
@@ -61,6 +59,13 @@
         </label>
         {{- end }}
 
+        {{- if .HasAttempts }}
+        <label class="field field--check">
+            <input id="traffic-tried" type="checkbox" name="tried" value="1"{{ if .Filter.Tried }} checked{{ end }}>
+            <span>Show tries with no data</span>
+        </label>
+        {{- end }}
+
         <noscript><button type="submit" class="btn">Apply</button></noscript>
     </form>
 
@@ -69,23 +74,104 @@
         <p><strong>This device probed your network.</strong>
             {{- if .SweptAddresses }} In one hour it tried {{ .Peers }} addresses on your network{{ if .SweptPorts }}, and up to {{ .MaxPorts }} ports on one of them{{ end }}.
             {{- else }} In one hour it tried {{ .MaxPorts }} ports on one address.{{ end }}
-            {{ .Answered }} of {{ .Attempts }} tries were answered{{ with .Ports }}; ports tried include {{ portList . }}{{ end }}.
+            {{ count .Answered }} of {{ count .Attempts }} tries were answered{{ with .Ports }}; ports tried include {{ portList . }}{{ end }}.
             Last seen doing it {{ stamp .LastHour "" }}.</p>
     </div>
     {{- end }}
 
     {{- if .Empty }}
     <p class="dim">No traffic recorded for this device in the last {{ .Window.Label }}.</p>
-    {{- else if not .Matched }}
-    <p class="dim">Nothing in the last {{ .Window.Label }} matches.
-        <a href="{{ .ClearPath }}#traffic"
-           hx-get="/devices/{{ .DeviceID }}/traffic?traffic={{ .Window.Key }}"
+    {{- else }}
+
+    {{- with .Summary }}
+    <div class="card traffic__summary">
+        <dl class="stats">
+            <div><dd>{{ bytes .Received }}</dd><dt>Received</dt></div>
+            <div><dd>{{ bytes .Sent }}</dd><dt>Sent</dt></div>
+            <div><dd>{{ .Local }}</dd><dt>On your network</dt></div>
+            <div><dd>{{ .Orgs }}</dd><dt>{{ if eq .Orgs 1 }}Organisation{{ else }}Organisations{{ end }} on the internet</dt></div>
+            {{- if .Tries }}
+            <div{{ if not $.Probing }} class="stat--quiet"{{ end }}><dd>{{ count .Tries }}</dd><dt>Tries with no data</dt></div>
+            {{- end }}
+        </dl>
+        {{- if .Tries }}
+        <p class="traffic__tried dim">{{ count .Answered }} of those answered, across {{ .TriedPeers }} {{ if eq .TriedPeers 1 }}peer{{ else }}peers{{ end }}.
+            <a href="{{ $.TriedPath }}#traffic"
+               hx-get="{{ $.TriedFragment }}"
+               hx-target="#device-traffic"
+               hx-swap="outerHTML">{{ if $.Filter.Tried }}Hide them{{ else }}Show them{{ end }}</a></p>
+        {{- end }}
+    </div>
+    {{- end }}
+
+    <nav class="tabs" aria-label="Where it talks to">
+        {{- range .Tabs }}
+        <a class="tabs__tab{{ if .Empty }} tabs__tab--empty{{ end }}"
+           href="{{ $.TabPath .Key }}#traffic"
+           hx-get="{{ $.TabFragment .Key }}"
+           hx-target="#device-traffic"
+           hx-swap="outerHTML"
+           {{- if eq .Key $.Tab.Key }} aria-current="page"{{ end }}>
+            {{- .Label }}{{ with .VLAN }} <span class="tabs__vlan">VLAN {{ . }}</span>{{ end }}
+            <span class="tabs__count">{{ .Count }}</span></a>
+        {{- end }}
+    </nav>
+
+    {{- with .Tab }}
+    {{- if .Empty }}
+    {{- if $.Filter.Active }}
+    <p class="dim">Nothing {{ if .IsInternet }}on the internet{{ else }}on {{ .Label }}{{ end }} in the last {{ $.Window.Label }} matches.
+        <a href="{{ $.ClearPath }}#traffic"
+           hx-get="{{ $.ClearFragment }}"
            hx-target="#device-traffic"
            hx-swap="outerHTML">Clear filters</a></p>
     {{- else }}
+    <p class="dim">This device exchanged nothing {{ if .IsInternet }}with the internet{{ else }}on {{ .Label }}{{ end }} in the last {{ $.Window.Label }}{{ if and $.HasAttempts (not $.Filter.Tried) }}; it may have tried, which &ldquo;Show tries with no data&rdquo; adds{{ end }}.</p>
+    {{- end }}
 
-    {{- with .Local }}
-    <h3 class="sub">On your network</h3>
+    {{- else if .IsInternet }}
+    <div class="card card--table">
+        <div class="scroller">
+            <table>
+                <thead>
+                <tr>
+                    <th scope="col">Organisation</th>
+                    <th scope="col" class="num">Sent</th>
+                    <th scope="col" class="num">Received</th>
+                    <th scope="col">Last seen</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{- range .Internet }}
+                <tr>
+                    <td>
+                        <details class="peers">
+                            <summary>
+                                <span class="strong" title="{{ .Name }}">{{ .Short }}</span>
+                                <span class="dim">{{ len .Peers }} {{ if eq (len .Peers) 1 }}address{{ else }}addresses{{ end }}</span>
+                                {{- if .Tries }} <span class="chip chip--warn">{{ count .Tries }} tried, {{ count .Answered }} answered</span>{{ end }}
+                            </summary>
+                            <ul class="peers__list">
+                                {{- range .Peers.Head }}
+                                <li>{{ template "partial/traffic-peer" . }}</li>
+                                {{- end }}
+                                {{- with .Peers.Rest }}
+                                <li class="dim">and {{ count . }} more</li>
+                                {{- end }}
+                            </ul>
+                        </details>
+                    </td>
+                    <td class="num">{{ template "partial/traffic-bytes" .Sent }}</td>
+                    <td class="num">{{ template "partial/traffic-bytes" .Received }}</td>
+                    <td class="dim">{{ stamp .LastHour "" }}</td>
+                </tr>
+                {{- end }}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {{- else }}
     <div class="card card--table">
         <div class="scroller">
             <table>
@@ -99,7 +185,7 @@
                 </tr>
                 </thead>
                 <tbody>
-                {{- range . }}
+                {{- range .Local }}
                 {{- if .Group }}
                 {{- with .Group }}
                 <tr>
@@ -108,16 +194,20 @@
                             <summary>
                                 <span class="strong">{{ len .Peers }} addresses in <span class="mono">{{ .Prefix }}</span></span>
                                 <span class="dim">not in your inventory</span>
+                                {{- if .Tries }} <span class="chip chip--warn">{{ count .Tries }} tried, {{ count .Answered }} answered</span>{{ end }}
                             </summary>
                             <ul class="peers__list">
-                                {{- range .Peers }}
+                                {{- range .Peers.Head }}
                                 <li>{{ template "partial/traffic-peer" . }}</li>
+                                {{- end }}
+                                {{- with .Peers.Rest }}
+                                <li class="dim">and {{ count . }} more</li>
                                 {{- end }}
                             </ul>
                         </details>
                     </td>
-                    <td class="num">{{ bytes .Sent }}</td>
-                    <td class="num">{{ bytes .Received }}</td>
+                    <td class="num">{{ template "partial/traffic-bytes" .Sent }}</td>
+                    <td class="num">{{ template "partial/traffic-bytes" .Received }}</td>
                     <td class="dim">{{ stamp .LastHour "" }}</td>
                 </tr>
                 {{- end }}
@@ -132,115 +222,15 @@
                         {{- with .Name }} <span class="dim">{{ . }}</span>{{ end }}
                         {{- end }}
                     </td>
-                    <td>{{ template "partial/traffic-services" . }}</td>
-                    <td class="num">{{ bytes .Sent }}</td>
-                    <td class="num">{{ bytes .Received }}</td>
-                    <td class="dim">{{ stamp .LastHour "" }}</td>
-                </tr>
-                {{- end }}
-                {{- end }}
-                {{- end }}
-                </tbody>
-            </table>
-        </div>
-    </div>
-    {{- end }}
-
-    {{- with .Internet }}
-    <h3 class="sub">Internet</h3>
-    <div class="card card--table">
-        <div class="scroller">
-            <table>
-                <thead>
-                <tr>
-                    <th scope="col">Talks to</th>
-                    <th scope="col" class="num">Sent</th>
-                    <th scope="col" class="num">Received</th>
-                    <th scope="col">Last seen</th>
-                </tr>
-                </thead>
-                <tbody>
-                {{- range . }}
-                <tr>
                     <td>
-                        <details class="peers">
-                            <summary>
-                                <span class="strong" title="{{ .Name }}">{{ .Short }}</span>
-                                <span class="dim">{{ len .Peers }} {{ if eq (len .Peers) 1 }}address{{ else }}addresses{{ end }}</span>
-                            </summary>
-                            <ul class="peers__list">
-                                {{- range .Peers }}
-                                <li>{{ template "partial/traffic-peer" . }}</li>
-                                {{- end }}
-                            </ul>
-                        </details>
-                    </td>
-                    <td class="num">{{ bytes .Sent }}</td>
-                    <td class="num">{{ bytes .Received }}</td>
-                    <td class="dim">{{ stamp .LastHour "" }}</td>
-                </tr>
-                {{- end }}
-                </tbody>
-            </table>
-        </div>
-    </div>
-    {{- end }}
-
-    {{- with .Attempts }}
-    <h3 class="sub">Tried, but nothing came of it</h3>
-    <p class="note">Connections this device started that never carried any data:
-        a port that refused, one nobody answered, a ping. A few are normal; many,
-        to many addresses or ports, is what a scan looks like.</p>
-    <div class="card card--table">
-        <div class="scroller">
-            <table>
-                <thead>
-                <tr>
-                    <th scope="col">Tried to reach</th>
-                    <th scope="col">What</th>
-                    <th scope="col" class="num">Tries</th>
-                    <th scope="col" class="num">Answered</th>
-                    <th scope="col">Last seen</th>
-                </tr>
-                </thead>
-                <tbody>
-                {{- range . }}
-                {{- if .Group }}
-                {{- with .Group }}
-                <tr>
-                    <td colspan="2">
-                        <details class="peers">
-                            <summary>
-                                <span class="strong">{{ len .Peers }} addresses in <span class="mono">{{ .Prefix }}</span></span>
-                                <span class="dim">not in your inventory</span>
-                            </summary>
-                            <ul class="peers__list">
-                                {{- range .Peers }}
-                                <li><span class="mono">{{ .IP }}</span>
-                                    <span class="peers__detail">{{ attemptWhat . }} &middot; {{ .Attempts }} tried &middot; {{ .Answered }} answered</span></li>
-                                {{- end }}
-                            </ul>
-                        </details>
-                    </td>
-                    <td class="num">{{ .Attempts }}</td>
-                    <td class="num">{{ .Answered }}</td>
-                    <td class="dim">{{ stamp .LastHour "" }}</td>
-                </tr>
-                {{- end }}
-                {{- else }}
-                {{- with .Peer }}
-                <tr>
-                    <td>
-                        {{- if .PeerDeviceID }}
-                        <a href="/devices/{{ .PeerDeviceID }}">{{ .PeerDeviceName }}</a>
-                        {{- else }}
-                        <span class="mono">{{ .IP }}</span>
-                        {{- with .OrgShort }} <span class="dim">{{ . }}</span>{{ end }}
+                        {{- if .Services }}{{ template "partial/traffic-services" . }}{{ end }}
+                        {{- if .Tried }}
+                        <span class="traffic__tried"><span class="chip chip--warn">no data</span>
+                            {{ .TriedSummary }} &middot; {{ count .Tries }} tried, {{ count .Answered }} answered</span>
                         {{- end }}
                     </td>
-                    <td>{{ attemptWhat . }}</td>
-                    <td class="num">{{ .Attempts }}</td>
-                    <td class="num">{{ .Answered }}</td>
+                    <td class="num">{{ template "partial/traffic-bytes" .Sent }}</td>
+                    <td class="num">{{ template "partial/traffic-bytes" .Received }}</td>
                     <td class="dim">{{ stamp .LastHour "" }}</td>
                 </tr>
                 {{- end }}
@@ -250,6 +240,7 @@
             </table>
         </div>
     </div>
+    {{- end }}
     {{- end }}
 
     <p class="note">Hourly totals from your router. Names come from DNS and from
@@ -259,13 +250,21 @@
 </div>
 {{ end }}
 
+{{- /* A byte count, or a dash when nothing moved: a peer that was only tried. */ -}}
+{{ define "partial/traffic-bytes" }}{{ if . }}{{ bytes . }}{{ else }}<span class="dim">&ndash;</span>{{ end }}{{ end }}
+
 {{- /* One address inside a collapsed group: the address, its DNS name, what it
-       was reached on and how much moved. */ -}}
+       was reached on and how much moved, and what was tried there. */ -}}
 {{ define "partial/traffic-peer" }}
 <span class="mono">{{ .IP }}</span>
 {{- with .Name }} <span class="dim">{{ . }}</span>{{ end }}
 <span class="peers__detail">
+    {{- if .Services }}
     {{ .ServiceSummary }} &middot; {{ bytes .Sent }} sent &middot; {{ bytes .Received }} received
+    {{- end }}
+    {{- if .Tried }}
+    {{ if .Services }}&middot; {{ end }}tried {{ .TriedSummary }} &middot; {{ count .Tries }} tried, {{ count .Answered }} answered
+    {{- end }}
 </span>
 {{ end }}
 
