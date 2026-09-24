@@ -293,6 +293,30 @@ func TestAKnockAnsweredInTheNextFlushIsNotTraffic(t *testing.T) {
 	}
 }
 
+// A ping's reply can land a flush after the ping, as a knock's can. The ping
+// is counted then as unanswered, and the reply marks it answered.
+func TestAPingAnsweredInTheNextFlushIsAnswered(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, ""), host("192.0.2.11", macB, ""))
+
+	flows := ping("192.0.2.10", "192.0.2.11", true, s.now())
+
+	rec := newRecorder(s, nil)
+	rec.Add(trafficSource{}, flows[:1])
+	require.NoError(t, rec.Flush(t.Context()))
+	rec.Add(trafficSource{}, flows[1:])
+	require.NoError(t, rec.Flush(t.Context()))
+
+	assert.Empty(t, trafficRows(t, conn))
+
+	rows := attemptRows(t, conn)
+	require.Len(t, rows, 1)
+	assert.Equal(t, int64(1), rows[0].Attempts)
+	assert.Equal(t, int64(1), rows[0].Answered)
+}
+
 // An answer whose knock is not on record -- it fell in the previous hour, or
 // before this process started -- has nothing to mark and is dropped.
 func TestALateAnswerWithNoKnockOnRecordIsDropped(t *testing.T) {

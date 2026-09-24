@@ -279,7 +279,12 @@ func splitAttempts(pending map[trafficKey]*trafficTotals) (map[trafficKey]*traff
 
 					record(k, t.echoRequests, answered, 0)
 				case t.echoReplies > 0:
-					// The answer to a ping, already counted with it.
+					// The answer to a ping, counted with it when the ping is
+					// in this flush, and credited to it on record when the
+					// ping came a flush earlier.
+					if r := reverse(k); r == nil || r.echoRequests == 0 {
+						late(k, t.echoReplies)
+					}
 				default:
 					// Unreachables and the like: not an attempt by either side.
 					conversations[k] = t
