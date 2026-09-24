@@ -113,6 +113,14 @@ in the top right names each network's colour with its device count; pointing
 at one picks its devices out. The busiest 60 devices and 12 organisations are
 drawn, and each device links to its page.
 
+The World tab places the same hour's internet traffic on a map of the world.
+A country is shaded darker the more
+traffic went to addresses registered there, and a marker pulses on the ones
+active in the last 15 minutes. Click a country for the devices and
+organisations behind its traffic; the search finds countries by name. A
+country is where an address is registered, which for a big provider is often
+its home rather than where the server stands.
+
 ## Network page
 
 One segment, its VLAN tag and name, and the devices on it.

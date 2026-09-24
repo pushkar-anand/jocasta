@@ -3002,6 +3002,140 @@ td .traffic__tried {
     opacity: 0.15;
 }
 
+/* The world view: countries shaded by how much traffic went to them, a
+   marker pulsing on the ones active now, and a card for the one selected. */
+.worldmap__svg {
+    background: color-mix(in srgb, var(--brand) 5%, var(--surface));
+}
+
+.worldmap__country {
+    fill: var(--surface-2);
+    stroke: var(--border-strong);
+    stroke-width: 0.3;
+    vector-effect: non-scaling-stroke;
+    transition: fill 0.2s;
+}
+
+.worldmap__country:hover {
+    stroke: var(--text-2);
+}
+
+.worldmap__shade-1 { fill: color-mix(in srgb, var(--brand) 18%, var(--surface)); background: color-mix(in srgb, var(--brand) 18%, var(--surface)); }
+.worldmap__shade-2 { fill: color-mix(in srgb, var(--brand) 35%, var(--surface)); background: color-mix(in srgb, var(--brand) 35%, var(--surface)); }
+.worldmap__shade-3 { fill: color-mix(in srgb, var(--brand) 52%, var(--surface)); background: color-mix(in srgb, var(--brand) 52%, var(--surface)); }
+.worldmap__shade-4 { fill: color-mix(in srgb, var(--brand) 72%, var(--surface)); background: color-mix(in srgb, var(--brand) 72%, var(--surface)); }
+.worldmap__shade-5 { fill: var(--brand); background: var(--brand); }
+
+.netmap__svg--searching .worldmap__country:not(.netmap__dev--match) {
+    opacity: 0.35;
+}
+
+.worldmap__country.netmap__dev--match {
+    stroke: var(--text);
+    stroke-width: 1.2;
+}
+
+.worldmap__country.is-selected {
+    stroke: var(--text);
+    stroke-width: 1.5;
+}
+
+.worldmap__marker {
+    display: none;
+    fill: var(--aqua);
+    stroke: var(--surface);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+    pointer-events: none;
+}
+
+.worldmap__marker.is-active {
+    display: inline;
+}
+
+.worldmap__scale {
+    gap: 3px;
+}
+
+.worldmap__swatch {
+    flex: none;
+    width: 16px;
+    height: 10px;
+    border-radius: 2px;
+}
+
+.worldmap__pip {
+    flex: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--aqua);
+}
+
+.worldmap__detail {
+    position: absolute;
+    z-index: 1;
+    left: 12px;
+    bottom: 12px;
+    width: min(300px, calc(100% - 24px));
+    max-height: 60%;
+    overflow-y: auto;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    box-shadow: var(--shadow-card);
+    font-size: var(--fs-support);
+}
+
+.worldmap__detail-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0 0 6px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.worldmap__detail-bytes {
+    flex: none;
+    white-space: nowrap;
+    color: var(--text-3);
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+}
+
+.worldmap__parts {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.worldmap__parts--orgs {
+    border-top: 1px solid var(--border);
+    margin-top: 6px;
+    padding-top: 6px;
+}
+
+.worldmap__parts li {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 2px 0;
+    color: var(--text-2);
+}
+
+.worldmap__parts li span:last-child {
+    flex: none;
+    color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.worldmap__more {
+    color: var(--text-3);
+}
+
 /* On a phone the legend would cover the map; it goes under it instead. */
 @media (max-width: 700px) {
     .netmap {
@@ -3031,6 +3165,19 @@ td .traffic__tried {
     .netmap__line--active,
     .netmap__link--active {
         animation: netmap-flow 1.2s linear infinite;
+    }
+
+    .worldmap__marker.is-active {
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: worldmap-pulse 1.6s ease-in-out infinite;
+    }
+}
+
+@keyframes worldmap-pulse {
+    50% {
+        transform: scale(1.8);
+        opacity: 0.6;
     }
 }
 

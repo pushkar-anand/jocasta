@@ -149,6 +149,33 @@
             n.classList.toggle('is-selected', k === selected);
             n.classList.toggle('is-peer', k !== selected && peers.has(k));
         });
+
+        // On the world view, the selected country's card opens.
+        document.querySelectorAll('.worldmap__detail').forEach(function(d) {
+            d.hidden = d.dataset.key !== selected;
+        });
+    }
+
+    // The world view's poll brings how to shade each country and which are
+    // active; the outline it applies to came once, with the page.
+    function applyWorld(svg) {
+        var data = document.getElementById('world-data');
+        if (!data) return;
+
+        svg.querySelectorAll('.worldmap__country, .worldmap__marker').forEach(function(n) {
+            n.classList.remove('worldmap__shade-1', 'worldmap__shade-2', 'worldmap__shade-3',
+                'worldmap__shade-4', 'worldmap__shade-5', 'is-active');
+        });
+
+        data.querySelectorAll('li').forEach(function(li) {
+            var code = li.dataset.code;
+            var country = svg.querySelector('.worldmap__country[data-code="' + code + '"]');
+            if (country) country.classList.add('worldmap__shade-' + li.dataset.shade);
+            if (li.hasAttribute('data-active')) {
+                var marker = svg.querySelector('.worldmap__marker[data-code="' + code + '"]');
+                if (marker) marker.classList.add('is-active');
+            }
+        });
     }
 
     function select(svg, key) {
@@ -189,13 +216,18 @@
         return found;
     }
 
-    // focus zooms to a node, a quarter of the map across.
+    // focus zooms to a node, a quarter of the map across, or wide enough
+    // for the whole of a big country.
     function focus(svg, node) {
-        var c = node.querySelector('circle');
-        if (!c) return;
+        var shape = node.querySelector('circle') || node;
+        if (!shape.getBBox) return;
+        var box = shape.getBBox();
         var b = base(svg);
-        var w = b.w / 4, h = b.h / 4;
-        view = { x: +c.getAttribute('cx') - w / 2, y: +c.getAttribute('cy') - h / 2, w: w, h: h };
+        var w = Math.max(b.w / 4, box.width * 1.6), h = Math.max(b.h / 4, box.height * 1.6);
+        var s = Math.max(w / b.w, h / b.h);
+        w = b.w * s;
+        h = b.h * s;
+        view = { x: box.x + box.width / 2 - w / 2, y: box.y + box.height / 2 - h / 2, w: w, h: h };
         apply(svg);
     }
 
@@ -233,9 +265,15 @@
             var svg = mapSVG();
             if (svg) {
                 apply(svg);
+                applyWorld(svg);
                 search(svg);
                 applySelection(svg);
             }
         }
+    });
+    // The world view's first data comes with the page.
+    document.addEventListener('DOMContentLoaded', function() {
+        var svg = mapSVG();
+        if (svg) applyWorld(svg);
     });
 })();

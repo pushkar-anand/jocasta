@@ -1,0 +1,35 @@
+{{- /*
+    What the world view's poll brings each minute: each country with traffic,
+    how dark to shade it and whether it is active, for netmap.js to apply to
+    the outline, and a card for each that selecting it opens.
+*/ -}}
+{{ define "partial/map-world-body" }}
+{{- with .World }}
+<ul id="world-data" hidden>
+    {{- range .Countries }}
+    <li data-code="{{ .Code }}" data-shade="{{ .Shade }}"{{ if .Active }} data-active{{ end }}></li>
+    {{- end }}
+</ul>
+
+{{- range .Countries }}
+<div class="worldmap__detail" data-key="{{ .Key }}" hidden>
+    <p class="worldmap__detail-head">
+        <span class="worldmap__detail-name">{{ .Name }}</span>
+        <span class="worldmap__detail-bytes">{{ bytes .Bytes }}</span>
+    </p>
+    <ul class="worldmap__parts">
+        {{- range .Devices }}
+        <li><a href="/devices/{{ .ID }}">{{ .Name }}</a><span>{{ bytes .Bytes }}</span></li>
+        {{- end }}
+        {{- with .MoreDevices }}<li class="worldmap__more">+{{ . }}</li>{{ end }}
+    </ul>
+    <ul class="worldmap__parts worldmap__parts--orgs">
+        {{- range .Orgs }}
+        <li><span class="worldmap__org">{{ .Name }}</span><span>{{ bytes .Bytes }}</span></li>
+        {{- end }}
+        {{- with .MoreOrgs }}<li class="worldmap__more">+{{ . }}</li>{{ end }}
+    </ul>
+</div>
+{{- end }}
+{{- end }}
+{{ end }}

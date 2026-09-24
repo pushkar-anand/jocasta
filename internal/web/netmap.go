@@ -3,6 +3,7 @@ package web
 import (
 	"cmp"
 	"context"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/web/netmap"
+	"github.com/pushkar-anand/jocasta/pkg/geo"
 )
 
 const (
@@ -50,8 +52,62 @@ type mapPage struct {
 	// recorder runs in this process.
 	Watching bool
 
+	// World is set on the world view, and Map and Layout on the network
+	// one.
+	World  *worldView
 	Map    *inventory.TrafficMap
 	Layout *netmap.Layout
+}
+
+// The map's two views: the network as a tree, and the internet on the world.
+const (
+	mapViewNetwork = "network"
+	mapViewWorld   = "world"
+)
+
+// mapView is the view a request asks for, the network when it names none.
+func mapView(r *http.Request) string {
+	if r.URL.Query().Get("view") == mapViewWorld {
+		return mapViewWorld
+	}
+
+	return mapViewNetwork
+}
+
+// worldShades is how many steps the world map shades countries in.
+const worldShades = 5
+
+// worldView is the internet placed on the world.
+type worldView struct {
+	Width, Height float64
+
+	// Outline is every country's shape; Countries the ones with traffic.
+	Outline   []geo.Country
+	Countries []*worldCountry
+
+	Attribution string
+}
+
+// worldCountry is one country's traffic and how dark it is shaded.
+type worldCountry struct {
+	*inventory.CountryTraffic
+
+	Shade int
+}
+
+// Key is the country's name for selection, as a device's is.
+func (c *worldCountry) Key() string { return countryKey(c.Code) }
+
+func countryKey(code string) string { return "c" + code }
+
+// Shades are the steps of the world map's legend.
+func (w *worldView) Shades() []int {
+	out := make([]int, worldShades)
+	for i := range out {
+		out[i] = i + 1
+	}
+
+	return out
 }
 
 // networkMap serves the map page.
@@ -59,7 +115,7 @@ func (h *Handler) networkMap(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 
-		data, err := h.buildMap(ctx)
+		data, err := h.buildMap(ctx, mapView(r))
 		if err != nil {
 			return err
 		}
@@ -79,9 +135,15 @@ func (h *Handler) networkMap(sm *auth.Session) response.HandlerFunc {
 // wrapper that drives the poll stays on the page across every refresh.
 func (h *Handler) networkMapLive() response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		data, err := h.buildMap(r.Context())
+		data, err := h.buildMap(r.Context(), mapView(r))
 		if err != nil {
 			return err
+		}
+
+		if data.World != nil {
+			h.htmlWriter.Success(w, r, templatePartialMapWorldBody, data)
+
+			return nil
 		}
 
 		h.htmlWriter.Success(w, r, templatePartialMapBody, data)
@@ -90,7 +152,7 @@ func (h *Handler) networkMapLive() response.HandlerFunc {
 	}
 }
 
-func (h *Handler) buildMap(ctx context.Context) (*mapPage, error) {
+func (h *Handler) buildMap(ctx context.Context, which string) (*mapPage, error) {
 	now := time.Now()
 	data := &mapPage{Watching: h.recent != nil}
 
@@ -107,6 +169,12 @@ func (h *Handler) buildMap(ctx context.Context) (*mapPage, error) {
 	var recent []inventory.RecentEdge
 	if h.recent != nil {
 		recent = h.recent.Recent(now.Add(-mapRecent))
+	}
+
+	if which == mapViewWorld {
+		data.World, err = h.buildWorld(ctx, now, recent)
+
+		return data, err
 	}
 
 	if data.Map, err = h.store.TrafficMap(ctx, now.Add(-mapSpan), recent); err != nil {
@@ -133,6 +201,43 @@ func (h *Handler) buildMap(ctx context.Context) (*mapPage, error) {
 	data.Layout = netmap.Place(data.Map, segments)
 
 	return data, nil
+}
+
+// buildWorld places the last hour's internet traffic on the world, shading
+// each country on a log scale against the busiest.
+func (h *Handler) buildWorld(ctx context.Context, now time.Time, recent []inventory.RecentEdge) (*worldView, error) {
+	countries, err := h.store.TrafficByCountry(ctx, now.Add(-mapSpan), recent)
+	if err != nil {
+		return nil, err
+	}
+
+	w := &worldView{
+		Width: geo.WorldWidth, Height: geo.WorldHeight,
+		Outline: geo.World(), Attribution: geo.Attribution,
+	}
+
+	var top int64 = 1
+	for _, c := range countries {
+		top = max(top, c.Bytes)
+	}
+
+	for _, c := range countries {
+		w.Countries = append(w.Countries, &worldCountry{CountryTraffic: c, Shade: shade(c.Bytes, top)})
+	}
+
+	return w, nil
+}
+
+// shade is the step, 1 to worldShades, n bytes falls in against the busiest
+// country's top, on a log scale.
+func shade(n, top int64) int {
+	if n <= 1 || top <= 1 {
+		return 1
+	}
+
+	f := math.Log(float64(n)) / math.Log(float64(top))
+
+	return min(max(int(math.Ceil(f*worldShades)), 1), worldShades)
 }
 
 // mapServices is a link's services as a person reads them, "https · port 123

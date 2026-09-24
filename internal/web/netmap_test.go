@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pushkar-anand/jocasta/internal/inventory"
+	"github.com/pushkar-anand/jocasta/pkg/geo"
 )
 
 // recentEdges stands in for the recorder, reporting the same edges whatever
@@ -100,4 +101,49 @@ func TestMapWithoutTheRecorderMarksNothingActive(t *testing.T) {
 	body := rec.Body.String()
 	assert.Equal(t, 0, strings.Count(body, "netmap__line--active"))
 	assert.NotContains(t, body, "Active now")
+}
+
+// The world view draws every country once with the page and polls only for
+// how to shade them; a country the network reached is shaded, with a card of
+// who talked to it.
+func TestWorldMapShadesTheCountriesReached(t *testing.T) {
+	t.Parallel()
+
+	store := sweptPair(t)
+	recordTraffic(t, store, tcp("192.0.2.10", "1.1.1.1", 443, 5_000))
+
+	code, ok := geo.Lookup(netip.MustParseAddr("1.1.1.1"))
+	require.True(t, ok)
+
+	country, ok := geo.CountryOf(code)
+	require.True(t, ok)
+
+	h := newWebHandler(t, store)
+
+	rec := get(t, h, "/map?view=world")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+	assert.Contains(t, body, `hx-get="/map/live?view=world"`)
+	assert.Contains(t, body, `data-code="IN"`, "every country is drawn")
+	assert.Contains(t, body, `<li data-code="`+code+`" data-shade="5"`)
+	assert.Contains(t, body, `data-key="c`+code+`" hidden`, "a card for the country")
+	assert.Contains(t, body, country.Name)
+	assert.Contains(t, body, `href="/devices/1"`)
+	assert.NotContains(t, body, "ZgotmplZ")
+
+	live := get(t, h, "/map/live?view=world")
+	require.Equal(t, http.StatusOK, live.Code)
+
+	frag := live.Body.String()
+	assert.Contains(t, frag, `id="world-data"`)
+	assert.NotContains(t, frag, "worldmap__country", "the outline is not sent again")
+}
+
+func TestShadeIsALogScale(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, worldShades, shade(1_000_000, 1_000_000))
+	assert.Equal(t, 1, shade(1, 1_000_000))
+	assert.Equal(t, 3, shade(1_000, 1_000_000), "a thousandth of the busiest is halfway")
 }

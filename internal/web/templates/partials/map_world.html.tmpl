@@ -1,0 +1,59 @@
+{{- /*
+    The world view: every country's outline, drawn once with the page, and a
+    marker at each country's middle. What changes each minute -- how dark each
+    country is, which are active, and what is behind each -- comes in
+    partial/map-world-body, which the poll swaps and netmap.js applies to the
+    outline, so the outline is sent once rather than every minute.
+*/ -}}
+{{ define "partial/map-world" }}
+{{- $watching := .Watching }}
+{{- with .World }}
+<div class="card netmap worldmap">
+    <div class="netmap__zoom" role="group" aria-label="Zoom">
+        <button type="button" class="netmap__zoom-btn" data-netmap-zoom="in" aria-label="Zoom in">+</button>
+        <button type="button" class="netmap__zoom-btn" data-netmap-zoom="out" aria-label="Zoom out">&minus;</button>
+        <button type="button" class="netmap__zoom-btn" data-netmap-zoom="reset" aria-label="Show the whole map">&#x2922;</button>
+    </div>
+
+    <aside class="netmap__legend" aria-label="Legend">
+        <ul class="netmap__keys">
+            <li class="netmap__key worldmap__scale" aria-label="Less to more traffic">
+                <span class="netmap__key-label">Less</span>
+                {{- range .Shades }}
+                <span class="worldmap__swatch worldmap__shade-{{ . }}" aria-hidden="true"></span>
+                {{- end }}
+                <span class="netmap__key-label">More</span>
+            </li>
+        </ul>
+        {{- if $watching }}
+        <ul class="netmap__keys netmap__keys--lines">
+            <li class="netmap__key">
+                <span class="worldmap__pip" aria-hidden="true"></span>
+                <span class="netmap__key-label">Active now</span>
+            </li>
+        </ul>
+        {{- end }}
+    </aside>
+
+    <svg class="netmap__svg worldmap__svg" viewBox="0 0 {{ .Width }} {{ .Height }}"
+         data-width="{{ .Width }}" data-height="{{ .Height }}"
+         preserveAspectRatio="xMidYMid meet" role="img"
+         aria-label="Map of the countries the network exchanged traffic with in the last hour">
+        <g class="worldmap__countries">
+            {{- range .Outline }}
+            <path class="worldmap__country" d="{{ .Path }}" data-code="{{ .Code }}" data-key="c{{ .Code }}" data-name="{{ .Name }}"><title>{{ .Name }}</title></path>
+            {{- end }}
+        </g>
+        <g class="worldmap__markers">
+            {{- range .Outline }}
+            <circle class="worldmap__marker" data-code="{{ .Code }}" cx="{{ .LabelX }}" cy="{{ .LabelY }}" r="3"/>
+            {{- end }}
+        </g>
+    </svg>
+
+    <div id="map-live" hx-get="/map/live?view=world" hx-trigger="every 60s" hx-swap="innerHTML">
+        {{- template "partial/map-world-body" $ }}
+    </div>
+</div>
+{{- end }}
+{{ end }}
