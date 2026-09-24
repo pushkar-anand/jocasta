@@ -3,6 +3,7 @@ package web
 import (
 	"net/http"
 	"net/netip"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -368,4 +369,89 @@ func TestTrafficPageGroupsNewContactsAndNarrowsToAGroup(t *testing.T) {
 	rec = get(t, h, "/traffic?group=gone")
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "laptop.example.com")
+}
+
+// pingSweep is device 192.0.2.10 pinging n documentation addresses, none of
+// which answers, plus one refused knock on the NAS's telnet port.
+func pingSweep(n int) []plugin.Flow {
+	var flows []plugin.Flow
+
+	for i := 1; i <= n; i++ {
+		flows = append(flows, plugin.Flow{
+			Src: netip.MustParseAddr("192.0.2.10"), Dst: netip.MustParseAddr("198.51.100." + strconv.Itoa(i)),
+			Protocol: 1, ICMPType: 8, Bytes: 84, Packets: 1, End: time.Now(),
+		})
+	}
+
+	return append(flows,
+		plugin.Flow{
+			Src: netip.MustParseAddr("192.0.2.10"), Dst: netip.MustParseAddr("192.0.2.11"),
+			SrcPort: 50000, DstPort: 23, Protocol: 6, TCPFlags: 0x02, Bytes: 60, Packets: 1, End: time.Now(),
+		},
+		plugin.Flow{
+			Src: netip.MustParseAddr("192.0.2.11"), Dst: netip.MustParseAddr("192.0.2.10"),
+			SrcPort: 23, DstPort: 50000, Protocol: 6, TCPFlags: 0x14, Bytes: 40, Packets: 1, End: time.Now(),
+		},
+	)
+}
+
+func TestTrafficPageNamesADeviceProbingTheNetwork(t *testing.T) {
+	t.Parallel()
+
+	store := sweptPair(t)
+	recordTraffic(t, store, pingSweep(25)...)
+
+	rec := get(t, newWebHandler(t, store), "/traffic")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+	assert.Contains(t, body, "Probing your network")
+	assert.Contains(t, body, `<a href="/devices/1#traffic">laptop.example.com</a>`)
+	assert.Contains(t, body, "Tried 26 addresses", "25 pinged and the NAS knocked on")
+	assert.Contains(t, body, "0 of 26")
+	assert.NotContains(t, body, "ZgotmplZ")
+}
+
+func TestTrafficPageSaysWhenNothingProbed(t *testing.T) {
+	t.Parallel()
+
+	store := sweptPair(t)
+	recordTraffic(t, store, pingSweep(3)...)
+
+	rec := get(t, newWebHandler(t, store), "/traffic")
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "No device probed your network in the last 24 hours.")
+}
+
+func TestDevicePageShowsWhatTheDeviceTried(t *testing.T) {
+	t.Parallel()
+
+	store := sweptPair(t)
+	recordTraffic(t, store, pingSweep(25)...)
+
+	h := newWebHandler(t, store)
+
+	rec := get(t, h, "/devices/1")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+	assert.Contains(t, body, "This device probed your network.")
+	assert.Contains(t, body, "In one hour it tried 26 addresses on your network.")
+	assert.Contains(t, body, "Tried, but nothing came of it")
+	assert.Contains(t, body, "25 addresses in <span class=\"mono\">198.51.100.0/24</span>")
+	assert.Contains(t, body, `<a href="/devices/2">nas.example.com</a>`)
+	assert.Contains(t, body, "port 23")
+
+	// The NAS tried nothing, so it carries no notice.
+	rec = get(t, h, "/devices/2")
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.NotContains(t, rec.Body.String(), "This device probed your network.")
+
+	// The search narrows attempts like everything else.
+	rec = get(t, h, "/devices/1/traffic?q=nas")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body = rec.Body.String()
+	assert.Contains(t, body, "nas.example.com")
+	assert.NotContains(t, body, "198.51.100.0/24")
 }

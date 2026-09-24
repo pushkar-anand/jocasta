@@ -58,6 +58,8 @@ func funcs(now func() time.Time) template.FuncMap {
 		"scopechoice":  scopeChoice,
 		"bytes":        humanBytes,
 		"proto":        protoName,
+		"attemptWhat":  attemptWhat,
+		"portList":     portList,
 	}
 }
 

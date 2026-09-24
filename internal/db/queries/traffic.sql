@@ -48,8 +48,9 @@ LIMIT ?;
 
 -- name: AnyTraffic :one
 -- Whether any traffic has been recorded at all, which is how a view tells
--- "nothing was exchanged" from "nothing is collecting".
-SELECT CAST(EXISTS (SELECT 1 FROM traffic_hourly) AS INTEGER) AS recorded;
+-- "nothing was exchanged" from "nothing is collecting". Attempts count: a
+-- network whose only traffic so far is a scan is still being collected.
+SELECT CAST(EXISTS (SELECT 1 FROM traffic_hourly) OR EXISTS (SELECT 1 FROM attempts_hourly) AS INTEGER) AS recorded;
 
 -- name: BusiestDevices :many
 -- The devices that moved the most data since a given hour. A conversation

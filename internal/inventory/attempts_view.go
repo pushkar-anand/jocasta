@@ -129,6 +129,12 @@ type Prober struct {
 	Ports []uint16 `json:"ports,omitempty"`
 }
 
+// SweptAddresses reports whether the device tried many addresses in one hour.
+func (p *Prober) SweptAddresses() bool { return p.Peers >= ProbeMinPeers }
+
+// SweptPorts reports whether it tried many ports on one address in one hour.
+func (p *Prober) SweptPorts() bool { return p.MaxPorts >= ProbeMinPorts }
+
 // ProbingDevices returns the devices that probed the local network since the
 // start of the hour containing since, most recent first. A non-empty group
 // keeps only the devices in it.

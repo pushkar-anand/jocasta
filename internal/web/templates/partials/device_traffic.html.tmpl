@@ -64,7 +64,17 @@
         <noscript><button type="submit" class="btn">Apply</button></noscript>
     </form>
 
-    {{- if .Traffic.Empty }}
+    {{- with .Probing }}
+    <div class="notice notice--warn" role="note">
+        <p><strong>This device probed your network.</strong>
+            {{- if .SweptAddresses }} In one hour it tried {{ .Peers }} addresses on your network{{ if .SweptPorts }}, and up to {{ .MaxPorts }} ports on one of them{{ end }}.
+            {{- else }} In one hour it tried {{ .MaxPorts }} ports on one address.{{ end }}
+            {{ .Answered }} of {{ .Attempts }} tries were answered{{ with .Ports }}; ports tried include {{ portList . }}{{ end }}.
+            Last seen doing it {{ stamp .LastHour "" }}.</p>
+    </div>
+    {{- end }}
+
+    {{- if .Empty }}
     <p class="dim">No traffic recorded for this device in the last {{ .Window.Label }}.</p>
     {{- else if not .Matched }}
     <p class="dim">Nothing in the last {{ .Window.Label }} matches.
@@ -169,6 +179,72 @@
                     <td class="num">{{ bytes .Received }}</td>
                     <td class="dim">{{ stamp .LastHour "" }}</td>
                 </tr>
+                {{- end }}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{- end }}
+
+    {{- with .Attempts }}
+    <h3 class="sub">Tried, but nothing came of it</h3>
+    <p class="note">Connections this device started that never carried any data:
+        a port that refused, one nobody answered, a ping. A few are normal; many,
+        to many addresses or ports, is what a scan looks like.</p>
+    <div class="card card--table">
+        <div class="scroller">
+            <table>
+                <thead>
+                <tr>
+                    <th scope="col">Tried to reach</th>
+                    <th scope="col">What</th>
+                    <th scope="col" class="num">Tries</th>
+                    <th scope="col" class="num">Answered</th>
+                    <th scope="col">Last seen</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{- range . }}
+                {{- if .Group }}
+                {{- with .Group }}
+                <tr>
+                    <td colspan="2">
+                        <details class="peers">
+                            <summary>
+                                <span class="strong">{{ len .Peers }} addresses in <span class="mono">{{ .Prefix }}</span></span>
+                                <span class="dim">not in your inventory</span>
+                            </summary>
+                            <ul class="peers__list">
+                                {{- range .Peers }}
+                                <li><span class="mono">{{ .IP }}</span>
+                                    <span class="peers__detail">{{ attemptWhat . }} &middot; {{ .Attempts }} tried &middot; {{ .Answered }} answered</span></li>
+                                {{- end }}
+                            </ul>
+                        </details>
+                    </td>
+                    <td class="num">{{ .Attempts }}</td>
+                    <td class="num">{{ .Answered }}</td>
+                    <td class="dim">{{ stamp .LastHour "" }}</td>
+                </tr>
+                {{- end }}
+                {{- else }}
+                {{- with .Peer }}
+                <tr>
+                    <td>
+                        {{- if .PeerDeviceID }}
+                        <a href="/devices/{{ .PeerDeviceID }}">{{ .PeerDeviceName }}</a>
+                        {{- else }}
+                        <span class="mono">{{ .IP }}</span>
+                        {{- with .OrgShort }} <span class="dim">{{ . }}</span>{{ end }}
+                        {{- end }}
+                    </td>
+                    <td>{{ attemptWhat . }}</td>
+                    <td class="num">{{ .Attempts }}</td>
+                    <td class="num">{{ .Answered }}</td>
+                    <td class="dim">{{ stamp .LastHour "" }}</td>
+                </tr>
+                {{- end }}
+                {{- end }}
                 {{- end }}
                 </tbody>
             </table>
