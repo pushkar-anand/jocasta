@@ -141,7 +141,8 @@ placed on the map by the country they are registered in, using
 The world map draws a line from the network's country to each country it
 talked to. Jocasta finds its country from the router's outside address; when
 that address is private -- the ISP puts the router behind carrier-grade NAT --
-name the country instead, by its two-letter code:
+name the country instead, by its two-letter code. A country named here is
+used whatever the outside address says:
 
 ```yaml
 traffic:

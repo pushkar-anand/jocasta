@@ -147,3 +147,40 @@ func TestShadeIsALogScale(t *testing.T) {
 	assert.Equal(t, 1, shade(1, 1_000_000))
 	assert.Equal(t, 3, shade(1_000, 1_000_000), "a thousandth of the busiest is halfway")
 }
+
+// Home is the country configured, or else the one the router's outside address
+// is registered in; a network behind the ISP's NAT, with none configured, has
+// none.
+func TestWorldMapFindsHome(t *testing.T) {
+	t.Parallel()
+
+	store := sweptPair(t)
+	now := time.Now()
+
+	home, err := (&Handler{store: store}).homeOf(t.Context(), now)
+	require.NoError(t, err)
+	assert.Nil(t, home, "nothing names it")
+
+	home, err = (&Handler{store: store, homeCountry: "AU"}).homeOf(t.Context(), now)
+	require.NoError(t, err)
+	require.NotNil(t, home)
+	assert.Equal(t, "AU", home.Code)
+
+	// The router names its outside address as it translates a connection out.
+	out := tcp("192.0.2.10", "198.51.100.7", 443, 100)
+	out.NATSrc = netip.MustParseAddr("1.1.1.1")
+	out.Exporter = netip.MustParseAddr("192.0.2.1")
+	recordTraffic(t, store, out)
+
+	want, ok := geo.Lookup(netip.MustParseAddr("1.1.1.1"))
+	require.True(t, ok)
+
+	home, err = (&Handler{store: store}).homeOf(t.Context(), now)
+	require.NoError(t, err)
+	require.NotNil(t, home)
+	assert.Equal(t, want, home.Code)
+
+	home, err = (&Handler{store: store, homeCountry: "AU"}).homeOf(t.Context(), now)
+	require.NoError(t, err)
+	assert.Equal(t, "AU", home.Code, "a country named in the config wins")
+}
