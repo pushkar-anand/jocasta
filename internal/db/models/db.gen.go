@@ -261,6 +261,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.trafficMapLinksStmt, err = db.PrepareContext(ctx, trafficMapLinks); err != nil {
 		return nil, fmt.Errorf("error preparing query TrafficMapLinks: %w", err)
 	}
+	if q.trafficWorldPeersStmt, err = db.PrepareContext(ctx, trafficWorldPeers); err != nil {
+		return nil, fmt.Errorf("error preparing query TrafficWorldPeers: %w", err)
+	}
 	if q.updateDeviceCurationStmt, err = db.PrepareContext(ctx, updateDeviceCuration); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateDeviceCuration: %w", err)
 	}
@@ -694,6 +697,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing trafficMapLinksStmt: %w", cerr)
 		}
 	}
+	if q.trafficWorldPeersStmt != nil {
+		if cerr := q.trafficWorldPeersStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing trafficWorldPeersStmt: %w", cerr)
+		}
+	}
 	if q.updateDeviceCurationStmt != nil {
 		if cerr := q.updateDeviceCurationStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateDeviceCurationStmt: %w", cerr)
@@ -867,6 +875,7 @@ type Queries struct {
 	touchDeviceStmt                    *sql.Stmt
 	trafficMapDevicesStmt              *sql.Stmt
 	trafficMapLinksStmt                *sql.Stmt
+	trafficWorldPeersStmt              *sql.Stmt
 	updateDeviceCurationStmt           *sql.Stmt
 	upsertAttemptsStmt                 *sql.Stmt
 	upsertBroadcastStmt                *sql.Stmt
@@ -963,6 +972,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		touchDeviceStmt:                    q.touchDeviceStmt,
 		trafficMapDevicesStmt:              q.trafficMapDevicesStmt,
 		trafficMapLinksStmt:                q.trafficMapLinksStmt,
+		trafficWorldPeersStmt:              q.trafficWorldPeersStmt,
 		updateDeviceCurationStmt:           q.updateDeviceCurationStmt,
 		upsertAttemptsStmt:                 q.upsertAttemptsStmt,
 		upsertBroadcastStmt:                q.upsertBroadcastStmt,

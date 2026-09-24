@@ -777,6 +777,72 @@ func (q *Queries) TrafficMapLinks(ctx context.Context, since dbtype.Time) ([]*Tr
 	return items, nil
 }
 
+const trafficWorldPeers = `-- name: TrafficWorldPeers :many
+SELECT t.device_id,
+       t.peer_ip,
+       CAST(COALESCE(t.peer_asn, 0) AS INTEGER)       AS peer_asn,
+       CAST(SUM(t.bytes_out + t.bytes_in) AS INTEGER) AS bytes
+FROM traffic_hourly t
+         JOIN devices d ON d.id = t.device_id
+WHERE t.hour >= ?1
+  AND d.is_ignored = 0
+  AND t.peer_device_id IS NULL
+  AND t.peer_asn IS NOT NULL
+GROUP BY t.device_id, t.peer_ip
+ORDER BY bytes DESC, t.device_id, t.peer_ip
+`
+
+type TrafficWorldPeersRow struct {
+	DeviceID int64       `json:"device_id"`
+	PeerIP   dbtype.Addr `json:"peer_ip"`
+	PeerASN  int64       `json:"peer_asn"`
+	Bytes    int64       `json:"bytes"`
+}
+
+// What each device exchanged with each internet address since a given hour,
+// for placing the addresses on the world map. Grouped by address rather than
+// organisation, since one organisation's addresses sit in many countries.
+//
+//	SELECT t.device_id,
+//	       t.peer_ip,
+//	       CAST(COALESCE(t.peer_asn, 0) AS INTEGER)       AS peer_asn,
+//	       CAST(SUM(t.bytes_out + t.bytes_in) AS INTEGER) AS bytes
+//	FROM traffic_hourly t
+//	         JOIN devices d ON d.id = t.device_id
+//	WHERE t.hour >= ?1
+//	  AND d.is_ignored = 0
+//	  AND t.peer_device_id IS NULL
+//	  AND t.peer_asn IS NOT NULL
+//	GROUP BY t.device_id, t.peer_ip
+//	ORDER BY bytes DESC, t.device_id, t.peer_ip
+func (q *Queries) TrafficWorldPeers(ctx context.Context, since dbtype.Time) ([]*TrafficWorldPeersRow, error) {
+	rows, err := q.query(ctx, q.trafficWorldPeersStmt, trafficWorldPeers, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*TrafficWorldPeersRow
+	for rows.Next() {
+		var i TrafficWorldPeersRow
+		if err := rows.Scan(
+			&i.DeviceID,
+			&i.PeerIP,
+			&i.PeerASN,
+			&i.Bytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertTraffic = `-- name: UpsertTraffic :exec
 INSERT INTO traffic_hourly (source_id, device_id, hour, peer_device_id, peer_ip, peer_name, peer_asn,
                             protocol, service_port, bytes_out, bytes_in, packets_out, packets_in, connections,
