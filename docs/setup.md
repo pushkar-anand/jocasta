@@ -50,7 +50,7 @@ and API tokens are under Settings.
 
 The session cookie is HTTPS-only by default. If you reach Jocasta over plain
 HTTP from anywhere but `localhost`, sign-in won't stick until you set
-`auth.cookie_secure: false`. Putting it behind a TLS reverse proxy is better.
+`server.auth.cookie_secure: false`. Putting it behind a TLS reverse proxy is better.
 
 The database schema is embedded, and migrations run when the binary opens the
 database. Jocasta is pre-1.0, so check the release notes before upgrading.
@@ -105,7 +105,7 @@ Check it with `jocasta plugin run gateway` before starting the server. See
 Jocasta can record which devices talk to which, and to where on the internet,
 from the flow records your router exports (NetFlow v5, v9 or IPFIX). It keeps
 hourly totals per device, never individual connections, for
-`traffic.retention` (30 days by default).
+`retention.traffic` (30 days by default).
 
 ```yaml
 plugins:
@@ -145,12 +145,20 @@ name the country instead, by its two-letter code. A country named here is
 used whatever the outside address says:
 
 ```yaml
-traffic:
-  home_country: "AU"
+location:
+  country: "AU"
 ```
 
 Only the country is used, to start the lines from its middle; nothing finer
 is asked for or stored.
+
+Times are shown in the server's time zone, which in a container is UTC. Name
+yours to see them in local time:
+
+```yaml
+location:
+  timezone: "Australia/Sydney"
+```
 
 ## Optional features
 

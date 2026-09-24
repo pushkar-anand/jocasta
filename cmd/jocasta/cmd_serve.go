@@ -45,10 +45,10 @@ func (s *ServeCmd) Run(
 		Port:                port,
 		Logger:              log,
 		CORSAllowedOrigins:  cfg.Server.CORS.AllowedOrigins,
-		SessionLifetime:     cfg.Auth.SessionLifetime,
-		SessionIdleTimeout:  cfg.Auth.IdleTimeout,
-		SessionCookieSecure: cfg.Auth.CookieSecure,
-		MCPEnabled:          cfg.MCP.Enabled,
+		SessionLifetime:     cfg.Server.Auth.SessionLifetime,
+		SessionIdleTimeout:  cfg.Server.Auth.IdleTimeout,
+		SessionCookieSecure: cfg.Server.Auth.CookieSecure,
+		MCPEnabled:          cfg.Server.MCP.Enabled,
 	}
 
 	p := poller.New(log)
@@ -93,8 +93,8 @@ func (s *ServeCmd) Run(
 
 	// Zero retention keeps a log forever; with both at zero there is nothing
 	// to schedule.
-	if cfg.Inventory.Retention > 0 || cfg.Traffic.Retention > 0 {
-		err := p.Register(poller.NewPrune(log, store, cfg.Inventory.Retention, cfg.Traffic.Retention))
+	if cfg.Retention.History > 0 || cfg.Retention.Traffic > 0 {
+		err := p.Register(poller.NewPrune(log, store, cfg.Retention.History, cfg.Retention.Traffic))
 		if err != nil {
 			return fmt.Errorf("register pruner: %w", err)
 		}
@@ -111,7 +111,7 @@ func (s *ServeCmd) Run(
 		sCfg.RecentTraffic = startTraffic(ctx, grp, log, store, reporters)
 	}
 
-	if sCfg.HomeCountry, err = homeCountry(cfg.Traffic.HomeCountry); err != nil {
+	if sCfg.HomeCountry, err = homeCountry(cfg.Location.Country); err != nil {
 		return err
 	}
 
@@ -163,7 +163,7 @@ func portsPoller(cfg *config.Config, log *slog.Logger, store *inventory.Store) (
 	return poller.NewPorts(log, sc, store, cfg.Scan.Source, cfg.Scan.Ports.Interval), nil
 }
 
-// homeCountry checks traffic.home_country against the countries the world map
+// homeCountry checks location.country against the countries the world map
 // draws, so a typo fails startup rather than quietly drawing no lines. Case
 // does not matter; empty is fine.
 func homeCountry(code string) (string, error) {
@@ -173,7 +173,7 @@ func homeCountry(code string) (string, error) {
 	}
 
 	if _, ok := geo.CountryOf(code); !ok {
-		return "", fmt.Errorf("traffic.home_country: %q is not the two-letter code of a country on the map", code)
+		return "", fmt.Errorf("location.country: %q is not the two-letter code of a country on the map", code)
 	}
 
 	return code, nil

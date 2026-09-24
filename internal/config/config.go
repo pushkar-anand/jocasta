@@ -18,11 +18,14 @@ import (
 const DefaultConfigFile = "jocasta.yaml"
 
 type (
-	// Server says where the HTTP server listens.
+	// Server says where the HTTP server listens, and how it treats the
+	// browsers and agents that reach it.
 	Server struct {
 		Host string `koanf:"host"`
 		Port int    `koanf:"port"`
 		CORS CORS   `koanf:"cors"`
+		Auth Auth   `koanf:"auth"`
+		MCP  MCP    `koanf:"mcp"`
 	}
 
 	// CORS says which origins outside the server's own may read its responses
@@ -61,11 +64,31 @@ type (
 		// the prefix retires it. Raise it on a network with long DHCP leases
 		// and hosts that hold an address without using it.
 		AddressGrace time.Duration `koanf:"address_grace"`
+	}
 
-		// Retention is how long the event log and the scan log are kept: rows
-		// older than this are deleted on an hourly prune. Zero keeps both
-		// forever.
-		Retention time.Duration `koanf:"retention"`
+	// Retention says how long each kind of record is kept. Rows older than
+	// their window are deleted on an hourly prune; zero keeps that kind
+	// forever. Devices themselves are never pruned.
+	Retention struct {
+		// History is how long the event log and the scan log are kept.
+		History time.Duration `koanf:"history"`
+
+		// Traffic is how long hourly traffic totals are kept.
+		Traffic time.Duration `koanf:"traffic"`
+	}
+
+	// Location says where the network is.
+	Location struct {
+		// Country is the two-letter code of the country the network is in,
+		// which the world map draws its lines from. Empty leaves it to the
+		// router's outside address, which cannot place the network when it
+		// is private -- behind an ISP's carrier-grade NAT.
+		Country string `koanf:"country"`
+
+		// Timezone is the IANA name of the zone times are shown in, such as
+		// "Europe/Berlin". Empty leaves it to the TZ variable or the system,
+		// which in a container is usually UTC.
+		Timezone string `koanf:"timezone"`
 	}
 
 	// Scan holds settings for how and when the poller sweeps the network.
@@ -147,20 +170,6 @@ type (
 		Exporters []string `koanf:"exporters"`
 	}
 
-	// Traffic controls how long the hourly traffic totals are kept, and where
-	// the world map draws the network.
-	Traffic struct {
-		// Retention is how long hourly traffic totals are kept. They are
-		// pruned with the event and scan logs. Zero keeps them forever.
-		Retention time.Duration `koanf:"retention"`
-
-		// HomeCountry is the two-letter code of the country the network is
-		// in, which the world map draws its lines from. Empty leaves it to
-		// the router's outside address, which cannot place the network when
-		// it is private -- behind an ISP's carrier-grade NAT.
-		HomeCountry string `koanf:"home_country"`
-	}
-
 	// Auth controls how long a signed-in browser stays signed in and whether
 	// its cookie is confined to HTTPS. The cookie's name, path and other flags
 	// are jocasta's to set and are deliberately not here.
@@ -205,12 +214,11 @@ type (
 		DB        DB        `koanf:"db"`
 		Logger    Logger    `koanf:"logger"`
 		Inventory Inventory `koanf:"inventory"`
+		Retention Retention `koanf:"retention"`
+		Location  Location  `koanf:"location"`
 		Networks  []string  `koanf:"networks"`
 		Scan      Scan      `koanf:"scan"`
-		Auth      Auth      `koanf:"auth"`
-		MCP       MCP       `koanf:"mcp"`
 		Plugins   Plugins   `koanf:"plugins"`
-		Traffic   Traffic   `koanf:"traffic"`
 	}
 )
 

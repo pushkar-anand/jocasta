@@ -317,7 +317,7 @@ func mcpDisabled(jw *response.JSONWriter) http.Handler {
 		jw.WriteProblem(w, r, response.NewProblem().
 			WithStatus(http.StatusNotFound).
 			WithTitle(http.StatusText(http.StatusNotFound)).
-			WithDetail("the MCP endpoint is disabled; set mcp.enabled to serve it").
+			WithDetail("the MCP endpoint is disabled; set server.mcp.enabled to serve it").
 			Build())
 	})
 }

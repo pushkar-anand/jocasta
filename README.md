@@ -66,8 +66,9 @@ Write a minimal `jocasta.yaml` naming the networks to sweep:
 networks:
   - "192.0.2.0/24"
 
-auth:
-  cookie_secure: false   # only while you reach it over plain HTTP, not HTTPS
+server:
+  auth:
+    cookie_secure: false   # only while you reach it over plain HTTP, not HTTPS
 ```
 
 Run the container on the host network, so it can read hardware addresses:

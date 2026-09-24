@@ -54,5 +54,23 @@ func TestHomeCountryIsCheckedAgainstTheMap(t *testing.T) {
 
 	_, err = homeCountry("XX")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "traffic.home_country")
+	assert.Contains(t, err.Error(), "location.country")
+}
+
+// A time zone is looked up by its IANA name, so a typo fails startup rather
+// than quietly showing times in UTC.
+func TestTimezoneIsLookedUpByName(t *testing.T) {
+	t.Parallel()
+
+	loc, err := timezone(" Asia/Tokyo ")
+	require.NoError(t, err)
+	assert.Equal(t, "Asia/Tokyo", loc.String())
+
+	loc, err = timezone("")
+	require.NoError(t, err)
+	assert.Nil(t, loc)
+
+	_, err = timezone("Nowhere/Else")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "location.timezone")
 }

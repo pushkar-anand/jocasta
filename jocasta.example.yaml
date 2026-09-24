@@ -10,6 +10,12 @@ server:
   port: 8080
   cors:
     allowed_origins: []   # browser origins besides the server's own that may read /api
+  auth:
+    session_lifetime: "168h"  # longest a sign-in lasts, regardless of activity
+    idle_timeout: "24h"       # how long a session survives with no requests
+    cookie_secure: true       # HTTPS-only session cookie; false to sign in over plain HTTP
+  mcp:
+    enabled: false        # serve the MCP endpoint at /mcp; see docs/mcp.md
 
 db:
   path: "."               # directory the SQLite file lives in
@@ -22,7 +28,20 @@ logger:
 inventory:
   online_window: "15m"    # how long after its last sighting a device counts as online
   address_grace: "6h"     # how long an address can go unseen before a later sweep retires it
-  retention: "2160h"      # events and scans older than this are deleted; "0s" keeps them forever
+
+# How long records are kept; "0s" keeps that kind forever. Devices are never
+# pruned.
+retention:
+  history: "2160h"        # events and scans
+  traffic: "720h"         # hourly traffic totals
+
+# Where the network is.
+location:
+  country: ""             # two-letter code the world map draws lines from, e.g. "AU";
+                          # blank uses the router's outside address, which cannot
+                          # place a network behind the ISP's CGNAT
+  timezone: ""            # IANA zone times are shown in, e.g. "Australia/Sydney";
+                          # blank uses TZ or the system's, which is UTC in a container
 
 # Segments the poller sweeps on a timer. Also used to match each discovered
 # address to the network that contains it. Empty by default; this is an example.
@@ -44,19 +63,6 @@ scan:
     interval: "6h"
     custom: ""            # ports to probe, e.g. "22,80,443,8000-8100"; blank uses a curated preset
     concurrency: 64       # max connections a scan opens at once; lower it on a cheap router
-
-auth:
-  session_lifetime: "168h"  # longest a sign-in lasts, regardless of activity
-  idle_timeout: "24h"       # how long a session survives with no requests
-  cookie_secure: true       # HTTPS-only session cookie; false to sign in over plain HTTP
-
-mcp:
-  enabled: false          # serve the MCP endpoint at /mcp; see docs/mcp.md
-
-traffic:
-  retention: "720h"       # how long hourly traffic totals are kept; 0 keeps them forever
-  # home_country: "AU"    # where the world map draws lines from, when the router's
-  #                       # outside address is private (behind the ISP's CGNAT)
 
 # Sources beyond the sweep. None are configured by default; the block below is
 # an example instance, not defaults. Each block is keyed by an instance name,

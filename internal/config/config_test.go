@@ -82,9 +82,11 @@ func TestLoadConfig(t *testing.T) {
 				"JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD=from-environment",
 				"JOCASTA_SCAN__PORTS__ENABLED=true",
 				"JOCASTA_SCAN__PORTS__CUSTOM=22,80,8000-8100",
-				"JOCASTA_MCP__ENABLED=true",
+				"JOCASTA_SERVER__MCP__ENABLED=true",
 				"JOCASTA_PLUGINS__NETFLOW__GATEWAY__LISTEN=:9995",
-				"JOCASTA_TRAFFIC__HOME_COUNTRY=au",
+				"JOCASTA_LOCATION__COUNTRY=au",
+				"JOCASTA_LOCATION__TIMEZONE=Australia/Sydney",
+				"JOCASTA_RETENTION__HISTORY=48h",
 				"UNRELATED=ignored",
 			}
 		}),
@@ -104,7 +106,6 @@ func TestLoadConfig(t *testing.T) {
 	// A duration is configured as text and has to reach the struct as one.
 	assert.Equal(t, inventory.DefaultOnlineWindow, cfg.Inventory.OnlineWindow)
 	assert.Equal(t, inventory.DefaultAddressGrace, cfg.Inventory.AddressGrace)
-	assert.Equal(t, inventory.DefaultRetention, cfg.Inventory.Retention)
 
 	// Derived rather than written down, so assert it is the derivation and not
 	// merely non-empty: an unnamed source files every sweep under one blank row.
@@ -122,13 +123,13 @@ func TestLoadConfig(t *testing.T) {
 
 	// Auth knobs are durations configured as text and a bool that defaults on:
 	// all three have to reach the struct from the defaults.
-	assert.Equal(t, 168*time.Hour, cfg.Auth.SessionLifetime)
-	assert.Equal(t, 24*time.Hour, cfg.Auth.IdleTimeout)
-	assert.True(t, cfg.Auth.CookieSecure)
+	assert.Equal(t, 168*time.Hour, cfg.Server.Auth.SessionLifetime)
+	assert.Equal(t, 24*time.Hour, cfg.Server.Auth.IdleTimeout)
+	assert.True(t, cfg.Server.Auth.CookieSecure)
 
 	// MCP is off by default (see TestMCPIsOffByDefault); the environment turns
 	// it on.
-	assert.True(t, cfg.MCP.Enabled)
+	assert.True(t, cfg.Server.MCP.Enabled)
 
 	// A map-keyed block collapses to a single zero-valued entry, with a nil
 	// error, if its shape is ever changed to a list. Both instances surviving an
@@ -161,8 +162,13 @@ func TestLoadConfig(t *testing.T) {
 	assert.Equal(t, ":9995", flows.Listen)
 	assert.Equal(t, []string{"192.0.2.1"}, flows.Exporters)
 
-	assert.Equal(t, inventory.DefaultTrafficRetention, cfg.Traffic.Retention)
-	assert.Equal(t, "au", cfg.Traffic.HomeCountry, "as written; serve checks it")
+	// Each retention window is its own duration: one overridden, the other
+	// still its default.
+	assert.Equal(t, 48*time.Hour, cfg.Retention.History)
+	assert.Equal(t, inventory.DefaultTrafficRetention, cfg.Retention.Traffic)
+
+	assert.Equal(t, "au", cfg.Location.Country, "as written; serve checks it")
+	assert.Equal(t, "Australia/Sydney", cfg.Location.Timezone)
 }
 
 // An explicit path that does not exist is reported rather than silently falling
@@ -180,7 +186,7 @@ func TestNewRejectsAMissingConfigFile(t *testing.T) {
 func TestMCPIsOffByDefault(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, false, defaults["mcp.enabled"])
+	assert.Equal(t, false, defaults["server.mcp.enabled"])
 }
 
 func TestDefaultSourceNamesTheHost(t *testing.T) {

@@ -630,7 +630,7 @@ func TestMCPDisabledSaysSo(t *testing.T) {
 
 	b, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
-	assert.Contains(t, string(b), "mcp.enabled")
+	assert.Contains(t, string(b), "server.mcp.enabled")
 }
 
 // With MCP on, /mcp reaches the MCP handler, which wants a token.
