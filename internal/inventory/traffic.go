@@ -103,6 +103,10 @@ func (r *TrafficRecorder) Add(src plugin.Plugin, flows []plugin.Flow) {
 	defer r.mu.Unlock()
 
 	for _, f := range flows {
+		if !conversational(f) {
+			continue
+		}
+
 		key := trafficKey{
 			source:   src.Name(),
 			kind:     src.Kind(),
@@ -271,17 +275,21 @@ func (s *Store) recordTraffic(
 
 	// Settle devices first, outside the write, so the peers that need a name
 	// are known before any lookup and no lookup runs inside the transaction.
-	var unnamed []netip.Addr
-
-	seen := make(map[netip.Addr]bool)
-
 	for k := range pending {
 		for _, a := range []netip.Addr{k.src, k.dst} {
 			if _, err := holder(s.q, a); err != nil {
 				return err
 			}
 		}
+	}
 
+	dropUnanswered(pending, holders)
+
+	var unnamed []netip.Addr
+
+	seen := make(map[netip.Addr]bool)
+
+	for k := range pending {
 		// Only a peer across from a device is written, so only that one is
 		// worth a lookup.
 		for _, pair := range [][2]netip.Addr{{k.src, k.dst}, {k.dst, k.src}} {
@@ -342,6 +350,63 @@ func (s *Store) recordTraffic(
 	return nil
 }
 
+// conversational reports whether a flow is between two hosts. Broadcast and
+// multicast go to everyone listening, so "who did it talk to" has no answer,
+// and an unspecified address is a host that has none yet, asking for one.
+func conversational(f plugin.Flow) bool {
+	for _, a := range []netip.Addr{f.Src, f.Dst} {
+		if !a.IsValid() || a.IsUnspecified() || a.IsMulticast() || a == limitedBroadcast {
+			return false
+		}
+	}
+
+	return true
+}
+
+var limitedBroadcast = netip.AddrFrom4([4]byte{255, 255, 255, 255})
+
+// pairKey is a direction of a conversation regardless of hour and service.
+type pairKey struct {
+	src, dst netip.Addr
+	protocol uint8
+}
+
+// dropUnanswered removes the traffic between a device and a local address no
+// device holds that went one way only within the flush.
+//
+// A scanner sweeping a subnet pings every address in it, and each silent one
+// would otherwise become a peer: one row per address per hour, a /16 at a
+// time, all of it saying only that nothing answered. An address that answers
+// keeps its traffic. Only private-use and link-local addresses are dropped
+// this way: anything else is grouped by organisation, so it cannot flood a
+// view, and an unanswered connection out to it is worth seeing. A reply
+// exported in the next flush loses at most a minute.
+func dropUnanswered(pending map[trafficKey]*trafficTotals, holders map[netip.Addr]int64) {
+	sent := make(map[pairKey]bool, len(pending))
+	for k := range pending {
+		sent[pairKey{k.src, k.dst, k.protocol}] = true
+	}
+
+	for k := range pending {
+		if holders[k.src] != 0 && holders[k.dst] != 0 {
+			continue
+		}
+
+		stranger := k.dst
+		if holders[k.dst] != 0 {
+			stranger = k.src
+		}
+
+		if !stranger.IsPrivate() && !stranger.IsLinkLocalUnicast() {
+			continue
+		}
+
+		if !sent[pairKey{k.dst, k.src, k.protocol}] {
+			delete(pending, k)
+		}
+	}
+}
+
 // trafficRow is one side's view of a buffered direction. sent says whether
 // the device is the side that sent it.
 func (s *Store) trafficRow(
@@ -388,10 +453,16 @@ func (s *Store) trafficRow(
 // whichever side offered it. A protocol without ports has none.
 //
 // The side a flow came from says nothing on its own -- a reply flows from the
-// server -- so the choice is made on the ports: a port with a well-known
-// service over one without, a privileged port over an unprivileged one, a port
-// below the ephemeral range over one inside it, and the lower port when
-// nothing else decides.
+// server -- so the choice is made on the ports: a well-known service's port
+// below the ephemeral range over any other, a privileged port over an
+// unprivileged one, a port below the ephemeral range over one inside it, a
+// well-known service's port over one without, and the lower port when nothing
+// else decides.
+//
+// A known port inside the ephemeral range only counts late, because a client
+// can draw it as its source port: a laptop that happens to pick 51820 for a
+// connection to a game server is not running WireGuard. A server really
+// listening there still wins against a client's random port.
 func servicePort(protocol uint8, src, dst uint16) uint16 {
 	switch protocol {
 	case 6, 17, 132: // TCP, UDP, SCTP
@@ -402,8 +473,9 @@ func servicePort(protocol uint8, src, dst uint16) uint16 {
 	known := func(p uint16) bool { return scanner.ServiceName(p) != "" }
 	privileged := func(p uint16) bool { return p < 1024 }
 	ephemeral := func(p uint16) bool { return p >= 32768 }
+	settled := func(p uint16) bool { return known(p) && !ephemeral(p) }
 
-	for _, prefer := range []func(uint16) bool{known, privileged} {
+	for _, prefer := range []func(uint16) bool{settled, privileged, not(ephemeral), known} {
 		if prefer(src) != prefer(dst) {
 			if prefer(src) {
 				return src
@@ -413,15 +485,11 @@ func servicePort(protocol uint8, src, dst uint16) uint16 {
 		}
 	}
 
-	if ephemeral(src) != ephemeral(dst) {
-		if ephemeral(src) {
-			return dst
-		}
-
-		return src
-	}
-
 	return min(src, dst)
+}
+
+func not(f func(uint16) bool) func(uint16) bool {
+	return func(p uint16) bool { return !f(p) }
 }
 
 // clampInt64 stores a counter SQLite can hold. Nothing real reaches the
