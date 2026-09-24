@@ -53,6 +53,12 @@ sql:
             go_type: *timestamp
           - column: "broadcasts_hourly.hour"
             go_type: *timestamp
+          - column: "probes_hourly.hour"
+            go_type: *timestamp
+          - column: "outside_addresses.first_seen"
+            go_type: *timestamp
+          - column: "outside_addresses.last_seen"
+            go_type: *timestamp
           - column: "addresses.last_seen"
             go_type: *timestamp
           - column: "scans.started_at"
@@ -99,6 +105,14 @@ sql:
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
               type: "Addr"
           - column: "broadcasts_hourly.dst_ip"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "Addr"
+          - column: "probes_hourly.peer_ip"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "Addr"
+          - column: "outside_addresses.address"
             go_type:
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
               type: "Addr"
