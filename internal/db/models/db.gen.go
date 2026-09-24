@@ -84,6 +84,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deleteAttemptsBeforeStmt, err = db.PrepareContext(ctx, deleteAttemptsBefore); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteAttemptsBefore: %w", err)
 	}
+	if q.deleteBroadcastsBeforeStmt, err = db.PrepareContext(ctx, deleteBroadcastsBefore); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteBroadcastsBefore: %w", err)
+	}
 	if q.deleteDeviceStmt, err = db.PrepareContext(ctx, deleteDevice); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteDevice: %w", err)
 	}
@@ -101,6 +104,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.deviceAttemptsStmt, err = db.PrepareContext(ctx, deviceAttempts); err != nil {
 		return nil, fmt.Errorf("error preparing query DeviceAttempts: %w", err)
+	}
+	if q.deviceBroadcastsStmt, err = db.PrepareContext(ctx, deviceBroadcasts); err != nil {
+		return nil, fmt.Errorf("error preparing query DeviceBroadcasts: %w", err)
 	}
 	if q.deviceNetworkNamesStmt, err = db.PrepareContext(ctx, deviceNetworkNames); err != nil {
 		return nil, fmt.Errorf("error preparing query DeviceNetworkNames: %w", err)
@@ -237,6 +243,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.upsertAttemptsStmt, err = db.PrepareContext(ctx, upsertAttempts); err != nil {
 		return nil, fmt.Errorf("error preparing query UpsertAttempts: %w", err)
 	}
+	if q.upsertBroadcastStmt, err = db.PrepareContext(ctx, upsertBroadcast); err != nil {
+		return nil, fmt.Errorf("error preparing query UpsertBroadcast: %w", err)
+	}
 	if q.upsertDeviceSourceStmt, err = db.PrepareContext(ctx, upsertDeviceSource); err != nil {
 		return nil, fmt.Errorf("error preparing query UpsertDeviceSource: %w", err)
 	}
@@ -360,6 +369,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing deleteAttemptsBeforeStmt: %w", cerr)
 		}
 	}
+	if q.deleteBroadcastsBeforeStmt != nil {
+		if cerr := q.deleteBroadcastsBeforeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteBroadcastsBeforeStmt: %w", cerr)
+		}
+	}
 	if q.deleteDeviceStmt != nil {
 		if cerr := q.deleteDeviceStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteDeviceStmt: %w", cerr)
@@ -388,6 +402,11 @@ func (q *Queries) Close() error {
 	if q.deviceAttemptsStmt != nil {
 		if cerr := q.deviceAttemptsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deviceAttemptsStmt: %w", cerr)
+		}
+	}
+	if q.deviceBroadcastsStmt != nil {
+		if cerr := q.deviceBroadcastsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deviceBroadcastsStmt: %w", cerr)
 		}
 	}
 	if q.deviceNetworkNamesStmt != nil {
@@ -615,6 +634,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing upsertAttemptsStmt: %w", cerr)
 		}
 	}
+	if q.upsertBroadcastStmt != nil {
+		if cerr := q.upsertBroadcastStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing upsertBroadcastStmt: %w", cerr)
+		}
+	}
 	if q.upsertDeviceSourceStmt != nil {
 		if cerr := q.upsertDeviceSourceStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing upsertDeviceSourceStmt: %w", cerr)
@@ -704,12 +728,14 @@ type Queries struct {
 	currentAddressesStmt               *sql.Stmt
 	deleteAPITokenStmt                 *sql.Stmt
 	deleteAttemptsBeforeStmt           *sql.Stmt
+	deleteBroadcastsBeforeStmt         *sql.Stmt
 	deleteDeviceStmt                   *sql.Stmt
 	deleteEventsBeforeStmt             *sql.Stmt
 	deleteRecoveryCodesByUserStmt      *sql.Stmt
 	deleteScansBeforeStmt              *sql.Stmt
 	deleteTrafficBeforeStmt            *sql.Stmt
 	deviceAttemptsStmt                 *sql.Stmt
+	deviceBroadcastsStmt               *sql.Stmt
 	deviceNetworkNamesStmt             *sql.Stmt
 	deviceStatsStmt                    *sql.Stmt
 	deviceTrafficStmt                  *sql.Stmt
@@ -755,6 +781,7 @@ type Queries struct {
 	touchDeviceStmt                    *sql.Stmt
 	updateDeviceCurationStmt           *sql.Stmt
 	upsertAttemptsStmt                 *sql.Stmt
+	upsertBroadcastStmt                *sql.Stmt
 	upsertDeviceSourceStmt             *sql.Stmt
 	upsertNetworkStmt                  *sql.Stmt
 	upsertNetworkIdentityStmt          *sql.Stmt
@@ -787,12 +814,14 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		currentAddressesStmt:               q.currentAddressesStmt,
 		deleteAPITokenStmt:                 q.deleteAPITokenStmt,
 		deleteAttemptsBeforeStmt:           q.deleteAttemptsBeforeStmt,
+		deleteBroadcastsBeforeStmt:         q.deleteBroadcastsBeforeStmt,
 		deleteDeviceStmt:                   q.deleteDeviceStmt,
 		deleteEventsBeforeStmt:             q.deleteEventsBeforeStmt,
 		deleteRecoveryCodesByUserStmt:      q.deleteRecoveryCodesByUserStmt,
 		deleteScansBeforeStmt:              q.deleteScansBeforeStmt,
 		deleteTrafficBeforeStmt:            q.deleteTrafficBeforeStmt,
 		deviceAttemptsStmt:                 q.deviceAttemptsStmt,
+		deviceBroadcastsStmt:               q.deviceBroadcastsStmt,
 		deviceNetworkNamesStmt:             q.deviceNetworkNamesStmt,
 		deviceStatsStmt:                    q.deviceStatsStmt,
 		deviceTrafficStmt:                  q.deviceTrafficStmt,
@@ -838,6 +867,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		touchDeviceStmt:                    q.touchDeviceStmt,
 		updateDeviceCurationStmt:           q.updateDeviceCurationStmt,
 		upsertAttemptsStmt:                 q.upsertAttemptsStmt,
+		upsertBroadcastStmt:                q.upsertBroadcastStmt,
 		upsertDeviceSourceStmt:             q.upsertDeviceSourceStmt,
 		upsertNetworkStmt:                  q.upsertNetworkStmt,
 		upsertNetworkIdentityStmt:          q.upsertNetworkIdentityStmt,

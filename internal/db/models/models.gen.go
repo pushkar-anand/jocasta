@@ -44,6 +44,18 @@ type AttemptsHourly struct {
 	Ports        string        `json:"ports"`
 }
 
+type BroadcastsHourly struct {
+	SourceID int64       `json:"source_id"`
+	DeviceID int64       `json:"device_id"`
+	Hour     dbtype.Time `json:"hour"`
+	DstIP    dbtype.Addr `json:"dst_ip"`
+	Kind     string      `json:"kind"`
+	Protocol int64       `json:"protocol"`
+	Port     int64       `json:"port"`
+	Bytes    int64       `json:"bytes"`
+	Packets  int64       `json:"packets"`
+}
+
 type Device struct {
 	ID                    int64                 `json:"id"`
 	MAC                   dbtype.MAC            `json:"mac"`
