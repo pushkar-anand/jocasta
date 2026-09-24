@@ -255,6 +255,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.touchDeviceStmt, err = db.PrepareContext(ctx, touchDevice); err != nil {
 		return nil, fmt.Errorf("error preparing query TouchDevice: %w", err)
 	}
+	if q.trafficMapDevicesStmt, err = db.PrepareContext(ctx, trafficMapDevices); err != nil {
+		return nil, fmt.Errorf("error preparing query TrafficMapDevices: %w", err)
+	}
+	if q.trafficMapLinksStmt, err = db.PrepareContext(ctx, trafficMapLinks); err != nil {
+		return nil, fmt.Errorf("error preparing query TrafficMapLinks: %w", err)
+	}
 	if q.updateDeviceCurationStmt, err = db.PrepareContext(ctx, updateDeviceCuration); err != nil {
 		return nil, fmt.Errorf("error preparing query UpdateDeviceCuration: %w", err)
 	}
@@ -678,6 +684,16 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing touchDeviceStmt: %w", cerr)
 		}
 	}
+	if q.trafficMapDevicesStmt != nil {
+		if cerr := q.trafficMapDevicesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing trafficMapDevicesStmt: %w", cerr)
+		}
+	}
+	if q.trafficMapLinksStmt != nil {
+		if cerr := q.trafficMapLinksStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing trafficMapLinksStmt: %w", cerr)
+		}
+	}
 	if q.updateDeviceCurationStmt != nil {
 		if cerr := q.updateDeviceCurationStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing updateDeviceCurationStmt: %w", cerr)
@@ -849,6 +865,8 @@ type Queries struct {
 	topOrganisationsStmt               *sql.Stmt
 	touchAPITokenByHashStmt            *sql.Stmt
 	touchDeviceStmt                    *sql.Stmt
+	trafficMapDevicesStmt              *sql.Stmt
+	trafficMapLinksStmt                *sql.Stmt
 	updateDeviceCurationStmt           *sql.Stmt
 	upsertAttemptsStmt                 *sql.Stmt
 	upsertBroadcastStmt                *sql.Stmt
@@ -943,6 +961,8 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		topOrganisationsStmt:               q.topOrganisationsStmt,
 		touchAPITokenByHashStmt:            q.touchAPITokenByHashStmt,
 		touchDeviceStmt:                    q.touchDeviceStmt,
+		trafficMapDevicesStmt:              q.trafficMapDevicesStmt,
+		trafficMapLinksStmt:                q.trafficMapLinksStmt,
 		updateDeviceCurationStmt:           q.updateDeviceCurationStmt,
 		upsertAttemptsStmt:                 q.upsertAttemptsStmt,
 		upsertBroadcastStmt:                q.upsertBroadcastStmt,

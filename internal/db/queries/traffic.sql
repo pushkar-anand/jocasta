@@ -169,3 +169,46 @@ ORDER BY t.peer_asn, SUM(t.bytes_out + t.bytes_in) DESC, d.id;
 -- far back "first contact" can honestly look.
 SELECT CAST(COALESCE(MIN(hour), '') AS TEXT) AS first_hour
 FROM traffic_hourly;
+
+-- name: TrafficMapLinks :many
+-- What each device exchanged since a given hour with each other device and
+-- each organisation, for the map. A conversation between two devices is
+-- written from both sides; only the side with the lower id is kept, so each
+-- pair comes back once, with the services it used. Peers that are neither a
+-- device nor an organisation have nowhere to go on the map and are left out.
+SELECT t.device_id,
+       CAST(COALESCE(t.peer_device_id, 0) AS INTEGER) AS peer_device_id,
+       CAST(COALESCE(t.peer_asn, 0) AS INTEGER)       AS peer_asn,
+       CAST(MIN(t.peer_ip) AS TEXT)                   AS peer_ip,
+       CAST(SUM(t.bytes_out + t.bytes_in) AS INTEGER) AS bytes,
+       -- Each protocol and service port the pair used, as "6/443,17/123".
+       CAST(GROUP_CONCAT(DISTINCT t.protocol || '/' || t.service_port) AS TEXT) AS services
+FROM traffic_hourly t
+         JOIN devices d ON d.id = t.device_id
+         LEFT JOIN devices p ON p.id = t.peer_device_id
+WHERE t.hour >= sqlc.arg(since)
+  AND d.is_ignored = 0
+  AND ((t.peer_device_id IS NOT NULL AND t.peer_device_id > t.device_id AND p.is_ignored = 0)
+    OR (t.peer_device_id IS NULL AND t.peer_asn IS NOT NULL))
+GROUP BY t.device_id, t.peer_device_id, t.peer_asn
+ORDER BY bytes DESC, t.device_id, peer_device_id, peer_asn;
+
+-- name: TrafficMapDevices :many
+-- The devices with traffic since a given hour, for the map: who each is, the
+-- network one of its current addresses sits on, and how much it moved.
+SELECT d.id,
+       CAST(COALESCE(d.label, '') AS TEXT)       AS label,
+       CAST(COALESCE(d.hostname, '') AS TEXT)    AS hostname,
+       CAST(COALESCE(d.mac, '') AS TEXT)         AS mac,
+       CAST(COALESCE(d.device_type, '') AS TEXT) AS device_type,
+       CAST(COALESCE((SELECT MIN(a.network_id)
+                      FROM addresses a
+                      WHERE a.device_id = d.id
+                        AND a.is_current = 1), 0) AS INTEGER) AS network_id,
+       CAST(SUM(t.bytes_out + t.bytes_in) AS INTEGER) AS bytes
+FROM traffic_hourly t
+         JOIN devices d ON d.id = t.device_id
+WHERE t.hour >= sqlc.arg(since)
+  AND d.is_ignored = 0
+GROUP BY d.id
+ORDER BY bytes DESC, d.id;
