@@ -46,6 +46,16 @@ connections the internet opened. On the Traffic page, "Reached from the
 internet" lists each device and service someone on the internet connected to:
 what the network exposes, as it was used.
 
+When something on the internet tried the device without the connection
+carrying anything -- a forwarded port knocked on -- a note says how many
+addresses tried, from how many organisations, and which ports. Tries on the
+router's outside address are counted under the router, whose address the flows
+themselves reveal: every connection out through the router names the address
+it left with. The Traffic page lists these under "Probed from the internet".
+When that outside address is itself private -- the router sits behind the
+ISP's carrier-grade NAT, or another router -- the page says so: nothing on the
+internet can open a connection in over IPv4, and both cards stay empty.
+
 Connections the device started that never carried data -- a port that
 refused, one nobody answered, a ping -- are counted at the top and left out of
 the tabs until "Show tries with no data" is ticked; then each sits on the row

@@ -79,6 +79,15 @@
     </div>
     {{- end }}
 
+    {{- range .Probed }}
+    <div class="notice" role="note">
+        <p><strong>{{ if .Outside }}This router's outside address was tried from the internet.{{ else }}This device was tried from the internet.{{ end }}</strong>
+            {{ count .Peers }} {{ if eq .Peers 1 }}address{{ else }}addresses{{ end }} from {{ .Orgs }} {{ if eq .Orgs 1 }}organisation{{ else }}organisations{{ end }}
+            made {{ count .Attempts }} {{ if eq .Attempts 1 }}try{{ else }}tries{{ end }} that carried nothing, {{ count .Answered }} of them answered{{ with .Ports }}; ports tried include {{ portList . }}{{ end }}.
+            Last seen {{ stamp .LastHour "" }}.</p>
+    </div>
+    {{- end }}
+
     {{- if .Empty }}
     <p class="dim">No traffic recorded for this device in the last {{ .Window.Label }}.</p>
     {{- else }}

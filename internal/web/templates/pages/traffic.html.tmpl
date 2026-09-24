@@ -125,6 +125,17 @@
 
 <section class="block">
     <h2 class="section">Reached from the internet</h2>
+    {{- with .BehindNAT }}
+    <div class="notice" role="note">
+        <p><strong>Your router is behind another NAT.</strong>
+            Its outside address is <span class="mono">{{ .Addr }}</span>, a
+            {{ if .CGNAT }}carrier-grade NAT address{{ else }}private address{{ end }}:
+            {{ if .CGNAT }}your ISP shares public addresses between customers{{ else }}another NAT sits between it and the internet, usually your ISP's carrier-grade NAT, sometimes another router in front of this one{{ end }}.
+            Nothing on the internet can open a connection to your network over
+            IPv4 unless that NAT forwards it, so this card and the next stay
+            empty. IPv6, where your ISP provides it, is not affected.</p>
+    </div>
+    {{- end }}
     <p class="note">Services on your devices that someone on the internet opened
         a connection to: what your network exposes, as it was used. A port you
         forward that shows no one here was not reached in this period.</p>
@@ -160,6 +171,47 @@
     </div>
     {{- else }}
     <p class="dim">Nothing on the internet opened a connection to a device{{ if .Tab.Key }} on {{ .Tab.Label }}{{ end }} in the last {{ .Window.Label }}.</p>
+    {{- end }}
+</section>
+
+<section class="block">
+    <h2 class="section">Probed from the internet</h2>
+    <p class="note">Connections someone on the internet tried on your network
+        that carried nothing: a port forwarded to a device knocked on, or your
+        router's outside address, which is counted under the router. Some of this is
+        the background noise of being online; answered tries are the ones to
+        look at.</p>
+    {{- if .Probed }}
+    <div class="card card--table">
+        <div class="scroller">
+            <table>
+                <thead>
+                <tr>
+                    <th scope="col">Tried</th>
+                    <th scope="col">By</th>
+                    <th scope="col" class="num">Answered</th>
+                    <th scope="col">Last seen</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{- range .Probed }}
+                <tr>
+                    <td>
+                        {{- if .Outside }}Outside address <span class="dim">of</span> {{ end -}}
+                        <a href="/devices/{{ .DeviceID }}#traffic">{{ .DeviceName }}</a></td>
+                    <td>{{ count .Peers }} {{ if eq .Peers 1 }}address{{ else }}addresses{{ end }}
+                        <span class="dim">&middot; {{ .Orgs }} {{ if eq .Orgs 1 }}organisation{{ else }}organisations{{ end }}</span>
+                        {{- with .Ports }}<br><span class="dim">ports {{ portList . }}</span>{{ end }}</td>
+                    <td class="num">{{ count .Answered }} of {{ count .Attempts }}</td>
+                    <td class="dim">{{ stamp .LastHour "" }}</td>
+                </tr>
+                {{- end }}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{- else }}
+    <p class="dim">Nothing on the internet tried a device{{ if .Tab.Key }} on {{ .Tab.Label }}{{ end }} in the last {{ .Window.Label }}.</p>
     {{- end }}
 </section>
 

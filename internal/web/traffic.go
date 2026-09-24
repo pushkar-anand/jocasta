@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"slices"
 	"strconv"
@@ -80,6 +81,10 @@ type trafficSection struct {
 	// HasBroadcasts is whether the device sent anything to everyone, which
 	// gives it a Broadcasts tab.
 	HasBroadcasts bool
+
+	// Probed is what the internet tried on the device: on its own, and, for
+	// the router, through its outside address.
+	Probed []*inventory.Probed
 }
 
 // Empty reports whether the device neither talked nor tried anything in the
@@ -190,6 +195,11 @@ func buildTrafficSection(
 		return nil, err
 	}
 
+	probed, err := store.ProbedDevices(ctx, since, "")
+	if err != nil {
+		return nil, err
+	}
+
 	sec := &trafficSection{
 		DeviceID:    id,
 		Window:      w,
@@ -202,6 +212,12 @@ func buildTrafficSection(
 		Probing:     proberFor(probers, id),
 
 		HasBroadcasts: len(broadcasts) > 0,
+	}
+
+	for _, p := range probed {
+		if p.DeviceID == id {
+			sec.Probed = append(sec.Probed, p)
+		}
 	}
 
 	var tried []*inventory.Attempt
@@ -328,6 +344,15 @@ type trafficPage struct {
 
 	// Incoming are the device services the internet opened connections to.
 	Incoming []*inventory.Incoming
+
+	// Probed are the devices the internet tried without getting anywhere.
+	Probed []*inventory.Probed
+
+	// BehindNAT is set when the router's outside address is itself private:
+	// another NAT stands between it and the internet, and nothing out there
+	// can open a connection in over IPv4. Nil when the outside address is
+	// public or not known yet.
+	BehindNAT *behindNAT
 
 	Busiest []*inventory.DeviceTotal
 	TopOrgs []*orgDevices
@@ -476,6 +501,43 @@ func addDeviceTotal(list []*inventory.DeviceTotal, d *inventory.DeviceTotal) []*
 	c := *d
 
 	return append(list, &c)
+}
+
+// outsideAddrWindow is how recently a router must have named an outside
+// address for the page to judge by it.
+const outsideAddrWindow = 24 * time.Hour
+
+// behindNAT describes the NAT in front of the router: the outside address the
+// router has, and whether it is in the carrier-grade range an ISP uses.
+type behindNAT struct {
+	Addr  netip.Addr
+	CGNAT bool
+}
+
+var cgnatRange = netip.MustParsePrefix("100.64.0.0/10")
+
+// behindNATFrom says whether the router sits behind another NAT, judged by its
+// IPv4 outside addresses: when every one is private or carrier-grade, nothing
+// on the internet reaches it. IPv6 is never translated and does not count.
+func behindNATFrom(outside []netip.Addr) *behindNAT {
+	var note *behindNAT
+
+	for _, a := range outside {
+		if !a.Is4() {
+			continue
+		}
+
+		cgnat := cgnatRange.Contains(a)
+		if !cgnat && !a.IsPrivate() {
+			return nil
+		}
+
+		if note == nil {
+			note = &behindNAT{Addr: a, CGNAT: cgnat}
+		}
+	}
+
+	return note
 }
 
 // orgDevices is one of the busiest organisations and which devices reached it.
@@ -637,6 +699,24 @@ func (h *Handler) traffic(sm *auth.Session) response.HandlerFunc {
 		for _, in := range incoming {
 			if data.Tab.has(in.DeviceID) && len(data.Incoming) < trafficCardRows {
 				data.Incoming = append(data.Incoming, in)
+			}
+		}
+
+		outside, err := h.store.OutsideAddresses(ctx, now.Add(-outsideAddrWindow))
+		if err != nil {
+			return err
+		}
+
+		data.BehindNAT = behindNATFrom(outside)
+
+		probed, err := h.store.ProbedDevices(ctx, since, data.Group)
+		if err != nil {
+			return err
+		}
+
+		for _, p := range probed {
+			if data.Tab.has(p.DeviceID) && len(data.Probed) < trafficCardRows {
+				data.Probed = append(data.Probed, p)
 			}
 		}
 

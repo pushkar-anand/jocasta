@@ -191,3 +191,30 @@ func TestListTrafficWithNothingRecorded(t *testing.T) {
 	assert.NotNil(t, out.Device.Local)
 	assert.NotNil(t, out.Device.Internet)
 }
+
+// The network summary says what the internet reached and what it tried: the
+// NAS's 443 opened from outside, and a knock on its 22 that carried nothing.
+func TestListTrafficReportsIncomingAndProbes(t *testing.T) {
+	t.Parallel()
+
+	store := trafficStore(t)
+
+	knock := tcp("1.1.1.1", "192.0.2.11", 22, 60)
+	knock.TCPFlags = 0x02
+
+	rec := inventory.NewTrafficRecorder(store, testLogger(), nil)
+	rec.Add(trafficSource{}, []plugin.Flow{tcp("1.1.1.1", "192.0.2.11", 443, 4_000), knock})
+	require.NoError(t, rec.Flush(t.Context()))
+
+	cs := connect(t, listTraffic(store, time.Now))
+
+	out := decodeAs[listTrafficOutput](t, callTool(t, cs, "list_traffic", nil))
+	require.Len(t, out.Incoming, 1)
+	assert.Equal(t, int64(2), out.Incoming[0].DeviceID)
+	assert.Equal(t, uint16(443), out.Incoming[0].Port)
+
+	require.Len(t, out.Probed, 1)
+	assert.Equal(t, int64(2), out.Probed[0].DeviceID)
+	assert.False(t, out.Probed[0].Outside)
+	assert.Equal(t, []uint16{22}, out.Probed[0].Ports)
+}
