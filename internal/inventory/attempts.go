@@ -25,6 +25,7 @@ const (
 	protoICMPv6 = 58
 
 	tcpSYN = 0x02
+	tcpRST = 0x04
 	tcpACK = 0x10
 
 	icmpEchoReply     = 0
@@ -81,6 +82,10 @@ type attemptSample struct {
 	flushPorts         []uint16
 	portCount          int
 	ports              []uint16
+
+	// lateAnswered counts replies that opened a port knocked on in an earlier
+	// flush. They answer attempts already on record rather than this flush's.
+	lateAnswered uint64
 }
 
 // portSet is the ports tried for one attemptKey this hour.
@@ -187,6 +192,19 @@ func splitAttempts(pending map[trafficKey]*trafficTotals) (map[trafficKey]*traff
 		}
 	}
 
+	// late credits a reply to the attempt it answers, the reverse direction.
+	late := func(reply trafficKey, n uint64) {
+		k := attemptKey{source: reply.source, kind: reply.kind, hour: reply.hour, src: reply.dst, dst: reply.src, protocol: reply.protocol}
+
+		a, ok := attempts[k]
+		if !ok {
+			a = &attemptSample{}
+			attempts[k] = a
+		}
+
+		a.lateAnswered += n
+	}
+
 	keep := func(keys []trafficKey) {
 		for _, k := range keys {
 			conversations[k] = pending[k]
@@ -206,6 +224,16 @@ func splitAttempts(pending map[trafficKey]*trafficTotals) (map[trafficKey]*traff
 
 		switch keys[0].protocol {
 		case protoTCP:
+			if reply, ok := lateReply(keys, pending); ok {
+				// The knock it answers was counted in an earlier flush; a
+				// refusal adds nothing to it, an open port answers it.
+				if t := pending[reply]; t.flags&tcpSYN != 0 {
+					late(reply, t.flows)
+				}
+
+				continue
+			}
+
 			init, ok := initiator(keys, pending)
 			if !ok || !tcpKnock(keys, pending, init) {
 				keep(keys)
@@ -272,6 +300,38 @@ func initiator(keys []trafficKey, pending map[trafficKey]*trafficTotals) (traffi
 		if pending[k].toService {
 			return k, true
 		}
+	}
+
+	return trafficKey{}, false
+}
+
+// lateReply reports whether a TCP exchange is only the answer to a knock:
+// one direction, from the service port, header-sized, a handful of packets,
+// opening with SYN+ACK (the port was open) or RST (it was not). The router
+// exports each direction as its own flow, and the two need not land in the
+// same flush; the knock was then counted on its own, and its answer is not a
+// conversation.
+//
+// An exporter that sends no flags leaves the answer unreadable, so the
+// exchange is kept as it was.
+func lateReply(keys []trafficKey, pending map[trafficKey]*trafficTotals) (trafficKey, bool) {
+	if len(keys) != 1 {
+		return trafficKey{}, false
+	}
+
+	k := keys[0]
+	t := pending[k]
+
+	header := uint64(tcpHeaderBytes4)
+	if k.src.Is6() {
+		header = tcpHeaderBytes6
+	}
+
+	switch {
+	case t.toService, t.packets > tcpKnockPackets, t.bytes > t.packets*header:
+		return trafficKey{}, false
+	case t.flags&(tcpSYN|tcpACK) == tcpSYN|tcpACK, t.flags&tcpRST != 0 && t.flags&tcpSYN == 0:
+		return k, true
 	}
 
 	return trafficKey{}, false
@@ -366,45 +426,76 @@ func (s *Store) writeAttempts(
 			return err
 		}
 
-		p := models.UpsertAttemptsParams{
-			SourceID:  srcID,
-			DeviceID:  device,
-			Hour:      dbtype.NewTime(k.hour),
-			PeerIP:    dbtype.NewAddr(k.dst),
-			Protocol:  int64(k.protocol),
-			Attempts:  clampInt64(a.attempts),
-			Answered:  clampInt64(a.answered),
-			PortCount: int64(a.portCount),
+		if a.attempts > 0 {
+			if err := s.upsertAttempts(ctx, q, k, a, device, srcID, holders); err != nil {
+				return err
+			}
 		}
 
-		if peer := holders[k.dst]; peer != 0 {
-			p.PeerDeviceID = sql.NullInt64{Int64: peer, Valid: true}
-		} else if org, ok := asn.Lookup(k.dst); ok {
-			p.PeerASN = sql.NullInt64{Int64: int64(org.ASN), Valid: true}
+		// After this flush's own attempts, so a reply to a knock made in
+		// this flush and an earlier one both find a row. A reply whose knock
+		// fell in the previous hour finds none and is lost.
+		if a.lateAnswered > 0 {
+			err := q.AnswerAttempts(ctx, models.AnswerAttemptsParams{
+				Late: clampInt64(a.lateAnswered), DeviceID: device, Hour: dbtype.NewTime(k.hour),
+				SourceID: srcID, PeerIP: dbtype.NewAddr(k.dst), Protocol: int64(k.protocol),
+			})
+			if err != nil {
+				return fmt.Errorf("late answers for device %d: %w", device, err)
+			}
 		}
+	}
 
-		ports := a.ports
+	return nil
+}
 
-		// Merge with what an earlier flush -- or an earlier run of this
-		// process -- stored for the hour.
-		prev, err := q.AttemptPorts(ctx, models.AttemptPortsParams{
-			DeviceID: device, Hour: p.Hour, SourceID: srcID, PeerIP: p.PeerIP, Protocol: p.Protocol,
-		})
+// upsertAttempts adds one flush's attempts at one peer to the hour's row.
+func (s *Store) upsertAttempts(
+	ctx context.Context,
+	q *models.Queries,
+	k attemptKey,
+	a *attemptSample,
+	device, srcID int64,
+	holders map[netip.Addr]int64,
+) error {
+	p := models.UpsertAttemptsParams{
+		SourceID:  srcID,
+		DeviceID:  device,
+		Hour:      dbtype.NewTime(k.hour),
+		PeerIP:    dbtype.NewAddr(k.dst),
+		Protocol:  int64(k.protocol),
+		Attempts:  clampInt64(a.attempts),
+		Answered:  clampInt64(a.answered),
+		PortCount: int64(a.portCount),
+	}
 
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
-		case err != nil:
-			return fmt.Errorf("attempt ports for device %d: %w", device, err)
-		default:
-			ports = mergePorts(ports, parsePortList(prev.Ports))
-			p.PortCount = max(p.PortCount, prev.PortCount, int64(len(ports)))
-		}
+	if peer := holders[k.dst]; peer != 0 {
+		p.PeerDeviceID = sql.NullInt64{Int64: peer, Valid: true}
+	} else if org, ok := asn.Lookup(k.dst); ok {
+		p.PeerASN = sql.NullInt64{Int64: int64(org.ASN), Valid: true}
+	}
 
-		p.Ports = formatPorts(ports)
+	ports := a.ports
 
-		if err := q.UpsertAttempts(ctx, p); err != nil {
-			return fmt.Errorf("attempts for device %d: %w", device, err)
-		}
+	// Merge with what an earlier flush -- or an earlier run of this
+	// process -- stored for the hour.
+	prev, err := q.AttemptPorts(ctx, models.AttemptPortsParams{
+		DeviceID: device, Hour: p.Hour, SourceID: srcID, PeerIP: p.PeerIP, Protocol: p.Protocol,
+	})
+
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+	case err != nil:
+		return fmt.Errorf("attempt ports for device %d: %w", device, err)
+	default:
+		ports = mergePorts(ports, parsePortList(prev.Ports))
+		p.PortCount = max(p.PortCount, prev.PortCount, int64(len(ports)))
+	}
+
+	p.Ports = formatPorts(ports)
+
+	if err := q.UpsertAttempts(ctx, p); err != nil {
+		return fmt.Errorf("attempts for device %d: %w", device, err)
 	}
 
 	return nil

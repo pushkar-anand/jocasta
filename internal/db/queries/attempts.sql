@@ -24,6 +24,18 @@ ON CONFLICT (device_id, hour, source_id, peer_ip, protocol) DO UPDATE
         port_count     = MAX(port_count, excluded.port_count),
         ports          = excluded.ports;
 
+-- name: AnswerAttempts :exec
+-- A reply that arrived a flush after the knock it answers: the knock is on
+-- record as unanswered, so it is marked answered now. Never past the attempts
+-- made, and a no-op when the knock is not on record.
+UPDATE attempts_hourly
+SET answered = MIN(attempts, answered + CAST(sqlc.arg(late) AS INTEGER))
+WHERE device_id = sqlc.arg(device_id)
+  AND hour = sqlc.arg(hour)
+  AND source_id = sqlc.arg(source_id)
+  AND peer_ip = sqlc.arg(peer_ip)
+  AND protocol = sqlc.arg(protocol);
+
 -- name: DeleteAttemptsBefore :execrows
 DELETE
 FROM attempts_hourly

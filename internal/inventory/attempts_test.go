@@ -256,6 +256,59 @@ func TestAnUnansweredUDPDatagramIsAnAttempt(t *testing.T) {
 	assert.Equal(t, "161", rows[0].Ports)
 }
 
+// The router exports each direction as its own flow, and a knock's answer can
+// land a flush after the knock. The knock is counted then as unanswered; its
+// answer is not a conversation, and an open port marks the knock answered.
+func TestAKnockAnsweredInTheNextFlushIsNotTraffic(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		reply    string
+		answered int64
+	}{
+		{reply: "closed", answered: 0},
+		{reply: "open", answered: 1},
+	} {
+		t.Run(tt.reply, func(t *testing.T) {
+			t.Parallel()
+
+			s, conn := newStore(t)
+			sweep(t, s, host("192.0.2.10", macA, ""), host("192.0.2.11", macB, ""))
+
+			flows := knock("192.0.2.10", "192.0.2.11", 22, tt.reply, s.now())
+
+			rec := newRecorder(s, nil)
+			rec.Add(trafficSource{}, flows[:1])
+			require.NoError(t, rec.Flush(t.Context()))
+			rec.Add(trafficSource{}, flows[1:])
+			require.NoError(t, rec.Flush(t.Context()))
+
+			assert.Empty(t, trafficRows(t, conn), "neither half is a conversation")
+
+			rows := attemptRows(t, conn)
+			require.Len(t, rows, 1)
+			assert.Equal(t, int64(1), rows[0].Attempts)
+			assert.Equal(t, tt.answered, rows[0].Answered)
+		})
+	}
+}
+
+// An answer whose knock is not on record -- it fell in the previous hour, or
+// before this process started -- has nothing to mark and is dropped.
+func TestALateAnswerWithNoKnockOnRecordIsDropped(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, ""), host("192.0.2.11", macB, ""))
+
+	rec := newRecorder(s, nil)
+	rec.Add(trafficSource{}, knock("192.0.2.10", "192.0.2.11", 22, "open", s.now())[1:])
+	require.NoError(t, rec.Flush(t.Context()))
+
+	assert.Empty(t, trafficRows(t, conn))
+	assert.Empty(t, attemptRows(t, conn))
+}
+
 // The router answers DHCP by broadcast, or from itself, and exports neither,
 // so a renewal is a one-way request every time. It is a conversation, not a
 // try; one-way UDP to another of the router's ports still is a try.

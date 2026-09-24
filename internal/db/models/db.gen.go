@@ -33,6 +33,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.allNetworksStmt, err = db.PrepareContext(ctx, allNetworks); err != nil {
 		return nil, fmt.Errorf("error preparing query AllNetworks: %w", err)
 	}
+	if q.answerAttemptsStmt, err = db.PrepareContext(ctx, answerAttempts); err != nil {
+		return nil, fmt.Errorf("error preparing query AnswerAttempts: %w", err)
+	}
 	if q.anyTrafficStmt, err = db.PrepareContext(ctx, anyTraffic); err != nil {
 		return nil, fmt.Errorf("error preparing query AnyTraffic: %w", err)
 	}
@@ -270,6 +273,11 @@ func (q *Queries) Close() error {
 	if q.allNetworksStmt != nil {
 		if cerr := q.allNetworksStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing allNetworksStmt: %w", cerr)
+		}
+	}
+	if q.answerAttemptsStmt != nil {
+		if cerr := q.answerAttemptsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing answerAttemptsStmt: %w", cerr)
 		}
 	}
 	if q.anyTrafficStmt != nil {
@@ -679,6 +687,7 @@ type Queries struct {
 	adoptCurationStmt                  *sql.Stmt
 	allCurrentAddressesStmt            *sql.Stmt
 	allNetworksStmt                    *sql.Stmt
+	answerAttemptsStmt                 *sql.Stmt
 	anyTrafficStmt                     *sql.Stmt
 	attemptPortsStmt                   *sql.Stmt
 	busiestDevicesStmt                 *sql.Stmt
@@ -761,6 +770,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		adoptCurationStmt:                  q.adoptCurationStmt,
 		allCurrentAddressesStmt:            q.allCurrentAddressesStmt,
 		allNetworksStmt:                    q.allNetworksStmt,
+		answerAttemptsStmt:                 q.answerAttemptsStmt,
 		anyTrafficStmt:                     q.anyTrafficStmt,
 		attemptPortsStmt:                   q.attemptPortsStmt,
 		busiestDevicesStmt:                 q.busiestDevicesStmt,
