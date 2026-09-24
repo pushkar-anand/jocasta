@@ -131,6 +131,13 @@ type (
 		Timeout time.Duration `koanf:"timeout"`
 	}
 
+	// Traffic controls how long the hourly traffic totals are kept.
+	Traffic struct {
+		// Retention is how long hourly traffic totals are kept. They are
+		// pruned with the event and scan logs. Zero keeps them forever.
+		Retention time.Duration `koanf:"retention"`
+	}
+
 	// Auth controls how long a signed-in browser stays signed in and whether
 	// its cookie is confined to HTTPS. The cookie's name, path and other flags
 	// are jocasta's to set and are deliberately not here.
@@ -179,6 +186,7 @@ type (
 		Auth      Auth      `koanf:"auth"`
 		MCP       MCP       `koanf:"mcp"`
 		Plugins   Plugins   `koanf:"plugins"`
+		Traffic   Traffic   `koanf:"traffic"`
 	}
 )
 

@@ -277,6 +277,30 @@ func TestTrafficDropsFlowsPastTheBufferCap(t *testing.T) {
 	assert.LessOrEqual(t, len(rec.pending), maxPendingTraffic)
 }
 
+func TestPruneDeletesTrafficPastItsOwnRetention(t *testing.T) {
+	t.Parallel()
+
+	s, conn, advance := clockStore(t)
+	sweep(t, s, host("192.0.2.10", macA, ""))
+
+	rec := newRecorder(s, nil)
+	start := s.now().UTC().Truncate(time.Hour)
+
+	rec.Add(trafficSource{}, []plugin.Flow{
+		flow("192.0.2.10", "203.0.113.5", 51000, 443, 100, start),
+		flow("192.0.2.10", "203.0.113.5", 51000, 443, 100, start.Add(48*time.Hour)),
+	})
+	require.NoError(t, rec.Flush(t.Context()))
+
+	advance(49 * time.Hour)
+
+	res, err := s.Prune(t.Context(), 0, 24*time.Hour)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), res.Traffic)
+	assert.Zero(t, res.Events, "zero retention keeps events")
+	assert.Len(t, trafficRows(t, conn), 1)
+}
+
 func TestServicePortPicksTheServerSide(t *testing.T) {
 	t.Parallel()
 

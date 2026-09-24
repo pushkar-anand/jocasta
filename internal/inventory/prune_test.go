@@ -37,7 +37,7 @@ func TestPruneDeletesEventsAndScansPastRetention(t *testing.T) {
 	recentEvents := countRows(t, conn, `SELECT COUNT(*) FROM events WHERE scan_id = ?`, recent.ScanID)
 	require.Positive(t, recentEvents)
 
-	res, err := s.Prune(t.Context(), testRetention)
+	res, err := s.Prune(t.Context(), testRetention, 0)
 	require.NoError(t, err)
 
 	assert.Equal(t, oldEvents, res.Events)
@@ -64,7 +64,7 @@ func TestPruneKeepsARunningScan(t *testing.T) {
 
 	advance(testRetention + time.Hour)
 
-	res, err := s.Prune(t.Context(), testRetention)
+	res, err := s.Prune(t.Context(), testRetention, 0)
 	require.NoError(t, err)
 
 	assert.Zero(t, res.Scans)
@@ -89,7 +89,7 @@ func TestPruneKeepsAnEventAtTheCutoff(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	res, err := s.Prune(t.Context(), testRetention)
+	res, err := s.Prune(t.Context(), testRetention, 0)
 	require.NoError(t, err)
 
 	assert.Equal(t, int64(1), res.Events)

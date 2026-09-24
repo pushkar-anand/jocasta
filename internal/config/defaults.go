@@ -40,6 +40,8 @@ var defaults = map[string]any{
 	"auth.cookie_secure":    true,
 
 	"mcp.enabled": false,
+
+	"traffic.retention": inventory.DefaultTrafficRetention.String(),
 }
 
 // defaultSource names the vantage point sweeps are taken from when nothing

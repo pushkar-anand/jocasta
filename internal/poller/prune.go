@@ -14,23 +14,28 @@ import (
 // the window.
 const pruneInterval = time.Hour
 
-// Prune deletes events and scans that have aged past the retention window.
+// Prune deletes events, scans and traffic totals that have aged past their
+// retention windows.
 type Prune struct {
-	store     *inventory.Store
-	retention time.Duration
-	logger    *slog.Logger
+	store            *inventory.Store
+	retention        time.Duration
+	trafficRetention time.Duration
+	logger           *slog.Logger
 }
 
-// NewPrune builds the task that keeps the event and scan logs to retention.
-func NewPrune(log *slog.Logger, store *inventory.Store, retention time.Duration) *Prune {
+// NewPrune builds the task that keeps the event and scan logs to retention and
+// the traffic totals to trafficRetention. Either may be zero, which keeps that
+// kind forever.
+func NewPrune(log *slog.Logger, store *inventory.Store, retention, trafficRetention time.Duration) *Prune {
 	if log == nil {
 		log = slog.Default()
 	}
 
 	return &Prune{
-		store:     store,
-		retention: retention,
-		logger:    log,
+		store:            store,
+		retention:        retention,
+		trafficRetention: trafficRetention,
+		logger:           log,
 	}
 }
 
@@ -46,15 +51,17 @@ func (p *Prune) DueIn(context.Context) time.Duration { return 0 }
 
 // Run deletes whatever has aged past the retention window.
 func (p *Prune) Run(ctx context.Context) error {
-	res, err := p.store.Prune(ctx, p.retention)
+	res, err := p.store.Prune(ctx, p.retention, p.trafficRetention)
 	if err != nil {
 		return fmt.Errorf("prune: %w", err)
 	}
 
-	p.logger.InfoContext(ctx, "pruned events and scans past retention",
+	p.logger.InfoContext(ctx, "pruned records past retention",
 		slog.Duration("retention", p.retention),
+		slog.Duration("traffic_retention", p.trafficRetention),
 		slog.Int64("events", res.Events),
 		slog.Int64("scans", res.Scans),
+		slog.Int64("traffic", res.Traffic),
 	)
 
 	return nil
