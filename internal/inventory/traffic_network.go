@@ -8,6 +8,7 @@ import (
 
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/db/models"
+	"github.com/pushkar-anand/jocasta/internal/scanner"
 )
 
 // DeviceTotal is how much one device moved over a window, both ways.
@@ -196,4 +197,70 @@ func parseAddr(s string) netip.Addr {
 	a, _ := netip.ParseAddr(s)
 
 	return a
+}
+
+// Incoming is one device's service that peers on the internet opened
+// connections to over a window.
+type Incoming struct {
+	DeviceID   int64  `json:"device_id"`
+	DeviceName string `json:"device_name"`
+
+	Protocol uint8  `json:"protocol"`
+	Port     uint16 `json:"port"`
+
+	// Service is the service usually found on Port, not one that was
+	// detected.
+	Service string `json:"service,omitempty"`
+
+	// Connections is how many the internet opened; Peers how many addresses
+	// and Orgs how many organisations they came from.
+	Connections int64 `json:"connections"`
+	Peers       int64 `json:"peers"`
+	Orgs        int64 `json:"orgs"`
+
+	// Sent and Received are from the device's side.
+	Sent     int64     `json:"sent"`
+	Received int64     `json:"received"`
+	LastHour time.Time `json:"last_hour"`
+}
+
+// IncomingFromInternet returns the device services internet peers opened
+// connections to since the start of the hour containing since, most
+// connections first. A non-empty group keeps only the devices in it.
+func (s *Store) IncomingFromInternet(ctx context.Context, since time.Time, group string, limit int) ([]*Incoming, error) {
+	rows, err := s.q.IncomingFromInternet(ctx, models.IncomingFromInternetParams{
+		Since:     dbtype.NewTime(since.UTC().Truncate(time.Hour)),
+		GroupName: nullString(group),
+		LimitRows: int64(limit),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("incoming from the internet: %w", err)
+	}
+
+	out := make([]*Incoming, 0, len(rows))
+
+	for _, r := range rows {
+		last, err := time.Parse(dbtype.Layout, r.LastHour)
+		if err != nil {
+			return nil, fmt.Errorf("incoming hour %q: %w", r.LastHour, err)
+		}
+
+		in := &Incoming{
+			DeviceID:    r.ID,
+			DeviceName:  displayName(r.Label, r.Hostname, r.MAC, "", r.ID),
+			Protocol:    uint8(r.Protocol),     //nolint:gosec // written from a uint8.
+			Port:        uint16(r.ServicePort), //nolint:gosec // range enforced by the column CHECK.
+			Connections: r.Connections,
+			Peers:       r.Peers,
+			Orgs:        r.Orgs,
+			Sent:        r.BytesOut,
+			Received:    r.BytesIn,
+			LastHour:    last,
+		}
+		in.Service = scanner.ServiceName(in.Port)
+
+		out = append(out, in)
+	}
+
+	return out, nil
 }

@@ -479,11 +479,14 @@ func (s *Store) trafficRow(
 
 	bytes, packets := clampInt64(t.bytes), clampInt64(t.packets)
 
+	// The connections this direction counts were started by its sender: the
+	// device's own when it sent, the peer's when it received.
 	if sent {
 		p.BytesOut, p.PacketsOut = bytes, packets
 		p.Connections = clampInt64(t.connections)
 	} else {
 		p.BytesIn, p.PacketsIn = bytes, packets
+		p.ConnectionsIn = clampInt64(t.connections)
 	}
 
 	return p

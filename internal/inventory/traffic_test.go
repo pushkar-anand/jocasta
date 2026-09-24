@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"log/slog"
 	"net/netip"
+	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -469,4 +470,66 @@ func TestFirstContactsSaysWhenRecordsAreShorterThanTheLookBack(t *testing.T) {
 	assert.True(t, first.Partial)
 	assert.False(t, first.Started.IsZero())
 	assert.Len(t, first.Contacts, 1)
+}
+
+// A connection is counted on the row of the side that started it: out on the
+// device's row when the device opened the peer's service, in when the peer
+// opened the device's. The same service can be opened each way.
+func TestConnectionsAreCountedByWhoStartedThem(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, ""), host("192.0.2.11", macB, ""))
+
+	at := s.now()
+
+	rec := newRecorder(s, nil)
+	rec.Add(trafficSource{}, []plugin.Flow{
+		// The internet opens the device's 443, twice, and the device answers.
+		flow("1.1.1.1", "192.0.2.10", 51000, 443, 2_000, at),
+		flow("1.1.1.1", "192.0.2.10", 51001, 443, 2_000, at),
+		flow("192.0.2.10", "1.1.1.1", 443, 51000, 9_000, at),
+		// The device opens the NAS's ssh.
+		flow("192.0.2.10", "192.0.2.11", 50000, 22, 1_000, at),
+	})
+	require.NoError(t, rec.Flush(t.Context()))
+
+	type counts struct{ out, in int64 }
+
+	got := make(map[string]counts)
+
+	rows, err := conn.QueryContext(t.Context(),
+		`SELECT device_id, peer_ip, connections, connections_in FROM traffic_hourly`)
+	require.NoError(t, err)
+
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var (
+			device int64
+			peer   string
+			c      counts
+		)
+
+		require.NoError(t, rows.Scan(&device, &peer, &c.out, &c.in))
+		got[strconv.FormatInt(device, 10)+" "+peer] = c
+	}
+
+	require.NoError(t, rows.Err())
+
+	assert.Equal(t, map[string]counts{
+		"1 1.1.1.1":    {out: 0, in: 2},
+		"1 192.0.2.11": {out: 1, in: 0},
+		"2 192.0.2.10": {out: 0, in: 1},
+	}, got)
+
+	incoming, err := s.IncomingFromInternet(t.Context(), at.Add(-time.Hour), "", 10)
+	require.NoError(t, err)
+	require.Len(t, incoming, 1, "the NAS was reached from the network, not the internet")
+	assert.Equal(t, int64(1), incoming[0].DeviceID)
+	assert.Equal(t, uint16(443), incoming[0].Port)
+	assert.Equal(t, "https", incoming[0].Service)
+	assert.Equal(t, int64(2), incoming[0].Connections)
+	assert.Equal(t, int64(1), incoming[0].Orgs)
+	assert.Equal(t, int64(9_000), incoming[0].Sent)
 }
