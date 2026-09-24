@@ -71,6 +71,7 @@ func TestWeeklyReport(t *testing.T) {
 		text := promptText(t, cs, "weekly_report", nil)
 		assert.Contains(t, text, "in the 7 days since 2026-03-08T11:30:45Z, up to 2026-03-15T11:30:45Z")
 		assert.Contains(t, text, "occurred before 2026-03-08T11:30:45Z")
+		assert.Contains(t, text, "list_traffic with first_contact_only true and days 7")
 		assert.Contains(t, text, dataNotInstructions)
 	})
 

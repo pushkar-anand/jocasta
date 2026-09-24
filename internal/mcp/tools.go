@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/netip"
 	"reflect"
+	"time"
 
 	"github.com/google/jsonschema-go/jsonschema"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -36,6 +37,7 @@ func tools(store *inventory.Store) []tool {
 		{register: listGroups(store)},
 		{register: getPortOverview(store)},
 		{register: listScans(store)},
+		{register: listTraffic(store, time.Now)},
 		{writes: true, register: updateDeviceCuration(store)},
 	}
 }
