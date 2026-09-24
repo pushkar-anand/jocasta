@@ -155,10 +155,9 @@ type (
 		Retention time.Duration `koanf:"retention"`
 
 		// HomeCountry is the two-letter code of the country the network is
-		// in, which the world map draws its lines from. It is needed only
-		// when the router's outside address is private -- behind an ISP's
-		// carrier-grade NAT -- and so cannot be placed. Empty draws no lines
-		// then.
+		// in, which the world map draws its lines from. Empty leaves it to
+		// the router's outside address, which cannot place the network when
+		// it is private -- behind an ISP's carrier-grade NAT.
 		HomeCountry string `koanf:"home_country"`
 	}
 

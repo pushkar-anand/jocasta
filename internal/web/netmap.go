@@ -227,8 +227,8 @@ func (h *Handler) buildWorld(ctx context.Context, now time.Time, recent []invent
 		Outline: geo.World(), Attribution: geo.Attribution,
 	}
 
-	if home, ok := geo.CountryOf(h.homeCountry); ok {
-		w.Home = &home
+	if w.Home, err = h.homeOf(ctx, now); err != nil {
+		return nil, err
 	}
 
 	var top int64 = 1
@@ -241,6 +241,34 @@ func (h *Handler) buildWorld(ctx context.Context, now time.Time, recent []invent
 	}
 
 	return w, nil
+}
+
+// homeOf is the country the network is in: the one configured, or else the
+// one the router's outside address is registered in. A private outside
+// address -- the ISP's carrier-grade NAT -- places nothing, and nil is
+// returned when nothing does.
+func (h *Handler) homeOf(ctx context.Context, now time.Time) (*geo.Country, error) {
+	if c, ok := geo.CountryOf(h.homeCountry); ok {
+		return &c, nil
+	}
+
+	outside, err := h.store.OutsideAddresses(ctx, now.Add(-outsideAddrWindow))
+	if err != nil {
+		return nil, err
+	}
+
+	for _, a := range outside {
+		code, ok := geo.Lookup(a)
+		if !ok {
+			continue
+		}
+
+		if c, ok := geo.CountryOf(code); ok {
+			return &c, nil
+		}
+	}
+
+	return nil, nil
 }
 
 // shade is the step, 1 to worldShades, n bytes falls in against the busiest
