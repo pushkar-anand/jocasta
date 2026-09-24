@@ -1,0 +1,183 @@
+{{ define "page/traffic" }}
+{{- template "layout/head" . }}
+
+{{- if not .Recorded }}
+<section class="block">
+    <h2 class="section">Traffic</h2>
+    <div class="card empty">
+        <p>No traffic recorded yet. Once your router sends its traffic records
+            to Jocasta, this page shows which devices are busiest, where on the
+            internet they connect, and who they started talking to lately.</p>
+        <p>See &ldquo;Seeing who devices talk to&rdquo; in the setup guide.</p>
+    </div>
+</section>
+{{- else }}
+
+<section class="block">
+    <div class="block__head">
+        <h2 class="section">Traffic</h2>
+        <p class="block__aside">Hourly totals from your router</p>
+    </div>
+
+    {{- /* The form swaps only the cards below it and pushes its own address,
+           so the page can be reloaded or shared as filtered. Without htmx it
+           submits and the whole page renders filtered. */}}
+    <form class="filters" role="search" action="/traffic" method="get"
+          hx-get="/traffic"
+          hx-select="#traffic-cards"
+          hx-target="#traffic-cards"
+          hx-swap="outerHTML"
+          hx-push-url="true"
+          hx-sync="this:replace"
+          hx-trigger="change, submit">
+        <label class="field">
+            <span class="visually-hidden">Period</span>
+            <select name="window">
+                {{- range .Windows }}
+                <option value="{{ .Key }}"{{ if eq .Key $.Window.Key }} selected{{ end }}>Last {{ .Label }}</option>
+                {{- end }}
+            </select>
+        </label>
+
+        {{- if .Groups }}
+        <label class="field">
+            <span class="visually-hidden">Group</span>
+            <select name="group">
+                <option value="">Every group</option>
+                {{- range .Groups }}
+                <option value="{{ . }}"{{ if eq . $.Group }} selected{{ end }}>{{ . }}</option>
+                {{- end }}
+            </select>
+        </label>
+        {{- end }}
+
+        <noscript><button type="submit" class="btn">Apply</button></noscript>
+    </form>
+</section>
+
+<div id="traffic-cards">
+<section class="block">
+    <h2 class="section">Busiest devices</h2>
+    {{- if .Busiest }}
+    <div class="card card--table">
+        <div class="scroller">
+            <table>
+                <thead>
+                <tr>
+                    <th scope="col">Device</th>
+                    <th scope="col" class="num">Sent</th>
+                    <th scope="col" class="num">Received</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{- range .Busiest }}
+                <tr>
+                    <td><a href="/devices/{{ .DeviceID }}#traffic">{{ .DeviceName }}</a></td>
+                    <td class="num">{{ bytes .Sent }}</td>
+                    <td class="num">{{ bytes .Received }}</td>
+                </tr>
+                {{- end }}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{- else }}
+    <p class="dim">No traffic recorded in the last {{ .Window.Label }}{{ with .Group }} for devices in {{ . }}{{ end }}.</p>
+    {{- end }}
+</section>
+
+<section class="block">
+    <h2 class="section">New this week</h2>
+    <p class="note">Organisations a device exchanged data with for the first time
+        in the last 7 days.{{ if .First.Partial }} Traffic has only been recorded
+        since {{ stamp .First.Started "" }}, so until a week has passed everything
+        counts as new.{{ end }}</p>
+    {{- if .NewOrgs }}
+    <div class="card card--table">
+        <div class="scroller">
+            <table>
+                <thead>
+                <tr>
+                    <th scope="col">Organisation</th>
+                    <th scope="col">First seen</th>
+                    <th scope="col" class="num">Exchanged</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{- range .NewOrgs }}
+                <tr>
+                    <td>
+                        <details class="peers">
+                            <summary>
+                                <span class="strong" title="{{ .Name }}">{{ .Short }}</span>
+                                <span class="dim">{{ len .Devices }} {{ if eq (len .Devices) 1 }}device{{ else }}devices{{ end }}</span>
+                            </summary>
+                            <ul class="peers__list">
+                                {{- range .Devices }}
+                                <li><a href="/devices/{{ .DeviceID }}#traffic">{{ .DeviceName }}</a>
+                                    <span class="peers__detail">{{ stamp .First "" }} &middot; {{ bytes .Bytes }}</span></li>
+                                {{- end }}
+                            </ul>
+                        </details>
+                    </td>
+                    <td class="dim">{{ stamp .First "" }}</td>
+                    <td class="num">{{ bytes .Bytes }}</td>
+                </tr>
+                {{- end }}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{- else }}
+    <p class="dim">No device reached a new organisation this week.</p>
+    {{- end }}
+</section>
+
+<section class="block">
+    <h2 class="section">Top internet destinations</h2>
+    {{- if .TopOrgs }}
+    <div class="card card--table">
+        <div class="scroller">
+            <table>
+                <thead>
+                <tr>
+                    <th scope="col">Organisation</th>
+                    <th scope="col" class="num">Sent</th>
+                    <th scope="col" class="num">Received</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{- range .TopOrgs }}
+                <tr>
+                    <td>
+                        <details class="peers">
+                            <summary>
+                                <span class="strong" title="{{ .Name }}">{{ .Short }}</span>
+                                <span class="dim">{{ .Devices }} {{ if eq .Devices 1 }}device{{ else }}devices{{ end }}</span>
+                            </summary>
+                            <ul class="peers__list">
+                                {{- range .DeviceList }}
+                                <li><a href="/devices/{{ .DeviceID }}#traffic">{{ .DeviceName }}</a>
+                                    <span class="peers__detail">{{ bytes .Sent }} sent &middot; {{ bytes .Received }} received</span></li>
+                                {{- end }}
+                            </ul>
+                        </details>
+                    </td>
+                    <td class="num">{{ bytes .Sent }}</td>
+                    <td class="num">{{ bytes .Received }}</td>
+                </tr>
+                {{- end }}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{- else }}
+    <p class="dim">No internet traffic recorded in the last {{ .Window.Label }}.</p>
+    {{- end }}
+    <p class="note">{{ .Attribution }}.</p>
+</section>
+</div>
+{{- end }}
+
+{{- template "layout/foot" . }}
+{{ end }}

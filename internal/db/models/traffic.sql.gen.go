@@ -27,6 +27,85 @@ func (q *Queries) AnyTraffic(ctx context.Context) (int64, error) {
 	return recorded, err
 }
 
+const busiestDevices = `-- name: BusiestDevices :many
+SELECT d.id,
+       CAST(COALESCE(d.label, '') AS TEXT)    AS label,
+       CAST(COALESCE(d.hostname, '') AS TEXT) AS hostname,
+       CAST(COALESCE(d.mac, '') AS TEXT)      AS mac,
+       CAST(SUM(t.bytes_out) AS INTEGER)      AS bytes_out,
+       CAST(SUM(t.bytes_in) AS INTEGER)       AS bytes_in
+FROM traffic_hourly t
+         JOIN devices d ON d.id = t.device_id
+WHERE t.hour >= ?1
+  AND d.is_ignored = 0
+  AND (CAST(?2 AS TEXT) IS NULL OR d.group_name = CAST(?2 AS TEXT))
+GROUP BY d.id
+ORDER BY SUM(t.bytes_out + t.bytes_in) DESC, d.id
+LIMIT ?3
+`
+
+type BusiestDevicesParams struct {
+	Since     dbtype.Time    `json:"since"`
+	GroupName sql.NullString `json:"group_name"`
+	LimitRows int64          `json:"limit_rows"`
+}
+
+type BusiestDevicesRow struct {
+	ID       int64  `json:"id"`
+	Label    string `json:"label"`
+	Hostname string `json:"hostname"`
+	MAC      string `json:"mac"`
+	BytesOut int64  `json:"bytes_out"`
+	BytesIn  int64  `json:"bytes_in"`
+}
+
+// The devices that moved the most data since a given hour. A conversation
+// between two devices counts toward both, since each of them did move it.
+//
+//	SELECT d.id,
+//	       CAST(COALESCE(d.label, '') AS TEXT)    AS label,
+//	       CAST(COALESCE(d.hostname, '') AS TEXT) AS hostname,
+//	       CAST(COALESCE(d.mac, '') AS TEXT)      AS mac,
+//	       CAST(SUM(t.bytes_out) AS INTEGER)      AS bytes_out,
+//	       CAST(SUM(t.bytes_in) AS INTEGER)       AS bytes_in
+//	FROM traffic_hourly t
+//	         JOIN devices d ON d.id = t.device_id
+//	WHERE t.hour >= ?1
+//	  AND d.is_ignored = 0
+//	  AND (CAST(?2 AS TEXT) IS NULL OR d.group_name = CAST(?2 AS TEXT))
+//	GROUP BY d.id
+//	ORDER BY SUM(t.bytes_out + t.bytes_in) DESC, d.id
+//	LIMIT ?3
+func (q *Queries) BusiestDevices(ctx context.Context, arg BusiestDevicesParams) ([]*BusiestDevicesRow, error) {
+	rows, err := q.query(ctx, q.busiestDevicesStmt, busiestDevices, arg.Since, arg.GroupName, arg.LimitRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*BusiestDevicesRow
+	for rows.Next() {
+		var i BusiestDevicesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.Hostname,
+			&i.MAC,
+			&i.BytesOut,
+			&i.BytesIn,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deleteTrafficBefore = `-- name: DeleteTrafficBefore :execrows
 DELETE
 FROM traffic_hourly
@@ -139,6 +218,274 @@ func (q *Queries) DeviceTraffic(ctx context.Context, arg DeviceTrafficParams) ([
 			&i.BytesIn,
 			&i.Connections,
 			&i.LastHour,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const earliestTraffic = `-- name: EarliestTraffic :one
+SELECT CAST(COALESCE(MIN(hour), '') AS TEXT) AS first_hour
+FROM traffic_hourly
+`
+
+// The first hour anything was recorded, or empty when nothing has been: how
+// far back "first contact" can honestly look.
+//
+//	SELECT CAST(COALESCE(MIN(hour), '') AS TEXT) AS first_hour
+//	FROM traffic_hourly
+func (q *Queries) EarliestTraffic(ctx context.Context) (string, error) {
+	row := q.queryRow(ctx, q.earliestTrafficStmt, earliestTraffic)
+	var first_hour string
+	err := row.Scan(&first_hour)
+	return first_hour, err
+}
+
+const firstContacts = `-- name: FirstContacts :many
+SELECT d.id,
+       CAST(COALESCE(d.label, '') AS TEXT)    AS label,
+       CAST(COALESCE(d.hostname, '') AS TEXT) AS hostname,
+       CAST(COALESCE(d.mac, '') AS TEXT)      AS mac,
+       CAST(t.peer_asn AS INTEGER)            AS peer_asn,
+       CAST(MIN(t.peer_ip) AS TEXT)           AS peer_ip,
+       CAST(MIN(t.hour) AS TEXT)              AS first_hour,
+       CAST(SUM(t.bytes_out + t.bytes_in) AS INTEGER) AS bytes
+FROM traffic_hourly t
+         JOIN devices d ON d.id = t.device_id
+WHERE t.peer_asn IS NOT NULL
+  AND d.is_ignored = 0
+  AND (CAST(?1 AS TEXT) IS NULL OR d.group_name = CAST(?1 AS TEXT))
+GROUP BY d.id, t.peer_asn
+HAVING MIN(t.hour) >= ?2
+ORDER BY MIN(t.hour) DESC, d.id
+LIMIT ?3
+`
+
+type FirstContactsParams struct {
+	GroupName sql.NullString `json:"group_name"`
+	Since     dbtype.Time    `json:"since"`
+	LimitRows int64          `json:"limit_rows"`
+}
+
+type FirstContactsRow struct {
+	ID        int64  `json:"id"`
+	Label     string `json:"label"`
+	Hostname  string `json:"hostname"`
+	MAC       string `json:"mac"`
+	PeerASN   int64  `json:"peer_asn"`
+	PeerIP    string `json:"peer_ip"`
+	FirstHour string `json:"first_hour"`
+	Bytes     int64  `json:"bytes"`
+}
+
+// Each device's first exchange with an organisation, when it fell at or after
+// a given hour: the organisations a device started talking to lately. Keyed on
+// the organisation rather than the address, so a service moving between the
+// addresses of one provider is not news.
+//
+//	SELECT d.id,
+//	       CAST(COALESCE(d.label, '') AS TEXT)    AS label,
+//	       CAST(COALESCE(d.hostname, '') AS TEXT) AS hostname,
+//	       CAST(COALESCE(d.mac, '') AS TEXT)      AS mac,
+//	       CAST(t.peer_asn AS INTEGER)            AS peer_asn,
+//	       CAST(MIN(t.peer_ip) AS TEXT)           AS peer_ip,
+//	       CAST(MIN(t.hour) AS TEXT)              AS first_hour,
+//	       CAST(SUM(t.bytes_out + t.bytes_in) AS INTEGER) AS bytes
+//	FROM traffic_hourly t
+//	         JOIN devices d ON d.id = t.device_id
+//	WHERE t.peer_asn IS NOT NULL
+//	  AND d.is_ignored = 0
+//	  AND (CAST(?1 AS TEXT) IS NULL OR d.group_name = CAST(?1 AS TEXT))
+//	GROUP BY d.id, t.peer_asn
+//	HAVING MIN(t.hour) >= ?2
+//	ORDER BY MIN(t.hour) DESC, d.id
+//	LIMIT ?3
+func (q *Queries) FirstContacts(ctx context.Context, arg FirstContactsParams) ([]*FirstContactsRow, error) {
+	rows, err := q.query(ctx, q.firstContactsStmt, firstContacts, arg.GroupName, arg.Since, arg.LimitRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*FirstContactsRow
+	for rows.Next() {
+		var i FirstContactsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.Hostname,
+			&i.MAC,
+			&i.PeerASN,
+			&i.PeerIP,
+			&i.FirstHour,
+			&i.Bytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const organisationDevices = `-- name: OrganisationDevices :many
+SELECT CAST(t.peer_asn AS INTEGER)            AS peer_asn,
+       d.id,
+       CAST(COALESCE(d.label, '') AS TEXT)    AS label,
+       CAST(COALESCE(d.hostname, '') AS TEXT) AS hostname,
+       CAST(COALESCE(d.mac, '') AS TEXT)      AS mac,
+       CAST(SUM(t.bytes_out) AS INTEGER)      AS bytes_out,
+       CAST(SUM(t.bytes_in) AS INTEGER)       AS bytes_in
+FROM traffic_hourly t
+         JOIN devices d ON d.id = t.device_id
+WHERE t.peer_asn IS NOT NULL
+  AND t.hour >= ?1
+  AND d.is_ignored = 0
+  AND (CAST(?2 AS TEXT) IS NULL OR d.group_name = CAST(?2 AS TEXT))
+GROUP BY t.peer_asn, d.id
+ORDER BY t.peer_asn, SUM(t.bytes_out + t.bytes_in) DESC, d.id
+`
+
+type OrganisationDevicesParams struct {
+	Since     dbtype.Time    `json:"since"`
+	GroupName sql.NullString `json:"group_name"`
+}
+
+type OrganisationDevicesRow struct {
+	PeerASN  int64  `json:"peer_asn"`
+	ID       int64  `json:"id"`
+	Label    string `json:"label"`
+	Hostname string `json:"hostname"`
+	MAC      string `json:"mac"`
+	BytesOut int64  `json:"bytes_out"`
+	BytesIn  int64  `json:"bytes_in"`
+}
+
+// What each device exchanged with each organisation since a given hour, for
+// the breakdown under the busiest organisations. Every pair comes back; the
+// caller keeps the organisations it shows.
+//
+//	SELECT CAST(t.peer_asn AS INTEGER)            AS peer_asn,
+//	       d.id,
+//	       CAST(COALESCE(d.label, '') AS TEXT)    AS label,
+//	       CAST(COALESCE(d.hostname, '') AS TEXT) AS hostname,
+//	       CAST(COALESCE(d.mac, '') AS TEXT)      AS mac,
+//	       CAST(SUM(t.bytes_out) AS INTEGER)      AS bytes_out,
+//	       CAST(SUM(t.bytes_in) AS INTEGER)       AS bytes_in
+//	FROM traffic_hourly t
+//	         JOIN devices d ON d.id = t.device_id
+//	WHERE t.peer_asn IS NOT NULL
+//	  AND t.hour >= ?1
+//	  AND d.is_ignored = 0
+//	  AND (CAST(?2 AS TEXT) IS NULL OR d.group_name = CAST(?2 AS TEXT))
+//	GROUP BY t.peer_asn, d.id
+//	ORDER BY t.peer_asn, SUM(t.bytes_out + t.bytes_in) DESC, d.id
+func (q *Queries) OrganisationDevices(ctx context.Context, arg OrganisationDevicesParams) ([]*OrganisationDevicesRow, error) {
+	rows, err := q.query(ctx, q.organisationDevicesStmt, organisationDevices, arg.Since, arg.GroupName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*OrganisationDevicesRow
+	for rows.Next() {
+		var i OrganisationDevicesRow
+		if err := rows.Scan(
+			&i.PeerASN,
+			&i.ID,
+			&i.Label,
+			&i.Hostname,
+			&i.MAC,
+			&i.BytesOut,
+			&i.BytesIn,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const topOrganisations = `-- name: TopOrganisations :many
+SELECT CAST(t.peer_asn AS INTEGER)              AS peer_asn,
+       CAST(MIN(t.peer_ip) AS TEXT)             AS peer_ip,
+       CAST(SUM(t.bytes_out) AS INTEGER)        AS bytes_out,
+       CAST(SUM(t.bytes_in) AS INTEGER)         AS bytes_in,
+       CAST(COUNT(DISTINCT t.device_id) AS INTEGER) AS devices
+FROM traffic_hourly t
+         JOIN devices d ON d.id = t.device_id
+WHERE t.peer_asn IS NOT NULL
+  AND t.hour >= ?1
+  AND d.is_ignored = 0
+  AND (CAST(?2 AS TEXT) IS NULL OR d.group_name = CAST(?2 AS TEXT))
+GROUP BY t.peer_asn
+ORDER BY SUM(t.bytes_out + t.bytes_in) DESC, t.peer_asn
+LIMIT ?3
+`
+
+type TopOrganisationsParams struct {
+	Since     dbtype.Time    `json:"since"`
+	GroupName sql.NullString `json:"group_name"`
+	LimitRows int64          `json:"limit_rows"`
+}
+
+type TopOrganisationsRow struct {
+	PeerASN  int64  `json:"peer_asn"`
+	PeerIP   string `json:"peer_ip"`
+	BytesOut int64  `json:"bytes_out"`
+	BytesIn  int64  `json:"bytes_in"`
+	Devices  int64  `json:"devices"`
+}
+
+// The organisations the whole network exchanged the most with since a given
+// hour, and how many devices reached each.
+//
+//	SELECT CAST(t.peer_asn AS INTEGER)              AS peer_asn,
+//	       CAST(MIN(t.peer_ip) AS TEXT)             AS peer_ip,
+//	       CAST(SUM(t.bytes_out) AS INTEGER)        AS bytes_out,
+//	       CAST(SUM(t.bytes_in) AS INTEGER)         AS bytes_in,
+//	       CAST(COUNT(DISTINCT t.device_id) AS INTEGER) AS devices
+//	FROM traffic_hourly t
+//	         JOIN devices d ON d.id = t.device_id
+//	WHERE t.peer_asn IS NOT NULL
+//	  AND t.hour >= ?1
+//	  AND d.is_ignored = 0
+//	  AND (CAST(?2 AS TEXT) IS NULL OR d.group_name = CAST(?2 AS TEXT))
+//	GROUP BY t.peer_asn
+//	ORDER BY SUM(t.bytes_out + t.bytes_in) DESC, t.peer_asn
+//	LIMIT ?3
+func (q *Queries) TopOrganisations(ctx context.Context, arg TopOrganisationsParams) ([]*TopOrganisationsRow, error) {
+	rows, err := q.query(ctx, q.topOrganisationsStmt, topOrganisations, arg.Since, arg.GroupName, arg.LimitRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*TopOrganisationsRow
+	for rows.Next() {
+		var i TopOrganisationsRow
+		if err := rows.Scan(
+			&i.PeerASN,
+			&i.PeerIP,
+			&i.BytesOut,
+			&i.BytesIn,
+			&i.Devices,
 		); err != nil {
 			return nil, err
 		}

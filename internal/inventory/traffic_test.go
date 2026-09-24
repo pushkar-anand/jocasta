@@ -398,3 +398,112 @@ func TestDeviceTrafficIsEmptyNotNil(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, recorded)
 }
+
+func TestNetworkTrafficSummaries(t *testing.T) {
+	t.Parallel()
+
+	s, conn, advance := clockStore(t)
+	sweep(t, s, host("192.0.2.10", macA, "laptop.example"), host("192.0.2.11", macB, "tv.example"))
+
+	a, b := deviceIDByMAC(t, conn, macA), deviceIDByMAC(t, conn, macB)
+	rec := newRecorder(s, nil)
+
+	// Ten days ago the laptop already talked to Cloudflare.
+	rec.Add(trafficSource{}, []plugin.Flow{flow("192.0.2.10", "1.1.1.1", 51000, 443, 100, s.now())})
+	require.NoError(t, rec.Flush(t.Context()))
+
+	advance(10 * 24 * time.Hour)
+
+	now := s.now()
+
+	rec.Add(trafficSource{}, []plugin.Flow{
+		flow("192.0.2.10", "1.1.1.1", 51000, 443, 2_000, now),
+		flow("192.0.2.10", "8.8.8.8", 51000, 53, 50, now),
+		flow("192.0.2.11", "8.8.8.8", 51000, 443, 7_000, now),
+	})
+	require.NoError(t, rec.Flush(t.Context()))
+
+	busiest, err := s.BusiestDevices(t.Context(), now.Add(-24*time.Hour), "", 10)
+	require.NoError(t, err)
+	require.Len(t, busiest, 2)
+	assert.Equal(t, b, busiest[0].DeviceID)
+	assert.Equal(t, "tv.example", busiest[0].DeviceName)
+	assert.Equal(t, int64(7_000), busiest[0].Sent)
+
+	orgs, err := s.TopOrganisations(t.Context(), now.Add(-24*time.Hour), "", 10)
+	require.NoError(t, err)
+	require.Len(t, orgs, 2)
+	assert.Equal(t, "Google", orgs[0].Short)
+	assert.Equal(t, int64(2), orgs[0].Devices)
+	assert.Equal(t, "Cloudflare", orgs[1].Short)
+
+	first, err := s.FirstContacts(t.Context(), now.Add(-7*24*time.Hour), "", 10)
+	require.NoError(t, err)
+	assert.False(t, first.Partial, "ten days of records cover a seven-day look back")
+
+	// Cloudflare is not new to the laptop; Google is new to both.
+	got := map[int64][]string{}
+	for _, c := range first.Contacts {
+		got[c.DeviceID] = append(got[c.DeviceID], c.Short)
+	}
+
+	assert.Equal(t, map[int64][]string{a: {"Google"}, b: {"Google"}}, got)
+
+	// Each organisation breaks down by device, busiest first.
+	byOrg, err := s.OrganisationDevices(t.Context(), now.Add(-24*time.Hour), "")
+	require.NoError(t, err)
+	require.Len(t, byOrg[15169], 2)
+	assert.Equal(t, b, byOrg[15169][0].DeviceID)
+	assert.Equal(t, int64(7_000), byOrg[15169][0].Sent)
+	assert.Equal(t, a, byOrg[15169][1].DeviceID)
+
+	// A group narrows every summary to its devices.
+	_, err = s.UpdateCuration(t.Context(), a, Curation{Group: "family"})
+	require.NoError(t, err)
+
+	busiest, err = s.BusiestDevices(t.Context(), now.Add(-24*time.Hour), "family", 10)
+	require.NoError(t, err)
+	require.Len(t, busiest, 1)
+	assert.Equal(t, a, busiest[0].DeviceID)
+
+	orgs, err = s.TopOrganisations(t.Context(), now.Add(-24*time.Hour), "family", 10)
+	require.NoError(t, err)
+	require.Len(t, orgs, 2)
+	assert.Equal(t, "Cloudflare", orgs[0].Short, "the laptop moved more with Cloudflare than Google")
+	assert.Equal(t, int64(1), orgs[1].Devices)
+
+	first, err = s.FirstContacts(t.Context(), now.Add(-7*24*time.Hour), "family", 10)
+	require.NoError(t, err)
+	require.Len(t, first.Contacts, 1)
+	assert.Equal(t, a, first.Contacts[0].DeviceID)
+
+	byOrg, err = s.OrganisationDevices(t.Context(), now.Add(-24*time.Hour), "family")
+	require.NoError(t, err)
+	assert.Len(t, byOrg[15169], 1)
+
+	// An ignored device drops out of every summary.
+	_, err = s.UpdateCuration(t.Context(), b, Curation{Ignored: true})
+	require.NoError(t, err)
+
+	busiest, err = s.BusiestDevices(t.Context(), now.Add(-24*time.Hour), "", 10)
+	require.NoError(t, err)
+	require.Len(t, busiest, 1)
+	assert.Equal(t, a, busiest[0].DeviceID)
+}
+
+func TestFirstContactsSaysWhenRecordsAreShorterThanTheLookBack(t *testing.T) {
+	t.Parallel()
+
+	s, _ := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, ""))
+
+	rec := newRecorder(s, nil)
+	rec.Add(trafficSource{}, []plugin.Flow{flow("192.0.2.10", "1.1.1.1", 51000, 443, 100, s.now())})
+	require.NoError(t, rec.Flush(t.Context()))
+
+	first, err := s.FirstContacts(t.Context(), s.now().Add(-7*24*time.Hour), "", 10)
+	require.NoError(t, err)
+	assert.True(t, first.Partial)
+	assert.False(t, first.Started.IsZero())
+	assert.Len(t, first.Contacts, 1)
+}

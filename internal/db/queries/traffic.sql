@@ -50,3 +50,88 @@ LIMIT ?;
 -- Whether any traffic has been recorded at all, which is how a view tells
 -- "nothing was exchanged" from "nothing is collecting".
 SELECT CAST(EXISTS (SELECT 1 FROM traffic_hourly) AS INTEGER) AS recorded;
+
+-- name: BusiestDevices :many
+-- The devices that moved the most data since a given hour. A conversation
+-- between two devices counts toward both, since each of them did move it.
+SELECT d.id,
+       CAST(COALESCE(d.label, '') AS TEXT)    AS label,
+       CAST(COALESCE(d.hostname, '') AS TEXT) AS hostname,
+       CAST(COALESCE(d.mac, '') AS TEXT)      AS mac,
+       CAST(SUM(t.bytes_out) AS INTEGER)      AS bytes_out,
+       CAST(SUM(t.bytes_in) AS INTEGER)       AS bytes_in
+FROM traffic_hourly t
+         JOIN devices d ON d.id = t.device_id
+WHERE t.hour >= sqlc.arg(since)
+  AND d.is_ignored = 0
+  AND (CAST(sqlc.narg(group_name) AS TEXT) IS NULL OR d.group_name = CAST(sqlc.narg(group_name) AS TEXT))
+GROUP BY d.id
+ORDER BY SUM(t.bytes_out + t.bytes_in) DESC, d.id
+LIMIT sqlc.arg(limit_rows);
+
+-- name: FirstContacts :many
+-- Each device's first exchange with an organisation, when it fell at or after
+-- a given hour: the organisations a device started talking to lately. Keyed on
+-- the organisation rather than the address, so a service moving between the
+-- addresses of one provider is not news.
+SELECT d.id,
+       CAST(COALESCE(d.label, '') AS TEXT)    AS label,
+       CAST(COALESCE(d.hostname, '') AS TEXT) AS hostname,
+       CAST(COALESCE(d.mac, '') AS TEXT)      AS mac,
+       CAST(t.peer_asn AS INTEGER)            AS peer_asn,
+       CAST(MIN(t.peer_ip) AS TEXT)           AS peer_ip,
+       CAST(MIN(t.hour) AS TEXT)              AS first_hour,
+       CAST(SUM(t.bytes_out + t.bytes_in) AS INTEGER) AS bytes
+FROM traffic_hourly t
+         JOIN devices d ON d.id = t.device_id
+WHERE t.peer_asn IS NOT NULL
+  AND d.is_ignored = 0
+  AND (CAST(sqlc.narg(group_name) AS TEXT) IS NULL OR d.group_name = CAST(sqlc.narg(group_name) AS TEXT))
+GROUP BY d.id, t.peer_asn
+HAVING MIN(t.hour) >= sqlc.arg(since)
+ORDER BY MIN(t.hour) DESC, d.id
+LIMIT sqlc.arg(limit_rows);
+
+-- name: TopOrganisations :many
+-- The organisations the whole network exchanged the most with since a given
+-- hour, and how many devices reached each.
+SELECT CAST(t.peer_asn AS INTEGER)              AS peer_asn,
+       CAST(MIN(t.peer_ip) AS TEXT)             AS peer_ip,
+       CAST(SUM(t.bytes_out) AS INTEGER)        AS bytes_out,
+       CAST(SUM(t.bytes_in) AS INTEGER)         AS bytes_in,
+       CAST(COUNT(DISTINCT t.device_id) AS INTEGER) AS devices
+FROM traffic_hourly t
+         JOIN devices d ON d.id = t.device_id
+WHERE t.peer_asn IS NOT NULL
+  AND t.hour >= sqlc.arg(since)
+  AND d.is_ignored = 0
+  AND (CAST(sqlc.narg(group_name) AS TEXT) IS NULL OR d.group_name = CAST(sqlc.narg(group_name) AS TEXT))
+GROUP BY t.peer_asn
+ORDER BY SUM(t.bytes_out + t.bytes_in) DESC, t.peer_asn
+LIMIT sqlc.arg(limit_rows);
+
+-- name: OrganisationDevices :many
+-- What each device exchanged with each organisation since a given hour, for
+-- the breakdown under the busiest organisations. Every pair comes back; the
+-- caller keeps the organisations it shows.
+SELECT CAST(t.peer_asn AS INTEGER)            AS peer_asn,
+       d.id,
+       CAST(COALESCE(d.label, '') AS TEXT)    AS label,
+       CAST(COALESCE(d.hostname, '') AS TEXT) AS hostname,
+       CAST(COALESCE(d.mac, '') AS TEXT)      AS mac,
+       CAST(SUM(t.bytes_out) AS INTEGER)      AS bytes_out,
+       CAST(SUM(t.bytes_in) AS INTEGER)       AS bytes_in
+FROM traffic_hourly t
+         JOIN devices d ON d.id = t.device_id
+WHERE t.peer_asn IS NOT NULL
+  AND t.hour >= sqlc.arg(since)
+  AND d.is_ignored = 0
+  AND (CAST(sqlc.narg(group_name) AS TEXT) IS NULL OR d.group_name = CAST(sqlc.narg(group_name) AS TEXT))
+GROUP BY t.peer_asn, d.id
+ORDER BY t.peer_asn, SUM(t.bytes_out + t.bytes_in) DESC, d.id;
+
+-- name: EarliestTraffic :one
+-- The first hour anything was recorded, or empty when nothing has been: how
+-- far back "first contact" can honestly look.
+SELECT CAST(COALESCE(MIN(hour), '') AS TEXT) AS first_hour
+FROM traffic_hourly;

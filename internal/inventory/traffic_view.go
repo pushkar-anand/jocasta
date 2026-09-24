@@ -164,15 +164,23 @@ func newTrafficOrg(number uint32, p *TrafficPeer) *TrafficOrg {
 		return &TrafficOrg{Name: label, Short: label}
 	}
 
-	// The table may have been refreshed since the row was written; the number
-	// is what was recorded, so a name that no longer matches it is not used.
-	if o, ok := asn.Lookup(p.IP); ok && o.ASN == number {
-		return &TrafficOrg{ASN: number, Name: o.Name, Short: o.Short}
+	name, short := orgName(number, p.IP)
+
+	return &TrafficOrg{ASN: number, Name: name, Short: short}
+}
+
+// orgName names the organisation behind ASN number, looked up through an
+// address it was recorded for. The table may have been refreshed since the row
+// was written; the number is what was recorded, so a name the address no
+// longer maps to is not used, and the number stands in.
+func orgName(number uint32, ip netip.Addr) (name, short string) {
+	if o, ok := asn.Lookup(ip); ok && o.ASN == number {
+		return o.Name, o.Short
 	}
 
 	label := fmt.Sprintf("AS%d", number)
 
-	return &TrafficOrg{ASN: number, Name: label, Short: label}
+	return label, label
 }
 
 func trafficPeer(row *models.DeviceTrafficRow) (*TrafficPeer, error) {

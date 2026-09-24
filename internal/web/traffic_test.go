@@ -280,3 +280,92 @@ func TestHumanBytes(t *testing.T) {
 		assert.Equal(t, tt.want, humanBytes(tt.n), "%d", tt.n)
 	}
 }
+
+func TestTrafficPageExplainsWhenNothingIsRecorded(t *testing.T) {
+	t.Parallel()
+
+	rec := get(t, newWebHandler(t, sweptPair(t)), "/traffic")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+	assert.Contains(t, body, "No traffic recorded yet.")
+	assert.Contains(t, body, `href="/traffic" aria-current="page"`, "the rail marks the page")
+}
+
+func TestTrafficPageSummarisesTheNetwork(t *testing.T) {
+	t.Parallel()
+
+	store := sweptPair(t)
+
+	recordTraffic(t, store,
+		tcp("192.0.2.10", "192.0.2.11", 445, 9_000_000),
+		tcp("192.0.2.11", "1.1.1.1", 443, 4_000),
+		tcp("192.0.2.10", "8.8.8.8", 53, 1_000),
+	)
+
+	rec := get(t, newWebHandler(t, store), "/traffic?window=7d")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+
+	assert.Contains(t, body, "Busiest devices")
+	assert.Contains(t, body, `<a href="/devices/1#traffic">laptop.example.com</a>`)
+	assert.Contains(t, body, "9.0 MB")
+	assert.Contains(t, body, `<option value="7d" selected>Last 7 days</option>`)
+
+	// Collection started moments ago, so everything is a first contact, and
+	// the page says why rather than implying the network changed.
+	assert.Contains(t, body, "New this week")
+	assert.Contains(t, body, "Cloudflare")
+	assert.Contains(t, body, "Google")
+	assert.Contains(t, body, "everything\n        counts as new")
+
+	assert.Contains(t, body, "Top internet destinations")
+	assert.Contains(t, body, "DB-IP")
+
+	for _, word := range []string{"NetFlow", "IPFIX", "flow", "exporter"} {
+		assert.NotContains(t, body, word)
+	}
+
+	assert.NotContains(t, body, "ZgotmplZ")
+}
+
+func TestTrafficPageGroupsNewContactsAndNarrowsToAGroup(t *testing.T) {
+	t.Parallel()
+
+	store := sweptPair(t)
+
+	recordTraffic(t, store,
+		// Both devices reach Google for the first time: one row, two devices.
+		tcp("192.0.2.10", "8.8.8.8", 443, 1_000),
+		tcp("192.0.2.11", "8.8.8.8", 443, 3_000),
+		tcp("192.0.2.11", "1.1.1.1", 443, 500),
+	)
+
+	_, err := store.UpdateCuration(t.Context(), 2, inventory.Curation{Group: "media"})
+	require.NoError(t, err)
+
+	h := newWebHandler(t, store)
+
+	rec := get(t, h, "/traffic")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+	assert.Equal(t, 2, strings.Count(body, `<span class="strong" title="Google LLC">Google</span>
+                                <span class="dim">2 devices</span>`),
+		"one row for Google in New this week, one in Top destinations")
+	assert.Contains(t, body, `<option value="media">media</option>`)
+
+	rec = get(t, h, "/traffic?group=media")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body = rec.Body.String()
+	assert.Contains(t, body, `<option value="media" selected>media</option>`)
+	assert.NotContains(t, body, "laptop.example.com", "the laptop is not in media")
+	assert.Contains(t, body, "nas.example.com")
+
+	// A group that no longer exists shows everything rather than nothing.
+	rec = get(t, h, "/traffic?group=gone")
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "laptop.example.com")
+}

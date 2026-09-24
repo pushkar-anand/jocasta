@@ -6,11 +6,15 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pushkar-anand/build-with-go/http/response"
+	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
+	"github.com/pushkar-anand/jocasta/pkg/asn"
 )
 
 // trafficWindow is one period the traffic view can cover.
@@ -154,6 +158,161 @@ func (h *Handler) deviceTraffic() response.HandlerFunc {
 		w.Header().Set("HX-Push-Url", devicePath(id, data.Window, data.Filter))
 
 		h.htmlWriter.Success(w, r, templatePartialDeviceTraffic, data)
+
+		return nil
+	}
+}
+
+// Traffic page sizes: a card is a glance, not a report.
+const (
+	trafficCardRows = 10
+
+	// firstContactRows is how many device-and-organisation pairs are read for
+	// "New this week", before they are grouped by organisation.
+	firstContactRows = 200
+
+	// firstContactSpan is how far back "first contact" looks. Fixed rather
+	// than following the period switch: it answers "anything new this week?",
+	// and a month of first contacts is mostly the month collection started.
+	firstContactSpan = 7 * 24 * time.Hour
+)
+
+// trafficPage is the network-wide traffic view.
+type trafficPage struct {
+	view
+
+	Window  trafficWindow
+	Windows []trafficWindow
+
+	// Group narrows every card to one group's devices; Groups are the
+	// choices.
+	Group  string
+	Groups []string
+
+	// Recorded is whether any traffic has been recorded at all.
+	Recorded bool
+
+	Busiest []*inventory.DeviceTotal
+	TopOrgs []*orgDevices
+	First   *inventory.FirstContacts
+
+	// NewOrgs is First grouped by organisation, newest first: one
+	// organisation many devices started reaching is one row, not one each.
+	NewOrgs []*newOrg
+
+	// Attribution credits the organisation names, as their licence requires.
+	Attribution string
+}
+
+// orgDevices is one of the busiest organisations and which devices reached it.
+type orgDevices struct {
+	*inventory.OrgTotal
+
+	DeviceList []*inventory.DeviceTotal
+}
+
+// newOrg is an organisation some devices reached for the first time.
+type newOrg struct {
+	ASN         uint32
+	Name, Short string
+
+	// First is the earliest of its devices' first contacts.
+	First   time.Time
+	Bytes   int64
+	Devices []*inventory.FirstContact
+}
+
+// groupFirstContacts folds first contacts by organisation, keeping the order
+// of each organisation's newest contact.
+func groupFirstContacts(contacts []*inventory.FirstContact) []*newOrg {
+	byASN := make(map[uint32]*newOrg)
+
+	var out []*newOrg
+
+	for _, c := range contacts {
+		o, ok := byASN[c.ASN]
+		if !ok {
+			o = &newOrg{ASN: c.ASN, Name: c.Name, Short: c.Short, First: c.First}
+			byASN[c.ASN] = o
+			out = append(out, o)
+		}
+
+		o.Devices = append(o.Devices, c)
+		o.Bytes += c.Bytes
+
+		if c.First.Before(o.First) {
+			o.First = c.First
+		}
+	}
+
+	return out
+}
+
+// traffic serves the network-wide traffic page.
+func (h *Handler) traffic(sm *auth.Session) response.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		ctx := r.Context()
+		now := time.Now()
+		q := r.URL.Query()
+		win := windowFor(q.Get("window"))
+
+		data := &trafficPage{
+			view: view{
+				Title: "Traffic", Section: "Traffic",
+				Role: sm.CurrentRole(ctx), SignedInAs: sm.CurrentUsername(ctx),
+			},
+			Window:      win,
+			Windows:     trafficWindows,
+			Attribution: asn.Attribution,
+		}
+
+		var err error
+
+		if data.Groups, err = h.store.Groups(ctx); err != nil {
+			return err
+		}
+
+		// A group nobody is in any more is dropped rather than showing an
+		// empty page with no way to tell why.
+		if g := strings.TrimSpace(q.Get("group")); slices.Contains(data.Groups, g) {
+			data.Group = g
+		}
+
+		if data.Recorded, err = h.store.TrafficRecorded(ctx); err != nil {
+			return err
+		}
+
+		since := now.Add(-win.span)
+
+		if data.Busiest, err = h.store.BusiestDevices(ctx, since, data.Group, trafficCardRows); err != nil {
+			return err
+		}
+
+		orgs, err := h.store.TopOrganisations(ctx, since, data.Group, trafficCardRows)
+		if err != nil {
+			return err
+		}
+
+		byOrg, err := h.store.OrganisationDevices(ctx, since, data.Group)
+		if err != nil {
+			return err
+		}
+
+		for _, o := range orgs {
+			data.TopOrgs = append(data.TopOrgs, &orgDevices{OrgTotal: o, DeviceList: byOrg[o.ASN]})
+		}
+
+		if data.First, err = h.store.FirstContacts(ctx, now.Add(-firstContactSpan), data.Group, firstContactRows); err != nil {
+			return err
+		}
+
+		data.NewOrgs = groupFirstContacts(data.First.Contacts)
+
+		if note, err := h.sweepNote(ctx); err == nil {
+			data.Note = note
+		}
+
+		h.htmlWriter.Success(w, r, templatePageTraffic, data)
 
 		return nil
 	}
