@@ -83,6 +83,7 @@ func TestLoadConfig(t *testing.T) {
 				"JOCASTA_SCAN__PORTS__ENABLED=true",
 				"JOCASTA_SCAN__PORTS__CUSTOM=22,80,8000-8100",
 				"JOCASTA_MCP__ENABLED=true",
+				"JOCASTA_PLUGINS__NETFLOW__GATEWAY__LISTEN=:9995",
 				"UNRELATED=ignored",
 			}
 		}),
@@ -149,6 +150,17 @@ func TestLoadConfig(t *testing.T) {
 	assert.Equal(t, "198.51.100.1", rack.Host)
 	assert.Equal(t, 8080, rack.Port)
 	assert.Equal(t, "also-from-file", rack.Password)
+
+	// A NetFlow instance is map-keyed for the same reason, and its listen
+	// address can be overridden without losing the exporters the file lists.
+	require.Len(t, cfg.Plugins.NetFlow, 1)
+
+	flows := cfg.Plugins.NetFlow["gateway"]
+	assert.True(t, flows.Enabled)
+	assert.Equal(t, ":9995", flows.Listen)
+	assert.Equal(t, []string{"192.0.2.1"}, flows.Exporters)
+
+	assert.Equal(t, inventory.DefaultTrafficRetention, cfg.Traffic.Retention)
 }
 
 // An explicit path that does not exist is reported rather than silently falling

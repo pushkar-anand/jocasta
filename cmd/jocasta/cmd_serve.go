@@ -10,7 +10,9 @@ import (
 	"github.com/pushkar-anand/build-with-go/validator"
 	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/config"
+	"github.com/pushkar-anand/jocasta/internal/hosts"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
+	"github.com/pushkar-anand/jocasta/internal/plugin"
 	"github.com/pushkar-anand/jocasta/internal/poller"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/pushkar-anand/jocasta/internal/server"
@@ -96,7 +98,16 @@ func (s *ServeCmd) Run(
 		}
 	}
 
+	reporters, err := trafficReporters(ctx, cfg, log)
+	if err != nil {
+		return err
+	}
+
 	grp, ctx := errgroup.WithContext(ctx)
+
+	if len(reporters) > 0 {
+		startTraffic(ctx, grp, log, store, reporters)
+	}
 
 	grp.Go(func() error {
 		err := server.Start(ctx, sCfg, conn, store, validator, a)
@@ -144,4 +155,26 @@ func portsPoller(cfg *config.Config, log *slog.Logger, store *inventory.Store) (
 	sc := scanner.NewPortScanner(log, opts...)
 
 	return poller.NewPorts(log, sc, store, cfg.Scan.Source, cfg.Scan.Ports.Interval), nil
+}
+
+// startTraffic runs every traffic source's listener and the recorder they feed.
+// A listener that cannot bind fails startup through the group, the same as a
+// server that cannot: a configured source that silently received nothing would
+// read as a network with no traffic.
+func startTraffic(
+	ctx context.Context,
+	grp *errgroup.Group,
+	log *slog.Logger,
+	store *inventory.Store,
+	reporters []plugin.TrafficReporter,
+) {
+	rec := inventory.NewTrafficRecorder(store, log, hosts.ResolveName)
+
+	grp.Go(func() error { return rec.Run(ctx) })
+
+	for _, r := range reporters {
+		grp.Go(func() error {
+			return r.Listen(ctx, func(_ context.Context, flows []plugin.Flow) { rec.Add(r, flows) })
+		})
+	}
 }

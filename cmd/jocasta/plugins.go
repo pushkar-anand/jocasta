@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"log/slog"
@@ -76,4 +77,30 @@ func newRouterOS(name string, cfg config.RouterOS, log *slog.Logger) (*plugin.Ro
 	}
 
 	return p, nil
+}
+
+// trafficReporters builds every enabled source that receives the flows a router
+// exports, under the same rules as hostDiscoverers: off unless enabled, name
+// order, and an entry that cannot be built is a config error.
+func trafficReporters(ctx context.Context, cfg *config.Config, log *slog.Logger) ([]plugin.TrafficReporter, error) {
+	names := slices.Sorted(maps.Keys(cfg.Plugins.NetFlow))
+	out := make([]plugin.TrafficReporter, 0, len(names))
+
+	for _, name := range names {
+		nc := cfg.Plugins.NetFlow[name]
+		if !nc.Enabled {
+			log.InfoContext(ctx, "source is configured but not enabled", slog.String("src", name))
+
+			continue
+		}
+
+		p, err := plugin.NewNetFlow(name, cmp.Or(nc.Listen, config.DefaultNetFlowListen), nc.Exporters, log)
+		if err != nil {
+			return nil, fmt.Errorf("plugin netflow %q: %w", name, err)
+		}
+
+		out = append(out, p)
+	}
+
+	return out, nil
 }

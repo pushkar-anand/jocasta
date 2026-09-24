@@ -100,11 +100,49 @@ plugins:
 Check it with `jocasta plugin run gateway` before starting the server. See
 [CLI](cli.md#plugin-run).
 
+## Seeing who devices talk to
+
+Jocasta can record which devices talk to which, and to where on the internet,
+from the flow records your router exports (NetFlow v5, v9 or IPFIX). It keeps
+hourly totals per device, never individual connections, for
+`traffic.retention` (30 days by default).
+
+```yaml
+plugins:
+  netflow:
+    gateway:
+      enabled: true
+      listen: ":2055"
+      exporters:
+        - "192.0.2.1"        # the router's address; anything else is dropped
+```
+
+`exporters` is required. Flow records arrive over UDP, which anyone on the
+network can forge, so only the listed routers are read.
+
+On MikroTik RouterOS, point Traffic Flow at the Jocasta host (here
+`192.0.2.10`):
+
+```
+/ip traffic-flow set enabled=yes interfaces=all
+/ip traffic-flow target add dst-address=192.0.2.10 port=2055 version=ipfix
+```
+
+Export from one router only. Two routers that both see a conversation both
+report it, and it is counted twice.
+
+Internet addresses are shown by the organisation that announces them, using
+[IP to ASN data](https://db-ip.com/db/download/ip-to-asn-lite) by
+[DB-IP](https://db-ip.com), licensed under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
 ## Optional features
 
 - **Port scanning**: set `scan.ports.enabled: true` to probe every known
   address for open TCP ports on a timer. See [CLI](cli.md#ports) for one-off
   scans.
+- **Traffic**: who each device talks to, from your router's flow exports. See
+  [Seeing who devices talk to](#seeing-who-devices-talk-to).
 - **MCP server**: lets AI agents query the inventory. See [MCP](mcp.md).
 - **JSON API**: under `/api`, for scripts and dashboards. It takes the same API
   tokens as MCP, sent as `Authorization: Bearer <token>`.

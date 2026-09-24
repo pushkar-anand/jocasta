@@ -131,6 +131,22 @@ type (
 		Timeout time.Duration `koanf:"timeout"`
 	}
 
+	// NetFlow names one UDP listener that receives the flows a router exports
+	// over NetFlow v5, v9 or IPFIX.
+	NetFlow struct {
+		Enabled bool `koanf:"enabled"`
+
+		// Listen is the UDP address to bind, such as ":2055". Empty means
+		// DefaultNetFlowListen.
+		Listen string `koanf:"listen"`
+
+		// Exporters are the addresses of the routers allowed to send. UDP
+		// carries no authentication, so a datagram from anywhere else is
+		// dropped unread, and an empty list is a config error rather than
+		// "accept everything".
+		Exporters []string `koanf:"exporters"`
+	}
+
 	// Traffic controls how long the hourly traffic totals are kept.
 	Traffic struct {
 		// Retention is how long hourly traffic totals are kept. They are
@@ -173,6 +189,7 @@ type (
 	// silently.
 	Plugins struct {
 		RouterOS map[string]RouterOS `koanf:"routeros"`
+		NetFlow  map[string]NetFlow  `koanf:"netflow"`
 	}
 
 	// Config is the whole set of named, nested settings.
