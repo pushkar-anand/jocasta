@@ -84,6 +84,7 @@ func TestLoadConfig(t *testing.T) {
 				"JOCASTA_SCAN__PORTS__CUSTOM=22,80,8000-8100",
 				"JOCASTA_MCP__ENABLED=true",
 				"JOCASTA_PLUGINS__NETFLOW__GATEWAY__LISTEN=:9995",
+				"JOCASTA_TRAFFIC__HOME_COUNTRY=au",
 				"UNRELATED=ignored",
 			}
 		}),
@@ -161,6 +162,7 @@ func TestLoadConfig(t *testing.T) {
 	assert.Equal(t, []string{"192.0.2.1"}, flows.Exporters)
 
 	assert.Equal(t, inventory.DefaultTrafficRetention, cfg.Traffic.Retention)
+	assert.Equal(t, "au", cfg.Traffic.HomeCountry, "as written; serve checks it")
 }
 
 // An explicit path that does not exist is reported rather than silently falling

@@ -138,6 +138,19 @@ placed on the map by the country they are registered in, using
 [DB-IP](https://db-ip.com), licensed under
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
+The world map draws a line from the network's country to each country it
+talked to. Jocasta finds its country from the router's outside address; when
+that address is private -- the ISP puts the router behind carrier-grade NAT --
+name the country instead, by its two-letter code:
+
+```yaml
+traffic:
+  home_country: "AU"
+```
+
+Only the country is used, to start the lines from its middle; nothing finer
+is asked for or stored.
+
 ## Optional features
 
 - **Port scanning**: set `scan.ports.enabled: true` to probe every known

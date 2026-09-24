@@ -55,6 +55,8 @@ mcp:
 
 traffic:
   retention: "720h"       # how long hourly traffic totals are kept; 0 keeps them forever
+  # home_country: "AU"    # where the world map draws lines from, when the router's
+  #                       # outside address is private (behind the ISP's CGNAT)
 
 # Sources beyond the sweep. None are configured by default; the block below is
 # an example instance, not defaults. Each block is keyed by an instance name,

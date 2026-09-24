@@ -41,6 +41,13 @@ func WithRecentTraffic(recent RecentTraffic) Option {
 	return func(h *Handler) { h.recent = recent }
 }
 
+// WithHomeCountry has the world map draw its lines from a country, given by
+// its two-letter code, when the router's outside address cannot place the
+// network.
+func WithHomeCountry(code string) Option {
+	return func(h *Handler) { h.homeCountry = code }
+}
+
 // mapPage is the network map.
 type mapPage struct {
 	view
@@ -84,6 +91,10 @@ type worldView struct {
 	// Outline is every country's shape; Countries the ones with traffic.
 	Outline   []geo.Country
 	Countries []*worldCountry
+
+	// Home is the country the network is in, which the lines are drawn
+	// from; nil when it is not known.
+	Home *geo.Country
 
 	Attribution string
 }
@@ -214,6 +225,10 @@ func (h *Handler) buildWorld(ctx context.Context, now time.Time, recent []invent
 	w := &worldView{
 		Width: geo.WorldWidth, Height: geo.WorldHeight,
 		Outline: geo.World(), Attribution: geo.Attribution,
+	}
+
+	if home, ok := geo.CountryOf(h.homeCountry); ok {
+		w.Home = &home
 	}
 
 	var top int64 = 1

@@ -38,3 +38,21 @@ func TestTrafficReportersRefusesAnInstanceWithoutExporters(t *testing.T) {
 	_, err := trafficReporters(t.Context(), &cfg, slog.New(slog.DiscardHandler))
 	require.Error(t, err)
 }
+
+// A home country is taken in any case and checked against the map, so a typo
+// fails startup rather than quietly drawing no lines.
+func TestHomeCountryIsCheckedAgainstTheMap(t *testing.T) {
+	t.Parallel()
+
+	got, err := homeCountry(" au ")
+	require.NoError(t, err)
+	assert.Equal(t, "AU", got)
+
+	got, err = homeCountry("")
+	require.NoError(t, err)
+	assert.Empty(t, got)
+
+	_, err = homeCountry("XX")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "traffic.home_country")
+}
