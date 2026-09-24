@@ -1,0 +1,311 @@
+package plugin
+
+import (
+	"bytes"
+	"context"
+	"encoding/binary"
+	"errors"
+	"fmt"
+	"log/slog"
+	"net"
+	"net/netip"
+	"sync"
+	"time"
+
+	"github.com/netsampler/goflow2/v2/decoders/netflow"
+	"github.com/netsampler/goflow2/v2/decoders/netflowlegacy"
+	"github.com/netsampler/goflow2/v2/producer"
+	protoproducer "github.com/netsampler/goflow2/v2/producer/proto"
+
+	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
+)
+
+// netFlowPrefix namespaces an instance key so it cannot collide with another
+// source kind's.
+const netFlowPrefix = "netflow:"
+
+// maxDatagram is the largest UDP payload there is. Exporters keep well under
+// the path MTU, so this is headroom rather than an expected size.
+const maxDatagram = 65535
+
+// ErrNoExporters is refused rather than read as "accept anything": UDP carries
+// no authentication and its source address is trivially forged, so an open
+// listener would let anyone on the network write whatever traffic they liked
+// into the inventory.
+var ErrNoExporters = errors.New("plugin: netflow instance lists no exporters")
+
+// NetFlow receives the flows a router exports over NetFlow v5, v9 or IPFIX.
+//
+// Decoding is goflow2's: its decoders parse the packets and its producer maps
+// template fields, uptime-relative timestamps and sampling rates onto one
+// record shape. What is left here is the socket, who may send to it, and the
+// translation into [Flow].
+type NetFlow struct {
+	name      string
+	listen    string
+	exporters map[netip.Addr]struct{}
+	logger    *slog.Logger
+
+	// ready, when set, receives the bound address once the socket is open, so
+	// a test listening on port zero learns where to send.
+	ready func(net.Addr)
+
+	mu     sync.Mutex
+	states map[netip.Addr]*exporterState
+}
+
+// exporterState is what a v9 or IPFIX exporter has told this listener so far.
+//
+// Kept per exporter because goflow2 keys templates by version, observation
+// domain and template ID, and two routers numbering their templates the same
+// way -- which two of the same model will -- would otherwise decode each
+// other's data with the wrong layout.
+type exporterState struct {
+	templates netflow.NetFlowTemplateSystem
+	sampling  protoproducer.SamplingRateSystem
+}
+
+// NewNetFlow builds the plugin for one listener. name is the instance key from
+// config, listen the UDP address to bind, and exporters the only addresses
+// whose datagrams are decoded.
+//
+// It performs no I/O; the socket opens in Listen.
+func NewNetFlow(name, listen string, exporters []string, log *slog.Logger) (*NetFlow, error) {
+	if name == "" {
+		return nil, fmt.Errorf("plugin: netflow instance has no name")
+	}
+
+	if len(exporters) == 0 {
+		return nil, fmt.Errorf("%w: %q", ErrNoExporters, name)
+	}
+
+	allowed := make(map[netip.Addr]struct{}, len(exporters))
+
+	for _, e := range exporters {
+		addr, err := netip.ParseAddr(e)
+		if err != nil {
+			return nil, fmt.Errorf("plugin: netflow %q exporter %q: %w", name, e, err)
+		}
+
+		allowed[addr.Unmap()] = struct{}{}
+	}
+
+	if log == nil {
+		log = slog.Default()
+	}
+
+	return &NetFlow{
+		name:      netFlowPrefix + name,
+		listen:    listen,
+		exporters: allowed,
+		logger:    log.With(slog.String("plugin", netFlowPrefix+name)),
+		states:    make(map[netip.Addr]*exporterState),
+	}, nil
+}
+
+// Name is the source these flows are filed under.
+func (n *NetFlow) Name() string { return n.name }
+
+// Kind is ROUTER: whatever exports flows is doing the routing.
+func (n *NetFlow) Kind() dbtype.SourceKind { return dbtype.SourceRouter }
+
+// Listen receives datagrams until ctx is done.
+//
+// A datagram that will not decode is logged and skipped rather than ending the
+// listener: one malformed packet, or a v9 data set that arrived before its
+// template, says nothing about the next.
+func (n *NetFlow) Listen(ctx context.Context, emit func(context.Context, []Flow)) error {
+	var lc net.ListenConfig
+
+	conn, err := lc.ListenPacket(ctx, "udp", n.listen)
+	if err != nil {
+		return fmt.Errorf("plugin: netflow %s listen %s: %w", n.name, n.listen, err)
+	}
+
+	n.logger.InfoContext(ctx, "listening for flow exports", slog.String("addr", conn.LocalAddr().String()))
+
+	if n.ready != nil {
+		n.ready(conn.LocalAddr())
+	}
+
+	// Closing the socket is what unblocks ReadFrom when ctx ends.
+	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	defer stop()
+
+	var refused uint64
+
+	buf := make([]byte, maxDatagram)
+
+	for {
+		size, from, err := conn.ReadFrom(buf)
+		if err != nil {
+			if ctx.Err() != nil {
+				if refused > 0 {
+					n.logger.InfoContext(ctx, "dropped datagrams from unlisted senders", slog.Uint64("count", refused))
+				}
+
+				return nil
+			}
+
+			return fmt.Errorf("plugin: netflow %s read: %w", n.name, err)
+		}
+
+		sender := senderAddr(from)
+		if _, ok := n.exporters[sender]; !ok {
+			// Counted, not logged per packet: a misdirected exporter sends
+			// thousands a minute, and one warning is enough to find it.
+			if refused == 0 {
+				n.logger.WarnContext(ctx, "dropping datagrams from a sender not listed in exporters",
+					slog.String("sender", sender.String()))
+			}
+
+			refused++
+
+			continue
+		}
+
+		flows, err := n.decode(sender, buf[:size], time.Now())
+		if err != nil {
+			n.logger.DebugContext(ctx, "skipping undecodable datagram",
+				slog.String("sender", sender.String()), slog.Any("error", err))
+
+			continue
+		}
+
+		if len(flows) > 0 {
+			emit(ctx, flows)
+		}
+	}
+}
+
+// decode turns one datagram into flows. received stands in for a flow's end
+// time when the exporter sent none.
+func (n *NetFlow) decode(sender netip.Addr, payload []byte, received time.Time) ([]Flow, error) {
+	if len(payload) < 2 {
+		return nil, errors.New("datagram too short for a version")
+	}
+
+	var (
+		msgs []producer.ProducerMessage
+		err  error
+	)
+
+	switch version := binary.BigEndian.Uint16(payload); version {
+	case 5:
+		var pkt netflowlegacy.PacketNetFlowV5
+		if err := netflowlegacy.DecodeMessageVersion(bytes.NewBuffer(payload), &pkt); err != nil {
+			return nil, err
+		}
+
+		msgs, err = protoproducer.ProcessMessageNetFlowLegacy(&pkt)
+
+	case 9, 10:
+		st := n.state(sender)
+
+		var (
+			v9    netflow.NFv9Packet
+			ipfix netflow.IPFIXPacket
+		)
+
+		if err := netflow.DecodeMessageVersion(bytes.NewBuffer(payload), st.templates, &v9, &ipfix); err != nil {
+			return nil, err
+		}
+
+		if version == 9 {
+			msgs, err = protoproducer.ProcessMessageNetFlowV9Config(&v9, st.sampling, nil)
+		} else {
+			msgs, err = protoproducer.ProcessMessageIPFIXConfig(&ipfix, st.sampling, nil)
+		}
+
+	default:
+		return nil, fmt.Errorf("unknown export version %d", version)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	flows := make([]Flow, 0, len(msgs))
+
+	for _, m := range msgs {
+		pm, ok := m.(*protoproducer.ProtoProducerMessage)
+		if !ok {
+			continue
+		}
+
+		if f, ok := toFlow(pm, received); ok {
+			flows = append(flows, f)
+		}
+	}
+
+	return flows, nil
+}
+
+// state returns the template and sampling memory for one exporter, creating it
+// on first contact.
+func (n *NetFlow) state(sender netip.Addr) *exporterState {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
+	st, ok := n.states[sender]
+	if !ok {
+		st = &exporterState{
+			templates: netflow.CreateTemplateSystem(),
+			sampling:  protoproducer.CreateSamplingSystem(),
+		}
+		n.states[sender] = st
+	}
+
+	return st
+}
+
+// toFlow translates goflow2's record, dropping one without both addresses: a
+// template that carries no addresses (an options record, a layer-2-only
+// export) describes no conversation between hosts.
+func toFlow(m *protoproducer.ProtoProducerMessage, received time.Time) (Flow, bool) {
+	src, ok := netip.AddrFromSlice(m.SrcAddr)
+	if !ok {
+		return Flow{}, false
+	}
+
+	dst, ok := netip.AddrFromSlice(m.DstAddr)
+	if !ok {
+		return Flow{}, false
+	}
+
+	// Sampling rates of 0 and 1 both mean every packet was counted.
+	scale := max(m.SamplingRate, 1)
+
+	end := received
+	if m.TimeFlowEndNs > 0 {
+		end = time.Unix(0, int64(m.TimeFlowEndNs)) //nolint:gosec // nanoseconds since 1970 fit an int64 until 2262.
+	}
+
+	return Flow{
+		Src:      src.Unmap(),
+		Dst:      dst.Unmap(),
+		SrcPort:  uint16(m.SrcPort), //nolint:gosec // a port field is 16 bits on the wire.
+		DstPort:  uint16(m.DstPort), //nolint:gosec // as above.
+		Protocol: uint8(m.Proto),    //nolint:gosec // the protocol field is 8 bits on the wire.
+		Bytes:    m.Bytes * scale,
+		Packets:  m.Packets * scale,
+		End:      end.UTC(),
+	}, true
+}
+
+// senderAddr reads the source address off a received datagram, unmapped so an
+// IPv4 exporter reaching a dual-stack socket matches its configured address.
+func senderAddr(from net.Addr) netip.Addr {
+	if ua, ok := from.(*net.UDPAddr); ok {
+		return ua.AddrPort().Addr().Unmap()
+	}
+
+	ap, err := netip.ParseAddrPort(from.String())
+	if err != nil {
+		return netip.Addr{}
+	}
+
+	return ap.Addr().Unmap()
+}
+
+var _ TrafficReporter = (*NetFlow)(nil)

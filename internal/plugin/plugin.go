@@ -50,7 +50,40 @@ type (
 		// the same way [HostDiscoverer.Discover] returns them.
 		Networks(ctx context.Context) ([]Network, error)
 	}
+
+	// TrafficReporter answers "who is talking to whom".
+	//
+	// Unlike the discoverers it is pushed to rather than asked: a router
+	// exports a flow when the conversation ends or times out, on its own
+	// schedule. Listen therefore runs until ctx is done, handing each batch it
+	// decodes to emit, and returns nil once ctx is cancelled.
+	TrafficReporter interface {
+		Plugin
+
+		Listen(ctx context.Context, emit func(context.Context, []Flow)) error
+	}
 )
+
+// Flow is one conversation a source saw, in either direction it was recorded:
+// the source says which side sent, not which side is the device.
+type Flow struct {
+	Src, Dst         netip.Addr
+	SrcPort, DstPort uint16
+
+	// Protocol is the IANA protocol number: 6 TCP, 17 UDP, 1 ICMP.
+	Protocol uint8
+
+	// Bytes and Packets are what the source estimates crossed, already scaled
+	// by its sampling rate. A source that samples one packet in a hundred
+	// reports what it saw times a hundred, which is an estimate, but the only
+	// number worth adding up.
+	Bytes, Packets uint64
+
+	// End is when the source last saw the conversation, which decides the
+	// hour it is counted in. A long transfer exported in pieces lands each
+	// piece in the hour it ended.
+	End time.Time
+}
 
 // Network is one segment a source serves.
 //
