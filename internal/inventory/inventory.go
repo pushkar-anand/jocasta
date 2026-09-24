@@ -9,6 +9,7 @@ package inventory
 import (
 	"context"
 	"database/sql"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -208,6 +209,30 @@ func (ns networks) find(addr netip.Addr) (int64, bool) {
 	}
 
 	return id, bits >= 0
+}
+
+// broadcast reports whether addr is the broadcast address of a recorded IPv4
+// network: its last address, on a prefix long enough to have one. A /31 or
+// /32 has no broadcast address, and IPv6 has none at all.
+func (ns networks) broadcast(addr netip.Addr) bool {
+	if !addr.Is4() {
+		return false
+	}
+
+	for _, n := range ns {
+		if !n.prefix.Addr().Is4() || n.prefix.Bits() > 30 || !n.prefix.Contains(addr) {
+			continue
+		}
+
+		b := n.prefix.Masked().Addr().As4()
+		last := binary.BigEndian.Uint32(b[:]) | (1<<(32-n.prefix.Bits()) - 1)
+
+		if addr == netip.AddrFrom4([4]byte(binary.BigEndian.AppendUint32(nil, last))) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // networkID renders what find returns as the nullable column it is written to.
