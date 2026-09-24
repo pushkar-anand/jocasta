@@ -66,6 +66,11 @@ type (
 
 // Flow is one conversation a source saw, in either direction it was recorded:
 // the source says which side sent, not which side is the device.
+//
+// Src is where the packets came from before any NAT and Dst where they were
+// delivered after it, which on a router doing NAT are both the local ends: the
+// device an outgoing packet left, and the device a reply reached rather than
+// the router's public address it was sent to.
 type Flow struct {
 	Src, Dst         netip.Addr
 	SrcPort, DstPort uint16
