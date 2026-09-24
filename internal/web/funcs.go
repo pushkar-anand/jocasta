@@ -56,6 +56,52 @@ func funcs(now func() time.Time) template.FuncMap {
 		"scopedisplay": scopeDisplay,
 		"permchoice":   permChoice,
 		"scopechoice":  scopeChoice,
+		"bytes":        humanBytes,
+		"proto":        protoName,
+	}
+}
+
+// humanBytes is a byte count as a person reads one: "1.2 GB", "640 kB". Units
+// are decimal, as network tools and ISPs count them.
+func humanBytes(n int64) string {
+	const unit = 1000
+
+	if n < unit {
+		return strconv.FormatInt(n, 10) + " B"
+	}
+
+	v := float64(n)
+
+	for _, suffix := range []string{"kB", "MB", "GB", "TB"} {
+		v /= unit
+		if v < unit || suffix == "TB" {
+			// One decimal while it says something, none once the number
+			// carries the precision by itself.
+			if v < 10 {
+				return strconv.FormatFloat(v, 'f', 1, 64) + " " + suffix
+			}
+
+			return strconv.FormatFloat(v, 'f', 0, 64) + " " + suffix
+		}
+	}
+
+	return strconv.FormatInt(n, 10) + " B"
+}
+
+// protoName names an IP protocol the way a port is usually written beside it.
+// TCP is the default a reader assumes, so it is the one left unsaid.
+func protoName(p uint8) string {
+	switch p {
+	case 6:
+		return ""
+	case 17:
+		return "UDP"
+	case 1, 58:
+		return "ICMP"
+	case 132:
+		return "SCTP"
+	default:
+		return "protocol " + strconv.Itoa(int(p))
 	}
 }
 

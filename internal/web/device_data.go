@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pushkar-anand/jocasta/internal/classify"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
@@ -337,9 +338,10 @@ func buildDeviceListData(
 }
 
 // buildDevicePageData is one device's detail page: its history, the groups the
-// curation form suggests, and what each source claims about it.
+// curation form suggests, and what each source claims about it. query is the
+// page's own, which carries the traffic section's period and filter.
 func buildDevicePageData(
-	ctx context.Context, store *inventory.Store, device *inventory.Device,
+	ctx context.Context, store *inventory.Store, device *inventory.Device, query url.Values,
 ) (*curationForm, error) {
 	events, err := store.DeviceEvents(ctx, device.ID, deviceHistoryLimit)
 	if err != nil {
@@ -356,6 +358,12 @@ func buildDevicePageData(
 		return nil, err
 	}
 
+	traffic, err := buildTrafficSection(ctx, store, device.ID,
+		trafficWindowKey(query), trafficFilterFrom(query), time.Now())
+	if err != nil {
+		return nil, err
+	}
+
 	data := &curationForm{
 		Title:              device.Name(),
 		Section:            "Devices",
@@ -366,6 +374,7 @@ func buildDevicePageData(
 		Claims:             claims,
 		LastChecked:        lastSweptAt(ctx, store),
 		PortScanConfigured: portScanConfigured(ctx, store),
+		Traffic:            traffic,
 	}
 
 	if scan, err := store.LatestScan(ctx); err == nil {

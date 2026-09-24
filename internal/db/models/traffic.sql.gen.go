@@ -12,6 +12,21 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
 
+const anyTraffic = `-- name: AnyTraffic :one
+SELECT CAST(EXISTS (SELECT 1 FROM traffic_hourly) AS INTEGER) AS recorded
+`
+
+// Whether any traffic has been recorded at all, which is how a view tells
+// "nothing was exchanged" from "nothing is collecting".
+//
+//	SELECT CAST(EXISTS (SELECT 1 FROM traffic_hourly) AS INTEGER) AS recorded
+func (q *Queries) AnyTraffic(ctx context.Context) (int64, error) {
+	row := q.queryRow(ctx, q.anyTrafficStmt, anyTraffic)
+	var recorded int64
+	err := row.Scan(&recorded)
+	return recorded, err
+}
+
 const deleteTrafficBefore = `-- name: DeleteTrafficBefore :execrows
 DELETE
 FROM traffic_hourly
@@ -29,6 +44,113 @@ func (q *Queries) DeleteTrafficBefore(ctx context.Context, hour dbtype.Time) (in
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const deviceTraffic = `-- name: DeviceTraffic :many
+SELECT CAST(COALESCE(t.peer_device_id, 0) AS INTEGER)    AS peer_device_id,
+       CAST(t.peer_ip AS TEXT)                           AS peer_ip,
+       CAST(COALESCE(MAX(t.peer_name), '') AS TEXT)      AS peer_name,
+       CAST(COALESCE(MAX(t.peer_asn), 0) AS INTEGER)     AS peer_asn,
+       CAST(COALESCE(MAX(pd.label), '') AS TEXT)         AS peer_label,
+       CAST(COALESCE(MAX(pd.hostname), '') AS TEXT)      AS peer_hostname,
+       CAST(COALESCE(MAX(pd.mac), '') AS TEXT)           AS peer_mac,
+       t.protocol,
+       t.service_port,
+       CAST(SUM(t.bytes_out) AS INTEGER)                 AS bytes_out,
+       CAST(SUM(t.bytes_in) AS INTEGER)                  AS bytes_in,
+       CAST(SUM(t.connections) AS INTEGER)               AS connections,
+       CAST(MAX(t.hour) AS TEXT)                         AS last_hour
+FROM traffic_hourly t
+         LEFT JOIN devices pd ON pd.id = t.peer_device_id
+WHERE t.device_id = ?
+  AND t.hour >= ?
+GROUP BY COALESCE(t.peer_device_id, 0), t.peer_ip, t.protocol, t.service_port
+ORDER BY SUM(t.bytes_out + t.bytes_in) DESC, t.peer_ip, t.service_port
+LIMIT ?
+`
+
+type DeviceTrafficParams struct {
+	DeviceID int64       `json:"device_id"`
+	Hour     dbtype.Time `json:"hour"`
+	Limit    int64       `json:"limit"`
+}
+
+type DeviceTrafficRow struct {
+	PeerDeviceID int64  `json:"peer_device_id"`
+	PeerIP       string `json:"peer_ip"`
+	PeerName     string `json:"peer_name"`
+	PeerASN      int64  `json:"peer_asn"`
+	PeerLabel    string `json:"peer_label"`
+	PeerHostname string `json:"peer_hostname"`
+	PeerMAC      string `json:"peer_mac"`
+	Protocol     int64  `json:"protocol"`
+	ServicePort  int64  `json:"service_port"`
+	BytesOut     int64  `json:"bytes_out"`
+	BytesIn      int64  `json:"bytes_in"`
+	Connections  int64  `json:"connections"`
+	LastHour     string `json:"last_hour"`
+}
+
+// One device's conversations since a given hour, one row per peer and
+// service, busiest first. A peer that was a known device carries that
+// device's naming fields so the page can link to it; the grouping keeps an
+// address that changed hands between two devices as two peers.
+//
+//	SELECT CAST(COALESCE(t.peer_device_id, 0) AS INTEGER)    AS peer_device_id,
+//	       CAST(t.peer_ip AS TEXT)                           AS peer_ip,
+//	       CAST(COALESCE(MAX(t.peer_name), '') AS TEXT)      AS peer_name,
+//	       CAST(COALESCE(MAX(t.peer_asn), 0) AS INTEGER)     AS peer_asn,
+//	       CAST(COALESCE(MAX(pd.label), '') AS TEXT)         AS peer_label,
+//	       CAST(COALESCE(MAX(pd.hostname), '') AS TEXT)      AS peer_hostname,
+//	       CAST(COALESCE(MAX(pd.mac), '') AS TEXT)           AS peer_mac,
+//	       t.protocol,
+//	       t.service_port,
+//	       CAST(SUM(t.bytes_out) AS INTEGER)                 AS bytes_out,
+//	       CAST(SUM(t.bytes_in) AS INTEGER)                  AS bytes_in,
+//	       CAST(SUM(t.connections) AS INTEGER)               AS connections,
+//	       CAST(MAX(t.hour) AS TEXT)                         AS last_hour
+//	FROM traffic_hourly t
+//	         LEFT JOIN devices pd ON pd.id = t.peer_device_id
+//	WHERE t.device_id = ?
+//	  AND t.hour >= ?
+//	GROUP BY COALESCE(t.peer_device_id, 0), t.peer_ip, t.protocol, t.service_port
+//	ORDER BY SUM(t.bytes_out + t.bytes_in) DESC, t.peer_ip, t.service_port
+//	LIMIT ?
+func (q *Queries) DeviceTraffic(ctx context.Context, arg DeviceTrafficParams) ([]*DeviceTrafficRow, error) {
+	rows, err := q.query(ctx, q.deviceTrafficStmt, deviceTraffic, arg.DeviceID, arg.Hour, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*DeviceTrafficRow
+	for rows.Next() {
+		var i DeviceTrafficRow
+		if err := rows.Scan(
+			&i.PeerDeviceID,
+			&i.PeerIP,
+			&i.PeerName,
+			&i.PeerASN,
+			&i.PeerLabel,
+			&i.PeerHostname,
+			&i.PeerMAC,
+			&i.Protocol,
+			&i.ServicePort,
+			&i.BytesOut,
+			&i.BytesIn,
+			&i.Connections,
+			&i.LastHour,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const upsertTraffic = `-- name: UpsertTraffic :exec

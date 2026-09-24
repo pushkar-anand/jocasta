@@ -1555,6 +1555,47 @@ input[type="radio"] {
     color: var(--good);
 }
 
+/* ---- Traffic ------------------------------------------------------------------ */
+
+/* The "Talks to" section: a period switch, then up to two tables. Its own
+   column so the swap target keeps the block's spacing. */
+.traffic {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* An organisation folds the addresses behind it. The summary is the row's
+   label, so it reads as text with a disclosure mark, not as a button. */
+.peers > summary {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.peers__list {
+    margin: 8px 0 2px;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.peers__list li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 8px;
+}
+
+.peers__detail {
+    font-size: var(--fs-support);
+    color: var(--text-2);
+}
+
 /* ---- htmx --------------------------------------------------------------------- */
 
 /* These wrappers exist only so htmx has something to swap. display: contents

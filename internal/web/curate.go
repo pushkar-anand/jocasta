@@ -39,6 +39,10 @@ type curationForm struct {
 	// Only the full page fills it.
 	PortScanConfigured bool
 
+	// Traffic is who the device talked to over the period the page asked for.
+	// Only the full page fills it.
+	Traffic *trafficSection
+
 	// Saved marks the panel as having just been saved, which is the only way a
 	// swapped-in fragment can say that anything happened.
 	Saved bool

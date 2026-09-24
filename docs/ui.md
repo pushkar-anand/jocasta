@@ -28,6 +28,16 @@ network, and what each source calls the device. Once a port scan has reached the
 device (see [CLI](cli.md#ports)), a Ports section lists the TCP ports it was
 found listening on, and the ones it has since stopped answering on as closed.
 
+When traffic collection is set up (see
+[Seeing who devices talk to](setup.md#seeing-who-devices-talk-to)), a Talks to
+section lists who the device exchanged data with over the last 24 hours, 7 days
+or 30 days: other devices on your network, linked to their pages, and internet
+addresses grouped by the organisation that announces them, with how much was
+sent and received each way. Each peer is one row whatever services it was
+reached on, and local addresses no device holds collapse into one row per
+subnet. The section can be narrowed to your network or the internet, to one
+service, or by a search over names, addresses and organisations.
+
 ![Device page](img/device.png)
 
 ## Network page

@@ -33,6 +33,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.allNetworksStmt, err = db.PrepareContext(ctx, allNetworks); err != nil {
 		return nil, fmt.Errorf("error preparing query AllNetworks: %w", err)
 	}
+	if q.anyTrafficStmt, err = db.PrepareContext(ctx, anyTraffic); err != nil {
+		return nil, fmt.Errorf("error preparing query AnyTraffic: %w", err)
+	}
 	if q.closePortStmt, err = db.PrepareContext(ctx, closePort); err != nil {
 		return nil, fmt.Errorf("error preparing query ClosePort: %w", err)
 	}
@@ -89,6 +92,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.deviceStatsStmt, err = db.PrepareContext(ctx, deviceStats); err != nil {
 		return nil, fmt.Errorf("error preparing query DeviceStats: %w", err)
+	}
+	if q.deviceTrafficStmt, err = db.PrepareContext(ctx, deviceTraffic); err != nil {
+		return nil, fmt.Errorf("error preparing query DeviceTraffic: %w", err)
 	}
 	if q.disableUserTOTPStmt, err = db.PrepareContext(ctx, disableUserTOTP); err != nil {
 		return nil, fmt.Errorf("error preparing query DisableUserTOTP: %w", err)
@@ -236,6 +242,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing allNetworksStmt: %w", cerr)
 		}
 	}
+	if q.anyTrafficStmt != nil {
+		if cerr := q.anyTrafficStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing anyTrafficStmt: %w", cerr)
+		}
+	}
 	if q.closePortStmt != nil {
 		if cerr := q.closePortStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing closePortStmt: %w", cerr)
@@ -329,6 +340,11 @@ func (q *Queries) Close() error {
 	if q.deviceStatsStmt != nil {
 		if cerr := q.deviceStatsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deviceStatsStmt: %w", cerr)
+		}
+	}
+	if q.deviceTrafficStmt != nil {
+		if cerr := q.deviceTrafficStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deviceTrafficStmt: %w", cerr)
 		}
 	}
 	if q.disableUserTOTPStmt != nil {
@@ -583,6 +599,7 @@ type Queries struct {
 	adoptCurationStmt                  *sql.Stmt
 	allCurrentAddressesStmt            *sql.Stmt
 	allNetworksStmt                    *sql.Stmt
+	anyTrafficStmt                     *sql.Stmt
 	closePortStmt                      *sql.Stmt
 	commonOpenServicesStmt             *sql.Stmt
 	countUnusedRecoveryCodesByUserStmt *sql.Stmt
@@ -602,6 +619,7 @@ type Queries struct {
 	deleteTrafficBeforeStmt            *sql.Stmt
 	deviceNetworkNamesStmt             *sql.Stmt
 	deviceStatsStmt                    *sql.Stmt
+	deviceTrafficStmt                  *sql.Stmt
 	disableUserTOTPStmt                *sql.Stmt
 	enableUserTOTPStmt                 *sql.Stmt
 	finishScanStmt                     *sql.Stmt
@@ -653,6 +671,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		adoptCurationStmt:                  q.adoptCurationStmt,
 		allCurrentAddressesStmt:            q.allCurrentAddressesStmt,
 		allNetworksStmt:                    q.allNetworksStmt,
+		anyTrafficStmt:                     q.anyTrafficStmt,
 		closePortStmt:                      q.closePortStmt,
 		commonOpenServicesStmt:             q.commonOpenServicesStmt,
 		countUnusedRecoveryCodesByUserStmt: q.countUnusedRecoveryCodesByUserStmt,
@@ -672,6 +691,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deleteTrafficBeforeStmt:            q.deleteTrafficBeforeStmt,
 		deviceNetworkNamesStmt:             q.deviceNetworkNamesStmt,
 		deviceStatsStmt:                    q.deviceStatsStmt,
+		deviceTrafficStmt:                  q.deviceTrafficStmt,
 		disableUserTOTPStmt:                q.disableUserTOTPStmt,
 		enableUserTOTPStmt:                 q.enableUserTOTPStmt,
 		finishScanStmt:                     q.finishScanStmt,

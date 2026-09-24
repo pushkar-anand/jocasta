@@ -29,4 +29,5 @@ const (
 	templatePartialDeviceRow     = "partial/device-row"
 	templatePartialDeviceRowForm = "partial/device-row-form"
 	templatePartialDevicePanel   = "partial/device-panel"
+	templatePartialDeviceTraffic = "partial/device-traffic"
 )
