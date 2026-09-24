@@ -212,3 +212,20 @@ WHERE t.hour >= sqlc.arg(since)
   AND d.is_ignored = 0
 GROUP BY d.id
 ORDER BY bytes DESC, d.id;
+
+-- name: TrafficWorldPeers :many
+-- What each device exchanged with each internet address since a given hour,
+-- for placing the addresses on the world map. Grouped by address rather than
+-- organisation, since one organisation's addresses sit in many countries.
+SELECT t.device_id,
+       t.peer_ip,
+       CAST(COALESCE(t.peer_asn, 0) AS INTEGER)       AS peer_asn,
+       CAST(SUM(t.bytes_out + t.bytes_in) AS INTEGER) AS bytes
+FROM traffic_hourly t
+         JOIN devices d ON d.id = t.device_id
+WHERE t.hour >= sqlc.arg(since)
+  AND d.is_ignored = 0
+  AND t.peer_device_id IS NULL
+  AND t.peer_asn IS NOT NULL
+GROUP BY t.device_id, t.peer_ip
+ORDER BY bytes DESC, t.device_id, t.peer_ip;
