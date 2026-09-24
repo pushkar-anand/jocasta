@@ -418,11 +418,27 @@ func (s *Store) writeAttempts(
 	q *models.Queries,
 	attempts map[attemptKey]*attemptSample,
 	holders map[netip.Addr]int64,
+	routers map[netip.Addr]bool,
 	sourceID func(name string, kind dbtype.SourceKind) (int64, error),
 ) error {
 	for k, a := range attempts {
 		device := holders[k.src]
 		if device == 0 {
+			// Not a device's attempt; it may be the internet's on one.
+			target := probeTarget(k, holders)
+			if target == 0 {
+				continue
+			}
+
+			srcID, err := sourceID(k.source, k.kind)
+			if err != nil {
+				return err
+			}
+
+			if err := s.writeProbe(ctx, q, k, a, target, srcID, routers[k.dst]); err != nil {
+				return err
+			}
+
 			continue
 		}
 
