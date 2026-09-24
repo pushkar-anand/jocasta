@@ -533,3 +533,34 @@ func TestConnectionsAreCountedByWhoStartedThem(t *testing.T) {
 	assert.Equal(t, int64(1), incoming[0].Orgs)
 	assert.Equal(t, int64(9_000), incoming[0].Sent)
 }
+
+// An ICMP message that answers something -- here an unreachable sent back to a
+// device that swept a subnet -- is not a connection the replier started, and
+// a ping still is one the pinger did.
+func TestOnlyPingsCountAsICMPConnections(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, ""), host("192.0.2.11", macB, ""))
+
+	at := s.now()
+	icmp := func(src, dst string, typ uint8) plugin.Flow {
+		return plugin.Flow{
+			Src: netip.MustParseAddr(src), Dst: netip.MustParseAddr(dst),
+			Protocol: protoICMP, ICMPType: typ, Bytes: 72, Packets: 1, End: at,
+		}
+	}
+
+	rec := newRecorder(s, nil)
+	rec.Add(trafficSource{}, []plugin.Flow{
+		icmp("192.0.2.11", "192.0.2.10", 3),  // destination unreachable
+		icmp("192.0.2.10", "192.0.2.11", 13), // timestamp request
+	})
+	require.NoError(t, rec.Flush(t.Context()))
+
+	var out, in int64
+	require.NoError(t, conn.QueryRowContext(t.Context(),
+		`SELECT SUM(connections), SUM(connections_in) FROM traffic_hourly WHERE protocol = 1`).Scan(&out, &in))
+	assert.Zero(t, out)
+	assert.Zero(t, in)
+}

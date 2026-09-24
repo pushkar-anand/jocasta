@@ -174,8 +174,16 @@ func (r *TrafficRecorder) Add(src plugin.Plugin, flows []plugin.Flow) {
 
 		// A conversation is usually exported as two flows, one each way.
 		// Only the one addressed to the service counts as a connection, so
-		// the reply does not count it twice.
-		if key.service == 0 || f.DstPort == key.service {
+		// the reply does not count it twice. ICMP has no service port: only a
+		// ping starts anything, and every other message -- an echo reply, an
+		// unreachable, a time exceeded -- answers something, so it is never
+		// counted as the replier opening a connection.
+		switch {
+		case f.Protocol == protoICMP || f.Protocol == protoICMPv6:
+			if f.ICMPType == icmpEchoRequest || f.ICMPType == icmpv6EchoRequest {
+				t.connections++
+			}
+		case key.service == 0 || f.DstPort == key.service:
 			t.connections++
 		}
 
