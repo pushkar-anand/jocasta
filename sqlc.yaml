@@ -15,7 +15,7 @@ sql:
         output_models_file_name: "models.gen.go"
         output_files_suffix: ".gen.go"
         emit_result_struct_pointers: true
-        initialisms: [ "id","ip","mac","totp" ]
+        initialisms: [ "id","ip","mac","totp","asn" ]
 
 
         # Timestamps are TEXT in ISO-8601, which the driver will not scan into
@@ -46,6 +46,8 @@ sql:
           - column: "devices.last_seen"
             go_type: *timestamp
           - column: "addresses.first_seen"
+            go_type: *timestamp
+          - column: "traffic_hourly.hour"
             go_type: *timestamp
           - column: "addresses.last_seen"
             go_type: *timestamp
@@ -81,6 +83,10 @@ sql:
           # Addresses carry their own canonical spelling, which is what the
           # UNIQUE constraints over them are worth.
           - column: "addresses.ip"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "Addr"
+          - column: "traffic_hourly.peer_ip"
             go_type:
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
               type: "Addr"
