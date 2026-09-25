@@ -81,6 +81,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.currentAddressesStmt, err = db.PrepareContext(ctx, currentAddresses); err != nil {
 		return nil, fmt.Errorf("error preparing query CurrentAddresses: %w", err)
 	}
+	if q.currentHoldersStmt, err = db.PrepareContext(ctx, currentHolders); err != nil {
+		return nil, fmt.Errorf("error preparing query CurrentHolders: %w", err)
+	}
 	if q.deleteAPITokenStmt, err = db.PrepareContext(ctx, deleteAPIToken); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteAPIToken: %w", err)
 	}
@@ -395,6 +398,11 @@ func (q *Queries) Close() error {
 	if q.currentAddressesStmt != nil {
 		if cerr := q.currentAddressesStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing currentAddressesStmt: %w", cerr)
+		}
+	}
+	if q.currentHoldersStmt != nil {
+		if cerr := q.currentHoldersStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing currentHoldersStmt: %w", cerr)
 		}
 	}
 	if q.deleteAPITokenStmt != nil {
@@ -815,6 +823,7 @@ type Queries struct {
 	createScanStmt                     *sql.Stmt
 	createUserStmt                     *sql.Stmt
 	currentAddressesStmt               *sql.Stmt
+	currentHoldersStmt                 *sql.Stmt
 	deleteAPITokenStmt                 *sql.Stmt
 	deleteAttemptsBeforeStmt           *sql.Stmt
 	deleteBroadcastsBeforeStmt         *sql.Stmt
@@ -912,6 +921,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		createScanStmt:                     q.createScanStmt,
 		createUserStmt:                     q.createUserStmt,
 		currentAddressesStmt:               q.currentAddressesStmt,
+		currentHoldersStmt:                 q.currentHoldersStmt,
 		deleteAPITokenStmt:                 q.deleteAPITokenStmt,
 		deleteAttemptsBeforeStmt:           q.deleteAttemptsBeforeStmt,
 		deleteBroadcastsBeforeStmt:         q.deleteBroadcastsBeforeStmt,

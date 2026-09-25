@@ -63,9 +63,7 @@ type AllCurrentAddressesRow struct {
 	IP       dbtype.Addr `json:"ip"`
 }
 
-// Every address a port scan should probe: the current address of every device
-// the user has not ignored. The scan works from what discovery has already
-// found, so this is its whole target list.
+// AllCurrentAddresses
 //
 //	SELECT a.device_id, a.ip
 //	FROM addresses a
@@ -380,6 +378,50 @@ func (q *Queries) CurrentAddresses(ctx context.Context, deviceID int64) ([]*Addr
 			&i.FirstSeen,
 			&i.LastSeen,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const currentHolders = `-- name: CurrentHolders :many
+SELECT a.ip, a.device_id
+FROM addresses a
+WHERE a.is_current = 1
+`
+
+type CurrentHoldersRow struct {
+	IP       dbtype.Addr `json:"ip"`
+	DeviceID int64       `json:"device_id"`
+}
+
+// Every address a port scan should probe: the current address of every device
+// the user has not ignored. The scan works from what discovery has already
+// found, so this is its whole target list.
+// Every address a device holds now, ignored devices included, for a traffic
+// flush to settle which device each end of a flow is in one read. The partial
+// unique index on current addresses gives each address one holder.
+//
+//	SELECT a.ip, a.device_id
+//	FROM addresses a
+//	WHERE a.is_current = 1
+func (q *Queries) CurrentHolders(ctx context.Context) ([]*CurrentHoldersRow, error) {
+	rows, err := q.query(ctx, q.currentHoldersStmt, currentHolders)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*CurrentHoldersRow
+	for rows.Next() {
+		var i CurrentHoldersRow
+		if err := rows.Scan(&i.IP, &i.DeviceID); err != nil {
 			return nil, err
 		}
 		items = append(items, &i)
