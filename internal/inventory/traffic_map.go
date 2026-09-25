@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"maps"
 	"net/netip"
 	"slices"
 	"strconv"
@@ -261,12 +262,7 @@ func (s *Store) markActive(
 // does. Each keeps the number of its busiest ASN; canon maps every ASN to the
 // number it was folded under.
 func mergeOrgs(perASN map[uint32]*MapOrg) (merged []*MapOrg, canon map[uint32]uint32) {
-	all := make([]*MapOrg, 0, len(perASN))
-	for _, o := range perASN {
-		all = append(all, o)
-	}
-
-	slices.SortFunc(all, func(a, b *MapOrg) int {
+	all := slices.SortedFunc(maps.Values(perASN), func(a, b *MapOrg) int {
 		return cmp.Or(cmp.Compare(b.Bytes, a.Bytes), cmp.Compare(a.ASN, b.ASN))
 	})
 

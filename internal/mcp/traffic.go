@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/google/jsonschema-go/jsonschema"
@@ -125,15 +126,9 @@ func listTraffic(store *inventory.Store, now func() time.Time) func(*mcpsdk.Serv
 			}
 
 			if in.DeviceID != 0 {
-				kept := fc.Contacts[:0]
-
-				for _, c := range fc.Contacts {
-					if c.DeviceID == in.DeviceID {
-						kept = append(kept, c)
-					}
-				}
-
-				fc.Contacts = kept
+				fc.Contacts = slices.DeleteFunc(fc.Contacts, func(c *inventory.FirstContact) bool {
+					return c.DeviceID != in.DeviceID
+				})
 			}
 
 			out.FirstContacts = fc
