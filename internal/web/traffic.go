@@ -757,9 +757,7 @@ func (h *Handler) traffic(sm *auth.Session) response.HandlerFunc {
 		data.MoreNewOrgs = max(0, len(data.NewOrgs)-trafficCardRows)
 		data.NewOrgs = data.NewOrgs[:min(trafficCardRows, len(data.NewOrgs))]
 
-		if note, err := h.sweepNote(ctx); err == nil {
-			data.Note = note
-		}
+		data.Note = latestSweepNote(ctx, h.store)
 
 		h.htmlWriter.Success(w, r, templatePageTraffic, data)
 

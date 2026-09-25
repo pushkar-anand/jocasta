@@ -328,11 +328,7 @@ func buildDeviceListData(
 	data.Networks = networks
 	data.paginate(devices)
 
-	// A first run has no sweep behind it yet: the page renders that state and
-	// reports no error.
-	if scan, err := store.LatestScan(ctx); err == nil {
-		data.Note = sweepNote(scan)
-	}
+	data.Note = latestSweepNote(ctx, store)
 
 	return data, nil
 }
@@ -377,9 +373,7 @@ func buildDevicePageData(
 		Traffic:            traffic,
 	}
 
-	if scan, err := store.LatestScan(ctx); err == nil {
-		data.Note = sweepNote(scan)
-	}
+	data.Note = latestSweepNote(ctx, store)
 
 	return data, nil
 }
