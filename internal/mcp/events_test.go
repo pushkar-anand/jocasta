@@ -24,7 +24,7 @@ func TestListEvents(t *testing.T) {
 	all := decodeAs[listEventsOutput](t, callTool(t, cs, "list_events", nil))
 	require.NotEmpty(t, all.Events, "sweeping two new devices should have logged something")
 	assert.Equal(t, len(all.Events), all.Count)
-	assert.Nil(t, all.NextCursor, "the whole log fits one default page")
+	assert.True(t, all.NextCursor.IsZero(), "the whole log fits one default page")
 
 	t.Run("newest first", func(t *testing.T) {
 		t.Parallel()
@@ -80,7 +80,7 @@ func TestListEvents(t *testing.T) {
 			page := decodeAs[listEventsOutput](t, callTool(t, cs, "list_events", args))
 			walked = append(walked, page.Events...)
 
-			if page.NextCursor == nil {
+			if page.NextCursor.IsZero() {
 				break
 			}
 

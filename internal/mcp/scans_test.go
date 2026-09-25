@@ -30,7 +30,7 @@ func TestListScans(t *testing.T) {
 
 		out := decodeAs[listScansOutput](t, callTool(t, cs, "list_scans", nil))
 		require.Equal(t, 2, out.Count)
-		assert.Nil(t, out.NextCursor)
+		assert.True(t, out.NextCursor.IsZero())
 
 		assert.Equal(t, dbtype.ScanPorts, out.Scans[0].Kind)
 		assert.Equal(t, dbtype.ScanDiscovery, out.Scans[1].Kind)
@@ -53,14 +53,14 @@ func TestListScans(t *testing.T) {
 
 		first := decodeAs[listScansOutput](t, callTool(t, cs, "list_scans", map[string]any{"limit": 1}))
 		require.Equal(t, 1, first.Count)
-		require.NotNil(t, first.NextCursor)
+		require.False(t, first.NextCursor.IsZero())
 
 		token, err := first.NextCursor.Encode()
 		require.NoError(t, err)
 
 		second := decodeAs[listScansOutput](t, callTool(t, cs, "list_scans", map[string]any{"limit": 1, "cursor": token}))
 		require.Equal(t, 1, second.Count)
-		assert.Nil(t, second.NextCursor)
+		assert.True(t, second.NextCursor.IsZero())
 		assert.Equal(t, []dbtype.ScanKind{dbtype.ScanPorts, dbtype.ScanDiscovery},
 			[]dbtype.ScanKind{first.Scans[0].Kind, second.Scans[0].Kind})
 	})
