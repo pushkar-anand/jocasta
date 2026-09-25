@@ -136,7 +136,7 @@ func TestDiscoverLive(t *testing.T) {
 
 	for _, f := range facts {
 		assert.True(t, f.Host.Address().IsValid(), "every fact carries a parsed address")
-		assert.NotEqual(t, zeroMAC, f.Host.MAC, "the zero address identifies nothing")
+		assert.NotEqual(t, "00:00:00:00:00:00", f.Host.MAC, "the zero address identifies nothing")
 
 		// A name and its standing travel together: one without the other means
 		// either an unattributed name or a standing for nothing.
