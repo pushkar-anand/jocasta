@@ -245,7 +245,7 @@ type Probed struct {
 // non-empty group keeps only the devices in it.
 func (s *Store) ProbedDevices(ctx context.Context, since time.Time, group string) ([]*Probed, error) {
 	rows, err := s.q.ProbedDevices(ctx, models.ProbedDevicesParams{
-		Since:     dbtype.NewTime(since.UTC().Truncate(time.Hour)),
+		Since:     hourOf(since),
 		GroupName: nullString(group),
 	})
 	if err != nil {
@@ -255,9 +255,9 @@ func (s *Store) ProbedDevices(ctx context.Context, since time.Time, group string
 	out := make([]*Probed, 0, len(rows))
 
 	for _, r := range rows {
-		last, err := time.Parse(dbtype.Layout, r.LastHour)
+		last, err := parseHour("probe", r.LastHour)
 		if err != nil {
-			return nil, fmt.Errorf("probe hour %q: %w", r.LastHour, err)
+			return nil, err
 		}
 
 		out = append(out, &Probed{

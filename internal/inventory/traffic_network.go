@@ -63,7 +63,7 @@ type FirstContacts struct {
 // the devices in it.
 func (s *Store) BusiestDevices(ctx context.Context, since time.Time, group string, limit int) ([]*DeviceTotal, error) {
 	rows, err := s.q.BusiestDevices(ctx, models.BusiestDevicesParams{
-		Since:     dbtype.NewTime(since.UTC().Truncate(time.Hour)),
+		Since:     hourOf(since),
 		GroupName: nullString(group),
 		LimitRows: int64(limit),
 	})
@@ -89,7 +89,7 @@ func (s *Store) BusiestDevices(ctx context.Context, since time.Time, group strin
 // only the devices in it.
 func (s *Store) TopOrganisations(ctx context.Context, since time.Time, group string, limit int) ([]*OrgTotal, error) {
 	rows, err := s.q.TopOrganisations(ctx, models.TopOrganisationsParams{
-		Since:     dbtype.NewTime(since.UTC().Truncate(time.Hour)),
+		Since:     hourOf(since),
 		GroupName: nullString(group),
 		LimitRows: int64(limit),
 	})
@@ -126,9 +126,9 @@ func (s *Store) FirstContacts(ctx context.Context, since time.Time, group string
 	}
 
 	if earliest != "" {
-		started, err := time.Parse(dbtype.Layout, earliest)
+		started, err := parseHour("earliest traffic", earliest)
 		if err != nil {
-			return nil, fmt.Errorf("earliest traffic %q: %w", earliest, err)
+			return nil, err
 		}
 
 		out.Started = started
@@ -145,9 +145,9 @@ func (s *Store) FirstContacts(ctx context.Context, since time.Time, group string
 	}
 
 	for _, r := range rows {
-		first, err := time.Parse(dbtype.Layout, r.FirstHour)
+		first, err := parseHour("first contact", r.FirstHour)
 		if err != nil {
-			return nil, fmt.Errorf("first contact hour %q: %w", r.FirstHour, err)
+			return nil, err
 		}
 
 		number := uint32(r.PeerASN) //nolint:gosec // an ASN is 32 bits.
@@ -169,7 +169,7 @@ func (s *Store) FirstContacts(ctx context.Context, since time.Time, group string
 // device first. A non-empty group keeps only the devices in it.
 func (s *Store) OrganisationDevices(ctx context.Context, since time.Time, group string) (map[uint32][]*DeviceTotal, error) {
 	rows, err := s.q.OrganisationDevices(ctx, models.OrganisationDevicesParams{
-		Since:     dbtype.NewTime(since.UTC().Truncate(time.Hour)),
+		Since:     hourOf(since),
 		GroupName: nullString(group),
 	})
 	if err != nil {
@@ -228,7 +228,7 @@ type Incoming struct {
 // connections first. A non-empty group keeps only the devices in it.
 func (s *Store) IncomingFromInternet(ctx context.Context, since time.Time, group string, limit int) ([]*Incoming, error) {
 	rows, err := s.q.IncomingFromInternet(ctx, models.IncomingFromInternetParams{
-		Since:     dbtype.NewTime(since.UTC().Truncate(time.Hour)),
+		Since:     hourOf(since),
 		GroupName: nullString(group),
 		LimitRows: int64(limit),
 	})
@@ -239,9 +239,9 @@ func (s *Store) IncomingFromInternet(ctx context.Context, since time.Time, group
 	out := make([]*Incoming, 0, len(rows))
 
 	for _, r := range rows {
-		last, err := time.Parse(dbtype.Layout, r.LastHour)
+		last, err := parseHour("incoming", r.LastHour)
 		if err != nil {
-			return nil, fmt.Errorf("incoming hour %q: %w", r.LastHour, err)
+			return nil, err
 		}
 
 		in := &Incoming{

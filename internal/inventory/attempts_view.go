@@ -6,7 +6,6 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 	"github.com/pushkar-anand/jocasta/pkg/asn"
 )
@@ -59,7 +58,7 @@ type Attempt struct {
 func (s *Store) DeviceAttempts(ctx context.Context, id int64, since time.Time) ([]*Attempt, error) {
 	rows, err := s.q.DeviceAttempts(ctx, models.DeviceAttemptsParams{
 		DeviceID: id,
-		Hour:     dbtype.NewTime(since.UTC().Truncate(time.Hour)),
+		Hour:     hourOf(since),
 		Limit:    deviceAttemptsLimit,
 	})
 	if err != nil {
@@ -74,9 +73,9 @@ func (s *Store) DeviceAttempts(ctx context.Context, id int64, since time.Time) (
 			return nil, fmt.Errorf("attempt peer %q: %w", r.PeerIP, err)
 		}
 
-		last, err := time.Parse(dbtype.Layout, r.LastHour)
+		last, err := parseHour("attempt", r.LastHour)
 		if err != nil {
-			return nil, fmt.Errorf("attempt hour %q: %w", r.LastHour, err)
+			return nil, err
 		}
 
 		a := &Attempt{
@@ -140,7 +139,7 @@ func (p *Prober) SweptPorts() bool { return p.MaxPorts >= ProbeMinPorts }
 // keeps only the devices in it.
 func (s *Store) ProbingDevices(ctx context.Context, since time.Time, group string) ([]*Prober, error) {
 	rows, err := s.q.ProbingHours(ctx, models.ProbingHoursParams{
-		Since:     dbtype.NewTime(since.UTC().Truncate(time.Hour)),
+		Since:     hourOf(since),
 		GroupName: nullString(group),
 		MinPeers:  ProbeMinPeers,
 		MinPorts:  ProbeMinPorts,
@@ -155,9 +154,9 @@ func (s *Store) ProbingDevices(ctx context.Context, since time.Time, group strin
 
 	// Rows come newest hour first, so a device's first row is its latest.
 	for _, r := range rows {
-		hour, err := time.Parse(dbtype.Layout, r.Hour)
+		hour, err := parseHour("probing", r.Hour)
 		if err != nil {
-			return nil, fmt.Errorf("probing hour %q: %w", r.Hour, err)
+			return nil, err
 		}
 
 		p, ok := byDevice[r.DeviceID]
