@@ -3,7 +3,12 @@ package poller
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"time"
+
+	"github.com/pushkar-anand/build-with-go/logger"
+	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
+	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
 // errNotReady is a task reporting it is blocked on another task's output. The
@@ -30,4 +35,35 @@ type task interface {
 	// clamps the answer to between zero and one interval, so a stored time that
 	// is wrong in either direction cannot strand the task.
 	DueIn(ctx context.Context) time.Duration
+}
+
+// dueIn is DueIn for a task that resumes from its last successful scan of
+// kind: due interval after that scan, or now when there has been none.
+//
+// A store that cannot be read waits a full interval. Not knowing whether the
+// work is due is a reason to hold off: running anyway would turn a restart
+// loop into a scan loop, the one failure the stored schedule exists to
+// prevent.
+func dueIn(
+	ctx context.Context,
+	store *inventory.Store,
+	kind dbtype.ScanKind,
+	interval time.Duration,
+	log *slog.Logger,
+) time.Duration {
+	at, err := store.LastSuccessfulScanAt(ctx, kind)
+
+	switch {
+	case errors.Is(err, inventory.ErrNotFound):
+		return 0
+	case err != nil:
+		log.ErrorContext(ctx, "could not tell when the last scan ran, holding off for one interval",
+			slog.String("kind", string(kind)),
+			logger.Err(err),
+		)
+
+		return interval
+	}
+
+	return interval - time.Since(at)
 }
