@@ -546,14 +546,18 @@ func servicePort(protocol uint8, src, dst uint16) uint16 {
 		return 0
 	}
 
-	known := func(p uint16) bool { return scanner.ServiceName(p) != "" }
-	privileged := func(p uint16) bool { return p < 1024 }
-	ephemeral := func(p uint16) bool { return p >= 32768 }
-	settled := func(p uint16) bool { return known(p) && !ephemeral(p) }
+	s, d := traitsOf(src), traitsOf(dst)
 
-	for _, prefer := range []func(uint16) bool{settled, privileged, not(ephemeral), known} {
-		if prefer(src) != prefer(dst) {
-			if prefer(src) {
+	// Each rule decides only when the two ports differ on it, for the port
+	// that has it; the first rule that decides wins.
+	for _, rule := range [...]struct{ src, dst bool }{
+		{s.settled(), d.settled()},   // a well-known service below the ephemeral range
+		{s.privileged, d.privileged}, // a privileged port
+		{!s.ephemeral, !d.ephemeral}, // any port below the ephemeral range
+		{s.known, d.known},           // a well-known service, even inside it
+	} {
+		if rule.src != rule.dst {
+			if rule.src {
 				return src
 			}
 
@@ -564,9 +568,24 @@ func servicePort(protocol uint8, src, dst uint16) uint16 {
 	return min(src, dst)
 }
 
-func not(f func(uint16) bool) func(uint16) bool {
-	return func(p uint16) bool { return !f(p) }
+// portTraits are what servicePort judges a port on. They are worked out once
+// per port, since servicePort runs for every flow under the recorder's lock.
+type portTraits struct {
+	known      bool // a well-known service's port
+	privileged bool // below 1024
+	ephemeral  bool // in the range clients draw source ports from
 }
+
+func traitsOf(p uint16) portTraits {
+	return portTraits{
+		known:      scanner.ServiceName(p) != "",
+		privileged: p < 1024,
+		ephemeral:  p >= 32768,
+	}
+}
+
+// settled is a well-known service's port a client would not draw as its own.
+func (t portTraits) settled() bool { return t.known && !t.ephemeral }
 
 // clampInt64 stores a counter SQLite can hold. Nothing real reaches the
 // limit in an hour; a corrupt export claiming to should not wrap negative.
