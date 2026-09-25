@@ -122,17 +122,13 @@ func (h *Handler) deviceRowForm() response.HandlerFunc {
 // The route is gated to a writer, so the row it answers with always carries the
 // Edit button.
 func (h *Handler) updateDeviceRow(sm *auth.Session) response.HandlerFunc {
-	type form struct {
-		deviceEdit
-	}
-
 	return func(w http.ResponseWriter, r *http.Request) error {
 		id, ok := pathID(r)
 		if !ok {
 			return inventory.ErrNotFound
 		}
 
-		data, err := h.reader.ReadAndValidateForm[form](r)
+		data, err := h.reader.ReadAndValidateForm[deviceEdit](r)
 		if err != nil {
 			return err
 		}
@@ -154,10 +150,6 @@ func (h *Handler) updateDeviceRow(sm *auth.Session) response.HandlerFunc {
 // updateDevice applies an edit made on the device's own page and answers with
 // the panel, which carries the heading a new label changes.
 func (h *Handler) updateDevice(sm *auth.Session) response.HandlerFunc {
-	type form struct {
-		deviceEdit
-	}
-
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 
@@ -166,7 +158,7 @@ func (h *Handler) updateDevice(sm *auth.Session) response.HandlerFunc {
 			return inventory.ErrNotFound
 		}
 
-		data, err := h.reader.ReadAndValidateForm[form](r)
+		data, err := h.reader.ReadAndValidateForm[deviceEdit](r)
 		if err != nil {
 			return err
 		}
