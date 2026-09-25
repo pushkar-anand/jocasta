@@ -3,7 +3,6 @@ package main
 import (
 	"cmp"
 	"context"
-	"database/sql"
 	"fmt"
 	"io"
 	"log/slog"
@@ -37,7 +36,7 @@ func (p *PluginRunCmd) Run(
 	ctx context.Context,
 	cfg *config.Config,
 	log *slog.Logger,
-	conn *sql.DB,
+	store *inventory.Store,
 ) error {
 	rc, ok := cfg.Plugins.RouterOS[p.Name]
 	if !ok {
@@ -87,7 +86,7 @@ func (p *PluginRunCmd) Run(
 		return nil
 	}
 
-	return p.save(ctx, log, src, nets, facts, conn)
+	return p.save(ctx, log, src, nets, facts, store)
 }
 
 // save records the reading. It runs after the facts are printed so a database
@@ -98,10 +97,8 @@ func (p *PluginRunCmd) save(
 	src plugin.HostDiscoverer,
 	nets []plugin.Network,
 	facts []plugin.Fact,
-	conn *sql.DB,
+	store *inventory.Store,
 ) error {
-	store := inventory.New(conn, log)
-
 	// Segments first, for the same reason the poller does it in that order: an
 	// address is matched to the networks already recorded.
 	if err := store.RecordNetworks(ctx, nets); err != nil {

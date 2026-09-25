@@ -3,7 +3,6 @@ package main
 import (
 	"cmp"
 	"context"
-	"database/sql"
 	"fmt"
 	"io"
 	"log/slog"
@@ -34,7 +33,7 @@ func (s *ScanCmd) Run(
 	ctx context.Context,
 	cfg *config.Config,
 	log *slog.Logger,
-	conn *sql.DB,
+	store *inventory.Store,
 	_ *validator.Validator,
 ) error {
 	p, err := netip.ParsePrefix(s.Target)
@@ -65,7 +64,7 @@ func (s *ScanCmd) Run(
 		return nil
 	}
 
-	return s.save(ctx, cfg, log, p, hosts, conn)
+	return s.save(ctx, cfg, log, p, hosts, store)
 }
 
 // save records the sweep in the inventory. It runs after the results are
@@ -77,9 +76,9 @@ func (s *ScanCmd) save(
 	log *slog.Logger,
 	p netip.Prefix,
 	hosts []scanner.Host,
-	conn *sql.DB,
+	store *inventory.Store,
 ) error {
-	res, err := inventory.New(conn, log).RecordSweep(ctx, cmp.Or(s.Source, cfg.Scan.Source), p, hosts)
+	res, err := store.RecordSweep(ctx, cmp.Or(s.Source, cfg.Scan.Source), p, hosts)
 	if err != nil {
 		return fmt.Errorf("record sweep: %w", err)
 	}
