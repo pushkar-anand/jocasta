@@ -53,9 +53,7 @@ type (
 // checks the API tokens that stand in for one where there is no session to
 // carry.
 type Auth struct {
-	q      userManager
-	tokens tokenManager
-	totp   totpManager
+	store  store
 	hasher hasher
 
 	// now is a field so a test can pin the timestamps it asserts on.
@@ -84,9 +82,7 @@ func New(s store, hasher hasher) (*Auth, error) {
 	}
 
 	return &Auth{
-		q:               s,
-		tokens:          s,
-		totp:            s,
+		store:           s,
 		hasher:          hasher,
 		now:             time.Now,
 		unknownUserHash: unknownUserHash,
@@ -96,7 +92,7 @@ func New(s store, hasher hasher) (*Auth, error) {
 // Verify checks username and password against the stored credential and
 // returns the matching user only once both hold.
 func (a *Auth) Verify(ctx context.Context, username, password string) (*models.User, error) {
-	user, err := a.q.GetUserByUsername(ctx, username)
+	user, err := a.store.GetUserByUsername(ctx, username)
 
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
@@ -196,7 +192,7 @@ func (a *Auth) SetupRequired(ctx context.Context) (bool, error) {
 		return false, nil
 	}
 
-	n, err := a.q.CountUsers(ctx)
+	n, err := a.store.CountUsers(ctx)
 	if err != nil {
 		return false, fmt.Errorf("count users: %w", err)
 	}
@@ -245,7 +241,7 @@ func (a *Auth) CreateUser(ctx context.Context, username, password string, role d
 // apart from every other way the write could fail, just as GetUserByUsername
 // tells a missing user apart from a lookup failure.
 func (a *Auth) createUser(ctx context.Context, username, password string, role dbtype.UserRole) (*models.User, error) {
-	switch _, err := a.q.GetUserByUsername(ctx, username); {
+	switch _, err := a.store.GetUserByUsername(ctx, username); {
 	case errors.Is(err, sql.ErrNoRows):
 		// The one outcome that means the username is free.
 	case err != nil:
@@ -259,7 +255,7 @@ func (a *Auth) createUser(ctx context.Context, username, password string, role d
 		return nil, fmt.Errorf("hash password: %w", err)
 	}
 
-	user, err := a.q.CreateUser(ctx, models.CreateUserParams{
+	user, err := a.store.CreateUser(ctx, models.CreateUserParams{
 		Username:     username,
 		PasswordHash: hash,
 		Role:         role,
@@ -274,5 +270,5 @@ func (a *Auth) createUser(ctx context.Context, username, password string, role d
 // ListUsers returns every account, oldest first, in the order the accounts
 // were made.
 func (a *Auth) ListUsers(ctx context.Context) ([]*models.User, error) {
-	return a.q.ListUsers(ctx)
+	return a.store.ListUsers(ctx)
 }
