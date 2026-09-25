@@ -95,9 +95,15 @@ func (t *trafficSection) Empty() bool {
 
 // query is the section's address with f in place of its filter.
 func (t *trafficSection) query(f trafficFilter) url.Values {
+	return trafficQuery(t.Window, f)
+}
+
+// trafficQuery is the traffic period and filter as query parameters, leaving
+// out whatever is the default.
+func trafficQuery(w trafficWindow, f trafficFilter) url.Values {
 	q := url.Values{}
-	if t.Window.Key != trafficWindows[0].Key {
-		q.Set("traffic", t.Window.Key)
+	if w.Key != trafficWindows[0].Key {
+		q.Set("traffic", w.Key)
 	}
 
 	f.encode(q)
@@ -149,12 +155,7 @@ func (t *trafficSection) ClearFragment() string {
 }
 
 func fragmentPath(id int64, q url.Values) string {
-	p := "/devices/" + strconv.FormatInt(id, 10) + "/traffic"
-	if len(q) > 0 {
-		p += "?" + q.Encode()
-	}
-
-	return p
+	return withQuery("/devices/"+strconv.FormatInt(id, 10)+"/traffic", q)
 }
 
 // buildTrafficSection reads one device's traffic over the window key names,
@@ -249,19 +250,7 @@ func buildTrafficSection(
 // devicePath is a device's page with the traffic period and filter when they
 // are not the defaults, so the address bar can be reloaded or shared.
 func devicePath(id int64, w trafficWindow, f trafficFilter) string {
-	q := url.Values{}
-	if w.Key != trafficWindows[0].Key {
-		q.Set("traffic", w.Key)
-	}
-
-	f.encode(q)
-
-	p := "/devices/" + strconv.FormatInt(id, 10)
-	if len(q) > 0 {
-		p += "?" + q.Encode()
-	}
-
-	return p
+	return withQuery("/devices/"+strconv.FormatInt(id, 10), trafficQuery(w, f))
 }
 
 // trafficWindowKey is the period a request asked for. The form and the page
@@ -408,11 +397,7 @@ func (p *trafficPage) TabPath(key string) string {
 		q.Set("tab", key)
 	}
 
-	if len(q) == 0 {
-		return "/traffic"
-	}
-
-	return "/traffic?" + q.Encode()
+	return withQuery("/traffic", q)
 }
 
 // pageTabs builds the whole-network tab and one per recorded network, from

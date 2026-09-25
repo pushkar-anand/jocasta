@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -279,6 +280,11 @@ func shellData(title string) map[string]any {
 		"SignedInAs": "",
 		"Note":       "",
 	}
+}
+
+// withQuery is path with q as its query string, or path alone when q is empty.
+func withQuery(path string, q url.Values) string {
+	return (&url.URL{Path: path, RawQuery: q.Encode()}).String()
 }
 
 // pathID reads the {id} the route captured. Every route carrying one admits any
