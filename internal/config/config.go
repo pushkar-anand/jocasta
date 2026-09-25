@@ -11,6 +11,7 @@ import (
 
 	"github.com/pushkar-anand/build-with-go/config"
 	"github.com/pushkar-anand/build-with-go/logger"
+	"github.com/pushkar-anand/jocasta/internal/notify"
 )
 
 // DefaultConfigFile is the path used when --config is not given. A missing file
@@ -217,6 +218,14 @@ type (
 		Networks  []string  `koanf:"networks"`
 		Scan      Scan      `koanf:"scan"`
 		Plugins   Plugins   `koanf:"plugins"`
+
+		// Notify is where changes are sent: one entry per destination, keyed
+		// by its name. The credentials it holds are read from here only and
+		// never stored in the database.
+		//
+		// It is a map so an environment variable can override one
+		// destination by name.
+		Notify map[string]notify.Config `koanf:"notify"`
 	}
 )
 
