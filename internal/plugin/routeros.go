@@ -41,16 +41,16 @@ type RouterOS struct {
 	now func() time.Time
 }
 
-// ErrNoInstanceName is refused rather than defaulted: the name is a database
-// key, and one default would file two routers' facts under one source.
+// ErrNoInstanceName refuses a missing name: the name is a database key, and
+// one default would file two routers' facts under one source.
 var ErrNoInstanceName = errors.New("plugin: routeros instance has no name")
 
 // NewRouterOS builds the plugin for one router. name is the instance key from
-// config -- "gateway", "switch_rack".
+// config, such as "gateway" or "switch_rack".
 //
-// It performs no I/O, which is why the name comes from config and not from
-// /system/identity: a router that is down at startup is one to retry, not a
-// reason to refuse to start.
+// It performs no I/O, which is why the name comes from config: reading
+// /system/identity would need the router up, and a router that is down at
+// startup is retried later while the server still starts.
 func NewRouterOS(
 	name string,
 	client *routeros.RouterOS,
@@ -117,8 +117,8 @@ func (r *RouterOS) Discover(ctx context.Context) ([]Fact, error) {
 }
 
 // claimKey keys both tables the same way, so a lease's name reaches the ARP
-// entry for the same device rather than arriving as a second claim that
-// overwrites it with an empty name.
+// entry for the same device. As a second claim, the ARP entry would
+// overwrite the name with an empty one.
 //
 // The address is part of it because each address is separately current.
 type claimKey struct {
@@ -198,7 +198,7 @@ func (r *RouterOS) collectARP(ctx context.Context, c claims, entries []routeros.
 
 		// A resolved entry keeps the device in the inventory; only one the
 		// router has actually heard from lately makes it present. A "stale"
-		// entry is the router remembering a hardware address, not a sighting.
+		// entry is only the router remembering a hardware address.
 		d.present = d.present || e.Reachable()
 
 		d.set("interface", e.Interface)
@@ -230,7 +230,7 @@ func (r *RouterOS) collectLeases(ctx context.Context, c claims, leases []routero
 			continue
 		}
 
-		// Configuration for an address, not a claim about a device.
+		// Configuration for an address, which claims nothing about a device.
 		if mac == "" && l.HostName == "" {
 			continue
 		}
@@ -256,8 +256,8 @@ func (r *RouterOS) collectLeases(ctx context.Context, c claims, leases []routero
 		d.set("dhcp_status", l.Status)
 		d.set("dhcp_dynamic", strconv.FormatBool(bool(l.Dynamic)))
 
-		// A note, never a name: live tables read "Workstation - wired"
-		// beside a host-name of "workstation".
+		// A note, which is never used as a name: tables read
+		// "Workstation - wired" beside a host-name of "workstation".
 		d.set("dhcp_comment", l.Comment)
 	}
 }
@@ -320,7 +320,7 @@ func (r *RouterOS) build(ctx context.Context, c claims) ([]Fact, error) {
 // for an address it has given up, and that address has no lease behind it.
 func shareByDevice(c claims) {
 	// Sorted, so a key two addresses disagree on resolves the same way every
-	// run rather than however the map happened to iterate.
+	// run.
 	keys := slices.SortedFunc(maps.Keys(c), func(a, b claimKey) int {
 		return cmp.Or(strings.Compare(a.addr, b.addr), strings.Compare(a.mac, b.mac))
 	})
@@ -346,8 +346,8 @@ func shareByDevice(c claims) {
 			details[d.mac] = merged
 		}
 
-		// Union rather than overwrite: detail is per address and the claim is
-		// per device, so only the union loses nothing. Where two addresses
+		// Union: detail is per address and the claim is per device, so only
+		// the union loses nothing. Where two addresses
 		// disagree the lower one wins, which is arbitrary but stable.
 		for key, value := range d.detail {
 			if _, seen := merged[key]; !seen {
@@ -384,8 +384,8 @@ func leaseRank(s dbtype.HostnameSource) int {
 
 // normaliseMAC renders a hardware address so both tables key on it alike.
 //
-// Carrying none is not an error -- an incomplete ARP entry has no mac-address
-// member at all -- but carrying something that is not one means drop the row.
+// Carrying none is fine, since an incomplete ARP entry has no mac-address
+// member at all. Carrying something that does not parse drops the row.
 func normaliseMAC(s string) (mac string, ok bool) {
 	if s == "" {
 		return "", true
@@ -416,7 +416,7 @@ func normaliseAddr(s string) (addr string, ok bool) {
 
 // classifyRouterOS maps the client's errors onto this package's, so nothing
 // above has to import pkg/routeros to tell a retryable failure from one that
-// needs a human. ErrNotFound stays unmapped -- it is neither.
+// needs a human. ErrNotFound stays unmapped, because it is neither.
 func classifyRouterOS(err error) error {
 	switch {
 	case errors.Is(err, routeros.ErrUnauthorized):

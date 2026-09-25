@@ -34,7 +34,7 @@ var trafficWindows = []trafficWindow{
 }
 
 // windowFor returns the window key names, falling back to the default for
-// anything else rather than refusing: it only ever arrives from a link.
+// anything else: the key only ever arrives from a link.
 func windowFor(key string) trafficWindow {
 	for _, w := range trafficWindows {
 		if w.Key == key {
@@ -236,8 +236,7 @@ func buildTrafficSection(
 
 	sec.Tab = pickTab(sec.Tabs, f.Tab)
 
-	// A tab that is not there any more is dropped from the address rather
-	// than kept pointing at nothing.
+	// A tab that is not there any more is dropped from the address.
 	if sec.Tab.Key != f.Tab {
 		f.Tab = ""
 	}
@@ -266,8 +265,8 @@ func devicePath(id int64, w trafficWindow, f trafficFilter) string {
 }
 
 // trafficWindowKey is the period a request asked for. The form and the page
-// call it traffic; window is what the section's links sent before it had a
-// form, and still works.
+// call it traffic; window is accepted too, for links made before the section
+// had a form.
 func trafficWindowKey(q url.Values) string {
 	return cmp.Or(q.Get("traffic"), q.Get("window"))
 }
@@ -280,7 +279,7 @@ func (h *Handler) deviceTraffic() response.HandlerFunc {
 			return inventory.ErrNotFound
 		}
 
-		// A device that is not there is a 404 here too, not an empty section.
+		// A device that is not there is a 404 here too.
 		if _, err := h.store.Device(r.Context(), id); err != nil {
 			return err
 		}
@@ -300,7 +299,7 @@ func (h *Handler) deviceTraffic() response.HandlerFunc {
 	}
 }
 
-// Traffic page sizes: a card is a glance, not a report.
+// Traffic page sizes: a card is a glance.
 const (
 	trafficCardRows = 10
 
@@ -312,8 +311,8 @@ const (
 	// narrows them in Go before taking the top of the list.
 	trafficAllRows = 100_000
 
-	// firstContactSpan is how far back "first contact" looks. Fixed rather
-	// than following the period switch: it answers "anything new this week?",
+	// firstContactSpan is how far back "first contact" looks, whatever the
+	// period switch says: it answers "anything new this week?",
 	// and a month of first contacts is mostly the month collection started.
 	firstContactSpan = 7 * 24 * time.Hour
 )
@@ -361,7 +360,7 @@ type trafficPage struct {
 	First   *inventory.FirstContacts
 
 	// NewOrgs is First grouped by organisation, newest first: one
-	// organisation many devices started reaching is one row, not one each.
+	// organisation many devices started reaching is one row.
 	NewOrgs []*newOrg
 
 	// MoreNewOrgs counts the organisations past the card's rows.
@@ -630,8 +629,8 @@ func (h *Handler) traffic(sm *auth.Session) response.HandlerFunc {
 			return err
 		}
 
-		// A group nobody is in any more is dropped rather than showing an
-		// empty page with no way to tell why.
+		// A group nobody is in any more is dropped: an empty page would give
+		// no way to tell why.
 		if g := strings.TrimSpace(q.Get("group")); slices.Contains(data.Groups, g) {
 			data.Group = g
 		}

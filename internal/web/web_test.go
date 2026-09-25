@@ -117,7 +117,7 @@ func testAuth(t *testing.T) *auth.Auth {
 	return a
 }
 
-// unseededAuth is testAuth without seeding an account -- for a test exercising
+// unseededAuth is testAuth without seeding an account, for a test exercising
 // the setup flow itself, which only makes sense before any account exists.
 func unseededAuth(t *testing.T) *auth.Auth {
 	t.Helper()
@@ -136,7 +136,7 @@ func unseededAuth(t *testing.T) *auth.Auth {
 // newWebHandler builds the web handler the way the server does: an HTML writer
 // with the error pages configured, and the templates attached inside
 // NewHandler, wrapped in the same session load-and-save the real server
-// applies outside it -- without it, any code touching the session panics on
+// applies outside it. Without it, any code touching the session panics on
 // finding no session data in the request's context.
 func newWebHandler(t *testing.T, store *inventory.Store) http.Handler {
 	t.Helper()
@@ -145,8 +145,8 @@ func newWebHandler(t *testing.T, store *inventory.Store) http.Handler {
 }
 
 // newWebHandlerWithAuth is newWebHandler for a test that needs its own handle
-// on the Auth it signs in against -- to look up what a token's create just
-// gave the user's id, say, rather than scraping it back out of a response.
+// on the Auth it signs in against, such as one that reads a user's id
+// directly.
 func newWebHandlerWithAuth(t *testing.T, store *inventory.Store, a *auth.Auth, opts ...Option) http.Handler {
 	t.Helper()
 
@@ -257,8 +257,8 @@ func TestOverviewRendersTheInventory(t *testing.T) {
 	assert.Contains(t, body, "jocasta")
 
 	// The ledger is the page's one graphic, and its proportion has to come out
-	// as a number: html/template replaces a value it cannot vouch for in an
-	// attribute with ZgotmplZ rather than failing.
+	// as a number: html/template silently replaces a value it cannot vouch for
+	// in an attribute with ZgotmplZ.
 	assert.Contains(t, body, `class="ledger"`)
 	assert.Contains(t, body, `width="100"`)
 	assert.NotContains(t, body, "ZgotmplZ")
@@ -321,8 +321,7 @@ func TestSweepNoteMarksAFailure(t *testing.T) {
 }
 
 // Every page in the signed-in shell opens with a skip link that jumps past the
-// rail to the main region, and breaks into <h2> sections rather than exposing
-// only its <h1>.
+// rail to the main region, and breaks into <h2> sections below its <h1>.
 func TestShellHasSkipLinkAndSectionHeadings(t *testing.T) {
 	t.Parallel()
 
@@ -401,7 +400,7 @@ func TestOverviewLeavesAnUnnamedSegmentBare(t *testing.T) {
 	assert.NotContains(t, body, "VLAN")
 }
 
-// An empty inventory is a state to explain, not a blank page: the operator is
+// An empty inventory is a state to explain: the operator is
 // told how the inventory gets filled and given a command to fill it now.
 func TestOverviewWithoutAnySweepInvitesOne(t *testing.T) {
 	t.Parallel()
@@ -414,8 +413,8 @@ func TestOverviewWithoutAnySweepInvitesOne(t *testing.T) {
 	assert.Contains(t, body, "No devices yet")
 	assert.Contains(t, body, "jocasta scan 192.0.2.0/24 --save")
 
-	// The invitation replaces the live block rather than sitting under an empty
-	// one: a ledger of nothing says less than the instruction does.
+	// The invitation replaces the live block: a ledger of nothing says less
+	// than the instruction does.
 	assert.NotContains(t, body, `id="live"`)
 	assert.NotContains(t, body, "Seen recently")
 
@@ -434,13 +433,13 @@ func TestOverviewLivePolls(t *testing.T) {
 	assert.Contains(t, page, `hx-trigger="every 30s"`)
 	assert.Contains(t, page, `hx-swap="innerHTML"`)
 
-	// An inventory that is being polled says so in the topbar -- and says it is
-	// the page refreshing, not the collector.
+	// An inventory that is being polled says so in the topbar, and says it is
+	// the page that refreshes.
 	assert.Contains(t, page, "Page refreshes every 30s")
 }
 
-// The fragment endpoint comes back on its own rather than wrapped in a document,
-// and without a second #live nested inside the one the page keeps.
+// The fragment endpoint comes back on its own, outside any document, and
+// without a second #live nested inside the one the page keeps.
 func TestOverviewLiveServesTheBodyAlone(t *testing.T) {
 	t.Parallel()
 
@@ -458,8 +457,7 @@ func TestOverviewLiveServesTheBodyAlone(t *testing.T) {
 	assert.Contains(t, body, "Recent")
 }
 
-// The root pattern ends in {$}, so an unknown path is reported rather than
-// quietly served the overview.
+// The root pattern ends in {$}, so an unknown path is reported as not found.
 func TestUnknownPathIsNotFound(t *testing.T) {
 	t.Parallel()
 
@@ -541,7 +539,7 @@ func TestNavMarksTheCurrentSection(t *testing.T) {
 	assert.Contains(t, overview, `href="/" aria-current="page"`, "the current entry is Overview")
 
 	// The 404 page's section names none of the nav's entries, so it marks
-	// nothing current rather than falling back to the first one.
+	// nothing current.
 	notFound := get(t, h, "/nope").Body.String()
 	assert.NotContains(t, notFound, `aria-current="page"`)
 }

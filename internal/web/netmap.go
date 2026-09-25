@@ -265,11 +265,11 @@ func (h *Handler) buildWorld(ctx context.Context, now time.Time, recent []invent
 }
 
 // arcBow is how far an arc bows up from the straight line, as a share of its
-// length: enough to read as a route, not a border.
+// length: enough to read as a route.
 const arcBow = 0.25
 
 // arc is a curve from one point on the world map to another, bowed upwards
-// so the lines out of one country fan apart rather than overlap.
+// so the lines out of one country fan apart.
 func arc(x1, y1, x2, y2 float64) string {
 	dx, dy := x2-x1, y2-y1
 	length := math.Hypot(dx, dy)
@@ -302,7 +302,7 @@ func arcWidth(n, top int64) float64 {
 
 // homeOf is the country the network is in: the one configured, or else the
 // one the router's outside address is registered in. A private outside
-// address -- the ISP's carrier-grade NAT -- places nothing, and nil is
+// address, as behind an ISP's carrier-grade NAT, places nothing, and nil is
 // returned when nothing does.
 func (h *Handler) homeOf(ctx context.Context, now time.Time) (*geo.Country, error) {
 	if c, ok := geo.CountryOf(h.homeCountry); ok {

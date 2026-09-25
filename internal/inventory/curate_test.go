@@ -40,7 +40,7 @@ func TestUpdateCurationApplies(t *testing.T) {
 	// The label is what the device is called once it has one.
 	assert.Equal(t, "Office printer", got.Name())
 
-	// And it is what came back that was stored, not only what was returned.
+	// The value was stored as well as returned.
 	reread, err := s.Device(t.Context(), id)
 	require.NoError(t, err)
 	assert.Equal(t, "Office printer", reread.Label)
@@ -80,8 +80,8 @@ func TestUpdateCurationTrims(t *testing.T) {
 	assert.Equal(t, "Office printer", got.Label)
 	assert.Equal(t, "office", got.Group)
 
-	// A label of only spaces is not a name, so it clears rather than becoming
-	// one that renders as nothing.
+	// A label of only spaces clears the label. Kept, it would be a name that
+	// renders as nothing.
 	got, err = s.UpdateCuration(t.Context(), id, Curation{Label: "   "})
 	require.NoError(t, err)
 	assert.Empty(t, got.Label)

@@ -534,9 +534,9 @@ func TestConnectionsAreCountedByWhoStartedThem(t *testing.T) {
 	assert.Equal(t, int64(9_000), incoming[0].Sent)
 }
 
-// An ICMP message that answers something -- here an unreachable sent back to a
-// device that swept a subnet -- is not a connection the replier started, and
-// a ping still is one the pinger did.
+// An ICMP message that answers something, here an unreachable sent back to a
+// device that swept a subnet, counts as no connection by the replier. A ping
+// still counts as one by the pinger.
 func TestOnlyPingsCountAsICMPConnections(t *testing.T) {
 	t.Parallel()
 

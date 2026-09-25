@@ -4,11 +4,10 @@ import "fmt"
 
 // Bool is a RouterOS boolean.
 //
-// The REST service renders most values as strings, so a flag arrives as
-// "true" rather than true. Some fields and some versions send a real JSON
-// boolean, and an absent flag sends nothing at all, so all three decode and
-// the missing one is false -- which is what every flag on these tables means
-// by its absence.
+// The REST service renders most values as strings, so a flag arrives as the
+// string "true". Some fields and some versions send a real JSON boolean, and
+// an absent flag sends nothing at all. All three decode, and a missing flag
+// is false, which is what every flag on these tables means by its absence.
 type Bool bool
 
 // UnmarshalJSON decodes the router's rendering of a boolean.

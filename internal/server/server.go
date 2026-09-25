@@ -36,9 +36,9 @@ type (
 
 		// CORSAllowedOrigins lists the origins (scheme://host[:port]) a browser
 		// may read this server's responses from cross-origin. Empty defaults to
-		// this server's own address, which is the same thing a browser already
-		// gets for free by same-origin rules -- CORS only starts to matter once
-		// something outside that address needs in.
+		// this server's own address, which same-origin rules already let a
+		// browser read. CORS matters only once something at another address
+		// needs in.
 		CORSAllowedOrigins []string
 
 		// SessionLifetime caps how long a signed-in browser stays signed in
@@ -50,8 +50,7 @@ type (
 		SessionCookieSecure bool
 
 		// MCPEnabled serves the Model Context Protocol endpoint at /mcp. Off,
-		// the path answers that it is off rather than falling through to the
-		// web UI.
+		// the path answers that it is off.
 		MCPEnabled bool
 
 		// RecentTraffic is what the traffic recorder saw lately, for the map
@@ -66,7 +65,7 @@ type (
 
 // Start runs the HTTP server for the API and web UI until ctx is cancelled.
 //
-// The store arrives built rather than opened here: the poller writes through
+// The caller builds the store and passes it in: the poller writes through
 // the same one, and how the inventory is read must not depend on which caller
 // constructed it. conn is the same database, handed on to back the session
 // store so a sign-in outlives a restart.
@@ -116,15 +115,15 @@ func Start(
 				return http.StatusNotFound
 			case errors.Is(err, auth.ErrInvalidCredentials):
 				return http.StatusUnauthorized
-			// ErrInvalidTOTPCode is the one failure that needs its own page
-			// (TemplateTOTP) rather than reusing TemplateLogin's 401 -- 428 is
-			// otherwise unused in this app and carries no special browser or
-			// proxy handling to work around, unlike 401/407.
+			// ErrInvalidTOTPCode is the one failure that needs its own page,
+			// TemplateTOTP, with status 428. Nothing else in the app uses 428,
+			// and browsers and proxies give it none of the special handling
+			// they give 401 and 407.
 			case errors.Is(err, auth.ErrInvalidTOTPCode):
 				return http.StatusPreconditionRequired
 			// Both reached only from the settings page, already signed in: the
 			// generic bad-request page they share is the right shell for a
-			// retry, not the standalone sign-in one 401 renders.
+			// retry. The standalone sign-in page belongs to 401.
 			case errors.Is(err, auth.ErrInvalidEnrollmentCode), errors.Is(err, auth.ErrInvalidPassword):
 				return http.StatusUnprocessableEntity
 			case errors.Is(err, auth.ErrSetupComplete):
@@ -133,10 +132,10 @@ func Start(
 				return http.StatusForbidden
 			}
 
-			// Zero, not 500: an error that describes its own status -- the
-			// request package's parse and validation failures do -- is left to
-			// the writer to read that status off, and only a truly unmapped
-			// error becomes a 500.
+			// Zero leaves the status to the writer. An error that describes its
+			// own status, as the request package's parse and validation
+			// failures do, has it read off, and only a truly unmapped error
+			// becomes a 500.
 			return 0
 		}),
 		response.WithErrorDataFunc(web.ErrorPageData),
@@ -176,7 +175,7 @@ func Start(
 
 	// An agent is a script by that reasoning: /mcp takes the same bearer
 	// tokens, checked by the MCP handler itself because a token's scope there
-	// decides which tools are offered rather than which methods are allowed.
+	// decides which tools are offered.
 	if cfg.MCPEnabled {
 		mux.Handle("/mcp", mcp.NewHandler(cfg.Logger, jw, a, store))
 	} else {
@@ -200,9 +199,9 @@ func Start(
 	// secureHeaders sits outside both gates so every response carries them,
 	// including the static files the renderer never sees and the redirect an
 	// unauthenticated request gets in place of a page. CORS sits inside
-	// sameOrigin: it only ever adds Access-Control-* headers or answers a
-	// preflight, never widens who may make a state-changing request -- that
-	// stays sameOrigin's call.
+	// sameOrigin: it only adds Access-Control-* headers or answers a
+	// preflight, and sameOrigin alone decides who may make a state-changing
+	// request.
 	h := secureHeaders(sameOrigin(corsMW.Handler(logger.NewHTTPLogger(cfg.Logger)(mux))))
 	h = middleware.RequestID(h)
 
@@ -218,7 +217,7 @@ func Start(
 // maxRequestBodyBytes caps a PATCH body the reader will decode.
 //
 // The largest curationRequest/deviceEdit a caller can legitimately send is
-// label(200) + notes(2000) + group(100) + a short type name -- a couple of KB
+// label(200) + notes(2000) + group(100) + a short type name: a couple of KB
 // even accounting for JSON or form-encoding overhead. 16KiB leaves an order of
 // magnitude of headroom over that while still refusing an unbounded body.
 const maxRequestBodyBytes = 16 << 10
@@ -226,10 +225,9 @@ const maxRequestBodyBytes = 16 << 10
 // csp is the content security policy every response carries.
 //
 // Everything the pages load is served from this origin: the stylesheet, and the
-// vendored htmx. That is the reason htmx is committed to the repository rather
-// than pulled from a CDN, and the reason no markup here carries an inline style
-// or an inline script -- both of which this policy refuses, and neither of which
-// htmx needs so long as hx-on attributes are left alone.
+// vendored htmx. That is why htmx is committed to the repository, and why no
+// markup here carries an inline style or an inline script. This policy refuses
+// both, and htmx needs neither as long as hx-on attributes stay unused.
 const csp = "default-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
 
 // secureHeaders sets the response headers that are the same for every response.
@@ -248,12 +246,12 @@ func secureHeaders(next http.Handler) http.Handler {
 // sameOrigin turns away a state-changing request that a browser has marked as
 // coming from another site.
 //
-// This is not a CSRF token, and stands in for one: the web UI's session rides
-// along on a cookie, which a browser attaches to a request regardless of which
-// site asked for it, and this is what stops another site's page from spending
-// that cookie's authority. The API's bearer token needs no such guard -- a
-// browser never attaches an Authorization header on its own, so there is
-// nothing here for a cross-site page to ride along on in the first place.
+// This stands in for a CSRF token. The web UI's session rides along on a
+// cookie, which a browser attaches to a request regardless of which site asked
+// for it, and this is what stops another site's page from spending that
+// cookie's authority. The API's bearer token needs no such guard: a browser
+// never attaches an Authorization header on its own, so a cross-site page has
+// nothing to ride along on.
 //
 // The headers are only trusted when present. A browser always sends them; curl
 // and the like send neither, and refusing those would break every script the
@@ -292,7 +290,7 @@ func fromSameOrigin(r *http.Request) bool {
 		break
 	default:
 		// cross-site or same-site: another origin, or another host on the same
-		// registrable domain, which is not this one.
+		// registrable domain.
 		return false
 	}
 

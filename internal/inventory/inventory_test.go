@@ -50,7 +50,7 @@ func newStore(t *testing.T) (*Store, *sql.DB) {
 
 // clockStore is newStore with a clock the test can jump forward, for asserting
 // behaviour that turns on how much time has passed between one sweep and the
-// next -- address retirement above all.
+// next, address retirement above all.
 func clockStore(t *testing.T) (*Store, *sql.DB, func(time.Duration)) {
 	t.Helper()
 
@@ -271,7 +271,7 @@ func TestRecordSweepIsIdempotent(t *testing.T) {
 }
 
 // An address seen before its hardware address must become the identified
-// device rather than a second one beside it.
+// device. A second row beside it would count the device twice.
 func TestRecordSweepIdentifiesLateMAC(t *testing.T) {
 	t.Parallel()
 
@@ -325,13 +325,13 @@ func TestRecordSweepFoldsDuplicate(t *testing.T) {
 	assert.Contains(t, eventKinds(t, conn, id), dbtype.EventDevicesMerged)
 	assertNoRowSeenBeforeItExisted(t, conn)
 
-	// The folded row's own history follows it rather than being orphaned.
+	// The folded row's own history follows it.
 	assert.Zero(t, queryInt(t, conn, `SELECT count(*) FROM events WHERE device_id = ?`, ghost))
 	assert.Zero(t, queryInt(t, conn, `SELECT count(*) FROM events WHERE device_id IS NULL`))
 }
 
-// A lease handed to another device moves the address rather than duplicating
-// it: only one device may hold an address as current.
+// A lease handed to another device moves the address: only one device may hold
+// an address as current.
 func TestRecordSweepMovesAddressBetweenDevices(t *testing.T) {
 	t.Parallel()
 
@@ -380,7 +380,7 @@ func TestRecordSweepMarksRandomisedAddress(t *testing.T) {
 	s, conn := newStore(t)
 
 	// The locally administered bit is set on this address, so the flag is
-	// derived rather than asserted into the host.
+	// derived from it.
 	sweep(t, s, host("192.0.2.10", "02:00:5e:00:53:01", ""))
 
 	assert.Equal(t, 1, queryInt(t, conn, `SELECT is_randomised FROM devices`))
@@ -399,9 +399,8 @@ func TestRecordSweepEmptyIsNotAnError(t *testing.T) {
 	assert.Zero(t, queryInt(t, conn, `SELECT count(*) FROM devices`))
 }
 
-// Inserts take their timestamps from Go and updates used to take theirs from
-// SQLite's own clock, which stamped a device as last seen before it was first
-// seen. Every row a sweep writes carries the one timestamp for that sweep.
+// Every row a sweep writes carries the one timestamp for that sweep, so no
+// device is stamped as last seen before it was first seen.
 func TestRecordSweepTimestampsAreOrdered(t *testing.T) {
 	t.Parallel()
 
@@ -419,8 +418,8 @@ func TestRecordSweepTimestampsAreOrdered(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, first, last)
 
-	// A sweep can open and close inside one second, so the invariant is that
-	// it does not finish before it started, not that the two differ.
+	// A sweep can open and close inside one second, so the invariant is only
+	// that it does not finish before it started.
 	var started, finished string
 
 	err = conn.QueryRowContext(t.Context(), `SELECT started_at, finished_at FROM scans`).Scan(&started, &finished)
@@ -441,8 +440,8 @@ func TestRecordSweepTimestampsAreOrdered(t *testing.T) {
 	assertNoRowSeenBeforeItExisted(t, conn)
 }
 
-// assertNoRowSeenBeforeItExisted checks the invariant across every row rather
-// than the one the calling test happened to look at.
+// assertNoRowSeenBeforeItExisted checks the invariant across every row in the
+// database.
 func assertNoRowSeenBeforeItExisted(t *testing.T, conn *sql.DB) {
 	t.Helper()
 
@@ -567,7 +566,7 @@ func TestReportDoesNotTakeAnAddressFromItsHolder(t *testing.T) {
 }
 
 // A source covering many networks names none of them, so each address is
-// matched to the network holding it rather than to one carried for the reading.
+// matched to the network holding it.
 func TestReportMatchesEachAddressToItsOwnNetwork(t *testing.T) {
 	t.Parallel()
 
@@ -605,11 +604,11 @@ func TestReportRecordsAnAddressOnNoKnownNetwork(t *testing.T) {
 		`SELECT COUNT(*) FROM addresses WHERE ip = ? AND network_id IS NULL`, "203.0.113.10"))
 }
 
-// RefreshAddress coalesces rather than assigns, so a source that cannot say
+// RefreshAddress coalesces the network, so a source that cannot say
 // which network an address is on leaves the one a sweep established. The store
-// path cannot reach this today -- an address is matched against every recorded
-// network, so a prefix a sweep recorded still matches -- which is why the guard
-// is asserted against the query itself.
+// path cannot reach this, since an address is matched against every recorded
+// network and a prefix a sweep recorded still matches, so the guard is
+// asserted against the query itself.
 func TestRefreshAddressKeepsTheNetworkASweepEstablished(t *testing.T) {
 	t.Parallel()
 
@@ -726,8 +725,8 @@ func TestASilentSourceKeepsItsLastName(t *testing.T) {
 	assert.Equal(t, string(dbtype.HostnameFromDNS), queryString(t, conn, `SELECT hostname_source FROM devices`))
 }
 
-// A device whose only source of a name goes quiet keeps that name rather than
-// going nameless. last_seen on the claim ages, which is where staleness shows.
+// A device whose only source of a name goes quiet keeps that name. last_seen
+// on the claim ages, which is where staleness shows.
 func TestADeviceKeepsItsNameWhenTheResolverGoesQuiet(t *testing.T) {
 	t.Parallel()
 
@@ -804,7 +803,7 @@ func TestFoldCarriesClaimsToTheSurvivingDevice(t *testing.T) {
 }
 
 // A source that had filed against both rows collides on the primary key, so the
-// claims merge instead of one of them being dropped. The fold is driven by a
+// claims merge and neither is dropped. The fold is driven by a
 // different source here, or this source's own upsert would mask the merge.
 func TestFoldMergesTwoClaimsFromOneSource(t *testing.T) {
 	t.Parallel()
@@ -864,7 +863,7 @@ func TestAClaimWithoutDetailStoresNull(t *testing.T) {
 	assert.Equal(t, 1, queryInt(t, conn, `SELECT count(*) FROM device_sources WHERE detail IS NULL`))
 }
 
-// A fact nothing can be recorded against is counted rather than silently lost.
+// A fact nothing can be recorded against is counted in Dropped.
 func TestReportCountsWhatItDropped(t *testing.T) {
 	t.Parallel()
 
@@ -937,7 +936,7 @@ func TestDeviceSourcesReportsEveryClaim(t *testing.T) {
 	}, router.Detail)
 }
 
-// Detail that will not decode costs the page that aside, not the whole device.
+// Detail that will not decode costs the page only that aside.
 func TestDeviceSourcesSurvivesUnreadableDetail(t *testing.T) {
 	t.Parallel()
 

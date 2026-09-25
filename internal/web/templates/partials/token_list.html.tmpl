@@ -1,9 +1,9 @@
 {{- /*
     The token completion state and the list, in one wrapper the revoke button
     swaps whole (hx-target="#token-list"). Rendered inline by page/tokens on
-    first paint, returned on its own by revokeToken. Swapping the wrapper rather
-    than a row means the last revoke lands on the "none yet" line, not an empty
-    table, and drops a plaintext still shown from a create just before it.
+    first paint, returned on its own by revokeToken. Swapping the whole wrapper
+    means the last revoke lands on the "none yet" line and drops a plaintext
+    still shown from a create just before it.
 
     Takes tokensData: PlaintextToken / NewName / NewScope are set only on the GET
     a create redirects to; Revoked is set only on the revoke response; Tokens is

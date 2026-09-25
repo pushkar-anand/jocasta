@@ -11,7 +11,7 @@ import (
 func addr(s string) []netip.Addr { return []netip.Addr{netip.MustParseAddr(s)} }
 
 // TestRulesetIsWellFormed checks the invariants a rule has to hold, so a
-// malformed entry fails here rather than misclassifying quietly.
+// malformed entry fails here before it can misclassify quietly.
 func TestRulesetIsWellFormed(t *testing.T) {
 	t.Parallel()
 

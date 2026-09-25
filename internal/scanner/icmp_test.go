@@ -50,7 +50,7 @@ func TestParseReply(t *testing.T) {
 }
 
 // TestParseReplyFromUDPSocket covers the unprivileged socket, which reports the
-// peer as a UDPAddr rather than an IPAddr.
+// peer as a UDPAddr.
 func TestParseReplyFromUDPSocket(t *testing.T) {
 	t.Parallel()
 

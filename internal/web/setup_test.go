@@ -30,8 +30,7 @@ func TestSetupFormCreatesTheFirstAdminAndSignsIn(t *testing.T) {
 	require.Equal(t, http.StatusFound, rec.Code)
 	assert.Equal(t, "/", rec.Header().Get("Location"))
 
-	// Signed in already, not left to sign in separately with what was just
-	// typed.
+	// Signed in already, with no separate sign-in step.
 	cookies := rec.Result().Cookies()
 	require.NotEmpty(t, cookies)
 
@@ -40,8 +39,7 @@ func TestSetupFormCreatesTheFirstAdminAndSignsIn(t *testing.T) {
 }
 
 // A form that does not validate is the visitor's to fix, so it comes back as
-// the request package's own 422 rendered on a page, not the bare 500 an
-// unmapped error falls through to.
+// the request package's own 422 rendered on a page.
 func TestSetupFormRejectsTooShortInput(t *testing.T) {
 	t.Parallel()
 

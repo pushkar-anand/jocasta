@@ -38,7 +38,7 @@ type overviewData struct {
 	// LastCollected is when a device sweep last finished with something to
 	// show for it; zero before the first. Stale is set when the newest sweep
 	// did not finish cleanly, or nothing has for long enough that the presence
-	// counts are probably behind rather than the devices actually quiet.
+	// counts probably lag behind the devices.
 	LastCollected time.Time
 	Stale         bool
 }
@@ -84,6 +84,9 @@ func (h *Handler) overviewLive() response.HandlerFunc {
 	}
 }
 
+// buildOverviewData reads everything the overview shows: the counts, the
+// networks, the newest changes and port events, the latest sweep and port
+// scan, and whether the presence counts look stale.
 func buildOverviewData(
 	ctx context.Context,
 	store *inventory.Store,
@@ -121,8 +124,8 @@ func buildOverviewData(
 
 	data := &overviewData{
 		// Live drives the topbar's "refreshing" line, and the page only
-		// mounts the poller once it has an inventory to poll for -- an empty
-		// one renders the invitation instead, with nothing that ticks.
+		// mounts the poller once it has an inventory to poll for. An empty
+		// one renders the invitation, with nothing that ticks.
 		Title: "Overview", Section: "Overview", Live: liveEvery(stats.Total > 0, "30s"),
 		Window:     windowWords(store.OnlineWindow()),
 		Stats:      stats,
@@ -132,8 +135,8 @@ func buildOverviewData(
 		Events:     activity.Events,
 	}
 
-	// A first run has no sweep behind it, which is a state to render rather
-	// than a failure to report.
+	// A first run has no sweep behind it yet: the page renders that state
+	// and reports no error.
 	if scan, err := store.LatestScan(ctx); err == nil {
 		data.Scan = scan
 		data.Note = sweepNote(scan)

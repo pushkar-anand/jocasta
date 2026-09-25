@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The bug in #35: a device that moves to a new address keeps the old one marked
+// A device that moves to a new address must not keep the old one marked
 // current. A sweep that finds the device elsewhere in the prefix, once the old
 // address has been silent past the grace window, retires it.
 func TestRetiresAnAddressADeviceMovedOff(t *testing.T) {
@@ -57,7 +57,7 @@ func TestKeepsAnAddressSilentOnlyBrieflyWithinGrace(t *testing.T) {
 		currentIPs(t, conn, deviceIDByMAC(t, conn, macA)))
 }
 
-// A device that answered nowhere this sweep is offline, not relocated. Nothing
+// A device that answered nowhere this sweep is offline. Nothing
 // in a silent sweep says its lease moved, so its address is left alone however
 // stale it is.
 func TestDoesNotRetireAnAddressOfADeviceItDidNotSee(t *testing.T) {

@@ -10,8 +10,8 @@ import (
 )
 
 // deviceQuery is every value the filter form puts in the query string. The
-// validate tags turn away a query string that is the wrong shape -- an
-// over-long term, a page that is not a positive number -- before it reaches the
+// validate tags turn away a query string that is the wrong shape, such as an
+// over-long term or a page that is not a positive number, before it reaches the
 // store. schema decoding fails on a key that is not listed here, so a field is
 // added for every control the form carries even where nothing constrains it.
 type deviceQuery struct {
@@ -86,7 +86,7 @@ func (h *Handler) deviceRows(sm *auth.Session) response.HandlerFunc {
 
 func (h *Handler) device(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		// A device that is not there is a page that is not there, not a fault.
+		// A device that is not there is a page that is not there: a 404.
 		id, ok := pathID(r)
 		if !ok {
 			return inventory.ErrNotFound

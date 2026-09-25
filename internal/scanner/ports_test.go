@@ -113,8 +113,8 @@ func TestWithPortsEmptyKeepsPreset(t *testing.T) {
 func TestPortScannerFindsOpenPorts(t *testing.T) {
 	t.Parallel()
 
-	// One port with a listener, one that had one and lost it, so the second is
-	// a genuine connection refusal rather than a timeout.
+	// One port with a listener, one that had one and lost it, so the second
+	// refuses the connection at once.
 	open := loopback(t)
 
 	gone := loopback(t)

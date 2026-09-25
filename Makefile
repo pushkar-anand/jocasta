@@ -33,8 +33,8 @@ geo: ## Rebuild the embedded IP-to-country table from DB-IP.
 world: ## Rebuild the embedded world outline from Natural Earth.
 	cd pkg/geo && go run ./internal/world
 
-# htmx is vendored rather than loaded from a CDN because the content security
-# policy admits scripts from this origin only.
+# htmx is vendored because the content security policy admits scripts from
+# this origin only.
 HTMX_VERSION ?= 2.0.8
 
 htmx: ## Refresh the vendored htmx. Usage: make htmx [HTMX_VERSION=2.0.8]

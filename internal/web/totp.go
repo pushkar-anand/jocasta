@@ -7,8 +7,8 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/auth"
 )
 
-// totpData is what the second-factor page needs to render standalone -- it
-// carries no view, same as loginData, since this page has no signed-in shell
+// totpData is what the second-factor page needs to render standalone. It
+// carries no view, as with loginData, since this page has no signed-in shell
 // either.
 type totpData struct {
 	Title string
@@ -16,7 +16,7 @@ type totpData struct {
 }
 
 // loginTOTP serves the second-factor page. Reaching it with no pending
-// sign-in -- never started, or the session that started it is gone --
+// sign-in (never started, or the session that started it is gone)
 // answers the same way a bad /login attempt does, since there's no more to
 // say about it than that.
 func (h *Handler) loginTOTP(sm *auth.Session) response.HandlerFunc {
@@ -40,8 +40,8 @@ func (h *Handler) loginTOTP(sm *auth.Session) response.HandlerFunc {
 
 func (h *Handler) loginTOTPForm(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	type totpForm struct {
-		// max=64 fits a recovery code (xxxx-xxxx-xxxx-xxxx, 19 chars), not just
-		// a 6-digit TOTP value -- one field covers both.
+		// max=64 fits a recovery code (xxxx-xxxx-xxxx-xxxx, 19 chars) as well
+		// as a 6-digit TOTP value: one field covers both.
 		Code string `schema:"code" validate:"required,min=6,max=64"`
 	}
 

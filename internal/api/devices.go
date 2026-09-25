@@ -27,8 +27,8 @@ func (h *Handler) listDevices(store *inventory.Store) response.HandlerFunc {
 		// devicesRequest narrows a device list. Fields are matched by their
 		// schema tag, so the names here are the ones the query string uses.
 		//
-		// A misspelt filter is rejected rather than ignored: silently returning
-		// the unfiltered list looks like the filter matched everything. The
+		// A misspelt filter is rejected: silently returning the unfiltered list
+		// would look like the filter matched everything. The
 		// values each rule admits are the ones inventory.Status and
 		// inventory.Sort name.
 		devicesRequest struct {
@@ -91,7 +91,7 @@ func (h *Handler) updateDevice(store *inventory.Store) response.HandlerFunc {
 	// applied, so one left out of the body clears what was there.
 	//
 	// Nothing a scan writes appears here: an address, a vendor or a hardware
-	// address is what the network reported, not something to correct by hand.
+	// address is what the network reported, and stays as reported.
 	type curationRequest struct {
 		Label   string `json:"label" validate:"omitempty,max=200"`
 		Notes   string `json:"notes" validate:"omitempty,max=2000"`
@@ -141,7 +141,7 @@ func (h *Handler) deviceEvents(store *inventory.Store) response.HandlerFunc {
 		}
 
 		// The device is read first so that asking for the history of a device
-		// that does not exist is a 404 rather than an empty list.
+		// that does not exist is a 404.
 		if _, err := store.Device(r.Context(), id); err != nil {
 			return err
 		}

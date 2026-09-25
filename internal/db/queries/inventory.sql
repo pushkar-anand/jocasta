@@ -13,13 +13,13 @@ RETURNING *;
 -- name: AllNetworks :many
 -- Every recorded network, for matching an address to the prefix containing it.
 -- SQLite cannot test containment, so the comparison happens in Go and this
--- returns the whole (small) table rather than filtering.
+-- returns the whole (small) table.
 SELECT id, cidr
 FROM networks
 ORDER BY id;
 
--- What a source says a segment is. name and vlan_id are assigned rather than
--- coalesced: a VLAN renamed on the router is renamed here, and one that loses
+-- What a source says a segment is. name and vlan_id are assigned outright: a
+-- VLAN renamed on the router is renamed here, and one that loses
 -- its tag loses it here too.
 -- name: UpsertNetworkIdentity :exec
 INSERT INTO networks (cidr, name, vlan_id, created_at)
@@ -35,7 +35,7 @@ RETURNING *;
 -- name: LatestSuccessfulScanFinishedAt :one
 -- When a scan of this kind last finished with something to show for it, which
 -- is the anchor the poller schedules from: it waits an interval after the work
--- ends, not after it begins, so the two agree on what an interval measures.
+-- ends, so the two agree on what an interval measures.
 --
 -- Only scans that succeeded count. A failed one gathered nothing and a scan
 -- whose process died mid-run never wrote a finish at all; crediting either
@@ -111,13 +111,13 @@ UPDATE OR IGNORE addresses
 SET device_id = sqlc.arg(into_id)
 WHERE device_id = sqlc.arg(from_id);
 
--- Upserted rather than replaced, so first_seen survives every later reading.
+-- Upserted, so first_seen survives every later reading.
 --
 -- A name only moves when this source offers one: an empty reading leaves the
--- last name it knew in place rather than clearing it. A sweep resolves a name
--- per address, so a multi-homed host with a PTR on one interface and none on
--- another would otherwise thrash its name every pass; and a device that stops
--- answering has not been renamed, it has gone quiet. last_seen still ages, so
+-- last name it knew in place. A sweep resolves a name per address, so a
+-- multi-homed host with a PTR on one interface and none on another would
+-- otherwise thrash its name every pass; and a device that stops answering has
+-- gone quiet and keeps its name. last_seen still ages, so
 -- how stale the kept name is stays visible. A different non-empty name, from
 -- this source or a higher one, still replaces it.
 -- name: UpsertDeviceSource :exec
@@ -186,7 +186,8 @@ WHERE device_id = ?
   AND is_current = 1;
 
 -- Only one device may hold an address as current, so the previous holder is
--- released before the new claim rather than colliding with the partial index.
+-- released before the new claim, which would otherwise collide with the partial
+-- index.
 -- name: ReleaseAddress :exec
 UPDATE addresses
 SET is_current = 0
@@ -208,8 +209,8 @@ VALUES (?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: RefreshAddress :exec
--- COALESCE, not assignment: a source that cannot say which network an address
--- is on must leave the one a sweep established rather than erase it.
+-- COALESCE: a source that cannot say which network an address is on must
+-- leave the one a sweep established in place.
 UPDATE addresses
 SET is_current = 1,
     network_id = COALESCE(sqlc.narg(network_id), network_id),
@@ -237,15 +238,15 @@ WHERE started_at < ?
 
 -- Reads.
 
--- The current addresses come back on the device's own row rather than through a
--- join, so one query answers the list. The open ports and the ids of the
+-- The current addresses come back on the device's own row, aggregated, so one
+-- query answers the list. The open ports and the ids of the
 -- networks those addresses sit on ride along the same way, so a list can say
 -- what a device exposes and where it lives without a query per row.
 -- GROUP_CONCAT has no ordering worth relying on and the address column is TEXT,
 -- which sorts 192.0.2.9 after 192.0.2.100, so the caller splits and orders
 -- what it needs ordered.
 --
--- is_ignored compares against the argument rather than testing a flag: passing
+-- is_ignored compares against the argument: passing
 -- false leaves the clause admitting only unignored rows, and passing true makes
 -- the second half admit the rest.
 -- name: ListDevices :many
@@ -306,10 +307,7 @@ WHERE device_id = ?
 ORDER BY occurred_at DESC, id DESC
 LIMIT ?;
 
--- The device columns come from a LEFT JOIN because an event outlives the device
--- it described: deleting one sets events.device_id to NULL rather than taking
--- the record with it.
--- The two logs are read with a query builder rather than from here: paging
+-- The two logs are read with a query builder: paging
 -- them seeks past the row the last page ended on, and the seek is a clause that
 -- is present or absent. See internal/db/models/inventory_page.go.
 
@@ -322,14 +320,14 @@ FROM devices;
 
 -- Every network a sweep has recorded, with how many devices hold an address on
 -- it now. A device counts on each network it currently holds an address on:
--- the overview asks what is on a prefix, not how the inventory divides into
--- disjoint parts. A network no sweep has found anything on still lists, at
--- zero -- that it is quiet is the fact worth showing.
+-- the overview asks what is on a prefix, and the networks may overlap. A
+-- network no sweep has found anything on still lists, at zero, because that it
+-- is quiet is the fact worth showing.
 --
 -- Ignored devices are left out, so the count agrees with the list the network
--- page draws below it: the join drops them and the counts are over d.id rather
--- than a.device_id, which would still be set for an address whose device the
--- join excluded.
+-- page draws below it: the join drops them and the counts are over d.id.
+-- a.device_id would still be set for an address whose device the join
+-- excluded.
 -- name: ListNetworks :many
 SELECT n.id,
        n.cidr,
@@ -354,8 +352,8 @@ ORDER BY group_name;
 
 -- Writes.
 
--- Every user-owned column is set rather than merged: the form submits all of
--- them, so an omitted one means cleared, not unchanged.
+-- Every user-owned column is set: the form submits all of them, so an omitted
+-- one means cleared.
 -- name: UpdateDeviceCuration :one
 UPDATE devices
 SET label       = sqlc.narg(label),
@@ -408,8 +406,8 @@ SELECT CAST((SELECT COUNT(*)
              WHERE e.kind = 'PORT_CLOSED' AND d.is_ignored = 0
                AND e.occurred_at >= sqlc.arg(changed_since)) AS INTEGER) AS closed;
 
--- Services rather than individual ports are what an operator recognises at a
--- glance. Unknown services fall back to their port number in the caller.
+-- Grouped by service, which is what an operator recognises at a glance.
+-- Unknown services fall back to their port number in the caller.
 -- name: CommonOpenServices :many
 SELECT p.port, p.service, CAST(COUNT(*) AS INTEGER) AS devices
 FROM device_ports p
@@ -422,7 +420,7 @@ LIMIT ?;
 
 -- Every address a port scan should probe: the current address of every device
 -- the user has not ignored. The scan works from what discovery has already
--- found rather than sweeping, so this is its whole target list.
+-- found, so this is its whole target list.
 -- name: AllCurrentAddresses :many
 SELECT a.device_id, a.ip
 FROM addresses a
@@ -440,8 +438,8 @@ FROM device_ports
 WHERE device_id = ?
   AND state = 'open';
 
--- Every port ever seen open on a device, for the device page. Open ones lead --
--- 'open' sorts after 'closed', so DESC puts them first -- then by number. A
+-- Every port ever seen open on a device, for the device page. Open ones lead
+-- ('open' sorts after 'closed', so DESC puts them first), then by number. A
 -- closed row is where a service used to answer, which is worth seeing beside
 -- the ones that still do.
 -- name: ListDevicePorts :many

@@ -108,9 +108,8 @@ func scanKind(s string) dbtype.ScanKind {
 // eventsQuery is the events log's own query string: its cursor, plus the
 // device it narrows to when there is one.
 //
-// Device is kept as a string and not parsed here: a value that names no
-// device is a page that is not there, not a bad request, so the handler turns
-// it into inventory.ErrNotFound itself rather than a validation error.
+// Device is kept as a string: a value that names no device is a page that is
+// not there, so the handler turns it into inventory.ErrNotFound itself.
 type eventsQuery struct {
 	logQuery
 	Device string `schema:"device" validate:"omitempty,max=20"`

@@ -12,9 +12,9 @@ import (
 )
 
 // editor is a handler over the seeded inventory plus the cookies of a signed-in
-// admin. Every route these tests exercise -- the PATCH curate endpoints and the
-// edit form -- is gated to an account that may write, so an unauthenticated
-// request gets the forbidden page rather than the handler.
+// admin. Every route these tests exercise (the PATCH curate endpoints and the
+// edit form) is gated to an account that may write, so an unauthenticated
+// request gets the forbidden page.
 func editor(t *testing.T) (http.Handler, []*http.Cookie) {
 	t.Helper()
 
@@ -113,7 +113,7 @@ func TestUpdateDeviceRowAnswersWithTheRow(t *testing.T) {
 
 	body := rec.Body.String()
 
-	// The row, not the form and not a page.
+	// The response is the row alone.
 	assert.NotContains(t, body, "<!DOCTYPE html>")
 	assert.NotContains(t, body, "hx-patch")
 	assert.Contains(t, body, `id="device-row-1"`)
@@ -148,7 +148,7 @@ func TestUpdateDeviceAnswersWithThePanel(t *testing.T) {
 	assert.Contains(t, body, `id="device-panel"`)
 
 	// The "Details saved." status takes a tabindex so the swap can land focus on the
-	// outcome rather than leaving the keyboard on the body.
+	// outcome.
 	assert.Contains(t, body, `<p class="saved" role="status" tabindex="-1">Details saved.</p>`)
 
 	// The edit form is folded away again after a save: the facts lead.
@@ -156,7 +156,7 @@ func TestUpdateDeviceAnswersWithThePanel(t *testing.T) {
 
 	// The heading is drawn by the layout, outside this swap, so the panel
 	// updates it out of band: a new label shows up where the device is named
-	// and not only in the field.
+	// as well as in the field.
 	assert.Contains(t, body, `<h1 id="page-title" hx-swap-oob="true">Office printer</h1>`)
 	assert.Contains(t, body, "Hallway.")
 
@@ -235,9 +235,9 @@ func TestCurationFromForm(t *testing.T) {
 	assert.True(t, got.Ignored)
 }
 
-// The checkbox is read through the same validated form as every other field,
-// not by hand: unchecked (absent) and explicitly "0" both mean false, and the
-// value the template actually emits when checked, "1", means true.
+// The checkbox is read through the same validated form as every other field:
+// unchecked (absent) and explicitly "0" both mean false, and "1", the value
+// the template emits when checked, means true.
 func TestDeviceEditIgnoredCheckbox(t *testing.T) {
 	t.Parallel()
 
@@ -251,9 +251,9 @@ func TestDeviceEditIgnoredCheckbox(t *testing.T) {
 		{"explicit 0", url.Values{"ignored": {"0"}}, false},
 
 		// "on" is the value a bare <input type=checkbox> submits when it
-		// carries no explicit value attribute -- not what this app's own
-		// template sends, but a schema decoder that understands HTML forms
-		// reads it as checked too.
+		// carries no value attribute. This app's template sends "1", and a
+		// schema decoder that understands HTML forms reads "on" as checked
+		// too.
 		{"on", url.Values{"ignored": {"on"}}, true},
 	}
 
@@ -272,8 +272,7 @@ func TestDeviceEditIgnoredCheckbox(t *testing.T) {
 }
 
 // A value that is not any recognised spelling of a checkbox's state fails the
-// same way any other malformed field would, rather than being read as
-// unchecked.
+// same way any other malformed field would.
 func TestDeviceEditRejectsAMalformedCheckbox(t *testing.T) {
 	t.Parallel()
 
@@ -285,7 +284,7 @@ func TestDeviceEditRejectsAMalformedCheckbox(t *testing.T) {
 }
 
 // The user's fields are rendered through html/template, so a label carrying
-// markup is text and not markup.
+// markup is escaped and shown as text.
 func TestCurationIsEscaped(t *testing.T) {
 	t.Parallel()
 

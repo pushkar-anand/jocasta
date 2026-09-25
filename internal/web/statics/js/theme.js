@@ -21,7 +21,7 @@
         }
     }
 
-    // Set initial theme early to prevent flash of unstyled content
+    // Applied before the page paints, so it never flashes the wrong theme.
     applyTheme(getTheme());
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -32,12 +32,12 @@
                 var current = document.documentElement.getAttribute('data-theme');
                 var nextTheme = current === 'dark' ? 'light' : 'dark';
                 applyTheme(nextTheme);
-                localStorage.setItem('theme', nextTheme); // Only explicitly set on user action
+                localStorage.setItem('theme', nextTheme); // stored only when the user picks one
             });
         }
     });
 
-    // Listen for system theme changes
+    // Follow the system theme until the user picks one.
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
         if (!localStorage.getItem('theme')) {
             applyTheme(e.matches ? 'dark' : 'light');

@@ -25,12 +25,12 @@ type IPAddress struct {
 	ActualInterface string `json:"actual-interface"`
 
 	// Dynamic separates an address the router was handed from one an operator
-	// configured. A WAN address from the ISP's DHCP server is dynamic, and it
-	// is a link the router sits on rather than a segment it serves.
+	// configured. A WAN address from the ISP's DHCP server is dynamic: the
+	// router sits on that link without serving it as a segment.
 	Dynamic Bool `json:"dynamic"`
 
-	// Invalid marks an address the router itself no longer believes -- its
-	// interface is gone -- and Disabled one an operator turned off.
+	// Invalid marks an address the router itself no longer believes, because
+	// its interface is gone, and Disabled one an operator turned off.
 	Invalid  Bool `json:"invalid"`
 	Disabled Bool `json:"disabled"`
 
@@ -40,7 +40,7 @@ type IPAddress struct {
 }
 
 // Usable reports whether the address describes a segment the router serves
-// now: believed, switched on, and configured rather than handed to it.
+// now: believed, switched on, and configured by an operator.
 func (a IPAddress) Usable() bool {
 	return !bool(a.Invalid) && !bool(a.Disabled) && !bool(a.Dynamic)
 }

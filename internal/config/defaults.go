@@ -48,9 +48,9 @@ var defaults = map[string]any{
 }
 
 // DefaultNetFlowListen is the UDP address a NetFlow instance binds when it
-// names none: 2055 is the port exporters default to. It lives here rather than
-// in the defaults map because a map-keyed block has no static key path to put
-// a default on.
+// names none: 2055 is the port exporters default to. It is a constant because
+// a map-keyed block has no static key path in the defaults map to hang a
+// default on.
 const DefaultNetFlowListen = ":2055"
 
 // defaultSource names the vantage point sweeps are taken from when nothing

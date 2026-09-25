@@ -1,5 +1,5 @@
-// Package classify guesses what kind of device a record describes -- a phone, a
-// printer, a camera -- from what a scan already knows about it: its vendor, its
+// Package classify guesses what kind of device a record describes (a phone, a
+// printer, a camera) from what a scan already knows about it: its vendor, its
 // name, and the TCP ports it answers on.
 //
 // The guess is advisory. Every rule here is a heuristic a determined device can
@@ -13,7 +13,7 @@
 // the conditions that point at it; [Device] picks the matching rule with the
 // most conditions, and on a tie the one listed first. The list therefore runs
 // from the most definitive rules to the weakest, and that order is the only
-// tie-breaker -- there are no weights to balance.
+// tie-breaker. There are no weights to balance.
 package classify
 
 import (
@@ -23,7 +23,7 @@ import (
 )
 
 // Input is what the classifier reasons over. A caller fills it from the
-// inventory; an empty field is simply one less signal, never an error.
+// inventory; an empty field is one less signal.
 type Input struct {
 	// Vendor is the OUI short name, or "" when the address is randomised or
 	// registered to nobody the table knows.
@@ -85,8 +85,8 @@ const (
 )
 
 // classes is every real class, in a stable order for a caller building an icon
-// map or a filter. It plays no part in classification -- the rule order does
-// that.
+// map or a filter. It plays no part in classification, which the rule order
+// decides.
 var classes = []Class{
 	Router, Switch, AccessPoint, Firewall, Server, NAS, Hypervisor,
 	Desktop, Laptop, Phone, Tablet, Printer, Camera, TV, Streaming,

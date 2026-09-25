@@ -34,7 +34,7 @@ func signIn(t *testing.T, h http.Handler) []*http.Cookie {
 }
 
 // follow issues a GET for the Location a prior response redirected to, carrying
-// the same cookies plus any the redirecting response set -- the second half of
+// the same cookies plus any the redirecting response set: the second half of
 // a POST-redirect-GET.
 func follow(t *testing.T, h http.Handler, cookies []*http.Cookie, rec *httptest.ResponseRecorder) *httptest.ResponseRecorder {
 	t.Helper()
@@ -75,8 +75,8 @@ func requestAs(t *testing.T, h http.Handler, cookies []*http.Cookie, method, tar
 }
 
 // Nothing in the web package itself redirects a signed-out request the way
-// auth.Middleware does -- that gate lives at the server level -- so a request
-// with no session reaching this handler surfaces as an error page instead.
+// auth.Middleware does, since that gate lives at the server level, so a
+// request with no session reaching this handler surfaces as an error page.
 func TestTokensPageRequiresASession(t *testing.T) {
 	t.Parallel()
 
@@ -145,8 +145,7 @@ func TestCreateAndRevokeToken(t *testing.T) {
 
 	id := onlyTokenRowID(t, body)
 
-	// Revoking asks first, in a page dialog whose button names the action,
-	// not the browser's OK/Cancel box.
+	// Revoking asks first, in a page dialog whose button names the action.
 	assert.NotContains(t, body, "hx-confirm")
 	assert.Contains(t, body, `data-open="revoke-dialog-`+strconv.FormatInt(id, 10)+`"`)
 	assert.Contains(t, body, ">Revoke token</button>")
@@ -160,7 +159,7 @@ func TestCreateAndRevokeToken(t *testing.T) {
 
 	// Revoking straight after the create, while the reveal is still on the
 	// page: the response is the whole list region, showing the "none yet"
-	// line rather than an empty table, and carrying no leftover plaintext.
+	// line and carrying no leftover plaintext.
 	rec = requestAs(t, h, cookies, http.MethodDelete, "/settings/tokens/"+strconv.FormatInt(id, 10), "")
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "No tokens yet.")
@@ -189,7 +188,7 @@ func TestCreateTokenRejectsAnUnknownScope(t *testing.T) {
 }
 
 // The form's own required/maxlength attributes stop an empty name in a browser;
-// a request that gets past them is answered on a page, not with a bare 500.
+// a request that gets past them is answered on a page.
 func TestCreateTokenRejectsAMissingName(t *testing.T) {
 	t.Parallel()
 

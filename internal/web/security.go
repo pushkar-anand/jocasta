@@ -17,15 +17,15 @@ type securityData struct {
 
 	TOTPEnabled bool
 	// Enrolling is true once a secret has been generated but not yet
-	// confirmed -- the page shows the QR/manual key and a confirm form
-	// instead of the enable button.
+	// confirmed. The page then shows the QR/manual key and a confirm form
+	// in place of the enable button.
 	Enrolling bool
 	Secret    string
 
 	RecoveryCodesRemaining int64
 
 	// RecoveryCodes is the one-shot flash a confirm or regenerate leaves for
-	// the GET it redirects to -- see flashRecoveryCodes.
+	// the GET it redirects to; see flashRecoveryCodes.
 	RecoveryCodes []string
 }
 
@@ -191,8 +191,8 @@ func (h *Handler) securityRegenerateRecoveryCodes(sm *auth.Session, a *auth.Auth
 
 // totpQR serves the pending enrollment's QR code as a same-origin image, so
 // the CSP's default-src 'self' (no img-src override) never has to admit a
-// data: URI. It never renders through htmlWriter -- there's no template
-// involved, just image bytes written directly to the response.
+// data: URI. It writes the image bytes straight to the response, with no
+// template.
 func (h *Handler) totpQR(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		userID, err := currentUserID(sm, r)

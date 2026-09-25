@@ -50,8 +50,9 @@ const (
 	// fall back to the larger of the stored one and what came after.
 	maxPortSets = 50_000
 
-	// udpStreamPackets is how many packets a one-way UDP exchange needs to be
-	// a stream -- logs, video, a game -- rather than a probe nobody answered.
+	// udpStreamPackets is how many packets a one-way UDP exchange needs to
+	// count as a stream (logs, video, a game). Fewer is a probe nobody
+	// answered.
 	udpStreamPackets = 4
 
 	// tcpKnockPackets is the most packets, both ways together, a knock can
@@ -59,7 +60,7 @@ const (
 	tcpKnockPackets = 10
 
 	// tcpHeaderBytes4 and tcpHeaderBytes6 are the largest a TCP packet
-	// carrying no data gets -- a SYN with its options -- over IPv4 and IPv6.
+	// carrying no data gets (a SYN with its options) over IPv4 and IPv6.
 	// A direction averaging more than that carried something.
 	tcpHeaderBytes4 = 60
 	tcpHeaderBytes6 = 80
@@ -76,7 +77,7 @@ type attemptKey struct {
 }
 
 // attemptSample is what one flush adds for an attemptKey. portCount and ports
-// cover the whole hour so far, not just this flush.
+// cover the whole hour so far, earlier flushes included.
 type attemptSample struct {
 	attempts, answered uint64
 	flushPorts         []uint16
@@ -84,7 +85,7 @@ type attemptSample struct {
 	ports              []uint16
 
 	// lateAnswered counts replies that opened a port knocked on in an earlier
-	// flush. They answer attempts already on record rather than this flush's.
+	// flush. They answer attempts already on record from that flush.
 	lateAnswered uint64
 }
 
@@ -146,15 +147,10 @@ func pairOf(k trafficKey) pairID {
 	return pairID{source: k.source, hour: k.hour, protocol: k.protocol, service: k.service, a: a, b: b}
 }
 
-// splitAttempts sorts one flush into conversations -- data went somewhere --
-// and attempts that never carried any: a port knocked on, a SYN nobody
-// answered, a ping, a one-off UDP datagram. The first become traffic rows; the
-// second are counted per peer, so a scan that knocks on a thousand ports is
-// one row a peer rather than a thousand.
 // oneWayByDesign reports whether UDP on service is one-way in what a router
 // exports: DHCP. A client's request goes to the router, and the answer is a
 // broadcast or comes from the router itself, neither of which the router's
-// export carries -- so every renewal would look like a try nobody answered.
+// export carries, so every renewal would look like a try nobody answered.
 func oneWayByDesign(service uint16) bool {
 	switch service {
 	case 67, 68, 546, 547: // DHCP server and client, DHCPv6 client and server.
@@ -164,6 +160,11 @@ func oneWayByDesign(service uint16) bool {
 	return false
 }
 
+// splitAttempts sorts one flush into conversations, where data went somewhere,
+// and attempts that never carried any: a port knocked on, a SYN nobody
+// answered, a ping, a one-off UDP datagram. The first become traffic rows; the
+// second are counted per peer, so a scan that knocks on a thousand ports is
+// one row a peer.
 func splitAttempts(pending map[trafficKey]*trafficTotals) (map[trafficKey]*trafficTotals, map[attemptKey]*attemptSample) {
 	pairs := make(map[pairID][]trafficKey)
 
@@ -286,7 +287,7 @@ func splitAttempts(pending map[trafficKey]*trafficTotals) (map[trafficKey]*traff
 						late(k, t.echoReplies)
 					}
 				default:
-					// Unreachables and the like: not an attempt by either side.
+					// Unreachables and the like: neither side made an attempt.
 					conversations[k] = t
 				}
 			}
@@ -345,8 +346,8 @@ func lateReply(keys []trafficKey, pending map[trafficKey]*trafficTotals) (traffi
 // tcpKnock reports whether a TCP exchange opened a connection and sent no
 // data through it: a port knocked on and refused, or opened and shut at once.
 //
-// Payload is read off the sizes, not the PSH flag, because exporters do not
-// agree on what the flags field holds: some OR every packet's flags, a
+// Payload is read off the sizes, because exporters do not agree on what the
+// flags field holds, so PSH cannot be trusted: some OR every packet's flags, a
 // MikroTik reports only the first packet's. The first packet is still what
 // tells a new connection (SYN) from a long one that only traded keepalives
 // this minute, which is a conversation.
@@ -498,8 +499,8 @@ func (s *Store) upsertAttempts(
 
 	ports := a.ports
 
-	// Merge with what an earlier flush -- or an earlier run of this
-	// process -- stored for the hour.
+	// Merge with what an earlier flush, or an earlier run of this
+	// process, stored for the hour.
 	prev, err := q.AttemptPorts(ctx, models.AttemptPortsParams{
 		DeviceID: device, Hour: p.Hour, SourceID: srcID, PeerIP: p.PeerIP, Protocol: p.Protocol,
 	})

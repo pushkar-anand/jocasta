@@ -33,10 +33,9 @@ type (
 	CORS struct {
 		// AllowedOrigins lists the origins (scheme://host[:port]) permitted to
 		// make cross-origin requests, such as a dashboard hosted elsewhere that
-		// calls the JSON API from the browser. Blank leaves it to the server to
-		// default to its own address, which is what a browser already allows
-		// without CORS -- so an unset list changes nothing until an origin
-		// outside it is added here.
+		// calls the JSON API from the browser. Blank defaults to the server's
+		// own address, which a browser already allows without CORS, so an
+		// unset list changes nothing.
 		AllowedOrigins []string `koanf:"allowed_origins"`
 	}
 
@@ -82,7 +81,7 @@ type (
 		// Country is the two-letter code of the country the network is in,
 		// which the world map draws its lines from. Empty leaves it to the
 		// router's outside address, which cannot place the network when it
-		// is private -- behind an ISP's carrier-grade NAT.
+		// is private, as it is behind an ISP's carrier-grade NAT.
 		Country string `koanf:"country"`
 
 		// Timezone is the IANA name of the zone times are shown in, such as
@@ -165,14 +164,13 @@ type (
 
 		// Exporters are the addresses of the routers allowed to send. UDP
 		// carries no authentication, so a datagram from anywhere else is
-		// dropped unread, and an empty list is a config error rather than
-		// "accept everything".
+		// dropped unread, and an empty list is a config error.
 		Exporters []string `koanf:"exporters"`
 	}
 
 	// Auth controls how long a signed-in browser stays signed in and whether
-	// its cookie is confined to HTTPS. The cookie's name, path and other flags
-	// are jocasta's to set and are deliberately not here.
+	// its cookie is confined to HTTPS. jocasta sets the cookie's name, path and
+	// other flags itself.
 	Auth struct {
 		// SessionLifetime is the longest a session lasts from sign-in,
 		// regardless of activity.
@@ -190,17 +188,17 @@ type (
 
 	// MCP controls the Model Context Protocol endpoint AI agents connect to.
 	MCP struct {
-		// Enabled serves /mcp. It is off unless asked for: the endpoint still
-		// needs an API token, but a feature that hands the inventory to an
-		// agent is one to opt into rather than one to find already running.
+		// Enabled serves /mcp. It is off by default: the endpoint needs an API
+		// token either way, and handing the inventory to an agent should be a
+		// choice the owner makes.
 		Enabled bool `koanf:"enabled"`
 	}
 
 	// Plugins holds the sources beyond the sweep, each block keyed by an
 	// instance name that becomes the source these facts are filed under.
 	//
-	// A map rather than a list, so an environment override addresses one
-	// instance by name. A list decodes an override into a single zero-valued
+	// Each block is a map so an environment override addresses one instance
+	// by name. A list decodes an override into a single zero-valued
 	// element and reports no error, which loses every configured instance
 	// silently.
 	Plugins struct {

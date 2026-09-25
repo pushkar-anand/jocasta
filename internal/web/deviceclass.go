@@ -87,7 +87,7 @@ type classChoice struct {
 }
 
 // classChoices is the picker's options, ordered by label: the classifier's own
-// order is a tie-break rule, not one a person reading a list would expect. The
+// order is a tie-break rule a person reading a list would not expect. The
 // blank "let the classifier decide" option is the template's to add, since only
 // it knows the current guess to name in it.
 func classChoices() []classChoice {
@@ -134,8 +134,8 @@ var classGlyphs = map[classify.Class]template.HTML{
 	classify.VoIP:           `<path d="M5 4h5l1.5 5-2.5 1.8a12 12 0 0 0 5.2 5.2L17 18.5 22 20v-1a2 2 0 0 0-2-2h0M4 4a16 16 0 0 0 16 16"/>`,
 }
 
-// classIcon is the glyph for a class, and empty markup for one with none --
-// including the zero class, so a template can ask for an icon without first
+// classIcon is the glyph for a class, and empty markup for one with none, the
+// zero class included, so a template can ask for an icon without first
 // checking whether the device has been classified.
 func classIcon(c classify.Class) template.HTML {
 	return classGlyphs[c]

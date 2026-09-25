@@ -5,8 +5,8 @@ FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
 
 WORKDIR /src
 
-# Dependencies resolve from go.mod/go.sum alone, so this layer is only
-# invalidated when they change, not on every source edit.
+# Dependencies resolve from go.mod/go.sum alone, so a source edit leaves this
+# layer cached and only a change to those two files invalidates it.
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download

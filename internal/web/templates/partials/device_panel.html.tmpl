@@ -1,6 +1,6 @@
 {{- /*
     The device's identity and the form that curates it, side by side, so saving
-    a label updates the facts that show it rather than only the field.
+    a label updates the facts that show it as well as the field.
 */ -}}
 {{ define "partial/device-panel" }}
 <div id="device-panel">
@@ -55,7 +55,7 @@
             <h2 class="section">What you call it</h2>
 
             {{- /* The facts lead, for every reader: what the device is called
-                   now, not the form that changes it. A writer opens the form
+                   now. A writer opens the form
                    from here; a save closes it again and these values are what
                    moved. */}}
             <dl class="facts">
@@ -139,7 +139,7 @@
     Two things this swap does not cover sit outside it, and both are stale the
     moment a label changes: the heading, which the layout draws in the topbar,
     and the log, which is further down the page. Sent out of band so they
-    update too -- otherwise the page would go on calling the device by its old
+    update too. Otherwise the page would go on calling the device by its old
     name, and the history would sit there saying nothing had happened.
 */}}
 <h1 id="page-title" hx-swap-oob="true">{{ .Device.Name }}</h1>

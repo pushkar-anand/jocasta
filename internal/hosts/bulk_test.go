@@ -125,8 +125,8 @@ func TestBulkBuildWithNoInputs(t *testing.T) {
 	assert.Empty(t, out)
 }
 
-// A cancelled sweep is short, not complete, and must say so: a caller that saw
-// only the error would otherwise read a truncated table as the whole one.
+// A cancelled sweep is incomplete and must say so: a caller that saw only the
+// error would otherwise read a truncated table as the whole one.
 func TestBulkBuildReportsACancelledSweep(t *testing.T) {
 	useResolver(t, stubResolver(t, nil))
 

@@ -4,10 +4,10 @@
 // Natural Earth publishes the edition used here only at 1:10m, so the outline
 // is simplified to what a map the width of a screen can show.
 //
-// Borders move rarely, so unlike the country table this is run by hand, not
-// on a schedule. Each country becomes one line, "code<TAB>name<TAB>x<TAB>y
-// <TAB>path": its ISO code, its name, where its marker goes, and its outline
-// as SVG path data, already projected, so the map draws it as is.
+// Borders move rarely, so this is run by hand. Each country becomes one line,
+// "code<TAB>name<TAB>x<TAB>y<TAB>path": its ISO code, its name, where its
+// marker goes, and its outline as SVG path data, already projected, so the map
+// draws it as is.
 package main
 
 import (
@@ -150,8 +150,8 @@ func build(features []feature) ([]*country, error) {
 			return nil, fmt.Errorf("%s: %w", p.Name, err)
 		}
 
-		// A folded territory lends its outline, not its name or marker. So
-		// does any smaller feature sharing a country's code: Natural Earth
+		// A folded territory lends only its outline, and so does any smaller
+		// feature sharing a country's code: Natural Earth
 		// files territories such as Ashmore and Cartier Is. under AU, and the
 		// country is the biggest of them whatever order they come in.
 		if a := area(polygons); !isFold && a > c.area {

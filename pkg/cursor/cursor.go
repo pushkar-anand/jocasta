@@ -1,11 +1,11 @@
 // Package cursor pages a sorted query by remembering the row the last page
-// ended on, rather than by counting rows to skip.
+// ended on.
 //
 // A log is written while it is being read, and an offset counts from the top of
 // a list the next insert has already shifted: a client walking one page at a
 // time sees the row on the boundary twice, and the row after it not at all. A
-// cursor names a row instead, so the page after it is the same page whatever
-// arrived in the meantime.
+// cursor names a row, so the page after it is the same page whatever arrived
+// in the meantime.
 package cursor
 
 import (
@@ -35,7 +35,7 @@ func (o Order) Valid() bool { return o == Asc || o == Desc }
 // what Encode wrote without being told which query the token came from.
 type Kind string
 
-// Kind values the sort column's underlying type.
+// The kinds of value a sort column can hold.
 const (
 	KindString Kind = "string"
 	KindInt    Kind = "int"
@@ -56,8 +56,8 @@ func (k Kind) Valid() bool {
 // Errors returned by Encode and Decode when a request asks for something a
 // cursor cannot represent.
 var (
-	// ErrUnsortableValue is a cursor Value of a type Encode has no rendering
-	// for.
+	// ErrUnsortableValue reports a cursor Value of a type Encode cannot
+	// render.
 	ErrUnsortableValue = errors.New("cursor: value cannot be sorted")
 
 	// ErrMalformed is a token that is not base64 of the expected four parts,
@@ -77,10 +77,9 @@ const separator = ":::"
 
 // Cursor marks the row a page ended on.
 //
-// It carries the whole sort key, not just the row's id: a query ordered by a
-// column that is not unique -- a timestamp several rows share -- cannot resume
-// from the value alone, and one ordered by a column that is unique still needs
-// the tie broken when it is not.
+// It carries the whole sort key: the sort column's value and the row's id. A
+// query ordered by a column several rows can share, such as a timestamp,
+// cannot resume from the value alone, so the id breaks the tie.
 //
 // The token a client sees is base64 of
 // <order>:::<kind>:::<value>:::<id>, which is opaque enough to say that
@@ -101,7 +100,7 @@ type Cursor struct {
 	Order Order
 }
 
-// IsZero reports whether c marks no row, which is what starts at the top.
+// IsZero reports whether c marks no row. The zero cursor is the first page.
 func (c Cursor) IsZero() bool { return c.Value == nil }
 
 // WithValue returns a copy of c holding v, for handing the query a value that
@@ -235,8 +234,7 @@ func (c *Cursor) UnmarshalJSON(data []byte) error {
 // order c was taken in. A zero cursor adds nothing, which is the first page.
 //
 // The comparison is written as a bound on the sort column and then the pair
-// that breaks its ties, rather than as a row-value comparison, so that an index
-// on the sort column still answers it.
+// that breaks its ties, so that an index on the sort column still answers it.
 func (c Cursor) Where(sb squirrel.SelectBuilder, valueColumn, idColumn string) squirrel.SelectBuilder {
 	if c.IsZero() {
 		return sb

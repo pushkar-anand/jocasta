@@ -37,7 +37,7 @@ func TestDevicesPageListsThem(t *testing.T) {
 	// Each row links to the device it names.
 	assert.Contains(t, body, `href="/devices/1"`)
 
-	// The presence dot carries a spoken status, not colour alone.
+	// The presence dot carries a spoken status as well as its colour.
 	assert.Contains(t, body, `class="dot `)
 	assert.Regexp(t, `<span class="dot [^"]*" role="img" aria-label="[^"]+">`, body)
 
@@ -46,8 +46,8 @@ func TestDevicesPageListsThem(t *testing.T) {
 	assert.Contains(t, body, `hx-target="#device-rows"`)
 }
 
-// An inventory nothing has swept into is a state to explain, not a filter that
-// matched nothing.
+// An inventory nothing has swept into is a state to explain, and reads
+// differently from a filter that matched nothing.
 func TestDevicesPageWhenEmptyExplainsWhy(t *testing.T) {
 	t.Parallel()
 
@@ -75,7 +75,7 @@ func TestDeviceRowsServesTheTableAlone(t *testing.T) {
 }
 
 // Only the table is fetched, so the address bar has to be told where the reader
-// actually is -- otherwise a filtered list cannot be reloaded or shared.
+// actually is, or a filtered list could not be reloaded or shared.
 func TestDeviceRowsPushesTheCanonicalURL(t *testing.T) {
 	t.Parallel()
 
@@ -202,7 +202,7 @@ func TestDevicePage(t *testing.T) {
 
 	h := seeded(t)
 
-	// The id is taken from the list rather than assumed.
+	// The id is taken from the list.
 	list := get(t, h, "/devices").Body.String()
 	id := deviceIDFromBody(t, list)
 
@@ -227,14 +227,14 @@ func TestDevicePage(t *testing.T) {
 	// And the page carries the device's own history, which the list does not.
 	assert.Contains(t, body, "discovered")
 
-	// The identity panel says when a sweep last ran, not only when this device
-	// last answered one -- the two together say whether a stale sighting is the
-	// device or the sweeps.
+	// The identity panel says when a sweep last ran as well as when this
+	// device last answered one. Together they say whether a stale sighting is
+	// the device or the sweeps.
 	assert.Contains(t, body, "Last checked")
 }
 
 // Before any sweep has run the device page still renders; "Last checked" reads
-// as never rather than as a zero time.
+// as never.
 func TestDevicePageWithoutASweepReadsAsNeverChecked(t *testing.T) {
 	t.Parallel()
 
@@ -252,9 +252,8 @@ func TestDevicePageWithoutASweepReadsAsNeverChecked(t *testing.T) {
 	assert.Contains(t, body, "never")
 }
 
-// A released address keeps its row, which is what makes "where did this used to
-// live" a read rather than a walk back through the log. Only the detail page
-// shows it.
+// A released address keeps its row, which makes "where did this used to live"
+// a single read. Only the detail page shows it.
 func TestDevicePageShowsAReleasedAddress(t *testing.T) {
 	t.Parallel()
 
@@ -382,8 +381,8 @@ func TestScansPage(t *testing.T) {
 	assert.Contains(t, body, "OK")
 }
 
-// A cursor walks one way, so the way back from a later page is to the top of
-// the log rather than to the page before it.
+// A cursor walks one way, so the way back from a later page leads to the top
+// of the log.
 func TestLogPagerWalksToTheTop(t *testing.T) {
 	t.Parallel()
 
@@ -486,7 +485,7 @@ func TestDevicesPagePaginates(t *testing.T) {
 	assert.Contains(t, second, `rel="prev"`)
 	assert.NotContains(t, second, `rel="next"`)
 
-	// A page past the end is the last real page, not an empty one.
+	// A page past the end shows the last real page.
 	clamped := get(t, h, "/devices?page=99").Body.String()
 	assert.Equal(t, 60-devicesPerPage, strings.Count(clamped, `id="device-row-`))
 }
@@ -584,7 +583,7 @@ func TestDevicePanelOffersTheTypePicker(t *testing.T) {
 }
 
 // A writer's device page leads with the curation values as facts and folds the
-// form behind an explicit action, rather than opening on an always-live form.
+// form behind an explicit action.
 func TestDevicePanelLeadsWithFactsThenTheForm(t *testing.T) {
 	t.Parallel()
 
@@ -621,14 +620,14 @@ func TestDevicePanelShowsClassifierConfidence(t *testing.T) {
 
 	body := get(t, h, "/devices/"+id).Body.String()
 
-	// One chip: "auto" and the confidence band, not two chips fighting for the
-	// width of a narrow column.
+	// One chip holds "auto" and the confidence band, so a narrow column fits
+	// them.
 	assert.Contains(t, body, "auto &middot; medium", "printer.local is a middling match")
 }
 
 // When the type is the user's own, the panel still says what the classifier
-// would have made of the device -- the guess is why clearing the override would
-// land somewhere in particular.
+// would have made of the device: the guess is where clearing the override would
+// land.
 func TestDevicePanelShowsTheGuessBehindAnOverride(t *testing.T) {
 	t.Parallel()
 
@@ -670,8 +669,8 @@ func deviceIDFromBody(t *testing.T, body string) string {
 	return id
 }
 
-// A device the sweep and a router both know shows what each of them says, not
-// only the name that won.
+// A device the sweep and a router both know shows what each of them says,
+// including names that lost the election.
 func TestDevicePageShowsWhatEachSourceClaims(t *testing.T) {
 	t.Parallel()
 
@@ -699,14 +698,14 @@ func TestDevicePageShowsWhatEachSourceClaims(t *testing.T) {
 
 	assert.Contains(t, body, "Sources")
 
-	// Both sources are named, and the name each of them offered is shown --
+	// Both sources are named, and the name each of them offered is shown,
 	// including the one the election did not pick.
 	assert.Contains(t, body, "test-sweep")
 	assert.Contains(t, body, "routeros:gateway")
 	assert.Contains(t, body, "printer.example.com")
 	assert.Contains(t, body, "lab-printer")
 
-	// The standing is worded rather than shown as the stored constant.
+	// The standing is shown in words.
 	assert.Contains(t, body, "reverse DNS")
 	assert.Contains(t, body, "static lease")
 	assert.NotContains(t, body, "DHCP_STATIC")
@@ -720,7 +719,7 @@ func TestDevicePageShowsWhatEachSourceClaims(t *testing.T) {
 }
 
 // A device a port scan has reached shows its open ports, and a port that has
-// since gone quiet as closed rather than dropping it.
+// since gone quiet as closed.
 func TestDevicePageShowsOpenPorts(t *testing.T) {
 	t.Parallel()
 
@@ -751,7 +750,7 @@ func TestDevicePageShowsOpenPorts(t *testing.T) {
 	assert.Contains(t, body, "open")
 	assert.Contains(t, body, "closed")
 
-	// The history renders the port events as sentences, not as stored constants.
+	// The history renders the port events as sentences.
 	assert.Contains(t, body, "started listening on")
 	assert.Contains(t, body, "stopped listening on")
 	assert.Contains(t, body, "port 443 (https)")
@@ -759,8 +758,8 @@ func TestDevicePageShowsOpenPorts(t *testing.T) {
 	assert.NotContains(t, body, "ZgotmplZ")
 }
 
-// The list carries the open ports a scan has found -- as chips beside the
-// address they answer on -- so a reader does not have to open each device to see
+// The list carries the open ports a scan has found, as chips beside the
+// address they answer on, so a reader does not have to open each device to see
 // what it exposes.
 func TestDeviceListShowsOpenPorts(t *testing.T) {
 	t.Parallel()
@@ -780,7 +779,7 @@ func TestDeviceListShowsOpenPorts(t *testing.T) {
 
 	body := get(t, h, "/devices").Body.String()
 
-	// Ports no longer have a column of their own; they ride in the address cell.
+	// Ports ride in the address cell.
 	assert.NotContains(t, body, `<th scope="col">Ports</th>`)
 
 	for _, chip := range []string{
@@ -811,7 +810,7 @@ func TestDeviceListShowsTheNetwork(t *testing.T) {
 	assert.Contains(t, body, "192.0.2.0/24")
 }
 
-// The list keeps every scanned fact but not a column apiece: ports fold into the
+// The list keeps every scanned fact in fewer columns: ports fold into the
 // address cell, vendor into the hardware cell, so the table fits without a
 // sideways scroll. Each body cell carries a data-label for the stacked mobile
 // card layout.
@@ -846,8 +845,7 @@ func TestDevicePageWithoutPortsExplainsWhy(t *testing.T) {
 	assert.Contains(t, body, "Port scanning is not configured")
 }
 
-// A device nothing has claimed yet still renders: the section is left out
-// rather than drawn empty.
+// A device nothing has claimed yet still renders, with the section left out.
 func TestDevicePageWithoutClaimsOmitsTheSection(t *testing.T) {
 	t.Parallel()
 
@@ -857,8 +855,8 @@ func TestDevicePageWithoutClaimsOmitsTheSection(t *testing.T) {
 		[]scanner.Host{host("192.0.2.10", macA, "")})
 	require.NoError(t, err)
 
-	// The state an install upgraded from an earlier schema is in: devices that
-	// no source has filed a claim about yet.
+	// Devices that no source has filed a claim about yet, as on an install
+	// upgraded from an earlier schema.
 	_, err = conn.ExecContext(t.Context(), `DELETE FROM device_sources`)
 	require.NoError(t, err)
 

@@ -59,10 +59,9 @@ func TestDeviceDueInResumesTheInterval(t *testing.T) {
 	_, err := store.RecordSweep(t.Context(), "test-sweep", d.networks[0].Masked(), []scanner.Host{})
 	require.NoError(t, err)
 
-	// The sweep just ran, so nearly the whole interval is still owed. It is the
-	// remainder that matters here, not the millisecond: reporting the elapsed
-	// time instead would give a few milliseconds, and reporting nothing at all
-	// would sweep again immediately.
+	// The sweep just ran, so nearly the whole interval is still owed. DueIn
+	// must report that remainder: the elapsed time would be a few
+	// milliseconds, and nothing at all would sweep again immediately.
 	due := d.DueIn(t.Context())
 	assert.Greater(t, due, 59*time.Minute)
 	assert.LessOrEqual(t, due, time.Hour)
@@ -82,8 +81,8 @@ func TestDeviceDueInIgnoresAFailedSweep(t *testing.T) {
 		         STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'now'), STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'now'));`)
 	require.NoError(t, err)
 
-	// Guard against the test passing because no scan row exists at all: it must
-	// be the status that is disqualifying, not the absence of a row.
+	// Guard against the test passing because no scan row exists at all: the
+	// row is there, so its status is what disqualifies it.
 	var n int
 	require.NoError(t, conn.QueryRowContext(t.Context(),
 		`SELECT COUNT(*) FROM scans WHERE kind = 'DISCOVERY' AND finished_at IS NOT NULL`).Scan(&n))
@@ -198,7 +197,7 @@ func TestRunIsolatesAFailedSource(t *testing.T) {
 }
 
 // Facts and an error together are one table answering while another timed out.
-// The half that arrived is true, so it is recorded rather than discarded.
+// The half that arrived is true, so it is recorded.
 func TestRunRecordsAPartialRead(t *testing.T) {
 	t.Parallel()
 
@@ -253,13 +252,13 @@ func TestRunRecordsTheSegmentsASourceServes(t *testing.T) {
 	assert.Equal(t, 1, countRows(t, conn, `SELECT count(*) FROM networks WHERE name = 'Home' AND vlan_id = 10`))
 
 	// The segment was recorded before the facts were, so the address landed on
-	// it rather than on nothing.
+	// it.
 	assert.Equal(t, 1, countRows(t, conn,
 		`SELECT count(*) FROM addresses WHERE network_id IS NOT NULL`))
 }
 
-// The segments decorate the devices rather than gating them, so a source that
-// will not describe them is still read for what it knows.
+// The segments only decorate the devices, so a source that will not describe
+// them is still read for what it knows.
 func TestRunKeepsTheDevicesWhenTheSegmentsCannotBeRead(t *testing.T) {
 	t.Parallel()
 
@@ -279,7 +278,7 @@ func TestRunKeepsTheDevicesWhenTheSegmentsCannotBeRead(t *testing.T) {
 	assert.Zero(t, countRows(t, conn, `SELECT count(*) FROM networks`))
 }
 
-// A source with no segments to describe is not a source with none to ask.
+// Only a source that can describe its segments is asked for them.
 func TestRunAsksOnlyTheSourcesThatKnowTheirSegments(t *testing.T) {
 	t.Parallel()
 

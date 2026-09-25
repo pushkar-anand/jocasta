@@ -55,15 +55,14 @@ func TestNetworkPageFilters(t *testing.T) {
 	assert.NotContains(t, body, "printer.local")
 
 	// The fragment endpoint answers with the table alone and pushes an address
-	// on this page, not on /devices.
+	// on this page.
 	rec := get(t, h, "/networks/1/rows?q=nas")
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.NotContains(t, rec.Body.String(), "<!DOCTYPE html>")
 	assert.Equal(t, "/networks/1?q=nas", rec.Header().Get("HX-Push-Url"))
 }
 
-// The list on a network's page is paged like the Devices page, not rendered
-// whole.
+// The list on a network's page is paged like the Devices page.
 func TestNetworkPagePaginates(t *testing.T) {
 	t.Parallel()
 
@@ -115,7 +114,7 @@ func TestNetworkPageDropsTheRedundantColumn(t *testing.T) {
 }
 
 // The route admits any segment, so a name or an id nothing has is a page that
-// is not there rather than a fault.
+// is not there.
 func TestNetworkPageUnknownIDIsNotFound(t *testing.T) {
 	t.Parallel()
 

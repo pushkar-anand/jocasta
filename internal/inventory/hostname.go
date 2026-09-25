@@ -41,9 +41,8 @@ func standingRank(s dbtype.HostnameSource) int {
 // device that was renamed. Equal standing at equal times keeps input order,
 // which ListDeviceSources fixes.
 //
-// A ranking in Go rather than a CASE in SQL, because the constants and the
-// query would be two places to keep in step and the device page needs this read
-// anyway.
+// The ranking is in Go because a CASE in SQL would be a second place to keep in
+// step with the constants, and the device page needs this read anyway.
 func resolveHostname(claims []nameClaim) nameClaim {
 	var (
 		won  nameClaim

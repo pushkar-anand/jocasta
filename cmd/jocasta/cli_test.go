@@ -328,8 +328,7 @@ func TestOutputScanResultsTable(t *testing.T) {
 	assert.Contains(t, output, "self (eth0)")
 
 	// A locally administered prefix the table names is that vendor's hardware,
-	// so the placeholder is for addresses nothing can name, not for every
-	// address a device assigned itself.
+	// so the placeholder is only for addresses nothing can name.
 	assert.Contains(t, output, "192.168.1.101")
 	assert.Contains(t, output, "Google")
 }
@@ -358,8 +357,8 @@ func TestOutputScanResultsJSON(t *testing.T) {
 	err := outputScanResults(&buf, swept, true)
 	require.NoError(t, err)
 
-	// Decoded into the wire shape rather than back into a Host: the enriched
-	// values live in unexported fields, so a round trip would assert against
+	// Decoded into the wire shape: a Host keeps its enriched values in
+	// unexported fields, so decoding back into one would assert against
 	// whatever the decoder could not fill in.
 	var decoded []struct {
 		Addr     string        `json:"addr"`
@@ -490,7 +489,7 @@ func TestPortsPollerAcceptsABlankSpec(t *testing.T) {
 	assert.Equal(t, time.Hour, pp.Interval())
 }
 
-// A spec that will not parse fails startup, not every scan.
+// A spec that will not parse fails startup, before any scan runs.
 func TestPortsPollerRejectsABadSpec(t *testing.T) {
 	t.Parallel()
 
@@ -502,8 +501,8 @@ func TestPortsPollerRejectsABadSpec(t *testing.T) {
 	assert.ErrorContains(t, err, "scan.ports.custom")
 }
 
-// A misconfigured entry is a config error rather than a source that stays
-// quiet, which would look exactly like a network with nothing on it.
+// A misconfigured entry is a config error. A source that stayed quiet would
+// look exactly like a network with nothing on it.
 func TestHostDiscoverersRejectsAnInstanceWithNoHost(t *testing.T) {
 	t.Parallel()
 

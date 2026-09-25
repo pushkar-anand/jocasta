@@ -1,8 +1,8 @@
 {{- /*
     Takes a slice of ports. The TCP ports a scan has found a device listening
     on, and the ones it used to answer on before the service stopped. Only a
-    port seen open is ever recorded, so a short list here means a small surface,
-    not a shallow scan.
+    port seen open is ever recorded, so a short list here means a small
+    surface.
 */ -}}
 {{ define "partial/device-ports" }}
 <div class="card card--table">

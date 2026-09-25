@@ -16,8 +16,8 @@ import (
 // makes the WHERE clause a thing that is there or is not. sqlc has no shape for
 // that: a nullable cursor parameter is typed as an interface{}, which would
 // take a timestamp rendered in any format at all, and the alternative is the
-// same SELECT written twice. They are built here instead, and everything whose
-// shape is fixed stays in queries/inventory.sql.
+// same SELECT written twice. So the paged queries are built here, and
+// everything whose shape is fixed stays in queries/inventory.sql.
 
 // PageParams is one window onto a log.
 type PageParams struct {
@@ -41,8 +41,8 @@ type PageParams struct {
 // ListEventsRow is one entry of the change log with the device it named.
 //
 // The device columns come from a LEFT JOIN because an event outlives the device
-// it described: deleting one sets events.device_id to NULL rather than taking
-// the record with it.
+// it described: deleting one sets events.device_id to NULL and keeps the
+// record.
 type ListEventsRow struct {
 	Event          Event          `json:"event"`
 	DeviceLabel    sql.NullString `json:"device_label"`
@@ -80,8 +80,8 @@ func (q *Queries) ListEvents(ctx context.Context, arg PageParams) ([]*ListEvents
 
 	// The cursor's timestamp is bound as a dbtype.Time so that it renders in
 	// the one format the column is written in: occurred_at is TEXT and is
-	// compared as TEXT, so a value spelled any other way compares wrong rather
-	// than failing.
+	// compared as TEXT, so a value spelled any other way would compare wrong
+	// without failing.
 	sb = arg.Cursor.WithValue(cursorTime(arg.Cursor)).Where(sb, "e.occurred_at", "e.id")
 
 	rows, err := q.selectRows(ctx, sb)
@@ -120,9 +120,9 @@ func (q *Queries) ListEvents(ctx context.Context, arg PageParams) ([]*ListEvents
 
 // ListScansRow is one run of one source.
 //
-// network_cidr is cast and coalesced rather than selected as itself: the column
-// override types it as a non-null Prefix, which cannot scan the NULL a scan
-// with no network -- or one whose network was deleted -- produces here.
+// network_cidr is cast and coalesced: the column override types it as a
+// non-null Prefix, which cannot scan the NULL that a scan with no network, or
+// one whose network was deleted, produces here.
 type ListScansRow struct {
 	Scan        Scan   `json:"scan"`
 	SourceName  string `json:"source_name"`
@@ -185,7 +185,7 @@ func (q *Queries) ListScans(ctx context.Context, arg PageParams) ([]*ListScansRo
 }
 
 // pageLimit converts a row count for the query builder, which counts rows as
-// unsigned. A limit below one is not a smaller page but a wrapped enormous one,
+// unsigned. Converted as is, a limit below one would wrap to an enormous page,
 // so it is read as the empty page it was asking for.
 func pageLimit(n int64) uint64 {
 	if n < 1 {

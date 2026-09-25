@@ -156,6 +156,10 @@ func (p *Poller) stop(r *run) {
 	}
 }
 
+// runTask runs t on its own schedule until r's context ends: first after the
+// wait firstRun allows, then one interval after each run finishes, or
+// notReadyRetry after a run that returned errNotReady. A failed run is logged
+// and retried on schedule. A panic is logged and ends this task alone.
 func (p *Poller) runTask(r *run, t task) {
 	log := p.logger.With(
 		slog.String("task", t.Name()),
@@ -181,8 +185,8 @@ func (p *Poller) runTask(r *run, t task) {
 		slog.Duration("next_run", dur),
 	)
 
-	// A timer rather than a ticker: the first wait is the task's to choose and
-	// may be zero, which a ticker cannot express and panics on.
+	// A timer, because the first wait is the task's to choose and may be
+	// zero, which a ticker cannot express and panics on.
 	timer := time.NewTimer(dur)
 	defer timer.Stop()
 

@@ -15,8 +15,8 @@ var ErrNotIPv4 = errors.New("prefix is not IPv4")
 
 // Hosts yields every usable address in p, in ascending order.
 //
-// For a prefix with a network and a broadcast address, both are skipped: they
-// address the network itself rather than a host on it. A /31 is a
+// For a prefix with a network and a broadcast address, both are skipped
+// because they address the network itself. A /31 is a
 // point-to-point link and a /32 is a single host, so neither reserves anything
 // and every address in them is yielded.
 //

@@ -24,7 +24,7 @@ import (
 var static embed.FS
 
 // Pages and partials are parsed into one template set. Every file carries a
-// single namespaced define -- page/dashboard, partial/live, layout/head -- which
+// single namespaced define (page/dashboard, partial/live, layout/head), which
 // is what makes the flat set safe: templates parsed together share one
 // namespace, so a name repeated across files would have the last one parsed
 // silently replace the rest.
@@ -68,8 +68,8 @@ func NewHandler(
 	a *auth.Auth,
 	opts ...Option,
 ) *Handler {
-	// A template that does not parse is a broken build, not a runtime
-	// condition: every one of them is compiled into the binary.
+	// A template that does not parse is a broken build: every one of them
+	// is compiled into the binary.
 	templates := template.Must(
 		template.New("").
 			Funcs(funcs(time.Now)).
@@ -98,7 +98,8 @@ func NewHandler(
 		o(h)
 	}
 
-	// allow gates a route behind a minimum role, designed to wrap a handler
+	// allow wraps a handler so only an account of at least role want reaches
+	// it; anyone else gets the forbidden page.
 	allow := func(want dbtype.UserRole) func(http.Handler) http.Handler {
 		return func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -123,8 +124,8 @@ func NewHandler(
 	h.mux.HandleFunc("GET /login/totp", hw.Handle(h.loginTOTP(sm)))
 	h.mux.HandleFunc("POST /login/totp", hw.Handle(h.loginTOTPForm(sm, a)))
 
-	// Signing out changes state, so it is a POST the sameOrigin guard covers,
-	// not a link another page can spend.
+	// Signing out changes state, so it is a POST the sameOrigin guard covers.
+	// A link could be spent by another page.
 	h.mux.HandleFunc("POST /logout", hw.Handle(h.logout(sm)))
 
 	h.mux.HandleFunc("GET /settings/security", hw.Handle(h.security(sm, a)))
@@ -143,7 +144,7 @@ func NewHandler(
 	h.mux.Handle("POST /settings/users", allow(dbtype.RoleAdmin)(hw.Handle(h.createUser(sm, a))))
 
 	// {$} matches only the root itself, so an unknown path reaches the
-	// catch-all below and is reported rather than quietly served the overview.
+	// catch-all below and is reported as not found.
 	h.mux.HandleFunc("GET /{$}", hw.Handle(h.overview(sm)))
 	h.mux.HandleFunc("GET /overview/live", hw.Handle(h.overviewLive()))
 
@@ -173,9 +174,9 @@ func NewHandler(
 	return h
 }
 
-// sweepNote is the ambient line every page carries at the foot of its rail. The error
-// is returned rather than swallowed so a caller can tell "no sweep yet" from a
-// read that failed, and leave the line out either way.
+// sweepNote is the ambient line every page carries at the foot of its rail. It
+// returns the error so a caller can tell "no sweep yet" from a read that
+// failed, and leave the line out either way.
 func (h *Handler) sweepNote(ctx context.Context) (string, error) {
 	scan, err := h.store.LatestScan(ctx)
 	if err != nil {
@@ -212,9 +213,9 @@ func lastSweptAt(ctx context.Context, store *inventory.Store) time.Time {
 }
 
 // portScanConfigured reports whether any port scan has ever finished. It is an
-// instance-wide signal, not per-device: enough for the Ports section to say
-// "port scanning is not set up" rather than imply a device was scanned and
-// found closed.
+// instance-wide signal, enough for the Ports section to say "port scanning is
+// not set up" where it would otherwise imply a device was scanned and found
+// closed.
 func portScanConfigured(ctx context.Context, store *inventory.Store) bool {
 	_, err := store.LastSuccessfulScanAt(ctx, dbtype.ScanPorts)
 
@@ -222,7 +223,7 @@ func portScanConfigured(ctx context.Context, store *inventory.Store) bool {
 }
 
 // ErrorPageData is the response.WithErrorDataFunc hook the server wires into
-// the shared HTMLWriter, keyed by status the same way WithErrorTemplates is --
+// the shared HTMLWriter, keyed by status the same way WithErrorTemplates is;
 // each case supplies whatever its own template needs.
 func ErrorPageData(_ *http.Request, _ error, status int) map[string]any {
 	switch status {
@@ -242,30 +243,30 @@ func ErrorPageData(_ *http.Request, _ error, status int) map[string]any {
 			"Note":       "",
 		}
 	case http.StatusUnauthorized:
-		// The sign-in page's own fields -- see loginData -- not the signed-in
-		// shell's, since TemplateLogin renders standalone like login itself does.
+		// The sign-in page's own fields (see loginData), since TemplateLogin
+		// renders standalone like login itself does.
 		return map[string]any{
 			"Title": "Sign in",
 			"Error": "That username and password do not match. Check both and try again.",
 		}
 	case http.StatusPreconditionRequired:
-		// The second-factor page's own fields -- see totpData -- not the
-		// signed-in shell's, since TemplateTOTP renders standalone too.
+		// The second-factor page's own fields (see totpData), since
+		// TemplateTOTP renders standalone too.
 		return map[string]any{
 			"Title": "Enter your code",
 			"Error": "That code did not work. Enter the code your authenticator app shows now, or a recovery code.",
 		}
 	case http.StatusConflict:
-		// The setup page's own fields, the same reason the 401 case above uses
-		// loginData's rather than view's: TemplateSetup renders standalone too.
+		// The setup page's own fields, for the reason the 401 case above uses
+		// loginData: TemplateSetup renders standalone too.
 		return map[string]any{
 			"Title": "Set up admin account",
 			"Error": "An admin account already exists. Sign in instead.",
 		}
 	case http.StatusForbidden:
-		// Forbidden renders inside the signed-in shell -- the visitor reaching
-		// it is signed in, just not as an admin -- so it needs view's fields
-		// the same way the 404 case below does.
+		// Forbidden renders inside the signed-in shell, since the visitor
+		// reaching it is signed in, so it needs view's fields the same way the
+		// 404 case below does.
 		return map[string]any{
 			"Title":      "Forbidden",
 			"Section":    "",

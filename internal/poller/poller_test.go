@@ -32,8 +32,8 @@ type fake struct {
 	interval time.Duration
 	runs     atomic.Int32
 
-	// err is returned from every Run, to check a failing task is retried
-	// rather than retired.
+	// err is returned from every Run, to check a failing task keeps being
+	// retried.
 	err error
 
 	// panics makes Run panic, to check one task's panic does not take the
@@ -49,7 +49,7 @@ type fake struct {
 	due time.Duration
 
 	// dueInCalls counts DueIn calls, so a test can check the scheduler asks
-	// once rather than recomputing a value that can read the store.
+	// only once. DueIn can read the store.
 	dueInCalls atomic.Int32
 }
 
@@ -98,8 +98,7 @@ func newPoller(t *testing.T, tasks ...task) *Poller {
 }
 
 // startAsync runs Start in the background and returns a channel carrying its
-// error, so a test can assert that Start actually returns on shutdown rather
-// than hanging.
+// error, so a test can assert that Start returns on shutdown.
 func startAsync(ctx context.Context, t *testing.T, p *Poller) <-chan error {
 	t.Helper()
 
@@ -314,8 +313,8 @@ func TestStopBeforeStartIsSafe(t *testing.T) {
 	assert.Equal(t, stateIdle, p.state.Load())
 }
 
-// Stopping must leave the poller reusable, which is the whole reason Stop
-// returns it to idle rather than to a terminal state.
+// Stopping must leave the poller reusable, which is why Stop returns it to
+// idle.
 func TestStartAfterStop(t *testing.T) {
 	t.Parallel()
 
@@ -357,8 +356,8 @@ func TestTasksStopBeforeStartReturns(t *testing.T) {
 	assert.Equal(t, settled, f.runs.Load(), "no task should run after Start returns")
 }
 
-// A failing task is logged and retried, never retired: one unreachable network
-// must not end the schedule.
+// A failing task is logged and retried: one unreachable network must not end
+// the schedule.
 func TestFailingTaskKeepsRunning(t *testing.T) {
 	t.Parallel()
 
@@ -376,7 +375,7 @@ func TestFailingTaskKeepsRunning(t *testing.T) {
 	requireReturned(t, errc)
 }
 
-// A not-ready task is retried after notReadyRetry, not after its full interval.
+// A not-ready task is retried after notReadyRetry.
 func TestNotReadyTaskRetriesSoon(t *testing.T) {
 	t.Parallel()
 
@@ -403,8 +402,8 @@ func TestNotReadyTaskRetriesSoon(t *testing.T) {
 	})
 }
 
-// A plain error is not the not-ready signal: the task is retried, but only
-// after its full interval, so one unreachable network cannot become a spin.
+// A plain error is retried after the full interval, so one unreachable network
+// cannot become a spin.
 func TestFailingTaskWaitsTheFullInterval(t *testing.T) {
 	t.Parallel()
 
@@ -452,7 +451,7 @@ func TestPanickingTaskDoesNotKillPoller(t *testing.T) {
 }
 
 // A run in flight when the context ends must be handed the cancellation, so a
-// long sweep aborts instead of holding shutdown open.
+// long sweep aborts and lets shutdown finish.
 func TestRunInFlightSeesCancellation(t *testing.T) {
 	t.Parallel()
 
@@ -490,7 +489,7 @@ func TestOverrunningTaskDoesNotBacklog(t *testing.T) {
 
 	close(release)
 
-	// After the release the next run is one interval away, not immediate x10.
+	// After the release the next run is one interval away, with no backlog.
 	time.Sleep(3 * tick)
 	assert.Less(t, f.runs.Load(), int32(10), "ticks must not have accumulated while the run was held")
 
@@ -498,8 +497,8 @@ func TestOverrunningTaskDoesNotBacklog(t *testing.T) {
 	requireReturned(t, errc)
 }
 
-// A task with nothing to resume from runs at once rather than sitting out its
-// first interval, which is a whole interval of staleness otherwise.
+// A task with nothing to resume from runs at once. Waiting out its first
+// interval would leave the inventory stale for that long.
 func TestTaskDueNowRunsAtStart(t *testing.T) {
 	t.Parallel()
 
@@ -561,8 +560,8 @@ func TestTaskDueLaterIsLeftAlone(t *testing.T) {
 		"the scheduler must ask a task when its first run is due exactly once")
 }
 
-// A stored time that is wrong in either direction -- a clock that moved, a row
-// from the future -- must not strand the task or stampede it.
+// A stored time that is wrong in either direction, from a clock that moved or
+// a row from the future, must not strand the task or stampede it.
 func TestFirstRunIsClamped(t *testing.T) {
 	t.Parallel()
 
@@ -634,8 +633,8 @@ func TestConcurrentLifecycle(t *testing.T) {
 // cancelled, but need not be scheduled before a later run has started. Calling
 // stop with that stale run must not tear down its successor.
 //
-// The scenario is driven directly rather than by racing the real watchdog,
-// which fires too promptly to reproduce it reliably.
+// The scenario is driven directly: the real watchdog fires too promptly to
+// reproduce it reliably.
 func TestStopIgnoresStaleRun(t *testing.T) {
 	t.Parallel()
 

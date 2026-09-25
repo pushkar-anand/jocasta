@@ -77,8 +77,7 @@ func TestScanAcceptsBytes(t *testing.T) {
 }
 
 // Ordering is what the fixed width buys, so a rendering that drops the
-// fraction is not a shorter spelling of the same value, it is one that sorts
-// wrongly against its neighbours.
+// fraction sorts wrongly against its neighbours.
 func TestScanRejectsAVariableWidthRendering(t *testing.T) {
 	t.Parallel()
 
@@ -87,8 +86,8 @@ func TestScanRejectsAVariableWidthRendering(t *testing.T) {
 	assert.Error(t, got.Scan(sample.Truncate(time.Second).Format(time.RFC3339Nano)))
 }
 
-// One accepted rendering is one sort order. Anything else has to fail loudly
-// rather than read back as a value that orders wrongly against its neighbours.
+// One accepted rendering is one sort order. Anything else has to fail loudly:
+// read back, it would order wrongly against its neighbours.
 func TestScanRejectsOtherFormats(t *testing.T) {
 	t.Parallel()
 

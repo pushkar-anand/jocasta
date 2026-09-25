@@ -17,7 +17,7 @@ const (
 	hostEnv     = "JOCASTA_PLUGINS__ROUTEROS__HOST"
 	portEnv     = "JOCASTA_PLUGINS__ROUTEROS__PORT"
 	userEnv     = "JOCASTA_PLUGINS__ROUTEROS__USER"
-	passwordEnv = "JOCASTA_PLUGINS__ROUTEROS__PASSWORD" //nolint:gosec // the name of a variable, not a credential.
+	passwordEnv = "JOCASTA_PLUGINS__ROUTEROS__PASSWORD" //nolint:gosec // the name of an environment variable.
 	sslEnv      = "JOCASTA_PLUGINS__ROUTEROS__SSL"
 	insecureEnv = "JOCASTA_PLUGINS__ROUTEROS__INSECURE"
 )

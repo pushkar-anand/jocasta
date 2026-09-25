@@ -127,8 +127,8 @@ func TestListTraffic(t *testing.T) {
 	})
 }
 
-// Nothing collecting reads differently from a quiet network, and lists are
-// empty rather than null.
+// A group narrows the summary to its devices and the organisations they
+// reached.
 func TestListTrafficNarrowsToAGroup(t *testing.T) {
 	t.Parallel()
 
@@ -180,6 +180,8 @@ func TestListTrafficReportsProbingAndAttempts(t *testing.T) {
 	assert.Empty(t, out.Attempts, "the NAS tried nothing")
 }
 
+// Nothing collecting reads differently from a quiet network, and the lists
+// are empty arrays.
 func TestListTrafficWithNothingRecorded(t *testing.T) {
 	t.Parallel()
 

@@ -13,9 +13,8 @@ import (
 
 const authHeaderName = "Authorization"
 
-// TokenMiddleware guards the JSON API with a bearer token rather than the
-// browser session Middleware checks: a script has no session to present, so
-// the API needs a credential of its own.
+// TokenMiddleware guards the JSON API with a bearer token: a script has no
+// browser session to present, so the API needs a credential of its own.
 type TokenMiddleware struct {
 	jw     *response.JSONWriter
 	a      *Auth
@@ -31,8 +30,8 @@ type TokenMiddleware struct {
 // TokenOption adjusts what a TokenMiddleware checks.
 type TokenOption func(*TokenMiddleware)
 
-// WithTokenBypass exempts the paths matching any of bypass -- typically a
-// health check -- from needing a token at all.
+// WithTokenBypass exempts the paths matching any of bypass, typically a health
+// check, from needing a token at all.
 func WithTokenBypass(bypass ...*regexp.Regexp) TokenOption {
 	return func(m *TokenMiddleware) { m.bypass = append(m.bypass, bypass...) }
 }
@@ -69,8 +68,8 @@ func NewTokenMiddleware(
 type tokenKey struct{}
 
 // TokenFromContext returns the token TokenMiddleware verified for this
-// request, or nil if none was -- a bypassed path, or a request that never
-// passed through the middleware.
+// request, or nil for a bypassed path or a request that never passed through
+// the middleware.
 func TokenFromContext(ctx context.Context) *models.ApiToken {
 	token, _ := ctx.Value(tokenKey{}).(*models.ApiToken)
 
@@ -81,9 +80,8 @@ func (m *TokenMiddleware) ServeHTTP(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	// Matched against the path rather than RequestURI: this sits inside
-	// StripPrefix, which rewrites URL.Path but not the untouched RequestURI, so
-	// a bypass written against the mounted prefix would never match here.
+	// Matched against URL.Path: this sits inside StripPrefix, which removes
+	// the mounted prefix from URL.Path and leaves RequestURI as it arrived.
 	path := r.URL.Path
 
 	for _, b := range m.bypass {
@@ -117,8 +115,8 @@ func (m *TokenMiddleware) ServeHTTP(
 	m.next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), tokenKey{}, token)))
 }
 
-// readOnly reports whether method only reads -- the same distinction a token
-// scope draws, so a read-scoped token can be handed to something that has no
+// readOnly reports whether method only reads. A token scope draws the same
+// line, so a read-scoped token can be handed to something that has no
 // business writing.
 func readOnly(method string) bool {
 	switch method {

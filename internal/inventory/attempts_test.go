@@ -196,7 +196,7 @@ func TestConversationsAreNotAttempts(t *testing.T) {
 		// A DNS question and its answer.
 		{Src: a, Dst: b, SrcPort: 50003, DstPort: 53, Protocol: protoUDP, Bytes: 70, Packets: 1, End: at},
 		{Src: b, Dst: a, SrcPort: 53, DstPort: 50003, Protocol: protoUDP, Bytes: 120, Packets: 1, End: at},
-		// One-way UDP that is a stream, not a probe.
+		// One-way UDP that is a stream.
 		{Src: a, Dst: b, SrcPort: 50004, DstPort: 514, Protocol: protoUDP, Bytes: 9000, Packets: 40, End: at},
 	})
 	require.NoError(t, rec.Flush(t.Context()))
@@ -317,8 +317,8 @@ func TestAPingAnsweredInTheNextFlushIsAnswered(t *testing.T) {
 	assert.Equal(t, int64(1), rows[0].Answered)
 }
 
-// An answer whose knock is not on record -- it fell in the previous hour, or
-// before this process started -- has nothing to mark and is dropped.
+// An answer whose knock is not on record, because it fell in the previous hour
+// or before this process started, has nothing to mark and is dropped.
 func TestALateAnswerWithNoKnockOnRecordIsDropped(t *testing.T) {
 	t.Parallel()
 
@@ -334,8 +334,8 @@ func TestALateAnswerWithNoKnockOnRecordIsDropped(t *testing.T) {
 }
 
 // The router answers DHCP by broadcast, or from itself, and exports neither,
-// so a renewal is a one-way request every time. It is a conversation, not a
-// try; one-way UDP to another of the router's ports still is a try.
+// so a renewal is a one-way request every time. It counts as a conversation;
+// one-way UDP to another of the router's ports is still a try.
 func TestDHCPIsNeverAnAttempt(t *testing.T) {
 	t.Parallel()
 

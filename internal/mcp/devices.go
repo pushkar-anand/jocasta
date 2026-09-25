@@ -74,11 +74,10 @@ func listDevices(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 
 // listDevicesSchema is the schema inferred from listDevicesInput, with the
 // closed sets its string filters admit spelled out, so the model is shown the
-// choices rather than left to guess them, and the SDK turns away anything else
-// before the handler runs.
+// choices and the SDK turns away anything else before the handler runs.
 //
 // The values are the ones inventory.Status, inventory.Sort and the classifier
-// name, less the empty string each uses for "unset" -- here that is the field
+// name, less the empty string each uses for "unset", which here is a field
 // left out.
 func listDevicesSchema() *jsonschema.Schema {
 	s := schemaFor[listDevicesInput]()

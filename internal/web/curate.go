@@ -49,8 +49,8 @@ type curationForm struct {
 }
 
 // deviceEdit is what a caller may change on a device through the row or panel
-// form -- the same shape curationRequest takes as JSON, in form fields instead
-// of a body. Every field is applied, so a form that does not carry one clears
+// form: the same shape curationRequest takes as JSON, carried in form fields.
+// Every field is applied, so a form that does not carry one clears
 // it; the row form carries the fields it does not show as hidden inputs for
 // exactly this reason.
 type deviceEdit struct {

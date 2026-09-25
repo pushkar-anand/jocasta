@@ -33,7 +33,7 @@ func withOrgs(m *inventory.TrafficMap, n int) *inventory.TrafficMap {
 }
 
 // A device keeps its place however its traffic changes, since places follow
-// ids, not volume.
+// ids.
 func TestPlaceIsStable(t *testing.T) {
 	t.Parallel()
 
@@ -185,8 +185,8 @@ func TestShortenCutsLongNames(t *testing.T) {
 	assert.Equal(t, maxLabel, len([]rune(shorten("a-very-long-device-name.example.com"))))
 }
 
-// Every link joins the two nodes it names -- a device and an organisation, or
-// devices on two networks -- keeping its services, and one to a node the map
+// Every link joins the two nodes it names (a device and an organisation, or
+// devices on two networks), keeping its services, and one to a node the map
 // left off is not drawn.
 func TestPlaceDrawsLinksBetweenNodes(t *testing.T) {
 	t.Parallel()

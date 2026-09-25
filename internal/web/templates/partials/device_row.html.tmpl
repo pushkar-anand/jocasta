@@ -1,8 +1,7 @@
 {{- /*
     One device. Takes the device itself, and replaces itself when edited.
     data-focus-after-swap: when the inline edit form closes (save or cancel)
-    and this row swaps back in, focus returns to its Edit button rather than
-    falling to the page body.
+    and this row swaps back in, focus returns to its Edit button.
 */ -}}
 {{ define "partial/device-row" }}
 <tr id="device-row-{{ .ID }}" data-focus-after-swap=".btn--icon">
@@ -19,7 +18,7 @@
     </td>
     {{- /* The addresses the device answers on, and the ports it answers on
            there: a device's open ports are always on one of its addresses, so
-           they share the cell rather than take a column of their own. */}}
+           they share the cell. */}}
     <td data-label="Addresses">
         <span class="cell cell--lines">
             <span class="mono">{{ addrs .Current }}</span>

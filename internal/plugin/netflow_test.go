@@ -15,9 +15,9 @@ import (
 )
 
 // Every address in these packets is from a documentation range. Decoding is
-// goflow2's and is tested there; these tests cover what this package adds --
-// who may send, per-exporter templates, sampling, and the translation to
-// Flow -- which needs packets whose every field the test chose.
+// goflow2's and is tested there; these tests cover what this package adds
+// (who may send, per-exporter templates, sampling, and the translation to
+// Flow), which needs packets whose every field the test chose.
 var (
 	nfSrc      = netip.MustParseAddr("192.0.2.10")
 	nfDst      = netip.MustParseAddr("198.51.100.20")
@@ -152,8 +152,8 @@ const (
 	v9SourceID = 256
 )
 
-// v9Template is a NetFlow v9 template packet from a real exporter: 23 fields,
-// template ID 260. It is copied from goflow2's decoder tests
+// v9Template is a NetFlow v9 template packet captured from an exporter: 23
+// fields, template ID 260. It is copied from goflow2's decoder tests
 // (decoders/netflow/netflow_test.go, BSD-3-Clause). A template carries field
 // layouts and no addresses, so nothing about any network is in it.
 var v9Template = []byte{

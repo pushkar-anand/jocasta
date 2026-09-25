@@ -4,10 +4,9 @@ import "context"
 
 // Resource is /system/resource: what the router is and what it is running.
 //
-// Version is the field with consequences. The REST API only exists from
-// RouterOS 7, so a router that answers this at all has already proved the
-// point, and the string is what a log line needs to explain a table that
-// arrived in an unexpected shape.
+// Version is the field worth logging: it explains a table that arrived in an
+// unexpected shape. The REST API exists only from RouterOS 7, so any router
+// that answers runs 7 or later.
 type Resource struct {
 	Version          string `json:"version"`
 	BoardName        string `json:"board-name"`

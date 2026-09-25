@@ -15,15 +15,15 @@ import (
 const nameLookupTimeout = 500 * time.Millisecond
 
 // resolver is the system resolver. It is a package variable, so tests can swap in
-// one that answers from a stub instead of the network.
+// one that answers from a stub.
 var resolver = net.DefaultResolver
 
 // lookups collapses concurrent reverse lookups for one address into a single
 // query. A sweep that merges the ARP and DHCP tables meets the same address in
 // both, and the second sighting should not cost a second round trip.
 //
-// This deduplicates, it does not cache: a flight is held only while it is in
-// progress, so a later sweep resolves again and sees current DNS.
+// Nothing is cached: a flight is held only while it is in progress, so a later
+// sweep resolves again and sees current DNS.
 var lookups singleflight.Group
 
 // resolveName does the reverse lookup for one address, bounded by

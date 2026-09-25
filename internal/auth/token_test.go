@@ -18,8 +18,8 @@ func TestCreateAndVerifyToken(t *testing.T) {
 	assert.Equal(t, int64(7), token.UserID)
 	assert.Equal(t, dbtype.TokenRead, token.Scope)
 
-	// The plaintext is never stored -- what CreateToken returned is the only
-	// copy there ever is.
+	// The plaintext is never stored: what CreateToken returned is the only
+	// copy.
 	assert.NotEqual(t, plaintext, token.TokenHash)
 
 	got, err := a.VerifyToken(t.Context(), plaintext)
@@ -70,7 +70,7 @@ func TestRevokeTokenIsScopedToItsOwner(t *testing.T) {
 	plaintext, token, err := a.CreateToken(t.Context(), 1, "mine", dbtype.TokenRead)
 	require.NoError(t, err)
 
-	// A different user's id names no row of this one's, so nothing happens --
+	// A different user's id names no row of this one's, so nothing happens
 	// and the token still checks out.
 	require.NoError(t, a.RevokeToken(t.Context(), 2, token.ID))
 

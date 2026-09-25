@@ -1,10 +1,9 @@
 // Command gen builds the IP-to-country table embedded by package geo.
 //
-// Like the ASN tables it is generated and committed rather than fetched at run
-// time, so that lookups work on an isolated network and a build never depends
-// on DB-IP being reachable, and it is written compressed for the same reason:
-// a refresh lands as an opaque blob, and the workflow that proposes it reports
-// the counts instead.
+// Like the ASN tables it is generated and committed, so that lookups work on
+// an isolated network and a build never depends on DB-IP being reachable. It
+// is written compressed like them too, so a refresh lands as an opaque blob
+// and the workflow that proposes it reports the counts.
 package main
 
 import (
@@ -111,9 +110,10 @@ func load(ctx context.Context, url string) ([]span, error) {
 	return parse(zr)
 }
 
-// parse reads "start,end,country" lines. ZZ is DB-IP's code for an address no
-// country holds -- reserved and unallocated space -- and is kept, so a lookup
-// in it misses rather than taking the range before.
+// parse reads "start,end,country" lines. ZZ is DB-IP's code for reserved and
+// unallocated space, which no country holds. It is kept so that a lookup in
+// that space misses; dropping it would file the address under the range
+// before.
 func parse(r io.Reader) ([]span, error) {
 	cr := csv.NewReader(r)
 	cr.FieldsPerRecord = 3

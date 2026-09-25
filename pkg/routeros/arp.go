@@ -10,7 +10,7 @@ import "context"
 // client exists.
 type ARPEntry struct {
 	// ID is RouterOS's internal handle, such as "*1A". It is stable only
-	// within a boot, so it identifies a row and not a device.
+	// within a boot, so it identifies only a row.
 	ID string `json:".id"`
 
 	// Address and MACAddress are left as the router rendered them. An
@@ -38,9 +38,9 @@ type ARPEntry struct {
 	Disabled  Bool `json:"disabled"`
 	Published Bool `json:"published"`
 
-	// Status is the neighbour state on RouterOS 7 -- "reachable", "stale",
-	// "delay", "probe", "failed". Older tables leave it empty, so Complete
-	// rather than this is what tells whether the entry names a device.
+	// Status is the neighbour state on RouterOS 7: "reachable", "stale",
+	// "delay", "probe" or "failed". Older tables leave it empty, so Complete
+	// is what tells whether the entry names a device.
 	Status string `json:"status"`
 
 	Comment string `json:"comment"`
@@ -51,8 +51,8 @@ type ARPEntry struct {
 const arpReachable = "reachable"
 
 // Usable reports whether the entry names a device the router believes in:
-// resolved to a hardware address, not marked invalid, not switched off. It says
-// nothing about whether that device is answering now -- see Reachable.
+// resolved to a hardware address, valid, and enabled. [ARPEntry.Reachable]
+// says whether that device is answering now.
 func (e ARPEntry) Usable() bool {
 	return bool(e.Complete) && !bool(e.Invalid) && !bool(e.Disabled)
 }

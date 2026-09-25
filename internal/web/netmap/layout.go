@@ -5,12 +5,12 @@
 // and one for the internet around it; each hub has its devices, or the
 // internet's organisations, fanned around it. The lines are the branches, and
 // a branch is thicker the more traffic passed along it. Over the tree, a link
-// joins each device to whatever it exchanged traffic with -- an organisation,
-// or a device on another network -- with the services it carried.
+// joins each device to whatever it exchanged traffic with (an organisation,
+// or a device on another network), with the services it carried.
 //
-// The layout is a pure function of what it is given, ordered by id rather than
-// by traffic, so a device keeps its place from one refresh to the next and the
-// picture only changes where the network did.
+// The layout is a pure function of what it is given, ordered by id, so a
+// device keeps its place from one refresh to the next whatever its traffic,
+// and the picture only changes where the network did.
 package netmap
 
 import (
@@ -237,8 +237,8 @@ func Place(m *inventory.TrafficMap, segments []Segment) *Layout {
 		c.hub.LabelAt = polar(hub, hubLabelGap, toRouter)
 		c.hub.LabelAt.Y += 4
 
-		// The name runs away from the hub, towards the router, rather than
-		// back over the hub's own nodes.
+		// The name runs away from the hub, towards the router, clear of the
+		// hub's own nodes.
 		switch cos := math.Cos(toRouter); {
 		case cos < -0.5:
 			c.hub.Anchor = "end"
@@ -437,7 +437,8 @@ func radialLabel(c Point, a, r float64, text string) Label {
 }
 
 // stroke is a line's width for n bytes against the busiest line's top, on a
-// log scale: a line a thousand times busier is thicker, not a thousand times.
+// log scale: a line a thousand times busier is thicker, by far less than a
+// thousand times.
 func stroke(n, top int64) float64 {
 	if n <= 1 || top <= 1 {
 		return minStroke

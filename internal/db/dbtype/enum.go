@@ -6,8 +6,9 @@ import (
 	"slices"
 )
 
-// SourceKind is what sort of thing produced a fact, not which implementation
-// did it: RouterOS is one router among the several this could speak to.
+// SourceKind is what sort of thing produced a fact, whatever the
+// implementation: RouterOS is one router among the several this could speak
+// to.
 type SourceKind string
 
 // SourceKind values a fact's provenance can take.
@@ -104,8 +105,8 @@ func (s ScanStatus) Value() (driver.Value, error) { return enumValue(s, scanStat
 func (s *ScanStatus) Scan(src any) error { return enumScan(s, scanStatuses, "scan status", src) }
 
 // PortState is what a probe last found at a port. A port that has answered once
-// keeps its row when it goes silent, flipping to closed rather than vanishing,
-// so the record of what a device used to expose survives the service stopping.
+// keeps its row when it goes silent, flipping to closed, so the record of what
+// a device used to expose survives the service stopping.
 type PortState string
 
 // PortState values a probed port can be recorded in.
@@ -126,8 +127,8 @@ func (s PortState) Value() (driver.Value, error) { return enumValue(s, portState
 func (s *PortState) Scan(src any) error { return enumScan(s, portStates, "port state", src) }
 
 // EventKind is what changed. The column carries no CHECK, so that adding a kind
-// stays a Go change rather than a migration, which leaves this list as the only
-// thing keeping a typo out of the permanent record.
+// needs no migration, which leaves this list as the only thing keeping a typo
+// out of the permanent record.
 type EventKind string
 
 // EventKind values a logged change can take.
@@ -155,9 +156,9 @@ const (
 
 	// EventDeviceClassified records a scan's classifier moving its guess at
 	// what kind of device this is from one known class to another. The first
-	// guess is silent -- it is part of discovering the device -- and so is the
-	// guess lapsing back to nothing. The user's own answer, in device_type, is
-	// an edit, not this.
+	// guess is silent, since it is part of discovering the device, and so is
+	// the guess lapsing back to nothing. The user's own answer, in
+	// device_type, is logged as EventDeviceEdited.
 	EventDeviceClassified EventKind = "DEVICE_CLASSIFIED"
 )
 
@@ -229,8 +230,8 @@ func (s *HostnameSource) Scan(src any) error {
 	return enumScan(s, hostnameSources, "hostname source", src)
 }
 
-// TokenScope is what an API token is allowed to do. Named rather than a bool,
-// so a third scope has somewhere to go without a column rename.
+// TokenScope is what an API token is allowed to do. It is a named value, so a
+// third scope has somewhere to go without a column rename.
 type TokenScope string
 
 // TokenScope values an API token can carry.
@@ -304,7 +305,7 @@ func (r UserRole) CanWrite() bool { return r.AtLeast(RoleReadWrite) }
 
 // enumValue renders v, refusing anything the column does not admit. The zero
 // value is refused with the rest: a column reached without its constant set is
-// a bug worth a name, not an empty string in the table.
+// a bug worth an error, which an empty string in the table would hide.
 func enumValue[T ~string](v T, admitted []T, name string) (driver.Value, error) {
 	if !slices.Contains(admitted, v) {
 		return nil, fmt.Errorf("dbtype: %q is not a valid %s", string(v), name)

@@ -29,7 +29,7 @@ jobs:
 
       # A pull request opened with GITHUB_TOKEN does not trigger other
       # workflows, so the usual CI will not run on it. The table is only worth
-      # proposing if it still passes, so the tests run here instead.
+      # proposing if it still passes, so the tests run here.
       - name: Test against the new table
         run: go test ./pkg/oui/ ./internal/scanner/
 
@@ -45,9 +45,9 @@ jobs:
             exit 0
           fi
 
-          # Counted against the default branch, not against whatever the
-          # branch held last week, so an unmerged pull request keeps
-          # reporting the full change a reviewer would actually be merging.
+          # Counted against the default branch, so an unmerged pull request
+          # keeps reporting the full change a reviewer would actually be
+          # merging.
           before=$(git show HEAD:pkg/oui/data.txt | wc -l)
           after=$(wc -l < pkg/oui/data.txt)
           added=$(git diff --numstat -- pkg/oui/data.txt | cut -f1)
@@ -58,8 +58,8 @@ jobs:
 
           # One long-lived branch, rebuilt from the default branch every run.
           # A new branch each week would leave a queue of stale pull requests,
-          # and stacking onto the old one would show a reviewer the change
-          # since last week rather than the change they are merging.
+          # and stacking onto the old one would show a reviewer only the
+          # change since last week.
           git switch -C "$BRANCH"
           git add pkg/oui/data.txt
           git commit -m "chore(oui): refresh the vendor table

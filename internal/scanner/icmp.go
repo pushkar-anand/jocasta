@@ -27,7 +27,7 @@ import (
 const payloadSize = 16
 
 // readSlice bounds a single blocking read so the reader goroutine notices a
-// cancelled context instead of sitting in ReadFrom until the socket closes.
+// cancelled context within that time.
 const readSlice = 200 * time.Millisecond
 
 // conn is an ICMP socket plus the addressing mode it needs. A datagram socket
@@ -147,7 +147,7 @@ type sweepParams struct {
 }
 
 // sweep probes every target and returns the round-trip time of the first reply
-// from each. Addresses that never answer are simply absent from the result.
+// from each. Addresses that never answer are absent from the result.
 func sweep(ctx context.Context, p sweepParams) (map[netip.Addr]time.Duration, error) {
 	if p.count == 0 {
 		return map[netip.Addr]time.Duration{}, nil
@@ -177,7 +177,7 @@ func sweep(ctx context.Context, p sweepParams) (map[netip.Addr]time.Duration, er
 
 	// Echo IDs only survive on a raw socket; a datagram socket has the kernel
 	// rewrite them. The run token in the payload is what actually identifies
-	// this run's replies, so the ID is just conventional here.
+	// this run's replies, so the ID is only conventional here.
 	snd := sender{
 		conn:     c,
 		targets:  p.targets,
@@ -246,8 +246,8 @@ func (s sender) round(ctx context.Context, seq int) error {
 			return fmt.Errorf("marshal echo request: %w", err)
 		}
 
-		// A host that is unreachable right now fails the write outright. That is
-		// information about that address, not a reason to abandon the sweep.
+		// A host that is unreachable right now fails the write outright. That
+		// says something about that address alone, so the sweep carries on.
 		if _, err := s.conn.pc.WriteTo(b, s.conn.dst(addr)); err != nil {
 			continue
 		}
@@ -278,7 +278,7 @@ func readReplies(ctx context.Context, log *slog.Logger, c *conn, token []byte, r
 
 		n, peer, err := c.pc.ReadFrom(buf)
 		if err != nil {
-			// A read deadline lapsing is the loop's own pacing, not a failure.
+			// A read deadline lapsing is the loop's own pacing.
 			if netErr, ok := errors.AsType[net.Error](err); ok && netErr.Timeout() {
 				continue
 			}

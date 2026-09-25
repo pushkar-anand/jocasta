@@ -32,7 +32,7 @@ type (
 		ListUsers(ctx context.Context) ([]*models.User, error)
 	}
 
-	// tokenManager is what Auth needs from the store to manage API tokens
+	// tokenManager is what Auth needs from the store to manage API tokens.
 	tokenManager interface {
 		CreateAPIToken(ctx context.Context, arg models.CreateAPITokenParams) (*models.ApiToken, error)
 		TouchAPITokenByHash(ctx context.Context, arg models.TouchAPITokenByHashParams) (*models.ApiToken, error)
@@ -40,8 +40,8 @@ type (
 		DeleteAPIToken(ctx context.Context, arg models.DeleteAPITokenParams) error
 	}
 
-	// store is what Auth needs from the generated store altogether both credential
-	// lookup and API token management
+	// store is everything Auth needs from the generated store: accounts, API
+	// tokens and two-factor state.
 	store interface {
 		userManager
 		tokenManager
@@ -70,13 +70,13 @@ type Auth struct {
 	unknownUserHash string
 
 	// hasUsers caches whether an account exists at all, so SetupRequired costs
-	// a query only until the first one is confirmed -- there is no path in
-	// this package that removes the last account, so a true answer here never
-	// goes stale.
+	// a query only until the first one is confirmed. Nothing in this package
+	// removes the last account, so a true answer never goes stale.
 	hasUsers atomic.Bool
 }
 
-// New builds an Auth.
+// New builds an Auth over s. It hashes the placeholder password Verify
+// compares against on a username miss once, up front.
 func New(s store, hasher hasher) (*Auth, error) {
 	unknownUserHash, err := hasher.Hash("no-such-user")
 	if err != nil {
@@ -116,19 +116,18 @@ func (a *Auth) Verify(ctx context.Context, username, password string) (*models.U
 // LoginResult reports how a Login attempt landed. Exactly one of User and
 // TOTPPending is meaningful.
 type LoginResult struct {
-	// User is set once a full session is established -- 2FA is off for this
-	// account.
+	// User is set when a full session is established, which happens when the
+	// account has 2FA off.
 	User *models.User
 
 	// TOTPPending is true when the password matched but the account has 2FA
-	// enabled: the caller sends the visitor to the second-factor page rather
-	// than treating this as a completed sign-in.
+	// enabled: the caller sends the visitor to the second-factor page.
 	TOTPPending bool
 }
 
-// Login is a util over Verify that also generates the new session token and
-// stores it in the session -- unless the account has 2FA enabled, in which
-// case it leaves the visitor signed out and pending on VerifyTOTP instead.
+// Login checks the credentials with [Auth.Verify] and signs the visitor in,
+// renewing the session token. For an account with 2FA enabled it leaves the
+// visitor signed out and pending on [Auth.VerifyTOTP].
 func (a *Auth) Login(
 	ctx context.Context,
 	sm *Session,
@@ -140,10 +139,10 @@ func (a *Auth) Login(
 		return LoginResult{}, err
 	}
 
-	// Set before either branch: RememberMe writes into the session's own
+	// Set before either branch. RememberMe writes into the session's own
 	// persisted record, which survives the Renew a completed 2FA sign-in does
-	// later just as it survives establishSession's Renew below -- so a choice
-	// made now still holds once the second factor succeeds.
+	// later as well as establishSession's Renew below, so a choice made now
+	// still holds once the second factor succeeds.
 	sm.s.RememberMe(ctx, rememberMe)
 
 	if user.TOTPEnabled {
@@ -167,13 +166,12 @@ func (a *Auth) Login(
 	return LoginResult{User: user}, nil
 }
 
-// establishSession renews the session token -- so a token held while anonymous
-// can't carry over into the authenticated session -- then records who the
+// establishSession renews the session token, so a token held while anonymous
+// can't carry over into the authenticated session, then records who the
 // session belongs to. Both signing in and completing setup need this exact
-// sequence to leave a visitor signed in afterward. It also clears any
-// pending-2FA state, so a session that reaches here by way of VerifyTOTP
-// doesn't carry stale pending fields into an otherwise fully signed-in
-// session.
+// sequence to leave a visitor signed in. It also clears any pending-2FA state,
+// so a session that arrives by way of VerifyTOTP carries no stale pending
+// fields.
 func (a *Auth) establishSession(ctx context.Context, sm *Session, user *models.User) error {
 	if err := sm.s.Renew(ctx); err != nil {
 		return err
@@ -211,11 +209,8 @@ func (a *Auth) SetupRequired(ctx context.Context) (bool, error) {
 }
 
 // CreateFirstUser creates the one account setup exists to create, as admin,
-// and signs it straight in -- there is no separate sign-in step to land on
-// afterward the way there is for an account an admin creates for someone
-// else. It goes through SetupRequired rather than reading hasUsers directly,
-// so it stays the authoritative check even reached without the session
-// middleware's own SetupRequired call having warmed the cache first.
+// and signs it straight in. It goes through SetupRequired, so the check holds
+// even when the session middleware has not warmed the hasUsers cache first.
 func (a *Auth) CreateFirstUser(ctx context.Context, sm *Session, username, password string) (*models.User, error) {
 	required, err := a.SetupRequired(ctx)
 	if err != nil {
@@ -246,9 +241,8 @@ func (a *Auth) CreateUser(ctx context.Context, username, password string, role d
 	return a.createUser(ctx, username, password, role)
 }
 
-// createUser looks the username up first rather than reading a constraint
-// violation back off the insert, so a duplicate is told apart from every
-// other way the write could fail the same way GetUserByUsername already
+// createUser looks the username up before the insert, so a duplicate is told
+// apart from every other way the write could fail, just as GetUserByUsername
 // tells a missing user apart from a lookup failure.
 func (a *Auth) createUser(ctx context.Context, username, password string, role dbtype.UserRole) (*models.User, error) {
 	switch _, err := a.q.GetUserByUsername(ctx, username); {
@@ -277,9 +271,8 @@ func (a *Auth) createUser(ctx context.Context, username, password string, role d
 	return user, nil
 }
 
-// ListUsers returns every account, newest first is not required here the way
-// it is for tokens -- the settings page reads better oldest-first, in the
-// order accounts were made.
+// ListUsers returns every account, oldest first, in the order the accounts
+// were made.
 func (a *Auth) ListUsers(ctx context.Context) ([]*models.User, error) {
 	return a.q.ListUsers(ctx)
 }

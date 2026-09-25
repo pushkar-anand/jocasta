@@ -38,8 +38,8 @@ type broadcastTotals struct {
 // broadcastScope says where a flow went when it went to everyone: to a
 // multicast group or to 255.255.255.255. A subnet's own broadcast address
 // looks like a host's, and only the recorded networks tell it apart, so Flush
-// finds those. A sender with no address of its own -- a DHCP client asking
-// for one -- cannot be told apart from any other, and is not kept.
+// finds those. A sender with no address of its own, such as a DHCP client
+// asking for one, cannot be told apart from any other, and is not kept.
 func broadcastScope(f plugin.Flow) (string, bool) {
 	if !f.Src.IsValid() || f.Src.IsUnspecified() || f.Src.IsMulticast() || f.Src == limitedBroadcast {
 		return "", false

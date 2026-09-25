@@ -16,10 +16,9 @@ import (
 // Ports probes the TCP ports of every address the inventory holds, on its own
 // schedule.
 //
-// It is a task apart from Device because it answers a different question --
-// what a device is running, not whether it is here -- and is judged by a
-// different clock: the default is six hours against discovery's five minutes.
-// Riding along with the sweep would tie the two together, so it does not.
+// It is a task apart from Device because it answers a different question,
+// what a device is running, and is judged by a different clock: the default
+// is six hours against discovery's five minutes.
 type Ports struct {
 	scanner  *scanner.PortScanner
 	store    *inventory.Store
@@ -65,8 +64,8 @@ func (p *Ports) Interval() time.Duration { return p.interval }
 //
 // Keyed on the kind alone, like the device task: only this task writes PORTS
 // scans, so nothing else can credit its schedule. A store that cannot be read
-// waits an interval rather than scanning, for the same reason -- not knowing
-// whether the work is due is a reason to hold off, not to charge ahead.
+// waits a full interval, for the same reason: not knowing whether the work is
+// due is a reason to hold off.
 func (p *Ports) DueIn(ctx context.Context) time.Duration {
 	at, err := p.store.LastSuccessfulScanAt(ctx, dbtype.ScanPorts)
 
@@ -86,8 +85,8 @@ func (p *Ports) DueIn(ctx context.Context) time.Duration {
 
 // Run scans every current address in the inventory and records what answered.
 //
-// With nothing to scan yet -- discovery has not run -- it returns errNotReady,
-// so the poller retries in a minute rather than after the whole interval.
+// With nothing to scan yet, because discovery has not run, it returns
+// errNotReady, so the poller retries in a minute.
 func (p *Ports) Run(ctx context.Context) error {
 	targets, err := p.store.PortScanTargets(ctx)
 	if err != nil {

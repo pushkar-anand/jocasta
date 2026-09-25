@@ -48,8 +48,8 @@ func TestWorldDrawsEveryCountry(t *testing.T) {
 	assert.False(t, ok, "Antarctica is left off")
 }
 
-// A country sharing its code with small territories is named and marked as the
-// country, not as whichever territory the source listed last.
+// A country sharing its code with small territories is named and marked after
+// the country, whichever territory the source listed last.
 func TestCountryOfNamesTheCountryNotATerritory(t *testing.T) {
 	t.Parallel()
 

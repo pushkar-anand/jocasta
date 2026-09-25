@@ -1,5 +1,5 @@
-# Two instances, so a decode that collapses the map to one element fails here
-# rather than in production. Addresses are RFC 5737 and the credentials are
+# Two instances, so a decode that collapses the map to one element fails in
+# this test first. Addresses are RFC 5737 and the credentials are
 # obvious placeholders.
 plugins:
   routeros:

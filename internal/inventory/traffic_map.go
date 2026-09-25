@@ -16,8 +16,7 @@ import (
 )
 
 // The map shows the busiest devices and organisations; past these the rest are
-// counted rather than drawn, since a picture with hundreds of nodes shows
-// nothing.
+// only counted, since a picture with hundreds of nodes shows nothing.
 const (
 	MapMaxDevices = 60
 	MapMaxOrgs    = 12
@@ -258,8 +257,8 @@ func (s *Store) markActive(
 	return nil
 }
 
-// mergeOrgs folds the organisations that go by one short name -- a company
-// announcing from several ASNs -- into one, busiest first, as the Traffic page
+// mergeOrgs folds the organisations that go by one short name (a company
+// announcing from several ASNs) into one, busiest first, as the Traffic page
 // does. Each keeps the number of its busiest ASN; canon maps every ASN to the
 // number it was folded under.
 func mergeOrgs(perASN map[uint32]*MapOrg) (merged []*MapOrg, canon map[uint32]uint32) {

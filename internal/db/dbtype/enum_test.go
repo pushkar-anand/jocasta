@@ -27,9 +27,9 @@ func TestEnumValueRenders(t *testing.T) {
 	assert.Equal(t, "open", v)
 }
 
-// The zero value is not a member of any of these sets, and a column reached
-// without its constant set is a bug worth a name rather than an empty string
-// sitting in the table.
+// The zero value is not a member of any of these sets: a column reached
+// without its constant set is a bug worth an error, which an empty string
+// sitting in the table would hide.
 func TestEnumValueRejectsZero(t *testing.T) {
 	t.Parallel()
 
@@ -146,7 +146,7 @@ func TestUserRoleAtLeast(t *testing.T) {
 	assert.False(t, RoleRead.AtLeast(RoleReadWrite))
 	assert.True(t, RoleRead.AtLeast(RoleRead))
 
-	// An unset role clears nothing, not even the read gate.
+	// An unset role clears no gate, the read gate included.
 	assert.False(t, UserRole("").AtLeast(RoleRead))
 }
 

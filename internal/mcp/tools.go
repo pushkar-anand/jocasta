@@ -44,7 +44,7 @@ func tools(store *inventory.Store) []tool {
 
 // addTool is mcpsdk.AddTool with the handler's errors answered the way the
 // JSON API answers them: as a problem document, and with the cause of an
-// unexpected one logged rather than shown to the agent.
+// unexpected one kept to the server log.
 func addTool[In, Out any](s *mcpsdk.Server, log *slog.Logger, t *mcpsdk.Tool, h mcpsdk.ToolHandlerFor[In, Out]) {
 	mcpsdk.AddTool(s, t, func(ctx context.Context, req *mcpsdk.CallToolRequest, in In) (*mcpsdk.CallToolResult, Out, error) {
 		res, out, err := h(ctx, req, in)

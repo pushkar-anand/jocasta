@@ -100,7 +100,7 @@ func TestNetworkPrefixIsMasked(t *testing.T) {
 	assert.Equal(t, netip.MustParsePrefix("192.0.2.0/24"), out[0].Prefix)
 }
 
-// Losing the tags costs the segments their numbers, not their existence.
+// Losing the tags costs the segments only their numbers.
 func TestNetworksSurviveTheVLANTableFailing(t *testing.T) {
 	t.Parallel()
 
@@ -115,7 +115,7 @@ func TestNetworksSurviveTheVLANTableFailing(t *testing.T) {
 }
 
 // Without the address table there are no segments at all, so nothing comes
-// back rather than a list the tags alone cannot fill in.
+// back. The tags alone cannot fill in a list.
 func TestNetworksAreNothingWithoutTheAddressTable(t *testing.T) {
 	t.Parallel()
 
@@ -215,7 +215,7 @@ func TestTheResolvedInterfaceIsTriedWhenTheConfiguredOneMisses(t *testing.T) {
 }
 
 // A tag that does not read as a number is left out of the lookup entirely, so
-// the segment reports no tag rather than VLAN 0.
+// the segment reports no tag. VLAN 0 would claim it is untagged.
 func TestAnUnreadableTagLeavesTheSegmentUntagged(t *testing.T) {
 	t.Parallel()
 

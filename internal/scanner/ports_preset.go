@@ -7,12 +7,11 @@ import (
 
 // presetServices is the port scan's default set: the TCP ports a homelab
 // actually runs something on, each with the service that usually answers there.
-// It is hand-picked rather than nmap's top-1000 so it stays auditable in review
-// and a whole-inventory scan is a hundred connects per host rather than a
-// thousand.
+// It is hand-picked so it stays auditable in review and a whole-inventory scan
+// is about a hundred connects per host, a tenth of nmap's top 1000.
 //
-// The map is the whole list -- presetPorts is just its keys, sorted -- so the
-// set and the names cannot drift apart. A name is a guess for display: a
+// The map is the whole list, and presetPorts is its keys sorted, so the set
+// and the names cannot drift apart. A name is a guess for display: a
 // service on a non-standard port is labelled wrong, which is why the scan never
 // fingerprints to confirm one.
 var presetServices = map[uint16]string{
@@ -123,8 +122,8 @@ var presetServices = map[uint16]string{
 var presetPorts = slices.Sorted(maps.Keys(presetServices))
 
 // ServiceName returns the service usually found on a port, or the empty string
-// for a port with no well-known answer -- which is every port outside the
-// preset. The name is a guess for display, never a probe result.
+// for every port outside the preset. The name is a guess for display; nothing
+// probes to confirm it.
 func ServiceName(port uint16) string {
 	return presetServices[port]
 }

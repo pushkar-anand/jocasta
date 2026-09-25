@@ -48,9 +48,9 @@ type ScanPage struct {
 	Next  Cursor
 }
 
-// seek is how many rows to ask for: one more than the page holds, so that
-// whether another page exists is answered by the same read rather than by a
-// count that could disagree with it.
+// seek is how many rows to ask for: one more than the page holds, so that the
+// same read answers whether another page exists. A separate count could
+// disagree with it.
 func (p Page) seek() int64 { return int64(p.Limit) + 1 }
 
 // trim cuts the extra row off and reports where the next page resumes. Reading

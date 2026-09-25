@@ -2,9 +2,8 @@ package auth
 
 import "errors"
 
-// ErrInvalidCredentials is returned for a username that has no match and for
-// one whose password doesn't match it alike, so a caller can't tell which by
-// branching on the error.
+// ErrInvalidCredentials is returned both for an unknown username and for a
+// wrong password, so a caller can't tell which by branching on the error.
 var ErrInvalidCredentials = errors.New("invalid user or credentials")
 
 // ErrInvalidToken is returned for an API token that answers for no row,
@@ -29,18 +28,18 @@ var ErrForbidden = errors.New("forbidden")
 var ErrInvalidTOTPCode = errors.New("invalid authentication code")
 
 // ErrInvalidEnrollmentCode is ErrInvalidTOTPCode's counterpart for
-// ConfirmTOTPEnrollment -- a distinct value because the pipeline maps a
-// status, and template, per error, and this failure has to land back on the
-// settings page rather than the sign-in one.
+// ConfirmTOTPEnrollment. It is a distinct value because the pipeline maps a
+// status and template per error, and this failure has to land back on the
+// settings page.
 var ErrInvalidEnrollmentCode = errors.New("invalid authentication code")
 
 // ErrInvalidPassword is returned by DisableTOTP and RegenerateRecoveryCodes
 // when the password confirming the action doesn't match. It is distinct from
-// ErrInvalidCredentials, which is wired to the standalone sign-in page --
-// these two are reached only by a visitor already signed in, on the settings
-// page, so they need to land back there instead.
+// ErrInvalidCredentials, which is wired to the standalone sign-in page: both
+// actions are reached only by a visitor already signed in, on the settings
+// page, so the error lands back there.
 var ErrInvalidPassword = errors.New("incorrect password")
 
 // ErrNoTOTPEnrollment is returned when there is no unconfirmed secret to act
-// on -- enrollment was never started, or was already confirmed or cancelled.
+// on: enrollment was never started, or was already confirmed or cancelled.
 var ErrNoTOTPEnrollment = errors.New("no totp enrollment in progress")

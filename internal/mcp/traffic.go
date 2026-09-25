@@ -41,8 +41,8 @@ type listTrafficInput struct {
 // listTrafficOutput carries whichever view was asked for; the others are
 // absent.
 type listTrafficOutput struct {
-	// Recorded is false when no traffic has ever been recorded: nothing is
-	// collecting, which is different from a quiet network.
+	// Recorded is false when no traffic has ever been recorded, meaning
+	// nothing is collecting. A quiet network reports true.
 	Recorded bool      `json:"recorded"`
 	Since    time.Time `json:"since"`
 
@@ -114,7 +114,7 @@ func listTraffic(store *inventory.Store, now func() time.Time) func(*mcpsdk.Serv
 		out := listTrafficOutput{Recorded: recorded, Since: since.UTC().Truncate(time.Hour)}
 
 		if in.DeviceID != 0 {
-			// An id that names no device is a 404, not an empty answer.
+			// An id that names no device is a 404.
 			if _, err := store.Device(ctx, in.DeviceID); err != nil {
 				return nil, listTrafficOutput{}, err
 			}
@@ -184,8 +184,8 @@ func listTraffic(store *inventory.Store, now func() time.Time) func(*mcpsdk.Serv
 	return func(s *mcpsdk.Server, log *slog.Logger) { addTool(s, log, t, handler) }
 }
 
-// scoped trims a device's traffic to the scope and limit asked for. Lists stay
-// empty rather than absent, so an agent reads "none" and not "not asked".
+// scoped trims a device's traffic to the scope and limit asked for. An empty
+// list stays in the result, so an agent reads it as "none".
 func scoped(dt *inventory.DeviceTraffic, scope string, limit int) *inventory.DeviceTraffic {
 	switch scope {
 	case scopeLocal:
@@ -201,7 +201,7 @@ func scoped(dt *inventory.DeviceTraffic, scope string, limit int) *inventory.Dev
 }
 
 // scopedAttempts trims a device's attempts to the scope and limit asked for.
-// The list stays empty rather than absent, like the peers.
+// An empty list stays in the result, as the peers' does.
 func scopedAttempts(attempts []*inventory.Attempt, scope string, limit int) []*inventory.Attempt {
 	out := []*inventory.Attempt{}
 

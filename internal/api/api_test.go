@@ -133,8 +133,8 @@ func list(t *testing.T, body map[string]any, key string) []any {
 }
 
 // problemContext returns the per-field problems a validation failure carries.
-// They are nested rather than merged into the document, so a field named after
-// a standard member -- "status" -- does not overwrite it.
+// They are nested inside the document, so a field named after a standard
+// member, such as "status", cannot overwrite it.
 func problemContext(t *testing.T, body map[string]any) map[string]any {
 	t.Helper()
 
@@ -155,8 +155,8 @@ func TestUnknownRouteIsNotFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 }
 
-// The routes name their method, so a write to a read-only resource is turned
-// away by the router rather than reaching a handler.
+// The routes name their method, so the router turns away a write to a
+// read-only resource before any handler runs.
 func TestWriteMethodIsNotAllowed(t *testing.T) {
 	t.Parallel()
 
@@ -188,8 +188,8 @@ func patchJSON(t *testing.T, h http.Handler, target, body string) (int, http.Hea
 
 // The read routes name their method, so a write to one is refused.
 //
-// The refusal comes from the router rather than a handler, so it is plain text
-// rather than a problem document -- which is why this does not decode it.
+// The router refuses it before any handler runs, so the answer is plain text
+// and this test does not decode it.
 func TestUpdateIsOnlyAllowedOnTheDeviceItself(t *testing.T) {
 	t.Parallel()
 

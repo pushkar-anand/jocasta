@@ -208,8 +208,7 @@ type Incoming struct {
 	Protocol uint8  `json:"protocol"`
 	Port     uint16 `json:"port"`
 
-	// Service is the service usually found on Port, not one that was
-	// detected.
+	// Service is the service usually found on Port; nothing detects it.
 	Service string `json:"service,omitempty"`
 
 	// Connections is how many the internet opened; Peers how many addresses

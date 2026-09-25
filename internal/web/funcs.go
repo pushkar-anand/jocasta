@@ -13,10 +13,10 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// Decay buckets. A device is not simply present or absent: something last heard
-// from it at some point, and how long ago that was is what an operator reads a
-// list for. The thresholds are absolute rather than taken from the configured
-// online window, so the shading means the same thing whatever the sweeps do.
+// Decay buckets. Something last heard from a device at some point, and how long
+// ago that was is what an operator reads a list for, so presence is shaded by
+// age. The thresholds are fixed durations, independent of the configured online
+// window, so the shading means the same thing whatever the sweeps do.
 const (
 	decayFresh  = 5 * time.Minute
 	decayRecent = time.Hour
@@ -161,8 +161,8 @@ var sourceKeys = map[string]string{
 }
 
 // sourceKey words one detail key. A key with no wording here still has to
-// render as something, so its own name, de-underscored, is the fallback -- the
-// same shape standing and phrase use.
+// render as something, so its own name, de-underscored, is the fallback, as
+// standing and phrase do.
 func sourceKey(k string) string {
 	if label, ok := sourceKeys[k]; ok {
 		return label
@@ -177,7 +177,7 @@ func sourceKey(k string) string {
 }
 
 // ago renders how long before now t was, at the coarsest useful precision. An
-// operator reads "4m ago" to mean recently, not to know it was 4m12s.
+// operator reads "4m ago" to mean recently, and 4m12s would add nothing.
 func ago(now, t time.Time) string {
 	if t.IsZero() {
 		return "never"
@@ -186,8 +186,8 @@ func ago(now, t time.Time) string {
 	d := now.Sub(t)
 
 	switch {
-	// A negative d is a clock difference, not a sighting from the future, so it
-	// reads as "just now" like any other sub-minute gap.
+	// A negative d is a clock difference between hosts, so it reads as "just
+	// now" like any other sub-minute gap.
 	case d < time.Minute:
 		return "just now"
 	case d < time.Hour:
@@ -231,13 +231,13 @@ func stamp(now, t time.Time, class string) template.HTML {
 	}
 
 	// Fixed element shape, timestamps straight from time.Format, and a class
-	// that is always a template literal -- nothing here is caller-supplied text.
+	// that is always a template literal: nothing here is caller-supplied text.
 	return template.HTML(b.String()) //nolint:gosec // G203: no user input in the parts
 }
 
 // presenceLabel is the spoken status behind a dot: the words the legends use, so
 // the dot and the legend agree for a reader who only hears one of them. It is
-// coarser than decay's four buckets on purpose -- "recently" covers both greens.
+// coarser than decay's four buckets on purpose: "recently" covers both greens.
 func presenceLabel(now, t time.Time) string {
 	if t.IsZero() {
 		return "Not seen"
@@ -263,8 +263,8 @@ func dot(now, t time.Time) template.HTML {
 		label += " — " + ago(now, t)
 	}
 
-	// Fixed element, class from decay, label from presenceLabel and ago --
-	// every part is this package's, none of it is caller-supplied text.
+	// Fixed element, class from decay, label from presenceLabel and ago:
+	// every part is this package's own.
 	return template.HTML(`<span class="dot ` + decay(now, t) + `" role="img" aria-label="` + //nolint:gosec // G203: no user input in the parts
 		template.HTMLEscapeString(label) + `"></span>`)
 }
@@ -297,7 +297,7 @@ func dash(s string) string {
 }
 
 // pct is n as a percentage of total, for an SVG width. An empty inventory
-// divides by nothing, so it reports zero rather than filling the bar.
+// divides by nothing, so it reports zero and the bar stays empty.
 func pct(n, total int) string {
 	if total <= 0 || n <= 0 {
 		return "0"
@@ -310,8 +310,8 @@ func pct(n, total int) string {
 	return strconv.FormatFloat(float64(n)/float64(total)*100, 'f', 2, 64)
 }
 
-// took renders how long a scan ran. A scan still running has taken no time yet,
-// which is not the same as having taken none.
+// took renders how long a scan ran. A scan still running has no duration yet,
+// and renders differently from one that finished instantly.
 func took(s *inventory.Scan) string {
 	if s == nil {
 		return em
@@ -376,10 +376,10 @@ func phrase(k dbtype.EventKind) string {
 	return strings.ToLower(strings.ReplaceAll(string(k), "_", " "))
 }
 
-// tone is the tint a log line's icon carries. Kinds are grouped rather than
-// coloured one apiece: the colour says what sort of change it was -- something
-// arrived, something was learned, someone edited it -- and six colours in a
-// list would say nothing at all.
+// tone is the tint a log line's icon carries. Kinds share colours by group:
+// the colour says what sort of change it was (something arrived, something was
+// learned, someone edited it), and six colours in a list would say nothing at
+// all.
 func tone(k dbtype.EventKind) string {
 	switch k {
 	case dbtype.EventDeviceDiscovered:
@@ -396,8 +396,8 @@ func tone(k dbtype.EventKind) string {
 }
 
 // glyphs are the log icons, drawn on a 24px grid and stroked in currentColor so
-// the tone class colours them. They are markup this package owns, not anything
-// a caller supplies, which is what makes returning them as HTML safe.
+// the tone class colours them. They are markup this package owns, which is what
+// makes returning them as HTML safe.
 var glyphs = map[dbtype.EventKind]template.HTML{
 	dbtype.EventDeviceDiscovered: `<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>`,
 	dbtype.EventDeviceIdentified: `<circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>`,
@@ -509,7 +509,7 @@ func labelOf(class string) string {
 }
 
 // change describes what an event changed, where it changed a value. An event
-// that changed nothing -- a discovery -- has nothing to show here.
+// that changed nothing, such as a discovery, has nothing to show here.
 func change(e *inventory.Event) string {
 	if e == nil {
 		return ""
@@ -517,8 +517,7 @@ func change(e *inventory.Event) string {
 
 	// A port event carries the number in whichever value changed and the
 	// service name, where the port has a familiar one, in the detail. Neither
-	// reads as a before and after, so it is worded here rather than left to
-	// fall through to one.
+	// reads as a before and after, so it is worded here.
 	if e.Kind == dbtype.EventPortOpened || e.Kind == dbtype.EventPortClosed {
 		port := cmp.Or(e.NewValue, e.OldValue)
 		switch {

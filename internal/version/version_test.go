@@ -10,7 +10,7 @@ func TestGetFallsBackWhenNothingLinkedIn(t *testing.T) {
 	t.Parallel()
 
 	// A test binary carries no linked-in values and no VCS stamps, so the
-	// version resolves to the placeholder rather than an empty string.
+	// version resolves to the "dev" placeholder.
 	got := Get()
 
 	assert.Equal(t, "dev", got.Version)

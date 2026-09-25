@@ -23,7 +23,7 @@ import (
 // are judged by the same online window. Two intervals would give the operator
 // two knobs for "which devices are here now" and assemble the device list from
 // readings taken at unrelated moments. A capability that answers a different
-// question -- which port a device is plugged into -- gets its own task.
+// question, such as which port a device is plugged into, gets its own task.
 type Device struct {
 	scanner     *scanner.Scanner
 	store       *inventory.Store
@@ -103,13 +103,13 @@ func (d *Device) Name() string {
 // interval since the last successful sweep finished, or nothing at all when
 // that much has already passed or no sweep has ever succeeded.
 //
-// Its own kind, not the newest scan of any kind: a port scan says nothing about
+// It reads the newest scan of its own kind: a port scan says nothing about
 // whether the devices are due to be looked at again.
 //
-// A store that cannot be read waits an interval rather than sweeping. Not
-// knowing whether the work is due is a reason to hold off, and the alternative
-// turns a restart loop into a scan loop -- which is the one failure the stored
-// schedule exists to prevent.
+// A store that cannot be read waits a full interval. Not knowing whether the
+// work is due is a reason to hold off: sweeping anyway would turn a restart
+// loop into a scan loop, the one failure the stored schedule exists to
+// prevent.
 func (d *Device) DueIn(ctx context.Context) time.Duration {
 	at, err := d.store.LastSuccessfulScanAt(ctx, dbtype.ScanDiscovery)
 
@@ -183,10 +183,10 @@ func (d *Device) scanAndSaveNetwork(ctx context.Context, network *netip.Prefix) 
 
 // discoverAndSave asks one source what it knows and records the answer.
 //
-// Facts and an error together are a source half-read -- one table answering
-// while another timed out -- and the facts that arrived are true, so they are
-// recorded and the failure is logged rather than discarded. Only a read that
-// returned nothing is a failure worth propagating.
+// Facts and an error together are a source half-read, with one table
+// answering while another timed out. The facts that arrived are true, so they
+// are recorded and the failure is logged. Only a read that returned nothing is
+// a failure worth propagating.
 func (d *Device) discoverAndSave(ctx context.Context, p plugin.HostDiscoverer) error {
 	// Segments before devices: ingest matches each address to a recorded
 	// network, so a VLAN the sweep list omits must exist before the facts that
@@ -229,9 +229,9 @@ func (d *Device) discoverAndSave(ctx context.Context, p plugin.HostDiscoverer) e
 
 // recordNetworks learns what the source calls the segments it serves.
 //
-// Failing costs the segments their names and nothing else, so it is logged
-// rather than returned: a router that will not list its addresses can still say
-// which devices are on them.
+// Failing costs the segments their names and nothing else, so it is only
+// logged: a router that will not list its addresses can still say which
+// devices are on them.
 func (d *Device) recordNetworks(ctx context.Context, p plugin.NetworkDiscoverer) {
 	nets, err := p.Networks(ctx)
 

@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// curate applies what the user owns directly, since the queries that write it
-// do not exist yet.
+// curate sets one user-owned column directly, so a read test does not depend
+// on UpdateCuration.
 func curate(t *testing.T, conn *sql.DB, id int64, column string, value any) {
 	t.Helper()
 
@@ -60,8 +60,8 @@ func TestListDevicesReturnsWhatWasSwept(t *testing.T) {
 }
 
 // The flattened view is the reason these types exist: an absent column has to
-// arrive as an empty string, not as a sql.NullString a template would have to
-// unwrap.
+// arrive as an empty string. A sql.NullString would have to be unwrapped in
+// every template.
 func TestListDevicesFlattensAbsentColumns(t *testing.T) {
 	t.Parallel()
 
@@ -218,8 +218,8 @@ func TestListDevicesSortsByName(t *testing.T) {
 	assert.Equal(t, []string{"nas.local", "printer.local"}, names(devices))
 }
 
-// The type filter narrows to the effective class -- the same one the icon
-// column shows -- so a name the classifier reads is enough to be found by it.
+// The type filter narrows to the effective class, the same one the icon
+// column shows, so a name the classifier reads is enough to be found by it.
 func TestListDevicesFiltersByType(t *testing.T) {
 	t.Parallel()
 
@@ -278,7 +278,7 @@ func TestGetDeviceCarriesAddressHistory(t *testing.T) {
 
 	// A sweep only reports what answered, so an address a device answered on
 	// before is not released the moment another appears: within the grace
-	// window -- these two sweeps are a clock tick apart -- both stay current.
+	// window (these two sweeps are a clock tick apart) both stay current.
 	// Retirement past the window is TestRetiresAnAddressADeviceMovedOff.
 	assert.Equal(t, []netip.Addr{
 		netip.MustParseAddr("192.0.2.10"),
@@ -380,7 +380,7 @@ func TestDeviceEventsAreMostRecentFirst(t *testing.T) {
 	assert.Equal(t, "renamed.local", events[0].NewValue)
 
 	// The two the discovery wrote share a timestamp, so only the pair is
-	// ordered against the change, not the two against each other.
+	// ordered against the change; the two have no order between them.
 	assert.ElementsMatch(t,
 		[]dbtype.EventKind{dbtype.EventDeviceDiscovered, dbtype.EventAddressAdded},
 		[]dbtype.EventKind{events[1].Kind, events[2].Kind},
@@ -642,8 +642,7 @@ func TestListNetworksCountsWhatIsOnEachPrefix(t *testing.T) {
 		[]scanner.Host{host("198.51.100.5", "00:00:5e:00:53:03", "camera.local")})
 	require.NoError(t, err)
 
-	// Named directly rather than through RecordNetworks, so this test covers
-	// the read and not the write beside it.
+	// Named directly with SQL, so this test covers only the read.
 	_, err = conn.ExecContext(t.Context(),
 		`UPDATE networks SET name = ?, vlan_id = ? WHERE cidr = ?`, "Home", 10, prefix)
 	require.NoError(t, err)
@@ -734,7 +733,7 @@ func TestWithClock(t *testing.T) {
 	assert.Equal(t, pinned, s.now())
 	assert.Equal(t, pinned.Add(-DefaultOnlineWindow), s.onlineCutoff())
 
-	// A nil clock would panic on the first write rather than fall back.
+	// A nil clock is ignored; used, it would panic on the first write.
 	assert.NotNil(t, New(nil, nil, WithClock(nil)).now)
 }
 
@@ -776,7 +775,7 @@ func TestParseAddrs(t *testing.T) {
 	}, parseAddrs("192.0.2.100 192.0.2.9"))
 
 	// Nothing reaches the column except through dbtype.Addr, so unparseable
-	// text is dropped rather than failing the read of every other device.
+	// text is dropped and the other devices still read.
 	assert.Equal(t, []netip.Addr{netip.MustParseAddr("192.0.2.9")}, parseAddrs("not-an-address 192.0.2.9"))
 }
 
@@ -803,6 +802,6 @@ func TestStatusAdmits(t *testing.T) {
 	assert.False(t, StatusOffline.admits(true))
 	assert.True(t, StatusOffline.admits(false))
 
-	// An unrecognised filter widens the list rather than emptying it.
+	// An unrecognised filter widens the list.
 	assert.True(t, Status("nonsense").admits(false))
 }

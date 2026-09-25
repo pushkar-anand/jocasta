@@ -13,14 +13,14 @@ import (
 // list_traffic gives an agent for one device.
 func (h *Handler) deviceTraffic(store *inventory.Store) response.HandlerFunc {
 	type (
-		// An unset days is the default rather than a rejected zero.
+		// An unset days gets the default.
 		trafficRequest struct {
 			Days int `schema:"days" validate:"omitempty,min=1,max=90"`
 		}
 
 		trafficResponse struct {
-			// Recorded is false when no traffic has ever been recorded:
-			// nothing is collecting, which is not the same as a quiet device.
+			// Recorded is false when no traffic has ever been recorded,
+			// meaning nothing is collecting. A quiet device reports true.
 			Recorded bool `json:"recorded"`
 
 			*inventory.DeviceTraffic
@@ -38,7 +38,7 @@ func (h *Handler) deviceTraffic(store *inventory.Store) response.HandlerFunc {
 			return err
 		}
 
-		// A device that does not exist is a 404, not a device with no traffic.
+		// A device that does not exist is a 404.
 		if _, err := store.Device(r.Context(), id); err != nil {
 			return err
 		}

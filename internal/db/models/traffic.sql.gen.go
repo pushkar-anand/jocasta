@@ -298,7 +298,7 @@ type FirstContactsRow struct {
 
 // Each device's first exchange with an organisation, when it fell at or after
 // a given hour: the organisations a device started talking to lately. Keyed on
-// the organisation rather than the address, so a service moving between the
+// the organisation, so a service moving between the
 // addresses of one provider is not news.
 //
 //	SELECT d.id,
@@ -800,8 +800,8 @@ type TrafficWorldPeersRow struct {
 }
 
 // What each device exchanged with each internet address since a given hour,
-// for placing the addresses on the world map. Grouped by address rather than
-// organisation, since one organisation's addresses sit in many countries.
+// for placing the addresses on the world map. Grouped by address, since one
+// organisation's addresses sit in many countries.
 //
 //	SELECT t.device_id,
 //	       t.peer_ip,

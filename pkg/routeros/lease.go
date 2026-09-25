@@ -3,8 +3,8 @@ package routeros
 import "context"
 
 // LeaseStatusBound is the lease status meaning a client accepted the address
-// and is using it. Every other status -- "waiting", "offered", "busy" -- is
-// the router talking about an address rather than about a device.
+// and is using it. Every other status, such as "waiting", "offered" or "busy",
+// describes the address and says nothing about a device.
 const LeaseStatusBound = "bound"
 
 // DHCPLease is one row of /ip/dhcp-server/lease.
@@ -18,7 +18,7 @@ type DHCPLease struct {
 
 	// Address is the leased address; ActiveAddress is the one currently in
 	// use, and they differ while a lease is being renegotiated. Static leases
-	// that no client is using carry the first and not the second.
+	// that no client is using carry only the first.
 	Address       string `json:"address"`
 	ActiveAddress string `json:"active-address"`
 
@@ -29,9 +29,8 @@ type DHCPLease struct {
 	// the device's own claim about its name and is often absent.
 	HostName string `json:"host-name"`
 
-	// Comment is the operator's free-text note on the lease, and is a note and
-	// not a name: "spare, do not reuse" is as likely as anything hostname-
-	// shaped. What a caller does with it is the caller's business.
+	// Comment is the operator's free-text note on the lease. It may be a name,
+	// and "spare, do not reuse" is just as likely.
 	Comment string `json:"comment"`
 
 	// Server is the DHCP server instance, which on a VLAN'd router names the
@@ -58,8 +57,7 @@ type DHCPLease struct {
 	ClientID string `json:"client-id"`
 }
 
-// Static reports whether an operator configured this lease rather than the
-// server handing it out.
+// Static reports whether an operator configured this lease.
 func (l DHCPLease) Static() bool { return !bool(l.Dynamic) }
 
 // Bound reports whether a client is holding this address now. A static lease

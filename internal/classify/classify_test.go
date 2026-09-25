@@ -182,7 +182,7 @@ func TestDeviceReasonsNameTheWinningSignals(t *testing.T) {
 
 	got := classify.Device(classify.Input{
 		Vendor:    "Synology Incorporated",
-		OpenPorts: []uint16{5001, 32400}, // 32400 votes Server, not NAS
+		OpenPorts: []uint16{5001, 32400}, // 32400 votes Server
 	})
 
 	require.Equal(t, classify.NAS, got.Class)

@@ -42,8 +42,8 @@ type Country struct {
 	LabelX, LabelY float64
 }
 
-// The outlines are from Natural Earth's 1:110m countries, which are in the
-// public domain, generated into world.gz by internal/world.
+// The outlines are from Natural Earth's 1:10m countries, which are in the
+// public domain, simplified and generated into world.gz by internal/world.
 //
 //go:embed world.gz
 var worldData []byte

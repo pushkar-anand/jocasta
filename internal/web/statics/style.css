@@ -1,12 +1,12 @@
 /*
- * Jocasta -- network device inventory.
+ * Jocasta: network device inventory.
  *
  * The rail is the fixed point: a dark column carrying the sections, against a
  * light neutral ground the content sits on as cards. Everything a page says is
  * either a card or the space between cards, which is what lets the overview put
  * networks, presence and the log side by side without a rule between them.
  *
- * IBM Plex is the face -- Sans for prose and labels, Mono for anything an
+ * IBM Plex is the face: Sans for prose and labels, Mono for anything an
  * operator reads as an address, a prefix or a hardware identifier.
  *
  * Colour carries state and nothing else: green for answering, amber for gone
@@ -138,8 +138,8 @@ a:hover {
     text-decoration: none;
 }
 
-/* The skip link's target. A programmatic focus stop, not a control -- the
-   content shifting into view and its heading are the cue, so no ring. */
+/* The skip link's target. A programmatic focus stop: the content shifting
+   into view and its heading are the cue, so it has no ring. */
 .main:focus {
     outline: none;
 }
@@ -155,7 +155,7 @@ a:hover {
     min-height: 100%;
 }
 
-/* ---- Rail -------------------------------------------------------------- */
+/* Rail */
 
 /* Sticky so the sections and the sweep line stay in view on a page long enough
    to scroll: the rail is the fixed point the layout is built around, and a
@@ -264,7 +264,7 @@ a:hover {
     color: var(--sidebar-icon-on);
 }
 
-/* Pushed to the foot of the rail: ambient, not a control. */
+/* Pushed to the foot of the rail, where ambient information sits. */
 .sidebar__foot {
     margin-top: auto;
     padding-top: 14px;
@@ -291,7 +291,7 @@ a:hover {
     color: #c7cad2;
 }
 
-/* ---- Frame -------------------------------------------------------------- */
+/* Frame */
 
 .frame {
     flex: 1 1 auto;
@@ -339,7 +339,7 @@ a:hover {
     background: var(--border);
 }
 
-/* Sign out is a POST, so it is a one-button form rather than a link. This keeps
+/* Sign out is a POST, so it is a one-button form. This keeps
    the form from adding a box of its own between the other tools. */
 .topbar__signout {
     display: flex;
@@ -413,7 +413,7 @@ h1 {
 }
 
 /* h2. The section a page breaks into: named, in body colour, and carrying a
-   hairline the width of the block so the break is visible and not just a word. */
+   hairline the width of the block so the break is visible. */
 .section {
     margin: 0;
     padding-bottom: 8px;
@@ -425,8 +425,8 @@ h1 {
     color: var(--text);
 }
 
-/* When a count or link sits opposite the heading, the rule spans the whole row
-   instead of stopping under the text. Every .block__head carries a heading. */
+/* When a count or link sits opposite the heading, the rule spans the whole
+   row. Every .block__head carries a heading. */
 .block__head {
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border);
@@ -437,8 +437,8 @@ h1 {
     border-bottom: 0;
 }
 
-/* h3. A part within a section -- "Common services" under "Ports & services".
-   The old eyebrow look, now with a level in the outline behind it. */
+/* h3. A part within a section, such as "Common services" under "Ports &
+   services": a small uppercase eyebrow with a level in the outline behind it. */
 .sub {
     margin: 0;
     font-size: var(--fs-h3);
@@ -467,7 +467,7 @@ h1 {
     color: var(--text-3);
 }
 
-/* ---- Card --------------------------------------------------------------- */
+/* Card */
 
 .card {
     background: var(--surface);
@@ -490,7 +490,7 @@ h1 {
 
 .empty {
     padding: 20px;
-    /* Hug the text rather than stretching a mostly-empty box the full width. */
+    /* Hug the text, so a mostly-empty box does not stretch the full width. */
     max-width: 60ch;
 }
 
@@ -503,10 +503,10 @@ h1 {
     margin-bottom: 0;
 }
 
-/* ---- Networks ------------------------------------------------------------ */
+/* Networks */
 
-/* The row count follows the width rather than being fixed: a prefix card has a
-   floor it stops being readable below, and above that they simply fit. */
+/* The row count follows the width: a prefix card has a floor it stops being
+   readable below, and above that as many fit as the row holds. */
 .netgrid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
@@ -520,8 +520,8 @@ h1 {
     padding: 18px 20px;
 }
 
-/* The card is a link to the network's own page; it should read as the card it
-   already is, not as a run of link text. */
+/* The card is a link to the network's own page; it should still read as a
+   card. */
 a.netcard {
     color: inherit;
 }
@@ -577,7 +577,7 @@ a.netcard:hover {
 }
 
 /* A pair of counts read as one fact, so the number leads and the label follows
-   it rather than the other way round. */
+   it. */
 .stats {
     display: flex;
     gap: 26px;
@@ -612,12 +612,12 @@ a.netcard:hover {
     color: var(--text-3);
 }
 
-/* ---- Presence ledger ------------------------------------------------------ */
+/* Presence ledger */
 
-/* Presence is a question about how stale the last sighting is, not a state a
+/* Presence is a question about how stale the last sighting is, which no
    device reports, so the proportion is the honest way to show it.
 
-   Drawn as SVG rather than as sized elements: the width has to come from the
+   Drawn as SVG: the width has to come from the
    data, and an inline style attribute would need style-src 'unsafe-inline' to
    survive the content security policy, while an SVG width is an attribute and
    needs nothing. */
@@ -669,7 +669,7 @@ a.netcard:hover {
     font-variant-numeric: tabular-nums;
 }
 
-/* ---- Glanceable band ------------------------------------------------------ */
+/* Glanceable band */
 
 .glance {
     display: grid;
@@ -678,7 +678,7 @@ a.netcard:hover {
     align-items: start;
 }
 
-/* ---- Ports and services ------------------------------------------------- */
+/* Ports and services */
 
 .portoverview {
     display: flex;
@@ -836,7 +836,7 @@ a.netcard:hover {
 
 /* The Type value carries an icon, a label and sometimes a chip, which is more
    than one of these narrow columns holds on a line. Let the chip drop below
-   the label rather than squeezing the word until it breaks. */
+   the label so the word is never squeezed until it breaks. */
 .facts .cell {
     flex-wrap: wrap;
     row-gap: 6px;
@@ -846,8 +846,8 @@ a.netcard:hover {
     flex: 0 0 auto;
 }
 
-/* A claim's detail sits inside a table cell, so it stacks rather than spreading
-   into columns the way .facts does: the column is already narrow, and the keys
+/* A claim's detail sits inside a table cell, so it stacks in one column: the
+   cell is already narrow, and the keys
    differ from one source to the next. */
 .detail {
     display: flex;
@@ -877,7 +877,7 @@ a.netcard:hover {
     overflow-wrap: anywhere;
 }
 
-/* ---- Dots ----------------------------------------------------------------- */
+/* Dots */
 
 .dot {
     flex: 0 0 auto;
@@ -927,7 +927,7 @@ a.netcard:hover {
     }
 }
 
-/* ---- Chips ---------------------------------------------------------------- */
+/* Chips */
 
 /* A chip states what something is, in one word. Its colour is the state, so a
    chip with no modifier is deliberately colourless. */
@@ -971,13 +971,13 @@ a.netcard:hover {
     color: var(--text-2);
 }
 
-/* A chip that carries a proper label (Viewer, You) rather than a one-word
-   state, so it keeps its capitalisation. */
+/* A chip that carries a proper label (Viewer, You), so it keeps its
+   capitalisation. */
 .chip--label {
     text-transform: none;
 }
 
-/* ---- Activity log ---------------------------------------------------------- */
+/* Activity log */
 
 .activity {
     list-style: none;
@@ -1014,8 +1014,8 @@ a.netcard:hover {
     height: 14px;
 }
 
-/* The tone says what sort of change it was, not which kind exactly: six
-   colours in one list would say nothing at all. */
+/* The tone says what sort of change it was: six colours in one list would
+   say nothing at all. */
 .act--arrival .acticon {
     background: var(--brand-soft);
     color: var(--brand);
@@ -1061,7 +1061,7 @@ a.netcard:hover {
     white-space: nowrap;
 }
 
-/* ---- Tables ---------------------------------------------------------------- */
+/* Tables */
 
 .scroller {
     overflow-x: auto;
@@ -1104,7 +1104,7 @@ tbody tr:hover {
     background: var(--surface-2);
 }
 
-/* A row that is a note about the row above it, not a row of its own. */
+/* A row that is a note about the row above it. */
 .row--note td {
     padding-top: 0;
 }
@@ -1113,7 +1113,7 @@ tbody tr:hover {
     background: none;
 }
 
-/* Name and dot are one cell, not two columns. */
+/* Name and dot share one cell. */
 .cell {
     display: flex;
     align-items: center;
@@ -1124,15 +1124,15 @@ tbody tr:hover {
     text-align: right;
 }
 
-/* A cell holding more than one thing -- the prefixes a multi-homed device sits
-   on -- lets them fall to a second line rather than widening the column. */
+/* A cell holding more than one thing, such as the prefixes a multi-homed
+   device sits on, lets them fall to a second line so the column stays narrow. */
 .cell--wrap {
     flex-wrap: wrap;
     gap: 6px 9px;
 }
 
-/* A cell that stacks a primary value over a secondary one -- an address over the
-   ports on it, a hardware address over its vendor -- so two facts share a column
+/* A cell that stacks a primary value over a secondary one (an address over the
+   ports on it, a hardware address over its vendor), so two facts share a column
    without two columns' width. */
 .cell--lines {
     flex-direction: column;
@@ -1140,7 +1140,7 @@ tbody tr:hover {
     gap: 3px;
 }
 
-/* Ports on an address: small numbers that wrap rather than stretch the column. */
+/* Ports on an address: small numbers that wrap to keep the column narrow. */
 .chiprow {
     display: flex;
     flex-wrap: wrap;
@@ -1163,7 +1163,7 @@ tbody tr:hover {
 }
 
 /* The guessed device type, shown beside a name in the list and in the panel's
-   identity block. Muted: it is a hint the row carries, not the row's subject. */
+   identity block. Muted: it is a hint the row carries. */
 .devicon {
     flex: 0 0 auto;
     width: 15px;
@@ -1202,7 +1202,7 @@ tbody tr:hover {
     overflow-wrap: anywhere;
 }
 
-/* For a heading a sighted reader does not need but a screen reader does. */
+/* For a heading only a screen reader needs. */
 .visually-hidden {
     position: absolute;
     width: 1px;
@@ -1223,7 +1223,7 @@ code {
     color: var(--text-2);
 }
 
-/* ---- Controls ---------------------------------------------------------------- */
+/* Controls */
 
 .filters {
     display: flex;
@@ -1333,7 +1333,7 @@ input[type="radio"] {
     accent-color: var(--brand);
 }
 
-/* How many devices the list holds, and -- when a filter is on -- the way to
+/* How many devices the list holds, and, when a filter is on, the way to
    drop it. Sits between the filter form and the table, inside the fragment htmx
    swaps, so it keeps step with the rows. */
 .rowcount {
@@ -1350,8 +1350,8 @@ input[type="radio"] {
     color: var(--brand);
 }
 
-/* A row of plain links that narrow a log to one kind. The current one is not a
-   link to somewhere else, it is where you are. */
+/* A row of plain links that narrow a log to one kind. The current one marks
+   where you are. */
 .logfilter {
     display: flex;
     flex-wrap: wrap;
@@ -1422,7 +1422,7 @@ input[type="radio"] {
     font-weight: 500;
 }
 
-/* A button that is only its glyph -- the row's Edit action. Square and full
+/* A button that is only its glyph: the row's Edit action. Square and full
    height so it stays a comfortable target where a text button would be cramped;
    the accessible name rides on aria-label. */
 .btn--icon {
@@ -1465,7 +1465,7 @@ input[type="radio"] {
     justify-content: space-between;
 }
 
-/* ---- Editing ------------------------------------------------------------------ */
+/* Editing */
 
 .curation {
     display: flex;
@@ -1555,7 +1555,7 @@ input[type="radio"] {
     color: var(--good);
 }
 
-/* ---- Traffic ------------------------------------------------------------------ */
+/* Traffic */
 
 /* The "Talks to" section: a period switch, then up to two tables. Its own
    column so the swap target keeps the block's spacing. */
@@ -1566,7 +1566,7 @@ input[type="radio"] {
 }
 
 /* An organisation folds the addresses behind it. The summary is the row's
-   label, so it reads as text with a disclosure mark, not as a button. */
+   label, so it reads as text with a disclosure mark. */
 .peers > summary {
     display: inline-flex;
     flex-wrap: wrap;
@@ -1615,8 +1615,7 @@ input[type="radio"] {
     font-size: var(--fs-support);
 }
 
-/* A row that opens grows downward; its figures stay level with its name
-   rather than drifting to the middle of the list it opened. */
+/* A row that opens grows downward; its figures stay level with its name. */
 #device-traffic td,
 #traffic-cards td {
     vertical-align: top;
@@ -1630,7 +1629,7 @@ td .traffic__tried {
 }
 
 /* One tab per network segment. They are links, each a view the address bar
-   can hold, so the current one is aria-current rather than a selected tab. */
+   can hold, so the current one carries aria-current. */
 .tabs {
     display: flex;
     gap: 4px;
@@ -1692,8 +1691,8 @@ td .traffic__tried {
     background: var(--surface-2);
 }
 
-/* Who opened a row's connections, "→ 12 · ← 3": one unit, never broken
-   across lines. */
+/* Who opened a row's connections, "→ 12 · ← 3": one unit, kept on one
+   line. */
 .conns {
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
@@ -1708,12 +1707,11 @@ td .traffic__tried {
     cursor: pointer;
 }
 
-/* ---- htmx --------------------------------------------------------------------- */
+/* htmx */
 
 /* These wrappers exist only so htmx has something to swap. display: contents
    keeps them in the DOM as swap targets while taking them out of the layout, so
-   their children sit in the parent's flow and inherit its spacing rather than
-   each wrapper having to restate it. */
+   their children sit in the parent's flow and inherit its spacing. */
 #live,
 #device-rows,
 #device-panel,
@@ -1741,8 +1739,7 @@ td .traffic__tried {
     opacity: 1;
 }
 
-/* Swaps carry a short fade so a table replacing itself reads as an update
-   rather than a flicker. */
+/* Swaps carry a short fade so a table replacing itself reads as an update. */
 .htmx-swapping {
     opacity: 0.4;
     transition: opacity 120ms ease-out;
@@ -1755,11 +1752,10 @@ td .traffic__tried {
     }
 }
 
-/* ---- Narrow ------------------------------------------------------------------- */
+/* Narrow */
 
-/* The rail keeps the sections reachable at every width; below this it is a
-   header rather than a column, since a 240px column of a 640px screen is most
-   of it. */
+/* The rail keeps the sections reachable at every width; below this it becomes
+   a header, since a 240px column of a 640px screen is most of it. */
 @media (max-width: 60rem) {
     :root {
         --pad: 20px;
@@ -1867,7 +1863,8 @@ td .traffic__tried {
         max-width: none;
     }
 
-    /* Two selects to a row -- gap is 10px, so half the row less half the gap. */
+    /* Two selects to a row: the gap is 10px, so each is half the row less half
+       the gap. */
     .filters .field:not(.field--search) {
         flex: 1 1 calc(50% - 5px);
     }
@@ -1944,7 +1941,7 @@ td .traffic__tried {
         text-align: right;
     }
 
-    /* The edit form is one block, not a labelled cell; the identity cell above
+    /* The edit form is one block with no label; the identity cell above
        it drops its desktop nowrap and sits on its own line. width resets the
        1% the last cell in a table row otherwise carries here. */
     #device-rows tr.editing td {
@@ -1985,10 +1982,10 @@ td .traffic__tried {
     }
 }
 
-/* ---- Auth ---------------------------------------------------------------- */
+/* Auth */
 
 /* The one page with no sidebar and no topbar to anchor to, so the card is
-   centred in the viewport on its own rather than sitting in .main. */
+   centred in the viewport on its own. */
 .authshell {
     min-height: 100%;
     display: flex;
@@ -2056,10 +2053,10 @@ td .traffic__tried {
     width: 100%;
 }
 
-/* ---- API tokens ----------------------------------------------------------- */
+/* API tokens */
 
-/* The one moment a token's plaintext is readable: called out rather than
-   dropped quietly into the list, since there is no second chance to see it. */
+/* The one moment a token's plaintext is readable: called out, since there is
+   no second chance to see it. */
 .tokenreveal {
     display: flex;
     flex-direction: column;
@@ -2116,8 +2113,7 @@ td .traffic__tried {
     margin-bottom: 8px;
 }
 
-/* One code per line, not a single value crammed into a row the way a token
-   or curl snippet is -- there are ten of these, not one. */
+/* One code per line: there are ten of them. */
 .reccodes {
     margin: 0;
     padding: 10px 12px;
@@ -2139,9 +2135,9 @@ td .traffic__tried {
     margin-top: 8px;
 }
 
-/* A divider, the same way .modal__foot separates actions from the body
-   above it -- without one these sat flush against the status text with
-   nothing marking them as a distinct control group. */
+/* A divider, the way .modal__foot separates actions from the body above
+   it, so the buttons read as their own control group apart from the status
+   text. */
 .security__actions {
     display: flex;
     flex-wrap: wrap;
@@ -2150,9 +2146,9 @@ td .traffic__tried {
     border-top: 1px solid var(--border);
 }
 
-/* .btn--quiet's background is var(--surface), same as the plain .card it
-   sits on here -- everywhere else it sits on a table row or a tinted panel
-   instead, so it reads as a button, not just a faint outline. */
+/* .btn--quiet's background is var(--surface), the same as the plain .card
+   it sits on here, so it gets a step darker to still read as a button.
+   Elsewhere it sits on a table row or a tinted panel. */
 .security__actions .btn--quiet {
     background: var(--surface-2);
 }
@@ -2200,7 +2196,7 @@ td .traffic__tried {
     --aqua: #20c997;
 }
 
-/* ---- Theme Toggle -------------------------------------------------------- */
+/* Theme Toggle */
 
 .theme-toggle {
     flex: 0 0 auto;
@@ -2242,7 +2238,7 @@ td .traffic__tried {
     display: none;
 }
 
-/* ---- Account menu ------------------------------------------------------- */
+/* Account menu */
 
 /* The signed-in identity and the account actions, behind one topbar control.
    A native <details>; settings.js only adds Escape/outside-click close. */
@@ -2413,7 +2409,7 @@ td .traffic__tried {
     }
 }
 
-/* ---- Modal (native <dialog>) ------------------------------------------------ */
+/* Modal (native <dialog>) */
 
 /* Add user / create token. settings.js opens and closes it; a submit rejected
    server-side comes back as <dialog open> and shows inline until the script
@@ -2505,7 +2501,7 @@ td .traffic__tried {
     border-top: 1px solid var(--border);
 }
 
-/* ---- Success notice -------------------------------------------------------- */
+/* Success notice */
 
 .notice {
     display: flex;
@@ -2545,7 +2541,7 @@ td .traffic__tried {
     color: var(--warning-ink);
 }
 
-/* ---- Permission choice --------------------------------------------------- */
+/* Permission choice */
 
 .permchoice {
     display: flex;
@@ -2590,7 +2586,7 @@ td .traffic__tried {
     color: var(--text-3);
 }
 
-/* ---- Password reveal ---------------------------------------------------- */
+/* Password reveal */
 
 .formrow {
     display: flex;
@@ -2643,7 +2639,7 @@ td .traffic__tried {
     height: 15px;
 }
 
-/* ---- Network map ------------------------------------------------------------ */
+/* Network map */
 
 /* The map is an SVG laid out on the server; everything that colours or moves
    it is here, so the policy's ban on inline style holds and the dark theme
@@ -3178,7 +3174,7 @@ td .traffic__tried {
     color: var(--text-3);
 }
 
-/* On a phone the legend would cover the map; it goes under it instead. */
+/* On a phone the legend would cover the map, so it goes under it. */
 @media (max-width: 700px) {
     .netmap {
         height: auto;
@@ -3230,7 +3226,7 @@ td .traffic__tried {
     }
 }
 
-/* ---- Coarse pointers -------------------------------------------------------- */
+/* Coarse pointers */
 
 /* A finger is a blunter instrument than a mouse pointer: 34px is comfortable to
    click and cramped to tap. Where the pointer is coarse, the controls grow.

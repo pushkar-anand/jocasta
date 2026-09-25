@@ -7,9 +7,9 @@ import (
 	"net/url"
 	"path"
 
-	// Registers the pure-Go "sqlite" driver. Imported explicitly rather than
-	// leaning on the migrate driver's own import, so swapping that out later
-	// cannot silently unregister the driver the application opens with.
+	// Registers the pure-Go "sqlite" driver. Imported here as well as by the
+	// migrate driver, so swapping that driver out later cannot silently
+	// unregister the one the application opens with.
 	_ "modernc.org/sqlite"
 )
 

@@ -87,8 +87,8 @@ func TestPagingRejectsAMalformedCursor(t *testing.T) {
 	}
 }
 
-// An empty cursor is the first page rather than a failure, so a client need not
-// leave the parameter off to start.
+// An empty cursor is the first page, so a client need not leave the parameter
+// off to start.
 func TestEmptyCursorIsTheFirstPage(t *testing.T) {
 	t.Parallel()
 
@@ -99,7 +99,7 @@ func TestEmptyCursorIsTheFirstPage(t *testing.T) {
 	assert.NotEmpty(t, list(t, body, "events"))
 }
 
-// Offset paging is gone, so the parameter it used is not one the API takes.
+// The API pages by cursor and takes no offset parameter.
 func TestOffsetIsNotAParameter(t *testing.T) {
 	t.Parallel()
 

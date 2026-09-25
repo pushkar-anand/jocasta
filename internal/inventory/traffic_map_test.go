@@ -94,8 +94,8 @@ func TestTrafficMapMarksRecentActivity(t *testing.T) {
 	}
 }
 
-// Past the cap the quietest devices are counted, not drawn, and their lines go
-// with them.
+// Past the cap the quietest devices are only counted, and their lines go with
+// them.
 func TestTrafficMapFoldsTheQuietest(t *testing.T) {
 	t.Parallel()
 

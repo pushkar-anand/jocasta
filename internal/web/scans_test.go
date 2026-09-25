@@ -34,7 +34,7 @@ func TestScansPageNamesTheKindAndUnits(t *testing.T) {
 
 	body := get(t, scanned(t), "/scans").Body.String()
 
-	// The kind is a column, not something to infer from the source.
+	// The kind has a column of its own.
 	assert.Contains(t, body, `<th scope="col">Kind</th>`)
 	assert.Contains(t, body, "DISCOVERY")
 	assert.Contains(t, body, "PORTS")
@@ -69,8 +69,7 @@ func TestScansPageRejectsAnUnknownKind(t *testing.T) {
 	assert.NotEqual(t, http.StatusOK, get(t, scanned(t), "/scans?kind=bogus").Code)
 }
 
-// An empty kind-filtered log says which kind found nothing, not that no sweep
-// has ever run.
+// An empty kind-filtered log names the kind that found nothing.
 func TestScansPageEmptyKindReadsRight(t *testing.T) {
 	t.Parallel()
 

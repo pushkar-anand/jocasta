@@ -10,8 +10,8 @@ import (
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// A prompt is a procedure the owner starts by name -- a slash command in most
-// clients -- which the model then carries out with the tools. Where a tool
+// A prompt is a procedure the owner starts by name (a slash command in most
+// clients), which the model then carries out with the tools. Where a tool
 // answers one question, a prompt writes down how to reason across several:
 // that a randomised hardware address leaves a trail of records for one device,
 // say, or that the change log has no event for a device going quiet.
@@ -125,7 +125,7 @@ Name each device the way the tools do, with its id. Counts and times come from t
 
 // weeklyReport walks the model through summarising the change log over a
 // period, a week unless the owner asks for another. The period is fixed here,
-// as timestamps, rather than left to the model, which may not know the date.
+// as timestamps, because the model may not know the date.
 func weeklyReport(now func() time.Time) prompt {
 	return func(s *mcpsdk.Server, _ bool) {
 		p := &mcpsdk.Prompt{

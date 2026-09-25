@@ -19,13 +19,13 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/cidr"
 )
 
-// ErrPrefixTooLarge is returned for a range wide enough that sweeping it would
-// be a mistake rather than an intent.
+// ErrPrefixTooLarge is returned for a range wide enough that sweeping it is
+// almost certainly a mistake.
 var ErrPrefixTooLarge = errors.New("prefix too large to sweep")
 
 // maxSweepHosts caps a single sweep. A /16 is 65k probes, which is already
 // slow and loud; anything wider is almost certainly a typo'd prefix. The cap is
-// this scanner's policy, which is why it lives here and not in pkg/cidr.
+// this scanner's policy, which is why it lives here.
 const maxSweepHosts = 65536
 
 // Host is an address that answered a sweep. The identifying detail is carried
@@ -85,7 +85,7 @@ type Scanner struct {
 
 	// wait is how long to keep reading replies after the final probe is sent.
 	// Cheap IoT devices can take over a second to answer, so a short window
-	// reports them as down rather than slow.
+	// would report them as down.
 	wait time.Duration
 
 	// rate caps probes per second so a large sweep does not arrive as a burst
@@ -156,7 +156,7 @@ func New(log *slog.Logger, opts ...Option) *Scanner {
 }
 
 // Scan sweeps every usable address in p and returns the hosts that answered,
-// ordered by address. An empty result is a valid answer, not an error.
+// ordered by address. An empty result with a nil error means nothing answered.
 func (s *Scanner) Scan(ctx context.Context, p netip.Prefix) ([]Host, error) {
 	count, err := cidr.Count(p)
 	if err != nil {
@@ -201,7 +201,7 @@ func (s *Scanner) Scan(ctx context.Context, p netip.Prefix) ([]Host, error) {
 
 // enrich turns the addresses that answered into hosts, adding what only a
 // probe knows to what [hosts.BuildHost] can work out. at stamps every host,
-// so one sweep is one observation rather than a row of nearly-equal times.
+// so one sweep is one observation.
 func (s *Scanner) enrich(ctx context.Context, replies map[netip.Addr]time.Duration, at time.Time) []Host {
 	ordered := slices.SortedFunc(maps.Keys(replies), netip.Addr.Compare)
 
@@ -253,7 +253,7 @@ func (s *Scanner) enrich(ctx context.Context, replies map[netip.Addr]time.Durati
 
 // hardware reads the two views of who holds an address: the kernel's neighbour
 // table and this host's own interfaces. Only on-link hosts appear in the
-// neighbour table -- an address behind a router is reached through the router's
+// neighbour table: an address behind a router is reached through the router's
 // own MAC, so a routed network yields no hardware addresses at all.
 //
 // Either being unreadable costs the MACs it would have supplied and nothing

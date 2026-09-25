@@ -3,11 +3,11 @@
 // gone. One rule for the whole app:
 //
 //   * a swapped-in region that announces an outcome (role=status / role=alert)
-//     takes focus itself, so the reader lands on the announcement -- the region
-//     needs a tabindex for this (its own, or an ancestor's);
-//   * a region tagged data-focus-after-swap points at the control to focus
-//     instead, by selector -- the device row uses it to send focus back to its
-//     Edit button when the inline edit form closes;
+//     takes focus itself, so the reader lands on the announcement. The region
+//     needs a tabindex for this, its own or an ancestor's;
+//   * a region tagged data-focus-after-swap names the control to focus, by
+//     selector. The device row uses it to send focus back to its Edit button
+//     when the inline edit form closes;
 //   * a region htmx has already focused (it honours [autofocus] in new content)
 //     is left alone.
 //
@@ -31,7 +31,7 @@
             : swapped.querySelector('[role="status"], [role="alert"]');
         if (announce) {
             // The announcement itself if it can hold focus, else the nearest
-            // region that can -- the swap wrapper is often display:contents and
+            // region that can: the swap wrapper is often display:contents and
             // takes no focus.
             var host = announce.hasAttribute('tabindex') ? announce : announce.closest('[tabindex]');
             if (host) {

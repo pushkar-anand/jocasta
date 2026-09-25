@@ -7,10 +7,10 @@
 // shown: [Attribution] is the line to use. It is embedded, so a lookup needs
 // no network access and no external database.
 //
-// A country is where the address is registered, not where the machine
-// answering it stands. A provider's addresses are often registered in its home
-// country while the server is next door, and a CDN's are wherever its edges
-// are; the country says whose network it is as much as where.
+// A country is where the address is registered. A provider's addresses are
+// often registered in its home country while the server is next door, and a
+// CDN's are wherever its edges are, so the country says whose network it is as
+// much as where.
 package geo
 
 import (
@@ -74,7 +74,7 @@ func load() *index {
 	zr, err := gzip.NewReader(bytes.NewReader(rangesData))
 	if err != nil {
 		// The data is embedded at build time; a corrupt table is a build that
-		// should never have shipped, and every lookup simply misses.
+		// should never have shipped, and every lookup misses.
 		return ix
 	}
 

@@ -12,7 +12,7 @@ import (
 )
 
 // procNetARP is the kernel's IPv4 neighbour table. Reading it is free and needs
-// no privileges, unlike sending ARP requests directly.
+// no privileges; sending ARP requests directly would.
 const procNetARP = "/proc/net/arp"
 
 // arpFlagComplete (ATF_COM) marks an entry whose hardware address is actually
@@ -23,8 +23,8 @@ const arpFlagComplete = 0x2
 const zeroMAC = "00:00:00:00:00:00"
 
 // neighbours maps on-link IPv4 addresses to their hardware addresses. On a
-// system without a neighbour table to read it returns an empty map rather than
-// an error: no MAC is a normal outcome, not a failed scan.
+// system without a neighbour table to read it returns an empty map and a nil
+// error, because a host with no MAC is a normal outcome of a scan.
 func neighbours() (map[netip.Addr]string, error) {
 	f, err := os.Open(procNetARP)
 	if err != nil {
