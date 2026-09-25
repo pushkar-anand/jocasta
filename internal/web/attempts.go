@@ -61,13 +61,15 @@ func filterAttempts(attempts []*inventory.Attempt, f trafficFilter) []*inventory
 }
 
 func attemptMatches(a *inventory.Attempt, query string) bool {
-	for _, s := range []string{a.PeerDeviceName, a.IP.String(), a.OrgShort, attemptWhat(a)} {
-		if strings.Contains(strings.ToLower(s), query) {
-			return true
-		}
-	}
+	return anyContains(query, a.PeerDeviceName, a.IP.String(), a.OrgShort, attemptWhat(a))
+}
 
-	return false
+// anyContains reports whether any field, lowercased, contains query, which the
+// caller has lowercased already.
+func anyContains(query string, fields ...string) bool {
+	return slices.ContainsFunc(fields, func(s string) bool {
+		return strings.Contains(strings.ToLower(s), query)
+	})
 }
 
 // proberFor is id's entry among probers, nil when it did not probe.

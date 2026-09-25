@@ -343,13 +343,7 @@ func filterPeers(peers []*inventory.TrafficPeer, f trafficFilter, org string) []
 }
 
 func peerMatches(p *inventory.TrafficPeer, query string) bool {
-	for _, s := range []string{p.DeviceName, p.IP.String(), p.Name, serviceLabel(p)} {
-		if strings.Contains(strings.ToLower(s), query) {
-			return true
-		}
-	}
-
-	return false
+	return anyContains(query, p.DeviceName, p.IP.String(), p.Name, serviceLabel(p))
 }
 
 // mergePeers folds per-service rows and tries into one row per peer, busiest
