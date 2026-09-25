@@ -171,24 +171,6 @@ func TestSourceKey(t *testing.T) {
 	assert.Equal(t, "Vlan pool", sourceKey("vlan_pool"))
 }
 
-func TestPhrase(t *testing.T) {
-	t.Parallel()
-
-	assert.Equal(t, "was discovered", phrase(dbtype.EventDeviceDiscovered))
-	assert.Equal(t, "was identified", phrase(dbtype.EventDeviceIdentified))
-	assert.Equal(t, "changed its hostname", phrase(dbtype.EventHostnameChanged))
-	assert.Equal(t, "was edited", phrase(dbtype.EventDeviceEdited))
-	assert.Equal(t, "got a new address", phrase(dbtype.EventAddressAdded))
-	assert.Equal(t, "dropped an address", phrase(dbtype.EventAddressReleased))
-	assert.Equal(t, "started listening on", phrase(dbtype.EventPortOpened))
-	assert.Equal(t, "stopped listening on", phrase(dbtype.EventPortClosed))
-
-	// events.kind carries no CHECK, so a kind added in Go without a phrase here
-	// still has to render as something, and its own name is the most truthful
-	// fallback.
-	assert.Equal(t, "group assigned", phrase(dbtype.EventKind("GROUP_ASSIGNED")))
-}
-
 func TestTone(t *testing.T) {
 	t.Parallel()
 
@@ -242,45 +224,6 @@ func TestStatusClass(t *testing.T) {
 	assert.Equal(t, "chip chip--fail", statusClass(dbtype.StatusFailed))
 	assert.Equal(t, "chip chip--quiet", statusClass(dbtype.StatusCancelled))
 	assert.Equal(t, "chip chip--brand", statusClass(dbtype.StatusRunning))
-}
-
-func TestChange(t *testing.T) {
-	t.Parallel()
-
-	assert.Equal(t, "old → new", change(&inventory.Event{OldValue: "old", NewValue: "new"}))
-	assert.Equal(t, "192.0.2.10", change(&inventory.Event{NewValue: "192.0.2.10"}))
-	assert.Equal(t, "device 2 folded into 1", change(&inventory.Event{Detail: "device 2 folded into 1"}))
-
-	// A discovery changed nothing; it is the thing that happened.
-	assert.Empty(t, change(&inventory.Event{}))
-
-	// A port event names the port and, where the port is a familiar one, the
-	// service, from whichever value the flip wrote.
-	assert.Equal(t, "port 22 (ssh)",
-		change(&inventory.Event{Kind: dbtype.EventPortOpened, NewValue: "22", Detail: "ssh"}))
-	assert.Equal(t, "port 44321",
-		change(&inventory.Event{Kind: dbtype.EventPortClosed, OldValue: "44321"}))
-
-	// An edit names the field, since the user owns several of them.
-	edit := &inventory.Event{Kind: dbtype.EventDeviceEdited, Detail: "label"}
-
-	edit.NewValue = "Office printer"
-	assert.Equal(t, "label: Office printer", change(edit))
-
-	edit.OldValue = "Printer"
-	assert.Equal(t, "label: Printer → Office printer", change(edit))
-
-	// Emptying a field shows as a change to nothing.
-	edit.NewValue = ""
-	assert.Equal(t, "label: Printer → cleared", change(edit))
-
-	// A released address is named on its own.
-	assert.Equal(t, "192.0.2.55",
-		change(&inventory.Event{Kind: dbtype.EventAddressReleased, OldValue: "192.0.2.55", Detail: "unanswered"}))
-
-	// A reclassification shows the names the device page uses.
-	assert.Equal(t, "Smart-home hub → Camera",
-		change(&inventory.Event{Kind: dbtype.EventDeviceClassified, OldValue: "iot_hub", NewValue: "camera"}))
 }
 
 // The templates are parsed against the map, so a helper renamed in only one

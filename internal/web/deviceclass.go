@@ -8,60 +8,6 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/classify"
 )
 
-// classLabel words a device class for a reader. The class values are lower-snake
-// identifiers the storage layer keeps; this is the only place they are spelled
-// for a person.
-func classLabel(c classify.Class) string {
-	switch c {
-	case classify.Router:
-		return "Router"
-	case classify.Switch:
-		return "Switch"
-	case classify.AccessPoint:
-		return "Access point"
-	case classify.Firewall:
-		return "Firewall"
-	case classify.Server:
-		return "Server"
-	case classify.NAS:
-		return "NAS"
-	case classify.Hypervisor:
-		return "Hypervisor"
-	case classify.Desktop:
-		return "Desktop"
-	case classify.Laptop:
-		return "Laptop"
-	case classify.Phone:
-		return "Phone"
-	case classify.Tablet:
-		return "Tablet"
-	case classify.Printer:
-		return "Printer"
-	case classify.Camera:
-		return "Camera"
-	case classify.TV:
-		return "TV"
-	case classify.Streaming:
-		return "Media player"
-	case classify.Speaker:
-		return "Speaker"
-	case classify.VoiceAssistant:
-		return "Voice assistant"
-	case classify.GameConsole:
-		return "Game console"
-	case classify.IoTHub:
-		return "Smart-home hub"
-	case classify.SmartHome:
-		return "Smart-home device"
-	case classify.Wearable:
-		return "Wearable"
-	case classify.VoIP:
-		return "VoIP phone"
-	}
-
-	return ""
-}
-
 // confidence words how strong a case the classifier's guess rests on, for the
 // reader who sees "auto" beside a type and wants to know how much to trust it.
 // One word: it rides in a chip beside "auto" and in a parenthetical in the
@@ -95,7 +41,7 @@ func classChoices() []classChoice {
 	out := make([]classChoice, len(classes))
 
 	for i, c := range classes {
-		out[i] = classChoice{Value: c, Label: classLabel(c)}
+		out[i] = classChoice{Value: c, Label: c.Label()}
 	}
 
 	slices.SortFunc(out, func(a, b classChoice) int {
