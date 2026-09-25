@@ -22,6 +22,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/mcp"
+	"github.com/pushkar-anand/jocasta/internal/notify"
 	"github.com/pushkar-anand/jocasta/internal/problem"
 	"github.com/pushkar-anand/jocasta/internal/web"
 	"github.com/rs/cors"
@@ -60,6 +61,10 @@ type (
 		// HomeCountry is where the world map draws its lines from when the
 		// router's outside address cannot place it; empty when not set.
 		HomeCountry string
+
+		// Notifier sends changes to the configured destinations, for the
+		// notifications page. Nil when none is enabled.
+		Notifier *notify.Notifier
 	}
 )
 
@@ -150,6 +155,10 @@ func Start(
 
 	if cfg.HomeCountry != "" {
 		webOpts = append(webOpts, web.WithHomeCountry(cfg.HomeCountry))
+	}
+
+	if cfg.Notifier != nil {
+		webOpts = append(webOpts, web.WithNotifier(cfg.Notifier))
 	}
 
 	wh := web.NewHandler(cfg.Logger, reader, store, hw, sm, a, webOpts...)

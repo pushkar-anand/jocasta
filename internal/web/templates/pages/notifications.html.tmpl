@@ -1,0 +1,72 @@
+{{ define "page/notifications" }}
+    {{- template "layout/head" . }}
+
+    <section class="block">
+        <div class="block__head">
+            <h2 class="section">Notifications</h2>
+            <div class="block__headend">
+                <p class="block__aside">{{ len .Destinations }} destination{{ if ne (len .Destinations) 1 }}s{{ end }}</p>
+            </div>
+        </div>
+
+        {{- with or .Saved .Sent }}
+            <p class="notice notice--ok" role="status">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M20 6 9 17l-5-5"/>
+                </svg>
+                <span>{{ . }}</span>
+            </p>
+        {{- end }}
+
+        {{- with .Error }}
+            <p class="failure" role="alert">{{ . }}</p>
+        {{- end }}
+
+        {{- range .Destinations }}
+            <div class="card panel dest">
+                <div class="dest__head">
+                    <h3 class="dest__name">{{ .Name }}</h3>
+                    <span class="chip chip--quiet chip--label">{{ .Kind }}</span>
+                    <span class="dim">{{ .Host }}</span>
+                    {{- if not .LastAt.IsZero }}
+                    <span class="dim">· last sent {{ stamp .LastAt "" }}</span>
+                    {{- end }}
+                    <form class="dest__test" method="post" action="/settings/notifications/{{ .Name }}/test">
+                        <button type="submit" class="btn btn--quiet btn--sm">Send test</button>
+                    </form>
+                </div>
+
+                {{- with .LastErr }}
+                <p class="failure">The last message did not arrive: {{ . }}.</p>
+                {{- end }}
+
+                <form method="post" action="/settings/notifications/{{ .Name }}">
+                    <ul class="kindpick" aria-label="Changes sent to {{ .Name }}">
+                        {{- range .Kinds }}
+                            <li class="{{ tone .Kind }}">
+                                <label class="check">
+                                    <input type="checkbox" name="kind" value="{{ .Kind }}"{{ if .Checked }} checked{{ end }}>
+                                    <span class="acticon">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{{ eventIcon .Kind }}</svg>
+                                    </span>
+                                    <span>{{ .Label }}</span>
+                                </label>
+                            </li>
+                        {{- end }}
+                    </ul>
+
+                    <div class="curation__actions">
+                        <button type="submit" class="btn btn--sm">Save</button>
+                    </div>
+                </form>
+            </div>
+        {{- else }}
+            <p class="dim">No destinations yet. Add one under <code>notify</code> in the config file; see
+                <a href="https://github.com/pushkar-anand/jocasta/blob/main/docs/setup.md#send-changes-to-your-phone">Send changes to your phone</a>.</p>
+        {{- end }}
+    </section>
+
+    {{- template "layout/foot" . }}
+{{ end }}

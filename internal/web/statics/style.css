@@ -3268,3 +3268,40 @@ td .traffic__tried {
         padding-bottom: 11px;
     }
 }
+
+/* Notifications: one card per destination, its kinds of change as a grid of
+   checkboxes carrying the same icons and tones as the activity log. */
+
+.dest {
+    margin-top: 16px;
+}
+
+.dest__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.dest__name {
+    margin: 0;
+    font-size: 15px;
+}
+
+.dest__test {
+    margin-left: auto;
+}
+
+.kindpick {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px 16px;
+    margin: 0 0 16px;
+    padding: 0;
+    list-style: none;
+}
+
+.kindpick .check {
+    gap: 9px;
+    color: var(--text);
+}

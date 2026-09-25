@@ -25,6 +25,8 @@ const (
 	templatePageUsers     = "page/users"
 	templatePageSecurity  = "page/security"
 
+	templatePageNotifications = "page/notifications"
+
 	templatePartialTokenList     = "partial/token-list"
 	templatePartialLiveOverview  = "partial/live-body"
 	templatePartialDeviceRows    = "partial/device-rows"
