@@ -121,6 +121,7 @@ func (s *ServeCmd) Run(
 	if len(destinations) > 0 {
 		n := notify.New(conn, store, log, destinations...)
 		store.OnScanFinished(n.Queue)
+		sCfg.Notifier = n
 
 		grp.Go(func() error { return n.Run(ctx) })
 	}

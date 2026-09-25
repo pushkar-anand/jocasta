@@ -19,6 +19,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
+	"github.com/pushkar-anand/jocasta/internal/notify"
 )
 
 //go:embed statics/*
@@ -51,6 +52,10 @@ type Handler struct {
 
 	// homeCountry is the configured country the world map draws from.
 	homeCountry string
+
+	// notifier sends changes to the configured destinations; nil when none
+	// is enabled.
+	notifier *notify.Notifier
 }
 
 // ServeHTTP routes a request to the page or fragment handler that matches it.
@@ -143,6 +148,10 @@ func NewHandler(
 
 	h.mux.Handle("GET /settings/users", allow(dbtype.RoleAdmin)(hw.Handle(h.users(sm, a))))
 	h.mux.Handle("POST /settings/users", allow(dbtype.RoleAdmin)(hw.Handle(h.createUser(sm, a))))
+
+	h.mux.Handle("GET /settings/notifications", allow(dbtype.RoleAdmin)(hw.Handle(h.notifications(sm))))
+	h.mux.Handle("POST /settings/notifications/{name}", allow(dbtype.RoleAdmin)(hw.Handle(h.saveNotifications(sm))))
+	h.mux.Handle("POST /settings/notifications/{name}/test", allow(dbtype.RoleAdmin)(hw.Handle(h.testNotification(sm))))
 
 	// {$} matches only the root itself, so an unknown path reaches the
 	// catch-all below and is reported as not found.
