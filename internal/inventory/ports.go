@@ -111,6 +111,8 @@ func (s *Store) RecordPorts(
 		s.log.WarnContext(ctx, "classify pass after port scan failed", slog.Int64("scan", scanID), logger.Err(err))
 	}
 
+	s.scanFinished(ctx, scanID)
+
 	return sum, nil
 }
 

@@ -64,6 +64,9 @@ type Store struct {
 	// elsewhere in the prefix is the evidence it moved; this window only absorbs
 	// a second interface whose replies were dropped for one whole sweep.
 	addressGrace time.Duration
+
+	// onScan is told each scan that finished; nil tells no one.
+	onScan func(ctx context.Context, scanID int64)
 }
 
 // OnlineWindow is how recently a device must have been seen to count as online.
@@ -401,6 +404,8 @@ func (s *Store) report(ctx context.Context, r reading) (*Result, error) {
 	if err := s.reclassify(ctx, scanID, touched); err != nil {
 		s.log.WarnContext(ctx, "classify pass after discovery failed", slog.Int64("scan", scanID), logger.Err(err))
 	}
+
+	s.scanFinished(ctx, scanID)
 
 	return res, nil
 }
@@ -1048,4 +1053,12 @@ func earlier(a, b dbtype.Time) dbtype.Time {
 
 func nullString(s string) sql.NullString {
 	return sql.NullString{String: s, Valid: s != ""}
+}
+
+// scanFinished tells the scan listener, if there is one, that a scan's
+// changes are all committed.
+func (s *Store) scanFinished(ctx context.Context, scanID int64) {
+	if s.onScan != nil {
+		s.onScan(ctx, scanID)
+	}
 }

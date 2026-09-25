@@ -240,6 +240,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.retireAddressStmt, err = db.PrepareContext(ctx, retireAddress); err != nil {
 		return nil, fmt.Errorf("error preparing query RetireAddress: %w", err)
 	}
+	if q.scanEventsStmt, err = db.PrepareContext(ctx, scanEvents); err != nil {
+		return nil, fmt.Errorf("error preparing query ScanEvents: %w", err)
+	}
+	if q.scanSummaryStmt, err = db.PrepareContext(ctx, scanSummary); err != nil {
+		return nil, fmt.Errorf("error preparing query ScanSummary: %w", err)
+	}
 	if q.setDeviceClassStmt, err = db.PrepareContext(ctx, setDeviceClass); err != nil {
 		return nil, fmt.Errorf("error preparing query SetDeviceClass: %w", err)
 	}
@@ -665,6 +671,16 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing retireAddressStmt: %w", cerr)
 		}
 	}
+	if q.scanEventsStmt != nil {
+		if cerr := q.scanEventsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing scanEventsStmt: %w", cerr)
+		}
+	}
+	if q.scanSummaryStmt != nil {
+		if cerr := q.scanSummaryStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing scanSummaryStmt: %w", cerr)
+		}
+	}
 	if q.setDeviceClassStmt != nil {
 		if cerr := q.setDeviceClassStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing setDeviceClassStmt: %w", cerr)
@@ -876,6 +892,8 @@ type Queries struct {
 	refreshAddressStmt                 *sql.Stmt
 	releaseAddressStmt                 *sql.Stmt
 	retireAddressStmt                  *sql.Stmt
+	scanEventsStmt                     *sql.Stmt
+	scanSummaryStmt                    *sql.Stmt
 	setDeviceClassStmt                 *sql.Stmt
 	setDeviceHostnameStmt              *sql.Stmt
 	setUserTOTPSecretStmt              *sql.Stmt
@@ -974,6 +992,8 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		refreshAddressStmt:                 q.refreshAddressStmt,
 		releaseAddressStmt:                 q.releaseAddressStmt,
 		retireAddressStmt:                  q.retireAddressStmt,
+		scanEventsStmt:                     q.scanEventsStmt,
+		scanSummaryStmt:                    q.scanSummaryStmt,
 		setDeviceClassStmt:                 q.setDeviceClassStmt,
 		setDeviceHostnameStmt:              q.setDeviceHostnameStmt,
 		setUserTOTPSecretStmt:              q.setUserTOTPSecretStmt,

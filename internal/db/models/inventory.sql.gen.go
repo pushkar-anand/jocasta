@@ -1593,6 +1593,133 @@ func (q *Queries) RetireAddress(ctx context.Context, id int64) error {
 	return err
 }
 
+const scanEvents = `-- name: ScanEvents :many
+SELECT e.id, e.device_id, e.scan_id, e.kind, e.old_value, e.new_value, e.detail, e.occurred_at,
+       d.label,
+       d.hostname,
+       d.mac,
+       d.vendor
+FROM events e
+         LEFT JOIN devices d ON d.id = e.device_id
+WHERE e.scan_id = ?
+  AND COALESCE(d.is_ignored, 0) = 0
+ORDER BY e.id
+`
+
+type ScanEventsRow struct {
+	Event    Event          `json:"event"`
+	Label    sql.NullString `json:"label"`
+	Hostname sql.NullString `json:"hostname"`
+	MAC      dbtype.MAC     `json:"mac"`
+	Vendor   sql.NullString `json:"vendor"`
+}
+
+// What one scan changed, oldest first, with the device each names. Events
+// about a device the owner ignores are left out.
+//
+//	SELECT e.id, e.device_id, e.scan_id, e.kind, e.old_value, e.new_value, e.detail, e.occurred_at,
+//	       d.label,
+//	       d.hostname,
+//	       d.mac,
+//	       d.vendor
+//	FROM events e
+//	         LEFT JOIN devices d ON d.id = e.device_id
+//	WHERE e.scan_id = ?
+//	  AND COALESCE(d.is_ignored, 0) = 0
+//	ORDER BY e.id
+func (q *Queries) ScanEvents(ctx context.Context, scanID sql.NullInt64) ([]*ScanEventsRow, error) {
+	rows, err := q.query(ctx, q.scanEventsStmt, scanEvents, scanID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*ScanEventsRow
+	for rows.Next() {
+		var i ScanEventsRow
+		if err := rows.Scan(
+			&i.Event.ID,
+			&i.Event.DeviceID,
+			&i.Event.ScanID,
+			&i.Event.Kind,
+			&i.Event.OldValue,
+			&i.Event.NewValue,
+			&i.Event.Detail,
+			&i.Event.OccurredAt,
+			&i.Label,
+			&i.Hostname,
+			&i.MAC,
+			&i.Vendor,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const scanSummary = `-- name: ScanSummary :one
+SELECT s.kind,
+       src.name                                    AS source,
+       CAST(COALESCE(n.cidr, '') AS TEXT)          AS network,
+       s.found_count,
+       CAST(NOT EXISTS (SELECT 1
+                        FROM scans p
+                        WHERE p.source_id = s.source_id
+                          AND p.kind = s.kind
+                          AND p.network_id IS s.network_id
+                          AND p.status = 'OK'
+                          AND p.id < s.id) AS INTEGER) AS is_first
+FROM scans s
+         JOIN sources src ON src.id = s.source_id
+         LEFT JOIN networks n ON n.id = s.network_id
+WHERE s.id = ?
+`
+
+type ScanSummaryRow struct {
+	Kind       dbtype.ScanKind `json:"kind"`
+	Source     string          `json:"source"`
+	Network    string          `json:"network"`
+	FoundCount int64           `json:"found_count"`
+	IsFirst    int64           `json:"is_first"`
+}
+
+// One scan with its source and network, and whether it is the first to
+// succeed for that source, kind and network.
+//
+//	SELECT s.kind,
+//	       src.name                                    AS source,
+//	       CAST(COALESCE(n.cidr, '') AS TEXT)          AS network,
+//	       s.found_count,
+//	       CAST(NOT EXISTS (SELECT 1
+//	                        FROM scans p
+//	                        WHERE p.source_id = s.source_id
+//	                          AND p.kind = s.kind
+//	                          AND p.network_id IS s.network_id
+//	                          AND p.status = 'OK'
+//	                          AND p.id < s.id) AS INTEGER) AS is_first
+//	FROM scans s
+//	         JOIN sources src ON src.id = s.source_id
+//	         LEFT JOIN networks n ON n.id = s.network_id
+//	WHERE s.id = ?
+func (q *Queries) ScanSummary(ctx context.Context, id int64) (*ScanSummaryRow, error) {
+	row := q.queryRow(ctx, q.scanSummaryStmt, scanSummary, id)
+	var i ScanSummaryRow
+	err := row.Scan(
+		&i.Kind,
+		&i.Source,
+		&i.Network,
+		&i.FoundCount,
+		&i.IsFirst,
+	)
+	return &i, err
+}
+
 const setDeviceClass = `-- name: SetDeviceClass :exec
 
 UPDATE devices
