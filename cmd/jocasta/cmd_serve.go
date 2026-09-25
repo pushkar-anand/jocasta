@@ -13,6 +13,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/config"
 	"github.com/pushkar-anand/jocasta/internal/hosts"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
+	"github.com/pushkar-anand/jocasta/internal/notify"
 	"github.com/pushkar-anand/jocasta/internal/plugin"
 	"github.com/pushkar-anand/jocasta/internal/poller"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
@@ -100,6 +101,11 @@ func (s *ServeCmd) Run(
 		}
 	}
 
+	destinations, err := notifyDestinations(ctx, cfg, log)
+	if err != nil {
+		return err
+	}
+
 	reporters, err := trafficReporters(ctx, cfg, log)
 	if err != nil {
 		return err
@@ -109,6 +115,14 @@ func (s *ServeCmd) Run(
 
 	if len(reporters) > 0 {
 		sCfg.RecentTraffic = startTraffic(ctx, grp, log, store, reporters)
+	}
+
+	// Set before the poller starts, so no scan finishes unheard.
+	if len(destinations) > 0 {
+		n := notify.New(conn, store, log, destinations...)
+		store.OnScanFinished(n.Queue)
+
+		grp.Go(func() error { return n.Run(ctx) })
 	}
 
 	if sCfg.HomeCountry, err = homeCountry(cfg.Location.Country); err != nil {

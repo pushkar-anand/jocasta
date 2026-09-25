@@ -160,6 +160,10 @@ sql:
             go_type:
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
               type: "EventKind"
+          - column: "notify_rules.kind"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "EventKind"
           - column: "devices.hostname_source"
             go_type:
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
