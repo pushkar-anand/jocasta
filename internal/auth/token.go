@@ -40,7 +40,7 @@ func (a *Auth) CreateToken(
 		return "", nil, fmt.Errorf("generate token: %w", err)
 	}
 
-	token, err = a.tokens.CreateAPIToken(ctx, models.CreateAPITokenParams{
+	token, err = a.store.CreateAPIToken(ctx, models.CreateAPITokenParams{
 		UserID:    userID,
 		Name:      name,
 		TokenHash: hashToken(plaintext),
@@ -62,7 +62,7 @@ func (a *Auth) VerifyToken(ctx context.Context, plaintext string) (*models.ApiTo
 
 	// This runs on every API request, so the lookup and the last_used_at
 	// update share one query.
-	token, err := a.tokens.TouchAPITokenByHash(ctx, models.TouchAPITokenByHashParams{
+	token, err := a.store.TouchAPITokenByHash(ctx, models.TouchAPITokenByHashParams{
 		LastUsedAt: dbtype.NewNullTime(a.now()),
 		TokenHash:  hashToken(plaintext),
 	})
@@ -79,13 +79,13 @@ func (a *Auth) VerifyToken(ctx context.Context, plaintext string) (*models.ApiTo
 
 // ListTokens returns userID's tokens, newest first.
 func (a *Auth) ListTokens(ctx context.Context, userID int64) ([]*models.ApiToken, error) {
-	return a.tokens.ListAPITokensByUser(ctx, userID)
+	return a.store.ListAPITokensByUser(ctx, userID)
 }
 
 // RevokeToken deletes token id when userID owns it. A token that does not
 // exist or belongs to someone else is left alone, and no error is returned.
 func (a *Auth) RevokeToken(ctx context.Context, userID, id int64) error {
-	return a.tokens.DeleteAPIToken(ctx, models.DeleteAPITokenParams{ID: id, UserID: userID})
+	return a.store.DeleteAPIToken(ctx, models.DeleteAPITokenParams{ID: id, UserID: userID})
 }
 
 // generateToken returns a new random bearer token carrying tokenPrefix.

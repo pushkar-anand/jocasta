@@ -57,7 +57,7 @@ func (a *Auth) StartTOTPEnrollment(ctx context.Context, userID int64, username s
 		return nil, fmt.Errorf("generate totp key: %w", err)
 	}
 
-	if err := a.totp.SetUserTOTPSecret(ctx, models.SetUserTOTPSecretParams{
+	if err := a.store.SetUserTOTPSecret(ctx, models.SetUserTOTPSecretParams{
 		TOTPSecret: sql.NullString{String: key.Secret(), Valid: true},
 		ID:         userID,
 	}); err != nil {
@@ -71,7 +71,7 @@ func (a *Auth) StartTOTPEnrollment(ctx context.Context, userID int64, username s
 // secret, so the QR route can render it without keeping the *otp.Key itself
 // around between requests.
 func (a *Auth) PendingTOTPKey(ctx context.Context, userID int64) (*otp.Key, error) {
-	user, err := a.q.GetUserByID(ctx, userID)
+	user, err := a.store.GetUserByID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user %d: %w", userID, err)
 	}
@@ -95,7 +95,7 @@ func (a *Auth) PendingTOTPKey(ctx context.Context, userID int64) (*otp.Key, erro
 // off. The returned codes are plaintext, and this is the only call that ever
 // produces them; only their hashes are kept.
 func (a *Auth) ConfirmTOTPEnrollment(ctx context.Context, userID int64, code string) ([]string, error) {
-	user, err := a.q.GetUserByID(ctx, userID)
+	user, err := a.store.GetUserByID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user %d: %w", userID, err)
 	}
@@ -104,7 +104,7 @@ func (a *Auth) ConfirmTOTPEnrollment(ctx context.Context, userID int64, code str
 		return nil, ErrInvalidEnrollmentCode
 	}
 
-	if err := a.totp.EnableUserTOTP(ctx, models.EnableUserTOTPParams{
+	if err := a.store.EnableUserTOTP(ctx, models.EnableUserTOTPParams{
 		TOTPConfirmedAt: dbtype.NewNullTime(a.now()),
 		ID:              userID,
 	}); err != nil {
@@ -119,7 +119,7 @@ func (a *Auth) ConfirmTOTPEnrollment(ctx context.Context, userID int64, code str
 // secret and every recovery code, so re-enabling later starts a fresh
 // enrollment.
 func (a *Auth) DisableTOTP(ctx context.Context, userID int64, password string) error {
-	user, err := a.q.GetUserByID(ctx, userID)
+	user, err := a.store.GetUserByID(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("user %d: %w", userID, err)
 	}
@@ -128,18 +128,18 @@ func (a *Auth) DisableTOTP(ctx context.Context, userID int64, password string) e
 		return ErrInvalidPassword
 	}
 
-	if err := a.totp.DisableUserTOTP(ctx, userID); err != nil {
+	if err := a.store.DisableUserTOTP(ctx, userID); err != nil {
 		return fmt.Errorf("disable totp: %w", err)
 	}
 
-	return a.totp.DeleteRecoveryCodesByUser(ctx, userID)
+	return a.store.DeleteRecoveryCodesByUser(ctx, userID)
 }
 
 // RegenerateRecoveryCodes requires the current password, the same as
 // DisableTOTP, since a fresh batch invalidates every code an attacker who
 // saw an old one might still be holding.
 func (a *Auth) RegenerateRecoveryCodes(ctx context.Context, userID int64, password string) ([]string, error) {
-	user, err := a.q.GetUserByID(ctx, userID)
+	user, err := a.store.GetUserByID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user %d: %w", userID, err)
 	}
@@ -154,14 +154,14 @@ func (a *Auth) RegenerateRecoveryCodes(ctx context.Context, userID int64, passwo
 // RemainingRecoveryCodes reports how many of userID's recovery codes are
 // still unused, for the settings page's "N codes left" line.
 func (a *Auth) RemainingRecoveryCodes(ctx context.Context, userID int64) (int64, error) {
-	return a.totp.CountUnusedRecoveryCodesByUser(ctx, userID)
+	return a.store.CountUnusedRecoveryCodesByUser(ctx, userID)
 }
 
 // TOTPStatus reports userID's current 2FA state for the settings page.
 // Secret is the pending enrollment's manual-entry key, meaningful only while
 // enrolling is true.
 func (a *Auth) TOTPStatus(ctx context.Context, userID int64) (enabled, enrolling bool, secret string, err error) {
-	user, err := a.q.GetUserByID(ctx, userID)
+	user, err := a.store.GetUserByID(ctx, userID)
 	if err != nil {
 		return false, false, "", fmt.Errorf("user %d: %w", userID, err)
 	}
@@ -180,7 +180,7 @@ func (a *Auth) VerifyTOTP(ctx context.Context, sm *Session, code string) (*model
 		return nil, ErrInvalidCredentials
 	}
 
-	user, err := a.q.GetUserByID(ctx, d.PendingUserID)
+	user, err := a.store.GetUserByID(ctx, d.PendingUserID)
 	if err != nil {
 		return nil, fmt.Errorf("pending user %d: %w", d.PendingUserID, err)
 	}
@@ -217,7 +217,7 @@ func (a *Auth) checkTOTPOrRecoveryCode(ctx context.Context, user *models.User, c
 		return true, nil
 	}
 
-	_, err := a.totp.RedeemRecoveryCode(ctx, models.RedeemRecoveryCodeParams{
+	_, err := a.store.RedeemRecoveryCode(ctx, models.RedeemRecoveryCodeParams{
 		UsedAt:   dbtype.NewNullTime(a.now()),
 		UserID:   user.ID,
 		CodeHash: hashToken(code),
@@ -234,7 +234,7 @@ func (a *Auth) checkTOTPOrRecoveryCode(ctx context.Context, user *models.User, c
 }
 
 func (a *Auth) regenerateRecoveryCodes(ctx context.Context, userID int64) ([]string, error) {
-	if err := a.totp.DeleteRecoveryCodesByUser(ctx, userID); err != nil {
+	if err := a.store.DeleteRecoveryCodesByUser(ctx, userID); err != nil {
 		return nil, fmt.Errorf("clear recovery codes: %w", err)
 	}
 
@@ -245,7 +245,7 @@ func (a *Auth) regenerateRecoveryCodes(ctx context.Context, userID int64) ([]str
 			return nil, fmt.Errorf("generate recovery code: %w", err)
 		}
 
-		if _, err := a.totp.CreateRecoveryCode(ctx, models.CreateRecoveryCodeParams{
+		if _, err := a.store.CreateRecoveryCode(ctx, models.CreateRecoveryCodeParams{
 			UserID:   userID,
 			CodeHash: hashToken(plaintext),
 		}); err != nil {
