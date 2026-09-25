@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"strings"
 )
 
 // localInterface is the interface holding one of the scanning host's own
@@ -40,7 +39,7 @@ func localAddrs() (map[netip.Addr]localInterface, error) {
 		// one is expected there.
 		mac := ""
 		if len(ifi.HardwareAddr) > 0 {
-			mac = strings.ToLower(ifi.HardwareAddr.String())
+			mac = ifi.HardwareAddr.String()
 		}
 
 		for _, a := range addrs {

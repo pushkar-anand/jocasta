@@ -136,9 +136,8 @@ func TestBuildHostRejectsAMalformedMAC(t *testing.T) {
 // well and identifies nothing, and 00:00:00 is a registered prefix, so the OUI
 // table attributes it to Xerox. BuildHost does not filter it, and this test
 // pins that trap: a caller that treats what comes back as an identity invents
-// a Xerox device for every unresolved address. scanner/arp.go rejects the zero
-// address before this point (its zeroMAC constant) and every other caller has
-// to do the same.
+// a Xerox device for every unresolved address. Callers pass the address
+// through [CanonicalMAC] first, which drops it.
 func TestBuildHostDoesNotRejectTheAllZeroMAC(t *testing.T) {
 	t.Parallel()
 
@@ -364,4 +363,24 @@ func TestHostMarshalsAnUnenrichedHost(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.JSONEq(t, `{"ip":"192.0.2.10"}`, string(raw))
+}
+
+func TestCanonicalMAC(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		in   string
+		want string
+		ok   bool
+	}{
+		{in: "00-00-5E-00-53-01", want: "00:00:5e:00:53:01", ok: true},
+		{in: "00:00:5e:00:53:01", want: "00:00:5e:00:53:01", ok: true},
+		{in: "", want: "", ok: true},
+		{in: "00:00:00:00:00:00", want: "", ok: true},
+		{in: "not-a-mac", want: "", ok: false},
+	} {
+		got, ok := CanonicalMAC(tc.in)
+		assert.Equal(t, tc.want, got, tc.in)
+		assert.Equal(t, tc.ok, ok, tc.in)
+	}
 }

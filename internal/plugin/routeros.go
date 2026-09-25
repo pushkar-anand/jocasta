@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
-	"net"
 	"net/netip"
 	"slices"
 	"strconv"
@@ -22,10 +21,6 @@ import (
 // routerOSPrefix namespaces an instance key so it cannot collide with another
 // source kind's.
 const routerOSPrefix = "routeros:"
-
-// zeroMAC parses perfectly well and identifies nothing, so it must not become
-// an identity two devices share.
-const zeroMAC = "00:00:00:00:00:00"
 
 // RouterOS reads the devices a MikroTik router knows about.
 //
@@ -170,7 +165,7 @@ func (d *draft) set(key, value string) {
 // first run inventing a device per address.
 func (r *RouterOS) collectARP(ctx context.Context, c claims, entries []routeros.ARPEntry) {
 	for _, e := range entries {
-		mac, ok := normaliseMAC(e.MACAddress)
+		mac, ok := hosts.CanonicalMAC(e.MACAddress)
 		if !ok {
 			r.logger.DebugContext(ctx, "ignoring arp entry with an unusable hardware address",
 				slog.String("address", e.Address),
@@ -211,7 +206,7 @@ func (r *RouterOS) collectARP(ctx context.Context, c claims, entries []routeros.
 // sighting: a static one can name something unplugged a month ago.
 func (r *RouterOS) collectLeases(ctx context.Context, c claims, leases []routeros.DHCPLease) {
 	for _, l := range leases {
-		mac, ok := normaliseMAC(cmp.Or(l.ActiveMACAddress, l.MACAddress))
+		mac, ok := hosts.CanonicalMAC(cmp.Or(l.ActiveMACAddress, l.MACAddress))
 		if !ok {
 			r.logger.DebugContext(ctx, "ignoring lease with an unusable hardware address",
 				slog.String("address", l.Address),
@@ -380,27 +375,6 @@ func leaseRank(s dbtype.HostnameSource) int {
 	default:
 		return 0
 	}
-}
-
-// normaliseMAC renders a hardware address so both tables key on it alike.
-//
-// Carrying none is fine, since an incomplete ARP entry has no mac-address
-// member at all. Carrying something that does not parse drops the row.
-func normaliseMAC(s string) (mac string, ok bool) {
-	if s == "" {
-		return "", true
-	}
-
-	hw, err := net.ParseMAC(s)
-	if err != nil {
-		return "", false
-	}
-
-	if hw.String() == zeroMAC {
-		return "", true
-	}
-
-	return hw.String(), true
 }
 
 // normaliseAddr renders an address so a lease and an ARP entry for the same one

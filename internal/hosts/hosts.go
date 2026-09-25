@@ -17,6 +17,32 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/oui"
 )
 
+// zeroMAC parses perfectly well and identifies nothing: an unresolved
+// neighbour entry carries it, so it must not become an identity two devices
+// share.
+const zeroMAC = "00:00:00:00:00:00"
+
+// CanonicalMAC renders a hardware address in the lowercase colon-separated
+// form, so addresses from different sources compare equal however they were
+// written. An empty or all-zero address names no hardware and comes back as ""
+// with ok true; ok is false only when s does not parse.
+func CanonicalMAC(s string) (mac string, ok bool) {
+	if s == "" {
+		return "", true
+	}
+
+	hw, err := net.ParseMAC(s)
+	if err != nil {
+		return "", false
+	}
+
+	if mac = hw.String(); mac == zeroMAC {
+		return "", true
+	}
+
+	return mac, true
+}
+
 // Host is a device as one source sees it: the strings the source reported,
 // kept verbatim, alongside the typed values and vendor metadata [BuildHost]
 // worked out from them.

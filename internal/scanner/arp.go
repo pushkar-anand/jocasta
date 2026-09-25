@@ -4,11 +4,12 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"net"
 	"net/netip"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/pushkar-anand/jocasta/internal/hosts"
 )
 
 // procNetARP is the kernel's IPv4 neighbour table. Reading it is free and needs
@@ -18,9 +19,6 @@ const procNetARP = "/proc/net/arp"
 // arpFlagComplete (ATF_COM) marks an entry whose hardware address is actually
 // resolved. Incomplete entries carry an all-zero MAC and mean nothing.
 const arpFlagComplete = 0x2
-
-// zeroMAC is what an unresolved entry carries.
-const zeroMAC = "00:00:00:00:00:00"
 
 // neighbours maps on-link IPv4 addresses to their hardware addresses. On a
 // system without a neighbour table to read it returns an empty map and a nil
@@ -66,15 +64,8 @@ func parseARP(r io.Reader) (map[netip.Addr]string, error) {
 			continue
 		}
 
-		// ParseMAC rejects a malformed address and its String normalises the
-		// separator and case, so entries are comparable however they were written.
-		hw, err := net.ParseMAC(fields[3])
-		if err != nil {
-			continue
-		}
-
-		mac := hw.String()
-		if mac == zeroMAC {
+		mac, ok := hosts.CanonicalMAC(fields[3])
+		if !ok || mac == "" {
 			continue
 		}
 
