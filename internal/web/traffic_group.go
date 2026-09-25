@@ -183,31 +183,22 @@ type peerRow struct {
 }
 
 // ServiceSummary names the peer's two busiest services and how many more.
-func (r *peerRow) ServiceSummary() string {
-	var names []string
-
-	for _, s := range r.Services[:min(2, len(r.Services))] {
-		names = append(names, serviceLabel(s))
-	}
-
-	out := strings.Join(names, ", ")
-	if more := len(r.Services) - len(names); more > 0 {
-		out += fmt.Sprintf(" +%d more", more)
-	}
-
-	return out
-}
+func (r *peerRow) ServiceSummary() string { return headAndMore(r.Services, serviceLabel, ", ") }
 
 // TriedSummary says what was tried at the peer: pings, or which ports.
-func (r *peerRow) TriedSummary() string {
-	var names []string
+func (r *peerRow) TriedSummary() string { return headAndMore(r.Tried, attemptWhat, "; ") }
 
-	for _, a := range r.Tried[:min(2, len(r.Tried))] {
-		names = append(names, attemptWhat(a))
+// headAndMore names the first two items, joined by sep, and counts the rest.
+func headAndMore[T any](items []T, name func(T) string, sep string) string {
+	head := items[:min(2, len(items))]
+
+	names := make([]string, len(head))
+	for i, it := range head {
+		names[i] = name(it)
 	}
 
-	out := strings.Join(names, "; ")
-	if more := len(r.Tried) - len(names); more > 0 {
+	out := strings.Join(names, sep)
+	if more := len(items) - len(head); more > 0 {
 		out += fmt.Sprintf(" +%d more", more)
 	}
 
