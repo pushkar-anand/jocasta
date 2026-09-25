@@ -1,7 +1,6 @@
 package web
 
 import (
-	"cmp"
 	"context"
 	"fmt"
 	"math"
@@ -347,20 +346,7 @@ func mapServices(list []inventory.MapService) string {
 	names := make([]string, 0, len(list))
 
 	for _, s := range list {
-		label := s.Name
-
-		switch {
-		case s.Port == 0:
-			label = cmp.Or(protoName(s.Protocol), "TCP")
-		case label == "":
-			label = "port " + strconv.Itoa(int(s.Port))
-		}
-
-		if proto := protoName(s.Protocol); proto != "" && s.Port != 0 {
-			label += " " + proto
-		}
-
-		names = append(names, label)
+		names = append(names, serviceName(s.Protocol, s.Port, s.Name))
 	}
 
 	return strings.Join(names, " · ")
