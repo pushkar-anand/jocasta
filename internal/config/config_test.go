@@ -87,6 +87,7 @@ func TestLoadConfig(t *testing.T) {
 				"JOCASTA_LOCATION__COUNTRY=au",
 				"JOCASTA_LOCATION__TIMEZONE=Australia/Sydney",
 				"JOCASTA_RETENTION__HISTORY=48h",
+				"JOCASTA_NOTIFY__PHONE__NTFY__TOKEN=from-environment",
 				"UNRELATED=ignored",
 			}
 		}),
@@ -169,6 +170,24 @@ func TestLoadConfig(t *testing.T) {
 
 	assert.Equal(t, "au", cfg.Location.Country, "as written; serve checks it")
 	assert.Equal(t, "Australia/Sydney", cfg.Location.Timezone)
+
+	// Notification destinations are keyed by name too, and an override aimed
+	// at one leaves the other alone.
+	require.Len(t, cfg.Notify, 2)
+
+	phone := cfg.Notify["phone"]
+	assert.True(t, phone.On(), "on when enabled is left out")
+	require.NotNil(t, phone.Ntfy)
+	assert.Nil(t, phone.Webhook)
+	assert.Equal(t, "https://ntfy.example.com/jocasta", phone.Ntfy.URL)
+	assert.Equal(t, "from-environment", phone.Ntfy.Token)
+	assert.Equal(t, 4, phone.Ntfy.Priority)
+
+	automation := cfg.Notify["automation"]
+	assert.False(t, automation.On())
+	assert.Equal(t, 5*time.Second, automation.Timeout)
+	require.NotNil(t, automation.Webhook)
+	assert.Equal(t, "placeholder-secret", automation.Webhook.Secret)
 }
 
 // An explicit path that does not exist is reported. Silently falling back to

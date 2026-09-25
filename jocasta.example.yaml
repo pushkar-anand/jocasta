@@ -85,3 +85,20 @@ plugins:
       listen: ":2055"         # UDP address the router exports flows to
       exporters:              # only these may send; UDP is trivially spoofed
         - "192.0.2.1"
+
+# Where changes are sent. None are configured by default; the entries below
+# are examples. Each is keyed by a name and holds one service block. Each
+# finished scan is sent as one message, and which changes a destination
+# receives is picked in Settings → Notifications.
+notify:
+  phone:
+    ntfy:
+      url: "https://ntfy.example.com/jocasta"   # the topic's address, as ntfy shows it
+      token: ""                                 # for a server that requires one
+      priority: 0                               # 1 (min) to 5 (max); 0 leaves it to the server
+  automation:
+    enabled: false                              # on unless set to false
+    timeout: "10s"                              # the longest one send may take
+    webhook:
+      url: "https://hooks.example.com/jocasta"
+      secret: "change-me"                       # signs each request; required

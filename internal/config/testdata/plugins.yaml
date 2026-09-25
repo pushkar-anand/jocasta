@@ -23,3 +23,15 @@ plugins:
       listen: ":2055"
       exporters:
         - 192.0.2.1
+notify:
+  phone:
+    ntfy:
+      url: https://ntfy.example.com/jocasta
+      token: from-file
+      priority: 4
+  automation:
+    enabled: false
+    timeout: 5s
+    webhook:
+      url: https://hooks.example.com/jocasta
+      secret: placeholder-secret
