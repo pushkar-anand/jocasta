@@ -150,8 +150,8 @@ func NewHandler(
 	h.mux.HandleFunc("GET /overview/live", hw.Handle(h.overviewLive()))
 
 	// The literal is the more specific pattern, so it wins over {id}.
-	h.mux.HandleFunc("GET /devices", hw.Handle(h.listDevices(sm)))
-	h.mux.HandleFunc("GET /devices/rows", hw.Handle(h.deviceRows(sm)))
+	h.mux.HandleFunc("GET /devices", hw.Handle(h.listDevices(sm, false)))
+	h.mux.HandleFunc("GET /devices/rows", hw.Handle(h.listDevices(sm, true)))
 	h.mux.HandleFunc("GET /devices/{id}", hw.Handle(h.device(sm)))
 	h.mux.Handle("PATCH /devices/{id}", allow(dbtype.RoleReadWrite)(hw.Handle(h.updateDevice(sm))))
 	h.mux.HandleFunc("GET /devices/{id}/row", hw.Handle(h.deviceRow(sm)))
@@ -159,8 +159,8 @@ func NewHandler(
 	h.mux.Handle("GET /devices/{id}/edit", allow(dbtype.RoleReadWrite)(hw.Handle(h.deviceRowForm())))
 	h.mux.Handle("PATCH /devices/{id}/row", allow(dbtype.RoleReadWrite)(hw.Handle(h.updateDeviceRow(sm))))
 
-	h.mux.HandleFunc("GET /networks/{id}", hw.Handle(h.network(sm)))
-	h.mux.HandleFunc("GET /networks/{id}/rows", hw.Handle(h.networkRows(sm)))
+	h.mux.HandleFunc("GET /networks/{id}", hw.Handle(h.network(sm, false)))
+	h.mux.HandleFunc("GET /networks/{id}/rows", hw.Handle(h.network(sm, true)))
 
 	h.mux.HandleFunc("GET /traffic", hw.Handle(h.traffic(sm)))
 	h.mux.HandleFunc("GET /map", hw.Handle(h.networkMap(sm)))

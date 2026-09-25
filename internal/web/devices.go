@@ -25,60 +25,35 @@ type deviceQuery struct {
 	Page           int    `schema:"page" validate:"omitempty,min=1"`
 }
 
-func (h *Handler) listDevices(sm *auth.Session) response.HandlerFunc {
-	type query struct {
-		deviceQuery
-	}
-
+// listDevices serves the Devices page, or with rows the table on its own,
+// which is what the filter form fetches as it is filled in.
+func (h *Handler) listDevices(sm *auth.Session, rows bool) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		q, err := h.reader.ReadAndValidateQueryParams[query](r)
+		q, err := h.reader.ReadAndValidateQueryParams[deviceQuery](r)
 		if err != nil {
 			return err
 		}
 
-		data, err := buildDevicesData(r.Context(), h.store, q.deviceQuery)
+		data, err := buildDevicesData(r.Context(), h.store, *q)
 		if err != nil {
 			h.log.ErrorContext(r.Context(), "failed to build device list", logger.Err(err))
 
 			return err
 		}
 
+		// The rows carry the Edit button too, so they still need to know
+		// whether this account may use it.
 		data.Role = sm.CurrentRole(r.Context())
+
+		if rows {
+			w.Header().Set("HX-Push-Url", data.canonical())
+			h.htmlWriter.Success(w, r, templatePartialDeviceRows, data)
+
+			return nil
+		}
+
 		data.SignedInAs = sm.CurrentUsername(r.Context())
-
 		h.htmlWriter.Success(w, r, templatePageDevices, data)
-
-		return nil
-	}
-}
-
-// deviceRows serves the table on its own, which is what the form fetches as it
-// is filled in.
-func (h *Handler) deviceRows(sm *auth.Session) response.HandlerFunc {
-	type query struct {
-		deviceQuery
-	}
-
-	return func(w http.ResponseWriter, r *http.Request) error {
-		q, err := h.reader.ReadAndValidateQueryParams[query](r)
-		if err != nil {
-			return err
-		}
-
-		data, err := buildDevicesData(r.Context(), h.store, q.deviceQuery)
-		if err != nil {
-			h.log.ErrorContext(r.Context(), "failed to build device list", logger.Err(err))
-
-			return err
-		}
-
-		// The fragment carries the Edit button too, so the row view still needs
-		// to know whether this account may use it.
-		data.Role = sm.CurrentRole(r.Context())
-
-		w.Header().Set("HX-Push-Url", data.canonical())
-
-		h.htmlWriter.Success(w, r, templatePartialDeviceRows, data)
 
 		return nil
 	}
