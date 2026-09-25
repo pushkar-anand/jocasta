@@ -619,6 +619,15 @@ func (h *Handler) traffic(sm *auth.Session) response.HandlerFunc {
 			return err
 		}
 
+		// With nothing recorded the page is the set-up note alone, so none of
+		// the cards' reads would be shown.
+		if !data.Recorded {
+			data.Note = latestSweepNote(ctx, h.store)
+			h.htmlWriter.Success(w, r, templatePageTraffic, data)
+
+			return nil
+		}
+
 		since := now.Add(-win.span)
 
 		nets, err := h.store.ListNetworks(ctx)
