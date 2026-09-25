@@ -210,6 +210,26 @@ var hostnameSources = []HostnameSource{HostnameFromDNS, HostnameFromDHCPStatic, 
 // Valid reports whether s is one of the known hostname sources.
 func (s HostnameSource) Valid() bool { return slices.Contains(hostnameSources, s) }
 
+// Rank orders the ways a name can be learned, higher winning. Reverse DNS comes
+// first because it is the name that resolves: a DHCP host-name is the client's
+// own claim about itself, static lease or not, and may resolve to nothing.
+// Where the resolver serves the router's leases the PTR is that same name with
+// the domain attached, so preferring DNS keeps the fuller spelling.
+//
+// An unknown standing ranks zero, so a known name still beats an unknown one.
+func (s HostnameSource) Rank() int {
+	switch s {
+	case HostnameFromDNS:
+		return 3
+	case HostnameFromDHCPStatic:
+		return 2
+	case HostnameFromDHCPLease:
+		return 1
+	default:
+		return 0
+	}
+}
+
 // Value renders s for the driver. The empty source is stored as null.
 func (s HostnameSource) Value() (driver.Value, error) {
 	if s == "" {

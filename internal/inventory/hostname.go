@@ -14,26 +14,6 @@ type nameClaim struct {
 	at       dbtype.Time
 }
 
-// standingRank orders the ways a name can be learned. Reverse DNS comes first
-// because it is the name that resolves: a DHCP host-name is the client's own
-// claim about itself, static lease or not, and may resolve to nothing. Where
-// the resolver serves the router's leases the PTR is that same name with the
-// domain attached, so preferring DNS keeps the fuller spelling.
-//
-// An unknown standing ranks zero, so a known name still beats an unknown one.
-func standingRank(s dbtype.HostnameSource) int {
-	switch s {
-	case dbtype.HostnameFromDNS:
-		return 3
-	case dbtype.HostnameFromDHCPStatic:
-		return 2
-	case dbtype.HostnameFromDHCPLease:
-		return 1
-	default:
-		return 0
-	}
-}
-
 // resolveHostname elects the name a device row carries from every source's
 // claim, and reports the zero claim when no source offers one.
 //
@@ -54,7 +34,7 @@ func resolveHostname(claims []nameClaim) nameClaim {
 			continue
 		}
 
-		r := standingRank(c.standing)
+		r := c.standing.Rank()
 		if r < rank {
 			continue
 		}
