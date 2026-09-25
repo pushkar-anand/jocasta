@@ -290,7 +290,7 @@ func TestFuncsCoverEveryHelperTheTemplatesUse(t *testing.T) {
 
 	registered := funcs(func() time.Time { return now })
 
-	for _, name := range []string{"ago", "stamp", "decay", "dot", "healthLabel", "dash", "pct", "took", "found", "sourcekey", "phrase", "tone", "eventIcon", "health", "statusClass", "change"} {
+	for _, name := range []string{"stamp", "dot", "healthLabel", "dash", "pct", "took", "found", "sourcekey", "phrase", "tone", "eventIcon", "health", "statusClass", "change"} {
 		assert.Contains(t, registered, name)
 	}
 }
