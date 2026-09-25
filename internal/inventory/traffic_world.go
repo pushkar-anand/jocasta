@@ -8,7 +8,6 @@ import (
 	"slices"
 	"time"
 
-	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/pkg/geo"
 )
 
@@ -44,7 +43,7 @@ type CountryPart struct {
 // marked active. A country is where an address is registered, as package geo
 // has it; addresses it cannot place are left out.
 func (s *Store) TrafficByCountry(ctx context.Context, since time.Time, recent []RecentEdge) ([]*CountryTraffic, error) {
-	hour := dbtype.NewTime(since.UTC().Truncate(time.Hour))
+	hour := hourOf(since)
 
 	rows, err := s.q.TrafficWorldPeers(ctx, hour)
 	if err != nil {

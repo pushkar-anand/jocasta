@@ -6,7 +6,6 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 )
 
@@ -36,7 +35,7 @@ type Broadcast struct {
 func (s *Store) DeviceBroadcasts(ctx context.Context, id int64, since time.Time) ([]*Broadcast, error) {
 	rows, err := s.q.DeviceBroadcasts(ctx, models.DeviceBroadcastsParams{
 		DeviceID: id,
-		Hour:     dbtype.NewTime(since.UTC().Truncate(time.Hour)),
+		Hour:     hourOf(since),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("broadcasts for device %d: %w", id, err)
@@ -50,9 +49,9 @@ func (s *Store) DeviceBroadcasts(ctx context.Context, id int64, since time.Time)
 			return nil, fmt.Errorf("broadcast group %q: %w", r.DstIP, err)
 		}
 
-		last, err := time.Parse(dbtype.Layout, r.LastHour)
+		last, err := parseHour("broadcast", r.LastHour)
 		if err != nil {
-			return nil, fmt.Errorf("broadcast hour %q: %w", r.LastHour, err)
+			return nil, err
 		}
 
 		b := &Broadcast{

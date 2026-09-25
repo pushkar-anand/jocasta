@@ -597,3 +597,20 @@ func clampInt64(v uint64) int64 {
 
 	return int64(v)
 }
+
+// hourOf is the stored hour bucket t falls in: traffic, attempts and probes are
+// all kept per UTC hour.
+func hourOf(t time.Time) dbtype.Time {
+	return dbtype.NewTime(t.UTC().Truncate(time.Hour))
+}
+
+// parseHour reads an hour an aggregate query returned as text, naming what it
+// was in the error.
+func parseHour(what, s string) (time.Time, error) {
+	t, err := time.Parse(dbtype.Layout, s)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("%s hour %q: %w", what, s, err)
+	}
+
+	return t, nil
+}

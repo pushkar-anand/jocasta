@@ -190,9 +190,9 @@ func trafficPeer(row *models.DeviceTrafficRow) (*TrafficPeer, error) {
 		return nil, fmt.Errorf("traffic peer %q: %w", row.PeerIP, err)
 	}
 
-	last, err := time.Parse(dbtype.Layout, row.LastHour)
+	last, err := parseHour("traffic", row.LastHour)
 	if err != nil {
-		return nil, fmt.Errorf("traffic hour %q: %w", row.LastHour, err)
+		return nil, err
 	}
 
 	p := &TrafficPeer{

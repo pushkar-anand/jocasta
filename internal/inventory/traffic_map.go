@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/pushkar-anand/jocasta/pkg/asn"
 )
@@ -90,7 +89,7 @@ type mapLinkKey struct {
 // saw lately, by address; it is resolved to devices by the addresses they
 // hold now.
 func (s *Store) TrafficMap(ctx context.Context, since time.Time, recent []RecentEdge) (*TrafficMap, error) {
-	hour := dbtype.NewTime(since.UTC().Truncate(time.Hour))
+	hour := hourOf(since)
 
 	devRows, err := s.q.TrafficMapDevices(ctx, hour)
 	if err != nil {

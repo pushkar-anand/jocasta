@@ -59,7 +59,7 @@ func (s *Store) Prune(ctx context.Context, retention, trafficRetention time.Dura
 	if trafficRetention > 0 {
 		// Whole hours only: an hour is kept while any of it is inside the
 		// window, so a view of the last N days never starts mid-hour.
-		cutoff := dbtype.NewTime(now.Add(-trafficRetention).UTC().Truncate(time.Hour))
+		cutoff := hourOf(now.Add(-trafficRetention))
 
 		if res.Traffic, err = q.DeleteTrafficBefore(ctx, cutoff); err != nil {
 			return nil, fmt.Errorf("prune traffic: %w", err)
