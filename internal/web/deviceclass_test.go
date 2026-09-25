@@ -8,17 +8,6 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/classify"
 )
 
-func TestClassLabelCoversEveryClass(t *testing.T) {
-	t.Parallel()
-
-	for _, c := range classify.Classes() {
-		assert.NotEmptyf(t, classLabel(c), "class %q has no label", c)
-	}
-
-	assert.Empty(t, classLabel(classify.Unknown), "the zero class has no label")
-	assert.Empty(t, classLabel(classify.Class("toaster")))
-}
-
 func TestClassIconCoversEveryClass(t *testing.T) {
 	t.Parallel()
 
@@ -51,7 +40,7 @@ func TestClassChoicesMatchesTheVocabulary(t *testing.T) {
 	)
 
 	for _, ch := range choices {
-		assert.Equal(t, classLabel(ch.Value), ch.Label)
+		assert.Equal(t, ch.Value.Label(), ch.Label)
 		assert.NotEqual(t, classify.Unknown, ch.Value, "the blank option is the template's to add")
 
 		values = append(values, ch.Value)

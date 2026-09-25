@@ -1,7 +1,6 @@
 package web
 
 import (
-	"cmp"
 	"html/template"
 	"net/netip"
 	"strconv"
@@ -38,16 +37,16 @@ func funcs(now func() time.Time) template.FuncMap {
 		"pct":          pct,
 		"took":         took,
 		"found":        scanFound,
-		"phrase":       phrase,
+		"phrase":       inventory.Phrase,
 		"tone":         tone,
 		"eventIcon":    eventIcon,
 		"health":       health,
 		"statusClass":  statusClass,
-		"change":       change,
+		"change":       (*inventory.Event).Change,
 		"addrs":        addrs,
 		"standing":     standing,
 		"sourcekey":    sourceKey,
-		"classLabel":   classLabel,
+		"classLabel":   classify.Class.Label,
 		"classIcon":    classIcon,
 		"classChoices": classChoices,
 		"confidence":   confidence,
@@ -341,38 +340,6 @@ func scanFound(s *inventory.Scan) string {
 	return n + " hosts"
 }
 
-// phrase renders a stored event kind as what it did, worded for a reader. The
-// kinds are written for the log, in the schema's upper case; a log line reads
-// as a sentence about the device that precedes it.
-func phrase(k dbtype.EventKind) string {
-	switch k {
-	case dbtype.EventDeviceDiscovered:
-		return "was discovered"
-	case dbtype.EventDeviceIdentified:
-		return "was identified"
-	case dbtype.EventDevicesMerged:
-		return "was merged with a duplicate"
-	case dbtype.EventAddressAdded:
-		return "got a new address"
-	case dbtype.EventAddressReleased:
-		return "dropped an address"
-	case dbtype.EventHostnameChanged:
-		return "changed its hostname"
-	case dbtype.EventDeviceEdited:
-		return "was edited"
-	case dbtype.EventPortOpened:
-		return "started listening on"
-	case dbtype.EventPortClosed:
-		return "stopped listening on"
-	case dbtype.EventDeviceClassified:
-		return "was reclassified"
-	}
-
-	// A kind added in Go and not yet worded here still has to render as
-	// something, and its own name is the most truthful fallback.
-	return strings.ToLower(strings.ReplaceAll(string(k), "_", " "))
-}
-
 // tone is the tint a log line's icon carries. Kinds share colours by group:
 // the colour says what sort of change it was (something arrived, something was
 // learned, someone edited it), and six colours in a list would say nothing at
@@ -494,75 +461,4 @@ func addrs(list []netip.Addr) string {
 	}
 
 	return strings.Join(out, ", ")
-}
-
-// labelOf is a stored class's display name, and empty for no class.
-func labelOf(class string) string {
-	if class == "" {
-		return ""
-	}
-
-	return classLabel(classify.Class(class))
-}
-
-// change describes what an event changed, where it changed a value. An event
-// that changed nothing, such as a discovery, has nothing to show here.
-func change(e *inventory.Event) string {
-	if e == nil {
-		return ""
-	}
-
-	// A port event carries the number in whichever value changed and the
-	// service name, where the port has a familiar one, in the detail. Neither
-	// reads as a before and after, so it is worded here.
-	if e.Kind == dbtype.EventPortOpened || e.Kind == dbtype.EventPortClosed {
-		port := cmp.Or(e.NewValue, e.OldValue)
-		switch {
-		case port == "":
-			return ""
-		case e.Detail != "":
-			return "port " + port + " (" + e.Detail + ")"
-		default:
-			return "port " + port
-		}
-	}
-
-	// A released address has nothing after it, and "→ cleared" would read as
-	// though the user emptied a field.
-	if e.Kind == dbtype.EventAddressReleased {
-		return e.OldValue
-	}
-
-	// A class is stored as its identifier; the log shows the name the device
-	// page uses for it.
-	if e.Kind == dbtype.EventDeviceClassified {
-		return change(&inventory.Event{
-			OldValue: labelOf(e.OldValue),
-			NewValue: labelOf(e.NewValue),
-		})
-	}
-
-	// An edit says which field it was about, since the user owns several. A
-	// scan's event is about the one thing that kind of event can change.
-	var field string
-	if e.Kind == dbtype.EventDeviceEdited && e.Detail != "" {
-		field = e.Detail + ": "
-	}
-
-	switch {
-	case e.OldValue != "" && e.NewValue != "":
-		return field + e.OldValue + " → " + e.NewValue
-	case e.NewValue != "":
-		return field + e.NewValue
-
-	// Emptying a field is a change, and the log would otherwise show the value
-	// that went away as though it had just been set.
-	case e.OldValue != "":
-		return field + e.OldValue + " → cleared"
-
-	case e.Detail != "":
-		return e.Detail
-	}
-
-	return ""
 }
