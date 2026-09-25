@@ -546,14 +546,10 @@ func servicePort(protocol uint8, src, dst uint16) uint16 {
 		return 0
 	}
 
-	known := func(p uint16) bool { return scanner.ServiceName(p) != "" }
-	privileged := func(p uint16) bool { return p < 1024 }
-	ephemeral := func(p uint16) bool { return p >= 32768 }
-	settled := func(p uint16) bool { return known(p) && !ephemeral(p) }
-
-	for _, prefer := range []func(uint16) bool{settled, privileged, not(ephemeral), known} {
-		if prefer(src) != prefer(dst) {
-			if prefer(src) {
+	s, d := servicePreferences(src), servicePreferences(dst)
+	for i := range s {
+		if s[i] != d[i] {
+			if s[i] {
 				return src
 			}
 
@@ -564,8 +560,16 @@ func servicePort(protocol uint8, src, dst uint16) uint16 {
 	return min(src, dst)
 }
 
-func not(f func(uint16) bool) func(uint16) bool {
-	return func(p uint16) bool { return !f(p) }
+// servicePreferences are the tests servicePort applies to a port, in the order
+// they decide: a well-known service's port below the ephemeral range, a
+// privileged port, a port below the ephemeral range, a well-known service's
+// port. Computed once per port, since servicePort runs for every flow under
+// the recorder's lock.
+func servicePreferences(p uint16) [4]bool {
+	known := scanner.ServiceName(p) != ""
+	ephemeral := p >= 32768
+
+	return [4]bool{known && !ephemeral, p < 1024, !ephemeral, known}
 }
 
 // clampInt64 stores a counter SQLite can hold. Nothing real reaches the
