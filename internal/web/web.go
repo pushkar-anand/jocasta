@@ -261,7 +261,7 @@ func ErrorPageData(_ *http.Request, _ error, status int) map[string]any {
 		// loginData: TemplateSetup renders standalone too.
 		return map[string]any{
 			"Title": "Set up admin account",
-			"Error": "An admin account already exists. Sign in instead.",
+			"Error": "An admin account already exists. Sign in with it.",
 		}
 	case http.StatusForbidden:
 		// Forbidden renders inside the signed-in shell, since the visitor
