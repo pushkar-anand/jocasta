@@ -233,15 +233,7 @@ func ErrorPageData(_ *http.Request, _ error, status int) map[string]any {
 		// case below, since almost every form that reaches it is behind the
 		// signed-in shell; setup and sign-in guard their own inputs in the
 		// markup, so a crafted request is the only way they land here.
-		return map[string]any{
-			"Title":      "Bad request",
-			"Section":    "",
-			"Crumb":      nil,
-			"Live":       false,
-			"Role":       dbtype.UserRole(""),
-			"SignedInAs": "",
-			"Note":       "",
-		}
+		return shellData("Bad request")
 	case http.StatusUnauthorized:
 		// The sign-in page's own fields (see loginData), since TemplateLogin
 		// renders standalone like login itself does.
@@ -267,28 +259,25 @@ func ErrorPageData(_ *http.Request, _ error, status int) map[string]any {
 		// Forbidden renders inside the signed-in shell, since the visitor
 		// reaching it is signed in, so it needs view's fields the same way the
 		// 404 case below does.
-		return map[string]any{
-			"Title":      "Forbidden",
-			"Section":    "",
-			"Crumb":      nil,
-			"Live":       false,
-			"Role":       dbtype.UserRole(""),
-			"SignedInAs": "",
-			"Note":       "",
-		}
+		return shellData("Forbidden")
 	default:
 		// The 404 page is built from layout/head and layout/foot like every
-		// other page, so it needs the same view fields; every one beyond Title
-		// is left at its zero value.
-		return map[string]any{
-			"Title":      "Not found",
-			"Section":    "",
-			"Crumb":      nil,
-			"Live":       false,
-			"Role":       dbtype.UserRole(""),
-			"SignedInAs": "",
-			"Note":       "",
-		}
+		// other page, so it needs the same view fields.
+		return shellData("Not found")
+	}
+}
+
+// shellData is an error page's fields for a template rendered inside the
+// signed-in shell: view's fields, every one beyond Title at its zero value.
+func shellData(title string) map[string]any {
+	return map[string]any{
+		"Title":      title,
+		"Section":    "",
+		"Crumb":      nil,
+		"Live":       "",
+		"Role":       dbtype.UserRole(""),
+		"SignedInAs": "",
+		"Note":       "",
 	}
 }
 
