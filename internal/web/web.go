@@ -284,11 +284,7 @@ func shellData(title string) map[string]any {
 
 // withQuery is path with q as its query string, or path alone when q is empty.
 func withQuery(path string, q url.Values) string {
-	if len(q) == 0 {
-		return path
-	}
-
-	return path + "?" + q.Encode()
+	return (&url.URL{Path: path, RawQuery: q.Encode()}).String()
 }
 
 // pathID reads the {id} the route captured. Every route carrying one admits any
