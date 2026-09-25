@@ -239,9 +239,9 @@ func (r *RouterOS) collectLeases(ctx context.Context, c claims, leases []routero
 				from = dbtype.HostnameFromDHCPStatic
 			}
 
-			// Standing decides within one router's tables; the ladder across
-			// sources is ingest's to apply.
-			if d.hostname == "" || leaseRank(from) > leaseRank(d.nameFrom) {
+			// Standing decides between this router's own leases; ingest
+			// applies the same ladder across sources.
+			if d.hostname == "" || from.Rank() > d.nameFrom.Rank() {
 				d.hostname = l.HostName
 				d.nameFrom = from
 			}
@@ -330,7 +330,7 @@ func shareByDevice(c claims) {
 		}
 
 		if d.hostname != "" {
-			if best, ok := names[d.mac]; !ok || leaseRank(d.nameFrom) > leaseRank(best.nameFrom) {
+			if best, ok := names[d.mac]; !ok || d.nameFrom.Rank() > best.nameFrom.Rank() {
 				names[d.mac] = d
 			}
 		}
@@ -361,19 +361,6 @@ func shareByDevice(c claims) {
 		if merged, ok := details[d.mac]; ok {
 			d.detail = maps.Clone(merged)
 		}
-	}
-}
-
-// leaseRank orders the two standings a lease's name can carry. It is local to
-// one router's tables; the ladder across sources lives in ingest.
-func leaseRank(s dbtype.HostnameSource) int {
-	switch s {
-	case dbtype.HostnameFromDHCPStatic:
-		return 2
-	case dbtype.HostnameFromDHCPLease:
-		return 1
-	default:
-		return 0
 	}
 }
 
