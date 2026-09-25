@@ -25,17 +25,12 @@ func attemptWhat(a *inventory.Attempt) string {
 		return strings.TrimSpace(proto)
 	}
 
-	names := make([]string, len(a.Ports))
-	for i, p := range a.Ports {
-		names[i] = strconv.Itoa(int(p))
-	}
-
 	noun := "port "
 	if a.PortCount > 1 {
 		noun = "ports "
 	}
 
-	out := proto + noun + strings.Join(names, ", ")
+	out := proto + noun + portList(a.Ports)
 	if more := a.PortCount - int64(len(a.Ports)); more > 0 {
 		out += fmt.Sprintf(" +%d more", more)
 	}

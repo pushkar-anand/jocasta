@@ -31,9 +31,7 @@ const em = "—"
 // should not be doing arithmetic or reaching for the clock.
 func funcs(now func() time.Time) template.FuncMap {
 	return template.FuncMap{
-		"ago":          func(t time.Time) string { return ago(now(), t) },
 		"stamp":        func(t time.Time, class string) template.HTML { return stamp(now(), t, class) },
-		"decay":        func(t time.Time) string { return decay(now(), t) },
 		"dot":          func(t time.Time) template.HTML { return dot(now(), t) },
 		"healthLabel":  healthLabel,
 		"dash":         dash,
@@ -60,7 +58,6 @@ func funcs(now func() time.Time) template.FuncMap {
 		"bytes":        humanBytes,
 		"count":        humanCount,
 		"proto":        protoName,
-		"attemptWhat":  attemptWhat,
 		"portList":     portList,
 		"segtone":      segmentTone,
 		"services":     mapServices,
