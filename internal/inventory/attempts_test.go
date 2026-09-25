@@ -448,6 +448,35 @@ func TestProbingDevicesNarrowsToAGroup(t *testing.T) {
 	assert.Empty(t, got)
 }
 
+func TestDeviceProbingIsThatDevicesEntry(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, ""), host("192.0.2.11", macB, ""))
+
+	at := s.now()
+
+	var flows []plugin.Flow
+	for i := 1; i <= ProbeMinPeers; i++ {
+		flows = append(flows, ping("192.0.2.10", fmt.Sprintf("198.51.100.%d", i), false, at)...)
+	}
+
+	rec := newRecorder(s, nil)
+	rec.Add(trafficSource{}, flows)
+	require.NoError(t, rec.Flush(t.Context()))
+
+	a, b := deviceIDByMAC(t, conn, macA), deviceIDByMAC(t, conn, macB)
+
+	got, err := s.DeviceProbing(t.Context(), a, at.Add(-time.Hour))
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, a, got.DeviceID)
+
+	got, err = s.DeviceProbing(t.Context(), b, at.Add(-time.Hour))
+	require.NoError(t, err)
+	assert.Nil(t, got, "the other device probed nothing")
+}
+
 func TestPruneDeletesAttemptsWithTraffic(t *testing.T) {
 	t.Parallel()
 

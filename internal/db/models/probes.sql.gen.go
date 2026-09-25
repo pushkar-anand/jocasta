@@ -171,6 +171,7 @@ FROM probes_hourly p
 WHERE p.hour >= ?1
   AND d.is_ignored = 0
   AND (CAST(?2 AS TEXT) IS NULL OR d.group_name = CAST(?2 AS TEXT))
+  AND (CAST(?3 AS INTEGER) IS NULL OR d.id = CAST(?3 AS INTEGER))
 GROUP BY d.id, p.outside
 ORDER BY SUM(p.attempts) DESC, d.id
 `
@@ -178,6 +179,7 @@ ORDER BY SUM(p.attempts) DESC, d.id
 type ProbedDevicesParams struct {
 	Since     dbtype.Time    `json:"since"`
 	GroupName sql.NullString `json:"group_name"`
+	DeviceID  sql.NullInt64  `json:"device_id"`
 }
 
 type ProbedDevicesRow struct {
@@ -216,10 +218,11 @@ type ProbedDevicesRow struct {
 //	WHERE p.hour >= ?1
 //	  AND d.is_ignored = 0
 //	  AND (CAST(?2 AS TEXT) IS NULL OR d.group_name = CAST(?2 AS TEXT))
+//	  AND (CAST(?3 AS INTEGER) IS NULL OR d.id = CAST(?3 AS INTEGER))
 //	GROUP BY d.id, p.outside
 //	ORDER BY SUM(p.attempts) DESC, d.id
 func (q *Queries) ProbedDevices(ctx context.Context, arg ProbedDevicesParams) ([]*ProbedDevicesRow, error) {
-	rows, err := q.query(ctx, q.probedDevicesStmt, probedDevices, arg.Since, arg.GroupName)
+	rows, err := q.query(ctx, q.probedDevicesStmt, probedDevices, arg.Since, arg.GroupName, arg.DeviceID)
 	if err != nil {
 		return nil, err
 	}

@@ -86,6 +86,7 @@ WHERE a.hour >= sqlc.arg(since)
   AND a.peer_asn IS NULL
   AND d.is_ignored = 0
   AND (CAST(sqlc.narg(group_name) AS TEXT) IS NULL OR d.group_name = CAST(sqlc.narg(group_name) AS TEXT))
+  AND (CAST(sqlc.narg(device_id) AS INTEGER) IS NULL OR d.id = CAST(sqlc.narg(device_id) AS INTEGER))
 GROUP BY a.device_id, a.hour
 HAVING COUNT(DISTINCT a.peer_ip) >= CAST(sqlc.arg(min_peers) AS INTEGER)
     OR MAX(a.port_count) >= CAST(sqlc.arg(min_ports) AS INTEGER)

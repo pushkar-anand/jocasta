@@ -238,15 +238,17 @@ WHERE a.hour >= ?1
   AND a.peer_asn IS NULL
   AND d.is_ignored = 0
   AND (CAST(?2 AS TEXT) IS NULL OR d.group_name = CAST(?2 AS TEXT))
+  AND (CAST(?3 AS INTEGER) IS NULL OR d.id = CAST(?3 AS INTEGER))
 GROUP BY a.device_id, a.hour
-HAVING COUNT(DISTINCT a.peer_ip) >= CAST(?3 AS INTEGER)
-    OR MAX(a.port_count) >= CAST(?4 AS INTEGER)
+HAVING COUNT(DISTINCT a.peer_ip) >= CAST(?4 AS INTEGER)
+    OR MAX(a.port_count) >= CAST(?5 AS INTEGER)
 ORDER BY a.hour DESC, a.device_id
 `
 
 type ProbingHoursParams struct {
 	Since     dbtype.Time    `json:"since"`
 	GroupName sql.NullString `json:"group_name"`
+	DeviceID  sql.NullInt64  `json:"device_id"`
 	MinPeers  int64          `json:"min_peers"`
 	MinPorts  int64          `json:"min_ports"`
 }
@@ -285,14 +287,16 @@ type ProbingHoursRow struct {
 //	  AND a.peer_asn IS NULL
 //	  AND d.is_ignored = 0
 //	  AND (CAST(?2 AS TEXT) IS NULL OR d.group_name = CAST(?2 AS TEXT))
+//	  AND (CAST(?3 AS INTEGER) IS NULL OR d.id = CAST(?3 AS INTEGER))
 //	GROUP BY a.device_id, a.hour
-//	HAVING COUNT(DISTINCT a.peer_ip) >= CAST(?3 AS INTEGER)
-//	    OR MAX(a.port_count) >= CAST(?4 AS INTEGER)
+//	HAVING COUNT(DISTINCT a.peer_ip) >= CAST(?4 AS INTEGER)
+//	    OR MAX(a.port_count) >= CAST(?5 AS INTEGER)
 //	ORDER BY a.hour DESC, a.device_id
 func (q *Queries) ProbingHours(ctx context.Context, arg ProbingHoursParams) ([]*ProbingHoursRow, error) {
 	rows, err := q.query(ctx, q.probingHoursStmt, probingHours,
 		arg.Since,
 		arg.GroupName,
+		arg.DeviceID,
 		arg.MinPeers,
 		arg.MinPorts,
 	)
