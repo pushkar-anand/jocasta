@@ -98,7 +98,10 @@ var classes = []Class{
 func Classes() []Class { return slices.Clone(classes) }
 
 // Valid reports whether c is Unknown or one of the known classes.
-func (c Class) Valid() bool { return c == Unknown || slices.Contains(classes, c) }
+func (c Class) Valid() bool { return c == Unknown || c.Known() }
+
+// Known reports whether c is one of the real classes, which Unknown is not.
+func (c Class) Known() bool { return slices.Contains(classes, c) }
 
 // Confidence is how strong a case the winning rule made.
 type Confidence string
