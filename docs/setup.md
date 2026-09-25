@@ -164,6 +164,60 @@ location:
 Only the country is used, to start the lines from its middle; nothing finer
 is asked for or stored.
 
+## Send changes to your phone
+
+Jocasta can send what each scan changed to an [ntfy](https://ntfy.sh) topic,
+or as a signed JSON POST to a URL of your own.
+
+1. Under `notify` in the config file, add each destination by name, with one
+   service block, then restart Jocasta:
+
+   ```yaml
+   notify:
+     phone:
+       ntfy:
+         url: "https://ntfy.example.com/jocasta"   # the topic's address, as ntfy shows it
+         token: ""                                 # or JOCASTA_NOTIFY__PHONE__NTFY__TOKEN
+     automation:
+       webhook:
+         url: "https://hooks.example.com/jocasta"
+         secret: "change-me"                       # required; signs each request
+   ```
+
+   A destination is on unless it says `enabled: false`.
+2. In **Settings → Notifications**, tick the kinds of change each destination
+   is sent, then select **Save**.
+3. Optional: select **Send test**. A message titled "Jocasta test" arrives at
+   the destination.
+
+Each scan that changes something is sent as one message, such as
+"2 new devices on 192.0.2.0/24". The first scan of a network is sent as a
+count ("Found 42 devices"). Changes to devices you ignore, and your own edits,
+are left out. A message that cannot be delivered is logged and shown on the
+settings page, and is not sent again.
+
+### Check a webhook's signature
+
+A webhook request is a POST whose JSON body has `title`, `message`,
+`scan_id` and `events`. Two headers come with it:
+
+- `X-Jocasta-Signature-256`: `sha256=` and the hex HMAC-SHA256 of the raw
+  body, keyed with the destination's `secret`.
+- `X-Jocasta-Delivery`: a random id for this request. Log it, and drop a
+  delivery you have already handled.
+
+To check a request, compute the HMAC over the body exactly as received, before
+parsing it, and compare it with the header in constant time. In Go:
+
+```go
+mac := hmac.New(sha256.New, []byte(secret))
+mac.Write(body)
+want := "sha256=" + hex.EncodeToString(mac.Sum(nil))
+ok := hmac.Equal([]byte(want), []byte(r.Header.Get("X-Jocasta-Signature-256")))
+```
+
+Reject the request when `ok` is false.
+
 ## Optional features
 
 - **Port scanning**: set `scan.ports.enabled: true` to probe every known
@@ -173,6 +227,8 @@ is asked for or stored.
   with a Traffic page and a live Map. See
   [Record who devices talk to](#record-who-devices-talk-to) and
   [the web UI](ui.md#traffic-page).
+- **Notifications**: new devices, opened ports and other changes, sent to
+  ntfy or a signed webhook. See [Send changes to your phone](#send-changes-to-your-phone).
 - **MCP server**: lets AI agents query the inventory. See [MCP](mcp.md).
 - **JSON API**: under `/api`, for scripts and dashboards. It takes the same API
   tokens as MCP, sent as `Authorization: Bearer <token>`.
