@@ -480,3 +480,36 @@ SET state      = 'closed',
 WHERE device_id = sqlc.arg(device_id)
   AND port = sqlc.arg(port)
   AND state = 'open';
+
+-- name: ScanSummary :one
+-- One scan with its source and network, and whether it is the first to
+-- succeed for that source, kind and network.
+SELECT s.kind,
+       src.name                                    AS source,
+       CAST(COALESCE(n.cidr, '') AS TEXT)          AS network,
+       s.found_count,
+       CAST(NOT EXISTS (SELECT 1
+                        FROM scans p
+                        WHERE p.source_id = s.source_id
+                          AND p.kind = s.kind
+                          AND p.network_id IS s.network_id
+                          AND p.status = 'OK'
+                          AND p.id < s.id) AS INTEGER) AS is_first
+FROM scans s
+         JOIN sources src ON src.id = s.source_id
+         LEFT JOIN networks n ON n.id = s.network_id
+WHERE s.id = ?;
+
+-- name: ScanEvents :many
+-- What one scan changed, oldest first, with the device each names. Events
+-- about a device the owner ignores are left out.
+SELECT sqlc.embed(e),
+       d.label,
+       d.hostname,
+       d.mac,
+       d.vendor
+FROM events e
+         LEFT JOIN devices d ON d.id = e.device_id
+WHERE e.scan_id = ?
+  AND COALESCE(d.is_ignored, 0) = 0
+ORDER BY e.id;
