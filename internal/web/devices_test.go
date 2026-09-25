@@ -427,16 +427,15 @@ func TestPagerLinks(t *testing.T) {
 	// string gives its own meaning.
 	assert.Equal(t, "/events?cursor=there%2B%2F%3D", page.Older())
 
-	// A device-scoped log keeps the filter on every step of the walk, so the
-	// cursor joins an address that already has a query string.
+	// A device-scoped log keeps the filter on every step of the walk.
 	scoped := logData{Path: "/events", Device: &inventory.Device{ID: 7}, Next: "tok"}
 	assert.Equal(t, "/events?device=7", scoped.Top())
-	assert.Equal(t, "/events?device=7&cursor=tok", scoped.Older())
+	assert.Equal(t, "/events?cursor=tok&device=7", scoped.Older())
 
 	// The scan log narrows by kind the same way.
 	byKind := logData{Path: "/scans", Kind: "ports", Next: "tok"}
 	assert.Equal(t, "/scans?kind=ports", byKind.Top())
-	assert.Equal(t, "/scans?kind=ports&cursor=tok", byKind.Older())
+	assert.Equal(t, "/scans?cursor=tok&kind=ports", byKind.Older())
 }
 
 func TestCanonicalURL(t *testing.T) {

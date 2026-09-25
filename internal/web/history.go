@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 
 	"github.com/pushkar-anand/build-with-go/http/response"
 	"github.com/pushkar-anand/build-with-go/logger"
@@ -50,7 +49,18 @@ func (d logData) HasOlder() bool { return d.Next != "" }
 
 // Top is the address of the first page of this log, carrying whatever narrows
 // it so walking back to the top does not widen the log.
-func (d logData) Top() string {
+func (d logData) Top() string { return withQuery(d.Path, d.narrowing()) }
+
+// Older is the address of the page behind this one, keeping the filter.
+func (d logData) Older() string {
+	q := d.narrowing()
+	q.Set("cursor", d.Next)
+
+	return withQuery(d.Path, q)
+}
+
+// narrowing is what narrows this log, as query parameters.
+func (d logData) narrowing() url.Values {
 	q := url.Values{}
 
 	if d.Device != nil {
@@ -61,21 +71,7 @@ func (d logData) Top() string {
 		q.Set("kind", d.Kind)
 	}
 
-	if len(q) == 0 {
-		return d.Path
-	}
-
-	return d.Path + "?" + q.Encode()
-}
-
-// Older is the address of the page behind this one, keeping the filter.
-func (d logData) Older() string {
-	sep := "?"
-	if strings.Contains(d.Top(), "?") {
-		sep = "&"
-	}
-
-	return d.Top() + sep + "cursor=" + url.QueryEscape(d.Next)
+	return q
 }
 
 // logQuery is the cursor a log page continues from.

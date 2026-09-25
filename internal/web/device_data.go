@@ -174,11 +174,7 @@ func (d *devicesData) address(page int) string {
 		q.Set("page", strconv.Itoa(page))
 	}
 
-	if len(q) == 0 {
-		return d.listPath()
-	}
-
-	return d.listPath() + "?" + q.Encode()
+	return withQuery(d.listPath(), q)
 }
 
 // canonical is the address of the page showing this list. The fragment endpoint
