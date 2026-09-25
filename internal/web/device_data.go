@@ -266,7 +266,7 @@ func deviceForm(q deviceQuery) *devicesData {
 
 	// The select offers the class vocabulary; a value outside it, such as an
 	// old free-text type, is no filter.
-	if c := classify.Class(q.Type); c != classify.Unknown && c.Valid() {
+	if c := classify.Class(q.Type); c.Known() {
 		d.Type = string(c)
 	}
 

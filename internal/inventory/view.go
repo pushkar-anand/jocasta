@@ -350,7 +350,7 @@ func newDevice(d *models.Device, cutoff time.Time) *Device {
 	// that does not (such as an old free-text type)
 	// is no override, and the guess stands.
 	effective := guess
-	if override := classify.Class(d.DeviceType.String); override != classify.Unknown && override.Valid() {
+	if override := classify.Class(d.DeviceType.String); override.Known() {
 		effective = override
 	}
 

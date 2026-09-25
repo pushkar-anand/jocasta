@@ -234,3 +234,11 @@ func TestClassValid(t *testing.T) {
 		assert.NotEqual(t, classify.Unknown, c, "Classes() must not include Unknown")
 	}
 }
+
+func TestClassKnown(t *testing.T) {
+	t.Parallel()
+
+	assert.True(t, classify.Printer.Known())
+	assert.False(t, classify.Unknown.Known())
+	assert.False(t, classify.Class("toaster").Known())
+}
