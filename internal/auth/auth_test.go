@@ -16,8 +16,8 @@ import (
 )
 
 // fakeQueries answers the store interface from memory, so Auth's logic can be
-// tested without a database. Tokens are keyed by hash, the way the real table
-// is looked up by. A real store is safe to call from parallel subtests, so the
+// tested without a database. Tokens are keyed by hash, as the real table is
+// looked up. A real store is safe to call from parallel subtests, so the
 // mutex guards every access to make this one behave the same.
 type fakeQueries struct {
 	mu            sync.Mutex
@@ -148,7 +148,7 @@ func (f *fakeQueries) TouchAPITokenByHash(_ context.Context, arg models.TouchAPI
 }
 
 // DeleteAPIToken matches the real query's :exec semantics: a WHERE that names
-// no row is not an error, the same as SQL's DELETE affecting zero rows.
+// no row succeeds, as SQL's DELETE affecting zero rows does.
 func (f *fakeQueries) DeleteAPIToken(_ context.Context, arg models.DeleteAPITokenParams) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -329,9 +329,8 @@ func TestVerify(t *testing.T) {
 	})
 }
 
-// New hashes its placeholder password once, up front, rather than Verify
-// doing it lazily on the first miss -- so the first unknown-user login isn't
-// the one request that pays for it.
+// New hashes its placeholder password once, up front, so the first
+// unknown-user login does not pay for it.
 func TestNewPrecomputesUnknownUserHash(t *testing.T) {
 	t.Parallel()
 

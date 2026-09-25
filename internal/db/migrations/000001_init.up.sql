@@ -10,15 +10,15 @@ CREATE TABLE IF NOT EXISTS users
 -- Timestamps are ISO-8601 UTC with milliseconds so they sort lexicographically
 -- and can order events that land within the same second of a scan.
 
--- Where a fact came from. A row per configured instance rather than per kind,
--- so a second router or a second scanner stays distinguishable in provenance.
+-- Where a fact came from. There is a row per configured instance, so a second
+-- router or a second scanner stays distinguishable in provenance.
 -- Whether a source runs is a config question; this table exists to give scans
 -- and events a stable foreign key.
 CREATE TABLE sources
 (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
 
-    -- What sort of thing produced the fact, not which implementation did it.
+    -- What sort of thing produced the fact, whatever the implementation.
     -- RouterOS is one router among the several this could speak to, and which
     -- one a row means is the instance's own business.
     kind       TEXT NOT NULL CHECK (kind IN ('SWEEP', 'ROUTER', 'DNS', 'MANUAL')),
@@ -35,8 +35,8 @@ CREATE TABLE networks
     created_at TEXT NOT NULL DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
--- The stable entity. An address is a lease, not an identity, so everything the
--- user curates hangs here and survives the device moving.
+-- The stable entity. An address is only a lease, so everything the user
+-- curates hangs here and survives the device moving.
 CREATE TABLE devices
 (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -95,8 +95,8 @@ CREATE INDEX idx_addresses_device ON addresses (device_id);
 CREATE TABLE scans
 (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    -- RESTRICT, not CASCADE: dropping a source from config must not take the
-    -- scan history it produced with it.
+    -- RESTRICT: dropping a source from config must not take the scan history
+    -- it produced with it.
     source_id   INTEGER NOT NULL REFERENCES sources (id) ON DELETE RESTRICT,
     kind        TEXT    NOT NULL CHECK (kind IN ('DISCOVERY', 'PORTS', 'IMPORT')),
     network_id  INTEGER REFERENCES networks (id) ON DELETE SET NULL,
@@ -127,8 +127,7 @@ CREATE INDEX idx_events_occurred ON events (occurred_at DESC);
 CREATE INDEX idx_events_device ON events (device_id, occurred_at DESC);
 
 -- What one source claims about one device, kept beside the resolution on
--- devices rather than merged into it, so two sources naming the same box
--- differently can both be shown.
+-- devices, so two sources naming the same box differently can both be shown.
 CREATE TABLE device_sources
 (
     device_id       INTEGER NOT NULL REFERENCES devices (id) ON DELETE CASCADE,
@@ -138,7 +137,7 @@ CREATE TABLE device_sources
     -- to say about a name can retract it.
     hostname        TEXT,
 
-    -- Per claim rather than read off sources.kind: one router offers both a
+    -- Per claim, since sources.kind cannot say it: one router offers both a
     -- static lease name and a dynamic one, and they are not worth the same.
     hostname_source TEXT,
 
@@ -147,8 +146,7 @@ CREATE TABLE device_sources
     detail          TEXT CHECK (detail IS NULL OR JSON_VALID(detail)),
 
     -- Per-source presence, so "there is a bound lease but nothing has answered
-    -- a ping in three days" is two claims disagreeing rather than one of them
-    -- being wrong.
+    -- a ping in three days" is two claims that disagree, both of them true.
     first_seen      TEXT    NOT NULL,
     last_seen       TEXT    NOT NULL,
     PRIMARY KEY (device_id, source_id)
@@ -159,15 +157,15 @@ CREATE TABLE device_sources
 CREATE INDEX idx_device_sources_source ON device_sources (source_id, last_seen DESC);
 
 -- What a device is listening on. Written only by the port scan, which probes
--- the addresses discovery has already found rather than sweeping a prefix, so
--- every row here hangs off a device some earlier scan recorded.
+-- the addresses discovery has already found, so every row here hangs off a
+-- device some earlier scan recorded.
 CREATE TABLE device_ports
 (
     device_id  INTEGER NOT NULL REFERENCES devices (id) ON DELETE CASCADE,
     port       INTEGER NOT NULL CHECK (port BETWEEN 1 AND 65535),
 
     -- A port that has been open keeps its row when it closes, so "this was open
-    -- until Tuesday" stays one read rather than a walk back through events.
+    -- until Tuesday" stays one read.
     state      TEXT    NOT NULL CHECK (state IN ('open', 'closed')),
 
     -- Best-effort name from a static port-to-service map, null when the port is

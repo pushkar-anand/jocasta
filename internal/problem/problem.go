@@ -15,8 +15,8 @@ import (
 )
 
 // For renders the errors the inventory returns that are not simply failures.
-// Anything else is nil, which the caller turns into a generic 500 -- what an
-// unexpected error deserves, and all a caller should learn about one.
+// Anything else is nil, which the caller turns into a generic 500: all a
+// caller should learn about an unexpected error.
 func For(err error) response.Problem {
 	if errors.Is(err, inventory.ErrNotFound) {
 		return response.NewProblem().
@@ -46,8 +46,7 @@ func Resolve(err error) (response.Problem, bool) {
 }
 
 // Internal is the problem an unexpected error is answered with. It says only
-// that something failed: the cause belongs in the server log, not in front of
-// whoever asked.
+// that something failed, and the cause goes to the server log.
 func Internal() response.Problem {
 	return response.NewProblem().Build()
 }

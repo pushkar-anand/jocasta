@@ -1,7 +1,7 @@
--- What a device sent to everyone rather than to one host: a broadcast to its
--- subnet or to 255.255.255.255, or a packet to a multicast group. Discovery
--- protocols -- mDNS, SSDP, DHCP, a sync tool finding its peers -- announce a
--- device this way, which says what it runs and looks for. There is no peer to
+-- What a device sent to everyone: a broadcast to its subnet or to
+-- 255.255.255.255, or a packet to a multicast group. Discovery protocols such
+-- as mDNS, SSDP, DHCP and a sync tool finding its peers announce a device
+-- this way, which says what it runs and looks for. There is no peer to
 -- file them under in traffic_hourly, so they are kept per group and port.
 CREATE TABLE broadcasts_hourly
 (

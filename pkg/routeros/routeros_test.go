@@ -16,8 +16,8 @@ import (
 )
 
 // serve builds a client pointed at a test server running handler. It goes
-// through New rather than assembling the struct, so the base path, the port
-// and the transport are exercised by every test rather than assumed.
+// through New, so every test exercises the base path, the port and the
+// transport.
 func serve(t *testing.T, handler http.HandlerFunc) *RouterOS {
 	t.Helper()
 
@@ -103,13 +103,13 @@ func TestNewBuildsTheBaseURL(t *testing.T) {
 	}
 }
 
-// New must not touch the network: a router that is down at startup is one to
-// retry rather than a reason to refuse to start.
+// New must not touch the network, so a router that is down at startup does not
+// stop the server starting.
 func TestNewPerformsNoIO(t *testing.T) {
 	t.Parallel()
 
 	// Port 1 on the discard-only documentation address answers nothing, so a
-	// client that dialled here would hang rather than return.
+	// client that dialled here would hang.
 	_, err := New(&Config{Host: "192.0.2.1", Port: 1}, slog.New(slog.DiscardHandler))
 	require.NoError(t, err)
 }
@@ -132,9 +132,9 @@ func TestGetSendsCredentialsAndAsksForJSON(t *testing.T) {
 	assert.Equal(t, "7.14.3 (stable)", res.Version)
 }
 
-// A real /ip/arp table: a reachable host, a stale one, an incomplete entry
-// carrying the all-zero address, an invalid row, and a static entry an
-// operator typed in.
+// An /ip/arp table as a router returns it: a reachable host, a stale one, an
+// incomplete entry carrying the all-zero address, an invalid row, and a static
+// entry an operator typed in.
 const arpTable = `[
   {".id":"*1","address":"192.0.2.10","mac-address":"00:00:5E:00:53:01","interface":"bridge","complete":"true","disabled":"false","dynamic":"true","invalid":"false","published":"false","status":"reachable"},
   {".id":"*2","address":"192.0.2.11","mac-address":"00:00:5E:00:53:02","interface":"vlan20","complete":"true","disabled":"false","dynamic":"true","invalid":"false","published":"false","status":"stale"},
@@ -226,9 +226,10 @@ func TestARPReachableFallsBackToUsableWithoutNeighbourState(t *testing.T) {
 	assert.False(t, ARPEntry{Complete: false}.Reachable())
 }
 
-// A real /ip/dhcp-server/lease table: a bound dynamic lease naming itself, a
-// bound static lease an operator commented, a static lease for a device that
-// is not on the network, and a dynamic lease from a client that sent no name.
+// An /ip/dhcp-server/lease table as a router returns it: a bound dynamic lease
+// naming itself, a bound static lease an operator commented, a static lease for
+// a device that is not on the network, and a dynamic lease from a client that
+// sent no name.
 const leaseTable = `[
   {".id":"*1","address":"192.0.2.10","active-address":"192.0.2.10","mac-address":"00:00:5E:00:53:01","active-mac-address":"00:00:5E:00:53:01","client-id":"1:0:0:5e:0:53:1","host-name":"laptop","server":"lan","status":"bound","dynamic":"true","blocked":"false","disabled":"false","expires-after":"9m59s","last-seen":"1s"},
   {".id":"*2","address":"192.0.2.11","active-address":"192.0.2.11","mac-address":"00:00:5E:00:53:02","host-name":"ESP-9A2B","comment":"kitchen sensor","server":"iot","status":"bound","dynamic":"false","blocked":"false","disabled":"false","last-seen":"4m12s"},
@@ -312,8 +313,8 @@ func TestAddressesDecodeTheTable(t *testing.T) {
 	assert.True(t, out[0].Usable())
 }
 
-// The WAN address the ISP hands out is dynamic, and a link the router sits on
-// is not a segment it serves.
+// The WAN address the ISP hands out is dynamic: the router sits on that link
+// without serving it as a segment.
 func TestAddressUsableRejectsWhatIsNotASegment(t *testing.T) {
 	t.Parallel()
 
@@ -429,8 +430,8 @@ func TestTheRouterSaysWhyItRefused(t *testing.T) {
 }
 
 // A user that logs in and is then refused every command is a credentials
-// problem wearing a 500. Captured from a real router whose API user had the
-// rest-api policy and not read.
+// problem wearing a 500. Captured from a router whose API user had the
+// rest-api policy and lacked read.
 func TestAUserWithoutThePolicyIsARefusal(t *testing.T) {
 	t.Parallel()
 
@@ -446,8 +447,8 @@ func TestAUserWithoutThePolicyIsARefusal(t *testing.T) {
 	assert.Contains(t, err.Error(), "not allowed")
 }
 
-// Every other fault the router reports is left alone: a 500 is not evidence
-// about the credentials unless the router says the command was not allowed.
+// Every other fault the router reports is left alone. A 500 says something
+// about the credentials only when the router says the command was not allowed.
 func TestOtherFaultsAreNotReadAsARefusal(t *testing.T) {
 	t.Parallel()
 
@@ -530,7 +531,7 @@ func TestARouterThatDoesNotAnswerIsWorthRetrying(t *testing.T) {
 	assert.NotErrorIs(t, err, ErrUnauthorized)
 }
 
-// A caller giving up is not the router being absent: calling it unreachable
+// A caller giving up says nothing about the router. Calling it unreachable
 // would have a poller retry all the way through a shutdown.
 func TestACancelledContextIsNotAnUnreachableRouter(t *testing.T) {
 	t.Parallel()

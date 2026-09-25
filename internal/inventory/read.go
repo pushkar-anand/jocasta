@@ -17,8 +17,8 @@ import (
 )
 
 // ErrNotFound is returned when a read names something the inventory does not
-// hold. Callers match on it rather than on [sql.ErrNoRows], which would tie
-// every surface to the storage layer.
+// hold. Callers match on it; matching [sql.ErrNoRows] would tie every surface
+// to the storage layer.
 var ErrNotFound = errors.New("not found")
 
 // DiscoveryWindow is how far back Stats counts a device as newly discovered.
@@ -28,7 +28,7 @@ const DiscoveryWindow = 24 * time.Hour
 //
 // The whole matching set is read: a homelab holds tens to low hundreds of
 // devices, and ordering by address or by name has to happen in Go, which can
-// only be right if it sees every row rather than one page of them.
+// only be right if it sees every row.
 func (s *Store) ListDevices(ctx context.Context, f DeviceFilter) ([]*Device, error) {
 	rows, err := s.q.ListDevices(ctx, models.ListDevicesParams{
 		IncludeIgnored: f.IncludeIgnored,
@@ -42,7 +42,7 @@ func (s *Store) ListDevices(ctx context.Context, f DeviceFilter) ([]*Device, err
 
 	// The prefixes each device's current addresses sit on, so a row can name
 	// where the device lives. The table is a handful of rows, so it is read
-	// whole and indexed rather than joined -- the same choice Device makes.
+	// whole and indexed in Go, the same choice Device makes.
 	networks, err := s.ListNetworks(ctx)
 	if err != nil {
 		return nil, err
@@ -62,15 +62,15 @@ func (s *Store) ListDevices(ctx context.Context, f DeviceFilter) ([]*Device, err
 		d.OpenPorts = parsePorts(r.OpenPorts)
 		d.Networks = resolveNetworks(parseIDs(r.NetworkIds), byID)
 
-		// Online is decided against the clock, not the query, so the status
-		// filter is applied here rather than as one more SQL clause.
+		// Online is decided in Go against the clock, so the status filter is
+		// applied here.
 		if !f.Status.admits(d.Online) {
 			continue
 		}
 
 		// The effective class is settled when the device is read, from two
 		// columns and a rule about which wins, so the type filter is applied
-		// against it here rather than reproduced in SQL.
+		// against it here.
 		if f.Type != classify.Unknown && d.Class != f.Type {
 			continue
 		}
@@ -121,7 +121,7 @@ func (s *Store) Device(ctx context.Context, id int64) (*Device, error) {
 	}
 
 	// The prefix each address sits on, so the page can name it. The table is a
-	// handful of rows, so it is read whole and indexed rather than joined.
+	// handful of rows, so it is read whole and indexed in Go.
 	networks, err := s.ListNetworks(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("networks for device %d: %w", id, err)
@@ -278,12 +278,12 @@ func (s *Store) LatestScanOfKind(ctx context.Context, k dbtype.ScanKind) (*Scan,
 // LastSuccessfulScanAt reports when a scan of kind k last finished with
 // something to show for it, and ErrNotFound when none ever has.
 //
-// It answers "is this due?" for anything that runs on a schedule, so it is the
-// finish rather than the start: a poller waits an interval after the work ends,
-// and measuring from the start would make the wait mean something else across a
+// It answers "is this due?" for anything that runs on a schedule, so it
+// reports the finish: a poller waits an interval after the work ends, and
+// measuring from the start would make the wait mean something else across a
 // restart than it does between runs. A scan that failed, or that was cut off
-// before it finished, gathered nothing and so does not answer -- which is what
-// makes an interrupted or failed sweep due again rather than credited as done.
+// before it finished, gathered nothing and so does not answer, which makes an
+// interrupted or failed sweep due again.
 func (s *Store) LastSuccessfulScanAt(ctx context.Context, k dbtype.ScanKind) (time.Time, error) {
 	at, err := s.q.LatestSuccessfulScanFinishedAt(ctx, k)
 
@@ -296,7 +296,7 @@ func (s *Store) LastSuccessfulScanAt(ctx context.Context, k dbtype.ScanKind) (ti
 
 	// The query selects finished scans only, so this holds unless the column
 	// override and the WHERE ever disagree. Kept because the failure it guards
-	// against -- a zero time read as a real one -- is silent.
+	// against, a zero time read as a real one, is silent.
 	if !at.Valid {
 		return time.Time{}, fmt.Errorf("scan of kind %s: %w", k, ErrNotFound)
 	}
@@ -306,8 +306,7 @@ func (s *Store) LastSuccessfulScanAt(ctx context.Context, k dbtype.ScanKind) (ti
 
 // PortScanTargets returns every address a port scan should probe: the current
 // address of every device the user has not ignored. The scan works from what
-// discovery has already found rather than sweeping, so this is its whole target
-// list.
+// discovery has already found, so this is its whole target list.
 func (s *Store) PortScanTargets(ctx context.Context) ([]netip.Addr, error) {
 	rows, err := s.q.AllCurrentAddresses(ctx)
 	if err != nil {
@@ -345,7 +344,7 @@ func (s *Store) Stats(ctx context.Context) (*Stats, error) {
 
 // ListNetworks returns every recorded network with how many devices are on it
 // now. The overview leads with these, so a network the sweeps have never found
-// anything on is included at zero rather than dropped.
+// anything on is included at zero.
 func (s *Store) ListNetworks(ctx context.Context) ([]*Network, error) {
 	rows, err := s.q.ListNetworks(ctx, dbtype.NewTime(s.onlineCutoff()))
 	if err != nil {
@@ -373,7 +372,7 @@ func (s *Store) ListNetworks(ctx context.Context) ([]*Network, error) {
 // Network returns one recorded network with its device counts, or ErrNotFound
 // when no network has that id.
 //
-// It filters the full list rather than asking for one row: the table is a
+// It filters the full list: the table is a
 // handful of prefixes, and the counts are the same aggregate ListNetworks
 // already computes.
 func (s *Store) Network(ctx context.Context, id int64) (*Network, error) {

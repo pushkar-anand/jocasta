@@ -69,7 +69,7 @@ func TestLoggerFormatValue(t *testing.T) {
 // environment layers over them.
 //
 // config.Load merges into a process-wide koanf store, so this must stay the
-// only Load in the package: successive loads are cumulative, not independent.
+// only Load in the package: successive loads accumulate.
 func TestLoadConfig(t *testing.T) {
 	cfg, err := config.Load[Config](
 		config.WithDefaults(defaults),
@@ -107,8 +107,8 @@ func TestLoadConfig(t *testing.T) {
 	assert.Equal(t, inventory.DefaultOnlineWindow, cfg.Inventory.OnlineWindow)
 	assert.Equal(t, inventory.DefaultAddressGrace, cfg.Inventory.AddressGrace)
 
-	// Derived rather than written down, so assert it is the derivation and not
-	// merely non-empty: an unnamed source files every sweep under one blank row.
+	// The default is derived from the host, so assert the derivation itself.
+	// An unnamed source would file every sweep under one blank row.
 	assert.Equal(t, defaultSource(), cfg.Scan.Source)
 
 	// The port scan is off by default on a six-hour interval; the environment
@@ -118,7 +118,7 @@ func TestLoadConfig(t *testing.T) {
 	assert.Equal(t, "22,80,8000-8100", cfg.Scan.Ports.Custom)
 
 	// Concurrency is untouched by the environment here, so it stays the
-	// scanner's default rather than falling to a zero that means "no limit".
+	// scanner's default. A zero would mean "no limit".
 	assert.Equal(t, scanner.DefaultConcurrency, cfg.Scan.Ports.Concurrency)
 
 	// Auth knobs are durations configured as text and a bool that defaults on:
@@ -171,8 +171,8 @@ func TestLoadConfig(t *testing.T) {
 	assert.Equal(t, "Australia/Sydney", cfg.Location.Timezone)
 }
 
-// An explicit path that does not exist is reported rather than silently falling
-// back to defaults, which would bind the server to the wrong address.
+// An explicit path that does not exist is reported. Silently falling back to
+// defaults would bind the server to the wrong address.
 func TestNewRejectsAMissingConfigFile(t *testing.T) {
 	t.Parallel()
 
@@ -180,9 +180,8 @@ func TestNewRejectsAMissingConfigFile(t *testing.T) {
 	require.Error(t, err)
 }
 
-// Serving the inventory to AI agents is opt-in. Read off the defaults map
-// rather than through config.Load, which TestLoadConfig must be the only
-// caller of.
+// Serving the inventory to AI agents is opt-in. This reads the defaults map
+// directly, because TestLoadConfig must be the only caller of config.Load.
 func TestMCPIsOffByDefault(t *testing.T) {
 	t.Parallel()
 

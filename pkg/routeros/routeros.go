@@ -1,9 +1,9 @@
 // Package routeros reads a MikroTik router's state over the RouterOS v7 REST
 // API.
 //
-// The REST service speaks JSON over HTTP on 80/443 and needs no dependency
-// beyond the standard library, unlike the binary API on 8728/8729. It only
-// exists from RouterOS 7, and only when /ip/service has www or www-ssl
+// The REST service speaks JSON over HTTP on 80/443, so the standard library is
+// all a client needs; the binary API on 8728/8729 would need a dependency. It
+// exists only from RouterOS 7, and only when /ip/service has www or www-ssl
 // enabled, so a router that answers a ping and refuses this is a router that
 // has not been told to serve it.
 //
@@ -14,8 +14,8 @@
 // Values arrive as the router renders them. RouterOS returns most fields as
 // strings, including its booleans, which [Bool] absorbs. Addresses and
 // hardware addresses stay strings on purpose: a router with one malformed row
-// should cost the caller that row, not the whole table, and that decision
-// belongs to whoever is reading the table rather than to the decoder.
+// should cost the caller only that row, and the caller decides what to do
+// with it.
 package routeros
 
 import (
@@ -69,9 +69,8 @@ type (
 		// without this the common setup cannot connect at all.
 		Insecure bool
 
-		// Timeout bounds one request, defaulting to 10s. It is per request
-		// rather than per client so a caller's context stays the only thing
-		// that bounds a whole read.
+		// Timeout bounds each request on its own, defaulting to 10s, so a
+		// caller's context stays the only thing that bounds a whole read.
 		Timeout time.Duration
 	}
 
@@ -90,9 +89,9 @@ var ErrNoHost = errors.New("routeros: no host configured")
 
 // New builds a client for the router cfg names.
 //
-// It performs no I/O: a router that is down at startup is a router to retry,
-// not a reason to refuse to start. Call [RouterOS.Verify] to find out whether
-// the credentials and the service are actually good.
+// It performs no I/O, so a router that is down at startup is retried later
+// and the server still starts. Call [RouterOS.Verify] to find out whether the
+// credentials and the service are actually good.
 func New(
 	cfg *Config,
 	log *slog.Logger,
@@ -170,9 +169,8 @@ func (r *RouterOS) get[T any](ctx context.Context, path string) (*T, error) {
 
 	resp, err := r.client.Do(req)
 	if err != nil {
-		// A cancelled context is the caller giving up, not the router being
-		// absent, and calling it unreachable would have the poller retry
-		// during a shutdown.
+		// A cancelled context is the caller giving up. Calling it unreachable
+		// would have the poller retry during a shutdown.
 		if ctx.Err() != nil {
 			return nil, fmt.Errorf("request send: %w", err)
 		}
@@ -204,8 +202,7 @@ func (r *RouterOS) get[T any](ctx context.Context, path string) (*T, error) {
 }
 
 // list reads a collection endpoint. RouterOS renders an empty table as an
-// empty array, so a nil slice back means the table is empty and not that the
-// read failed.
+// empty array, so an empty result with a nil error means the table is empty.
 func list[T any](ctx context.Context, r *RouterOS, path string) ([]T, error) {
 	rows, err := r.get[[]T](ctx, path)
 	if err != nil {

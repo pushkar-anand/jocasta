@@ -38,7 +38,7 @@ type PortScan struct {
 
 	// Scanned lists every port probed, ascending, so a port missing from Open
 	// can be told from one that was never checked. Ingest needs the difference
-	// to know a port has closed rather than dropped out of the set.
+	// to know a port has closed.
 	Scanned []uint16
 
 	// SeenAt is when the scan ran, taken once for the whole scan so every
@@ -188,8 +188,8 @@ feed:
 		}
 	}
 
-	// A worker never returns an error -- a refused port is data, not a failure
-	// -- so Wait has nothing to report and only marks the group done.
+	// A worker never returns an error, since a refused port is a result, so
+	// Wait has nothing to report and only marks the group done.
 	_ = g.Wait()
 
 	results := make([]PortScan, len(targets))
@@ -209,8 +209,8 @@ feed:
 }
 
 // portResults collects the open ports found for each target by index. The
-// workers all write to it at once, so every method takes the lock -- the same
-// shape as the sweep's results collector.
+// workers all write to it at once, so every method takes the lock, as the
+// sweep's results collector does.
 type portResults struct {
 	mu   sync.Mutex
 	open [][]uint16
@@ -239,7 +239,7 @@ func (r *portResults) sorted(i int) []uint16 {
 }
 
 // probe reports whether a TCP connection to addr:port completes. A refused
-// connection, an unreachable host and a timeout are all "not open" -- the scan
+// connection, an unreachable host and a timeout are all "not open": the scan
 // does not distinguish a closed port from a filtered one.
 func probe(ctx context.Context, d *net.Dialer, addr netip.Addr, port uint16) bool {
 	conn, err := d.DialContext(ctx, "tcp", netip.AddrPortFrom(addr, port).String())
@@ -257,9 +257,8 @@ func probe(ctx context.Context, d *net.Dialer, addr netip.Addr, port uint16) boo
 // N-M inclusive ranges. "1-65535" is allowed and is how a full scan is asked
 // for.
 //
-// An empty spec is an error rather than an empty list or the preset: a caller
-// that wants the preset does not pass a spec at all, so an empty one is a
-// misconfiguration worth naming.
+// An empty spec is an error: a caller that wants the preset does not pass a
+// spec at all, so an empty one is a misconfiguration worth naming.
 func ParsePortSpec(spec string) ([]uint16, error) {
 	fields := strings.Split(spec, ",")
 
@@ -295,8 +294,8 @@ func ParsePortSpec(spec string) ([]uint16, error) {
 	return ports, nil
 }
 
-// parsePortRange reads one spec entry -- a single port or a "lo-hi" range --
-// and returns its inclusive bounds.
+// parsePortRange reads one spec entry, a single port or a "lo-hi" range, and
+// returns its inclusive bounds.
 func parsePortRange(entry string) (lo, hi uint16, err error) {
 	before, after, isRange := strings.Cut(entry, "-")
 

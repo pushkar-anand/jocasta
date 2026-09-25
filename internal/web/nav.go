@@ -9,9 +9,6 @@ type crumb struct {
 	Href  string
 }
 
-// view is what the layout needs from every page. The sidebar's sections are
-// static markup in partial/nav, not built from this; Section only says which
-// of them to mark current.
 // liveEvery is a view's Live: every when the page refreshes itself, and empty
 // when it does not.
 func liveEvery(live bool, every string) string {
@@ -22,6 +19,9 @@ func liveEvery(live bool, every string) string {
 	return every
 }
 
+// view is what the layout needs from every page. The sidebar's sections are
+// static markup in partial/nav; Section only says which of them to mark
+// current.
 type view struct {
 	Title   string
 	Section string
@@ -33,7 +33,7 @@ type view struct {
 	// indicator in the topbar says it; empty on a page that does not.
 	Live string
 
-	// Role is the signed-in account's role
+	// Role is the signed-in account's role.
 	Role dbtype.UserRole
 
 	// SignedInAs is the signed-in account's name, shown in the topbar account
@@ -48,8 +48,8 @@ type view struct {
 	Window string
 }
 
-// roleDisplay maps a stored role value to its UI label. Forms still submit the
-// stored values (read, read_write).
+// roleDisplay maps a stored role value to its UI label. Forms submit the stored
+// values (read, read_write).
 func roleDisplay(role dbtype.UserRole) string {
 	switch role {
 	case dbtype.RoleAdmin:
@@ -106,7 +106,7 @@ func permChoice(field, legend, selected string, allowWrite bool) permChoiceView 
 
 // scopeChoice is permChoice for the create-token form. Wire values match the
 // user roles (read, read_write); the hints describe what the token reaches
-// through the API, not what an account may do.
+// through the API.
 func scopeChoice(selected string, allowWrite bool) permChoiceView {
 	v := permChoiceView{
 		Field:  "scope",

@@ -271,7 +271,7 @@ func TestHandlerOffersWriteToolsOnlyToAReadWriteToken(t *testing.T) {
 }
 
 // fakeTool registers a tool that does nothing, for tests about which tools are
-// offered rather than what any of them does.
+// offered.
 func fakeTool(name string) func(*mcpsdk.Server, *slog.Logger) {
 	return func(s *mcpsdk.Server, _ *slog.Logger) {
 		mcpsdk.AddTool(s, &mcpsdk.Tool{Name: name}, func(

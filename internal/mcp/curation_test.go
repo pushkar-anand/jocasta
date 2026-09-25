@@ -65,7 +65,7 @@ func TestUpdateDeviceCuration(t *testing.T) {
 	})
 
 	// Every field is replaced, so one left out would be cleared without the
-	// agent meaning to; the call is refused instead.
+	// agent meaning to, and the call is refused.
 	for _, field := range []string{"id", "label", "group", "type", "notes", "ignored"} {
 		t.Run("without "+field+" is refused", func(t *testing.T) {
 			t.Parallel()

@@ -13,7 +13,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// apiToken is what the tokens page shows for one row -- the generated model
+// apiToken is what the tokens page shows for one row. The generated model
 // carries dbtype wrappers a template cannot call ago or eq against directly,
 // the same reason inventory's own view types exist.
 type apiToken struct {
@@ -53,7 +53,7 @@ type tokensData struct {
 	NewScope       string
 
 	// Revoked marks the list region revokeToken returns, so it announces the
-	// removal once rather than on every render of the list.
+	// removal once, on that render alone.
 	Revoked bool
 }
 
@@ -92,9 +92,9 @@ func (h *Handler) tokens(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 }
 
 // createToken issues a new token for the signed-in user, then redirects to the
-// list. The plaintext -- the one thing this is the only chance to see -- rides
-// the redirect in a one-shot flash, so a reload of the landing page re-fetches
-// it rather than minting a second token.
+// list. The plaintext, which can be seen only this once, rides the redirect in
+// a one-shot flash, so reloading the landing page does not mint a second
+// token.
 func (h *Handler) createToken(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	type createTokenForm struct {
 		Name  string `schema:"name" validate:"required,min=1,max=100"`
@@ -136,10 +136,9 @@ func (h *Handler) createToken(sm *auth.Session, a *auth.Auth) response.HandlerFu
 }
 
 // revokeToken deletes one of the signed-in user's tokens and answers with the
-// list region as it now stands. It returns the whole region rather than an
-// empty row so the last revoke shows the "none yet" line instead of a table
-// with no body, and so any plaintext still on the page from a create just
-// before it goes with the swap.
+// list region as it now stands. It returns the whole region so the last revoke
+// shows the "none yet" line in place of an empty table, and so any plaintext
+// still on the page from a create just before it goes with the swap.
 func (h *Handler) revokeToken(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
@@ -192,8 +191,7 @@ func tokenList(ctx context.Context, sm *auth.Session, a *auth.Auth, r *http.Requ
 
 // currentUserID reads the id Login put in the session. The route sits behind
 // auth.Middleware, so finding none here means the middleware let through a
-// request it should have redirected -- worth its own error rather than a
-// silently wrong id.
+// request it should have redirected, which is worth its own error.
 func currentUserID(sm *auth.Session, r *http.Request) (int64, error) {
 	id, ok := sm.CurrentUserID(r.Context())
 	if !ok {

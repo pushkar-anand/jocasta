@@ -42,7 +42,7 @@ func TestParseARPEmpty(t *testing.T) {
 }
 
 // TestNeighboursOnAnyPlatform covers the path where there is no neighbour table
-// to read: no MAC is a normal outcome, not a failed scan.
+// to read: no MAC is a normal outcome of a scan.
 func TestNeighboursOnAnyPlatform(t *testing.T) {
 	t.Parallel()
 

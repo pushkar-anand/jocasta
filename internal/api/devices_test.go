@@ -26,8 +26,8 @@ func TestListDevices(t *testing.T) {
 	device, ok := devices[0].(map[string]any)
 	require.True(t, ok)
 
-	// The flattened view is what reaches the wire: an absent column is left out
-	// entirely rather than arriving as {"String":"","Valid":false}.
+	// The flattened view is what reaches the wire, so an absent column is left
+	// out entirely. The raw row would send {"String":"","Valid":false}.
 	assert.Contains(t, device, "id")
 	assert.Contains(t, device, "online")
 	assert.Contains(t, device, "current_addresses")
@@ -82,7 +82,7 @@ func TestListDevicesRejectsUnknownFilterValues(t *testing.T) {
 			status, _, body := get(t, h, tc.target)
 
 			// The request parsed and was understood, so it is unprocessable
-			// rather than malformed.
+			// (422). A malformed request would be a 400.
 			require.Equal(t, http.StatusUnprocessableEntity, status)
 			assert.Equal(t, float64(http.StatusUnprocessableEntity), body["status"])
 
@@ -196,7 +196,7 @@ func TestDeviceEvents(t *testing.T) {
 }
 
 // The device is looked up first, so history for a device that does not exist is
-// a 404 rather than an empty list that reads as "nothing ever happened".
+// a 404. An empty list would read as "nothing ever happened".
 func TestDeviceEventsUnknownIDIsNotFound(t *testing.T) {
 	t.Parallel()
 
@@ -244,11 +244,10 @@ func TestUpdateDevice(t *testing.T) {
 	// The device carries its addresses, as it does from every other read.
 	assert.NotEmpty(t, body["current_addresses"])
 
-	// And what the sweep found is untouched: an address is not something to
-	// correct by hand.
+	// What the sweep found is untouched.
 	assert.Equal(t, macA, body["mac"])
 
-	// The change is stored, not only returned.
+	// The change is stored as well as returned.
 	_, _, reread := get(t, h, "/devices/1")
 	assert.Equal(t, "Office printer", reread["label"])
 }
@@ -370,8 +369,8 @@ func TestDeviceTraffic(t *testing.T) {
 	status, _, body := get(t, h, "/devices/1/traffic?days=7")
 	require.Equal(t, http.StatusOK, status)
 
-	// Nothing collects traffic in this test, and the answer says so rather
-	// than reading as a silent device.
+	// Nothing collects traffic in this test, and the answer says so, which
+	// tells it apart from a silent device.
 	assert.Equal(t, false, body["recorded"])
 	assert.Empty(t, list(t, body, "local"))
 	assert.Empty(t, list(t, body, "internet"))

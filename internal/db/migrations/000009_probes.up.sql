@@ -26,7 +26,7 @@ CREATE TABLE probes_hourly
     port_count INTEGER NOT NULL DEFAULT 0,
     ports      TEXT    NOT NULL DEFAULT '',
 
-    -- Whether the router's outside address was what was tried, rather than
+    -- Whether the router's outside address was what was tried. False means
     -- a port forwarded to the device.
     outside    INTEGER NOT NULL DEFAULT 0 CHECK (outside IN (0, 1)),
 

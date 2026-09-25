@@ -1,14 +1,13 @@
 // Command gen builds the ASN tables embedded by package asn.
 //
-// The tables are generated and committed rather than fetched at run time so
-// that lookups work on an isolated network, and so a build never depends on
-// DB-IP being reachable.
+// The tables are generated and committed so that lookups work on an isolated
+// network, and so a build never depends on DB-IP being reachable.
 //
 // Unlike the OUI table they are written compressed. The source is thirty
 // megabytes of CSV and even compacted the text is over thirteen; embedded as
 // is, it would triple the size of the binary for a lookup most installs make
 // only when traffic collection is on. A refresh therefore lands as an opaque
-// blob, and the workflow that proposes it reports the counts instead.
+// blob, and the workflow that proposes it reports the counts.
 package main
 
 import (
@@ -260,8 +259,8 @@ func clean(name string) string {
 }
 
 // legalSuffixes are trailing words that say what sort of company an
-// organisation is rather than which one. Checked case-insensitively, repeatedly,
-// so "Example Holdings, Inc." loses both.
+// organisation is. Checked case-insensitively, repeatedly, so
+// "Example Holdings, Inc." loses both.
 var legalSuffixes = []string{
 	"inc.", "inc", "llc", "l.l.c.", "ltd.", "ltd", "limited", "corporation",
 	"corp.", "corp", "co.", "gmbh", "ag", "s.a.", "sa", "b.v.", "bv", "plc",

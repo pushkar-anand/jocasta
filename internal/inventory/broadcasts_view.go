@@ -22,8 +22,8 @@ type Broadcast struct {
 	Port     uint16 `json:"port"`
 
 	// Service names the discovery protocol usually found on the group or
-	// port, and is empty when there is no well-known one. A guess from the
-	// numbers, not something read from the packets.
+	// port, and is empty when there is no well-known one. It is a guess from
+	// the numbers; nothing reads the packets.
 	Service string `json:"service,omitempty"`
 
 	Bytes    int64     `json:"bytes"`

@@ -7,16 +7,16 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/auth"
 )
 
-// setupData is what the setup page needs to render standalone -- it carries
-// no view, same as loginData, since this page has no signed-in shell either.
+// setupData is what the setup page needs to render standalone. It carries no
+// view, as with loginData, since this page has no signed-in shell either.
 type setupData struct {
 	Title string
 	Error string
 }
 
-// setup serves the one-time first-account page. Reaching it at all already
-// means the session middleware found no account yet -- CreateFirstUser is
-// what refuses a second attempt, not this handler.
+// setup serves the one-time first-account page. Reaching it at all means the
+// session middleware found no account yet. CreateFirstUser is what refuses a
+// second attempt.
 func (h *Handler) setup() response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		h.htmlWriter.Success(w, r, TemplateSetup, setupData{Title: "Set up admin account"})

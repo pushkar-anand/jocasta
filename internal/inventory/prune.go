@@ -19,8 +19,8 @@ type Pruned struct {
 }
 
 // Prune deletes every event and every finished scan older than retention, and
-// every hourly traffic total and attempt count older than trafficRetention. A retention of zero
-// keeps that kind forever.
+// every hourly traffic total and attempt count older than trafficRetention. A
+// retention of zero keeps that kind forever.
 //
 // Events go first and in the same transaction, so a reader never sees an event
 // whose scan has gone while the event stays. A scan's events are stamped at or

@@ -28,8 +28,8 @@ func recordPorts(t *testing.T, s *Store, scans ...scanner.PortScan) *PortSummary
 	return sum
 }
 
-// portRow is device_ports read back for one (device, port), for asserting the
-// state machine through raw SQL rather than a reader that does not exist yet.
+// portRow is device_ports read back for one (device, port), so the state
+// machine is asserted against the table itself.
 type portRow struct {
 	state             string
 	service           string
@@ -115,7 +115,7 @@ func TestRecordPortsIsIdempotent(t *testing.T) {
 	assert.Equal(t, first.changedAt, second.changedAt, "an unchanged port does not move changed_at")
 	assert.Greater(t, second.lastSeen, first.lastSeen, "last_seen advances every scan")
 
-	// One PORT_OPENED, not two.
+	// Exactly one PORT_OPENED.
 	assert.Equal(t, 1, queryInt(t, conn,
 		`SELECT COUNT(*) FROM events WHERE device_id = ? AND kind = 'PORT_OPENED'`, id))
 }

@@ -32,7 +32,7 @@
                     <div class="stat--quiet"><dd>{{ .Offline }}</dd><dt>Quiet</dt></div>
                 </dl>
 
-                {{- /* Attribute widths, not styles: see the ledger in the stylesheet. */}}
+                {{- /* Widths are attributes: see the ledger in the stylesheet. */}}
                 <svg class="ledger ledger--thin" viewBox="0 0 100 6" preserveAspectRatio="none" role="img"
                      aria-label="{{ .Online }} of {{ .Total }} {{ if eq .Total 1 }}device{{ else }}devices{{ end }} seen recently">
                     <rect class="ledger__track" x="0" y="0" width="100" height="6"></rect>
@@ -94,7 +94,7 @@
                 <div><dt>Took</dt><dd>{{ took . }}</dd></div>
                 <div><dt>Kind</dt><dd class="lower">{{ .Kind }}</dd></div>
                 <div><dt>Started</dt><dd class="dim">{{ stamp .StartedAt "" }}</dd></div>
-                {{- /* When collection last succeeded, not only when the newest
+                {{- /* When collection last succeeded, as well as when the newest
                        run started: the two differ exactly when the collector is
                        failing, which is when the presence counts stop meaning
                        what they say. */}}

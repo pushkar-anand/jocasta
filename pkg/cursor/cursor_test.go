@@ -100,8 +100,8 @@ func TestZeroCursorHasNoToken(t *testing.T) {
 	assert.JSONEq(t, "null", string(encoded))
 }
 
-// An empty token is the first page rather than a failure, so a client need not
-// leave the parameter off to ask for it.
+// An empty token decodes to the first page, so a client need not leave the
+// parameter off to ask for it.
 func TestEmptyTokenDecodesToZero(t *testing.T) {
 	t.Parallel()
 
@@ -172,8 +172,7 @@ func TestWhereSeeksPastTheRow(t *testing.T) {
 	}
 }
 
-// The first page has nothing to seek past, so the query is left alone rather
-// than given a clause that admits everything.
+// The first page has nothing to seek past, so the query gets no clause.
 func TestWhereAddsNothingForTheZeroCursor(t *testing.T) {
 	t.Parallel()
 

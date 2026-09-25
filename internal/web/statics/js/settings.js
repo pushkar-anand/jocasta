@@ -9,7 +9,7 @@
 (function () {
     'use strict';
 
-    // ---- Account menu: close on Escape and outside click ----
+    // Account menu: close on Escape and outside click.
     var menu = document.querySelector('.usermenu');
     if (menu) {
         document.addEventListener('click', function (e) {
@@ -28,7 +28,7 @@
         });
     }
 
-    // ---- Modals ----
+    // Modals.
     function dialogFor(el) {
         var id = el.getAttribute('data-open');
         return id ? document.getElementById(id) : null;
@@ -55,8 +55,8 @@
     });
 
     document.querySelectorAll('dialog.modal').forEach(function (dlg) {
-        // A dialog rendered open (a rejected submit) is inline, not modal:
-        // reopen it properly so it traps focus and dims the page.
+        // A dialog rendered open (a rejected submit) is inline: reopen it as a
+        // modal so it traps focus and dims the page.
         if (dlg.open && typeof dlg.showModal === 'function' && !dlg.matches(':modal')) {
             dlg.close();
             dlg.showModal();
@@ -76,7 +76,7 @@
         });
     });
 
-    // ---- Password reveal ----
+    // Password reveal.
     document.addEventListener('click', function (e) {
         var toggle = e.target.closest('[data-pw-toggle]');
         if (!toggle) {
@@ -93,7 +93,7 @@
         toggle.setAttribute('aria-pressed', String(!revealed));
     });
 
-    // ---- Copy to clipboard ----
+    // Copy to clipboard.
     function selectText(el) {
         try {
             var range = document.createRange();
@@ -134,8 +134,8 @@
         }
     });
 
-    // ---- Download as a file ----
-    // blob: needs no CSP allowance -- the file is built here, not fetched.
+    // Download as a file. blob: needs no CSP allowance, since the file is
+    // built here.
     document.addEventListener('click', function (e) {
         var btn = e.target.closest('[data-download]');
         if (!btn) {

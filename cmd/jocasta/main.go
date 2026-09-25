@@ -39,7 +39,7 @@ func run(args []string) error {
 	ctx := context.Background()
 
 	// A signal cancels this context; the server and every worker shut down
-	// when it does, so an interrupt drains rather than kills.
+	// when it does, so an interrupt lets work in flight finish.
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
 	defer cancel()
 
@@ -64,7 +64,7 @@ func run(args []string) error {
 
 	// version reports the build and exits. It is handled here because the steps
 	// below load configuration and open the database, and opening the database
-	// creates one when none exists -- a surprising side effect of asking for a
+	// creates one when none exists: a surprising side effect of asking for a
 	// version number.
 	if kCtx.Command() == "version" {
 		return kCtx.Run()
@@ -88,9 +88,8 @@ func run(args []string) error {
 	defer func() { _ = conn.Close() }()
 
 	v, err := validator.New(
-		// The default message for oneof names the rule rather than the values
-		// it admits, which tells a client its filter was wrong without telling
-		// it what would be right.
+		// The default message for oneof names only the rule. This one lists
+		// the values it admits, so a client learns what would be right.
 		validator.WithCustomMessage("oneof", func(field, param string) string {
 			return fmt.Sprintf("%s must be one of: %s", field, strings.ReplaceAll(param, " ", ", "))
 		}),
@@ -122,8 +121,8 @@ func run(args []string) error {
 		return fmt.Errorf("initialize auth: %w", err)
 	}
 
-	// The scanner the poller sweeps with is configured, not flagged: nobody is
-	// at a terminal to pass rates to a sweep that runs on a timer. The scan
+	// The scanner the poller sweeps with comes from config: nobody is at a
+	// terminal to pass rates to a sweep that runs on a timer. The scan
 	// command builds its own from its flags, which are per-invocation.
 	sweeper := scanner.New(
 		log,
@@ -171,8 +170,8 @@ func loadConfig(cli *CLI) (*config.Config, error) {
 
 // timezone resolves location.timezone, the zone times are shown in; a
 // container's is otherwise UTC whatever the network's is. Empty returns nil,
-// leaving the TZ variable and the system to decide, and a name that does not
-// resolve fails startup rather than quietly showing UTC.
+// leaving the TZ variable and the system to decide. A name that does not
+// resolve fails startup; unchecked, it would quietly show UTC.
 func timezone(name string) (*time.Location, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {

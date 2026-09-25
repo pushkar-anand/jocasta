@@ -143,7 +143,7 @@ func (s *ServeCmd) Run(
 
 // portsPoller builds the port-scan task, resolving the port set from config: a
 // blank scan.ports.custom leaves the curated preset, a spec replaces it. A spec
-// that will not parse fails startup rather than every scan.
+// that will not parse fails startup, before any scan runs.
 func portsPoller(cfg *config.Config, log *slog.Logger, store *inventory.Store) (*poller.Ports, error) {
 	opts := []scanner.PortOption{
 		scanner.WithConcurrency(cfg.Scan.Ports.Concurrency),
@@ -164,8 +164,8 @@ func portsPoller(cfg *config.Config, log *slog.Logger, store *inventory.Store) (
 }
 
 // homeCountry checks location.country against the countries the world map
-// draws, so a typo fails startup rather than quietly drawing no lines. Case
-// does not matter; empty is fine.
+// draws, so a typo fails startup. Unchecked, it would quietly draw no lines.
+// Case does not matter; empty is fine.
 func homeCountry(code string) (string, error) {
 	code = strings.ToUpper(strings.TrimSpace(code))
 	if code == "" {

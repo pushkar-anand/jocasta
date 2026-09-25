@@ -8,17 +8,17 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// Events and scans are the two logs that grow without bound, so both are paged.
-// defaultPageSize is the window a request that asks for no particular one gets;
-// the ceiling is the max rule on each request's Limit.
+// defaultPageSize is the page size a request gets when it names none. Events
+// and scans are the two logs that grow without bound, so both are paged, and
+// the max rule on each request's Limit sets the ceiling.
 const defaultPageSize = 50
 
 func (h *Handler) listEvents(store *inventory.Store) response.HandlerFunc {
 	type (
 		// Cursor decodes itself out of the query string, so a client hands back
 		// the token the last page gave it and nothing here takes it apart. An
-		// unset limit is the default rather than a rejected zero, which is what
-		// omitempty buys; a limit that was asked for has to be usable.
+		// unset limit gets the default, which is what omitempty buys; a limit
+		// that was asked for has to be usable.
 		eventsRequest struct {
 			Limit  int              `schema:"limit" validate:"omitempty,min=1,max=500"`
 			Cursor inventory.Cursor `schema:"cursor"`
@@ -96,9 +96,9 @@ func (h *Handler) listScans(store *inventory.Store) response.HandlerFunc {
 	}
 }
 
-// nextCursor renders the cursor a page ended on, or nothing when it ended the
-// log. The absent member is what tells a client to stop, so it is left out
-// rather than sent as a null it would have to test.
+// nextCursor renders the cursor a page ended on, or nil when it ended the
+// log. The member is then omitted, and its absence tells a client to stop
+// without testing for a null.
 func nextCursor(c inventory.Cursor) *inventory.Cursor {
 	if c.IsZero() {
 		return nil

@@ -100,7 +100,7 @@ func TestSameName(t *testing.T) {
 		{a: "gateway.example.com", b: "host-a.example.com", want: false},
 		{a: "", b: "", want: true},
 
-		// A source retracting a name is a change, not two spellings agreeing.
+		// A source retracting a name is a change.
 		{a: "host-a", b: "", want: false},
 		{a: "", b: "host-a", want: false},
 	}

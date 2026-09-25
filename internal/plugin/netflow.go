@@ -26,10 +26,10 @@ import (
 const netFlowPrefix = "netflow:"
 
 // maxDatagram is the largest UDP payload there is. Exporters keep well under
-// the path MTU, so this is headroom rather than an expected size.
+// the path MTU, so this is headroom.
 const maxDatagram = 65535
 
-// ErrNoExporters is refused rather than read as "accept anything": UDP carries
+// ErrNoExporters refuses an empty exporter list: UDP carries
 // no authentication and its source address is trivially forged, so an open
 // listener would let anyone on the network write whatever traffic they liked
 // into the inventory.
@@ -59,8 +59,8 @@ type NetFlow struct {
 //
 // Kept per exporter because goflow2 keys templates by version, observation
 // domain and template ID, and two routers numbering their templates the same
-// way -- which two of the same model will -- would otherwise decode each
-// other's data with the wrong layout.
+// way, as two of the same model will, would otherwise decode each other's
+// data with the wrong layout.
 type exporterState struct {
 	templates netflow.NetFlowTemplateSystem
 	sampling  protoproducer.SamplingRateSystem
@@ -112,8 +112,8 @@ func (n *NetFlow) Kind() dbtype.SourceKind { return dbtype.SourceRouter }
 
 // Listen receives datagrams until ctx is done.
 //
-// A datagram that will not decode is logged and skipped rather than ending the
-// listener: one malformed packet, or a v9 data set that arrived before its
+// A datagram that will not decode is logged and skipped, and the listener
+// carries on: one malformed packet, or a v9 data set that arrived before its
 // template, says nothing about the next.
 func (n *NetFlow) Listen(ctx context.Context, emit func(context.Context, []Flow)) error {
 	var lc net.ListenConfig
@@ -154,7 +154,7 @@ func (n *NetFlow) Listen(ctx context.Context, emit func(context.Context, []Flow)
 
 		sender := senderAddr(from)
 		if _, ok := n.exporters[sender]; !ok {
-			// Counted, not logged per packet: a misdirected exporter sends
+			// Counted and warned about once: a misdirected exporter sends
 			// thousands a minute, and one warning is enough to find it.
 			if refused == 0 {
 				n.logger.WarnContext(ctx, "dropping datagrams from a sender not listed in exporters",
@@ -351,8 +351,8 @@ type natDestination struct {
 // and dropped. The source needs no such fix: an outgoing packet's pre-NAT
 // source is already the device.
 //
-// It returns nothing when the counts disagree, rather than pairing a record
-// with the wrong message.
+// It returns nothing when the counts disagree, so no record is paired with the
+// wrong message.
 func postNATDestinations(sets []netflow.DataFlowSet, messages int) []natDestination {
 	var out []natDestination
 

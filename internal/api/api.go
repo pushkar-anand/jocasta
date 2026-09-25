@@ -1,7 +1,7 @@
 // Package api serves the inventory as JSON, for anything that reads it without
-// a browser. It renders what internal/inventory returns rather than shaping the
-// data itself, so it and internal/web cannot come to disagree about what a
-// device is.
+// a browser. It renders what internal/inventory returns and leaves shaping the
+// data to that package, so it and internal/web cannot come to disagree about
+// what a device is.
 package api
 
 import (
@@ -14,9 +14,8 @@ import (
 )
 
 // Handler holds what every handler needs to read a request and write a
-// response. What a handler reads *about* -- the store -- is passed to it when
-// it is built, so a route's dependencies are visible where it is registered
-// rather than reachable from any handler that happens to have a receiver.
+// response. The store a handler reads is passed to it when it is built, so a
+// route's dependencies are visible where the route is registered.
 type Handler struct {
 	mux        *http.ServeMux
 	reader     *request.Reader

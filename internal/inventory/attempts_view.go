@@ -13,8 +13,8 @@ import (
 
 // A device probing the network is one that, within a single hour, tried at
 // least ProbeMinPeers local addresses or ProbeMinPorts ports on one of them
-// without carrying data. Ordinary devices reach a handful of neighbours --
-// the router, a printer, a speaker -- and a handful of ports on each.
+// without carrying data. Ordinary devices reach a handful of neighbours
+// (the router, a printer, a speaker) and a handful of ports on each.
 const (
 	ProbeMinPeers = 20
 	ProbeMinPorts = 20

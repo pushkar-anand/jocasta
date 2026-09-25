@@ -110,8 +110,8 @@ func serveDNS(pc net.PacketConn, ptr map[string]string) {
 }
 
 // answerPTR builds the response to one query. The reply is assembled with
-// dnsmessage rather than pasted in as bytes, so the encoder cross-checks the
-// parser the resolver runs and there is no golden binary to keep in step.
+// dnsmessage, so the encoder cross-checks the parser the resolver runs and
+// there is no golden binary to keep in step.
 func answerPTR(query []byte, ptr map[string]string) ([]byte, error) {
 	var p dnsmessage.Parser
 

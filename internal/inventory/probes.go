@@ -27,7 +27,7 @@ type outsideSeen struct {
 }
 
 // learnOutside remembers the addresses the routers translated flows to on the
-// way out -- their outside addresses -- and the routers themselves. The caller
+// way out (their outside addresses) and the routers themselves. The caller
 // holds r.mu.
 func (r *TrafficRecorder) learnOutside(src plugin.Plugin, flows []plugin.Flow) {
 	for _, f := range flows {
@@ -45,7 +45,7 @@ func (r *TrafficRecorder) learnOutside(src plugin.Plugin, flows []plugin.Flow) {
 // router that exported it. Nothing on the network holds the outside address,
 // so without this a scan of it, or a VPN ended on the router, would have no
 // device to be counted on. A flow the router forwarded carries the device's
-// address instead, and is left alone. The caller holds r.mu.
+// own address, and is left alone. The caller holds r.mu.
 func (r *TrafficRecorder) toRouter(f plugin.Flow) plugin.Flow {
 	if !f.Exporter.IsValid() {
 		return f

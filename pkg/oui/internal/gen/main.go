@@ -1,12 +1,11 @@
 // Command gen builds the OUI table embedded by package oui.
 //
-// The table is generated and committed rather than fetched at run time so that
-// lookups work on an isolated network, and so a build never depends on IEEE or
-// Wireshark being reachable.
+// The table is generated and committed so that lookups work on an isolated
+// network, and so a build never depends on IEEE or Wireshark being reachable.
 //
 // It is written uncompressed. Git deltas successive versions of a text file
-// against each other, but must store a compressed one whole every time, and a
-// refresh lands as a reviewable diff rather than an opaque binary blob.
+// against each other and stores a compressed one whole every time, and a
+// refresh lands as a reviewable diff.
 package main
 
 import (

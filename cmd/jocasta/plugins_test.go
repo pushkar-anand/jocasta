@@ -27,7 +27,7 @@ func TestTrafficReportersBuildsOnlyEnabledInstances(t *testing.T) {
 }
 
 // An enabled instance that names no exporters would accept datagrams from
-// anyone, so it stops startup instead.
+// anyone, so it stops startup.
 func TestTrafficReportersRefusesAnInstanceWithoutExporters(t *testing.T) {
 	t.Parallel()
 
@@ -40,7 +40,7 @@ func TestTrafficReportersRefusesAnInstanceWithoutExporters(t *testing.T) {
 }
 
 // A home country is taken in any case and checked against the map, so a typo
-// fails startup rather than quietly drawing no lines.
+// fails startup.
 func TestHomeCountryIsCheckedAgainstTheMap(t *testing.T) {
 	t.Parallel()
 
@@ -57,8 +57,7 @@ func TestHomeCountryIsCheckedAgainstTheMap(t *testing.T) {
 	assert.Contains(t, err.Error(), "location.country")
 }
 
-// A time zone is looked up by its IANA name, so a typo fails startup rather
-// than quietly showing times in UTC.
+// A time zone is looked up by its IANA name, so a typo fails startup.
 func TestTimezoneIsLookedUpByName(t *testing.T) {
 	t.Parallel()
 

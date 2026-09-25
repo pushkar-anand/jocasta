@@ -65,7 +65,7 @@ type AllCurrentAddressesRow struct {
 
 // Every address a port scan should probe: the current address of every device
 // the user has not ignored. The scan works from what discovery has already
-// found rather than sweeping, so this is its whole target list.
+// found, so this is its whole target list.
 //
 //	SELECT a.device_id, a.ip
 //	FROM addresses a
@@ -109,7 +109,7 @@ type AllNetworksRow struct {
 
 // Every recorded network, for matching an address to the prefix containing it.
 // SQLite cannot test containment, so the comparison happens in Go and this
-// returns the whole (small) table rather than filtering.
+// returns the whole (small) table.
 //
 //	SELECT id, cidr
 //	FROM networks
@@ -185,8 +185,8 @@ type CommonOpenServicesRow struct {
 	Devices int64          `json:"devices"`
 }
 
-// Services rather than individual ports are what an operator recognises at a
-// glance. Unknown services fall back to their port number in the caller.
+// Grouped by service, which is what an operator recognises at a glance.
+// Unknown services fall back to their port number in the caller.
 //
 //	SELECT p.port, p.service, CAST(COUNT(*) AS INTEGER) AS devices
 //	FROM device_ports p
@@ -516,10 +516,7 @@ type DeviceStatsRow struct {
 	Discovered int64 `json:"discovered"`
 }
 
-// The device columns come from a LEFT JOIN because an event outlives the device
-// it described: deleting one sets events.device_id to NULL rather than taking
-// the record with it.
-// The two logs are read with a query builder rather than from here: paging
+// The two logs are read with a query builder: paging
 // them seeks past the row the last page ended on, and the seek is a clause that
 // is present or absent. See internal/db/models/inventory_page.go.
 //
@@ -808,7 +805,7 @@ LIMIT 1
 
 // When a scan of this kind last finished with something to show for it, which
 // is the anchor the poller schedules from: it waits an interval after the work
-// ends, not after it begins, so the two agree on what an interval measures.
+// ends, so the two agree on what an interval measures.
 //
 // Only scans that succeeded count. A failed one gathered nothing and a scan
 // whose process died mid-run never wrote a finish at all; crediting either
@@ -980,8 +977,8 @@ WHERE device_id = ?
 ORDER BY state DESC, port
 `
 
-// Every port ever seen open on a device, for the device page. Open ones lead --
-// 'open' sorts after 'closed', so DESC puts them first -- then by number. A
+// Every port ever seen open on a device, for the device page. Open ones lead
+// ('open' sorts after 'closed', so DESC puts them first), then by number. A
 // closed row is where a service used to answer, which is worth seeing beside
 // the ones that still do.
 //
@@ -1128,15 +1125,15 @@ type ListDevicesRow struct {
 }
 
 // Reads.
-// The current addresses come back on the device's own row rather than through a
-// join, so one query answers the list. The open ports and the ids of the
+// The current addresses come back on the device's own row, aggregated, so one
+// query answers the list. The open ports and the ids of the
 // networks those addresses sit on ride along the same way, so a list can say
 // what a device exposes and where it lives without a query per row.
 // GROUP_CONCAT has no ordering worth relying on and the address column is TEXT,
 // which sorts 192.0.2.9 after 192.0.2.100, so the caller splits and orders
 // what it needs ordered.
 //
-// is_ignored compares against the argument rather than testing a flag: passing
+// is_ignored compares against the argument: passing
 // false leaves the clause admitting only unignored rows, and passing true makes
 // the second half admit the rest.
 //
@@ -1287,14 +1284,14 @@ type ListNetworksRow struct {
 
 // Every network a sweep has recorded, with how many devices hold an address on
 // it now. A device counts on each network it currently holds an address on:
-// the overview asks what is on a prefix, not how the inventory divides into
-// disjoint parts. A network no sweep has found anything on still lists, at
-// zero -- that it is quiet is the fact worth showing.
+// the overview asks what is on a prefix, and the networks may overlap. A
+// network no sweep has found anything on still lists, at zero, because that it
+// is quiet is the fact worth showing.
 //
 // Ignored devices are left out, so the count agrees with the list the network
-// page draws below it: the join drops them and the counts are over d.id rather
-// than a.device_id, which would still be set for an address whose device the
-// join excluded.
+// page draws below it: the join drops them and the counts are over d.id.
+// a.device_id would still be set for an address whose device the join
+// excluded.
 //
 //	SELECT n.id,
 //	       n.cidr,
@@ -1496,8 +1493,8 @@ type RefreshAddressParams struct {
 	ID        int64         `json:"id"`
 }
 
-// COALESCE, not assignment: a source that cannot say which network an address
-// is on must leave the one a sweep established rather than erase it.
+// COALESCE: a source that cannot say which network an address is on must
+// leave the one a sweep established in place.
 //
 //	UPDATE addresses
 //	SET is_current = 1,
@@ -1523,7 +1520,8 @@ type ReleaseAddressParams struct {
 }
 
 // Only one device may hold an address as current, so the previous holder is
-// released before the new claim rather than colliding with the partial index.
+// released before the new claim, which would otherwise collide with the partial
+// index.
 //
 //	UPDATE addresses
 //	SET is_current = 0
@@ -1647,8 +1645,8 @@ type UpdateDeviceCurationParams struct {
 }
 
 // Writes.
-// Every user-owned column is set rather than merged: the form submits all of
-// them, so an omitted one means cleared, not unchanged.
+// Every user-owned column is set: the form submits all of them, so an omitted
+// one means cleared.
 //
 //	UPDATE devices
 //	SET label       = ?1,
@@ -1713,13 +1711,13 @@ type UpsertDeviceSourceParams struct {
 	LastSeen       dbtype.Time           `json:"last_seen"`
 }
 
-// Upserted rather than replaced, so first_seen survives every later reading.
+// Upserted, so first_seen survives every later reading.
 //
 // A name only moves when this source offers one: an empty reading leaves the
-// last name it knew in place rather than clearing it. A sweep resolves a name
-// per address, so a multi-homed host with a PTR on one interface and none on
-// another would otherwise thrash its name every pass; and a device that stops
-// answering has not been renamed, it has gone quiet. last_seen still ages, so
+// last name it knew in place. A sweep resolves a name per address, so a
+// multi-homed host with a PTR on one interface and none on another would
+// otherwise thrash its name every pass; and a device that stops answering has
+// gone quiet and keeps its name. last_seen still ages, so
 // how stale the kept name is stays visible. A different non-empty name, from
 // this source or a higher one, still replaces it.
 //
@@ -1792,8 +1790,8 @@ type UpsertNetworkIdentityParams struct {
 	CreatedAt dbtype.Time    `json:"created_at"`
 }
 
-// What a source says a segment is. name and vlan_id are assigned rather than
-// coalesced: a VLAN renamed on the router is renamed here, and one that loses
+// What a source says a segment is. name and vlan_id are assigned outright: a
+// VLAN renamed on the router is renamed here, and one that loses
 // its tag loses it here too.
 //
 //	INSERT INTO networks (cidr, name, vlan_id, created_at)

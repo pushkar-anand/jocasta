@@ -121,7 +121,7 @@ func TestCreateUserAsAdmin(t *testing.T) {
 	reload := requestAs(t, h, cookies, http.MethodGet, "/settings/users", "").Body.String()
 	assert.NotContains(t, reload, "reader added as Viewer")
 
-	// The account created is usable, not just listed.
+	// The account created can sign in as well as appear in the list.
 	readerCookies := signInAs(t, h, "reader", "reader-password-1")
 	assert.NotEmpty(t, readerCookies)
 }
@@ -195,7 +195,7 @@ func TestUsersPageMarksTheSignedInRow(t *testing.T) {
 	h := newWebHandlerWithAuth(t, testStore(t), a)
 	body := requestAs(t, h, signIn(t, h), http.MethodGet, "/settings/users", "").Body.String()
 
-	// Exactly one row -- the seeded admin's -- carries the "You" marker.
+	// Exactly one row, the seeded admin's, carries the "You" marker.
 	assert.Equal(t, 1, strings.Count(body, ">You</span>"))
 
 	admin := strings.Index(body, testUsername)

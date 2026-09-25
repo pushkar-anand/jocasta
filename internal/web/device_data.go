@@ -15,8 +15,8 @@ import (
 const deviceHistoryLimit = 30
 
 // devicesPerPage is how many rows one page of the device list shows. The list
-// is still read and sorted whole -- ordering by name or address cannot be done
-// in SQL -- so this only bounds how much of it reaches the DOM at once.
+// is still read and sorted whole, since ordering by name or address cannot be
+// done in SQL, so this only bounds how much of it reaches the DOM at once.
 const devicesPerPage = 50
 
 // devicesData is the device list and the state of the form that narrowed it.
@@ -48,7 +48,7 @@ type devicesData struct {
 
 	// Base is where this list lives, "/devices" when empty. The network page
 	// reuses the list scoped to one prefix and sets Base to its own path, so
-	// the filter form and the pager address that page rather than /devices.
+	// the filter form and the pager address that page.
 	Base string
 
 	// OnNetwork is the prefix the list is pinned to on a network's page. The
@@ -74,7 +74,7 @@ func (d *devicesData) FilterAction() string { return d.listPath() }
 func (d *devicesData) FilterRows() string { return d.listPath() + "/rows" }
 
 // Filtered reports whether the form is narrowing the list. The network a
-// network page pins is the page, not a filter, so it does not count.
+// network page pins is the page itself, so it does not count.
 func (d *devicesData) Filtered() bool {
 	chosenNetwork := d.Network != "" && d.OnNetwork == nil
 
@@ -189,8 +189,8 @@ func (d *devicesData) canonical() string {
 }
 
 // deviceRowView is one device as the row partial renders it: the device itself,
-// with embedded promotion so every existing field reference still resolves, plus
-// whether this viewer's role may edit it -- what the row's Edit button hangs on.
+// embedded so the partial reads its fields directly, and whether this viewer's
+// role may edit it, which the row's Edit button hangs on.
 type deviceRowView struct {
 	*inventory.Device
 	CanWrite bool
@@ -236,9 +236,9 @@ func (d *devicesData) paginate(all []*inventory.Device) {
 
 // deviceForm reads the validated query into the list's form state.
 //
-// A value whose shape is right but that the inventory does not recognise -- a
-// device class that is not in the vocabulary, a network id that is not a
-// number -- is dropped rather than refused. The form only ever submits values
+// A value whose shape is right but that the inventory does not recognise, such
+// as a device class outside the vocabulary or a network id that is not a
+// number, is dropped. The form only ever submits values
 // it offered, so an unrecognised one arrived by hand-editing the address, and
 // the rendered form then shows what was actually applied.
 func deviceForm(q deviceQuery) *devicesData {
@@ -264,8 +264,8 @@ func deviceForm(q deviceQuery) *devicesData {
 		d.Network = strconv.FormatInt(n, 10)
 	}
 
-	// The select offers the class vocabulary; a value outside it -- including a
-	// free-text type from before the field was a fixed list -- is no filter.
+	// The select offers the class vocabulary; a value outside it, such as an
+	// old free-text type, is no filter.
 	if c := classify.Class(q.Type); c != classify.Unknown && c.Valid() {
 		d.Type = string(c)
 	}
@@ -303,8 +303,8 @@ func buildDeviceListData(
 	data.OnNetwork = onNetwork
 	data.Window = windowWords(store.OnlineWindow())
 
-	// On a network's page the prefix is the path, not a choice, so it is forced
-	// past whatever the query string asked for.
+	// On a network's page the path fixes the prefix, so it overrides whatever
+	// the query string asked for.
 	if onNetwork != nil {
 		data.Network = strconv.FormatInt(onNetwork.ID, 10)
 	}
@@ -328,8 +328,8 @@ func buildDeviceListData(
 	data.Networks = networks
 	data.paginate(devices)
 
-	// A first run has no sweep behind it, which is a state to render rather than
-	// a failure to report.
+	// A first run has no sweep behind it yet: the page renders that state and
+	// reports no error.
 	if scan, err := store.LatestScan(ctx); err == nil {
 		data.Note = sweepNote(scan)
 	}

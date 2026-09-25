@@ -5,7 +5,7 @@ import (
 	"regexp"
 )
 
-// setupPath is the one route reachable only while SetupRequired holds -- the
+// setupPath is the one route reachable only while SetupRequired holds, the
 // one place this middleware's usual requirement runs the other way around.
 const setupPath = "/setup"
 
@@ -17,8 +17,8 @@ type sessionMiddleware struct {
 	// the static assets the setup and sign-in pages both need to render.
 	always []*regexp.Regexp
 
-	// signIn exempts a path from needing a session -- typically /login --
-	// while leaving it subject to the setup redirect like every other route.
+	// signIn exempts a path, typically /login, from needing a session while
+	// leaving it subject to the setup redirect like every other route.
 	signIn []*regexp.Regexp
 
 	next http.Handler
@@ -63,8 +63,7 @@ func (m *sessionMiddleware) ServeHTTP(
 		m.next.ServeHTTP(w, r)
 		return
 	case r.URL.Path == setupPath:
-		// Setup already happened elsewhere; this visitor signs in like anyone
-		// else instead.
+		// Setup already happened; this visitor signs in like anyone else.
 		http.Redirect(w, r, "/login", http.StatusFound)
 		return
 	case setupRequired:

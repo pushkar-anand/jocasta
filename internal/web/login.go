@@ -7,16 +7,16 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/auth"
 )
 
-// loginData is what the login page needs to render standalone -- it carries
-// no view, since that struct is what the signed-in shell needs and this page
-// has none of it.
+// loginData is what the login page needs to render standalone. It carries no
+// view, since that struct is what the signed-in shell needs and this page has
+// none of it.
 type loginData struct {
 	Title string
 	Error string
 }
 
 // login serves the sign-in page. /login has to stay reachable without a
-// session, so auth.Middleware does not gate it -- checking for one already
+// session, so auth.Middleware does not gate it, and checking for one already
 // held is this handler's own job.
 func (h *Handler) login(
 	sm *auth.Session,
@@ -53,8 +53,7 @@ func (h *Handler) loginForm(
 
 		// auth.ErrInvalidCredentials reaches the client the same way any other
 		// handler error does: the status mapper and error-page data configured
-		// on htmlWriter turn it into the sign-in page with its message, rather
-		// than this handler rendering that page itself.
+		// on htmlWriter turn it into the sign-in page with its message.
 		result, err := a.Login(ctx, sm, input.Username, input.Password, input.RememberMe)
 		if err != nil {
 			return err

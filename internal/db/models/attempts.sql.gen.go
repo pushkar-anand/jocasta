@@ -266,8 +266,8 @@ type ProbingHoursRow struct {
 
 // Each hour a device tried many local addresses, or many ports on one of
 // them: what a scan of the home network looks like. Internet peers are left
-// out -- a device failing to reach a busy service's many addresses is not
-// scanning anything.
+// out, because a device failing to reach a busy service's many addresses is
+// scanning nothing.
 //
 //	SELECT a.device_id,
 //	       CAST(COALESCE(d.label, '') AS TEXT)    AS label,

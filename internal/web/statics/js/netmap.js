@@ -1,6 +1,7 @@
-// Zoom, pan, search and selection for the network map. The map is an SVG laid out on the server
-// and redrawn every minute; this only moves its viewBox, and puts the view
-// back after each redraw so a refresh never throws away where you were.
+// Zoom, pan, search and selection for the network map. The map is an SVG laid
+// out on the server and redrawn every minute; this only moves its viewBox, and
+// puts the view back after each redraw so a refresh never throws away where
+// you were.
 (function() {
     var view = null; // {x, y, w, h} in the SVG's own units; null is the whole map
 
@@ -228,7 +229,7 @@
     });
 
     // Search dims what does not match. The box sits outside what the redraw
-    // replaces, so the query is simply applied again to the new map.
+    // replaces, so the query is applied again to the new map.
     function query() {
         var box = document.getElementById('netmap-search');
         return box ? box.value.trim().toLowerCase() : '';

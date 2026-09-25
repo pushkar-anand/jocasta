@@ -126,8 +126,8 @@ func TestAProbeAnsweredInTheNextFlushIsAnswered(t *testing.T) {
 	assert.Equal(t, int64(1), rows[0].Answered)
 }
 
-// Real traffic with the outside address -- a VPN ended on the router -- is
-// the router's, and the peer started it.
+// Real traffic with the outside address, such as a VPN ended on the router,
+// is the router's, and the peer started it.
 func TestTrafficWithTheOutsideAddressIsTheRouters(t *testing.T) {
 	t.Parallel()
 

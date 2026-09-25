@@ -107,8 +107,8 @@ func TestListDevices(t *testing.T) {
 		assert.NotNil(t, offline.Devices, "an empty list should still be a list, not null")
 	})
 
-	// A misspelt filter is refused rather than ignored, since silently listing
-	// everything looks like the filter matched everything.
+	// A misspelt filter is refused, since silently listing everything would
+	// look like the filter matched everything.
 	t.Run("an unknown status is refused", func(t *testing.T) {
 		t.Parallel()
 

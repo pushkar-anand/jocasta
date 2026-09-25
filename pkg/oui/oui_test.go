@@ -32,7 +32,7 @@ func TestLookupResolvesRegisteredPrefixes(t *testing.T) {
 		{"uppercase input", "3C:22:FB:AA:BB:CC", "Apple", 24},
 		{"hyphen separated", "3C-22-FB-AA-BB-CC", "Apple", 24},
 		// A 36-bit assignment inside a block registered to the IEEE itself.
-		// Matching the 24-bit parent would report the registry, not the vendor.
+		// Matching the 24-bit parent would report the registry.
 		{"36-bit assignment", "00:1b:c5:00:00:01", "Converging", 36},
 	}
 
@@ -149,7 +149,7 @@ func BenchmarkLookup(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	// Warm the table so the benchmark measures lookups, not the one-off parse.
+	// Warm the table so the benchmark measures only lookups.
 	oui.Lookup(hw)
 
 	b.ReportAllocs()

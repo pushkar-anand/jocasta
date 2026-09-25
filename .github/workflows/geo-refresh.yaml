@@ -30,7 +30,7 @@ jobs:
 
       # A pull request opened with GITHUB_TOKEN does not trigger other
       # workflows, so the usual CI will not run on it. The table is only worth
-      # proposing if it still passes, so the tests run here instead.
+      # proposing if it still passes, so the tests run here.
       - name: Test against the new table
         run: go test ./pkg/geo/...
 

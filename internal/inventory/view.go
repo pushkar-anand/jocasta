@@ -19,9 +19,9 @@ import (
 // The types here are what the inventory hands to a caller that renders it. The
 // generated models cannot serve that purpose: every optional column reaches Go
 // as a sql.NullString, which marshals as {"String":"","Valid":false} and reads
-// as .Label.String in a template. An absent value is "" here instead, and the
-// two facts every caller derives -- what to call a device and whether it is
-// still answering -- are settled once, here, rather than in each surface.
+// as .Label.String in a template. An absent value is "" here, and the two
+// facts every caller derives (what to call a device and whether it is still
+// answering) are settled once, here.
 
 // Device is a device as it is displayed.
 type Device struct {
@@ -70,8 +70,8 @@ type Device struct {
 	Ports []*Port `json:"ports,omitempty"`
 
 	// OpenPorts is the numbers of the ports a scan currently finds open, in
-	// number order. A list carries these where the full Ports history would be
-	// more than a row can hold; the device page reads Ports instead.
+	// number order. A list carries these because the full Ports history would
+	// be more than a row can hold; the device page reads Ports.
 	OpenPorts []uint16 `json:"open_ports,omitempty"`
 
 	// Networks is the distinct set of recorded prefixes the device currently
@@ -100,8 +100,8 @@ type Address struct {
 	LastSeen  time.Time  `json:"last_seen"`
 
 	// Network is the recorded prefix a sweep placed this address on. It is nil
-	// when no sweep matched it to one -- an address older than network
-	// tracking, or one on a prefix nothing has recorded.
+	// when no sweep matched it to one: an address recorded before networks
+	// were tracked, or one on a prefix nothing has recorded.
 	Network *Network `json:"network,omitempty"`
 }
 
@@ -157,7 +157,7 @@ func (p *Port) Open() bool { return p.State == dbtype.PortOpen }
 // Claim is what one source says about a device, as it is displayed.
 //
 // The device row carries one name; this is every name that was offered for it,
-// so a source that lost the election is still readable rather than discarded.
+// so a source that lost the election is still readable.
 type Claim struct {
 	Source string            `json:"source"`
 	Kind   dbtype.SourceKind `json:"kind"`
@@ -169,7 +169,8 @@ type Claim struct {
 	// stored as and sorted by key so a page renders it the same way twice.
 	Detail []Field `json:"detail,omitempty"`
 
-	// FirstSeen and LastSeen are this source's own sighting, not the device's.
+	// FirstSeen and LastSeen are this source's own sighting, which can differ
+	// from the device's.
 	// A router holding a bound lease for something that has not answered a ping
 	// in days is two sources disagreeing, which is what these are here to show.
 	FirstSeen time.Time `json:"first_seen"`
@@ -217,9 +218,9 @@ type Scan struct {
 
 // Took is how long the scan ran, and is zero while it still is.
 //
-// It is derived rather than stored: the two timestamps already say it, and a
-// time.Duration has no JSON representation to be sent as -- encoding/json/v2
-// refuses to marshal one at all.
+// It is derived: the two timestamps already say it, and a time.Duration has no
+// JSON representation to be sent as. encoding/json/v2 refuses to marshal one
+// at all.
 func (s *Scan) Took() time.Duration {
 	if s.FinishedAt.IsZero() {
 		return 0
@@ -250,7 +251,7 @@ type Network struct {
 
 	// VLAN is the tag the network carries, and is zero when it carries none.
 	// The schema allows a network without one, and an untagged network is a
-	// real thing rather than a missing value.
+	// real answer.
 	VLAN int `json:"vlan,omitempty"`
 
 	Total   int `json:"total"`
@@ -272,12 +273,12 @@ var statuses = []Status{StatusAny, StatusOnline, StatusOffline}
 
 // Valid reports whether s is one of the statuses that filters anything. A
 // caller that rejects an invalid one tells the user their filter was misspelt;
-// one that does not still gets the whole list back rather than none of it.
+// one that does not still gets the whole list back.
 func (s Status) Valid() bool { return slices.Contains(statuses, s) }
 
 // admits reports whether a device in the given state passes the filter. An
 // unrecognised status filters nothing out, so a hand-typed query parameter
-// widens the list rather than emptying it.
+// widens the list.
 func (s Status) admits(online bool) bool {
 	switch s {
 	case StatusOnline:
@@ -289,8 +290,8 @@ func (s Status) admits(online bool) bool {
 	}
 }
 
-// Sort orders a device list. The ordering is applied in Go rather than SQL
-// because addresses are stored as TEXT, which sorts 192.0.2.9 after
+// Sort orders a device list. The ordering is applied in Go because addresses
+// are stored as TEXT, which sorts 192.0.2.9 after
 // 192.0.2.100, and because a name is assembled from several columns.
 type Sort string
 
@@ -305,7 +306,7 @@ const (
 	SortName    Sort = "name"
 	SortAddress Sort = "address"
 
-	// SortType groups the list by device class -- like with like, the
+	// SortType groups the list by device class, like with like: the
 	// classified devices first and the unclassified ones after them.
 	SortType Sort = "type"
 )
@@ -326,8 +327,8 @@ type DeviceFilter struct {
 	// with this id. Zero is every network.
 	Network int64
 
-	// Type admits only devices whose effective class -- the user's override
-	// where they set one, the classifier's guess otherwise -- is this one. The
+	// Type admits only devices whose effective class (the user's override
+	// where they set one, the classifier's guess otherwise) is this one. The
 	// zero class is every type, and matches the same field the icon column
 	// reads, so what the filter selects is what the list already shows.
 	Type classify.Class
@@ -346,7 +347,7 @@ func newDevice(d *models.Device, cutoff time.Time) *Device {
 	guess := classify.Class(d.DeviceClass.String)
 
 	// The user's answer wins when it names a class this build knows; a value
-	// that does not (a free-text type from before the field was a fixed list)
+	// that does not (such as an old free-text type)
 	// is no override, and the guess stands.
 	effective := guess
 	if override := classify.Class(d.DeviceType.String); override != classify.Unknown && override.Valid() {
@@ -410,7 +411,7 @@ func newClaim(r *models.ListDeviceSourcesRow) *Claim {
 
 // claimFields decodes a claim's stored detail.
 //
-// Detail that will not decode is dropped rather than reported: it is a source's
+// Detail that will not decode is dropped: it is a source's
 // aside about one device, and a page that refuses to render because of it would
 // hide everything else the device knows.
 func claimFields(raw string) []Field {
@@ -552,7 +553,7 @@ func parseAddrs(concat string) []netip.Addr {
 }
 
 // sortDevices orders the list in place. Ties fall back to the id so that a
-// repeated read returns the same order rather than SQLite's.
+// repeated read returns the same order.
 func sortDevices(devices []*Device, by Sort) {
 	var cmpFn func(a, b *Device) int
 
@@ -592,8 +593,7 @@ func compareClass(a, b *Device) int {
 }
 
 // compareFirstAddr orders by the lowest address a device currently holds. A
-// device holding none sorts last: it has nothing to compare, not the lowest
-// address there is.
+// device holding none sorts last, since it has nothing to compare.
 func compareFirstAddr(a, b *Device) int {
 	switch {
 	case len(a.Current) == 0 && len(b.Current) == 0:

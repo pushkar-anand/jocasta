@@ -13,7 +13,7 @@ import (
 
 // TestLoginFormRejectsWrongPassword covers auth.ErrInvalidCredentials reaching
 // the client through the same status-mapper and error-page-data path as any
-// other handler error, rather than the handler rendering the failure itself.
+// other handler error.
 func TestLoginFormRejectsWrongPassword(t *testing.T) {
 	t.Parallel()
 
@@ -33,8 +33,8 @@ func TestLoginFormRejectsWrongPassword(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "That username and password do not match.")
 }
 
-// Signing out is a POST -- a link would let another site spend the session
-// cookie -- and it ends the session.
+// Signing out is a POST, since a link would let another site spend the
+// session cookie, and it ends the session.
 func TestLogoutIsAPostThatEndsTheSession(t *testing.T) {
 	t.Parallel()
 

@@ -2,8 +2,8 @@
     The device list's filter form. Shared by the Devices page and a network's
     page: FilterAction and FilterRows are where it submits and what it fetches,
     so the same form narrows /devices or the list on one prefix. On a network's
-    page OnNetwork is set and the network select is left out -- the path names
-    the network already.
+    page OnNetwork is set and the network select is left out, since the path
+    names the network already.
 
     The form fetches only the table. It targets the fragment endpoint, which
     answers with HX-Push-Url naming the page, so the address bar ends up
@@ -87,7 +87,7 @@
     </label>
 
     {{- /* Reached only without htmx, where the form has to be submitted. The
-           way to clear the filter rides with the result count instead, inside
+           way to clear the filter rides with the result count, inside
            the fragment htmx swaps, so it is never left showing when nothing is
            set. */}}
     <noscript><button type="submit" class="btn">Apply</button></noscript>

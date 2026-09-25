@@ -18,7 +18,7 @@ import (
 )
 
 // newPortsTask builds a port-scan task over an empty inventory. The scanner is
-// real; the scheduling tests just never call it.
+// real; the scheduling tests never call it.
 func newPortsTask(t *testing.T, interval time.Duration, opts ...scanner.PortOption) (*Ports, *inventory.Store, *sql.DB) {
 	t.Helper()
 
@@ -136,7 +136,7 @@ func TestPortsRunWithNoTargetsAsksToRetry(t *testing.T) {
 
 	p, store, _ := newPortsTask(t, time.Hour)
 
-	// errNotReady, not nil: nothing to scan means retry soon, not sit out the interval.
+	// Nothing to scan is errNotReady, so the poller retries soon.
 	require.ErrorIs(t, p.Run(t.Context()), errNotReady)
 
 	_, err := store.LastSuccessfulScanAt(t.Context(), dbtype.ScanPorts)

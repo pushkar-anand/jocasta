@@ -1,5 +1,5 @@
-// Package hosts turns the raw attributes a source reports about a device --
-// an address, a hardware address, sometimes a name -- into an enriched host,
+// Package hosts turns the raw attributes a source reports about a device (an
+// address, a hardware address, sometimes a name) into an enriched host,
 // with the address parsed, the vendor resolved from the OUI, and a reverse
 // lookup done when the caller is entitled to claim the result.
 //
@@ -49,7 +49,7 @@ type Host struct {
 
 // HostInput carries the raw attributes a source reports for one host. It is
 // the whole input to [BuildHost], so a caller names each field at the call
-// site rather than lining up a row of same-typed arguments.
+// site.
 type HostInput struct {
 	IP  string
 	MAC string
@@ -93,8 +93,8 @@ func BuildHost(ctx context.Context, in HostInput) (*Host, error) {
 		h.addr = ipAddr
 	}
 
-	// Gated on ResolveName, not just on a missing name: a resolved name belongs
-	// to whoever resolved it. See [HostInput.ResolveName].
+	// Gated on ResolveName as well as a missing name, because a resolved name
+	// belongs to whoever resolved it. See [HostInput.ResolveName].
 	if in.ResolveName && h.hostname == "" && h.addr.IsValid() {
 		h.hostname = resolveName(ctx, h.addr)
 	}
@@ -157,13 +157,14 @@ func (h Host) HardwareAddress() net.HardwareAddr {
 }
 
 // Randomised reports whether the address has its locally administered bit set.
-// See the field of the same name for why that is not "unidentifiable".
+// Virtual and container interfaces set the bit as well as privacy addresses,
+// so a randomised host can still have a vendor.
 func (h Host) Randomised() bool {
 	return h.randomised
 }
 
-// MarshalJSON writes what a Host was enriched into rather than what it was
-// built from. The name, vendor and randomised flag live in unexported fields,
+// MarshalJSON writes the values a Host was enriched with. The name, vendor and
+// randomised flag live in unexported fields,
 // so the default encoding emits a Host with its useful half missing.
 func (h Host) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {

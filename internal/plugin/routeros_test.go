@@ -19,7 +19,7 @@ import (
 )
 
 // pinned is the moment every fact in these tests is stamped with, so that
-// SeenAt is an assertion rather than a wobble.
+// SeenAt can be asserted exactly.
 var pinned = time.Date(2026, 9, 2, 10, 0, 0, 0, time.UTC)
 
 // Addresses come from RFC 5737 and hardware addresses from RFC 7042, both
@@ -70,7 +70,7 @@ func TestNewRouterOSPrefixesTheInstanceName(t *testing.T) {
 }
 
 // The name becomes a database key that later rows are matched against, so a
-// missing one is refused rather than defaulted.
+// missing one is refused.
 func TestNewRouterOSRefusesAnUnnamedInstance(t *testing.T) {
 	t.Parallel()
 
@@ -132,8 +132,8 @@ func TestCollectARPKeepsDisbelievedEntriesWithoutPresence(t *testing.T) {
 	}
 }
 
-// A "stale" ARP entry is the router remembering a hardware address, not a
-// sighting. The device stays in the inventory as a claim; it is not present.
+// A "stale" ARP entry is only the router remembering a hardware address. The
+// device stays in the inventory as a claim and is marked absent.
 func TestCollectARPKeepsStaleEntriesWithoutPresence(t *testing.T) {
 	t.Parallel()
 
@@ -250,7 +250,7 @@ func TestLeaseHostnameCarriesItsStanding(t *testing.T) {
 	}
 }
 
-// The real tables read "Workstation - wired" beside a host-name of
+// Router tables read "Workstation - wired" beside a host-name of
 // "workstation". The first has spaces and a dash and names an interface; only the
 // second is a hostname.
 func TestLeaseCommentIsCarriedAsDetailNotAsAName(t *testing.T) {
@@ -311,7 +311,7 @@ func TestAnUnboundLeaseIsNotASighting(t *testing.T) {
 
 // The switch holds a configured address and never asks for one, so its lease
 // reads "waiting, never" while the ARP table has it reachable. One devices row
-// cannot hold both, which is why the claim carries presence per source -- and
+// cannot hold both, which is why the claim carries presence per source, and
 // why either table saying the device is here is enough.
 func TestPresenceIsEitherTableSayingSo(t *testing.T) {
 	t.Parallel()
@@ -373,7 +373,7 @@ func TestFactsCarryNoNameTheRouterDidNotGive(t *testing.T) {
 }
 
 // The OUI lookup is what internal/hosts is for, and it is why a fact is built
-// through it rather than assembled here.
+// through it.
 func TestFactsAreEnrichedThroughHosts(t *testing.T) {
 	t.Parallel()
 
@@ -404,8 +404,8 @@ func TestFactsComeBackSortedByAddress(t *testing.T) {
 		{Address: "192.0.2.2", MACAddress: "00:00:5E:00:53:04", HostName: "host-e", Status: "bound"},
 	}
 
-	// Numerically, not lexically: "192.0.2.9" sorts after "192.0.2.10"
-	// as a string, which is the bug a naive sort would have.
+	// Numerically: "192.0.2.9" sorts after "192.0.2.10" as a string,
+	// which is the bug a naive sort would have.
 	want := []string{"192.0.2.2", "192.0.2.9", "192.0.2.10", "198.51.100.7"}
 
 	for range 10 {
@@ -461,7 +461,7 @@ func TestClassifyRouterOSMapsTheRefusedCommandTo500(t *testing.T) {
 }
 
 // A router with no REST service is neither unreachable nor refusing
-// credentials, and calling it either would be a lie in the log.
+// credentials, and calling it either would mislead the log.
 func TestClassifyRouterOSLeavesAMissingEndpointAlone(t *testing.T) {
 	t.Parallel()
 
@@ -544,8 +544,7 @@ func TestDiscoverMergesBothTables(t *testing.T) {
 }
 
 // Half a router is worth ingesting. The facts that arrived are true whatever
-// happened to the rest, so they come back beside the error rather than instead
-// of it -- this is what replaced an explicit Partial flag.
+// happened to the rest, so they come back beside the error.
 func TestDiscoverReturnsWhatItGotWhenOneTableFails(t *testing.T) {
 	t.Parallel()
 
@@ -568,8 +567,8 @@ func TestDiscoverReturnsNothingWhenBothTablesFail(t *testing.T) {
 	assert.Empty(t, out)
 }
 
-// An empty table is an answer, not a failure: a router with nothing in its ARP
-// table has told us something.
+// An empty table is an answer: a router with nothing in its ARP table has said
+// something.
 func TestDiscoverAcceptsEmptyTables(t *testing.T) {
 	t.Parallel()
 
@@ -580,9 +579,9 @@ func TestDiscoverAcceptsEmptyTables(t *testing.T) {
 }
 
 // A device holding two addresses is two facts but one claim. Without sharing
-// the name across them, the nameless address clears the name the other found --
-// which a real table does produce: a device named on its lease, and the same
-// MAC on a second address with no lease at all.
+// the name across them, the nameless address clears the name the other found.
+// Router tables do produce this: a device named on its lease, and the same MAC
+// on a second address with no lease at all.
 func TestOneDeviceOnTwoAddressesKeepsItsName(t *testing.T) {
 	t.Parallel()
 
@@ -604,8 +603,8 @@ func TestOneDeviceOnTwoAddressesKeepsItsName(t *testing.T) {
 	}
 }
 
-// The better-standing name wins across a device's addresses, not the first one
-// the map happened to yield.
+// The better-standing name wins across a device's addresses, whichever the map
+// yields first.
 func TestSharedNameTakesTheBetterStanding(t *testing.T) {
 	t.Parallel()
 
@@ -662,7 +661,7 @@ func TestDetailIsSharedAcrossADevicesAddresses(t *testing.T) {
 		assert.Equal(t, "vlan10", f.Detail["interface"])
 	}
 
-	// Cloned rather than shared, so one fact cannot mutate another's.
+	// Cloned, so one fact cannot mutate another's.
 	out[0].Detail["injected"] = "x"
 	assert.NotContains(t, out[1].Detail, "injected")
 }

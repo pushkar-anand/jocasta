@@ -53,9 +53,9 @@ func BulkBuild(ctx context.Context, inputs []HostInput) ([]*Host, error) {
 		})
 	}
 
-	// Failures are recorded per entry rather than returned, so that one bad row
-	// neither cancels its siblings nor ends the group early. Wait therefore has
-	// nothing left to report.
+	// Each worker records its failure against its entry and returns nil, so one
+	// bad row neither cancels its siblings nor ends the group early. Wait
+	// therefore has nothing left to report.
 	_ = g.Wait()
 
 	out := make([]*Host, 0, len(inputs))
@@ -66,7 +66,7 @@ func BulkBuild(ctx context.Context, inputs []HostInput) ([]*Host, error) {
 		}
 	}
 
-	// A cancelled sweep is short, not complete. Saying so keeps a caller from
-	// reading a truncated result as the whole table.
+	// A cancelled sweep is incomplete. Saying so keeps a caller from reading a
+	// truncated result as the whole table.
 	return out, errors.Join(errors.Join(errs...), ctx.Err())
 }

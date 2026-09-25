@@ -405,7 +405,7 @@ func TestTrafficPageSummarisesTheNetwork(t *testing.T) {
 	assert.Contains(t, body, `<option value="7d" selected>Last 7 days</option>`)
 
 	// Collection started moments ago, so everything is a first contact, and
-	// the page says why rather than implying the network changed.
+	// the page says why, so it does not imply the network changed.
 	assert.Contains(t, body, "New this week")
 	assert.Contains(t, body, "Cloudflare")
 	assert.Contains(t, body, "Google")
@@ -455,7 +455,7 @@ func TestTrafficPageGroupsNewContactsAndNarrowsToAGroup(t *testing.T) {
 	assert.NotContains(t, body, "laptop.example.com", "the laptop is not in media")
 	assert.Contains(t, body, "nas.example.com")
 
-	// A group that no longer exists shows everything rather than nothing.
+	// A group that no longer exists shows everything.
 	rec = get(t, h, "/traffic?group=gone")
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "laptop.example.com")
@@ -663,8 +663,8 @@ func TestDevicePageShowsWhatTheDeviceBroadcasts(t *testing.T) {
 	assert.NotContains(t, rec.Body.String(), ">Broadcasts")
 }
 
-// Who opened each row's connections is shown -- the device (→) or the peer
-// (←) -- the direction filter narrows to one side, and the device and service
+// Who opened each row's connections is shown, the device (→) or the peer
+// (←); the direction filter narrows to one side, and the device and service
 // the internet reached are listed on the Traffic page.
 func TestConnectionDirectionsAreShown(t *testing.T) {
 	t.Parallel()
@@ -695,8 +695,7 @@ func TestConnectionDirectionsAreShown(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "&larr; 1", "the NAS opened the laptop's ssh")
 
-	// Opened by them: Cloudflare, not Google; opened by this device: the
-	// other way round.
+	// Opened by them: Cloudflare only. Opened by this device: Google only.
 	rec = get(t, h, "/devices/1/traffic?tab=internet&dir=in")
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, "/devices/1?dir=in&tab=internet", rec.Header().Get("HX-Push-Url"))
@@ -724,7 +723,8 @@ func TestConnectionDirectionsAreShown(t *testing.T) {
 
 // What the internet tried on the network is listed on the Traffic page and
 // noted on the device it was tried on: a port forwarded to the laptop, and
-// the router's outside address, counted under the router -- here, the NAS.
+// the router's outside address, counted under the router, which here is the
+// NAS.
 func TestProbesFromTheInternetAreShown(t *testing.T) {
 	t.Parallel()
 

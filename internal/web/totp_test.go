@@ -15,10 +15,9 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/auth"
 )
 
-// enrollTOTP drives Auth's enrollment methods directly (bypassing the HTTP
-// layer) to leave username signed up for 2FA, and hands back the secret --
-// so a test can compute a valid code with it -- and the recovery codes
-// confirming enrollment minted.
+// enrollTOTP drives Auth's enrollment methods directly, skipping the HTTP
+// layer, to leave username enrolled in 2FA. It returns the secret, so a test
+// can compute a valid code, and the recovery codes the confirmation minted.
 func enrollTOTP(t *testing.T, a *auth.Auth, username string) (secret string, recoveryCodes []string) {
 	t.Helper()
 
@@ -69,7 +68,7 @@ func loginWith(t *testing.T, h http.Handler, username, password string) *httptes
 }
 
 // signInWithCode carries a 2FA-enabled account through both steps of sign-in
-// -- password, then the current TOTP code for secret -- and hands back the
+// (password, then the current TOTP code for secret) and hands back the
 // cookies a fully signed-in session needs.
 func signInWithCode(t *testing.T, h http.Handler, secret string) []*http.Cookie {
 	t.Helper()
@@ -88,7 +87,7 @@ func signInWithCode(t *testing.T, h http.Handler, secret string) []*http.Cookie 
 	require.Equal(t, http.StatusFound, verify.Code)
 
 	// establishSession renews the token, so the cookie the pending step set is
-	// stale now -- sending both would let the request pick the wrong one.
+	// stale now, and sending both would let the request pick the wrong one.
 	return verify.Result().Cookies()
 }
 
@@ -173,7 +172,7 @@ func TestLoginTOTPAcceptsRecoveryCodeOnce(t *testing.T) {
 
 // TestLoginTOTPExhaustedAttemptsEndsTheSession covers the narrow rate limit
 // VerifyTOTP applies to a pending sign-in: repeated wrong codes destroy the
-// session rather than leaving it guessable indefinitely.
+// session, so it cannot be guessed at indefinitely.
 func TestLoginTOTPExhaustedAttemptsEndsTheSession(t *testing.T) {
 	t.Parallel()
 

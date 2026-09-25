@@ -84,8 +84,8 @@ func TestSecurityDisableRequiresPassword(t *testing.T) {
 }
 
 // TestSecurityQRRouteOnlyServesAPendingEnrollment covers the QR image route
-// having nothing to show once there is no unconfirmed secret -- reached
-// before enrollment starts, and again once it has been confirmed.
+// having nothing to show without an unconfirmed secret: before enrollment
+// starts, and again once it has been confirmed.
 func TestSecurityQRRouteOnlyServesAPendingEnrollment(t *testing.T) {
 	t.Parallel()
 

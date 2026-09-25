@@ -1,15 +1,15 @@
 // Package asn resolves an internet address to the organisation that announces
-// it, so an address can be shown as "Amazon" rather than as a number.
+// it, so an address can be shown as "Amazon".
 //
 // The tables are built from DB-IP's IP to ASN Lite database, which is licensed
 // under CC BY 4.0 and must be credited wherever its names are shown:
 // [Attribution] is the line to use. They are embedded, so a lookup needs no
 // network access and no external database.
 //
-// An ASN names the network that routes an address, not the service behind it.
-// A site hosted on a cloud provider resolves to the provider, and a CDN edge
-// resolves to the CDN; that is still the right answer to "who is this device
-// talking to", one level up from the one a person might guess.
+// An ASN names the network that routes an address. A site hosted on a cloud
+// provider resolves to the provider, and a CDN edge resolves to the CDN. That
+// still answers "who is this device talking to", one level up from the answer
+// a person might guess.
 package asn
 
 import (
@@ -133,7 +133,7 @@ func eachLine(gz []byte, fn func(string)) {
 	zr, err := gzip.NewReader(bytes.NewReader(gz))
 	if err != nil {
 		// The data is embedded at build time; a corrupt table is a build that
-		// should never have shipped, and every lookup simply misses.
+		// should never have shipped, and every lookup misses.
 		return
 	}
 
@@ -205,9 +205,8 @@ var nonPublic = []netip.Prefix{
 	netip.MustParsePrefix("2001:db8::/32"),
 }
 
-// IsPublic reports whether addr is an address on the public internet, which is
-// the only kind worth looking up: a private address names a device, not an
-// organisation.
+// IsPublic reports whether addr is an address on the public internet, the only
+// kind worth looking up. No organisation announces a private address.
 func IsPublic(addr netip.Addr) bool {
 	addr = addr.Unmap()
 

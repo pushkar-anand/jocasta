@@ -20,14 +20,14 @@ const (
 	liveHostEnv     = "JOCASTA_PLUGINS__ROUTEROS__HOST"
 	livePortEnv     = "JOCASTA_PLUGINS__ROUTEROS__PORT"
 	liveUserEnv     = "JOCASTA_PLUGINS__ROUTEROS__USER"
-	livePasswordEnv = "JOCASTA_PLUGINS__ROUTEROS__PASSWORD" //nolint:gosec // the name of a variable, not a credential.
+	livePasswordEnv = "JOCASTA_PLUGINS__ROUTEROS__PASSWORD" //nolint:gosec // the name of an environment variable.
 	liveSSLEnv      = "JOCASTA_PLUGINS__ROUTEROS__SSL"
 	liveInsecureEnv = "JOCASTA_PLUGINS__ROUTEROS__INSECURE"
 )
 
-// TestDiscoverLive runs the mapping over a real router's tables and prints the
-// facts. Unlike pkg/routeros's live test, which shows what the wire returned,
-// this shows what ingest would be handed.
+// TestDiscoverLive runs the mapping over a live router's tables and prints the
+// facts. pkg/routeros's live test shows what the wire returned; this one
+// shows what ingest would be handed.
 //
 // It is skipped without a host: the rest of the suite must stay hermetic.
 //
@@ -130,7 +130,7 @@ func TestDiscoverLive(t *testing.T) {
 	_ = w.Flush()
 
 	// The invariants the mapping is responsible for, checked against whatever
-	// the router actually holds rather than against a fixture.
+	// the router actually holds.
 	assert.LessOrEqual(t, len(facts), len(arp)+len(leases), "no fact is invented")
 	assert.LessOrEqual(t, present, usableARP+len(leases), "presence needs a row that says so")
 

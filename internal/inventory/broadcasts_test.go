@@ -50,8 +50,8 @@ func udp(src, dst string, srcPort, dstPort uint16, bytes uint64, at time.Time) p
 	}
 }
 
-// What a device sends to everyone is kept, per group and port, instead of as
-// a conversation with an address nobody holds: to a multicast group, to
+// What a device sends to everyone is kept per group and port: to a multicast
+// group, to
 // 255.255.255.255, and to its subnet's broadcast address, which only the
 // recorded networks tell apart from a host.
 func TestBroadcastsAreRecordedPerGroupAndPort(t *testing.T) {
@@ -91,8 +91,8 @@ func TestBroadcastsAreRecordedPerGroupAndPort(t *testing.T) {
 	assert.Equal(t, int64(3), rows[1].Packets)
 }
 
-// A sender that is no device, or has no address yet -- a DHCP client asking
-// for one -- cannot be filed under anything in the inventory.
+// A sender that is no device, or has no address yet (a DHCP client asking
+// for one), cannot be filed under anything in the inventory.
 func TestBroadcastsFromNoDeviceAreNotKept(t *testing.T) {
 	t.Parallel()
 

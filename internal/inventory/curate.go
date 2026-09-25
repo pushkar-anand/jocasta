@@ -15,8 +15,8 @@ import (
 // Curation is what the user owns on a device. No scan or plugin writes any of
 // it, which is why it survives the device moving address or being re-identified.
 //
-// Every field is applied, not merged: a form submits all of them, so a field
-// left empty means cleared rather than unchanged.
+// Every field is applied as given: a form submits all of them, so a field left
+// empty means cleared.
 type Curation struct {
 	Label   string
 	Notes   string
@@ -29,8 +29,8 @@ type Curation struct {
 // only spaces would otherwise be a name that renders as nothing.
 //
 // Type is one of the classifier's classes or nothing: it overrides the guess
-// that drives the device icon, so a value that names no class is dropped rather
-// than stored where it could never take effect.
+// that drives the device icon, so a value that names no class is dropped.
+// Stored, it could never take effect.
 func (c Curation) clean() Curation {
 	kind := strings.TrimSpace(c.Type)
 	if !classify.Class(kind).Valid() {
@@ -107,9 +107,9 @@ func (s *Store) UpdateCuration(ctx context.Context, id int64, c Curation) (*Devi
 		return nil, fmt.Errorf("commit curation: %w", err)
 	}
 
-	// Re-read rather than convert the updated row: a device carries the
-	// addresses it holds, and a caller re-rendering one from here would
-	// otherwise show a device that holds none.
+	// Re-read the device: the updated row lacks the addresses a device
+	// carries, and a caller re-rendering one from here would otherwise show
+	// a device that holds none.
 	return s.Device(ctx, id)
 }
 

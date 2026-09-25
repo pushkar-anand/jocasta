@@ -3,7 +3,7 @@
 -- are what a device scanning the network leaves behind, and they are kept
 -- apart from traffic_hourly because a scan is thousands of them an hour:
 -- one row per port would bury every real conversation, so they are counted
--- per peer instead, with the lowest ports tried kept as a sample.
+-- per peer, with the lowest ports tried kept as a sample.
 CREATE TABLE attempts_hourly
 (
     source_id      INTEGER NOT NULL REFERENCES sources (id) ON DELETE RESTRICT,

@@ -51,8 +51,8 @@ func (p *PluginRunCmd) Run(
 
 	nets, err := src.Networks(ctx)
 	if err != nil {
-		// The segments decorate the devices rather than gating them, so a
-		// source that will not describe them is still worth reading.
+		// The segments only decorate the devices, so a source that will not
+		// describe them is still worth reading.
 		log.WarnContext(ctx, "source did not describe its segments",
 			slog.String("src", src.Name()),
 			logger.Err(err),
@@ -62,7 +62,7 @@ func (p *PluginRunCmd) Run(
 	facts, err := src.Discover(ctx)
 
 	// A half-read source still has something to show, so the error is reported
-	// alongside the rows rather than instead of them.
+	// alongside the rows.
 	if err != nil && len(facts) == 0 {
 		return fmt.Errorf("discover %s: %w", src.Name(), err)
 	}
@@ -128,7 +128,7 @@ func (p *PluginRunCmd) save(
 
 // outputNetworks prints the segments the source described. Under --json the
 // two tables are separate documents, so a reader piping this to jq gets the
-// networks and the facts rather than a wrapper holding both.
+// networks and the facts with no wrapper around them.
 func outputNetworks(w io.Writer, nets []plugin.Network, asJSON bool) error {
 	if asJSON {
 		return writeJSON(w, nets)

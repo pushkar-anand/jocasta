@@ -25,8 +25,8 @@ type PortSummary struct {
 	ScanID int64
 
 	// Targets is how many addresses the scan reported on; Devices how many of
-	// them resolved to a device the inventory still holds, and Dropped the rest
-	// -- an address retired between the sweep that found it and this scan.
+	// them resolved to a device the inventory still holds, and Dropped the
+	// rest: addresses retired between the sweep that found them and this scan.
 	Targets int
 	Devices int
 	Dropped int
@@ -69,21 +69,21 @@ func (s *Store) PortOverview(ctx context.Context, serviceLimit int) (*PortOvervi
 }
 
 // RecordPorts folds a port scan into the inventory, attributing it to the named
-// source -- the same vantage point the sweep records, since it is the same host
+// source: the same vantage point the sweep records, since it is the same host
 // probing.
 //
 // A port scan is a third kind of reading beside a sweep and a source read. It
 // asserts no presence, identifies no device and carries no name, so it does not
-// go through the fact path; but it shares the three phases every reading does --
-// a scan row opened, the work in one transaction, the row closed with the
-// outcome -- so an interrupted scan cannot leave a device half-updated.
+// go through the fact path. It shares the three phases every reading does (a
+// scan row opened, the work in one transaction, the row closed with the
+// outcome), so an interrupted scan cannot leave a device half-updated.
 func (s *Store) RecordPorts(
 	ctx context.Context,
 	source string,
 	scans []scanner.PortScan,
 ) (*PortSummary, error) {
 	// The port scan runs from the sweeping host, so it files under the sweep's
-	// source row rather than one of its own.
+	// source row.
 	scanID, _, err := s.openScan(ctx, source, dbtype.SourceSweep, dbtype.ScanPorts, nil)
 	if err != nil {
 		return nil, err
@@ -146,7 +146,7 @@ func (s *Store) ingestPorts(ctx context.Context, scanID int64, scans []scanner.P
 // recordPorts diffs one address's scan against what the inventory has for its
 // device: a port newly open gets a row and an event, a port that was open and
 // was looked at again but did not answer flips to closed, and a port the scan
-// did not cover is left alone -- this run has no opinion on it.
+// did not cover is left alone, since this run has no opinion on it.
 func (s *Store) recordPorts(
 	ctx context.Context,
 	q *models.Queries,

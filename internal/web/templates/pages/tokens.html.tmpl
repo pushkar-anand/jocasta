@@ -20,9 +20,9 @@
             Tokens belong to {{ .SignedInAs }}.</p>
 
         {{- /*
-            Reveal and list share one wrapper so a revoke -- which swaps the
-            whole region -- clears a plaintext left from a create just before it
-            and lands on the "none yet" line rather than an empty table.
+            Reveal and list share one wrapper so a revoke, which swaps the
+            whole region, clears a plaintext left from a create just before it
+            and lands on the "none yet" line.
         */ -}}
         {{ template "partial/token-list" . }}
 

@@ -42,7 +42,7 @@ const (
 )
 
 // trafficFilterFrom reads a filter from a query string. A value it does not
-// know is dropped rather than refused: they only ever arrive from the form.
+// know is dropped: values only ever arrive from the form.
 // An unknown tab is dropped once the tabs are known.
 func trafficFilterFrom(q url.Values) trafficFilter {
 	f := trafficFilter{
@@ -64,8 +64,7 @@ func trafficFilterFrom(q url.Values) trafficFilter {
 }
 
 // Active reports whether the filter narrows the rows. The tab and the tries
-// switch choose what is shown rather than narrowing it, so clearing the
-// filter keeps them.
+// switch only choose what is shown, so clearing the filter keeps them.
 func (f trafficFilter) Active() bool {
 	return f.Service != "" || f.Query != "" || f.Direction != ""
 }
@@ -279,7 +278,7 @@ func (l peerList) Rest() int64 { return int64(max(0, len(l)-peerListHead)) }
 
 // strangerGroup is local addresses no device holds, collapsed by the subnet
 // they sit in: a device reaching many unknown hosts next to each other is one
-// fact, not a screenful.
+// fact, shown as one row.
 type strangerGroup struct {
 	peerTally
 

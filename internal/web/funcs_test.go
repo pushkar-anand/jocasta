@@ -29,7 +29,7 @@ func TestAgo(t *testing.T) {
 		{"a date once it stops being relative", now.Add(-30 * 24 * time.Hour), "30 Jan 2026"},
 
 		// A sighting stamped ahead of the clock is a clock difference between
-		// two hosts, not a device seen in the future.
+		// two hosts.
 		{"ahead of the clock", now.Add(time.Minute), "just now"},
 	}
 
@@ -148,8 +148,8 @@ func TestTook(t *testing.T) {
 	assert.Equal(t, "1.5s", took(&inventory.Scan{StartedAt: start, FinishedAt: start.Add(1500 * time.Millisecond)}))
 	assert.Equal(t, "12ms", took(&inventory.Scan{StartedAt: start, FinishedAt: start.Add(12 * time.Millisecond)}))
 
-	// A scan still running has taken no time yet, which is not the same as
-	// having taken none.
+	// A scan still running has no duration yet, and renders differently from
+	// one that finished instantly.
 	assert.Equal(t, em, took(&inventory.Scan{StartedAt: start}))
 }
 
@@ -201,7 +201,7 @@ func TestTone(t *testing.T) {
 	assert.Equal(t, "act--learned", tone(dbtype.EventPortOpened))
 	assert.Equal(t, "act--shape", tone(dbtype.EventPortClosed))
 
-	// Anything not worded yet reads as an edit rather than as nothing.
+	// Anything not worded yet reads as an edit.
 	assert.Equal(t, "act--edit", tone(dbtype.EventKind("GROUP_ASSIGNED")))
 }
 
@@ -211,8 +211,8 @@ func TestEventIcon(t *testing.T) {
 	assert.Equal(t, glyphs[dbtype.EventDeviceDiscovered], eventIcon(dbtype.EventDeviceDiscovered))
 	assert.Equal(t, glyphs[dbtype.EventPortOpened], eventIcon(dbtype.EventPortOpened))
 
-	// A kind with no glyph of its own falls back rather than rendering an empty
-	// tile, which would read as a rendering fault.
+	// A kind with no glyph of its own falls back to the edit mark. An empty
+	// tile would read as a rendering fault.
 	assert.Equal(t, glyphs[dbtype.EventDeviceEdited], eventIcon(dbtype.EventKind("GROUP_ASSIGNED")))
 }
 
@@ -270,21 +270,21 @@ func TestChange(t *testing.T) {
 	edit.OldValue = "Printer"
 	assert.Equal(t, "label: Printer → Office printer", change(edit))
 
-	// Emptying a field is a change, not the setting of the value that went away.
+	// Emptying a field shows as a change to nothing.
 	edit.NewValue = ""
 	assert.Equal(t, "label: Printer → cleared", change(edit))
 
-	// A released address is named on its own, not as a field emptied.
+	// A released address is named on its own.
 	assert.Equal(t, "192.0.2.55",
 		change(&inventory.Event{Kind: dbtype.EventAddressReleased, OldValue: "192.0.2.55", Detail: "unanswered"}))
 
-	// A reclassification shows the names the device page uses, not identifiers.
+	// A reclassification shows the names the device page uses.
 	assert.Equal(t, "Smart-home hub → Camera",
 		change(&inventory.Event{Kind: dbtype.EventDeviceClassified, OldValue: "iot_hub", NewValue: "camera"}))
 }
 
-// The map is what the templates are parsed against, so a helper renamed in one
-// place and not the other is a runtime failure otherwise.
+// The templates are parsed against the map, so a helper renamed in only one
+// of the two places would otherwise fail at runtime.
 func TestFuncsCoverEveryHelperTheTemplatesUse(t *testing.T) {
 	t.Parallel()
 

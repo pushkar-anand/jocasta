@@ -19,8 +19,7 @@ type localInterface struct {
 // neighbour table and the kernel has to be asked directly.
 //
 // This reads the interfaces of whatever network namespace the process is in,
-// so a container on a bridge network sees its own virtual interface rather
-// than the host's.
+// so a container on a bridge network sees its own virtual interface.
 func localAddrs() (map[netip.Addr]localInterface, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -37,8 +36,8 @@ func localAddrs() (map[netip.Addr]localInterface, error) {
 			continue
 		}
 
-		// Loopback and tunnel interfaces have no hardware address, which is a
-		// fact about them rather than a failure to read one.
+		// Loopback and tunnel interfaces have no hardware address, so an empty
+		// one is expected there.
 		mac := ""
 		if len(ifi.HardwareAddr) > 0 {
 			mac = strings.ToLower(ifi.HardwareAddr.String())

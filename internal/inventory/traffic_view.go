@@ -29,15 +29,15 @@ type TrafficPeer struct {
 
 	IP netip.Addr `json:"ip"`
 
-	// Name is the peer's reverse DNS name, when it had one. It is chosen by
-	// whoever runs the peer's DNS, not by the user.
+	// Name is the peer's reverse DNS name, when it had one. Whoever runs the
+	// peer's DNS chooses it.
 	Name string `json:"name,omitempty"`
 
 	Protocol    uint8  `json:"protocol"`
 	ServicePort uint16 `json:"service_port"`
 
-	// Service is the service usually found on ServicePort, not one that was
-	// detected.
+	// Service is the service usually found on ServicePort; nothing detects
+	// it.
 	Service string `json:"service,omitempty"`
 
 	// Sent and Received are bytes from the device's side of the conversation.

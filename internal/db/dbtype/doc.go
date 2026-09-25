@@ -9,7 +9,7 @@
 //
 // The enum columns store their values in upper case, so that query output
 // tells a token the schema constrains apart from free text at a glance. Go has
-// no convention for the string a constant holds -- MixedCaps governs the
-// identifier -- so the identifiers stay MixedCaps over upper-case values, as
+// no convention for the string a constant holds (MixedCaps governs the
+// identifier), so the identifiers stay MixedCaps over upper-case values, as
 // [net/http.MethodGet] does for "GET".
 package dbtype

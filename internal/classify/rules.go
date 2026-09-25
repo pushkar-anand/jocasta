@@ -9,8 +9,8 @@ import (
 
 // Cond is the set of facts a rule needs to see. A rule fires when every field
 // that is set here holds; an unset field is not tested. HostNot is the
-// exception: it is a veto, not a condition, and does not count towards how
-// specific the rule is.
+// exception: it is a veto, and does not count towards how specific the rule
+// is.
 //
 // The number of set condition fields is a rule's specificity, which is how
 // [Device] breaks the tie when several rules match: the pickier rule wins.
@@ -28,7 +28,7 @@ type Cond struct {
 	FirstHost  bool  // holds the .1 of its subnet, where a gateway lives
 
 	// MinServer fires when at least this many service ports (see serverPorts)
-	// are open at once -- a host running services rather than using them.
+	// are open at once, which marks a host that runs services.
 	MinServer int
 
 	When func(Facts) bool // escape hatch for the rare rule the fields cannot express
@@ -45,8 +45,9 @@ type Rule struct {
 	// something it matched (which ports, how many).
 	ReasonFn func(Facts) string
 
-	// Weak marks a loose fallback -- a broad vendor, a port a dozen classes
-	// share. A weak rule that fires alone yields a Low-confidence guess.
+	// Weak marks a loose fallback, such as a broad vendor or a port a dozen
+	// classes share. A weak rule that fires alone yields a Low-confidence
+	// guess.
 	Weak bool
 }
 
@@ -61,7 +62,7 @@ func (r Rule) reason(f Facts) string {
 func ptr[T any](v T) *T { return &v }
 
 // serverPorts are ports that say little alone but, several at once, describe a
-// host running services rather than a device using them.
+// host that runs services.
 var serverPorts = map[uint16]string{
 	22:    "ssh",
 	3306:  "mysql",
@@ -110,7 +111,7 @@ func init() {
 	}
 }
 
-// match reports whether r holds for f, and how many condition fields it tested
+// match reports whether c holds for f, and how many condition fields it tested
 // (its specificity). A Cond with no positive condition never matches.
 func match(c Cond, f Facts) (conds int, ok bool) {
 	if c.HostNot != "" && compiled[c.HostNot].MatchString(f.Hostname) {
@@ -203,7 +204,7 @@ func port(p uint16, reason string, c Class, weak bool) Rule {
 }
 
 // net is a shorthand for a network-name rule. Always weak: a VLAN name is a
-// hint about what belongs there, never proof of any one device.
+// hint about what belongs there, and proves nothing about any one device.
 func net(sub, reason string, c Class) Rule {
 	return Rule{Cond: Cond{Network: sub}, Class: c, Reason: reason, Weak: true}
 }
@@ -212,23 +213,23 @@ func net(sub, reason string, c Class) Rule {
 // weakest. That order is the tie-breaker when several equally specific rules
 // match, so a rule's place in the list is part of what it means.
 var ruleset = []Rule{
-	// ---- combinations: pickier than any single-fact rule, so they win by
-	// specificity wherever they apply ----
+	// Combinations: pickier than any single-fact rule, so they win by
+	// specificity wherever they apply.
 
 	// Home Assistant on a general-purpose box: the port says what it is, the
 	// vendor only says it is a VM.
 	{Cond: Cond{Port: 8123}, Class: IoTHub, Reason: "port 8123 (Home Assistant)"},
 
 	// A Chromecast port on something that is clearly a computer is a cast
-	// receiver running on a desktop, not a streaming stick.
+	// receiver running on a desktop.
 	{
 		Cond:   Cond{AnyPort: []uint16{8008, 8009}, HostNot: `nest|chromecast|shield|fire-?tv`, MinServer: 2},
 		Class:  Server,
 		Reason: "cast port beside a stack of service ports",
 	},
 
-	// ---- definitive: a manufacturer that makes one kind of thing, or a name
-	// that spells the product out ----
+	// Definitive: a manufacturer that makes one kind of thing, or a name that
+	// spells the product out.
 
 	host(`iphone`, "the name says iPhone", Phone, false),
 	host(`ipad`, "the name says iPad", Tablet, false),
@@ -295,7 +296,7 @@ var ruleset = []Rule{
 	port(8006, "port 8006 (Proxmox VE)", Hypervisor, false),
 	port(32400, "port 32400 (Plex media server)", Server, false),
 
-	// ---- characteristic: points somewhere, with honest alternatives ----
+	// Characteristic: points somewhere, with honest alternatives.
 
 	host(`ipod`, "the name says iPod", Phone, false),
 	host(`(?:\b|_)(?:pixel|galaxy|oneplus|nexus|redmi|poco|moto-?g)(?:\b|_)`, "the name is a phone model", Phone, false),
@@ -337,15 +338,15 @@ var ruleset = []Rule{
 
 	// A resolver and an admin page, at the .1 of the subnet: a home gateway.
 	// Without the .1 this is just as likely a Pi-hole or AdGuard box, so the
-	// bare port-53 hint below carries those instead. Two rules because the
+	// bare port-53 hint below carries those. Two rules because the
 	// admin page is on 80 as often as 443.
 	{Cond: Cond{AllPort: []uint16{53, 443}, FirstHost: true}, Class: Router, Reason: "a resolver and an admin page at the gateway address"},
 	{Cond: Cond{AllPort: []uint16{53, 80}, FirstHost: true}, Class: Router, Reason: "a resolver and an admin page at the gateway address"},
 
 	port(631, "port 631 (IPP print service)", Printer, false),
 	// The cast ports: every Chromecast has them, but so does every Google
-	// speaker and every Android TV, so they are a hint, not a verdict -- the
-	// name, above, is what tells the three apart.
+	// speaker and every Android TV, so they are only a hint. The name rules
+	// above tell the three apart.
 	port(8009, "port 8009 (Chromecast)", Streaming, false),
 	port(8008, "port 8008 (Chromecast)", Streaming, false),
 	port(554, "port 554 (RTSP video stream)", Camera, false),
@@ -367,7 +368,7 @@ var ruleset = []Rule{
 	net("surveillance", `on a surveillance segment`, Camera),
 	net("voip", `on a VoIP segment`, VoIP),
 
-	// ---- weak: a hint that needs corroboration to mean much ----
+	// Weak: a hint that needs corroboration to mean much.
 
 	host(`(?:\b|_)tv(?:\b|_)`, `the name contains "tv"`, TV, true),
 	host(`server|(?:\b|_)srv-|-srv(?:\b|_)|ubuntu|debian|centos|fedora|(?:\b|_)docker(?:\b|_)|portainer|(?:\b|_)k8s(?:\b|_)|(?:\b|_)kube`, "the name suggests a server", Server, true),

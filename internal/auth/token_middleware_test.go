@@ -134,7 +134,7 @@ func TestTokenMiddlewareBypassesNamedPaths(t *testing.T) {
 }
 
 // Without the method check, a read-only token's write reaches the handler,
-// carrying the token so the handler can decide by its scope instead.
+// carrying the token so the handler can decide by its scope.
 func TestTokenMiddlewareWithoutMethodScopeLeavesScopeToTheHandler(t *testing.T) {
 	t.Parallel()
 

@@ -2,9 +2,9 @@
 //
 // ARP is not routed, so a sweep learns hardware addresses for its own segment
 // and no other. The router is the gateway for every VLAN, so its tables cover
-// them all. Reading any such source raises the same two questions -- whether a
-// sighting means the device is here now, and how much its name is worth --
-// which is what [Fact] answers.
+// them all. Reading any such source raises the same two questions, which
+// [Fact] answers: whether a sighting means the device is here now, and how
+// much its name is worth.
 package plugin
 
 import (
@@ -18,7 +18,7 @@ import (
 )
 
 type (
-	// Plugin is one configured source: who it is, not what it can be asked for.
+	// Plugin is one configured source and says only who it is.
 	//
 	// Capabilities are separate interfaces because they do not yield the same
 	// thing. The devices a router knows about, the port a device is plugged
@@ -53,7 +53,7 @@ type (
 
 	// TrafficReporter answers "who is talking to whom".
 	//
-	// Unlike the discoverers it is pushed to rather than asked: a router
+	// The router pushes to it: a router
 	// exports a flow when the conversation ends or times out, on its own
 	// schedule. Listen therefore runs until ctx is done, handing each batch it
 	// decodes to emit, and returns nil once ctx is cancelled.
@@ -64,13 +64,14 @@ type (
 	}
 )
 
-// Flow is one conversation a source saw, in either direction it was recorded:
-// the source says which side sent, not which side is the device.
+// Flow is one conversation a source saw, in either direction it was recorded.
+// The source says which side sent; which side is the device is for the reader
+// to work out.
 //
 // Src is where the packets came from before any NAT and Dst where they were
 // delivered after it, which on a router doing NAT are both the local ends: the
-// device an outgoing packet left, and the device a reply reached rather than
-// the router's public address it was sent to.
+// device an outgoing packet left, and the device a reply reached after the
+// router translated its public address.
 type Flow struct {
 	Src, Dst         netip.Addr
 	SrcPort, DstPort uint16
@@ -79,8 +80,8 @@ type Flow struct {
 	Protocol uint8
 
 	// TCPFlags is the TCP flags the source reported, zero when it exports
-	// none. Sources differ on what that means -- some OR every packet's
-	// flags, a MikroTik reports only the first packet's -- so only what
+	// none. Sources differ on what that means (some OR every packet's
+	// flags, a MikroTik reports only the first packet's), so only what
 	// both readings share is relied on: a flow opening a connection shows
 	// SYN, and the answer to it SYN and ACK, or RST when refused.
 	TCPFlags uint8
@@ -124,26 +125,26 @@ type Network struct {
 	Name string
 
 	// VLAN is the 802.1Q tag, zero on a segment that carries none. Untagged is
-	// a real answer rather than a missing one.
+	// a real answer.
 	VLAN int
 }
 
 // Fact is what one source claims about one device at one moment.
 type Fact struct {
 	// Host is built through [hosts.BuildHost], so every plugin parses and
-	// enriches the same way instead of each repeating the MAC parse and OUI
-	// lookup. One address per fact; a device holding two is two facts.
+	// enriches the same way. One address per fact; a device holding two is
+	// two facts.
 	Host *hosts.Host
 
 	// Present says the device is on the network now: it answered a probe, or a
 	// source that reads the network heard from it lately. A resolved ARP entry
 	// the router has not heard from since, or a static lease for something
-	// unplugged, is a record of the device, not a sighting -- counting either
-	// would report it as online long after it left.
+	// unplugged, is only a record of the device. Counting either as a
+	// sighting would report it as online long after it left.
 	Present bool
 
 	// HostnameSource is the standing of the name Host carries. It travels with
-	// the fact rather than with Kind, because one pass over a router yields a
+	// each fact, because one pass over a router yields a
 	// lease an operator bound and a name a device asked for this hour, and they
 	// do not weigh the same.
 	HostnameSource dbtype.HostnameSource

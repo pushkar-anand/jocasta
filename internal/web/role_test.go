@@ -36,8 +36,8 @@ func roleClient(t *testing.T, role dbtype.UserRole) (http.Handler, []*http.Cooki
 	return h, signInAs(t, h, "member", "member-password-1")
 }
 
-// The curate routes -- the PATCH endpoints and the edit form that only leads to
-// them -- turn away an account that may not write, with the same forbidden page
+// The curate routes (the PATCH endpoints and the edit form that leads to them)
+// turn away an account that may not write, with the same forbidden page
 // the Users page gives a non-admin.
 func TestCurateRoutesRequireAWriter(t *testing.T) {
 	t.Parallel()
@@ -87,7 +87,7 @@ func TestCurateRoutesRequireAWriter(t *testing.T) {
 
 // A read user browses the inventory but is shown nothing that leads to an edit:
 // no Edit button in the list, and the device panel renders the curation values
-// read-only rather than as a form.
+// read-only.
 func TestReadUserSeesNoEditAffordances(t *testing.T) {
 	t.Parallel()
 

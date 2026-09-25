@@ -12,9 +12,9 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
 
-// Data is the whole of what a session carries, as one typed document: a
-// misspelled field is then a compile error, not a read that silently returns
-// the zero value.
+// Data is the whole of what a session carries, as one typed document, so a
+// misspelled field is a compile error. A string-keyed read would silently
+// return the zero value.
 type Data struct {
 	// UserID is the signed-in account, or 0 when nobody is signed in.
 	UserID int64
@@ -27,14 +27,14 @@ type Data struct {
 	Role dbtype.UserRole
 
 	// Flash holds values a handler leaves for the GET it redirects to and
-	// that are read back exactly once -- a message, or a secret shown a
-	// single time. nil until the first Flash call.
+	// that are read back exactly once, such as a message or a secret shown
+	// a single time. nil until the first Flash call.
 	Flash map[string]string
 
 	// PendingUserID is set once Verify succeeds for an account with 2FA
 	// enabled, and cleared the moment a second factor also succeeds. A
-	// nonzero value here is not itself proof of anything -- UserID staying
-	// zero until then is what every other check keys off.
+	// nonzero value here proves nothing on its own: every other check keys
+	// off UserID, which stays zero until then.
 	PendingUserID int64
 
 	// PendingUsername mirrors PendingUserID the way Username mirrors UserID,
@@ -43,7 +43,7 @@ type Data struct {
 
 	// PendingAttempts counts consecutive wrong codes against PendingUserID.
 	// It bounds guesswork against a second factor already down to a 6-digit
-	// space, not a general rate limit -- see Auth.VerifyTOTP.
+	// space; see [Auth.VerifyTOTP].
 	PendingAttempts int
 }
 
@@ -67,14 +67,14 @@ type sessionConfig struct {
 
 // WithSessionStore persists sessions in db (the jocasta SQLite database) so a
 // signed-in browser stays signed in across a restart. Without it, sessions
-// live only in memory -- which is what the tests want, and why this is opt-in.
+// live only in memory, which is what the tests want and why this is opt-in.
 func WithSessionStore(db *sql.DB) SessionOption {
 	return func(c *sessionConfig) { c.db = db }
 }
 
 // WithLifetime caps how long a session lasts from sign-in, regardless of
-// activity. A non-positive d is ignored, leaving the default in place rather
-// than a zero that would expire every session at once.
+// activity. A non-positive d is ignored, leaving the default in place: a zero
+// would expire every session at once.
 func WithLifetime(d time.Duration) SessionOption {
 	return func(c *sessionConfig) {
 		if d > 0 {
@@ -94,19 +94,18 @@ func WithIdleTimeout(d time.Duration) SessionOption {
 }
 
 // WithCookieSecure sets whether the session cookie is restricted to HTTPS. It
-// is true in every real deployment; passing false only exists so a browser can
-// sign in over plain HTTP during local development.
+// is true in every real deployment; false exists only so a browser can sign in
+// over plain HTTP during local development.
 func WithCookieSecure(secure bool) SessionOption {
 	return func(c *sessionConfig) { c.cookieSecure = secure }
 }
 
-// NewSession sets every cookie and lifetime option explicitly rather than
-// leaning on the library defaults, so a change to those defaults can't quietly
-// move jocasta's session semantics.
+// NewSession sets every cookie and lifetime option explicitly, so a change to
+// the library's defaults can't quietly move jocasta's session semantics.
 //
 // The lifetime, idle timeout, and cookie-secure flag start at the values a
-// deployment can override through config; the cookie name, path, SameSite and
-// HttpOnly flags are jocasta's to decide and are not configurable.
+// deployment can override through config. jocasta fixes the cookie name, path,
+// SameSite and HttpOnly flags itself.
 func NewSession(log *slog.Logger, opts ...SessionOption) *Session {
 	cfg := sessionConfig{
 		lifetime:     7 * 24 * time.Hour,
@@ -168,7 +167,7 @@ func (s *Session) CurrentUsername(ctx context.Context) string {
 	return d.Username
 }
 
-// CurrentRole returns the role for the User
+// CurrentRole returns the signed-in account's role, or "".
 func (s *Session) CurrentRole(ctx context.Context) dbtype.UserRole {
 	d, ok := s.s.Current(ctx)
 	if !ok {
@@ -179,9 +178,9 @@ func (s *Session) CurrentRole(ctx context.Context) dbtype.UserRole {
 }
 
 // Flash stores a value read back exactly once. It is how a handler carries a
-// result -- a message, or a secret shown a single time -- across the redirect
-// it makes after a POST, so a reload re-fetches the page rather than resending
-// the form.
+// result, such as a message or a secret shown a single time, across the
+// redirect it makes after a POST, so a reload re-fetches the page without
+// resending the form.
 func (s *Session) Flash(ctx context.Context, key, value string) {
 	s.s.Update(ctx, func(d *Data) {
 		if d.Flash == nil {
@@ -212,8 +211,7 @@ func (s *Session) PopFlash(ctx context.Context, key string) string {
 	return v
 }
 
-// Logout ends the session -- Destroy under the name a caller of this package
-// actually wants.
+// Logout ends the session and deletes its data from the store.
 func (s *Session) Logout(ctx context.Context) error {
 	return s.s.Destroy(ctx)
 }

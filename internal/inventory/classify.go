@@ -18,7 +18,7 @@ import (
 //
 // It runs after the ingest it follows has committed, in its own transaction: a
 // guess is advisory, so a failure here must not roll back the scan that
-// prompted it -- the caller logs the error and moves on. The user's own answer
+// prompted it. The caller logs the error and moves on. The user's own answer
 // in device_type is never read or written here; only device_class is.
 func (s *Store) reclassify(ctx context.Context, scanID int64, ids []int64) error {
 	if len(ids) == 0 {
@@ -51,8 +51,8 @@ func (s *Store) reclassify(ctx context.Context, scanID int64, ids []int64) error
 // classifyOne reads what the inventory knows about one device, runs the
 // classifier, and writes the guess back when it changed.
 //
-// A device folded or deleted between the ingest and here is skipped rather than
-// treated as an error: the reading that touched it is what removed it.
+// A device folded or deleted between the ingest and here is skipped: the
+// reading that touched it is what removed it.
 func (s *Store) classifyOne(
 	ctx context.Context,
 	q *models.Queries,
@@ -127,8 +127,8 @@ func (s *Store) classifyOne(
 
 	// The log records a guess moving between two settled classes. A first guess
 	// is part of discovering the device, and a guess lapsing to nothing is the
-	// classifier going quiet, not the device changing -- neither is an event,
-	// the same call applyClaim makes for a first or retracted name.
+	// classifier going quiet while the device stays the same. Neither is an
+	// event, the same call applyClaim makes for a first or retracted name.
 	if prev == "" || got.Class == classify.Unknown || string(got.Class) == prev {
 		return nil
 	}

@@ -103,7 +103,7 @@ func TestMigrateDBIsIdempotent(t *testing.T) {
 
 	db := newTestDB(t)
 
-	// New already migrated; running it again must be a no-op rather than an error.
+	// New already migrated; running it again must be a no-op.
 	require.NoError(t, migrateDB(db))
 }
 
@@ -126,7 +126,7 @@ func TestCreateUser(t *testing.T) {
 	assert.Equal(t, "ada", user.Username)
 	assert.Equal(t, "hash", user.PasswordHash)
 	// Reading this back also proves the column default is written in a form
-	// dbtime parses, which is the whole point of the two matching.
+	// dbtype parses, which is the whole point of the two matching.
 	assert.False(t, user.CreatedAt.IsZero(), "created_at default was not applied")
 	assert.WithinDuration(t, time.Now(), user.CreatedAt.Time, time.Minute)
 }
@@ -177,8 +177,8 @@ func TestPragmasApplyToEveryPooledConnection(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = first.Close() })
 
-	// Held at the same time as the first, so the pool has to open a second one
-	// rather than hand back the same connection.
+	// Held at the same time as the first, so the pool has to open a second
+	// connection.
 	second, err := db.Conn(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = second.Close() })
@@ -190,18 +190,17 @@ func TestPragmasApplyToEveryPooledConnection(t *testing.T) {
 	}
 }
 
+// TestDSNEscapesPath covers a file name holding a character that means
+// something in a URL. Left unescaped, the ? would start the query string
+// early and the pragmas would no longer be read as pragmas.
 func TestDSNEscapesPath(t *testing.T) {
 	t.Parallel()
 
-	// Given a file path with characters that need escaping in a URL (like ? and #)
 	file := "my_db?.sqlite"
 
-	// When we generate the DSN
 	result := dsn(file)
 
-	// Then it should be properly escaped, preventing DSN injection
 	assert.Contains(t, result, "my_db%3F.sqlite")
-	// The pragmas should still be attached correctly as the raw query
 	assert.Contains(t, result, "?_pragma=foreign_keys%281%29")
 }
 
@@ -214,7 +213,7 @@ func BenchmarkDSN(b *testing.B) {
 // TestTimestampWritersAgreeOnOrdering covers the two writers of a timestamp
 // column: SQLite's own default and a Go value through dbtype. They are
 // compared as TEXT, so a disagreement over separator or width would order rows
-// by which writer produced them rather than by when they happened.
+// by which writer produced them.
 func TestTimestampWritersAgreeOnOrdering(t *testing.T) {
 	t.Parallel()
 

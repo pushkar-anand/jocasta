@@ -37,9 +37,8 @@ func (e *problemError) Error() string {
 
 // toolProblem describes an error a tool's handler returned the way the API
 // would: an error problem.Resolve recognises becomes its problem, and anything
-// else is logged here and answered with problem.Internal, so the cause -- a
-// query that failed, say -- stays in the server log rather than reaching the
-// agent.
+// else is logged here and answered with problem.Internal, so the cause, such
+// as a query that failed, stays in the server log.
 func toolProblem(ctx context.Context, log *slog.Logger, tool string, err error) *problemError {
 	p, ok := problem.Resolve(err)
 	if !ok {

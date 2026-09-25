@@ -165,8 +165,8 @@ func TestRecordNetworksSkipsAPrefixThatIsNotOne(t *testing.T) {
 	assert.Equal(t, "Home", queryString(t, conn, `SELECT name FROM networks`))
 }
 
-// Nothing has named the segment, so it holds a null rather than an empty
-// string: the two read the same from Go and only one of them is true.
+// Nothing has named the segment, so it holds a null. An empty string reads the
+// same from Go but would claim a name was given.
 func TestAnUnnamedSegmentHoldsNoName(t *testing.T) {
 	t.Parallel()
 

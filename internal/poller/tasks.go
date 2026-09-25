@@ -7,7 +7,7 @@ import (
 )
 
 // errNotReady is a task reporting it is blocked on another task's output. The
-// poller retries it after notReadyRetry instead of a full interval.
+// poller retries it after notReadyRetry.
 var errNotReady = errors.New("task has nothing to work on yet")
 
 // notReadyRetry replaces a task's own interval for the one cycle after it
@@ -21,7 +21,7 @@ type task interface {
 	Run(ctx context.Context) error
 
 	// DueIn reports how long to wait before the first run, so that a restart
-	// resumes the schedule rather than starting a new one. Zero runs now, which
+	// resumes the schedule. Zero runs now, which
 	// is the right answer for a task with nothing to resume from.
 	//
 	// It returns no error because what a task cannot tell about its own history

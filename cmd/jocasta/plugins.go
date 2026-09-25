@@ -16,12 +16,12 @@ import (
 // hostDiscoverers builds every enabled source that can be asked which devices
 // it knows about.
 //
-// They are built here rather than in internal/plugin, which would have to
-// import internal/config and every implementation to do it, turning a near-leaf
+// They are built here because internal/plugin would have to import
+// internal/config and every implementation to do it, turning a near-leaf
 // package into a hub.
 //
-// Construction performs no I/O, so a router that is down at boot is a source to
-// retry rather than a reason to refuse to start. A source that cannot be
+// Construction performs no I/O, so a router that is down at boot is retried
+// later and the server still starts. A source that cannot be
 // constructed at all is a config error and is reported: a misconfigured entry
 // that silently discovered nothing would look exactly like a quiet network.
 //

@@ -31,12 +31,11 @@ const (
 
 	// maxPendingTraffic caps how many distinct conversations one flush
 	// interval may buffer. Past it, flows are dropped and counted: a flood of
-	// spoofed or scanning traffic should cost a log line, not the process's
-	// memory.
+	// spoofed or scanning traffic should cost only a log line.
 	maxPendingTraffic = 200_000
 
-	// Peer names are cached so a busy peer is resolved once, not once a
-	// minute; the cache is dropped whole when it grows past its cap, which is
+	// Peer names are cached so a busy peer is resolved once; the cache is
+	// dropped whole when it grows past its cap, which is
 	// simpler than evicting and costs one round of lookups.
 	peerNameTTL       = 6 * time.Hour
 	maxPeerNames      = 20_000
@@ -178,8 +177,8 @@ func (r *TrafficRecorder) Add(src plugin.Plugin, flows []plugin.Flow) {
 		// A conversation is usually exported as two flows, one each way.
 		// Only the one addressed to the service counts as a connection, so
 		// the reply does not count it twice. ICMP has no service port: only a
-		// ping starts anything, and every other message -- an echo reply, an
-		// unreachable, a time exceeded -- answers something, so it is never
+		// ping starts anything, and every other message (an echo reply, an
+		// unreachable, a time exceeded) answers something, so it is never
 		// counted as the replier opening a connection.
 		switch {
 		case f.Protocol == protoICMP || f.Protocol == protoICMPv6:
@@ -466,9 +465,9 @@ func (s *Store) recordTraffic(
 }
 
 // conversational reports whether a flow is between two hosts. Broadcast and
-// multicast go to everyone listening, so "who did it talk to" has no answer --
-// they are kept as broadcasts instead -- and an unspecified address is a host
-// that has none yet, asking for one.
+// multicast go to everyone listening, so "who did it talk to" has no answer
+// and they are kept as broadcasts. An unspecified address is a host that has
+// none yet, asking for one.
 func conversational(f plugin.Flow) bool {
 	for _, a := range []netip.Addr{f.Src, f.Dst} {
 		if !a.IsValid() || a.IsUnspecified() || a.IsMulticast() || a == limitedBroadcast {
@@ -529,8 +528,8 @@ func (s *Store) trafficRow(
 // servicePort picks the port that names the service in a conversation, from
 // whichever side offered it. A protocol without ports has none.
 //
-// The side a flow came from says nothing on its own -- a reply flows from the
-// server -- so the choice is made on the ports: a well-known service's port
+// The side a flow came from says nothing on its own, since a reply flows from
+// the server, so the choice is made on the ports: a well-known service's port
 // below the ephemeral range over any other, a privileged port over an
 // unprivileged one, a port below the ephemeral range over one inside it, a
 // well-known service's port over one without, and the lower port when nothing

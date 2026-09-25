@@ -1,8 +1,8 @@
 // Package version reports which build of jocasta is running.
 //
 // A release build has the tag, commit and date linked in with -ldflags -X. Any
-// other build has none of that, so the values are read back from the metadata
-// the Go toolchain stamps into every binary instead.
+// other build has none of that, so the values come from the metadata the Go
+// toolchain stamps into every binary.
 package version
 
 import (

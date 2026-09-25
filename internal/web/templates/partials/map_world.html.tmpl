@@ -1,9 +1,9 @@
 {{- /*
     The world view: every country's outline, drawn once with the page, and a
-    marker at each country's middle. What changes each minute -- how dark each
-    country is, which are active, and what is behind each -- comes in
+    marker at each country's middle. What changes each minute (how dark each
+    country is, which are active, and what is behind each) comes in
     partial/map-world-body, which the poll swaps and netmap.js applies to the
-    outline, so the outline is sent once rather than every minute.
+    outline, so the outline is sent only once.
 */ -}}
 {{ define "partial/map-world" }}
 {{- $watching := .Watching }}

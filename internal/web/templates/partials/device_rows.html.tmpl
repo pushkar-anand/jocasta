@@ -36,9 +36,9 @@
     </div>
     {{- with .Pager }}
     {{- /*
-        Plain links, not an htmx swap: a page change moves the address bar as
-        much as it moves the table, so a full navigation is the honest thing --
-        the same choice the event and scan logs make.
+        Plain links: a page change moves the address bar as much as it moves the
+        table, so a full navigation is the honest thing, the same choice the
+        event and scan logs make.
     */}}
     <nav class="pager pager--split" aria-label="Device list pages">
         {{- if .HasPrev }}

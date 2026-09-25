@@ -22,9 +22,9 @@ const totpIssuer = "jocasta"
 
 // totpMaxAttempts caps consecutive wrong codes against one pending sign-in.
 // A 6-digit TOTP code is only ~1e6 possibilities across a ~30-90s validity
-// window, materially weaker than a password is ever allowed to be -- so this
-// pending session earns the one rate-limit-shaped check in a codebase that
-// otherwise has none. It bounds guesswork against the second factor only:
+// window, far weaker than any password is allowed to be, so this pending
+// session gets the only rate-limit-shaped check in the codebase. It bounds
+// guesswork against the second factor only:
 // the account itself stays exactly as reachable as before, by trying the
 // password again from a fresh sign-in.
 const totpMaxAttempts = 5
@@ -48,8 +48,8 @@ type totpManager interface {
 }
 
 // StartTOTPEnrollment generates a new, unconfirmed secret for userID and
-// stores it, overwriting any secret an earlier, abandoned attempt left --
-// restarting enrollment is always safe up until ConfirmTOTPEnrollment flips
+// stores it, overwriting any secret an earlier, abandoned attempt left.
+// Restarting enrollment is safe until ConfirmTOTPEnrollment flips
 // totp_enabled.
 func (a *Auth) StartTOTPEnrollment(ctx context.Context, userID int64, username string) (*otp.Key, error) {
 	key, err := totp.Generate(totp.GenerateOpts{Issuer: totpIssuer, AccountName: username})
@@ -91,7 +91,7 @@ func (a *Auth) PendingTOTPKey(ctx context.Context, userID int64) (*otp.Key, erro
 
 // ConfirmTOTPEnrollment validates code against the secret StartTOTPEnrollment
 // stored, and only on success flips totp_enabled and mints a fresh set of
-// recovery codes -- an enrollment abandoned before this point leaves 2FA
+// recovery codes; an enrollment abandoned before this point leaves 2FA
 // off. The returned codes are plaintext, and this is the only call that ever
 // produces them; only their hashes are kept.
 func (a *Auth) ConfirmTOTPEnrollment(ctx context.Context, userID int64, code string) ([]string, error) {
@@ -114,10 +114,10 @@ func (a *Auth) ConfirmTOTPEnrollment(ctx context.Context, userID int64, code str
 	return a.regenerateRecoveryCodes(ctx, userID)
 }
 
-// DisableTOTP requires the current password -- proof of the same credential
-// that would still sign this account in without the second factor -- and
-// removes both the TOTP secret and every recovery code, so re-enabling later
-// is an enrollment from scratch, not a reactivation of stale state.
+// DisableTOTP requires the current password, the credential that would still
+// sign this account in without the second factor. It removes both the TOTP
+// secret and every recovery code, so re-enabling later starts a fresh
+// enrollment.
 func (a *Auth) DisableTOTP(ctx context.Context, userID int64, password string) error {
 	user, err := a.q.GetUserByID(ctx, userID)
 	if err != nil {
@@ -170,11 +170,10 @@ func (a *Auth) TOTPStatus(ctx context.Context, userID int64) (enabled, enrolling
 }
 
 // VerifyTOTP completes a sign-in Login left pending on a second factor. code
-// is checked as a TOTP value first, then as an unused recovery code -- one
+// is checked as a TOTP value first, then as an unused recovery code: one
 // field covers both, since reaching for a backup code means typing it into
-// the same box. Every check runs against the session's own pending user,
-// never anything the request claims, so nothing about who this verifies is
-// client-controlled.
+// the same box. Every check runs against the session's own pending user, so
+// nothing about who this verifies is client-controlled.
 func (a *Auth) VerifyTOTP(ctx context.Context, sm *Session, code string) (*models.User, error) {
 	d, ok := sm.s.Current(ctx)
 	if !ok || d.PendingUserID == 0 {
@@ -260,7 +259,7 @@ func (a *Auth) regenerateRecoveryCodes(ctx context.Context, userID int64) ([]str
 }
 
 // generateRecoveryCode returns one single-use code, grouped the way a card
-// number is -- it's copied by hand as often as pasted.
+// number is, because it is copied by hand as often as pasted.
 func generateRecoveryCode() (string, error) {
 	b := make([]byte, 10)
 	if _, err := rand.Read(b); err != nil {

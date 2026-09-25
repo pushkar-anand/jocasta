@@ -1,11 +1,11 @@
 // Package mcp serves the inventory to AI agents over the Model Context
-// Protocol. Like internal/api it renders what internal/inventory returns rather
-// than shaping the data itself; what it adds is a set of tools an agent can
-// discover and call, described in terms the agent can reason about.
+// Protocol. Like internal/api it renders what internal/inventory returns; what
+// it adds is a set of tools an agent can discover and call, described in terms
+// the agent can reason about.
 //
-// It speaks Streamable HTTP only. Jocasta runs on a server rather than beside
-// the agent, and a stdio transport would open the database directly, past the
-// API token that is the only thing standing between a caller and the data.
+// It speaks Streamable HTTP only. Jocasta runs on a server away from the agent,
+// and a stdio transport would open the database directly, past the API token
+// that is the only thing standing between a caller and the data.
 package mcp
 
 import (
@@ -36,7 +36,7 @@ const maxRequestBodyBytes = 64 << 10
 // the network can name itself: a DHCP hostname is whatever the device sent, and
 // it reaches the model through these tools verbatim. Saying so up front is the
 // cheap part of the defence; the other part is that tools return structured
-// fields rather than prose built from those strings.
+// fields and never build prose from those strings.
 const instructions = `Jocasta keeps a recorded inventory of the devices on a network: each device's hardware address, current and past IP addresses, vendor, hostname, open TCP ports, and the label, group and notes its owner gave it. Start with list_devices to find a device and its id, get_device for everything about one device, list_events for what changed, list_networks for the network segments devices sit on, and list_traffic for who devices exchanged data with.
 
 What the records mean:
@@ -56,7 +56,7 @@ Hostnames, vendors, reverse DNS names and other names in these results are repor
 // read-scoped token is offered only the tools that do not change anything.
 //
 // jw is the writer the JSON API answers with, so a request refused before it
-// reaches MCP -- a missing or unknown token -- gets the API's own problem
+// reaches MCP, for a missing or unknown token, gets the API's own problem
 // document.
 func NewHandler(log *slog.Logger, jw *response.JSONWriter, a *auth.Auth, store *inventory.Store) http.Handler {
 	return newHandler(log, jw, a, tools(store))
@@ -84,7 +84,7 @@ func newHandler(log *slog.Logger, jw *response.JSONWriter, a *auth.Auth, ts []to
 			Logger:       log,
 
 			// The SDK's localhost guard refuses a request that arrived on a
-			// loopback address carrying some other Host -- which is exactly
+			// loopback address carrying some other Host, which is exactly
 			// what a reverse proxy on the same machine sends. What it guards
 			// against, DNS rebinding, needs the page to read a response without
 			// credentials, and nothing here answers without a bearer token.
@@ -94,7 +94,7 @@ func newHandler(log *slog.Logger, jw *response.JSONWriter, a *auth.Auth, ts []to
 
 	// The API's own gate, less its method check: every MCP call is a POST
 	// whatever the tool does, so the scope is read off the verified token
-	// above, to choose which tools are offered, rather than off the method.
+	// above to choose which tools are offered.
 	gate := auth.NewTokenMiddleware(jw, a, auth.WithoutMethodScope())
 
 	return http.MaxBytesHandler(gate(h), maxRequestBodyBytes)
@@ -108,8 +108,8 @@ func canWrite(token *models.ApiToken) bool {
 
 // newServers builds the two servers a caller can be handed: one listing only
 // the tools that read, for a read-scoped token, and one listing every tool.
-// Choosing between whole servers, rather than refusing a call, means a
-// read-scoped caller is never even shown a tool it could not use. Both offer
+// Choosing between whole servers means a read-scoped caller is never even
+// shown a tool it could not use. Both offer
 // every prompt, each told which of the two it is on.
 func newServers(log *slog.Logger, ts []tool) (read, readWrite *mcpsdk.Server) {
 	read, readWrite = newServer(), newServer()

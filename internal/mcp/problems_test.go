@@ -72,8 +72,7 @@ func TestToolErrorTheAPIRecognisesIsItsProblem(t *testing.T) {
 }
 
 // An unexpected error is logged and answered with a bare 500: its text can
-// name storage internals, which are the server log's business, not the
-// agent's.
+// name storage internals, which belong in the server log.
 func TestToolErrorThatIsUnexpectedIsLoggedNotShown(t *testing.T) {
 	t.Parallel()
 

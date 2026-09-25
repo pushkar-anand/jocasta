@@ -22,8 +22,8 @@ type Explanation struct {
 	Matches []RuleMatch // every rule that fired, most specific first
 }
 
-// Explain runs the same pipeline as [Device] and returns everything that
-// matched, not just the winner.
+// Explain runs the same pipeline as [Device] and returns every rule that
+// matched, along with the winner.
 func Explain(in Input) Explanation {
 	f := facts(in)
 	res := Device(in)

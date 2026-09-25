@@ -38,8 +38,8 @@ func testLogger() *slog.Logger {
 }
 
 // testStore opens a migrated database in a directory scoped to the test and
-// returns the inventory over it. These tests assert on the HTTP surface rather
-// than on presence, so the store takes the default online window.
+// returns the inventory over it. These tests assert on the HTTP surface, so the
+// store takes the default online window.
 func testStore(t *testing.T) *inventory.Store {
 	t.Helper()
 
@@ -51,9 +51,9 @@ func testStore(t *testing.T) *inventory.Store {
 	return inventory.New(conn, testLogger())
 }
 
-// testConn opens a migrated database for the parts of Start that take one
-// directly -- the session store. These tests assert on the HTTP surface, not on
-// sessions surviving anything, so it need not be the store's or auth's DB.
+// testConn opens a migrated database for the part of Start that takes one
+// directly: the session store. These tests assert only on the HTTP surface, so
+// it need not be the store's or auth's DB.
 func testConn(t *testing.T) *sql.DB {
 	t.Helper()
 
@@ -147,7 +147,7 @@ func startServer(t *testing.T) (string, string) {
 
 	port := freePort(t)
 
-	// Opened here rather than in the goroutine below: these helpers register
+	// Opened here, outside the goroutine below: these helpers register
 	// cleanups, and t.Cleanup must not be called from another goroutine.
 	conn := testConn(t)
 	store := testStore(t)
@@ -199,8 +199,8 @@ func getWith(t *testing.T, client *http.Client, target string) *http.Response {
 }
 
 // loginClient signs in as the seeded test user and returns a client carrying
-// the resulting session cookie, for a test that needs the signed-in view
-// rather than the sign-in page every other client here gets redirected to.
+// the resulting session cookie, for a test that needs the signed-in view.
+// Every other client here is redirected to the sign-in page.
 func loginClient(t *testing.T, baseURL string) *http.Client {
 	t.Helper()
 
@@ -244,15 +244,15 @@ func TestStartRoutes(t *testing.T) {
 	})
 
 	// The web handler requires a session, so a signed-out request would find
-	// this route via the login redirect regardless of whether it exists --
-	// telling that apart from a genuine 404 needs a client that is signed in.
+	// this route via the login redirect regardless of whether it exists.
+	// Telling that apart from a genuine 404 needs a client that is signed in.
 	client := loginClient(t, baseURL)
 
 	t.Run("the api prefix is stripped", func(t *testing.T) {
 		// Without StripPrefix this would reach the API handler as /api/livez.
 		// With it, /livez outside the prefix is not an API route at all: it
 		// falls through to the web handler, which does not know the path and
-		// says so in HTML rather than answering with the API's JSON.
+		// says so in HTML.
 		res := getWith(t, client, baseURL+"/livez")
 		defer func() { _ = res.Body.Close() }()
 
@@ -298,9 +298,8 @@ func TestStartRoutes(t *testing.T) {
 		assert.NotEmpty(t, res.Header.Get("X-Request-Id"))
 	})
 
-	// The headers are set for the whole mux rather than by the renderer, which
-	// is what a stylesheet or the vendored htmx needs: neither passes through a
-	// template.
+	// The headers are set for the whole mux, which is what a stylesheet or the
+	// vendored htmx needs: neither passes through a template.
 	t.Run("security headers reach every response", func(t *testing.T) {
 		for _, path := range []string{"/", "/static/style.css", "/static/js/htmx.min.js", "/api/livez"} {
 			t.Run(path, func(t *testing.T) {
@@ -351,9 +350,8 @@ func TestStartFailsOnPortInUse(t *testing.T) {
 }
 
 // patchWith sends a state-changing request carrying the headers a browser
-// would send from the given site, and a token good enough that the token gate
-// itself is never what answers -- what's under test here is sameOrigin, not
-// that.
+// would send from the given site, and a valid token, so the token gate never
+// answers and the test exercises sameOrigin.
 func patchWith(t *testing.T, url, apiToken string, headers map[string]string) *http.Response {
 	t.Helper()
 
@@ -376,8 +374,8 @@ func patchWith(t *testing.T, url, apiToken string, headers map[string]string) *h
 }
 
 // A state-changing request that a browser says came from another site is
-// turned away regardless of the API token it carries -- sameOrigin guards the
-// session-cookie-authenticated web UI, but runs ahead of the API's own routes
+// turned away regardless of the API token it carries. sameOrigin guards the
+// session-cookie-authenticated web UI, and runs ahead of the API's own routes
 // too, so a forged cross-site write never reaches the token check either.
 func TestCrossOriginWriteIsRefused(t *testing.T) {
 	baseURL, apiToken := startServer(t)
@@ -430,7 +428,7 @@ func TestCrossOriginWriteIsRefused(t *testing.T) {
 			}
 
 			// Allowed through to the handler, which has no such device in an
-			// empty inventory. Either way it is not sameOrigin refusing it.
+			// empty inventory. Either way, sameOrigin let it through.
 			assert.NotEqual(t, http.StatusForbidden, res.StatusCode)
 		})
 	}
@@ -455,8 +453,7 @@ func TestCrossOriginReadIsAllowed(t *testing.T) {
 	assert.Equal(t, http.StatusOK, res.StatusCode)
 }
 
-// startServerWithOrigins is startServer with an explicit CORS allow-list,
-// rather than the default of the server's own address.
+// startServerWithOrigins is startServer with an explicit CORS allow-list.
 func startServerWithOrigins(t *testing.T, origins []string) string {
 	t.Helper()
 
@@ -557,7 +554,7 @@ func TestCORSPreflight(t *testing.T) {
 }
 
 // Leaving CORSAllowedOrigins unset defaults to the server's own address, so a
-// third-party site still gets no CORS header -- unset does not mean open.
+// third-party site still gets no CORS header.
 func TestCORSDefaultsToOwnAddress(t *testing.T) {
 	baseURL, _ := startServer(t)
 
@@ -575,7 +572,7 @@ func TestCORSDefaultsToOwnAddress(t *testing.T) {
 }
 
 // A PATCH body past maxRequestBodyBytes is refused before it is decoded in
-// full, rather than being read unbounded into memory.
+// full, so an unbounded body never reaches memory.
 func TestRequestBodyTooLargeIsRejected(t *testing.T) {
 	baseURL, apiToken := startServer(t)
 
@@ -617,8 +614,7 @@ func postMCP(t *testing.T, baseURL string) *http.Response {
 	return res
 }
 
-// With MCP off, /mcp says so in a problem document rather than falling
-// through to the web UI's sign-in redirect.
+// With MCP off, /mcp says so in a problem document.
 func TestMCPDisabledSaysSo(t *testing.T) {
 	baseURL, _ := startServer(t)
 

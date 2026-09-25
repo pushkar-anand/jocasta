@@ -75,8 +75,8 @@ func listGroups(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 			return nil, listGroupsOutput{}, err
 		}
 
-		// No group assigned yet is an empty list, not null, so the result
-		// matches its schema.
+		// No group assigned yet is an empty list, so the result matches its
+		// schema.
 		if groups == nil {
 			groups = []string{}
 		}

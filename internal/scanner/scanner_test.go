@@ -10,7 +10,7 @@ import (
 )
 
 // Address enumeration itself is covered in pkg/cidr. What belongs here is the
-// sweep cap, which is this scanner's policy rather than a property of a prefix.
+// sweep cap, which is this scanner's policy.
 func TestScanRejectsPrefixOverCap(t *testing.T) {
 	t.Parallel()
 

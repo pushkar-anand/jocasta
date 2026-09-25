@@ -14,7 +14,7 @@ import (
 // whether the next attempt could go better: a router behind a firewall may
 // come back, a password that is wrong is wrong until someone edits the config.
 var (
-	// ErrUnreachable is a router that could not be contacted at all -- a
+	// ErrUnreachable is a router that could not be contacted at all: a
 	// refused connection, a timeout, a name that does not resolve. Worth
 	// retrying.
 	ErrUnreachable = errors.New("routeros: router unreachable")
@@ -30,22 +30,22 @@ var (
 	ErrTLS = errors.New("routeros: certificate not verified")
 
 	// ErrNotFound is an endpoint this build asks for and this router does not
-	// serve -- most often a RouterOS 6 box, which has no REST service at all,
-	// or a package the router does not have installed.
+	// serve. Most often the router runs RouterOS 6, which has no REST service
+	// at all, or lacks the package that serves the endpoint.
 	ErrNotFound = errors.New("routeros: endpoint not found")
 )
 
 // stdFailureNotAllowed is RouterOS's own code for a request the logged-in user
-// has no policy for. The status that carries it is 500, not 403: the router
-// authenticated the user and then its console refused the command, and it
-// reports that refusal as a fault rather than as a permission decision.
+// has no policy for. The status that carries it is 500: the router
+// authenticated the user, then its console refused the command, and the router
+// reports that refusal as a fault.
 const stdFailureNotAllowed = 9
 
 // stdFailure reads RouterOS's failure code off the end of a detail such as
 // "std failure: not allowed (9)", returning -1 when there is none.
 //
 // The code is the only part of that string worth branching on. The prose
-// around it is the router explaining itself to a human and is not a contract.
+// around it is written for a human and may change between releases.
 func stdFailure(detail string) int {
 	if !strings.HasSuffix(detail, ")") {
 		return -1
@@ -96,9 +96,9 @@ func (e *Error) Error() string {
 // Unwrap maps what the router said onto sentinels, so that errors.Is answers
 // the retry question without anyone reading Status.
 //
-// A user that logs in and is then refused every command is as much a
-// credentials problem as a wrong password -- the account exists and cannot do
-// the job -- so it unwraps to ErrUnauthorized despite arriving as a 500.
+// A user that logs in and is then refused every command has an account that
+// cannot do the job. That is as much a credentials problem as a wrong
+// password, so it unwraps to ErrUnauthorized despite arriving as a 500.
 func (e *Error) Unwrap() error {
 	switch e.Status {
 	case http.StatusUnauthorized, http.StatusForbidden:
@@ -115,7 +115,7 @@ func (e *Error) Unwrap() error {
 }
 
 // statusError reads what the router said about a non-OK response. A body that
-// is not the expected JSON is not itself an error: the status is the fact, and
+// is not the expected JSON still yields an [Error] carrying the status:
 // something answering this port that is not a router will not describe itself
 // in RouterOS's terms.
 func statusError(status int, body io.Reader) error {

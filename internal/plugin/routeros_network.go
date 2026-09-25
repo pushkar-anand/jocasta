@@ -17,7 +17,7 @@ import (
 // Two tables again: /ip/address knows every prefix and the interface behind
 // it, and /interface/vlan is the only place the interface name resolves to a
 // tag. The addresses are the answer and the tags decorate it, so losing the
-// second costs the tags and not the segments.
+// second costs only the tags.
 func (r *RouterOS) Networks(ctx context.Context) ([]Network, error) {
 	addrs, err := r.client.Addresses(ctx)
 	if err != nil {
@@ -35,8 +35,7 @@ func (r *RouterOS) Networks(ctx context.Context) ([]Network, error) {
 }
 
 // byInterface keys the VLAN table the way an address refers to it. A row whose
-// tag does not parse is left out, so a lookup that misses reports no tag rather
-// than a wrong one.
+// tag does not parse is left out, so a lookup that misses reports no tag.
 func byInterface(vlans []routeros.VLAN) map[string]routeros.VLAN {
 	out := make(map[string]routeros.VLAN, len(vlans))
 
@@ -58,7 +57,7 @@ func (r *RouterOS) buildNetworks(
 	vlans map[string]routeros.VLAN,
 ) []Network {
 	// Sorted before the walk, so which of two addresses on one prefix names it
-	// is the same answer every run rather than however the table came back.
+	// is the same answer every run.
 	slices.SortFunc(addrs, func(a, b routeros.IPAddress) int {
 		return cmp.Or(
 			cmp.Compare(a.Address, b.Address),

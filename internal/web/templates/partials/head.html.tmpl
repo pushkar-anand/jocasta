@@ -9,7 +9,7 @@
     {{- /*
         htmx injects a style element for its indicator classes, which the
         content security policy refuses. Turned off here and declared in the
-        stylesheet instead; a meta tag is how htmx can be configured without
+        stylesheet; a meta tag is how htmx can be configured without
         the inline script the policy would also refuse.
     */}}
     <meta name="htmx-config" content='{"includeIndicatorStyles":false}'>
@@ -48,7 +48,7 @@
 
     {{ template "partial/nav" . }}
 
-    {{- /* Pushed to the foot of the rail: ambient, not a control. */}}
+    {{- /* Pushed to the foot of the rail, where ambient information sits. */}}
     {{- with .Note }}
     <div class="sidebar__foot">
         <div class="sidebar__foot-note">
