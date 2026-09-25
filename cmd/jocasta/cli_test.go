@@ -16,6 +16,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/hosts"
+	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/plugin"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/stretchr/testify/assert"
@@ -212,7 +213,8 @@ func TestPortsCmdSaveRecordsAScan(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Scan.Source = "test-sweep"
 
-	require.NoError(t, cmd.Run(t.Context(), cfg, slog.New(slog.DiscardHandler), conn))
+	log := slog.New(slog.DiscardHandler)
+	require.NoError(t, cmd.Run(t.Context(), cfg, log, inventory.New(conn, log)))
 
 	var scans int
 	require.NoError(t, conn.QueryRowContext(t.Context(),

@@ -3,7 +3,6 @@ package main
 import (
 	"cmp"
 	"context"
-	"database/sql"
 	"fmt"
 	"io"
 	"log/slog"
@@ -32,9 +31,7 @@ type PortsCmd struct {
 // prints what answered. It is the way a port scan is checked against real
 // hardware without starting the server, the same affordance scan and plugin
 // provide.
-func (p *PortsCmd) Run(ctx context.Context, cfg *config.Config, log *slog.Logger, conn *sql.DB) error {
-	store := inventory.New(conn, log)
-
+func (p *PortsCmd) Run(ctx context.Context, cfg *config.Config, log *slog.Logger, store *inventory.Store) error {
 	targets, err := p.targets(ctx, store)
 	if err != nil {
 		return err
