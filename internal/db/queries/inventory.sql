@@ -421,6 +421,14 @@ LIMIT ?;
 -- Every address a port scan should probe: the current address of every device
 -- the user has not ignored. The scan works from what discovery has already
 -- found, so this is its whole target list.
+-- Every address a device holds now, ignored devices included, for a traffic
+-- flush to settle which device each end of a flow is in one read. The partial
+-- unique index on current addresses gives each address one holder.
+-- name: CurrentHolders :many
+SELECT a.ip, a.device_id
+FROM addresses a
+WHERE a.is_current = 1;
+
 -- name: AllCurrentAddresses :many
 SELECT a.device_id, a.ip
 FROM addresses a

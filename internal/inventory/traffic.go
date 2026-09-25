@@ -336,50 +336,12 @@ func (s *Store) recordTraffic(
 	routers map[netip.Addr]bool,
 	names func(context.Context, []netip.Addr) map[netip.Addr]string,
 ) error {
-	holders := make(map[netip.Addr]int64)
-
-	holder := func(q *models.Queries, a netip.Addr) (int64, error) {
-		if id, ok := holders[a]; ok {
-			return id, nil
-		}
-
-		d, err := currentHolder(ctx, q, dbtype.NewAddr(a))
-		if err != nil {
-			return 0, err
-		}
-
-		var id int64
-		if d != nil {
-			id = d.ID
-		}
-
-		holders[a] = id
-
-		return id, nil
-	}
-
-	// Settle devices first, outside the write, so the peers that need a name
-	// are known before any lookup and no lookup runs inside the transaction.
-	for k := range pending {
-		for _, a := range []netip.Addr{k.src, k.dst} {
-			if _, err := holder(s.q, a); err != nil {
-				return err
-			}
-		}
-	}
-
-	for k := range attempts {
-		for _, a := range []netip.Addr{k.src, k.dst} {
-			if _, err := holder(s.q, a); err != nil {
-				return err
-			}
-		}
-	}
-
-	for k := range broadcasts {
-		if _, err := holder(s.q, k.src); err != nil {
-			return err
-		}
+	// One read settles every device, outside the write, so the peers that need
+	// a name are known before any lookup and no lookup runs inside the
+	// transaction. An address absent from the map is held by no device.
+	holders, err := s.currentHolders(ctx)
+	if err != nil {
+		return err
 	}
 
 	var unnamed []netip.Addr
@@ -613,4 +575,19 @@ func parseHour(what, s string) (time.Time, error) {
 	}
 
 	return t, nil
+}
+
+// currentHolders maps every address a device holds now to that device.
+func (s *Store) currentHolders(ctx context.Context) (map[netip.Addr]int64, error) {
+	rows, err := s.q.CurrentHolders(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("current holders: %w", err)
+	}
+
+	holders := make(map[netip.Addr]int64, len(rows))
+	for _, r := range rows {
+		holders[r.IP.Addr] = r.DeviceID
+	}
+
+	return holders, nil
 }
