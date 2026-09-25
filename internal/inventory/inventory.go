@@ -369,7 +369,7 @@ func nullInt64(n int) sql.NullInt64 {
 // report records one source's reading: it opens a scan row, ingests the facts
 // as one transaction, and closes the scan with whatever happened.
 func (s *Store) report(ctx context.Context, r reading) (*Result, error) {
-	scanID, sourceID, err := s.open(ctx, r)
+	scanID, sourceID, err := s.openScan(ctx, r.source, r.kind, dbtype.ScanDiscovery, r.network)
 	if err != nil {
 		return nil, err
 	}
@@ -403,12 +403,6 @@ func (s *Store) report(ctx context.Context, r reading) (*Result, error) {
 	}
 
 	return res, nil
-}
-
-// open registers the source and opens a running discovery scan, recording the
-// network when the reading covered exactly one.
-func (s *Store) open(ctx context.Context, r reading) (scanID, sourceID int64, err error) {
-	return s.openScan(ctx, r.source, r.kind, dbtype.ScanDiscovery, r.network)
 }
 
 // openScan is the first of the three phases every recorded reading shares: it
