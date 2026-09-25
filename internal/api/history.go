@@ -26,7 +26,7 @@ func (h *Handler) listEvents(store *inventory.Store) response.HandlerFunc {
 
 			// NextCursor is what to ask for to get the window after this one,
 			// and is absent once the log has been read to the end.
-			NextCursor *inventory.Cursor `json:"next_cursor,omitzero"`
+			NextCursor inventory.Cursor `json:"next_cursor,omitzero"`
 		}
 	)
 
@@ -47,7 +47,7 @@ func (h *Handler) listEvents(store *inventory.Store) response.HandlerFunc {
 		h.jsonWriter.Ok(w, r, eventsResponse{
 			Events:     page.Events,
 			Count:      len(page.Events),
-			NextCursor: nextCursor(page.Next),
+			NextCursor: page.Next,
 		})
 
 		return nil
@@ -64,7 +64,7 @@ func (h *Handler) listScans(store *inventory.Store) response.HandlerFunc {
 		scansResponse struct {
 			Scans      []*inventory.Scan `json:"scans"`
 			Count      int               `json:"count"`
-			NextCursor *inventory.Cursor `json:"next_cursor,omitzero"`
+			NextCursor inventory.Cursor  `json:"next_cursor,omitzero"`
 		}
 	)
 
@@ -85,20 +85,9 @@ func (h *Handler) listScans(store *inventory.Store) response.HandlerFunc {
 		h.jsonWriter.Ok(w, r, scansResponse{
 			Scans:      page.Scans,
 			Count:      len(page.Scans),
-			NextCursor: nextCursor(page.Next),
+			NextCursor: page.Next,
 		})
 
 		return nil
 	}
-}
-
-// nextCursor renders the cursor a page ended on, or nil when it ended the
-// log. The member is then omitted, and its absence tells a client to stop
-// without testing for a null.
-func nextCursor(c inventory.Cursor) *inventory.Cursor {
-	if c.IsZero() {
-		return nil
-	}
-
-	return &c
 }

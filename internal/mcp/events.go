@@ -32,7 +32,7 @@ type listEventsOutput struct {
 
 	// NextCursor is what to pass as cursor for the page after this one, and is
 	// absent once the log has been read to the end.
-	NextCursor *inventory.Cursor `json:"next_cursor,omitzero"`
+	NextCursor inventory.Cursor `json:"next_cursor,omitzero"`
 }
 
 // listEvents is inventory.Store.ListEvents, offered as a tool.
@@ -85,12 +85,7 @@ func listEvents(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 			return nil, listEventsOutput{}, err
 		}
 
-		out := listEventsOutput{Events: page.Events, Count: len(page.Events)}
-		if !page.Next.IsZero() {
-			out.NextCursor = &page.Next
-		}
-
-		return nil, out, nil
+		return nil, listEventsOutput{Events: page.Events, Count: len(page.Events), NextCursor: page.Next}, nil
 	}
 
 	return func(s *mcpsdk.Server, log *slog.Logger) { addTool(s, log, t, handler) }
