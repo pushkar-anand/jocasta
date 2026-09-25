@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +16,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/pushkar-anand/jocasta/internal/hosts"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
+	"github.com/pushkar-anand/jocasta/internal/problem"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -54,23 +54,11 @@ func testReader(t *testing.T) *request.Reader {
 	return request.NewReader(testLogger(), v)
 }
 
-// testJSONWriter builds the response writer the way the server does, mapping
-// a not-found lookup to its problem response, so handlers under test report
-// errors the way the running service does.
+// testJSONWriter builds the response writer the way the server does, with the
+// same problem mapping, so handlers under test report errors the way the
+// running service does.
 func testJSONWriter() *response.JSONWriter {
-	return response.NewJSONWriter(testLogger(),
-		response.WithErrorProblemMapper(func(err error) response.Problem {
-			if errors.Is(err, inventory.ErrNotFound) {
-				return response.NewProblem().
-					WithStatus(http.StatusNotFound).
-					WithTitle(http.StatusText(http.StatusNotFound)).
-					WithDetail(err.Error()).
-					Build()
-			}
-
-			return nil
-		}),
-	)
+	return response.NewJSONWriter(testLogger(), response.WithErrorProblemMapper(problem.For))
 }
 
 // testStore opens an inventory over a migrated database scoped to the test.
