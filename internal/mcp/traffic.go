@@ -113,7 +113,7 @@ func listTraffic(store *inventory.Store, now func() time.Time) func(*mcpsdk.Serv
 
 		if in.DeviceID != 0 {
 			// An id that names no device is a 404.
-			if _, err := store.Device(ctx, in.DeviceID); err != nil {
+			if err := store.RequireDevice(ctx, in.DeviceID); err != nil {
 				return nil, listTrafficOutput{}, err
 			}
 		}
