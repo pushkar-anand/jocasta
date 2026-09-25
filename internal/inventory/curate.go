@@ -12,6 +12,16 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 )
 
+// The longest each free-text curation field may be. The API, the web form and
+// the MCP tool all hold an edit to these; the first two spell them out in
+// validate tags, since a tag cannot name a constant, and tests keep the two in
+// step.
+const (
+	LabelMaxLength = 200
+	GroupMaxLength = 100
+	NotesMaxLength = 2000
+)
+
 // Curation is what the user owns on a device. No scan or plugin writes any of
 // it, which is why it survives the device moving address or being re-identified.
 //

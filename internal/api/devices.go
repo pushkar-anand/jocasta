@@ -111,13 +111,7 @@ func (h *Handler) updateDevice(store *inventory.Store) response.HandlerFunc {
 			return err
 		}
 
-		device, err := store.UpdateCuration(r.Context(), id, inventory.Curation{
-			Label:   body.Label,
-			Notes:   body.Notes,
-			Group:   body.Group,
-			Type:    body.Type,
-			Ignored: body.Ignored,
-		})
+		device, err := store.UpdateCuration(r.Context(), id, inventory.Curation(*body))
 		if err != nil {
 			return err
 		}

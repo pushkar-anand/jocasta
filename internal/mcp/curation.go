@@ -10,14 +10,6 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// The longest each free-text field may be, the same bounds PATCH
-// /api/devices/{id} holds a body to.
-const (
-	labelMaxLength = 200
-	groupMaxLength = 100
-	notesMaxLength = 2000
-)
-
 // updateDeviceCurationInput is a device and every field its owner controls.
 //
 // No field is optional: the call replaces all five, so an agent that left one
@@ -90,9 +82,9 @@ func updateDeviceCurationSchema() *jsonschema.Schema {
 	s := schemaFor[updateDeviceCurationInput]()
 
 	s.Properties["id"].Minimum = new(1.0)
-	s.Properties["label"].MaxLength = new(labelMaxLength)
-	s.Properties["group"].MaxLength = new(groupMaxLength)
-	s.Properties["notes"].MaxLength = new(notesMaxLength)
+	s.Properties["label"].MaxLength = new(inventory.LabelMaxLength)
+	s.Properties["group"].MaxLength = new(inventory.GroupMaxLength)
+	s.Properties["notes"].MaxLength = new(inventory.NotesMaxLength)
 
 	s.Properties["type"].Enum = append([]any{""}, enumOf(classify.Classes())...)
 

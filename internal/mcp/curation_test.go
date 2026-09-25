@@ -81,9 +81,9 @@ func TestUpdateDeviceCuration(t *testing.T) {
 
 	for name, change := range map[string]map[string]any{
 		"an unknown type":    {"type": "toaster"},
-		"a label too long":   {"label": strings.Repeat("a", labelMaxLength+1)},
-		"a group too long":   {"group": strings.Repeat("a", groupMaxLength+1)},
-		"notes too long":     {"notes": strings.Repeat("a", notesMaxLength+1)},
+		"a label too long":   {"label": strings.Repeat("a", inventory.LabelMaxLength+1)},
+		"a group too long":   {"group": strings.Repeat("a", inventory.GroupMaxLength+1)},
+		"notes too long":     {"notes": strings.Repeat("a", inventory.NotesMaxLength+1)},
 		"an id never issued": {"id": 0},
 	} {
 		t.Run(name+" is refused", func(t *testing.T) {

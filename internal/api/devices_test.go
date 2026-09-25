@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -314,10 +315,24 @@ func TestUpdateDeviceRejectsInvalidType(t *testing.T) {
 	assert.Contains(t, problemContext(t, body), "type")
 }
 
+// The body's validate tags spell out inventory's limits, since a tag cannot
+// name a constant; a field exactly at its limit is accepted.
+func TestUpdateDeviceAcceptsFieldsAtTheirLimit(t *testing.T) {
+	t.Parallel()
+
+	body := fmt.Sprintf(`{"label": %q, "group": %q, "notes": %q}`,
+		strings.Repeat("x", inventory.LabelMaxLength),
+		strings.Repeat("x", inventory.GroupMaxLength),
+		strings.Repeat("x", inventory.NotesMaxLength))
+	status, _, _ := patchJSON(t, seeded(t), "/devices/1", body)
+
+	require.Equal(t, http.StatusOK, status)
+}
+
 func TestUpdateDeviceRejectsOverlongLabel(t *testing.T) {
 	t.Parallel()
 
-	label := strings.Repeat("x", 201)
+	label := strings.Repeat("x", inventory.LabelMaxLength+1)
 	status, _, body := patchJSON(t, seeded(t), "/devices/1", fmt.Sprintf(`{"label": %q}`, label))
 
 	require.Equal(t, http.StatusUnprocessableEntity, status)
@@ -327,7 +342,7 @@ func TestUpdateDeviceRejectsOverlongLabel(t *testing.T) {
 func TestUpdateDeviceRejectsOverlongNotes(t *testing.T) {
 	t.Parallel()
 
-	notes := strings.Repeat("x", 2001)
+	notes := strings.Repeat("x", inventory.NotesMaxLength+1)
 	status, _, body := patchJSON(t, seeded(t), "/devices/1", fmt.Sprintf(`{"notes": %q}`, notes))
 
 	require.Equal(t, http.StatusUnprocessableEntity, status)
@@ -337,7 +352,7 @@ func TestUpdateDeviceRejectsOverlongNotes(t *testing.T) {
 func TestUpdateDeviceRejectsOverlongGroup(t *testing.T) {
 	t.Parallel()
 
-	group := strings.Repeat("x", 101)
+	group := strings.Repeat("x", inventory.GroupMaxLength+1)
 	status, _, body := patchJSON(t, seeded(t), "/devices/1", fmt.Sprintf(`{"group": %q}`, group))
 
 	require.Equal(t, http.StatusUnprocessableEntity, status)
