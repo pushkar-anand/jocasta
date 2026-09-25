@@ -173,13 +173,7 @@ type peerRow struct {
 	// section shows them.
 	Tried []*inventory.Attempt
 
-	Sent, Received  int64
-	Tries, Answered int64
-	LastHour        time.Time
-
-	// Outgoing counts the connections the device opened on the peer,
-	// Incoming the ones the peer opened on the device.
-	Outgoing, Incoming int64
+	peerTally
 }
 
 // ServiceSummary names the peer's two busiest services and how many more.
@@ -209,8 +203,6 @@ func headAndMore[T any](items []T, name func(T) string, sep string) string {
 // template's breakdown.
 func (r *peerRow) ServiceLabel(p *inventory.TrafficPeer) string { return serviceLabel(p) }
 
-func (r *peerRow) total() int64 { return r.Sent + r.Received }
-
 func (r *peerRow) add(p *inventory.TrafficPeer) {
 	r.Services = append(r.Services, p)
 	r.Sent += p.Sent
@@ -227,12 +219,6 @@ func (r *peerRow) try(a *inventory.Attempt) {
 	r.seen(a.LastHour)
 }
 
-func (r *peerRow) seen(hour time.Time) {
-	if hour.After(r.LastHour) {
-		r.LastHour = hour
-	}
-}
-
 // busier orders rows by what they moved, then by how often they were tried.
 func busier(aBytes, aTries, bBytes, bTries int64) int {
 	return cmp.Or(cmp.Compare(bBytes, aBytes), cmp.Compare(bTries, aTries))
@@ -242,21 +228,30 @@ func busier(aBytes, aTries, bBytes, bTries int64) int {
 type peerTally struct {
 	Sent, Received  int64
 	Tries, Answered int64
-	Outgoing        int64
-	Incoming        int64
-	LastHour        time.Time
+
+	// Outgoing counts the connections the device opened on the peer,
+	// Incoming the ones the peer opened on the device.
+	Outgoing, Incoming int64
+
+	LastHour time.Time
 }
 
-func (t *peerTally) add(r *peerRow) {
-	t.Sent += r.Sent
-	t.Received += r.Received
-	t.Outgoing += r.Outgoing
-	t.Incoming += r.Incoming
-	t.Tries += r.Tries
-	t.Answered += r.Answered
+func (t *peerTally) total() int64 { return t.Sent + t.Received }
 
-	if r.LastHour.After(t.LastHour) {
-		t.LastHour = r.LastHour
+// merge adds o's counts to t.
+func (t *peerTally) merge(o peerTally) {
+	t.Sent += o.Sent
+	t.Received += o.Received
+	t.Outgoing += o.Outgoing
+	t.Incoming += o.Incoming
+	t.Tries += o.Tries
+	t.Answered += o.Answered
+	t.seen(o.LastHour)
+}
+
+func (t *peerTally) seen(hour time.Time) {
+	if hour.After(t.LastHour) {
+		t.LastHour = hour
 	}
 }
 
@@ -291,7 +286,7 @@ type localEntry struct {
 
 func (e *localEntry) order() (bytes, tries int64) {
 	if e.Group != nil {
-		return e.Group.Sent + e.Group.Received, e.Group.Tries
+		return e.Group.total(), e.Group.Tries
 	}
 
 	return e.Peer.total(), e.Peer.Tries
@@ -434,7 +429,7 @@ func groupLocal(peers []*inventory.TrafficPeer, tried []*inventory.Attempt) []*l
 
 		g := &strangerGroup{Prefix: pfx, Peers: rows}
 		for _, r := range rows {
-			g.add(r)
+			g.merge(r.peerTally)
 		}
 
 		out = append(out, &localEntry{Group: g})
@@ -510,14 +505,14 @@ func groupInternet(orgs []*inventory.TrafficOrg, tried []*inventory.Attempt, f t
 		e.Peers = mergePeers(st.peers, st.tried)
 
 		for _, r := range e.Peers {
-			e.add(r)
+			e.merge(r.peerTally)
 		}
 
 		out = append(out, e)
 	}
 
 	slices.SortStableFunc(out, func(a, b *orgEntry) int {
-		return busier(a.Sent+a.Received, a.Tries, b.Sent+b.Received, b.Tries)
+		return busier(a.total(), a.Tries, b.total(), b.Tries)
 	})
 
 	return out
