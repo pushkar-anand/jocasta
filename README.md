@@ -80,7 +80,7 @@ networks:
 
 server:
   auth:
-    cookie_secure: false   # only while you reach it over plain HTTP, not HTTPS
+    cookie_secure: false   # only while you reach it over plain HTTP
 ```
 
 Run the container on the host network, so it can read hardware addresses:

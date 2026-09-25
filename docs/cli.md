@@ -53,7 +53,7 @@ socket otherwise, so it runs without root.
 
 Probes TCP ports with a plain `connect()`, so it needs no privileges and cannot
 change the target. With no argument it scans every current address in the
-inventory; give an address or a prefix to scan that instead. `--ports` takes a
+inventory; give an address or a prefix to scan only that. `--ports` takes a
 spec like `22,80,443,8000-8100`; the default is a curated preset of about a
 hundred ports a homelab commonly runs. `--concurrency` caps how many
 connections are open at once (64 by default). `--save` records what it finds

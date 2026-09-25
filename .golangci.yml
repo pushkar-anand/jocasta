@@ -64,8 +64,7 @@ linters:
 
   settings:
     misspell:
-      # "routeros" is the vendor's own spelling of its operating system, not a
-      # typo for "routers".
+      # "routeros" is the vendor's own spelling of its operating system.
       ignore-rules:
         - routeros
     sloglint:

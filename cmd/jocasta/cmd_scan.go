@@ -19,7 +19,7 @@ import (
 )
 
 type ScanCmd struct {
-	Target       string        `arg:"" help:"Target CIDR prefix to sweep (e.g. 192.168.1.0/24)."`
+	Target       string        `arg:"" help:"Target CIDR prefix to sweep (e.g. 192.0.2.0/24)."`
 	Rate         int           `name:"rate" help:"Maximum ICMP echo probes per second." default:"1000"`
 	Rounds       int           `name:"rounds" help:"Probes per address before declaring host down." default:"2"`
 	Wait         time.Duration `name:"wait" help:"Wait duration for replies after final probe." default:"2s"`

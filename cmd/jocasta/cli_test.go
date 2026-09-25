@@ -85,11 +85,11 @@ func TestCLIVersionCommand(t *testing.T) {
 func TestCLIScanCommandDefaults(t *testing.T) {
 	t.Parallel()
 
-	cli, kCtx, err := parseCLI(t, []string{"scan", "192.168.1.0/24"})
+	cli, kCtx, err := parseCLI(t, []string{"scan", "192.0.2.0/24"})
 	require.NoError(t, err)
 
 	assert.Equal(t, "scan <target>", kCtx.Command())
-	assert.Equal(t, "192.168.1.0/24", cli.Scan.Target)
+	assert.Equal(t, "192.0.2.0/24", cli.Scan.Target)
 	assert.Equal(t, 1000, cli.Scan.Rate)
 	assert.Equal(t, 2, cli.Scan.Rounds)
 	assert.Equal(t, 2*time.Second, cli.Scan.Wait)
@@ -102,7 +102,7 @@ func TestCLIScanCommandCustomFlags(t *testing.T) {
 	t.Parallel()
 
 	cli, kCtx, err := parseCLI(t, []string{
-		"scan", "10.0.0.0/16",
+		"scan", "198.51.100.0/24",
 		"--rate", "500",
 		"--rounds", "5",
 		"--wait", "500ms",
@@ -113,7 +113,7 @@ func TestCLIScanCommandCustomFlags(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "scan <target>", kCtx.Command())
-	assert.Equal(t, "10.0.0.0/16", cli.Scan.Target)
+	assert.Equal(t, "198.51.100.0/24", cli.Scan.Target)
 	assert.Equal(t, 500, cli.Scan.Rate)
 	assert.Equal(t, 5, cli.Scan.Rounds)
 	assert.Equal(t, 500*time.Millisecond, cli.Scan.Wait)
@@ -307,9 +307,9 @@ func TestOutputScanResultsTable(t *testing.T) {
 
 	now := time.Now()
 	swept := []scanner.Host{
-		{Host: host("192.168.1.1", "00:00:0c:11:22:33", "router.lan", ""), RTT: 1200 * time.Microsecond, SeenAt: now},
-		{Host: host("192.168.1.100", "02:00:5e:10:00:01", "", "eth0"), RTT: 500 * time.Microsecond, SeenAt: now, Self: true},
-		{Host: host("192.168.1.101", "da:a1:19:00:11:22", "", ""), RTT: 900 * time.Microsecond, SeenAt: now},
+		{Host: host("192.0.2.1", "00:00:0c:11:22:33", "router.lan", ""), RTT: 1200 * time.Microsecond, SeenAt: now},
+		{Host: host("192.0.2.100", "02:00:5e:10:00:01", "", "eth0"), RTT: 500 * time.Microsecond, SeenAt: now, Self: true},
+		{Host: host("192.0.2.101", "da:a1:19:00:11:22", "", ""), RTT: 900 * time.Microsecond, SeenAt: now},
 	}
 
 	var buf bytes.Buffer
@@ -318,18 +318,18 @@ func TestOutputScanResultsTable(t *testing.T) {
 	require.NoError(t, err)
 
 	output := buf.String()
-	assert.Contains(t, output, "192.168.1.1")
+	assert.Contains(t, output, "192.0.2.1")
 	assert.Contains(t, output, "00:00:0c:11:22:33")
 	assert.Contains(t, output, "Cisco")
 	assert.Contains(t, output, "router.lan")
 
-	assert.Contains(t, output, "192.168.1.100")
+	assert.Contains(t, output, "192.0.2.100")
 	assert.Contains(t, output, "[randomised]")
 	assert.Contains(t, output, "self (eth0)")
 
 	// A locally administered prefix the table names is that vendor's hardware,
 	// so the placeholder is only for addresses nothing can name.
-	assert.Contains(t, output, "192.168.1.101")
+	assert.Contains(t, output, "192.0.2.101")
 	assert.Contains(t, output, "Google")
 }
 
@@ -349,7 +349,7 @@ func TestOutputScanResultsJSON(t *testing.T) {
 
 	now := time.Now().Truncate(time.Second)
 	swept := []scanner.Host{
-		{Host: host("192.168.1.1", "00:00:0c:11:22:33", "router.lan", ""), RTT: time.Millisecond, SeenAt: now},
+		{Host: host("192.0.2.1", "00:00:0c:11:22:33", "router.lan", ""), RTT: time.Millisecond, SeenAt: now},
 	}
 
 	var buf bytes.Buffer
@@ -372,7 +372,7 @@ func TestOutputScanResultsJSON(t *testing.T) {
 	err = json.Unmarshal(buf.Bytes(), &decoded)
 	require.NoError(t, err)
 	require.Len(t, decoded, 1)
-	assert.Equal(t, "192.168.1.1", decoded[0].Addr)
+	assert.Equal(t, "192.0.2.1", decoded[0].Addr)
 	assert.Equal(t, "00:00:0c:11:22:33", decoded[0].MAC)
 	assert.Equal(t, "Cisco", decoded[0].Vendor)
 	assert.Equal(t, "router.lan", decoded[0].Hostname)
