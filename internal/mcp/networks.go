@@ -26,10 +26,7 @@ func listNetworks(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 			"Pass a network's id to list_devices as network_id to see the devices on it.",
 		InputSchema:  schemaFor[struct{}](),
 		OutputSchema: schemaFor[listNetworksOutput](),
-		Annotations: &mcpsdk.ToolAnnotations{
-			ReadOnlyHint:  true,
-			OpenWorldHint: new(false),
-		},
+		Annotations:  readOnly(),
 	}
 
 	handler := func(
@@ -68,10 +65,7 @@ func getNetwork(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 			"Use list_devices with network_id for the devices on it.",
 		InputSchema:  getNetworkSchema(),
 		OutputSchema: schemaFor[getNetworkOutput](),
-		Annotations: &mcpsdk.ToolAnnotations{
-			ReadOnlyHint:  true,
-			OpenWorldHint: new(false),
-		},
+		Annotations:  readOnly(),
 	}
 
 	handler := func(

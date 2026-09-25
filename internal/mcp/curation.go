@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/jsonschema-go/jsonschema"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/pushkar-anand/jocasta/internal/classify"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
@@ -93,7 +94,7 @@ func updateDeviceCurationSchema() *jsonschema.Schema {
 	s.Properties["group"].MaxLength = new(groupMaxLength)
 	s.Properties["notes"].MaxLength = new(notesMaxLength)
 
-	s.Properties["type"].Enum = append([]any{""}, classEnum()...)
+	s.Properties["type"].Enum = append([]any{""}, enumOf(classify.Classes())...)
 
 	return s
 }
