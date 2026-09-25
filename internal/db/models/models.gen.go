@@ -114,6 +114,11 @@ type Network struct {
 	CreatedAt dbtype.Time    `json:"created_at"`
 }
 
+type NotifyRule struct {
+	Destination string           `json:"destination"`
+	Kind        dbtype.EventKind `json:"kind"`
+}
+
 type OutsideAddress struct {
 	SourceID  int64       `json:"source_id"`
 	Address   dbtype.Addr `json:"address"`

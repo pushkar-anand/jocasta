@@ -69,6 +69,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createEventStmt, err = db.PrepareContext(ctx, createEvent); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateEvent: %w", err)
 	}
+	if q.createNotifyRuleStmt, err = db.PrepareContext(ctx, createNotifyRule); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateNotifyRule: %w", err)
+	}
 	if q.createRecoveryCodeStmt, err = db.PrepareContext(ctx, createRecoveryCode); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateRecoveryCode: %w", err)
 	}
@@ -98,6 +101,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.deleteEventsBeforeStmt, err = db.PrepareContext(ctx, deleteEventsBefore); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteEventsBefore: %w", err)
+	}
+	if q.deleteNotifyRulesStmt, err = db.PrepareContext(ctx, deleteNotifyRules); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteNotifyRules: %w", err)
 	}
 	if q.deleteProbesBeforeStmt, err = db.PrepareContext(ctx, deleteProbesBefore); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteProbesBefore: %w", err)
@@ -209,6 +215,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.moveEventsStmt, err = db.PrepareContext(ctx, moveEvents); err != nil {
 		return nil, fmt.Errorf("error preparing query MoveEvents: %w", err)
+	}
+	if q.notifyRulesStmt, err = db.PrepareContext(ctx, notifyRules); err != nil {
+		return nil, fmt.Errorf("error preparing query NotifyRules: %w", err)
 	}
 	if q.organisationDevicesStmt, err = db.PrepareContext(ctx, organisationDevices); err != nil {
 		return nil, fmt.Errorf("error preparing query OrganisationDevices: %w", err)
@@ -386,6 +395,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing createEventStmt: %w", cerr)
 		}
 	}
+	if q.createNotifyRuleStmt != nil {
+		if cerr := q.createNotifyRuleStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createNotifyRuleStmt: %w", cerr)
+		}
+	}
 	if q.createRecoveryCodeStmt != nil {
 		if cerr := q.createRecoveryCodeStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createRecoveryCodeStmt: %w", cerr)
@@ -434,6 +448,11 @@ func (q *Queries) Close() error {
 	if q.deleteEventsBeforeStmt != nil {
 		if cerr := q.deleteEventsBeforeStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteEventsBeforeStmt: %w", cerr)
+		}
+	}
+	if q.deleteNotifyRulesStmt != nil {
+		if cerr := q.deleteNotifyRulesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteNotifyRulesStmt: %w", cerr)
 		}
 	}
 	if q.deleteProbesBeforeStmt != nil {
@@ -619,6 +638,11 @@ func (q *Queries) Close() error {
 	if q.moveEventsStmt != nil {
 		if cerr := q.moveEventsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing moveEventsStmt: %w", cerr)
+		}
+	}
+	if q.notifyRulesStmt != nil {
+		if cerr := q.notifyRulesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing notifyRulesStmt: %w", cerr)
 		}
 	}
 	if q.organisationDevicesStmt != nil {
@@ -835,6 +859,7 @@ type Queries struct {
 	createAPITokenStmt                 *sql.Stmt
 	createDeviceStmt                   *sql.Stmt
 	createEventStmt                    *sql.Stmt
+	createNotifyRuleStmt               *sql.Stmt
 	createRecoveryCodeStmt             *sql.Stmt
 	createScanStmt                     *sql.Stmt
 	createUserStmt                     *sql.Stmt
@@ -845,6 +870,7 @@ type Queries struct {
 	deleteBroadcastsBeforeStmt         *sql.Stmt
 	deleteDeviceStmt                   *sql.Stmt
 	deleteEventsBeforeStmt             *sql.Stmt
+	deleteNotifyRulesStmt              *sql.Stmt
 	deleteProbesBeforeStmt             *sql.Stmt
 	deleteRecoveryCodesByUserStmt      *sql.Stmt
 	deleteScansBeforeStmt              *sql.Stmt
@@ -882,6 +908,7 @@ type Queries struct {
 	moveAddressesStmt                  *sql.Stmt
 	moveDeviceSourcesStmt              *sql.Stmt
 	moveEventsStmt                     *sql.Stmt
+	notifyRulesStmt                    *sql.Stmt
 	organisationDevicesStmt            *sql.Stmt
 	outsideAddressesStmt               *sql.Stmt
 	portStatsStmt                      *sql.Stmt
@@ -935,6 +962,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		createAPITokenStmt:                 q.createAPITokenStmt,
 		createDeviceStmt:                   q.createDeviceStmt,
 		createEventStmt:                    q.createEventStmt,
+		createNotifyRuleStmt:               q.createNotifyRuleStmt,
 		createRecoveryCodeStmt:             q.createRecoveryCodeStmt,
 		createScanStmt:                     q.createScanStmt,
 		createUserStmt:                     q.createUserStmt,
@@ -945,6 +973,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deleteBroadcastsBeforeStmt:         q.deleteBroadcastsBeforeStmt,
 		deleteDeviceStmt:                   q.deleteDeviceStmt,
 		deleteEventsBeforeStmt:             q.deleteEventsBeforeStmt,
+		deleteNotifyRulesStmt:              q.deleteNotifyRulesStmt,
 		deleteProbesBeforeStmt:             q.deleteProbesBeforeStmt,
 		deleteRecoveryCodesByUserStmt:      q.deleteRecoveryCodesByUserStmt,
 		deleteScansBeforeStmt:              q.deleteScansBeforeStmt,
@@ -982,6 +1011,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		moveAddressesStmt:                  q.moveAddressesStmt,
 		moveDeviceSourcesStmt:              q.moveDeviceSourcesStmt,
 		moveEventsStmt:                     q.moveEventsStmt,
+		notifyRulesStmt:                    q.notifyRulesStmt,
 		organisationDevicesStmt:            q.organisationDevicesStmt,
 		outsideAddressesStmt:               q.outsideAddressesStmt,
 		portStatsStmt:                      q.portStatsStmt,
