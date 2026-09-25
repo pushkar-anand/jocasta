@@ -91,10 +91,7 @@ func listTraffic(store *inventory.Store, now func() time.Time) func(*mcpsdk.Serv
 			"recorded false means nothing is collecting traffic. The network may still be busy.",
 		InputSchema:  listTrafficSchema(),
 		OutputSchema: schemaFor[listTrafficOutput](),
-		Annotations: &mcpsdk.ToolAnnotations{
-			ReadOnlyHint:  true,
-			OpenWorldHint: new(false),
-		},
+		Annotations:  readOnly(),
 	}
 
 	handler := func(

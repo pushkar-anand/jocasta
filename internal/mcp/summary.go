@@ -23,10 +23,7 @@ func getStats(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 			"Unlike list_devices, the counts include ignored devices.",
 		InputSchema:  schemaFor[struct{}](),
 		OutputSchema: schemaFor[getStatsOutput](),
-		Annotations: &mcpsdk.ToolAnnotations{
-			ReadOnlyHint:  true,
-			OpenWorldHint: new(false),
-		},
+		Annotations:  readOnly(),
 	}
 
 	handler := func(
@@ -59,10 +56,7 @@ func listGroups(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 			"Pass one to list_devices as group to see its devices.",
 		InputSchema:  schemaFor[struct{}](),
 		OutputSchema: schemaFor[listGroupsOutput](),
-		Annotations: &mcpsdk.ToolAnnotations{
-			ReadOnlyHint:  true,
-			OpenWorldHint: new(false),
-		},
+		Annotations:  readOnly(),
 	}
 
 	handler := func(

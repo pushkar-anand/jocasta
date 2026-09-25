@@ -40,10 +40,7 @@ func getPortOverview(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) 
 			"Use get_device for one device's ports, and list_events with PORT_OPENED or PORT_CLOSED for which ports changed.",
 		InputSchema:  getPortOverviewSchema(),
 		OutputSchema: schemaFor[getPortOverviewOutput](),
-		Annotations: &mcpsdk.ToolAnnotations{
-			ReadOnlyHint:  true,
-			OpenWorldHint: new(false),
-		},
+		Annotations:  readOnly(),
 	}
 
 	handler := func(

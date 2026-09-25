@@ -79,3 +79,19 @@ func schemaFor[T any]() *jsonschema.Schema {
 
 	return s
 }
+
+// readOnly is the annotation every tool that only reads the inventory carries:
+// it changes nothing and reaches nothing outside the recorded inventory.
+func readOnly() *mcpsdk.ToolAnnotations {
+	return &mcpsdk.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: new(false)}
+}
+
+// enumOf is a set of string constants as a schema's enum values.
+func enumOf[T ~string](values []T) []any {
+	out := make([]any, len(values))
+	for i, v := range values {
+		out[i] = string(v)
+	}
+
+	return out
+}

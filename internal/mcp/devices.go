@@ -42,10 +42,7 @@ func listDevices(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 			"Use it to find a device and its id; use get_device for one device's address history, ports and sources.",
 		InputSchema:  listDevicesSchema(),
 		OutputSchema: schemaFor[listDevicesOutput](),
-		Annotations: &mcpsdk.ToolAnnotations{
-			ReadOnlyHint:  true,
-			OpenWorldHint: new(false),
-		},
+		Annotations:  readOnly(),
 	}
 
 	handler := func(
@@ -92,7 +89,7 @@ func listDevicesSchema() *jsonschema.Schema {
 		string(inventory.SortAddress),
 		string(inventory.SortType),
 	}
-	s.Properties["type"].Enum = classEnum()
+	s.Properties["type"].Enum = enumOf(classify.Classes())
 	s.Properties["network_id"].Minimum = new(1.0)
 
 	return s
@@ -124,10 +121,7 @@ func getDevice(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 			"Use list_events with this id for the device's history, including why its classification changed.",
 		InputSchema:  getDeviceSchema(),
 		OutputSchema: schemaFor[getDeviceOutput](),
-		Annotations: &mcpsdk.ToolAnnotations{
-			ReadOnlyHint:  true,
-			OpenWorldHint: new(false),
-		},
+		Annotations:  readOnly(),
 	}
 
 	handler := func(
@@ -158,15 +152,4 @@ func getDeviceSchema() *jsonschema.Schema {
 	s.Properties["id"].Minimum = new(1.0)
 
 	return s
-}
-
-// classEnum is every device class the classifier knows, for a schema that
-// takes one.
-func classEnum() []any {
-	classes := make([]any, 0, len(classify.Classes()))
-	for _, c := range classify.Classes() {
-		classes = append(classes, string(c))
-	}
-
-	return classes
 }

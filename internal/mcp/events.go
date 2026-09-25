@@ -56,10 +56,7 @@ func listEvents(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 			"To read further back, pass next_cursor as cursor with the other filters unchanged, until next_cursor is absent.",
 		InputSchema:  listEventsSchema(),
 		OutputSchema: schemaFor[listEventsOutput](),
-		Annotations: &mcpsdk.ToolAnnotations{
-			ReadOnlyHint:  true,
-			OpenWorldHint: new(false),
-		},
+		Annotations:  readOnly(),
 	}
 
 	handler := func(
@@ -126,12 +123,7 @@ func listEventsSchema() *jsonschema.Schema {
 	s.Properties["limit"].Minimum = new(1.0)
 	s.Properties["limit"].Maximum = new(float64(pageLimit))
 
-	kinds := make([]any, 0, len(dbtype.EventKinds()))
-	for _, k := range dbtype.EventKinds() {
-		kinds = append(kinds, string(k))
-	}
-
-	s.Properties["kinds"].Items.Enum = kinds
+	s.Properties["kinds"].Items.Enum = enumOf(dbtype.EventKinds())
 
 	return s
 }
