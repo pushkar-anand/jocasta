@@ -27,7 +27,7 @@ type listScansOutput struct {
 
 	// NextCursor is what to pass as cursor for the page after this one, and is
 	// absent once the history has been read to the end.
-	NextCursor *inventory.Cursor `json:"next_cursor,omitempty"`
+	NextCursor *inventory.Cursor `json:"next_cursor,omitzero"`
 }
 
 // listScans is inventory.Store.ListScans, offered as a tool.

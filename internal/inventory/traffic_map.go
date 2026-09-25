@@ -301,7 +301,7 @@ func mergeOrgs(perASN map[uint32]*MapOrg) (merged []*MapOrg, canon map[uint32]ui
 func parseServices(list string) []MapService {
 	var out []MapService
 
-	for _, item := range strings.Split(list, ",") {
+	for item := range strings.SplitSeq(list, ",") {
 		proto, port, ok := strings.Cut(item, "/")
 		if !ok {
 			continue

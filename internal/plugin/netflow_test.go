@@ -425,20 +425,11 @@ func listening(t *testing.T, n *NetFlow) (net.Conn, <-chan []Flow, func() error)
 	conn, err := d.DialContext(t.Context(), "udp", addr.String())
 	require.NoError(t, err)
 
-	var (
-		once    sync.Once
-		stopErr error
-	)
+	stop := sync.OnceValue(func() error {
+		cancel()
 
-	stop := func() error {
-		once.Do(func() {
-			cancel()
-
-			stopErr = <-done
-		})
-
-		return stopErr
-	}
+		return <-done
+	})
 
 	t.Cleanup(func() {
 		_ = conn.Close()

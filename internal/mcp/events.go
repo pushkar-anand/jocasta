@@ -40,7 +40,7 @@ type listEventsOutput struct {
 
 	// NextCursor is what to pass as cursor for the page after this one, and is
 	// absent once the log has been read to the end.
-	NextCursor *inventory.Cursor `json:"next_cursor,omitempty"`
+	NextCursor *inventory.Cursor `json:"next_cursor,omitzero"`
 }
 
 // listEvents is inventory.Store.ListEvents, offered as a tool.

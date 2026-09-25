@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"maps"
 	"net/netip"
 	"slices"
 	"strconv"
@@ -117,12 +118,7 @@ func (p *portSet) add(ports []uint16) {
 func (p *portSet) count() int { return len(p.seen) + p.extra }
 
 func (p *portSet) lowest() []uint16 {
-	out := make([]uint16, 0, len(p.seen))
-	for port := range p.seen {
-		out = append(out, port)
-	}
-
-	slices.Sort(out)
+	out := slices.Sorted(maps.Keys(p.seen))
 
 	return out[:min(len(out), attemptPortSample)]
 }

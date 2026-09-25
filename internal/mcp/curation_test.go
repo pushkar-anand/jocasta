@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"log/slog"
+	"maps"
 	"net/http"
 	"strings"
 	"testing"
@@ -89,9 +90,7 @@ func TestUpdateDeviceCuration(t *testing.T) {
 			t.Parallel()
 
 			args := curation(id)
-			for k, v := range change {
-				args[k] = v
-			}
+			maps.Copy(args, change)
 
 			doc := problemOf(t, callTool(t, cs, "update_device_curation", args))
 			assert.Equal(t, float64(http.StatusBadRequest), doc["status"])

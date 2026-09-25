@@ -46,7 +46,7 @@ type listTrafficOutput struct {
 	Recorded bool      `json:"recorded"`
 	Since    time.Time `json:"since"`
 
-	Device *inventory.DeviceTraffic `json:"device,omitempty"`
+	Device *inventory.DeviceTraffic `json:"device,omitzero"`
 
 	// Attempts are the connections the device started that never carried
 	// data, with the device view.
@@ -65,7 +65,7 @@ type listTrafficOutput struct {
 	BusiestDevices []*inventory.DeviceTotal `json:"busiest_devices,omitempty"`
 	Organisations  []*inventory.OrgTotal    `json:"organisations,omitempty"`
 
-	FirstContacts *inventory.FirstContacts `json:"first_contacts,omitempty"`
+	FirstContacts *inventory.FirstContacts `json:"first_contacts,omitzero"`
 }
 
 // listTraffic offers the traffic views as one tool.

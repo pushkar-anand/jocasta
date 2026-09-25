@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net"
 	"net/netip"
 	"slices"
@@ -284,14 +285,7 @@ func ParsePortSpec(spec string) ([]uint16, error) {
 		}
 	}
 
-	ports := make([]uint16, 0, len(seen))
-	for p := range seen {
-		ports = append(ports, p)
-	}
-
-	slices.Sort(ports)
-
-	return ports, nil
+	return slices.Sorted(maps.Keys(seen)), nil
 }
 
 // parsePortRange reads one spec entry, a single port or a "lo-hi" range, and

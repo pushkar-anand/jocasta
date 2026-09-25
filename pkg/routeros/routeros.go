@@ -175,8 +175,7 @@ func (r *RouterOS) get[T any](ctx context.Context, path string) (*T, error) {
 			return nil, fmt.Errorf("request send: %w", err)
 		}
 
-		var certErr *tls.CertificateVerificationError
-		if errors.As(err, &certErr) {
+		if _, ok := errors.AsType[*tls.CertificateVerificationError](err); ok {
 			return nil, fmt.Errorf("%w: %w", ErrTLS, err)
 		}
 
