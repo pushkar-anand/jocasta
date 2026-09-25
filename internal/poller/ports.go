@@ -2,12 +2,10 @@ package poller
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
-	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
@@ -63,24 +61,9 @@ func (p *Ports) Interval() time.Duration { return p.interval }
 // passed or none has ever succeeded.
 //
 // Keyed on the kind alone, like the device task: only this task writes PORTS
-// scans, so nothing else can credit its schedule. A store that cannot be read
-// waits a full interval, for the same reason: not knowing whether the work is
-// due is a reason to hold off.
+// scans, so nothing else can credit its schedule.
 func (p *Ports) DueIn(ctx context.Context) time.Duration {
-	at, err := p.store.LastSuccessfulScanAt(ctx, dbtype.ScanPorts)
-
-	switch {
-	case errors.Is(err, inventory.ErrNotFound):
-		return 0
-	case err != nil:
-		p.logger.ErrorContext(ctx, "could not tell when the last port scan ran, holding off for one interval",
-			logger.Err(err),
-		)
-
-		return p.interval
-	}
-
-	return p.interval - time.Since(at)
+	return dueIn(ctx, p.store, dbtype.ScanPorts, p.interval, p.logger)
 }
 
 // Run scans every current address in the inventory and records what answered.

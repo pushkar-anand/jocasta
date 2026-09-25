@@ -105,26 +105,8 @@ func (d *Device) Name() string {
 //
 // It reads the newest scan of its own kind: a port scan says nothing about
 // whether the devices are due to be looked at again.
-//
-// A store that cannot be read waits a full interval. Not knowing whether the
-// work is due is a reason to hold off: sweeping anyway would turn a restart
-// loop into a scan loop, the one failure the stored schedule exists to
-// prevent.
 func (d *Device) DueIn(ctx context.Context) time.Duration {
-	at, err := d.store.LastSuccessfulScanAt(ctx, dbtype.ScanDiscovery)
-
-	switch {
-	case errors.Is(err, inventory.ErrNotFound):
-		return 0
-	case err != nil:
-		d.logger.ErrorContext(ctx, "could not tell when the last sweep ran, holding off for one interval",
-			logger.Err(err),
-		)
-
-		return d.interval
-	}
-
-	return d.interval - time.Since(at)
+	return dueIn(ctx, d.store, dbtype.ScanDiscovery, d.interval, d.logger)
 }
 
 // Run sweeps every configured network, then asks every source what it knows,
