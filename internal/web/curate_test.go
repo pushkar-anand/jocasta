@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -281,6 +282,26 @@ func TestDeviceEditRejectsAMalformedCheckbox(t *testing.T) {
 	rec := patch(t, h, cookies, "/devices/1", url.Values{"ignored": {"maybe"}})
 
 	assert.NotEqual(t, http.StatusOK, rec.Code)
+}
+
+// The form's validate tags spell out inventory's limits, since a tag cannot
+// name a constant; this holds each one to exactly its limit.
+func TestDeviceEditHoldsToTheCurationLimits(t *testing.T) {
+	t.Parallel()
+
+	h, cookies := editor(t)
+
+	for field, limit := range map[string]int{
+		"label": inventory.LabelMaxLength,
+		"group": inventory.GroupMaxLength,
+		"notes": inventory.NotesMaxLength,
+	} {
+		rec := patch(t, h, cookies, "/devices/1", url.Values{field: {strings.Repeat("x", limit)}})
+		assert.Equal(t, http.StatusOK, rec.Code, "%s at its limit", field)
+
+		rec = patch(t, h, cookies, "/devices/1", url.Values{field: {strings.Repeat("x", limit+1)}})
+		assert.NotEqual(t, http.StatusOK, rec.Code, "%s past its limit", field)
+	}
 }
 
 // The user's fields are rendered through html/template, so a label carrying

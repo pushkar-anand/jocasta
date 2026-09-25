@@ -61,15 +61,7 @@ type deviceEdit struct {
 	Ignored bool   `schema:"ignored"`
 }
 
-func (e deviceEdit) toCuration() inventory.Curation {
-	return inventory.Curation{
-		Label:   e.Label,
-		Notes:   e.Notes,
-		Group:   e.Group,
-		Type:    e.Type,
-		Ignored: e.Ignored,
-	}
-}
+func (e deviceEdit) toCuration() inventory.Curation { return inventory.Curation(e) }
 
 // deviceRow serves one row as it is displayed, which is how an edit is
 // cancelled.
