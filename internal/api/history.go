@@ -30,7 +30,7 @@ func (h *Handler) listEvents(store *inventory.Store) response.HandlerFunc {
 
 			// NextCursor is what to ask for to get the window after this one,
 			// and is absent once the log has been read to the end.
-			NextCursor *inventory.Cursor `json:"next_cursor,omitempty"`
+			NextCursor *inventory.Cursor `json:"next_cursor,omitzero"`
 		}
 	)
 
@@ -68,7 +68,7 @@ func (h *Handler) listScans(store *inventory.Store) response.HandlerFunc {
 		scansResponse struct {
 			Scans      []*inventory.Scan `json:"scans"`
 			Count      int               `json:"count"`
-			NextCursor *inventory.Cursor `json:"next_cursor,omitempty"`
+			NextCursor *inventory.Cursor `json:"next_cursor,omitzero"`
 		}
 	)
 

@@ -205,7 +205,7 @@ func TestDSNEscapesPath(t *testing.T) {
 }
 
 func BenchmarkDSN(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		dsn("test.db")
 	}
 }

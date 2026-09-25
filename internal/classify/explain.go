@@ -4,7 +4,10 @@ package classify
 // reports every rule that matched an input and which one [Device] picked.
 // Nothing in production depends on it.
 
-import "sort"
+import (
+	"cmp"
+	"slices"
+)
 
 // RuleMatch is one rule that fired for an input.
 type RuleMatch struct {
@@ -54,7 +57,7 @@ func Explain(in Input) Explanation {
 		})
 	}
 
-	sort.SliceStable(matches, func(a, b int) bool { return matches[a].Conds > matches[b].Conds })
+	slices.SortStableFunc(matches, func(a, b RuleMatch) int { return cmp.Compare(b.Conds, a.Conds) })
 
 	return Explanation{Facts: f, Result: res, Matches: matches}
 }

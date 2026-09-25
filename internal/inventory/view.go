@@ -102,7 +102,7 @@ type Address struct {
 	// Network is the recorded prefix a sweep placed this address on. It is nil
 	// when no sweep matched it to one: an address recorded before networks
 	// were tracked, or one on a prefix nothing has recorded.
-	Network *Network `json:"network,omitempty"`
+	Network *Network `json:"network,omitzero"`
 }
 
 // Port is one TCP port a scan has found a device listening on, or found it

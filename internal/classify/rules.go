@@ -59,8 +59,6 @@ func (r Rule) reason(f Facts) string {
 	return r.Reason
 }
 
-func ptr[T any](v T) *T { return &v }
-
 // serverPorts are ports that say little alone but, several at once, describe a
 // host that runs services.
 var serverPorts = map[uint16]string{
@@ -417,5 +415,5 @@ var ruleset = []Rule{
 	// A self-assigned address is a modern phone or laptop OS; on a home network
 	// the phone is the safer guess, and any real evidence of a laptop, listed
 	// above, outweighs it.
-	{Cond: Cond{Randomised: ptr(true)}, Class: Phone, Reason: "randomised hardware address, typical of a phone or laptop", Weak: true},
+	{Cond: Cond{Randomised: new(true)}, Class: Phone, Reason: "randomised hardware address, typical of a phone or laptop", Weak: true},
 }
