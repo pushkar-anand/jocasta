@@ -39,7 +39,7 @@ func (h *Handler) deviceTraffic(store *inventory.Store) response.HandlerFunc {
 		}
 
 		// A device that does not exist is a 404.
-		if _, err := store.Device(r.Context(), id); err != nil {
+		if err := store.RequireDevice(r.Context(), id); err != nil {
 			return err
 		}
 

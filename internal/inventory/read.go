@@ -102,6 +102,22 @@ func resolveNetworks(ids []int64, byID map[int64]*Network) []*Network {
 	return out
 }
 
+// RequireDevice reports ErrNotFound when no device has id, for a read scoped
+// to one device that answers a missing one with a 404. It reads the device row
+// alone, where Device also reads its addresses, networks and ports.
+func (s *Store) RequireDevice(ctx context.Context, id int64) error {
+	_, err := s.q.GetDevice(ctx, id)
+
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return fmt.Errorf("device %d: %w", id, ErrNotFound)
+	case err != nil:
+		return fmt.Errorf("device %d: %w", id, err)
+	}
+
+	return nil
+}
+
 // Device returns one device with its full address history.
 func (s *Store) Device(ctx context.Context, id int64) (*Device, error) {
 	row, err := s.q.GetDevice(ctx, id)

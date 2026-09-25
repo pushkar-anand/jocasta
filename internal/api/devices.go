@@ -142,7 +142,7 @@ func (h *Handler) deviceEvents(store *inventory.Store) response.HandlerFunc {
 
 		// The device is read first so that asking for the history of a device
 		// that does not exist is a 404.
-		if _, err := store.Device(r.Context(), id); err != nil {
+		if err := store.RequireDevice(r.Context(), id); err != nil {
 			return err
 		}
 

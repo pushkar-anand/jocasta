@@ -269,7 +269,7 @@ func (h *Handler) deviceTraffic() response.HandlerFunc {
 		}
 
 		// A device that is not there is a 404 here too.
-		if _, err := h.store.Device(r.Context(), id); err != nil {
+		if err := h.store.RequireDevice(r.Context(), id); err != nil {
 			return err
 		}
 

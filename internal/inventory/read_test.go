@@ -295,6 +295,16 @@ func TestGetDeviceUnknownIDIsNotFound(t *testing.T) {
 	require.ErrorIs(t, err, ErrNotFound)
 }
 
+func TestRequireDevice(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, "printer.local"))
+
+	require.NoError(t, s.RequireDevice(t.Context(), deviceIDByMAC(t, conn, macA)))
+	require.ErrorIs(t, s.RequireDevice(t.Context(), 404), ErrNotFound)
+}
+
 // A sweep records the prefix it swept, so an address it found sits on a known
 // network and the detail page can name it.
 func TestGetDeviceCarriesEachAddressNetwork(t *testing.T) {

@@ -64,7 +64,7 @@ func listEvents(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 		// Asking for a device that does not exist is a 404, as it is for the
 		// API. An empty page would read as "nothing changed".
 		if in.DeviceID != 0 {
-			if _, err := store.Device(ctx, in.DeviceID); err != nil {
+			if err := store.RequireDevice(ctx, in.DeviceID); err != nil {
 				return nil, listEventsOutput{}, err
 			}
 		}
