@@ -1,10 +1,12 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"testing"
 
+	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -83,6 +85,24 @@ func TestPagingRejectsAMalformedCursor(t *testing.T) {
 		t.Run(target, func(t *testing.T) {
 			status, _, _ := get(t, h, target)
 			assert.Equal(t, http.StatusBadRequest, status)
+		})
+	}
+}
+
+// The limit tags on both logs spell out inventory.MaxPageSize, since a tag
+// cannot name a constant; this holds them to it.
+func TestPagingCeilingIsTheInventoryMax(t *testing.T) {
+	t.Parallel()
+
+	h := seeded(t)
+
+	for _, log := range []string{"/events", "/scans"} {
+		t.Run(log, func(t *testing.T) {
+			status, _, _ := get(t, h, fmt.Sprintf("%s?limit=%d", log, inventory.MaxPageSize))
+			assert.Equal(t, http.StatusOK, status)
+
+			status, _, _ = get(t, h, fmt.Sprintf("%s?limit=%d", log, inventory.MaxPageSize+1))
+			assert.Equal(t, http.StatusUnprocessableEntity, status)
 		})
 	}
 }

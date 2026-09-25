@@ -14,14 +14,6 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// pageSize is the page a call to a paged tool that asks for none gets, and
-// pageLimit the most one may ask for: the same window and ceiling
-// GET /api/events and GET /api/scans use.
-const (
-	pageSize  = 50
-	pageLimit = 500
-)
-
 // listEventsInput narrows and pages the change log. Every field is optional;
 // an empty call is the first page of the whole log.
 type listEventsInput struct {
@@ -83,7 +75,7 @@ func listEvents(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 		}
 
 		page, err := store.ListEvents(ctx, inventory.Page{
-			Limit:          cmp.Or(in.Limit, pageSize),
+			Limit:          cmp.Or(in.Limit, inventory.DefaultPageSize),
 			Cursor:         cursor,
 			Device:         in.DeviceID,
 			EventKinds:     kinds,
@@ -121,7 +113,7 @@ func listEventsSchema() *jsonschema.Schema {
 
 	s.Properties["device_id"].Minimum = new(1.0)
 	s.Properties["limit"].Minimum = new(1.0)
-	s.Properties["limit"].Maximum = new(float64(pageLimit))
+	s.Properties["limit"].Maximum = new(float64(inventory.MaxPageSize))
 
 	s.Properties["kinds"].Items.Enum = enumOf(dbtype.EventKinds())
 

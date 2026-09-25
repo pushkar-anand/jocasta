@@ -9,6 +9,14 @@ import (
 // so that a caller reading the inventory needs nothing from the database layer.
 type Cursor = cursor.Cursor
 
+// DefaultPageSize is the page a caller that names no limit gets, and
+// MaxPageSize the most one may ask for. The API and the MCP tools both page the
+// event and scan logs by these.
+const (
+	DefaultPageSize = 50
+	MaxPageSize     = 500
+)
+
 // Page is one window onto a log: at most Limit rows, starting after Cursor.
 type Page struct {
 	Limit int

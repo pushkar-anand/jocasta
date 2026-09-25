@@ -58,7 +58,7 @@ func listScans(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 		}
 
 		page, err := store.ListScans(ctx, inventory.Page{
-			Limit:    cmp.Or(in.Limit, pageSize),
+			Limit:    cmp.Or(in.Limit, inventory.DefaultPageSize),
 			Cursor:   cursor,
 			ScanKind: dbtype.ScanKind(in.Kind),
 		})
@@ -83,7 +83,7 @@ func listScansSchema() *jsonschema.Schema {
 	s := schemaFor[listScansInput]()
 
 	s.Properties["limit"].Minimum = new(1.0)
-	s.Properties["limit"].Maximum = new(float64(pageLimit))
+	s.Properties["limit"].Maximum = new(float64(inventory.MaxPageSize))
 
 	s.Properties["kind"].Enum = enumOf(dbtype.ScanKinds())
 

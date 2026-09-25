@@ -100,7 +100,7 @@ func listTraffic(store *inventory.Store, now func() time.Time) func(*mcpsdk.Serv
 		in listTrafficInput,
 	) (*mcpsdk.CallToolResult, listTrafficOutput, error) {
 		days := cmp.Or(in.Days, trafficDays)
-		limit := cmp.Or(in.Limit, pageSize)
+		limit := cmp.Or(in.Limit, inventory.DefaultPageSize)
 		since := now().Add(-time.Duration(days) * 24 * time.Hour)
 
 		recorded, err := store.TrafficRecorded(ctx)
@@ -222,7 +222,7 @@ func listTrafficSchema() *jsonschema.Schema {
 	s.Properties["days"].Minimum = new(1.0)
 	s.Properties["days"].Maximum = new(float64(trafficMaxDays))
 	s.Properties["limit"].Minimum = new(1.0)
-	s.Properties["limit"].Maximum = new(float64(pageLimit))
+	s.Properties["limit"].Maximum = new(float64(inventory.MaxPageSize))
 	s.Properties["scope"].Enum = []any{scopeAll, scopeLocal, scopeInternet}
 
 	return s

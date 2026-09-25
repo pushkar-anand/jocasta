@@ -70,7 +70,7 @@ func TestListScans(t *testing.T) {
 		detail string
 	}{
 		"an unknown kind is refused":   {map[string]any{"kind": "PING"}, "DISCOVERY"},
-		"a page past the ceiling":      {map[string]any{"limit": pageLimit + 1}, ""},
+		"a page past the ceiling":      {map[string]any{"limit": inventory.MaxPageSize + 1}, ""},
 		"a cursor it never issued":     {map[string]any{"cursor": "not-a-cursor"}, "list_scans"},
 		"a page of nothing is refused": {map[string]any{"limit": 0}, ""},
 	} {

@@ -51,7 +51,7 @@ func TestUpdateDeviceCuration(t *testing.T) {
 		assert.Equal(t, "Second floor.", out.Device.Notes)
 
 		page, err := store.ListEvents(t.Context(), inventory.Page{
-			Limit: pageSize, Device: id, EventKinds: []dbtype.EventKind{dbtype.EventDeviceEdited},
+			Limit: inventory.DefaultPageSize, Device: id, EventKinds: []dbtype.EventKind{dbtype.EventDeviceEdited},
 		})
 		require.NoError(t, err)
 		assert.NotEmpty(t, page.Events)
