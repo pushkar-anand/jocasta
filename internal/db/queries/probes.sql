@@ -59,6 +59,7 @@ FROM probes_hourly p
 WHERE p.hour >= sqlc.arg(since)
   AND d.is_ignored = 0
   AND (CAST(sqlc.narg(group_name) AS TEXT) IS NULL OR d.group_name = CAST(sqlc.narg(group_name) AS TEXT))
+  AND (CAST(sqlc.narg(device_id) AS INTEGER) IS NULL OR d.id = CAST(sqlc.narg(device_id) AS INTEGER))
 GROUP BY d.id, p.outside
 ORDER BY SUM(p.attempts) DESC, d.id;
 

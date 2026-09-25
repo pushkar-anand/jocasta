@@ -186,7 +186,7 @@ func buildTrafficSection(
 		return nil, err
 	}
 
-	probers, err := store.ProbingDevices(ctx, since, "")
+	probing, err := store.DeviceProbing(ctx, id, since)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +196,7 @@ func buildTrafficSection(
 		return nil, err
 	}
 
-	probed, err := store.ProbedDevices(ctx, since, "")
+	probed, err := store.DeviceProbed(ctx, id, since)
 	if err != nil {
 		return nil, err
 	}
@@ -210,15 +210,10 @@ func buildTrafficSection(
 		Traffic:     traffic,
 		Summary:     summarise(traffic, attempts),
 		HasAttempts: len(attempts) > 0,
-		Probing:     proberFor(probers, id),
+		Probing:     probing,
 
 		HasBroadcasts: len(broadcasts) > 0,
-	}
-
-	for _, p := range probed {
-		if p.DeviceID == id {
-			sec.Probed = append(sec.Probed, p)
-		}
+		Probed:        probed,
 	}
 
 	var tried []*inventory.Attempt

@@ -360,9 +360,9 @@ func (s *Store) RecordNetworks(ctx context.Context, nets []plugin.Network) error
 	return nil
 }
 
-// nullInt64 renders an untagged segment as null. Zero is not a usable 802.1Q
-// tag, so nothing is lost by spelling "untagged" that way.
-func nullInt64(n int) sql.NullInt64 {
+// nullInt64 renders zero as null: an untagged segment, since zero is not a
+// usable 802.1Q tag, or no device, since ids start at one.
+func nullInt64[T int | int64](n T) sql.NullInt64 {
 	return sql.NullInt64{Int64: int64(n), Valid: n != 0}
 }
 

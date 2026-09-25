@@ -244,9 +244,22 @@ type Probed struct {
 // and through the router's outside address is listed once for each. A
 // non-empty group keeps only the devices in it.
 func (s *Store) ProbedDevices(ctx context.Context, since time.Time, group string) ([]*Probed, error) {
+	return s.probed(ctx, since, group, 0)
+}
+
+// DeviceProbed is ProbedDevices for one device: a row for its own address and
+// one for the router's outside address, each only when it was tried.
+func (s *Store) DeviceProbed(ctx context.Context, id int64, since time.Time) ([]*Probed, error) {
+	return s.probed(ctx, since, "", id)
+}
+
+// probed reads the probed devices, narrowed to a group or a device when either
+// is set.
+func (s *Store) probed(ctx context.Context, since time.Time, group string, device int64) ([]*Probed, error) {
 	rows, err := s.q.ProbedDevices(ctx, models.ProbedDevicesParams{
 		Since:     hourOf(since),
 		GroupName: nullString(group),
+		DeviceID:  nullInt64(device),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("probed devices: %w", err)

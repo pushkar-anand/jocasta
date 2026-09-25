@@ -72,17 +72,6 @@ func anyContains(query string, fields ...string) bool {
 	})
 }
 
-// proberFor is id's entry among probers, nil when it did not probe.
-func proberFor(probers []*inventory.Prober, id int64) *inventory.Prober {
-	for _, p := range probers {
-		if p.DeviceID == id {
-			return p
-		}
-	}
-
-	return nil
-}
-
 // portList is ports as a person reads them, "22, 23, 80".
 func portList(ports []uint16) string {
 	names := make([]string, len(ports))

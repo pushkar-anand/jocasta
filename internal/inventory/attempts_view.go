@@ -138,9 +138,27 @@ func (p *Prober) SweptPorts() bool { return p.MaxPorts >= ProbeMinPorts }
 // start of the hour containing since, most recent first. A non-empty group
 // keeps only the devices in it.
 func (s *Store) ProbingDevices(ctx context.Context, since time.Time, group string) ([]*Prober, error) {
+	return s.probing(ctx, since, group, 0)
+}
+
+// DeviceProbing is ProbingDevices for one device: its entry, or nil when it
+// probed nothing since the start of the hour containing since.
+func (s *Store) DeviceProbing(ctx context.Context, id int64, since time.Time) (*Prober, error) {
+	probers, err := s.probing(ctx, since, "", id)
+	if err != nil || len(probers) == 0 {
+		return nil, err
+	}
+
+	return probers[0], nil
+}
+
+// probing reads the probing hours, narrowed to a group or a device when either
+// is set.
+func (s *Store) probing(ctx context.Context, since time.Time, group string, device int64) ([]*Prober, error) {
 	rows, err := s.q.ProbingHours(ctx, models.ProbingHoursParams{
 		Since:     hourOf(since),
 		GroupName: nullString(group),
+		DeviceID:  nullInt64(device),
 		MinPeers:  ProbeMinPeers,
 		MinPorts:  ProbeMinPorts,
 	})
