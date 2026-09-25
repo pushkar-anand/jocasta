@@ -174,16 +174,16 @@ func NewHandler(
 	return h
 }
 
-// sweepNote is the ambient line every page carries at the foot of its rail. It
-// returns the error so a caller can tell "no sweep yet" from a read that
-// failed, and leave the line out either way.
-func (h *Handler) sweepNote(ctx context.Context) (string, error) {
-	scan, err := h.store.LatestScan(ctx)
+// latestSweepNote is the ambient line every page carries at the foot of its
+// rail. It is empty when there is no sweep yet or the read failed, and the
+// page leaves the line out either way.
+func latestSweepNote(ctx context.Context, store *inventory.Store) string {
+	scan, err := store.LatestScan(ctx)
 	if err != nil {
-		return "", err
+		return ""
 	}
 
-	return sweepNote(scan), nil
+	return sweepNote(scan)
 }
 
 func sweepNote(scan *inventory.Scan) string {

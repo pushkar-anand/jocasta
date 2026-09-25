@@ -184,9 +184,7 @@ func (h *Handler) events(sm *auth.Session) response.HandlerFunc {
 		data.Events = page.Events
 		data.Next = nextToken(page.Next)
 
-		if note, err := h.sweepNote(ctx); err == nil {
-			data.Note = note
-		}
+		data.Note = latestSweepNote(ctx, h.store)
 
 		h.htmlWriter.Success(w, r, templatePageEvents, data)
 
@@ -225,9 +223,7 @@ func (h *Handler) scans(sm *auth.Session) response.HandlerFunc {
 		data.Scans = page.Scans
 		data.Next = nextToken(page.Next)
 
-		if note, err := h.sweepNote(ctx); err == nil {
-			data.Note = note
-		}
+		data.Note = latestSweepNote(ctx, h.store)
 
 		h.htmlWriter.Success(w, r, templatePageScans, data)
 
