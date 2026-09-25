@@ -110,15 +110,21 @@ func parseServiceKey(k string) (protocol uint8, port uint16, ok bool) {
 	return uint8(pr), uint16(po), true
 }
 
-// serviceLabel is a service as a person reads it: its usual name, or its port
-// when it has none, with the protocol when that is not TCP.
+// serviceLabel is a peer's service as a person reads it.
 func serviceLabel(p *inventory.TrafficPeer) string {
-	if p.ServicePort == 0 {
-		return cmp.Or(protoName(p.Protocol), "TCP")
+	return serviceName(p.Protocol, p.ServicePort, p.Service)
+}
+
+// serviceName is a service as a person reads it: its usual name, or its port
+// when it has none, with the protocol when that is not TCP. Port zero is the
+// protocol alone.
+func serviceName(protocol uint8, port uint16, name string) string {
+	if port == 0 {
+		return cmp.Or(protoName(protocol), "TCP")
 	}
 
-	label := cmp.Or(p.Service, "port "+strconv.Itoa(int(p.ServicePort)))
-	if proto := protoName(p.Protocol); proto != "" {
+	label := cmp.Or(name, "port "+strconv.Itoa(int(port)))
+	if proto := protoName(protocol); proto != "" {
 		label += " " + proto
 	}
 
