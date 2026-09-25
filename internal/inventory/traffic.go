@@ -546,10 +546,18 @@ func servicePort(protocol uint8, src, dst uint16) uint16 {
 		return 0
 	}
 
-	s, d := servicePreferences(src), servicePreferences(dst)
-	for i := range s {
-		if s[i] != d[i] {
-			if s[i] {
+	s, d := traitsOf(src), traitsOf(dst)
+
+	// Each rule decides only when the two ports differ on it, for the port
+	// that has it; the first rule that decides wins.
+	for _, rule := range [...]struct{ src, dst bool }{
+		{s.settled(), d.settled()},   // a well-known service below the ephemeral range
+		{s.privileged, d.privileged}, // a privileged port
+		{!s.ephemeral, !d.ephemeral}, // any port below the ephemeral range
+		{s.known, d.known},           // a well-known service, even inside it
+	} {
+		if rule.src != rule.dst {
+			if rule.src {
 				return src
 			}
 
@@ -560,17 +568,24 @@ func servicePort(protocol uint8, src, dst uint16) uint16 {
 	return min(src, dst)
 }
 
-// servicePreferences are the tests servicePort applies to a port, in the order
-// they decide: a well-known service's port below the ephemeral range, a
-// privileged port, a port below the ephemeral range, a well-known service's
-// port. Computed once per port, since servicePort runs for every flow under
-// the recorder's lock.
-func servicePreferences(p uint16) [4]bool {
-	known := scanner.ServiceName(p) != ""
-	ephemeral := p >= 32768
-
-	return [4]bool{known && !ephemeral, p < 1024, !ephemeral, known}
+// portTraits are what servicePort judges a port on. They are worked out once
+// per port, since servicePort runs for every flow under the recorder's lock.
+type portTraits struct {
+	known      bool // a well-known service's port
+	privileged bool // below 1024
+	ephemeral  bool // in the range clients draw source ports from
 }
+
+func traitsOf(p uint16) portTraits {
+	return portTraits{
+		known:      scanner.ServiceName(p) != "",
+		privileged: p < 1024,
+		ephemeral:  p >= 32768,
+	}
+}
+
+// settled is a well-known service's port a client would not draw as its own.
+func (t portTraits) settled() bool { return t.known && !t.ephemeral }
 
 // clampInt64 stores a counter SQLite can hold. Nothing real reaches the
 // limit in an hour; a corrupt export claiming to should not wrap negative.
