@@ -13,17 +13,14 @@
 package asn
 
 import (
-	"bufio"
-	"bytes"
 	"cmp"
-	"compress/gzip"
 	_ "embed"
-	"encoding/binary"
 	"net/netip"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/pushkar-anand/jocasta/pkg/internal/rangetable"
 )
 
 // Attribution is the credit DB-IP's licence requires wherever these names are
@@ -55,35 +52,14 @@ type Org struct {
 var tables = sync.OnceValue(load)
 
 type index struct {
-	v4Start []uint32
-	v4ASN   []uint32
-	v6Start []v6
-	v6ASN   []uint32
-	orgs    map[uint32]Org
-}
-
-// v6 is an IPv6 address as two big-endian halves, which compare in address
-// order.
-type v6 struct{ hi, lo uint64 }
-
-func toV6(a netip.Addr) v6 {
-	b := a.As16()
-
-	return v6{binary.BigEndian.Uint64(b[:8]), binary.BigEndian.Uint64(b[8:])}
-}
-
-func (a v6) compare(b v6) int {
-	if c := cmp.Compare(a.hi, b.hi); c != 0 {
-		return c
-	}
-
-	return cmp.Compare(a.lo, b.lo)
+	ranges rangetable.Table[uint32]
+	orgs   map[uint32]Org
 }
 
 func load() *index {
 	ix := &index{orgs: make(map[uint32]Org, 90_000)}
 
-	eachLine(rangesData, func(line string) {
+	rangetable.EachLine(rangesData, func(line string) {
 		addr, asnField, ok := strings.Cut(line, "\t")
 		if !ok {
 			return
@@ -99,19 +75,10 @@ func load() *index {
 			return
 		}
 
-		if a.Is4() {
-			b := a.As4()
-			ix.v4Start = append(ix.v4Start, binary.BigEndian.Uint32(b[:]))
-			ix.v4ASN = append(ix.v4ASN, uint32(n))
-
-			return
-		}
-
-		ix.v6Start = append(ix.v6Start, toV6(a))
-		ix.v6ASN = append(ix.v6ASN, uint32(n))
+		ix.ranges.Add(a, uint32(n))
 	})
 
-	eachLine(orgsData, func(line string) {
+	rangetable.EachLine(orgsData, func(line string) {
 		fields := strings.SplitN(line, "\t", 3)
 		if len(fields) != 3 {
 			return
@@ -129,20 +96,6 @@ func load() *index {
 	return ix
 }
 
-func eachLine(gz []byte, fn func(string)) {
-	zr, err := gzip.NewReader(bytes.NewReader(gz))
-	if err != nil {
-		// The data is embedded at build time; a corrupt table is a build that
-		// should never have shipped, and every lookup misses.
-		return
-	}
-
-	sc := bufio.NewScanner(zr)
-	for sc.Scan() {
-		fn(sc.Text())
-	}
-}
-
 // Lookup returns the organisation that announces addr.
 //
 // It reports false for an address that is not on the public internet
@@ -156,14 +109,7 @@ func Lookup(addr netip.Addr) (Org, bool) {
 
 	ix := tables()
 
-	var asn uint32
-
-	if addr.Is4() {
-		b := addr.As4()
-		asn, _ = floor(ix.v4Start, ix.v4ASN, binary.BigEndian.Uint32(b[:]), cmp.Compare[uint32])
-	} else {
-		asn, _ = floor(ix.v6Start, ix.v6ASN, toV6(addr), v6.compare)
-	}
+	asn, _ := ix.ranges.Lookup(addr)
 
 	if asn == 0 {
 		return Org{}, false
@@ -175,20 +121,6 @@ func Lookup(addr netip.Addr) (Org, bool) {
 
 	// Announced, but by a network the source gave no name.
 	return Org{ASN: asn, Name: "AS" + strconv.FormatUint(uint64(asn), 10), Short: "AS" + strconv.FormatUint(uint64(asn), 10)}, true
-}
-
-// floor returns the value paired with the last start at or below key.
-func floor[K any](starts []K, values []uint32, key K, compare func(K, K) int) (uint32, bool) {
-	i, found := slices.BinarySearchFunc(starts, key, compare)
-	if !found {
-		i--
-	}
-
-	if i < 0 {
-		return 0, false
-	}
-
-	return values[i], true
 }
 
 // nonPublic are the special-purpose ranges that netip does not already
