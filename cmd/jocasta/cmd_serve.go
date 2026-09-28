@@ -56,7 +56,7 @@ func (s *ServeCmd) Run(
 
 	defer p.Stop()
 
-	discoverers, err := hostDiscoverers(ctx, cfg, log)
+	sources, err := routerOSSources(ctx, cfg, log)
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func (s *ServeCmd) Run(
 		cfg.Scan.Source,
 		cfg.Scan.Devices.Interval,
 		cfg.Networks,
-		poller.WithDiscoverers(discoverers...),
+		poller.WithDiscoverers(hostDiscoverers(sources)...),
 	)
 	if err != nil {
 		return fmt.Errorf("initialize device poller: %w", err)
@@ -81,10 +81,7 @@ func (s *ServeCmd) Run(
 		}
 	}
 
-	readers, err := topologyReaders(ctx, cfg, log)
-	if err != nil {
-		return err
-	}
+	readers := topologyReaders(sources)
 
 	// On the sweep's schedule: a switch forgets an address a few minutes
 	// after the device goes quiet, so reading it far less often than the
