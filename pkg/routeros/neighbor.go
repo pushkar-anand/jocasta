@@ -12,8 +12,8 @@ import (
 type Neighbor struct {
 	ID string `json:".id"`
 
-	// Interface is where the announcement arrived, as a list running from the
-	// port outwards, such as "ether3,bridge". See [Neighbor.Port].
+	// Interface is every interface the announcement was heard on,
+	// comma-separated, such as "ether3,bridge". See [Neighbor.Port].
 	Interface string `json:"interface"`
 
 	MACAddress string `json:"mac-address"`
@@ -41,8 +41,8 @@ type Neighbor struct {
 	DiscoveredBy string `json:"discovered-by"`
 }
 
-// Port returns the first interface in the neighbour's interface list, which
-// is the port the announcement arrived on.
+// Port returns the first interface in the neighbour's interface list. For an
+// announcement heard on a VLAN interface, that is the VLAN interface.
 func (n Neighbor) Port() string {
 	port, _, _ := strings.Cut(n.Interface, ",")
 

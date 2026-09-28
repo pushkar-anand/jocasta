@@ -152,8 +152,8 @@ type BridgeHost struct {
 	// filters VLANs.
 	VID string `json:"vid"`
 
-	// Local marks one of the router's own addresses, and External one a
-	// switch chip reported rather than the bridge learning it.
+	// Local marks one of the router's own addresses, and External one the
+	// switch chip reported.
 	Local    Bool `json:"local"`
 	External Bool `json:"external"`
 	Dynamic  Bool `json:"dynamic"`
