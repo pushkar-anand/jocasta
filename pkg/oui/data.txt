@@ -98,7 +98,7 @@
 000061	GatewayCommu	GATEWAY COMMUNICATIONS
 000062	BullHnInform	BULL HN INFORMATION SYSTEMS
 000063	BarcoControl	BARCO CONTROL ROOMS GMBH
-000064	YokogawaDigi	Yokogawa Digital Computer Corporation
+000064	DTSINSIGHT	DTS INSIGHT Corporation
 000065	NetworkGener	Network General Corporation
 000066	Talaris	TALARIS SYSTEMS, INC.
 000067	Soft*Rite	SOFT * RITE, INC.
@@ -4593,7 +4593,7 @@
 00120C	CEInfosysPte	CE-Infosys Pte Ltd
 00120D	AdvancedTele	Advanced Telecommunication Technologies, Inc.
 00120E		AboCom
-00120F	Ieee8023	IEEE 802.3 Working Group
+00120F	IEEE8023Work	IEEE 802.3 Working Group
 001210	WideRay	WideRay Corp
 001211	ProtechnaHer	Protechna Herbst GmbH & Co. KG
 001212	PLUS	PLUS  Corporation
@@ -7982,7 +7982,7 @@
 001E80	Icotera	Icotera A/S
 001E81	CNBTechnolog	CNB Technology Inc.
 001E82	SanDisk	SanDisk Corporation
-001E83	LANMANStanda	IEEE 802.1 Working Group
+001E83	IEEE8021Work	IEEE 802.1 Working Group
 001E84	PikaTechnolo	Pika Technologies Inc.
 001E85	Lagotek	Lagotek Corporation
 001E86	MEL	MEL Co.,Ltd.
@@ -8035,7 +8035,7 @@
 001EB5	EverSparkleT	Ever Sparkle Technologies Ltd
 001EB6	TAGHeuer	TAG Heuer SA
 001EB7	TBTech	TBTech, Co., Ltd.
-001EB8	Aloys	Aloys, Inc
+001EB8	AtlasLink	ATLAS LINK INC.
 001EB9	SingFaiTechn	Sing Fai Technology Limited
 001EBA	HighDensityD	High Density Devices AS
 001EBB	BluelightTec	BLUELIGHT TECHNOLOGY INC.
@@ -15224,7 +15224,7 @@
 00603E	Cisco	Cisco Systems, Inc
 00603F	PatapscoDesi	PATAPSCO DESIGNS
 006040	Netro	NETRO CORP.
-006041	YokogawaDigi	Yokogawa Digital Computer Corporation
+006041	DTSINSIGHT	DTS INSIGHT Corporation
 006042	Tks	TKS (USA), INC.
 006043	iDirect	iDirect, INC.
 006044	LittonPolySc	LITTON/POLY-SCIENTIFIC
@@ -15432,6 +15432,7 @@
 006762	FiberhomeTel	Fiberhome Telecommunication Technologies Co.,LTD
 00682B	HuaweiDevice	Huawei Device Co., Ltd.
 0068EB	HP	HP Inc.
+0068FE	UNINET	UNINET Co.,Ltd.
 00692D	SunnovoInter	Sunnovo International Limited
 006967		IEEE Registration Authority
 0069670	Annapurnalab	Annapurna labs
@@ -15708,7 +15709,7 @@
 0080BF	TakaokaElect	TAKAOKA ELECTRIC MFG. CO. LTD.
 0080C0	PenrilDataco	PENRIL DATACOMM
 0080C1	Lanex	LANEX CORPORATION
-0080C2	IEEE8021Chai	IEEE 802.1 Working Group
+0080C2	IEEE8021Work	IEEE 802.1 Working Group
 0080C3	BiccInformat	BICC INFORMATION SYSTEMS & SVC
 0080C4	DocumentTech	DOCUMENT TECHNOLOGIES, INC.
 0080C5	NovellcoDeMe	NOVELLCO DE MEXICO
@@ -17330,6 +17331,7 @@
 00E16D	Cisco	Cisco Systems, Inc
 00E175	AK	AK-Systems Ltd
 00E18C	Intel	Intel Corporate
+00E1F8	BKTechnologi	BK Technologies.com
 00E22C	ChinaMobileG	China Mobile Group Device Co.,Ltd.
 00E3B2	SamsungElect	Samsung Electronics Co.,Ltd
 00E400	SichuanChang	Sichuan Changhong Electric Ltd.
@@ -17474,6 +17476,7 @@
 042234	WirelessStan	Wireless Standard Extensions
 0422E7	FiberhomeTel	Fiberhome Telecommunication Technologies Co.,LTD
 042322	TexasInstrum	Texas Instruments
+042336	ZyxelCommuni	Zyxel Communications Corporation
 0423A3	MellanoxTech	Mellanox Technologies, Inc.
 042405	OppoMobileTe	GUANGDONG OPPO MOBILE TELECOMMUNICATIONS CORP.,LTD
 0425C5	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
@@ -17633,6 +17636,7 @@
 04714BD	BoCloudsTech	Shenzhen BoClouds Technology Co.,Ltd.
 04714BE	GimsoMobile	Gimso Mobile Ltd
 047153	SernetTechno	SERNET (SUZHOU) TECHNOLOGIES CORPORATION
+047179	HewlettPacka	Hewlett Packard Enterprise
 047295	Apple	Apple, Inc.
 0472EF	Apple	Apple, Inc.
 04749E	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
@@ -17949,6 +17953,7 @@
 04EEE8D	TopwellTechn	SHENZHEN TOPWELL TECHNOLOGY CO., LTD.
 04EEE8E	BestIntegrat	Best Integration Technology Co., Ltd.
 04EEEE	LaplaceSyste	Laplace System Co., Ltd.
+04EF61	Dell	Dell Inc.
 04F021	CompexPte	Compex Systems Pte Ltd
 04F03E	HuaweiDevice	Huawei Device Co., Ltd.
 04F0E4	HosecomElect	ShenZhen Hosecom Electronic Technology Co.,LTD
@@ -18683,13 +18688,14 @@
 0C1105	AkuvoxNetwor	AKUVOX (XIAMEN) NETWORKS CO., LTD
 0C1167	Cisco	Cisco Systems, Inc
 0C1262	zte	zte corporation
+0C12AD	HewlettPacka	Hewlett Packard Enterprise
 0C130B	Uniqoteq	Uniqoteq Ltd.
 0C1420	SamsungElect	Samsung Electronics Co.,Ltd
 0C14D2	ChinaMobileG	China Mobile Group Device Co.,Ltd.
 0C1539	Apple	Apple, Inc.
 0C1563	Apple	Apple, Inc.
 0C15C5	SDTEC	SDTEC Co., Ltd.
-0C166E	WirelessMobi	WirelessMobility Engineering Centre SDN. BHD
+0C166E	EagleWireles	Eagle Wireless Engineering Centre SDN BHD
 0C1773	HuaweiDevice	Huawei Device Co., Ltd.
 0C17F1	Telecsys	TELECSYS
 0C184E	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
@@ -19502,7 +19508,7 @@
 107C61	ASUSTekCOMPU	ASUSTek COMPUTER INC.
 107D1A	Dell	Dell Inc.
 107DC8	Apple	Apple, Inc.
-107E59		Calix Inc.
+107E59	Calix	Calix Inc.
 1081B4	HunanGreatwa	Hunan Greatwall Galaxy Science and Technology Co.,Ltd.
 10823D	RuijieNetwor	Ruijie Networks Co.,LTD
 108286	LuxsharePrec	Luxshare Precision Industry Co.,Ltd
@@ -19581,6 +19587,7 @@
 10A743	SKMtek	SK Mtek Limited
 10A793	VantivaUSA	Vantiva USA LLC
 10A829	Cisco	Cisco Systems, Inc
+10A85B	EspressifPte	Espressif Systems (Singapore) Pte. Ltd
 10A879	Intel	Intel Corporate
 10A932	CyberCloudTe	Beijing Cyber Cloud Technology Co. ,Ltd.
 10ABC9	SamsungElect	Samsung Electronics Co.,Ltd
@@ -19754,7 +19761,7 @@
 1402EC	HewlettPacka	Hewlett Packard Enterprise
 140338	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 140467	SNKTechnolog	SNK Technologies Co.,Ltd.
-140498		Apple, Inc.
+140498	Apple	Apple, Inc.
 140589	MotorolaMobi	Motorola Mobility LLC, a Lenovo Company
 14064C	VoglElectron	Vogl Electronic GmbH
 1406A7	Cresyn	CRESYN
@@ -20017,7 +20024,7 @@
 149090	KongTopindus	KongTop industrial(shen zhen)CO.,LTD
 149138	AmazonTechno	Amazon Technologies Inc.
 149182	BelkinIntern	Belkin International Inc.
-1492AA		Earda Technologies co Ltd
+1492AA	EardaTechnol	Earda Technologies co Ltd
 1492F9	SichuanAILin	Sichuan AI-Link Technology Co., Ltd.
 149346	PNIsensor	PNI sensor corporation
 14942F	Usys	USYS CO.,LTD.
@@ -20039,7 +20046,7 @@
 149CEF	TexasInstrum	Texas Instruments
 149D09	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 149D99	Apple	Apple, Inc.
-149DB0		CLOUD NETWORK TECHNOLOGY SINGAPORE PTE. LTD.
+149DB0	CloudNetwork	CLOUD NETWORK TECHNOLOGY SINGAPORE PTE. LTD.
 149E5D	JSCIBReform	JSC "IB Reform"
 149ECF	Dell	Dell Inc.
 149F3C	SamsungElect	Samsung Electronics Co.,Ltd
@@ -20098,7 +20105,7 @@
 14B457	SiliconLabor	Silicon Laboratories
 14B484	SamsungElect	Samsung Electronics Co.,Ltd
 14B5CD	LiteonTechno	Liteon Technology Corporation
-14B653		Apple, Inc.
+14B653	Apple	Apple, Inc.
 14B6EB	CJintelligen	CJ intelligent technology LTD.
 14B73D	ARCHEANTechn	ARCHEAN Technologies
 14B7F8	VantivaUSA	Vantiva USA LLC
@@ -20150,7 +20157,7 @@
 14D424	AzureWaveTec	AzureWave Technology Inc.
 14D4FE		Commscope
 14D537	AllInspireHe	All Inspire Health Inc.
-14D55C		Apple, Inc.
+14D55C	Apple	Apple, Inc.
 14D5C6	slashdevslas	slash dev slash agents, inc
 14D64D	DLinkInterna	D-Link International
 14D67C	UncordTechno	Uncord Technologies Private Limited
@@ -20280,7 +20287,7 @@
 1831BF	ASUSTekCOMPU	ASUSTek COMPUTER INC.
 183219	EMMicroelect	EM Microelectronic
 1832A2	LaonTechnolo	LAON TECHNOLOGY CO., LTD.
-1832DE		Apple, Inc.
+1832DE	Apple	Apple, Inc.
 183386	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 18339D	Cisco	Cisco Systems, Inc
 183451	Apple	Apple, Inc.
@@ -20428,6 +20435,7 @@
 186C60	JifelineNetw	Jifeline Networks B.V.
 186D99	Adanis	Adanis Inc.
 186F2D	SundrayTechn	Shenzhen Sundray Technologies company Limited
+186FA7	ShenZhenTend	SHEN ZHEN TENDA TECHNOLOGY CO.,LTD
 18703B	HuaweiDevice	Huawei Device Co., Ltd.
 187117	etapluselect	eta plus electronic gmbh
 1871D5	HazensAutomo	Hazens Automotive Electronics(SZ)Co.,Ltd.
@@ -21263,7 +21271,7 @@
 1CC11A		Wavetronix
 1CC1BC	YichipMicroe	Yichip Microelectronics (Hangzhou) Co.,Ltd
 1CC1DE	HewlettPacka	Hewlett Packard
-1CC212		Fortinet, Inc.
+1CC212	Fortinet	Fortinet, Inc.
 1CC316	XiamenMilesi	Xiamen Milesight IoT Co., Ltd.
 1CC3AB	Espressif	Espressif Inc.
 1CC3EB	OppoMobileTe	GUANGDONG OPPO MOBILE TELECOMMUNICATIONS CORP.,LTD
@@ -21659,7 +21667,7 @@
 20898A	SkyworthDigi	Shenzhen Skyworth Digital  Technology  CO., Ltd
 208B37	SkyworthDigi	Skyworth Digital Technology(Shenzhen) Co.,Ltd
 208BD1	NXPSemicondu	NXP Semiconductor (Tianjin) LTD.
-208C0A		Apple, Inc.
+208C0A	Apple	Apple, Inc.
 208C47	Tenstorrent	Tenstorrent Inc
 208C86	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 20906F	TencentCompu	Shenzhen Tencent Computer System Co., Ltd.
@@ -21672,6 +21680,7 @@
 209395		nVent
 20968A	ChinaMobileI	China Mobile (Hangzhou) Information Technology Co., Ltd.
 209727	TeltonikaNet	TELTONIKA NETWORKS UAB
+209771	GsdVietNamTe	GSD VIET NAM TECHNOLOGY COMPANY LIMITED
 20988E	Feasycom	Shenzhen Feasycom Co., Ltd
 2098D8	YingdakangTe	Shenzhen Yingdakang Technology CO., LTD
 2098ED	AltoBeam	AltoBeam Inc.
@@ -21791,6 +21800,7 @@
 20D25F	SmartCapTech	SmartCap Technologies
 20D276	ItelMobile	ITEL MOBILE LIMITED
 20D390	SamsungElect	Samsung Electronics Co.,Ltd
+20D476	AmazonTechno	Amazon Technologies Inc.
 20D5AB	KoreaInfocom	Korea Infocom Co.,Ltd.
 20D5BF	SamsungElect	Samsung Electronics Co.,Ltd
 20D5C2	EspressifPte	Espressif Systems (Singapore) Pte. Ltd
@@ -21858,7 +21868,7 @@
 20FE00	AmazonTechno	Amazon Technologies Inc.
 20FECD	SystemInFron	System In Frontier Inc.
 20FEDB	M2MSolutionS	M2M Solution S.A.S.
-20FF0C		HUAWEI TECHNOLOGIES CO.,LTD
+20FF0C	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 20FF36	Iflytek	IFLYTEK CO.,LTD.
 2400BA	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 2400FA	ChinaMobileI	China Mobile (Hangzhou) Information Technology Co., Ltd
@@ -23758,7 +23768,7 @@
 30688C	ReachTechnol	Reach Technology Inc.
 306893	TPLink	TP-Link Systems Inc.
 30694B	Rim	RIM
-306A4F		Roku, Inc
+306A4F	Roku	Roku, Inc
 306A85	SamsungElect	Samsung Electronics Co.,Ltd
 306CBE	SkymotionTec	Skymotion Technology (HK) Limited
 306D34	WuQiTechnolo	Wu Qi Technologies,Inc.
@@ -23848,7 +23858,7 @@
 30A452	ArrivalEleme	Arrival Elements BV
 30A612	HugsunTechno	ShenZhen Hugsun Technology Co.,Ltd.
 30A771	JiangSuFulia	Jiang Su Fulian Communication Technology Co.,Ltd
-30A7F5		Apple, Inc.
+30A7F5	Apple	Apple, Inc.
 30A889	DecimatorDes	DECIMATOR DESIGN
 30A8DB	Sony	Sony Corporation
 30A998	HuaweiDevice	Huawei Device Co., Ltd.
@@ -23911,7 +23921,7 @@
 30C507	ECITelecom	ECI Telecom Ltd.
 30C50F	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 30C599	ASUSTekCOMPU	ASUSTek COMPUTER INC.
-30C695		Overview Corporation
+30C695	Overview	Overview Corporation
 30C6AB	zte	zte corporation
 30C6D7	NewH3CTechno	New H3C Technologies Co., Ltd
 30C6F7	Espressif	Espressif Inc.
@@ -24151,7 +24161,7 @@
 342C8E	Ufispace	Ufispace Co., LTD.
 342CC4	CompalBroadb	Compal Broadband Networks, Inc.
 342D0D	SamsungElect	Samsung Electronics Co.,Ltd
-342D0F		zte corporation
+342D0F	zte	zte corporation
 342DA3	FiberhomeTel	Fiberhome Telecommunication Technologies Co.,LTD
 342EB6	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 342EB7	Intel	Intel Corporate
@@ -24305,12 +24315,12 @@
 347E5C	Sonos	Sonos, Inc.
 347ECA	Nextwill	NEXTWILL
 347F63	ConceptProSu	Concept Pro Surveillance
-34800D	Cavium	Cavium Inc
+34800D	MarvellSemic	Marvell Semiconductors
 3480B3	XiaomiCommun	Xiaomi Communications Co Ltd
 348137	Unicard	UNICARD SA
 3481C4	AVM	AVM GmbH
 3481F4	SSTTaiwan	SST Taiwan Ltd.
-348296		Apple, Inc.
+348296	Apple	Apple, Inc.
 3482C5	SamsungElect	Samsung Electronics Co.,Ltd
 3482DE	Kiio	Kiio Inc
 348302	iFORCOM	iFORCOM Co., Ltd
@@ -24353,6 +24363,7 @@
 3497F6	ASUSTekCOMPU	ASUSTek COMPUTER INC.
 3497FB	AdvancedRfTe	ADVANCED RF TECHNOLOGIES INC
 34987A	Espressif	Espressif Inc.
+34987C	AltoBeam	AltoBeam Inc.
 3498B5	Netgear	NETGEAR
 34996F	VPIEngineeri	VPI Engineering
 349971	QuantaStorag	Quanta Storage Inc.
@@ -24440,7 +24451,7 @@
 34C0F9	RockwellAuto	Rockwell Automation
 34C103	HuamuTechnol	Hangzhou Huamu Technology Co.,Ltd.
 34C1E9	UlakCommunic	Ulak Communications Inc.
-34C229		Calix Inc.
+34C229	Calix	Calix Inc.
 34C232	SamsungElect	Samsung Electronics Co.,Ltd
 34C386	Apple	Apple, Inc.
 34C3AC	SamsungElect	Samsung Electronics Co.,Ltd
@@ -24728,6 +24739,7 @@
 3822D6	H3CTechnolog	Hangzhou H3C Technologies Co., Limited
 3822E2	HP	HP Inc.
 3822F4	HuaweiDevice	Huawei Device Co., Ltd.
+3823DA	EvenRealitie	Even Realities Ltd.
 3824F1		Private
 38256B	MicrosoftMob	Microsoft Mobile Oy
 3825F3	MellanoxTech	Mellanox Technologies, Inc.
@@ -25072,7 +25084,7 @@
 38C2BA	CctvNeotech	CCTV NEOTECH
 38C43A	Apple	Apple, Inc.
 38C4E8	NSSSp	NSS Sp. z o.o.
-38C612		Phytium Technology Co.,Ltd.
+38C612	PhytiumTechn	Phytium Technology Co.,Ltd.
 38C6BD	XiaomiCommun	Xiaomi Communications Co Ltd
 38C6CE	Nintendo	Nintendo Co.,Ltd
 38C70A		WiFiSong
@@ -25125,7 +25137,7 @@
 38E8EE	NanjingYouku	Nanjing Youkuo Electric Technology Co., Ltd
 38E98C	Reco	Reco S.p.A.
 38EAA7	HewlettPacka	Hewlett Packard
-38EADD		Juniper Networks
+38EADD	JuniperNetwo	Juniper Networks
 38EB47	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 38EC07	MotorolaMobi	Motorola Mobility LLC, a Lenovo Company
 38EC0D	Apple	Apple, Inc.
@@ -25220,7 +25232,7 @@
 3A765D	NewCoSemiTec	NewCoSemi(Beijing) Technology Co., Ltd
 3A78CA	SoundTalks	SoundTalks NV
 3A796E	LXSemicon	LX Semicon co.,Ltd.
-3AA3F8	IEEE8021Chai	IEEE 802.1 Working Group
+3AA3F8	IEEE8021Work	IEEE 802.1 Working Group
 3ABA37		Cirrent
 3AC6CF	Parakey	Parakey AB
 3ACFC5	Quickline	Quickline AG
@@ -25289,13 +25301,13 @@
 3C1E04	DLinkInterna	D-Link International
 3C1E13	SunriseTechn	HANGZHOU SUNRISE TECHNOLOGY CO., LTD
 3C1EB5	Apple	Apple, Inc.
-3C1F52		eero inc.
+3C1F52	eero	eero inc.
 3C2093	GDMideaAirCo	GD Midea Air-Conditioning Equipment Co.,Ltd.
 3C20F6	SamsungElect	Samsung Electronics Co.,Ltd
 3C219C	Intel	Intel Corporate
 3C227F	QuectelWirel	Quectel Wireless Solutions Co.,Ltd.
 3C22FB	Apple	Apple, Inc.
-3C2319		final Inc.
+3C2319	final	final Inc.
 3C240A	HuaweiDevice	Huawei Device Co., Ltd.
 3C24F0		IEEE Registration Authority
 3C24F00	PinsidaTechn	SHENZHEN PINSIDA TECHNOLOGY CO.,LTD.
@@ -25327,7 +25339,7 @@
 3C2C94	DelanTech	杭州德澜科技有限公司（HangZhou Delan Technology Co.,Ltd）
 3C2C99	EdgecoreNetw	Edgecore Networks Corporation
 3C2CA6	XiaomiElectr	Beijing Xiaomi Electronics Co.,Ltd
-3C2CCD		Apple, Inc.
+3C2CCD	Apple	Apple, Inc.
 3C2D9E	VantivaConne	Vantiva - Connected Home
 3C2DB7	TexasInstrum	Texas Instruments
 3C2EF5	SiliconLabor	Silicon Laboratories
@@ -25753,6 +25765,7 @@
 3CFDFE	Intel	Intel Corporate
 3CFEAC	Cisco	Cisco Systems, Inc
 3CFFD8	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
+3CFFDD	vivoMobileCo	vivo Mobile Communication Co., Ltd.
 3CFFE4	Siemens	Siemens AG
 4000E0	DerekLimited	Derek(Shaoguan)Limited
 400107	Arista	Arista Corp
@@ -25831,6 +25844,7 @@
 402B50		Commscope
 402B69	KumhoElectri	Kumho Electric Inc.
 402BA1	Sony	Sony Corporation
+402BD6	Espressif	Espressif Inc.
 402C76		IEEE Registration Authority
 402C760	Lista	Lista AG
 402C761	DahuaScaleFa	Shanghai Dahua Scale Factory
@@ -26079,6 +26093,7 @@
 40A6B7	Intel	Intel Corporate
 40A6D9	Apple	Apple, Inc.
 40A6E8	Cisco	Cisco Systems, Inc
+40A746	Broadcom	Broadcom Limited
 40A786	TecnoMobile	TECNO MOBILE LIMITED
 40A8F0	HewlettPacka	Hewlett Packard
 40A93F	PivotalCommw	Pivotal Commware, Inc.
@@ -26828,7 +26843,7 @@
 4423AA	Farmage	Farmage Co., Ltd.
 442538	WNC	WNC Corporation
 4425BB	BambooEntert	Bamboo Entertainment Corporation
-4425F4		Apple, Inc.
+4425F4	Apple	Apple, Inc.
 44272E	HuaweiDevice	Huawei Device Co., Ltd.
 442745	LGInnotek	LG Innotek
 4427F3	70mai	70mai Co.,Ltd.
@@ -27774,7 +27789,7 @@
 48FD8E	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 48FDA3	XiaomiCommun	Xiaomi Communications Co Ltd
 48FEEA	Homa	HOMA B.V.
-4A07D6	IEEE8021Chai	IEEE 802.1 Working Group
+4A07D6	IEEE8021Work	IEEE 802.1 Working Group
 4A1540	sasdelaHalle	sas de la Halle aux Fours
 4A191B	ZigBeeAllian	ZigBee Alliance
 4A5909	MiwaLock	MIWA LOCK CO.,LTD.
@@ -27963,7 +27978,7 @@
 4C627B	SmartCowAITe	SmartCow AI Technologies Taiwan Ltd.
 4C62CD		Nokia
 4C62DF	HikvisionDig	Hangzhou Hikvision Digital Technology Co.,Ltd.
-4C631B		HUAWEI TECHNOLOGIES CO.,LTD
+4C631B	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 4C6371	XiaomiCommun	Xiaomi Communications Co Ltd
 4C63AD	HuaweiDevice	Huawei Device Co., Ltd.
 4C63EB	ApplicationS	Application Solutions (Electronics and Vision) Ltd
@@ -28069,6 +28084,7 @@
 4C82CF	DishTechnolo	Dish Technologies Corp
 4C83DE	CiscoSPVTG	Cisco SPVTG
 4C83FE	MercuryCommu	SHENZHEN MERCURY COMMUNICATION TECHNOLOGIES CO.,LTD.
+4C8421	Espressif	Espressif Inc.
 4C858A	Buffalo	BUFFALO.INC
 4C875D	Bose	Bose Corporation
 4C889E	HuaweiDevice	Huawei Device Co., Ltd.
@@ -28080,7 +28096,7 @@
 4C8E19	XiaomiCommun	Xiaomi Communications Co Ltd
 4C8ECC	Silkan	SILKAN SA
 4C8FA5		Jastec
-4C902D		FUJIAN STAR-NET COMMUNICATION CO.,LTD
+4C902D	FujianStarNe	FUJIAN STAR-NET COMMUNICATION CO.,LTD
 4C90DB	JLAudio	JL Audio
 4C910C	LanixInterna	Lanix Internacional, S.A. de C.V.
 4C9157	FujianLANDIC	Fujian LANDI Commercial Equipment Co.,Ltd
@@ -28653,7 +28669,7 @@
 507D02	Biodit	BIODIT
 507E5D	Arcadyan	Arcadyan Corporation
 50804A	QuectelWirel	Quectel Wireless Solutions Co.,Ltd.
-508114		Apple, Inc.
+508114	Apple	Apple, Inc.
 508140	HP	HP Inc.
 5082D5	Apple	Apple, Inc.
 508492	Intel	Intel Corporate
@@ -29008,7 +29024,7 @@
 5414FD	Orbbec3DTech	Orbbec 3D Technology International
 541589	MCSLogic	MCS Logic Inc.
 541651	RuijieNetwor	Ruijie Networks Co.,LTD
-5416A5		Espressif Systems (Singapore) Pte. Ltd
+5416A5	EspressifPte	Espressif Systems (Singapore) Pte. Ltd
 5419C8	vivoMobileCo	vivo Mobile Communication Co., Ltd.
 541B5D	TechnoInnov	Techno-Innov
 541D61	YEESTORMicro	YEESTOR Microelectronics Co., Ltd
@@ -29147,7 +29163,7 @@
 546D52	TopviewOptro	TOPVIEW OPTRONICS CORP.
 546F71	uAvionix	uAvionix Corporation
 547068	VTechCommuni	VTech Communications Limited
-5470AB		China Mobile Group Device Co.,Ltd.
+5470AB	ChinaMobileG	China Mobile Group Device Co.,Ltd.
 5471DD	HuaweiDevice	Huawei Device Co., Ltd.
 54724F	Apple	Apple, Inc.
 54725E	UnionManTech	UNION MAN TECHNOLOGY CO.,LTD
@@ -29343,7 +29359,7 @@
 54D17D	SamsungElect	Samsung Electronics Co.,Ltd
 54D1B0	UniversalLas	Universal Laser Systems, Inc
 54D272	NukiHomeSolu	Nuki Home Solutions GmbH
-54D299		TP-Link Systems Inc.
+54D299	TPLink	TP-Link Systems Inc.
 54D46F	CiscoSPVTG	Cisco SPVTG
 54D60D	EzvizSoftwar	Hangzhou Ezviz Software Co.,Ltd.
 54D751		Proximus
@@ -29514,6 +29530,7 @@
 582ABD	Espressif	Espressif Inc.
 582AF7	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 582B0A	TexasInstrum	Texas Instruments
+582BD3	Espressif	Espressif Inc.
 582BDB	Pax	Pax AB
 582D34	QingpingElec	Qingping Electronics (Suzhou) Co., Ltd
 582EFE	LightingScie	Lighting Science Group
@@ -29531,7 +29548,7 @@
 58356B	TecnoMobile	TECNO MOBILE LIMITED
 5835D9	Cisco	Cisco Systems, Inc
 583653	Apple	Apple, Inc.
-5836DE		HZC Skyverse(Chongqing)Microelectronics Co., Ltd
+5836DE	HZCSkyverseM	HZC Skyverse(Chongqing)Microelectronics Co., Ltd
 583879	Ricoh	RICOH COMPANY, LTD.
 583BC2	SiliconLabor	Silicon Laboratories
 583BD9	FiberhomeTel	Fiberhome Telecommunication Technologies Co.,LTD
@@ -29593,7 +29610,7 @@
 5850AB	TLS	TLS Corporation
 5850E6	BestBuy	Best Buy Corporation
 5850ED	HikvisionDig	Hangzhou Hikvision Digital Technology Co.,Ltd.
-5851A3		Apple, Inc.
+5851A3	Apple	Apple, Inc.
 58528A	MitsubishiEl	Mitsubishi Electric Corporation
 5853C0	GuangRuntong	Beijing Guang Runtong Technology Development Company co.,Ltd
 585595	Apple	Apple, Inc.
@@ -30010,6 +30027,7 @@
 5C22DA	VantivaUSA	Vantiva USA LLC
 5C2316	SquirrelsRes	Squirrels Research Labs LLC
 5C23C2	Apple	Apple, Inc.
+5C23D6	ChinaElectro	China Electronics Cloud Computing Technology Co., Ltd
 5C241F	QingdaoHaier	Qingdao Haier Technology Co.,Ltd
 5C2443	OSungTelecom	O-Sung Telecom Co., Ltd.
 5C2479	Baltech	Baltech AG
@@ -30252,7 +30270,7 @@
 5C87D8E	TownskyTechn	Beijing Townsky Technology Co.,Ltd
 5C8816	RockwellAuto	Rockwell Automation
 5C899A	TpLinkTechno	TP-LINK TECHNOLOGIES CO.,LTD.
-5C89BC		Apple, Inc.
+5C89BC	Apple	Apple, Inc.
 5C89D4	BannerElectr	Beijing Banner Electric Co.,Ltd
 5C89E6	RichardWolf	Richard Wolf GmbH
 5C8A38	HewlettPacka	Hewlett Packard
@@ -30284,6 +30302,7 @@
 5C9977	Apple	Apple, Inc.
 5C9AA1	HuaweiDevice	Huawei Device Co., Ltd.
 5C9AD8	Fujitsu	FUJITSU LIMITED
+5C9AE1	Ericsson	Ericsson AB
 5C9BA6	Apple	Apple, Inc.
 5CA06C	RealmeChongq	Realme Chongqing Mobile Telecommunications Corp.,Ltd.
 5CA176	SichuanTiany	Sichuan Tianyi Comheart Telecom Co.,LTD
@@ -30407,6 +30426,7 @@
 5CE3B6	FiberhomeTel	Fiberhome Telecommunication Technologies Co.,LTD
 5CE42A	Intel	Intel Corporate
 5CE50C	XiaomiMobile	Beijing Xiaomi Mobile Software Co., Ltd
+5CE674	NXPSemicondu	NXP Semiconductors Taiwan Ltd.
 5CE688	VECOSEurope	VECOS Europe B.V.
 5CE747	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 5CE753	Intellirocks	Shenzhen Intellirocks Tech. Co. Ltd.
@@ -30554,6 +30574,7 @@
 60159FD	FFVideosiste	FF Videosistemas SL
 60159FE		MaiaSpace
 6015C7		IdaTech
+6016F3	HuaqinTechno	Huaqin Technology Co., Ltd.
 601803	DaikinAircon	Daikin Air-conditioning (Shanghai) Co., Ltd.
 60182E	ProtrulyElec	ShenZhen Protruly Electronic Ltd co.
 60183A	HuaweiDevice	Huawei Device Co., Ltd.
@@ -30860,7 +30881,7 @@
 60B9C0	Cisco	Cisco Systems, Inc
 60BA18	nextLAP	nextLAP GmbH
 60BB0C	HuaqinWorldT	Beijing HuaqinWorld Technology Co,Ltd
-60BBEB		HUAWEI TECHNOLOGIES CO.,LTD
+60BBEB	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 60BC4C	EWMHightecWe	EWM Hightec Welding GmbH
 60BD2C	TaicangT&WEl	Taicang T&W Electronics
 60BD83	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
@@ -30885,7 +30906,7 @@
 60C7BE	RealmeChongq	Realme Chongqing Mobile Telecommunications Corp.,Ltd.
 60C980		Trymus
 60C9AA		Nokia
-60CA3A		Apple, Inc.
+60CA3A	Apple	Apple, Inc.
 60CBFB	AirScape	AirScape Inc.
 60CDA9		Abloomy
 60CDC5	TaiwanCarolE	Taiwan Carol Electronics., Ltd
@@ -31375,7 +31396,7 @@
 64C403	QuectelWirel	Quectel Wireless Solutions Co.,Ltd.
 64C582	ChinaMobileG	China Mobile Group Device Co.,Ltd.
 64C5AA	SouthAfrican	South African Broadcasting Corporation
-64C5F9		SHENZHEN TECNO TECHNOLOGY
+64C5F9	TecnoTechnol	SHENZHEN TECNO TECHNOLOGY
 64C667		Barnes&Noble
 64C6AF	AXERRANetwor	AXERRA Networks Ltd
 64C6D2	SeikoEpson	Seiko Epson Corporation
@@ -31506,6 +31527,7 @@
 64FD96	SagemcomBroa	Sagemcom Broadband SAS
 64FE15	FlaircommMic	Flaircomm Microelectronics,Inc.
 64FF0A	WNC	WNC Corporation
+680125	AmazonTechno	Amazon Technologies Inc.
 680235	KontenNetwor	Konten Networks Inc.
 6802B8	CompalBroadb	Compal Broadband Networks, Inc.
 680489	Cisco	Cisco Systems, Inc
@@ -31712,7 +31734,7 @@
 6879DD	OmniplessMan	Omnipless Manufacturing (PTY) Ltd
 6879ED	SHARP	SHARP Corporation
 687A64	Intel	Intel Corporate
-687BDC		Juniper Networks
+687BDC	JuniperNetwo	Juniper Networks
 687CC8	MeasurementS	Measurement Systems S. de R.L.
 687CD5	YSoft	Y Soft Corporation, a.s.
 687D00	YOUHUATechno	Shenzhen YOUHUA Technology Co., Ltd
@@ -31731,6 +31753,7 @@
 68856A	OuterLink	OuterLink Corporation
 6885A4	OppoMobileTe	GUANGDONG OPPO MOBILE TELECOMMUNICATIONS CORP.,LTD
 6886A7	Cisco	Cisco Systems, Inc
+6886E0	NXPSemicondu	NXP Semiconductors Taiwan Ltd.
 6886E7	Orbotix	Orbotix, Inc.
 68871C	MotorolaMobi	Motorola Mobility LLC, a Lenovo Company
 68876B	INQMobile	INQ Mobile Limited
@@ -32459,6 +32482,7 @@
 6CE01E	Modcam	Modcam AB
 6CE0B0	Sound4	SOUND4
 6CE20C	SDICMicroele	Hangzhou SDIC Microelectronics Inc.
+6CE210	EspressifPte	Espressif Systems (Singapore) Pte. Ltd
 6CE2D3	NewH3CTechno	New H3C Technologies Co., Ltd
 6CE3B6	NeraTelecomm	Nera Telecommunications Ltd.
 6CE40D	RaisecomTech	Raisecom Technology CO., LTD
@@ -32752,7 +32776,7 @@
 706979C	RivianAutomo	Rivian Automotive LLC
 706979D	FreundElektr	FREUND ELEKTRONIKA D.O.O., IP-INTEGRA TECHNOLOGIES
 706979E	BasIpLp	BAS-IP LP
-706A25		Ningbo Sanxing Smart Electric Co.，Ltd
+706A25	NingboSanxin	Ningbo Sanxing Smart Electric Co.，Ltd
 706AC9	zte	zte corporation
 706BB9	Cisco	Cisco Systems, Inc
 706D15	Cisco	Cisco Systems, Inc
@@ -37444,6 +37468,7 @@
 74888B	ADBBroadband	ADB Broadband Italia
 7488A8	BouffaloLab	Bouffalo Lab (Nanjing) Co., Ltd.
 7488BB	Cisco	Cisco Systems, Inc
+748927	Espressif	Espressif Inc.
 748A0D		Commscope
 748A28	HMDGlobal	HMD Global Oy
 748A69	KoreaImageTe	Korea Image Technology Co., Ltd
@@ -37738,7 +37763,7 @@
 780C71	InseegoWirel	Inseego Wireless, Inc
 780CB8	Intel	Intel Corporate
 780CF0	Cisco	Cisco Systems, Inc
-780E3E		HUAWEI TECHNOLOGIES CO.,LTD
+780E3E	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 780ED1	TRUMPFWerkze	TRUMPF Werkzeugmaschinen GmbH+Co.KG
 780F77	GubeiElectro	HangZhou Gubei Electronics Technology Co.,Ltd
 780F81	CiscoMeraki	Cisco Meraki
@@ -38146,7 +38171,7 @@
 78BE81	FNLINKTECHNO	FN-LINK TECHNOLOGY Ltd.
 78BEB6	EnhancedVisi	Enhanced Vision
 78BEBD	STULZ	STULZ GmbH
-78C05A		TP-Link Systems Inc.
+78C05A	TPLink	TP-Link Systems Inc.
 78C11D	SamsungElect	Samsung Electronics Co.,Ltd
 78C1A7	zte	zte corporation
 78C1AE	EzvizSoftwar	Hangzhou Ezviz Software Co.,Ltd.
@@ -38422,7 +38447,7 @@
 7C2499	Apple	Apple, Inc.
 7C2586	JuniperNetwo	Juniper Networks
 7C2587	chaowificom	chaowifi.com
-7C25A3		Fortinet, Inc.
+7C25A3	Fortinet	Fortinet, Inc.
 7C25DA	FnLinkTechno	FN-LINK TECHNOLOGY LIMITED
 7C2634		Commscope
 7C2664	SagemcomBroa	Sagemcom Broadband SAS
@@ -39824,7 +39849,7 @@
 84B386A	VelocioNetwo	Velocio Networks, Inc.
 84B386B	Sinengelectr	Sineng electric CO., Ltd
 84B386C	PalomarProdu	Palomar Products Inc
-84B386D	DongguanAmsa	Dongguan Amsamotion Automation Technology Co., Ltd
+84B386D	DongguanAmsa	Dongguan Amsamotion Automation Technology Co.,Ltd.
 84B386E	NingboXinsua	NINGBO XINSUAN TECHNOLOGY CO.,LTD
 84B4D2	iCommSemicon	Shenzhen iComm Semiconductor CO.,LTD
 84B4DB	SiliconLabor	Silicon Laboratories
@@ -39941,7 +39966,7 @@
 84EB3E	VivintSmartH	Vivint Smart Home
 84EB3F	Vivint	Vivint Inc
 84EBEF	Cisco	Cisco Systems, Inc
-84EC14		Qingdao Goertek Horizons  Technology Co.,LTD
+84EC14	QingdaoGoert	Qingdao Goertek Horizons  Technology Co.,LTD
 84ED33	BBMC	BBMC Co.,Ltd
 84EE7F	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 84EEE4	SamsungElect	Samsung Electronics Co.,Ltd
@@ -40051,7 +40076,7 @@
 882AE1	Mrc	MRC INC.
 882B94	MADOKASYSTEM	MADOKA SYSTEM Co.,Ltd.
 882BD7	AddénergieTe	ADDÉNERGIE  TECHNOLOGIES
-882C31		Apple, Inc.
+882C31	Apple	Apple, Inc.
 882D53	BaiduOnlineN	Baidu Online Network Technology (Beijing) Co., Ltd.
 882E5A		storONE
 882F64	BCOMNetworks	BCOM Networks Limited
@@ -40102,7 +40127,7 @@
 88403B	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 884067		infomark
 884157	AtsmartTechn	Shenzhen Atsmart Technology Co.,Ltd.
-88415F		MitraStar Technology Corp.
+88415F	MitraStarTec	MitraStar Technology Corp.
 8841C1	OrbisatDaAma	ORBISAT DA AMAZONIA IND E AEROL SA
 8841FC	AirTiesWirel	AirTies Wireless Networks
 8842D0	EardaTechnol	Earda Technologies co Ltd
@@ -40120,6 +40145,7 @@
 884B39	SiemensHealt	Siemens AG, Healthcare Sector
 884CCF	Pulzze	Pulzze Systems, Inc
 884D7C	Apple	Apple, Inc.
+884DDE	NubiaTechnol	Nubia Technology Co.,Ltd.
 884F59	Cisco	Cisco Systems, Inc
 885046	Lear	LEAR
 8850DD	InfinibandTr	Infiniband Trade Association
@@ -40737,6 +40763,7 @@
 8C1F640A3	FischerConne	Fischer & Connectors SA
 8C1F640A4	DynamicResea	Dynamic Research, Inc.
 8C1F640A5	GomeroNordic	Gomero Nordic AB
+8C1F640A7	Teveldoo	Tevel d.o.o.
 8C1F640A8	SamabaNova	SamabaNova Systems
 8C1F640A9	RFT	RFT Corp.
 8C1F640AA	Di3InfotechL	DI3 INFOTECH LLP
@@ -40794,6 +40821,7 @@
 8C1F640F4	AWSOMTechnol	AW-SOM Technologies LLC
 8C1F640F5	VishayNobel	Vishay Nobel AB
 8C1F640F7		Combilent
+8C1F640F8	INVENTIS	INVENTIS S.r.l.
 8C1F640F9	ikanInternat	ikan International LLC
 8C1F640FA	Nautel	Nautel LTD
 8C1F640FD	CEIPtd	CEI Ptd Ltd
@@ -40876,6 +40904,7 @@
 8C1F6416F	Codasipsro	Codasip s.r.o.
 8C1F64170	FracarroRadi	Fracarro Radioindustrie Srl
 8C1F64171	Maxphotoics	Maxphotoics GmbH
+8C1F64173		iPronics
 8C1F64174	KSTtechnolog	KST technology
 8C1F64175	YiValleyOpto	Wuhan YiValley Opto-electric technology Co.,Ltd
 8C1F64176	Leidos	Leidos Inc
@@ -41288,7 +41317,7 @@
 8C1F643BA	MitsubishiEl	MITSUBISHI ELECTRIC INDIA PVT. LTD.
 8C1F643BB	ClausalCompu	Clausal Computing Oy
 8C1F643BD		Oriux
-8C1F643BE		Adit Innovation Private Limited
+8C1F643BE	AditInnovati	Adit Innovation Private Limited
 8C1F643C0	Snek	SNEK
 8C1F643C1	SuzhouLiansh	Suzhou Lianshichuangzhi Technology Co., Ltd
 8C1F643C2	SamuelCosgro	Samuel Cosgrove
@@ -41302,6 +41331,7 @@
 8C1F643CB	AnhuiWenxian	Anhui Wenxiang Technology Co.,Ltd.
 8C1F643CD	Sejongsecuri	Sejong security system Cor.
 8C1F643CE	MahindrMahin	MAHINDR & MAHINDRA
+8C1F643CF	GSElektromed	GS Elektromedizinsiche Geräte G. Stemple GmbH
 8C1F643D0	Tripltek	TRIPLTEK
 8C1F643D1	EMIT	EMIT GmbH
 8C1F643D2	UVIRCOTechno	UVIRCO Technologies
@@ -41340,7 +41370,7 @@
 8C1F64407		broadtek
 8C1F64408	techonesyste	techone system
 8C1F6440A	EnkiMultimed	Enki Multimedia
-8C1F6440B		WHOI-AComms
+8C1F6440B	WHOIAComms	WHOI-AComms
 8C1F6440C	SichuanAiyij	Sichuan Aiyijan Technology Company Ltd.
 8C1F6440D	PROFITT	PROFITT Ltd
 8C1F6440E	BakerHughesE	Baker Hughes EMEA
@@ -42389,6 +42419,7 @@
 8C1F649C4	IndraHeeraNe	Indra Heera Network Private Limited
 8C1F649C5	PactonTechno	Pacton Technologies Pty Ltd
 8C1F649C6	GoldingAudio	Golding Audio Ltd
+8C1F649C7	SanminaSCIMe	Sanmina SCI Medical
 8C1F649CA	EDCAcoustics	EDC Acoustics
 8C1F649CB	SizhongInfor	Shanghai Sizhong Information Technology Co., Ltd
 8C1F649CD	JiangYuInnov	JiangYu Innovative Medical Technology
@@ -42444,6 +42475,7 @@
 8C1F64A14	Uplusit	UPLUSIT
 8C1F64A15	SeeAllAI	See All AI Inc.
 8C1F64A17	Pneumax	Pneumax Spa
+8C1F64A19	PowerElectro	Power Electronics Espana, S.L.
 8C1F64A1B	Zilica	Zilica Limited
 8C1F64A1C		manageon
 8C1F64A1D	MYIRElectron	MYIR Electronics Limited
@@ -42483,6 +42515,7 @@
 8C1F64A4D	DEUTAWERKE	DEUTA-WERKE GmbH
 8C1F64A4E	SyscomInstru	Syscom Instruments SA
 8C1F64A4F	AsconTecnolo	Ascon Tecnologic S.r.l.
+8C1F64A50	SimplyEmbede	Simply Embededded Inc
 8C1F64A51	Babtel	BABTEL
 8C1F64A52	Tiama	TIAMA
 8C1F64A56	FlextronicsI	Flextronics International Kft
@@ -42527,6 +42560,7 @@
 8C1F64A90	DSGioGlobalP	DSGio Global Pte Ltd
 8C1F64A91	InfinitiveGr	Infinitive Group Limited
 8C1F64A92	AgrologyPBC	Agrology, PBC
+8C1F64A93	eSmartTech	eSmart Tech Inc
 8C1F64A94	Futurewaveul	Future wave ultra tech Company
 8C1F64A95	Sentek	Sentek Pty Ltd
 8C1F64A97	Integerpl	Integer.pl S.A.
@@ -42539,7 +42573,7 @@
 8C1F64A9F	DadhwalAiPri	DADHWAL AI PRIVATE LIMITED
 8C1F64AA0	FlextronicsI	Flextronics International Kft
 8C1F64AA1	TechFasssro	Tech Fass s.r.o.
-8C1F64AA2		Potter Electric Signal Company
+8C1F64AA2	PotterElectr	Potter Electric Signal Company
 8C1F64AA3	PeterHuberKa	Peter Huber Kaeltemaschinenbau SE
 8C1F64AA4	HEINENELEKTR	HEINEN ELEKTRONIK GmbH
 8C1F64AA6	DataConversi	Data Conversion Systems Ltd
@@ -42834,7 +42868,7 @@
 8C1F64C2D	iENSO	iENSO Inc.
 8C1F64C2E	IcsSolutions	ICS SOLUTIONS INC.
 8C1F64C2F	PowerElectro	Power Electronics Espana, S.L.
-8C1F64C30		Marco R. Napoleone
+8C1F64C30	MarcoRNapole	Marco R. Napoleone
 8C1F64C31	Ambarella	Ambarella Inc.
 8C1F64C34	XinyuandiTec	Chengdu Xinyuandi Technology Co., Ltd.
 8C1F64C35	PeterHuberKa	Peter Huber Kaeltemaschinenbau SE
@@ -42948,7 +42982,7 @@
 8C1F64CD1	FlextronicsI	Flextronics International Kft
 8C1F64CD3	Pionierkraft	Pionierkraft GmbH
 8C1F64CD4	ShengliTechn	Shengli Technologies
-8C1F64CD5		Dynamic Intelligences Co., Ltd.
+8C1F64CD5	DynamicIntel	Dynamic Intelligences Co., Ltd.
 8C1F64CD6	USM	USM Pty Ltd
 8C1F64CD7	EmbeddedDesi	Embedded Designs Services India Pvt Ltd
 8C1F64CD8	GogoBusiness	Gogo Business Aviation
@@ -43023,6 +43057,7 @@
 8C1F64D33	SPACECREATOR	SPACE CREATORS ALLIANCE Inc.
 8C1F64D34	Kronotech	KRONOTECH SRL
 8C1F64D35	XianBianguIn	Xi'an Biangu Information Technology Co., Ltd.
+8C1F64D36	RFCode	RF Code Inc
 8C1F64D38	CuuLongTechn	CUU LONG TECHNOLOGY AND TRADING COMPANY LIMITED
 8C1F64D3A	AppliedMater	Applied Materials
 8C1F64D3B	GogoBA	Gogo BA
@@ -43097,7 +43132,7 @@
 8C1F64D9E	WagnerGroup	Wagner Group GmbH
 8C1F64DA0	SensataTechn	Sensata Technologies Inc.
 8C1F64DA1	HangtengTech	Hangteng (HK) Technology Co., Limited
-8C1F64DA2		Ascon Tecnologic S.r.l.
+8C1F64DA2	AsconTecnolo	Ascon Tecnologic S.r.l.
 8C1F64DA4	FoenixCoding	Foenix Coding Ltd
 8C1F64DA5	Daom	DAOM
 8C1F64DA6	PowerElectro	Power Electronics Espana, S.L.
@@ -43105,6 +43140,7 @@
 8C1F64DAE	Maincoautomo	Mainco automotion s.l.
 8C1F64DAF	ZhuhaiLonlel	Zhuhai Lonl electric Co.,Ltd
 8C1F64DB1	YamatoScale	Shanghai Yamato Scale Co., Ltd
+8C1F64DB2	Lynx	Lynx Systems
 8C1F64DB4	MBconnectlin	MB connect line GmbH
 8C1F64DB5		victtron
 8C1F64DB7	Lambda	Lambda Systems Inc.
@@ -43392,7 +43428,7 @@
 8C1F64F54	RowanToolsOf	Rowan Tools Office
 8C1F64F56	KC5Internati	KC5 International Sdn Bhd
 8C1F64F57	EAElektroAut	EA Elektro-Automatik GmbH
-8C1F64F58		Mega Endustri Kontrol Sis.Tic.San.A.S
+8C1F64F58	MegaEndustri	Mega Endustri Kontrol Sis.Tic.San.A.S
 8C1F64F59	Inovonics	Inovonics Inc.
 8C1F64F5A	TelcoAntenna	Telco Antennas Pty Ltd
 8C1F64F5B	SemaConnect	SemaConnect, Inc
@@ -43418,7 +43454,7 @@
 8C1F64F7B	XpsEletronic	XPS ELETRONICA LTDA
 8C1F64F7C	GeneralDynam	General Dynamics IT
 8C1F64F7D	RpgInformati	RPG INFORMATICA, S.A.
-8C1F64F7E		Suzhou Deyi Automotive Electronics Co., Ltd.
+8C1F64F7E	SuzhouDeyiAu	Suzhou Deyi Automotive Electronics Co., Ltd.
 8C1F64F7F	VisionSafety	Vision Systems Safety Tech
 8C1F64F80	VinfastTradi	Vinfast Trading and Production JSC
 8C1F64F82	SeorimTechno	SEORIM TECHNOLOGY
@@ -43454,7 +43490,7 @@
 8C1F64FAA	MassarNetwor	Massar Networks
 8C1F64FAB	LIAN	LIAN Corporation
 8C1F64FAC	ShowaElectri	Showa Electric Laboratory co.,ltd.
-8C1F64FAF		Goodtech Worldwide LTD ,,mobitel''
+8C1F64FAF	GoodtechWorl	Goodtech Worldwide LTD ,,mobitel''
 8C1F64FB0	MARIAN	MARIAN GmbH
 8C1F64FB1	Abb	ABB
 8C1F64FB3		Camius
@@ -43565,6 +43601,7 @@
 8C44A5	Cisco	Cisco Systems, Inc
 8C44BB	ShenZhenTend	SHEN ZHEN TENDA TECHNOLOGY CO.,LTD
 8C4500	MurataManufa	Murata Manufacturing Co., Ltd.
+8C4598	Espressif	Espressif Inc.
 8C476E		IEEE Registration Authority
 8C476E0	ChipsaferPte	Chipsafer Pte. Ltd.
 8C476E1	TelWare	TelWare Corporation
@@ -43988,6 +44025,7 @@
 8CF319	SiemensIndus	Siemens Industrial Automation Products Ltd., Chengdu
 8CF3E7		solidotech
 8CF5A3	SamsungElect	SAMSUNG ELECTRO-MECHANICS(THAILAND)
+8CF67D	Netgear	NETGEAR
 8CF681	SiliconLabor	Silicon Laboratories
 8CF710	AMPAKTechnol	AMPAK Technology, Inc.
 8CF773		Nokia
@@ -44324,6 +44362,7 @@
 9092B4	DiehlBGTDefe	Diehl BGT Defence GmbH & Co. KG
 90935A		Commscope
 90940A	AnalogDevice	Analog Devices, Inc
+909412	OppoMobileTe	GUANGDONG OPPO MOBILE TELECOMMUNICATIONS CORP.,LTD
 909497	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 9094E4	DLinkInterna	D-Link International
 909507	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
@@ -44715,6 +44754,7 @@
 943EFDD	KulpLights	KulpLights LLC
 943EFDE	Annapurnalab	Annapurna labs
 943F0C	Genexis	Genexis B.V.
+943F68	NanjingRISCV	Nanjing RISC-V Institute Co., Ltd.
 943FBB	JSCRPCIstokn	JSC RPC Istok named after Shokin
 943FC2	HewlettPacka	Hewlett Packard Enterprise
 943FD6	Apple	Apple, Inc.
@@ -44839,6 +44879,7 @@
 949426	Apple	Apple, Inc.
 94944A	ParticleIndu	Particle Industries Inc.
 9495A0	Google	Google, Inc.
+949722	AzureWaveTec	AzureWave Technology Inc.
 94974F	LiteonTechno	Liteon Technology Corporation
 9497AE	OppoMobileTe	GUANGDONG OPPO MOBILE TELECOMMUNICATIONS CORP.,LTD
 949869	zte	zte corporation
@@ -45062,6 +45103,7 @@
 94F7BE	SercommPhili	SERCOMM PHILIPPINES INC
 94F827	ImilabTechno	Shanghai Imilab Technology Co.Ltd
 94F929	MetaPlatform	Meta Platforms, Inc.
+94FA57	EqualizerTec	Equalizer Technologies
 94FAE8	EycomTechnol	Shenzhen Eycom Technology Co., Ltd
 94FB29	ZebraTechnol	Zebra Technologies Inc.
 94FBA7		IEEE Registration Authority
@@ -45081,6 +45123,7 @@
 94FBA7D	RosenbergerT	Rosenberger Technologies Co.,Ltd.
 94FBA7E	SkyringSmart	Skyring Smart Technologies(Shenzhen) Co., Ltd.
 94FBB2	GongjinElect	SHENZHEN GONGJIN ELECTRONICS CO.,LT
+94FC04	DongguanAmsa	Dongguan Amsamotion Automation Technology Co.,Ltd.
 94FC87	HirschmannAu	Hirschmann Automation and Control GmbH
 94FD1D	WhereWhen	WhereWhen Corp
 94FD2E	UniscopeTech	Shanghai Uniscope Technologies Co.,Ltd
@@ -45143,7 +45186,7 @@
 9806A3	GsdVietNamTe	GSD VIET NAM TECHNOLOGY COMPANY LIMITED
 980709	HuaweiDevice	Huawei Device Co., Ltd.
 98072D	TexasInstrum	Texas Instruments
-98076A		Apple, Inc.
+98076A	Apple	Apple, Inc.
 980802	Orbis	ORBIS BV
 980818	AltoBeam	AltoBeam Inc.
 9809CF	OnePlusTechn	OnePlus Technology (Shenzhen) Co., Ltd
@@ -45259,7 +45302,7 @@
 984246	SolIndustryP	SOL INDUSTRY PTE., LTD
 984265	SagemcomBroa	Sagemcom Broadband SAS
 9842AB	GNHearing	GN Hearing A/S
-9842F5		Apple, Inc.
+9842F5	Apple	Apple, Inc.
 9843DA	Intertech	INTERTECH
 9843FA	Intel	Intel Corporate
 9844B6	InfranorSas	INFRANOR SAS
@@ -45531,7 +45574,7 @@
 98C9BE	SDMCTechnolo	Shenzhen SDMC Technology CO., LTD
 98CA20	SIMCOM	Shanghai SIMCOM Ltd.
 98CA33	Apple	Apple, Inc.
-98CAB5		Apple, Inc.
+98CAB5	Apple	Apple, Inc.
 98CB27	GaloreNetwor	Galore Networks Pvt. Ltd.
 98CB38	BoxinCommuni	Boxin Communications Limited Liability Company
 98CBA4	BenchmarkEle	Benchmark Electronics
@@ -45670,7 +45713,7 @@
 9AD263	FirmTek	FirmTek, LLC
 9C00D3	IKWORLDTechn	SHENZHEN IK WORLD Technology Co., Ltd
 9C0111	NewabelElect	Shenzhen Newabel Electronic Co., Ltd.
-9C0213		NXP Semiconductors Germany GmbH
+9C0213	NXPSemicondu	NXP Semiconductors Germany GmbH
 9C0298	SamsungElect	Samsung Electronics Co.,Ltd
 9C0351	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 9C039E	WinchannelSo	Beijing Winchannel Software Technology Co., Ltd
@@ -46179,7 +46222,7 @@ A0024A1	VidendumMedi	Videndum Media Solutions Spa
 A0024A2	DanriverTech	Danriver Technologies Corp.
 A0024A3	SomaDetect	SomaDetect Inc
 A0024A4	ArgosSolutio	Argos Solutions AS
-A0024A5	DongguanAmsa	Dongguan Amsamotion Automation Technology Co., Ltd
+A0024A5	DongguanAmsa	Dongguan Amsamotion Automation Technology Co.,Ltd.
 A0024A6	XiaojieTechn	Xiaojie Technology (Shenzhen) Co., Ltd
 A0024A7	EnnebiElettr	ENNEBI ELETTRONICA SRL
 A0024A8	LyratoneTech	Beijing Lyratone Technology Co., Ltd
@@ -46210,6 +46253,7 @@ A00E98	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 A00F37	Cisco	Cisco Systems, Inc
 A01077	zte	zte corporation
 A01081	SamsungElect	Samsung Electronics Co.,Ltd
+A01217	OppoMobileTe	GUANGDONG OPPO MOBILE TELECOMMUNICATIONS CORP.,LTD
 A01290	Avaya	Avaya Inc
 A012DB	TabuchiElect	TABUCHI ELECTRIC CO.,LTD
 A0133B	HiTiDigital	HiTi Digital, Inc.
@@ -46462,7 +46506,7 @@ A0779E	ChipseaTechn	Chipsea Technologies (Shenzhen) Corp.
 A07817	Apple	Apple, Inc.
 A0782D	Apple	Apple, Inc.
 A078BA	Pantech	Pantech Co., Ltd.
-A07D42		COMPAL INFORMATION (KUNSHAN) CO., LTD.
+A07D42	CompalInform	COMPAL INFORMATION (KUNSHAN) CO., LTD.
 A07D9C	SamsungElect	Samsung Electronics Co.,Ltd
 A07E16	EMMicroelect	EM Microelectronic
 A07F8A	SagemcomBroa	Sagemcom Broadband SAS
@@ -46617,7 +46661,7 @@ A0C5F26	JuWangShiTec	ShenZhen JuWangShi Tech
 A0C5F27	Viettronimex	Viettronimex JSC
 A0C5F28	CoolRGroup	CoolR Group Inc
 A0C5F29	ImpulseNetwo	Impulse Networks Pte Ltd
-A0C5F2A	SeriousInteg	Serious Integrated, Inc.
+A0C5F2A	e2ipTechnolo	e2ip Technologies
 A0C5F2B	Oraycom	Oray.com co., LTD.
 A0C5F2C	Glooko	Glooko inc
 A0C5F2D	UnaliWear	UnaliWear, Inc.
@@ -47172,6 +47216,7 @@ A4C939	OppoMobileTe	GUANGDONG OPPO MOBILE TELECOMMUNICATIONS CORP.,LTD
 A4CAA0	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 A4CB8F	Espressif	Espressif Inc.
 A4CC32	Inficomm	Inficomm Co., Ltd
+A4CC37	SiliconLabor	Silicon Laboratories
 A4CCB3	XiaomiCommun	Xiaomi Communications Co Ltd
 A4CCB9	RealmeChongq	Realme Chongqing Mobile Telecommunications Corp.,Ltd.
 A4CD23	ShenzhenshiX	Shenzhenshi Xinzhongxin  Co., Ltd
@@ -47397,7 +47442,7 @@ A83FA1C	Laonz	Laonz Co.,Ltd
 A83FA1D	BIOIE	Shenzhen BIO I/E Co.,Ltd
 A83FA1E	GuangzhouNav	Guangzhou Navigateworx Technologies Co., Limited
 A8400B	Visteon	Visteon Corporation
-A84021		zte corporation
+A84021	zte	zte corporation
 A84025	OxideCompute	Oxide Computer Company
 A84041	DraginoTechn	Dragino Technology Co., Limited
 A8407D	GDMideaAirCo	GD Midea Air-Conditioning Equipment Co.,Ltd.
@@ -47709,6 +47754,7 @@ A8F8C9	NXPSemicondu	NXP Semiconductor (Tianjin) LTD.
 A8F94B	EltexEnterpr	Eltex Enterprise Ltd.
 A8FAD8	Apple	Apple, Inc.
 A8FB40	NokiaSolutio	Nokia Solutions and Networks GmbH & Co. KG
+A8FB45	Google	Google, Inc.
 A8FB70	WiseSecLtd	WiseSec L.t.d
 A8FCB7	Consolidated	Consolidated Resource Imaging
 A8FD07	Espressif	Espressif Inc.
@@ -47884,6 +47930,7 @@ AC4D16	TexasInstrum	Texas Instruments
 AC4DD9	ExtremeNetwo	Extreme Networks, Inc.
 AC4E2E	JingHanDaEle	Shenzhen JingHanDa Electronics Co.Ltd
 AC4E65	FiberhomeTel	Fiberhome Telecommunication Technologies Co.,LTD
+AC4E74	ShenZhenTend	SHEN ZHEN TENDA TECHNOLOGY CO.,LTD
 AC4E91	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 AC4FFC	SVSVISTEK	SVS-VISTEK GmbH
 AC5036	PiCoral	Pi-Coral Inc
@@ -48063,7 +48110,7 @@ ACA016	Cisco	Cisco Systems, Inc
 ACA09D	JuniperNetwo	Juniper Networks
 ACA213	BilianElectr	SHENZHEN BILIAN ELECTRONIC CO.，LTD
 ACA22C	BaycityTechn	Baycity Technologies Ltd
-ACA26A		Espressif Systems (Singapore) Pte. Ltd
+ACA26A	EspressifPte	Espressif Systems (Singapore) Pte. Ltd
 ACA31E	HewlettPacka	Hewlett Packard Enterprise
 ACA32F	SolidigmTech	Solidigm Technology
 ACA430	PeerlessAV	Peerless AV
@@ -48149,6 +48196,7 @@ ACD20C	SingCoreTech	Chengdu SingCore Technology Co.,Ltd.
 ACD31D	CiscoMeraki	Cisco Meraki
 ACD364	AbbAbbSaceDi	ABB SPA, ABB SACE DIV.
 ACD3FB	ArycsTechnol	Arycs Technologies Inc
+ACD400	Cisco	Cisco Systems, Inc
 ACD564	ChongqingFug	CHONGQING FUGUI ELECTRONICS CO.,LTD.
 ACD618	OnePlusTechn	OnePlus Technology (Shenzhen) Co., Ltd
 ACD657	ShaanxiGuoLi	Shaanxi GuoLian Digital TV Technology Co.,Ltd.
@@ -48316,7 +48364,7 @@ B02A43	Google	Google, Inc.
 B02B64	Cisco	Cisco Systems, Inc
 B02EBA	EardaTechnol	Earda Technologies co Ltd
 B02EE0	HuaweiDevice	Huawei Device Co., Ltd.
-B02F20		VIM technology CO., LTD.
+B02F20	VIMtechnolog	VIM technology CO., LTD.
 B03055	ChinaMobileI	China Mobile IOT Company Limited
 B030C8	TealDrones	Teal Drones, Inc.
 B03226	KehengInform	Keheng Information Industry Co., Ltd.
@@ -48944,6 +48992,7 @@ B45575	Apple	Apple, Inc.
 B4565D	ChipseaTechn	Chipsea Technologies (Shenzhen) Corp.
 B456B9	TeraspekTech	Teraspek Technologies Co.,Ltd
 B456E3	Apple	Apple, Inc.
+B456F3	WestermoNetw	Westermo Network Technologies AB
 B456FA	IOPSYSSoftwa	IOPSYS Software Solutions
 B457E6	OppoMobileTe	GUANGDONG OPPO MOBILE TELECOMMUNICATIONS CORP.,LTD
 B45861	CRemote	CRemote, LLC
@@ -49336,7 +49385,7 @@ B82FCB	CMSElectraco	CMS Electracom
 B830A8	RoadTrackTel	Road-Track Telematics Development
 B831B5	Microsoft	Microsoft Corporation
 B83241	TianyuInform	Wuhan Tianyu Information Industry Co., Ltd.
-B83250		Suzhou Comay Information Technology Co., LTD
+B83250	SuzhouComayI	Suzhou Comay Information Technology Co., LTD
 B8328F	eero	eero inc.
 B83446	MotorolaMobi	Motorola Mobility LLC, a Lenovo Company
 B836D8		Videoswitch
@@ -49592,6 +49641,7 @@ B8C051		VusionGroup
 B8C065	UniversalEle	Universal Electronics, Inc.
 B8C111	Apple	Apple, Inc.
 B8C1A2	DragonPathTe	Dragon Path Technologies Co., Limited
+B8C1B5	HanshowTechn	HANSHOW TECHNOLOGY CO.,LTD.
 B8C227		PSTec
 B8C253	JuniperNetwo	Juniper Networks
 B8C385	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
@@ -49778,8 +49828,9 @@ BC1665	Cisco	Cisco Systems, Inc
 BC1695	zte	zte corporation
 BC16F5	Cisco	Cisco Systems, Inc
 BC17B8	Intel	Intel Corporate
-BC1827		Apple, Inc.
+BC1827	Apple	Apple, Inc.
 BC1896	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
+BC1926	Espressif	Espressif Inc.
 BC192F	TexasInstrum	Texas Instruments
 BC1A67	YFTechnology	YF Technology Co., Ltd
 BC1AE4	HuaweiDevice	Huawei Device Co., Ltd.
@@ -49794,6 +49845,7 @@ BC2228	DLinkInterna	D-Link International
 BC2247	NewH3CTechno	New H3C Technologies Co., Ltd
 BC22FB	RFIndustries	RF Industries
 BC2392	BYDPrecision	BYD Precision Manufacture Company Ltd.
+BC239F	vivoMobileCo	vivo Mobile Communication Co., Ltd.
 BC2411	ProxmoxServe	Proxmox Server Solutions GmbH
 BC2492	NewH3CTechno	New H3C Technologies Co., Ltd
 BC25E0	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
@@ -49868,7 +49920,7 @@ BC34CA	Inovance	INOVANCE
 BC34D6	ExtremeNetwo	Extreme Networks, Inc.
 BC351E	TuyaSmart	Tuya Smart Inc.
 BC35E5	Hydro	Hydro Systems Company
-BC36F7		HUAWEI TECHNOLOGIES CO.,LTD
+BC36F7	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 BC37D3	Apple	Apple, Inc.
 BC3865	Jwcnetworks	JWCNETWORKS
 BC3898	Intel	Intel Corporate
@@ -50231,7 +50283,7 @@ BCF730	SamsungElect	Samsung Electronics Co.,Ltd
 BCF811	XiamenDNAKET	Xiamen DNAKE Technology Co.,Ltd
 BCF87E	Arcadyan	Arcadyan Corporation
 BCF88B	zte	zte corporation
-BCF9F2	Teko	TEKO
+BCF9F2	CjscStcTeko	CJSC "STC "TEKO"
 BCFAB8	GuangzhouShi	Guangzhou Shiyuan Electronic Technology Company Limited
 BCFABA	MellanoxTech	Mellanox Technologies, Inc.
 BCFAEB	Cisco	Cisco Systems, Inc
@@ -50821,7 +50873,7 @@ C4224E	TelinkMicro	Telink Micro LLC
 C42360	Intel	Intel Corporate
 C4237A	WhizNets	WhizNets Inc.
 C423A2	PTEmsonicInd	PT. Emsonic Indonesia
-C423E2		WNC Corporation
+C423E2	WNC	WNC Corporation
 C4242E	GalvanicAppl	Galvanic Applied Sciences Inc
 C42456	PaloAltoNetw	Palo Alto Networks
 C42628	AiroWireless	Airo Wireless
@@ -50902,7 +50954,7 @@ C4518D	YOUHUATechno	Shenzhen YOUHUA Technology Co., Ltd
 C4524F	Apple	Apple, Inc.
 C45379	MicronviewLi	Micronview Limited Liability Company
 C45444	QuantaComput	Quanta Computer Inc.
-C4550D		HUAWEI TECHNOLOGIES CO.,LTD
+C4550D	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 C455A6	CadacHolding	Cadac Holdings Ltd
 C455C2	BachSimpson	Bach-Simpson
 C45600	GalleonEmbed	Galleon Embedded Computing
@@ -51290,7 +51342,7 @@ C4EB41	SagemcomBroa	Sagemcom Broadband SAS
 C4EB42	SagemcomBroa	Sagemcom Broadband SAS
 C4EB43	SagemcomBroa	Sagemcom Broadband SAS
 C4EB68		VusionGroup
-C4EB81		Apple, Inc.
+C4EB81	Apple	Apple, Inc.
 C4EBE3	RrcnSas	RRCN SAS
 C4EBFF	zte	zte corporation
 C4EDBA	TexasInstrum	Texas Instruments
@@ -51767,6 +51819,7 @@ C8C750	MotorolaMobi	Motorola Mobility LLC, a Lenovo Company
 C8C791	Zero1tv	Zero1.tv GmbH
 C8C83F	TexasInstrum	Texas Instruments
 C8C873	Chipsen	CHIPSEN INC.
+C8C919	Broadcom	Broadcom Limited
 C8C992	RoborockTech	Beijing Roborock Technology Co., Ltd.
 C8C9A3	Espressif	Espressif Inc.
 C8C9B2	AmazonTechno	Amazon Technologies Inc.
@@ -51826,8 +51879,10 @@ C8E776	PTCOMTechnol	PTCOM Technology
 C8E7D8	MercuryCommu	MERCURY COMMUNICATION TECHNOLOGIES CO.,LTD.
 C8E7F0	JuniperNetwo	Juniper Networks
 C8E8AF	eero	eero inc.
+C8EA71	Espressif	Espressif Inc.
 C8EAF8	zte	zte corporation
 C8EBEC	YOUHUATechno	Shenzhen YOUHUA Technology Co., Ltd
+C8ED8B	Espressif	Espressif Inc.
 C8EDFC	IdeaformIndu	Shenzhen Ideaform Industrial Product Design Co., Ltd
 C8EE08	TangtopTechn	TANGTOP TECHNOLOGY CO.,LTD
 C8EE75	PishionInter	Pishion International Co. Ltd
@@ -51836,6 +51891,19 @@ C8EED7	LightspeedTe	Lightspeed Technologies Inc.
 C8EF2E	GefeiTech	Beijing Gefei Tech. Co., Ltd
 C8EFBC	InspurCommun	Inspur Communication Technology Co.,Ltd.
 C8F09E	Espressif	Espressif Inc.
+C8F10A		IEEE Registration Authority
+C8F10A0	CleverLogger	Clever Logger Technologies Pty Ltd
+C8F10A1	UbinexusTech	Beijing Ubinexus Technology Development Co.,Ltd.
+C8F10A3	CiDi	CiDi Inc.
+C8F10A4	WislinkVisio	Wislink Vision (Hongkong) Technologies Co., Limited
+C8F10A5	DOIntelligen	Shenzhen DO Intelligent Technology Co., Ltd
+C8F10A6	NanjingBrome	Nanjing Brome Communications Technology CO.,LTD
+C8F10A7	MoonInvestme	Moon Investment (Hong Kong) Limited
+C8F10A8	BwellTechnol	BWELL TECHNOLOGY INTERNATIONAL LIMITED
+C8F10A9	dss	dss Co,. Ltd
+C8F10AB	VeboGenossen	Vebo Genossenschaft
+C8F10AC	ChangzhouSir	Changzhou Siri Electric Technology Co.,Ltd.
+C8F10AD	I2V	I2V Systems Pvt. Ltd.
 C8F225	EMMicroelect	EM Microelectronic
 C8F230	OppoMobileTe	GUANGDONG OPPO MOBILE TELECOMMUNICATIONS CORP.,LTD
 C8F2B4	GuizhouHuaxi	Guizhou Huaxin Information Technology Co., Ltd.
@@ -51903,7 +51971,7 @@ CA125C	Microsoft	Microsoft Corporation
 CA1E45	ASMediaTechn	ASMedia Technology Inc.
 CA222B	PumaGearPowe	Beijing Puma Gear Power Equipment Co.,Ltd
 CA2B5E	SuzhouMotorc	Suzhou Motor-comm Electronic Technology Co.,Ltd
-CA30BF	IEEE8021Chai	IEEE 802.1 Working Group
+CA30BF	IEEE8021Work	IEEE 802.1 Working Group
 CA3782	Storbyte	Storbyte, Inc.
 CA3EA6	Syng	Syng, Inc.
 CA443E	AllianzTechn	Allianz Technology SE
@@ -52036,7 +52104,7 @@ CC355A	SecuGen	SecuGen Corporation
 CC35D9	Ubiquiti	Ubiquiti Inc
 CC36BB	SiliconLabor	Silicon Laboratories
 CC36CF	Cisco	Cisco Systems, Inc
-CC37A9		ASKEY COMPUTER CORP
+CC37A9	AskeyCompute	ASKEY COMPUTER CORP
 CC37AB	EdgecoreNetw	Edgecore Networks Corporation
 CC38D0	PaloAltoNetw	Palo Alto Networks
 CC38E1	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
@@ -52207,21 +52275,21 @@ CC8130		Intelbras
 CC817D	Apple	Apple, Inc.
 CC81DA	Phicomm	Phicomm (Shanghai) Co., Ltd.
 CC827B		IEEE Registration Authority
-CC827B0		Tedee Sp. z o.o.
-CC827B1		Cron AI
+CC827B0	TedeeSp	Tedee Sp. z o.o.
+CC827B1	CronAI	Cron AI
 CC827B2	ACSMotionCon	ACS Motion Control
-CC827B3		Shenzhen Fengruixiang Intelligent Technology Co., Ltd.
-CC827B4		Mistlabs Limited
+CC827B3	Fengruixiang	Shenzhen Fengruixiang Intelligent Technology Co., Ltd.
+CC827B4	Mistlabs	Mistlabs Limited
 CC827B5	TalentprosSy	TALENTPROS SYSTEM INNOVATION CO., LTD.
-CC827B6		UNIWORLD VISION PVT LTD
-CC827B7		Opsys Tech Inc
-CC827B8		UNILEAP Technology Inc.
+CC827B6	UniworldVisi	UNIWORLD VISION PVT LTD
+CC827B7	OpsysTech	Opsys Tech Inc
+CC827B8	UNILEAPTechn	UNILEAP Technology Inc.
 CC827B9	Ecotron	Ecotron Corporation
 CC827BA	Converging	Converging Systems Inc.
-CC827BB		iGentAI Computing Technology(Shenzhen) Co., Ltd.
+CC827BB	iGentAICompu	iGentAI Computing Technology(Shenzhen) Co., Ltd.
 CC827BC	RNLTechnolog	RNL Technology(Shenzhen) Co., Ltd
-CC827BD		Good Trend Technology Co.Ltd.(Shanghai).
-CC827BE		Applied Materials
+CC827BD	GoodTrendTec	Good Trend Technology Co.Ltd.(Shanghai).
+CC827BE	AppliedMater	Applied Materials
 CC827F	AdvantechTec	Advantech Technology (CHINA) Co., Ltd.
 CC82EB	Kyocera	KYOCERA CORPORATION
 CC856C	MdkDigitalTe	SHENZHEN MDK DIGITAL TECHNOLOGY CO.,LTD
@@ -52503,7 +52571,7 @@ D00790	TexasInstrum	Texas Instruments
 D007CA	JuniperNetwo	Juniper Networks
 D009C8	Cisco	Cisco Systems, Inc
 D009F5	Hosiden	Hosiden Corporation
-D00AAB	YokogawaDigi	Yokogawa Digital Computer Corporation
+D00AAB	DTSINSIGHT	DTS INSIGHT Corporation
 D00B27	MurataManufa	Murata Manufacturing Co., Ltd.
 D00C5E	NanjingQinhe	Nanjing Qinheng Microelectronics Co., Ltd.
 D00DF7	HuaweiDevice	Huawei Device Co., Ltd.
@@ -53060,6 +53128,7 @@ D0E140	Apple	Apple, Inc.
 D0E347		Yoga
 D0E40B	Wearable	Wearable Inc.
 D0E44A	MurataManufa	Murata Manufacturing Co., Ltd.
+D0E48C	WITS	WITS Co., Ltd
 D0E54D		Commscope
 D0E581	Apple	Apple, Inc.
 D0E782	AzureWaveTec	AzureWave Technology Inc.
@@ -54110,6 +54179,7 @@ DAE6D7	NVMExpress	NVM Express, Inc.
 DAFF6B	TeamPrecisio	Team Precision Public Company Limited
 DC0077	TpLinkTechno	TP-LINK TECHNOLOGIES CO.,LTD.
 DC00B0	FreeboxSas	FREEBOX SAS
+DC0179	SkyUk	SKY UK LIMITED
 DC0265	MeditechKft	Meditech Kft
 DC028E	zte	zte corporation
 DC0398	LGInnotek	LG Innotek
@@ -54623,7 +54693,7 @@ E01283	FanzhuoCommu	Shenzhen Fanzhuo Communication Technology Co., Lt
 E01333	GeneralMotor	General Motors
 E013B5	vivoMobileCo	vivo Mobile Communication Co., Ltd.
 E0143E	Modoosis	Modoosis Inc.
-E0150B		HUAWEI TECHNOLOGIES CO.,LTD
+E0150B	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 E016B1	AdvancedDesi	Advanced Design Technology co.,ltd.
 E01877	Fujitsu	FUJITSU LIMITED
 E0189F	EMMicroelect	EM Microelectronic
@@ -54972,6 +55042,7 @@ E0BB9E	SeikoEpson	Seiko Epson Corporation
 E0BC43	C2Microsyste	C2 Microsystems, Inc.
 E0BDA0	Apple	Apple, Inc.
 E0BE03	LiteOnNetwor	Lite-On Network Communication (Dongguan) Limited
+E0BF0B	SiliconLabor	Silicon Laboratories
 E0BFB2	Apple	Apple, Inc.
 E0C0D1	CKTelecom	CK Telecom (Shenzhen) Limited
 E0C250	Netgear	NETGEAR
@@ -55086,7 +55157,7 @@ E0FA5B	AristaNetwor	Arista Networks
 E0FAEC	Platanspspk	Platan sp. z o.o. sp. k.
 E0FFF1	TexasInstrum	Texas Instruments
 E0FFF7	Softiron	Softiron Inc.
-E4013B		Apple, Inc.
+E4013B	Apple	Apple, Inc.
 E40177	SafeOwl	SafeOwl, Inc.
 E40274	FWMurphyProd	FW Murphy Production Controls
 E4029B	Intel	Intel Corporate
@@ -55095,7 +55166,7 @@ E405F8		Bytedance
 E406BF	SiliconLabor	Silicon Laboratories
 E406E0	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 E4072B	HuaweiDevice	Huawei Device Co., Ltd.
-E407B4		HUAWEI TECHNOLOGIES CO.,LTD
+E407B4	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 E408E7	QuectelWirel	Quectel Wireless Solutions Co.,Ltd.
 E40A16	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 E40A75	SiliconLabor	Silicon Laboratories
@@ -55110,6 +55181,7 @@ E4121D	SamsungElect	Samsung Electronics Co.,Ltd
 E41226	AUMOVIOTechn	AUMOVIO Technologies Romania S.R.L.
 E41289	topsystem	topsystem GmbH
 E4135C	Cisco	Cisco Systems, Inc
+E415A0	SCHRAML	SCHRAML GmbH
 E415F6	TexasInstrum	Texas Instruments
 E41613	ExtremeNetwo	Extreme Networks, Inc.
 E417D8	8BitdoTechno	8BITDO TECHNOLOGY HK LIMITED
@@ -55184,6 +55256,7 @@ E4388C	DigitalProdu	Digital Products Limited
 E438F2	AdvantageCon	Advantage Controls
 E43A65	MofiNetwork	MofiNetwork Inc
 E43A6E	ZerooneTechn	Shenzhen Zeroone Technology CO.,LTD
+E43A85	Cisco	Cisco Systems, Inc
 E43BC9	HisenseVisua	HISENSE VISUAL TECHNOLOGY CO.,LTD
 E43C80	UniversityOk	University of Oklahoma
 E43D1A	Broadcom	Broadcom Limited
@@ -55409,6 +55482,7 @@ E4AAEC	TianjinHuala	Tianjin Hualai Technology Co., Ltd
 E4AB46	UABSelteka	UAB Selteka
 E4AB89	MitraStarTec	MitraStar Technology Corp.
 E4AD7D	SCLElements	SCL Elements
+E4ADCA	MurataManufa	Murata Manufacturing Co., Ltd.
 E4AEE4	TuyaSmart	Tuya Smart Inc.
 E4AFA1	HesSo	HES-SO
 E4B005	IQIYIScience	Beijing IQIYI Science & Technology Co., Ltd.
@@ -55677,7 +55751,7 @@ E85497	SamsungElect	Samsung Electronics Co.,Ltd
 E85540	WuxiFunideDi	WUXI FUNIDE DIGITAL CO.,LTD
 E855B4	SAITechnolog	SAI Technology Inc.
 E85659	AdvancedConn	Advanced-Connectek Inc.
-E8567A		zte corporation
+E8567A	zte	zte corporation
 E856D6	NCTech	NCTech Ltd
 E85A8B	XiaomiCommun	Xiaomi Communications Co Ltd
 E85AA7	LLCEmzior	LLC Emzior
@@ -55838,6 +55912,7 @@ E8A6CA	HuaweiDevice	Huawei Device Co., Ltd.
 E8A72F	Microsoft	Microsoft Corporation
 E8A730	Apple	Apple, Inc.
 E8A788	XiamenLeelen	XIAMEN LEELEN TECHNOLOGY CO., LTD
+E8A7B6	BouffaloLab	Bouffalo Lab (Nanjing) Co., Ltd.
 E8A7F2		sTraffic
 E8A848	Wacom	Wacom Co.,Ltd.
 E8A927	Lear	LEAR
@@ -56095,7 +56170,7 @@ EC13B2		Netonix
 EC13DB	JuniperNetwo	Juniper Networks
 EC14F6	BioControlAS	BioControl AS
 EC153D	YaxunhongdaT	Beijing Yaxunhongda Technology Co., Ltd.
-EC15FE		Hangzhou Hikstorage Technology Co.,Ltd.
+EC15FE	HikstorageTe	Hangzhou Hikstorage Technology Co.,Ltd.
 EC172F	TpLinkTechno	TP-LINK TECHNOLOGIES CO.,LTD.
 EC1766	ResearchCent	Research Centre Module
 EC192E	Cisco	Cisco Systems, Inc
@@ -56774,7 +56849,7 @@ F04BF2	JTECHCommuni	JTECH Communications, Inc.
 F04CD5	Maxlinear	Maxlinear, Inc
 F04DA2	Dell	Dell Inc.
 F04DD4	SagemcomBroa	Sagemcom Broadband SAS
-F04E35		Pica8 Software Inc
+F04E35	Pica8Softwar	Pica8 Software Inc
 F04EA4	HP	HP Inc.
 F04F7C	AmazonTechno	Amazon Technologies Inc.
 F04FE0	Vizio	Vizio, Inc
@@ -56792,7 +56867,7 @@ F05C0E	HuaweiDevice	Huawei Device Co., Ltd.
 F05C19	HewlettPacka	Hewlett Packard Enterprise
 F05C77	Google	Google, Inc.
 F05CD5	Apple	Apple, Inc.
-F05D88		HUAWEI TECHNOLOGIES CO.,LTD
+F05D88	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 F05D89	Dycon	Dycon Limited
 F05DC8	DuracellPowe	Duracell Powermat
 F05ECD	TexasInstrum	Texas Instruments
@@ -57398,6 +57473,7 @@ F47A4E	Woojeon&Hand	Woojeon&Handan
 F47ACC	SolidFire	SolidFire, Inc.
 F47B09	Intel	Intel Corporate
 F47B5E	SamsungElect	Samsung Electronics Co.,Ltd
+F47D8F	Google	Google, Inc.
 F47DEF	SamsungElect	Samsung Electronics Co.,Ltd
 F47F35	Cisco	Cisco Systems, Inc
 F48139	Canon	CANON INC.
@@ -57755,7 +57831,7 @@ F8272E		Mercku
 F82793	Apple	Apple, Inc.
 F82819	LiteonTechno	Liteon Technology Corporation
 F828C9	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
-F8293A		HUAWEI TECHNOLOGIES CO.,LTD
+F8293A	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 F82980	DongguanRuil	Dongguan Ruilian Xiangtong Technology Co., Ltd
 F829C0	Availink	Availink, Inc.
 F82A53	GDMideaAirCo	GD Midea Air-Conditioning Equipment Co.,Ltd.
@@ -57859,7 +57935,7 @@ F854AF	ECITelecom	ECI Telecom Ltd.
 F854B8	AmazonTechno	Amazon Technologies Inc.
 F854F6	AzureWaveTec	AzureWave Technology Inc.
 F85548	TexasInstrum	Texas Instruments
-F8554B	WirelessMobi	WirelessMobility Engineering Centre SDN. BHD
+F8554B	EagleWireles	Eagle Wireless Engineering Centre SDN BHD
 F855CD	Visteon	Visteon Corporation
 F856C3	zte	zte corporation
 F8572E	CoreBrands	Core Brands, LLC
@@ -58256,7 +58332,7 @@ FA7ACB	UltraEtherne	Ultra Ethernet Consortium
 FA7D04	SalienceLabs	Salience Labs
 FA8D93	RunioneTech	Runione Tech Co., Ltd
 FA9305	PanasonicAut	Panasonic Automotive Systems Co., Ltd.
-FA94F1	IEEE8021Chai	IEEE 802.1 Working Group
+FA94F1	IEEE8021Work	IEEE 802.1 Working Group
 FABA85	APATOptoelec	APAT Optoelectronics Components Co., Ltd.
 FAD988	MomentumData	Momentum Data Systems
 FAE190	InWinDevelop	IN WIN DEVELOPMENT INC.
@@ -58315,7 +58391,7 @@ FC1A46	SamsungElect	Samsung Electronics Co.,Ltd
 FC1BD1	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 FC1BFF	VZug	V-ZUG AG
 FC1CA1		Nokia
-FC1CE6		PSG Germany GmbH
+FC1CE6	PSGGermany	PSG Germany GmbH
 FC1D2A	vivoMobileCo	vivo Mobile Communication Co., Ltd.
 FC1D3A	HuaweiTechno	HUAWEI TECHNOLOGIES CO.,LTD
 FC1D43	Apple	Apple, Inc.
