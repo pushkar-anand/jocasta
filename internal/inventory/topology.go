@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 	"github.com/pushkar-anand/jocasta/internal/plugin"
+	"github.com/pushkar-anand/jocasta/internal/topology"
 )
 
 // RecordTopology files what one source says is plugged into it, in one
@@ -159,4 +161,137 @@ func joinVLANs(vlans []int) string {
 	}
 
 	return strings.Join(parts, ",")
+}
+
+// Topology returns the network's tree as each source last described it, with
+// the devices that are not ignored placed in it.
+func (s *Store) Topology(ctx context.Context) (*topology.Tree, error) {
+	nodes, err := s.q.ListTopologyNodes(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list topology nodes: %w", err)
+	}
+
+	ports, err := s.q.ListTopologyPorts(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list topology ports: %w", err)
+	}
+
+	sightings, err := s.q.ListTopologySightings(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list topology sightings: %w", err)
+	}
+
+	neighbours, err := s.q.ListTopologyNeighbours(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list topology neighbours: %w", err)
+	}
+
+	devices, err := s.ListDevices(ctx, DeviceFilter{})
+	if err != nil {
+		return nil, err
+	}
+
+	sources := make([]topology.Source, 0, len(nodes))
+	index := make(map[int64]int, len(nodes))
+
+	for _, n := range nodes {
+		index[n.SourceID] = len(sources)
+
+		var own []string
+		if n.OwnMacs != "" {
+			own = strings.Split(n.OwnMacs, ",")
+		}
+
+		sources = append(sources, topology.Source{
+			ID:       n.SourceID,
+			Name:     n.SourceName,
+			Identity: n.Identity.String,
+			Gateway:  n.Gateway,
+			Own:      own,
+			ReadAt:   n.ReadAt.Time,
+		})
+	}
+
+	for _, p := range ports {
+		if i, ok := index[p.SourceID]; ok {
+			sources[i].Ports = append(sources[i].Ports, topology.Port{
+				Name:     p.Name,
+				Kind:     topology.PortKind(p.Kind),
+				PVID:     int(p.Pvid),
+				Tagged:   splitVLANs(p.Tagged),
+				Untagged: splitVLANs(p.Untagged),
+			})
+		}
+	}
+
+	for _, seen := range sightings {
+		if i, ok := index[seen.SourceID]; ok {
+			sources[i].Seen = append(sources[i].Seen, topology.Sighting{
+				Port:     seen.Port,
+				MAC:      seen.MAC,
+				VLAN:     int(seen.Vlan),
+				WiFi:     seen.Wifi,
+				SSID:     seen.Ssid.String,
+				Band:     seen.Band.String,
+				LastSeen: seen.LastSeen.Time,
+			})
+		}
+	}
+
+	for _, n := range neighbours {
+		if i, ok := index[n.SourceID]; ok {
+			addr, _ := netip.ParseAddr(n.Address.String)
+
+			sources[i].Neighbours = append(sources[i].Neighbours, topology.Neighbour{
+				Port:      n.Port,
+				MAC:       n.MAC,
+				Addr:      addr,
+				Identity:  n.Identity,
+				Platform:  n.Platform.String,
+				Board:     n.Board.String,
+				TheirPort: n.TheirPort.String,
+			})
+		}
+	}
+
+	return topology.Build(sources, placeable(devices)), nil
+}
+
+// placeable turns the devices with a hardware address into what the tree
+// places. A device's VLAN is its first network's.
+func placeable(devices []*Device) []topology.Device {
+	out := make([]topology.Device, 0, len(devices))
+
+	for _, d := range devices {
+		if d.MAC == "" {
+			continue
+		}
+
+		td := topology.Device{ID: d.ID, MAC: d.MAC, Name: d.Name(), Class: string(d.Class), Online: d.Online}
+
+		for _, n := range d.Networks {
+			if n.VLAN > 0 {
+				td.VLAN = n.VLAN
+
+				break
+			}
+		}
+
+		out = append(out, td)
+	}
+
+	return out
+}
+
+// splitVLANs reads a list joinVLANs wrote.
+func splitVLANs(s string) []int {
+	var out []int
+
+	for part := range strings.SplitSeq(s, ",") {
+		if n, err := strconv.Atoi(part); err == nil {
+			out = append(out, n)
+		}
+	}
+
+	return out
 }

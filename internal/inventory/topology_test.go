@@ -141,3 +141,32 @@ func TestPruneDeletesSightingsPastRetention(t *testing.T) {
 	assert.Zero(t, countRows(t, conn, `SELECT COUNT(*) FROM topology_sightings`))
 	assert.Equal(t, int64(1), countRows(t, conn, `SELECT COUNT(*) FROM topology_nodes`))
 }
+
+// A recorded read comes back as a tree, with a swept device placed on the port
+// the read learned it on.
+func TestTopologyPlacesARecordedDevice(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, "printer.local"))
+
+	at := time.Now().UTC()
+	read := switchRead(at)
+	read.Gateway = true
+
+	require.NoError(t, s.RecordTopology(t.Context(), "routeros:gateway", dbtype.SourceRouter, read))
+
+	tree, err := s.Topology(t.Context())
+	require.NoError(t, err)
+	require.NotNil(t, tree.Root)
+	assert.Equal(t, "switch-a", tree.Root.Name)
+
+	id := deviceIDByMAC(t, conn, macA)
+
+	leaf, ok := tree.Leaf(id)
+	require.True(t, ok)
+	assert.Equal(t, "ether4", leaf.Port)
+	assert.Equal(t, 10, leaf.VLAN)
+	assert.True(t, leaf.Current)
+	assert.Same(t, tree.Root, leaf.Owner)
+}
