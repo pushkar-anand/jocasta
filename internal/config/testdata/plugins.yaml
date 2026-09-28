@@ -17,6 +17,7 @@ plugins:
       port: 8080
       user: reader
       password: also-from-file
+      topology_only: true
   netflow:
     gateway:
       enabled: true

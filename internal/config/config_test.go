@@ -153,6 +153,8 @@ func TestLoadConfig(t *testing.T) {
 	assert.Equal(t, "198.51.100.1", rack.Host)
 	assert.Equal(t, 8080, rack.Port)
 	assert.Equal(t, "also-from-file", rack.Password)
+	assert.True(t, rack.TopologyOnly)
+	assert.False(t, gateway.TopologyOnly)
 
 	// A NetFlow instance is map-keyed for the same reason, and its listen
 	// address can be overridden without losing the exporters the file lists.

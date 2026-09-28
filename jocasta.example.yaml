@@ -79,6 +79,12 @@ plugins:
       ssl: true
       insecure: true          # RouterOS serves a self-signed cert unless you import one
       timeout: "15s"
+    switch_a:                 # a MikroTik switch or access point, read for the topology page
+      enabled: false
+      host: "192.0.2.2"
+      user: "jocasta"
+      password: "change-me"
+      topology_only: true     # read what is plugged into it; the router above lists the devices
   netflow:
     gateway:
       enabled: true

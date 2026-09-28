@@ -32,9 +32,26 @@ type RouterOS struct {
 	client *routeros.RouterOS
 	logger *slog.Logger
 
+	// topologyOnly marks a switch or access point read for its switching
+	// tables alone. The router that routes the network is the one without it.
+	topologyOnly bool
+
 	// now is a field so tests can pin the timestamp their facts carry.
 	now func() time.Time
 }
+
+// RouterOSOption configures a RouterOS source.
+type RouterOSOption func(*RouterOS)
+
+// TopologyOnly marks the source as a switch or access point: it is read for
+// what is plugged into it, and is not the device the network hangs from.
+func TopologyOnly() RouterOSOption {
+	return func(r *RouterOS) { r.topologyOnly = true }
+}
+
+// IsTopologyOnly reports whether the source is read for its switching tables
+// alone, which is why it is left out of device discovery.
+func (r *RouterOS) IsTopologyOnly() bool { return r.topologyOnly }
 
 // ErrNoInstanceName refuses a missing name: the name is a database key, and
 // one default would file two routers' facts under one source.
@@ -50,6 +67,7 @@ func NewRouterOS(
 	name string,
 	client *routeros.RouterOS,
 	log *slog.Logger,
+	opts ...RouterOSOption,
 ) (*RouterOS, error) {
 	if name == "" {
 		return nil, ErrNoInstanceName
@@ -68,6 +86,10 @@ func NewRouterOS(
 		client: client,
 		logger: log.With(slog.String("plugin", routerOSPrefix+name)),
 		now:    time.Now,
+	}
+
+	for _, opt := range opts {
+		opt(r)
 	}
 
 	return r, nil
