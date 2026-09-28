@@ -497,6 +497,29 @@ func TestHostDiscoverersLeavesOutTopologyOnlySources(t *testing.T) {
 	assert.Equal(t, "routeros:gateway", ds[0].Name())
 }
 
+// Every RouterOS source is read for the topology, the router and a switch
+// alike.
+func TestTopologyReadersIncludesEverySource(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Plugins.RouterOS = map[string]config.RouterOS{
+		"gateway":  {Enabled: true, Host: "192.0.2.1"},
+		"switch_a": {Enabled: true, Host: "192.0.2.2", TopologyOnly: true},
+		"spare":    {Enabled: false, Host: "203.0.113.1"},
+	}
+
+	rs, err := topologyReaders(t.Context(), cfg, slog.New(slog.DiscardHandler))
+	require.NoError(t, err)
+
+	names := make([]string, len(rs))
+	for i, r := range rs {
+		names[i] = r.Name()
+	}
+
+	assert.Equal(t, []string{"routeros:gateway", "routeros:switch_a"}, names)
+}
+
 func TestPortsPollerAcceptsABlankSpec(t *testing.T) {
 	t.Parallel()
 

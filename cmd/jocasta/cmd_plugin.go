@@ -50,7 +50,7 @@ func (p *PluginRunCmd) Run(
 	}
 
 	if src.IsTopologyOnly() {
-		return p.runTopology(ctx, log, src)
+		return p.runTopology(ctx, log, src, store)
 	}
 
 	nets, err := src.Networks(ctx)
@@ -87,7 +87,8 @@ func (p *PluginRunCmd) Run(
 		return err
 	}
 
-	if err := p.printTopology(ctx, log, src); err != nil {
+	topo, err := p.printTopology(ctx, log, src)
+	if err != nil {
 		return err
 	}
 
@@ -95,12 +96,25 @@ func (p *PluginRunCmd) Run(
 		return nil
 	}
 
-	return p.save(ctx, log, src, nets, facts, store)
+	if err := p.save(ctx, log, src, nets, facts, store); err != nil {
+		return err
+	}
+
+	if topo == nil {
+		return nil
+	}
+
+	return saveTopology(ctx, log, src, *topo, store)
 }
 
 // runTopology reads a switch or access point, which has no devices or
 // segments of its own to report.
-func (p *PluginRunCmd) runTopology(ctx context.Context, log *slog.Logger, src plugin.TopologyReader) error {
+func (p *PluginRunCmd) runTopology(
+	ctx context.Context,
+	log *slog.Logger,
+	src plugin.TopologyReader,
+	store *inventory.Store,
+) error {
 	topo, err := src.Topology(ctx)
 	if err != nil && len(topo.Seen) == 0 {
 		return fmt.Errorf("read topology from %s: %w", src.Name(), err)
@@ -110,13 +124,26 @@ func (p *PluginRunCmd) runTopology(ctx context.Context, log *slog.Logger, src pl
 		log.WarnContext(ctx, "source answered in part", slog.String("src", src.Name()), logger.Err(err))
 	}
 
-	return outputTopology(os.Stdout, topo, p.JSON)
+	if err := outputTopology(os.Stdout, topo, p.JSON); err != nil {
+		return err
+	}
+
+	if !p.Save {
+		return nil
+	}
+
+	return saveTopology(ctx, log, src, topo, store)
 }
 
 // printTopology reads and prints what is plugged into a router read for its
-// devices as well. The devices are the point of that read, so a topology that
-// will not come back is only logged.
-func (p *PluginRunCmd) printTopology(ctx context.Context, log *slog.Logger, src plugin.TopologyReader) error {
+// devices as well, returning it for the save. The devices are the point of
+// that read, so a topology that does not come back is logged, and the result
+// is nil.
+func (p *PluginRunCmd) printTopology(
+	ctx context.Context,
+	log *slog.Logger,
+	src plugin.TopologyReader,
+) (*plugin.Topology, error) {
 	topo, err := src.Topology(ctx)
 	if err != nil {
 		log.WarnContext(ctx, "source did not say what is plugged into it",
@@ -125,11 +152,37 @@ func (p *PluginRunCmd) printTopology(ctx context.Context, log *slog.Logger, src 
 		)
 
 		if len(topo.Seen) == 0 {
-			return nil
+			return nil, nil
 		}
 	}
 
-	return outputTopology(os.Stdout, topo, p.JSON)
+	if err := outputTopology(os.Stdout, topo, p.JSON); err != nil {
+		return nil, err
+	}
+
+	return &topo, nil
+}
+
+// saveTopology records what a source said is plugged into it.
+func saveTopology(
+	ctx context.Context,
+	log *slog.Logger,
+	src plugin.TopologyReader,
+	topo plugin.Topology,
+	store *inventory.Store,
+) error {
+	if err := store.RecordTopology(ctx, src.Name(), src.Kind(), topo); err != nil {
+		return fmt.Errorf("record topology: %w", err)
+	}
+
+	log.InfoContext(ctx, "recorded topology",
+		slog.String("src", src.Name()),
+		slog.Int("ports", len(topo.Ports)),
+		slog.Int("seen", len(topo.Seen)),
+		slog.Int("neighbours", len(topo.Neighbours)),
+	)
+
+	return nil
 }
 
 // save records the reading. It runs after the facts are printed so a database

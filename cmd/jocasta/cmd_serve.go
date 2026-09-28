@@ -81,6 +81,21 @@ func (s *ServeCmd) Run(
 		}
 	}
 
+	readers, err := topologyReaders(ctx, cfg, log)
+	if err != nil {
+		return err
+	}
+
+	// On the sweep's schedule: a switch forgets an address a few minutes
+	// after the device goes quiet, so reading it far less often than the
+	// sweep runs would miss the devices that come and go.
+	if len(readers) > 0 {
+		err := p.Register(poller.NewTopology(log, store, cfg.Scan.Devices.Interval, readers...))
+		if err != nil {
+			return fmt.Errorf("register topology reader: %w", err)
+		}
+	}
+
 	if cfg.Scan.Ports.Enabled {
 		pp, err := portsPoller(cfg, log, store)
 		if err != nil {

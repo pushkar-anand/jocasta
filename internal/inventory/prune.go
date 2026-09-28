@@ -16,11 +16,12 @@ type Pruned struct {
 	Attempts   int64
 	Broadcasts int64
 	Probes     int64
+	Sightings  int64
 }
 
-// Prune deletes every event and every finished scan older than retention, and
-// every hourly traffic total and attempt count older than trafficRetention. A
-// retention of zero keeps that kind forever.
+// Prune deletes every event, finished scan and topology sighting older than
+// retention, and every hourly traffic total and attempt count older than
+// trafficRetention. A retention of zero keeps that kind forever.
 //
 // Events go first and in the same transaction, so a reader never sees an event
 // whose scan has gone while the event stays. A scan's events are stamped at or
@@ -53,6 +54,10 @@ func (s *Store) Prune(ctx context.Context, retention, trafficRetention time.Dura
 
 		if res.Scans, err = q.DeleteScansBefore(ctx, cutoff); err != nil {
 			return nil, fmt.Errorf("prune scans: %w", err)
+		}
+
+		if res.Sightings, err = q.DeleteTopologySightingsBefore(ctx, cutoff); err != nil {
+			return nil, fmt.Errorf("prune sightings: %w", err)
 		}
 	}
 

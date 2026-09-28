@@ -51,6 +51,24 @@ func hostDiscoverers(ctx context.Context, cfg *config.Config, log *slog.Logger) 
 	return out, nil
 }
 
+// topologyReaders builds every enabled source that can say what is plugged
+// into it, under the same rules as hostDiscoverers. Every RouterOS source can,
+// the router and each switch or access point alike.
+func topologyReaders(ctx context.Context, cfg *config.Config, log *slog.Logger) ([]plugin.TopologyReader, error) {
+	sources, err := routerOSSources(ctx, cfg, log)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]plugin.TopologyReader, len(sources))
+
+	for i, p := range sources {
+		out[i] = p
+	}
+
+	return out, nil
+}
+
 // routerOSSources builds every enabled RouterOS instance, in name order.
 func routerOSSources(ctx context.Context, cfg *config.Config, log *slog.Logger) ([]*plugin.RouterOS, error) {
 	names := slices.Sorted(maps.Keys(cfg.Plugins.RouterOS))
