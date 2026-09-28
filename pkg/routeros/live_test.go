@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"text/tabwriter"
 
@@ -183,6 +184,73 @@ func TestReadLive(t *testing.T) {
 		for _, v := range vlans {
 			_, _ = w.Write([]byte(row(v.Name, v.VLANID, v.Interface,
 				strconv.FormatBool(bool(v.Disabled)), strconv.FormatBool(bool(v.Running)), v.Comment)))
+		}
+
+		_ = w.Flush()
+	})
+
+	t.Run("topology", func(t *testing.T) {
+		id, err := r.Identity(t.Context())
+		require.NoError(t, err)
+
+		t.Logf("identity=%q", id.Name)
+
+		w := tabwriter.NewWriter(os.Stderr, 0, 0, 2, ' ', 0)
+
+		ifaces, err := r.Interfaces(t.Context())
+		require.NoError(t, err)
+
+		_, _ = w.Write([]byte("\nINTERFACE\tTYPE\tMAC\tRUNNING\n"))
+
+		for _, i := range ifaces {
+			_, _ = w.Write([]byte(row(i.Name, i.Type, i.MACAddress, strconv.FormatBool(bool(i.Running)))))
+		}
+
+		ports, err := r.BridgePorts(t.Context())
+		require.NoError(t, err)
+
+		_, _ = w.Write([]byte("\nPORT\tBRIDGE\tPVID\tINACTIVE\n"))
+
+		for _, p := range ports {
+			_, _ = w.Write([]byte(row(p.Interface, p.Bridge, p.PVID, strconv.FormatBool(bool(p.Inactive)))))
+		}
+
+		vlans, err := r.BridgeVLANs(t.Context())
+		require.NoError(t, err)
+
+		_, _ = w.Write([]byte("\nVLANS\tTAGGED\tUNTAGGED\n"))
+
+		for _, v := range vlans {
+			_, _ = w.Write([]byte(row(v.VLANIDs, strings.Join(v.TaggedPorts(), ","), strings.Join(v.UntaggedPorts(), ","))))
+		}
+
+		hosts, err := r.BridgeHosts(t.Context())
+		require.NoError(t, err)
+
+		_, _ = w.Write([]byte("\nMAC\tPORT\tVID\tLOCAL\tEXTERNAL\n"))
+
+		for _, h := range hosts {
+			_, _ = w.Write([]byte(row(h.MACAddress, h.Port(), h.VID,
+				strconv.FormatBool(bool(h.Local)), strconv.FormatBool(bool(h.External)))))
+		}
+
+		ns, err := r.Neighbors(t.Context())
+		require.NoError(t, err)
+
+		_, _ = w.Write([]byte("\nNEIGHBOUR\tPORT\tMAC\tADDRESS\tPLATFORM\tBOARD\tTHEIR-PORT\tCAPS\tBY\n"))
+
+		for _, n := range ns {
+			_, _ = w.Write([]byte(row(n.Identity, n.Interface, n.MACAddress, n.Addr(), n.Platform, n.Board,
+				n.InterfaceName, n.SystemCapsEnabled, n.DiscoveredBy)))
+		}
+
+		regs, err := r.Registrations(t.Context())
+		require.NoError(t, err)
+
+		_, _ = w.Write([]byte("\nWIFI-CLIENT\tINTERFACE\tSSID\tBAND\tSIGNAL\n"))
+
+		for _, g := range regs {
+			_, _ = w.Write([]byte(row(g.MACAddress, g.Interface, g.SSID, g.Band, g.Signal)))
 		}
 
 		_ = w.Flush()
