@@ -57,6 +57,7 @@ Some features need a source connected first. The **Needs** column says which.
 | Open ports | Which TCP ports each device listens on, and when that changed. | Port scanning turned on |
 | Traffic | Who each device talks to, on your network and on the internet, over the last day, week or month. Shows devices probing the network, and which of your services the internet reached or tried to reach. | Router flow exports |
 | Map | The last hour's traffic as a live tree, from the router out to each network, device and organisation, and a world map of the countries the network talked to. | Router flow exports |
+| Topology | The network from the internet down: each switch and access point on its port, and each device on its port or Wi-Fi network, in its VLAN's colour. Each device's page shows the path to it. | A MikroTik router. Switches and access points read as well show each device's port. |
 | API | A JSON API over the same data, for scripts. | Nothing |
 | MCP server | An [MCP](https://modelcontextprotocol.io) endpoint, so AI agents such as Claude Code can look up devices, label them, and report what changed. | Turned on in config |
 | One binary | An embedded database, no other services to run. | |
@@ -64,7 +65,8 @@ Some features need a source connected first. The **Needs** column says which.
 Sources supported today:
 
 - **Router tables:** MikroTik RouterOS, read over its REST API. See
-  [Read devices from your router](docs/setup.md#read-devices-from-your-router).
+  [Read devices from your router](docs/setup.md#read-devices-from-your-router)
+  and [Show what is plugged in where](docs/setup.md#show-what-is-plugged-in-where).
 - **Router flow exports:** any router that sends NetFlow v5, v9 or IPFIX. See
   [Record who devices talk to](docs/setup.md#record-who-devices-talk-to).
 

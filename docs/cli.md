@@ -26,7 +26,9 @@ jocasta serve -p 9000         # override the port
 Starts the HTTP server. When `scan.devices.enabled` is set, it also starts a
 poller that sweeps every network in `networks` on `scan.devices.interval`. When
 `scan.ports.enabled` is set, a second poller port-scans every address the
-inventory holds on `scan.ports.interval`. Each enabled `netflow` instance
+inventory holds on `scan.ports.interval`. Each enabled `routeros` instance is
+also read for what is plugged into it, on `scan.devices.interval`. Each
+enabled `netflow` instance
 starts a listener for its router's flow exports, and an hourly prune deletes
 records older than their `retention` window.
 
@@ -87,3 +89,8 @@ ADDRESS          MAC                VENDOR  HOSTNAME    STANDING     PRESENT
 
 $ jocasta plugin run gateway --json --save
 ```
+
+After the devices it prints the source's topology: its ports and the VLANs
+each carries, the hardware addresses learned on each port, and its
+neighbours. A `topology_only` instance prints the topology alone. `--save`
+records both.

@@ -109,6 +109,52 @@ plugins:
 Check it with `jocasta plugin run gateway` before starting the server. See
 [CLI](cli.md#plugin-run).
 
+## Show what is plugged in where
+
+The Topology page draws the network from the internet down: the router, each
+switch and access point on the port it hangs from, and each device on its port
+or Wi-Fi network. It is built from the bridge and Wi-Fi tables of every
+MikroTik Jocasta reads, so the router from
+[Read devices from your router](#read-devices-from-your-router) already gives
+a first picture. A switch or access point that announces itself to the router
+appears there with the devices behind it.
+
+To see which port of a switch or access point each device is on, add it as
+another RouterOS instance with `topology_only: true`:
+
+```yaml
+plugins:
+  routeros:
+    gateway:
+      enabled: true
+      host: "192.0.2.1"
+      # ...
+    switch_core:
+      enabled: true
+      host: "192.0.2.2"
+      user: "jocasta"
+      password: "change-me"
+      topology_only: true    # read what is plugged into it; the router lists the devices
+```
+
+A `topology_only` source is left out of device discovery, so its management
+address cannot rename a network. Every RouterOS source is read for its
+topology on `scan.devices.interval`.
+
+What each table adds:
+
+- The bridge host table says which port each hardware address is behind, and
+  in which VLAN when the bridge has VLAN filtering on.
+- Neighbour discovery (MNDP or LLDP) names the switch or access point on each
+  port. RouterOS runs it on the `LAN` interface list by default; see
+  `/ip neighbor discovery-settings`.
+- The Wi-Fi registration table marks Wi-Fi clients and names their network
+  and band, from the wifi or the wireless package. A router managing access
+  points with CAPsMAN lists their clients too.
+
+Check a source with `jocasta plugin run switch_core`, which prints its ports,
+the addresses learned on each, and its neighbours.
+
 ## Record who devices talk to
 
 Jocasta can record which devices talk to which, and to where on the internet,

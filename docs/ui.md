@@ -1,7 +1,7 @@
 # The web UI
 
 The pages `jocasta serve` shows. They read the same data as the JSON API, and
-the Overview and Map refresh themselves.
+the Overview, Map and Topology refresh themselves.
 
 The screenshots below use synthetic data: addresses from RFC 5737, hardware
 addresses from RFC 7042, invented names. The internet peers are well-known
@@ -28,6 +28,9 @@ Everything Jocasta knows about one device:
   its hardware address or only its IP.
 - What you call it: label, group, type and notes. No scan or plugin writes
   these.
+- Connected: the path from the internet to the device, through each router,
+  switch and access point, with the port or Wi-Fi network, band and VLAN at
+  each step. Show on topology opens the Topology page on the device.
 - Addresses: every address the device has held, and the network each is on.
 - Ports: once a port scan has reached the device (see [CLI](cli.md#ports)),
   the TCP ports it listens on, and the ones it has since closed.
@@ -148,6 +151,32 @@ Your network's country comes from the router's outside address, or from
 
 A country is where an address is registered. For a big provider that is often
 its home country, and the server itself may be elsewhere.
+
+## Topology
+
+The Topology page draws the network from the internet down (see
+[Show what is plugged in where](setup.md#show-what-is-plugged-in-where)). It
+redraws every minute.
+
+- The internet sits at the top, the router below it, and each switch and
+  access point hangs from the port it is plugged into. A thick line is a
+  trunk, a thin one carries one VLAN, and a dashed one is Wi-Fi.
+- Under each box, its wired devices are grouped by VLAN, with each device's
+  port on the right. Its Wi-Fi devices are grouped by network, with each
+  device's band.
+- A solid box is a device Jocasta reads. A dashed box only announced itself to
+  one it reads. A dotted box stands for something Jocasta cannot name: several
+  devices share one port behind it.
+- A device that has gone quiet stays where it was last seen, dimmed. Online
+  devices no router, switch or access point has seen on a port are listed
+  under the tree.
+- The legend in the top right names each VLAN's colour with its device count.
+  Point at one to pick out its devices.
+
+Click a device to light the path from the internet down to it, and click it
+again to open its page. Search, zoom and pan work as on the Map.
+
+![Topology](img/topology.png)
 
 ## Network page
 
