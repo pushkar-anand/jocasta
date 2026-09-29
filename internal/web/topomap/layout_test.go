@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pushkar-anand/jocasta/internal/topology"
+	"github.com/pushkar-anand/jocasta/internal/web/netmap"
 )
 
 // network builds a router with a switch on a trunk and an access point on
@@ -181,7 +182,7 @@ func TestPlaceMarksThePathToEachDevice(t *testing.T) {
 	l := Place(network(t, 2))
 	require.NotNil(t, l)
 
-	key := DeviceKey(81)
+	key := netmap.DeviceKey(81)
 
 	var on []string
 

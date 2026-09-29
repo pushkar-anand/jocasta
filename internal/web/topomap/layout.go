@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/pushkar-anand/jocasta/internal/topology"
+	"github.com/pushkar-anand/jocasta/internal/web/netmap"
 )
 
 const (
@@ -110,9 +111,6 @@ type Layout struct {
 	Edges  []*Edge
 }
 
-// DeviceKey is the key the page selects a device by.
-func DeviceKey(id int64) string { return "d" + strconv.FormatInt(id, 10) }
-
 // Place lays out tree. A tree with nothing read has no layout.
 func Place(tree *topology.Tree) *Layout {
 	if tree == nil || tree.Root == nil {
@@ -201,24 +199,38 @@ func slots(n *topology.Node) []slot {
 
 // measure returns how wide n's subtree is.
 func (p *placer) measure(n *topology.Node) float64 {
+	ss := slots(n)
+
+	for _, s := range ss {
+		if s.node != nil {
+			p.measure(s.node)
+		}
+	}
+
+	w := max(nodeW, p.span(ss))
+	p.width[n] = w
+
+	return w
+}
+
+// span returns the width of slots ss side by side, from the widths measure
+// recorded.
+func (p *placer) span(ss []slot) float64 {
 	total := 0.0
 
-	for i, s := range slots(n) {
+	for i, s := range ss {
 		if i > 0 {
 			total += slotGap
 		}
 
 		if s.node != nil {
-			total += p.measure(s.node)
+			total += p.width[s.node]
 		} else {
 			total += chipW
 		}
 	}
 
-	w := max(nodeW, total)
-	p.width[n] = w
-
-	return w
+	return total
 }
 
 // position places n's subtree with its left edge at left and n's box at top,
@@ -240,22 +252,7 @@ func (p *placer) position(n *topology.Node, left, top float64) (*Box, []string) 
 	p.bottom = max(p.bottom, top+nodeH)
 
 	ss := slots(n)
-
-	total := 0.0
-
-	for i, s := range ss {
-		if i > 0 {
-			total += slotGap
-		}
-
-		if s.node != nil {
-			total += p.width[s.node]
-		} else {
-			total += chipW
-		}
-	}
-
-	x := left + (w-total)/2
+	x := left + (w-p.span(ss))/2
 	below := top + nodeH + levelGap
 	from := Point{box.X + nodeW/2, top + nodeH}
 
@@ -348,7 +345,7 @@ func (p *placer) group(g *topology.Group, left, top float64) (*Group, []string) 
 			Leaf:  l,
 			X:     left,
 			Y:     top + headH + float64(i)*(chipH+chipGap),
-			Key:   DeviceKey(l.DeviceID),
+			Key:   netmap.DeviceKey(l.DeviceID),
 			Label: shorten(l.Name),
 			Tone:  p.tone(l.VLAN),
 		}
@@ -391,7 +388,7 @@ func groupTitle(g *topology.Group) string {
 // nodeKey is the key a node is selected by.
 func nodeKey(n *topology.Node) string {
 	if n.DeviceID != 0 {
-		return DeviceKey(n.DeviceID)
+		return netmap.DeviceKey(n.DeviceID)
 	}
 
 	return n.Key
