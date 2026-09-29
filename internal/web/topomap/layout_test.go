@@ -200,3 +200,12 @@ func TestShortenCutsLongNames(t *testing.T) {
 	assert.Equal(t, "short", shorten("short"))
 	assert.Equal(t, maxLabel, len([]rune(shorten(strings.Repeat("x", 40)))))
 }
+
+func TestNodeNameSaysWhatAnUnnamedNodeIs(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "vm-host", nodeName(&topology.Node{Kind: topology.NodeHost, Name: "vm-host"}))
+	assert.Equal(t, "Access point", nodeName(&topology.Node{Kind: topology.NodeUnnamed, WiFi: true}))
+	assert.Equal(t, "Hypervisor", nodeName(&topology.Node{Kind: topology.NodeUnnamed, VMs: true}))
+	assert.Equal(t, "Switch", nodeName(&topology.Node{Kind: topology.NodeUnnamed}))
+}

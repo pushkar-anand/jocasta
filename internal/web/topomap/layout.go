@@ -404,6 +404,8 @@ func nodeName(n *topology.Node) string {
 		return n.Name
 	case n.WiFi:
 		return "Access point"
+	case n.VMs:
+		return "Hypervisor"
 	default:
 		return "Switch"
 	}
