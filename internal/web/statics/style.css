@@ -3305,3 +3305,187 @@ td .traffic__tried {
     gap: 9px;
     color: var(--text);
 }
+
+/* Topology */
+
+/* The network as a tree, drawn in the map's frame: it borrows the map's
+   search, zoom, legend and selection, and adds the boxes, port labels and
+   device chips. A device's VLAN colour comes from netmap__tone-N. */
+.topo__edge {
+    fill: none;
+    stroke: var(--border-strong);
+    stroke-width: 1.5;
+}
+
+.topo__edge--trunk {
+    stroke: var(--text-3);
+    stroke-width: 3.5;
+}
+
+.topo__edge--wifi {
+    stroke-dasharray: 5 4;
+}
+
+.topo__key-line {
+    flex: none;
+    width: 36px;
+    height: 10px;
+}
+
+.topo__key-box {
+    flex: none;
+    width: 22px;
+    height: 14px;
+}
+
+.topo__cloud {
+    fill: var(--surface-2);
+    stroke: var(--text-3);
+    stroke-width: 1.5;
+}
+
+.topo__cloud-label,
+.topo__name {
+    fill: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.topo__board,
+.topo__port {
+    fill: var(--text-3);
+    font-size: 11px;
+}
+
+.topo__port {
+    paint-order: stroke;
+    stroke: var(--surface);
+    stroke-width: 4px;
+    stroke-linejoin: round;
+}
+
+.topo__frame {
+    fill: var(--surface);
+    stroke: var(--text-2);
+    stroke-width: 2;
+}
+
+.topo__frame--seen {
+    stroke-dasharray: 6 4;
+    stroke-width: 1.5;
+}
+
+.topo__frame--unnamed {
+    stroke: var(--text-3);
+    stroke-dasharray: 2 3;
+    stroke-width: 1.5;
+}
+
+.topo__box {
+    cursor: pointer;
+}
+
+.topo__box--offline .topo__frame {
+    stroke: var(--border-strong);
+}
+
+.topo__box:hover .topo__frame,
+.topo__box:focus-visible .topo__frame {
+    fill: var(--surface-2);
+}
+
+.topo__group-title {
+    fill: var(--tone, var(--text-2));
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.topo__chip-bg {
+    fill: var(--surface-2);
+    stroke: var(--border);
+}
+
+.topo__chip-dot {
+    fill: var(--tone, var(--text-3));
+}
+
+.topo__chip--untagged .topo__chip-dot {
+    fill: var(--surface);
+    stroke: var(--text-3);
+    stroke-width: 1.5;
+}
+
+.topo__chip-label {
+    fill: var(--text);
+    font-size: 12px;
+}
+
+.topo__chip--offline .topo__chip-label {
+    fill: var(--text-3);
+}
+
+.topo__chip--past .topo__chip-bg {
+    stroke-dasharray: 3 3;
+}
+
+.topo__chip:hover .topo__chip-bg,
+.topo__chip:focus-visible .topo__chip-bg {
+    stroke: var(--tone, var(--text-2));
+}
+
+/* Selecting a device or a box lights the path down to it. */
+.netmap__svg--selected .topo__edge:not(.is-on),
+.netmap__svg--selected .topo__port:not(.is-on),
+.netmap__svg--selected .topo__box:not(.is-on) {
+    opacity: 0.2;
+}
+
+.netmap__svg--selected .topo__edge.is-on {
+    stroke: var(--brand);
+}
+
+.topo__box.is-on .topo__frame,
+.topo__box.is-selected .topo__frame {
+    stroke: var(--brand);
+}
+
+.topo__chip.is-selected .topo__chip-bg {
+    fill: var(--brand-soft);
+    stroke: var(--brand);
+    stroke-width: 2;
+}
+
+.topo__chip.netmap__dev--match .topo__chip-bg {
+    stroke: var(--brand);
+    stroke-width: 2;
+}
+
+.topo__unplaced {
+    margin-top: 16px;
+}
+
+.topo__unplaced-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.topo__unplaced-list a {
+    display: inline-block;
+    padding: 3px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text-2);
+    font-size: var(--fs-support);
+    text-decoration: none;
+}
+
+.topo__unplaced-list a:hover,
+.topo__unplaced-list a:focus-visible {
+    border-color: var(--brand);
+    color: var(--text);
+}

@@ -21,6 +21,7 @@ const (
 	templatePageScans     = "page/scans"
 	templatePageTraffic   = "page/traffic"
 	templatePageMap       = "page/map"
+	templatePageTopology  = "page/topology"
 	templatePageTokens    = "page/tokens"
 	templatePageUsers     = "page/users"
 	templatePageSecurity  = "page/security"
@@ -36,4 +37,5 @@ const (
 	templatePartialDeviceTraffic = "partial/device-traffic"
 	templatePartialMapBody       = "partial/map-body"
 	templatePartialMapWorldBody  = "partial/map-world-body" //nolint:gosec // G101: a template name
+	templatePartialTopologyBody  = "partial/topology-body"
 )

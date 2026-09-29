@@ -98,7 +98,7 @@ func TestPlaceKeepsBoxesApart(t *testing.T) {
 
 	for i, a := range rs {
 		assert.GreaterOrEqual(t, a.x, margin-0.01, a.name)
-		assert.LessOrEqual(t, a.x+a.w, l.Width-margin+0.01, a.name)
+		assert.LessOrEqual(t, a.x+a.w, l.Width-margin-legendRoom+0.01, a.name)
 		assert.LessOrEqual(t, a.y+a.h, l.Height, a.name)
 
 		for _, b := range rs[i+1:] {
@@ -165,7 +165,7 @@ func TestPlaceTitlesGroups(t *testing.T) {
 	}
 
 	// In port order: the access point on ether2 first.
-	assert.Equal(t, []string{"home · VLAN 10", "iot · VLAN 20", "ether7 · VLAN 10", "VLAN 10", "VLAN 30"}, titles)
+	assert.Equal(t, []string{"home · VLAN\u00a010", "iot · VLAN\u00a020", "ether7 · VLAN\u00a010", "VLAN\u00a010", "VLAN\u00a030"}, titles)
 
 	for _, g := range l.Groups {
 		for _, c := range g.Chips {
@@ -209,4 +209,23 @@ func TestNodeNameSaysWhatAnUnnamedNodeIs(t *testing.T) {
 	assert.Equal(t, "Access point", nodeName(&topology.Node{Kind: topology.NodeUnnamed, WiFi: true}))
 	assert.Equal(t, "Hypervisor", nodeName(&topology.Node{Kind: topology.NodeUnnamed, VMs: true}))
 	assert.Equal(t, "Switch", nodeName(&topology.Node{Kind: topology.NodeUnnamed}))
+}
+
+func TestBandReadsAsPeopleSayIt(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "5 GHz", Band("5ghz-ax"))
+	assert.Equal(t, "2.4 GHz", Band("2ghz-n"))
+	assert.Equal(t, "6 GHz", Band("6ghz-ax"))
+	assert.Equal(t, "", Band(""))
+	assert.Equal(t, "odd", Band("odd"))
+}
+
+func TestChipTitleSaysWhere(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "phone · home · 5 GHz · VLAN\u00a010",
+		chipTitle(&topology.Leaf{Name: "phone", WiFi: true, SSID: "home", Band: "5ghz-ax", VLAN: 10, Current: true}))
+	assert.Equal(t, "nas · ether4 · VLANs\u00a010, 20 · last seen here",
+		chipTitle(&topology.Leaf{Name: "nas", Port: "ether4", VLANs: []int{10, 20}, VLAN: 10}))
 }

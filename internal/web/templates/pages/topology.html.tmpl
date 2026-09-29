@@ -1,0 +1,30 @@
+{{ define "page/topology" }}
+{{- template "layout/head" . }}
+
+{{- if not .Layout }}
+<section class="block">
+    <h2 class="section">Topology</h2>
+    <div class="card empty">
+        <p>Nothing is read yet. The topology appears once Jocasta reads a
+            MikroTik router's ports.</p>
+        <p>To set it up, see <a href="https://github.com/pushkar-anand/jocasta/blob/main/docs/setup.md#show-what-is-plugged-in-where">Show what is plugged in where</a>.</p>
+    </div>
+</section>
+{{- else }}
+<section class="block">
+    {{- /* The search sits outside what the poll swaps, so what was typed
+           outlives each redraw; netmap.js applies it to the new tree. */}}
+    <div class="netmap-wrap">
+        <label class="netmap__search">
+            <span class="visually-hidden">Find a device, switch or access point</span>
+            <input id="netmap-search" type="search" placeholder="Search" autocomplete="off" spellcheck="false">
+        </label>
+        <div id="map-live" hx-get="/topology/live" hx-trigger="every 60s" hx-swap="innerHTML">
+            {{- template "partial/topology-body" . }}
+        </div>
+    </div>
+</section>
+{{- end }}
+
+{{- template "layout/foot" . }}
+{{ end }}

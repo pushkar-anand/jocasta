@@ -1,7 +1,7 @@
-// Zoom, pan, search and selection for the network map. The map is an SVG laid
-// out on the server and redrawn every minute; this only moves its viewBox, and
-// puts the view back after each redraw so a refresh never throws away where
-// you were.
+// Zoom, pan, search and selection for the network map and the topology. Each
+// is an SVG laid out on the server and redrawn every minute; this only moves
+// its viewBox, and puts the view back after each redraw so a refresh never
+// throws away where you were.
 (function() {
     var view = null; // {x, y, w, h} in the SVG's own units; null is the whole map
 
@@ -151,6 +151,13 @@
             n.classList.toggle('is-peer', k !== selected && peers.has(k));
         });
 
+        // On the topology, each box and line lists the keys below it, so
+        // the path down to the selection lights.
+        svg.querySelectorAll('[data-path]').forEach(function(el) {
+            var on = selected !== null && (' ' + el.dataset.path + ' ').indexOf(' ' + selected + ' ') !== -1;
+            el.classList.toggle('is-on', on);
+        });
+
         // On the world view, the selected country's card opens.
         document.querySelectorAll('.worldmap__detail').forEach(function(d) {
             d.hidden = d.dataset.key !== selected;
@@ -248,13 +255,15 @@
     }
 
     // focus zooms to a node, a quarter of the map across, or wide enough
-    // for the whole of a big country.
+    // for the whole of a big country. An SVG can ask for a wider view with
+    // data-focus-span, in its own units.
     function focus(svg, node) {
         var shape = node.querySelector('circle') || node;
         if (!shape.getBBox) return;
         var box = shape.getBBox();
         var b = base(svg);
-        var w = Math.max(b.w / 4, box.width * 1.6), h = Math.max(b.h / 4, box.height * 1.6);
+        var span = Math.min(+svg.dataset.focusSpan || 0, b.w);
+        var w = Math.max(b.w / 4, box.width * 1.6, span), h = Math.max(b.h / 4, box.height * 1.6);
         var s = Math.max(w / b.w, h / b.h);
         w = b.w * s;
         h = b.h * s;
@@ -302,12 +311,20 @@
             }
         }
     });
-    // The world view's first data comes with the page.
+    // The world view's first data comes with the page. A link can name a
+    // node to open on, as ?focus=<key>.
     document.addEventListener('DOMContentLoaded', function() {
         var svg = mapSVG();
-        if (svg) {
-            applyWorld(svg);
-            applySelection(svg);
+        if (!svg) return;
+        applyWorld(svg);
+
+        var key = new URLSearchParams(window.location.search).get('focus');
+        var node = key && svg.querySelector('[data-key="' + CSS.escape(key) + '"]');
+        if (node) {
+            focus(svg, node);
+            selected = key;
         }
+
+        applySelection(svg);
     });
 })();
