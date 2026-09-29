@@ -130,6 +130,11 @@ func TestFirstMatchAndSpecificity(t *testing.T) {
 			want: Server,
 		},
 		{
+			name: "a VMware OUI is a guest, so a server",
+			in:   Input{Vendor: "VMware, Inc.", OpenPorts: []uint16{22}},
+			want: Server,
+		},
+		{
 			name: "a smart-speaker name beats its own cast ports",
 			in:   Input{Vendor: "Google, Inc.", Hostname: "kitchen-nest-audio", OpenPorts: []uint16{8008, 8009}},
 			want: Speaker,

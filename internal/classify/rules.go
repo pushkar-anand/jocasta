@@ -322,7 +322,7 @@ var ruleset = []Rule{
 	vend("juniper", "Juniper", Switch, false),
 	vend("aruba", "Aruba", AccessPoint, false),
 	vend("ruckus", "Ruckus", AccessPoint, false),
-	vend("vmware", "VMware", Hypervisor, false),
+	vend("vmware", "VMware", Server, false), // VMware addresses are its guests'; a host carries its maker's
 	vend("canon", "Canon", Printer, false),
 	vend("seikoepson", "Epson", Printer, false),
 	vend("ricoh", "Ricoh", Printer, false),
