@@ -367,14 +367,14 @@ func TestBuildIsStable(t *testing.T) {
 `, first)
 }
 
-func TestNaturalOrdersPortNumbers(t *testing.T) {
+func TestComparePortsOrdersPortNumbers(t *testing.T) {
 	t.Parallel()
 
-	assert.Negative(t, natural("ether2", "ether10"))
-	assert.Positive(t, natural("ether10", "ether9"))
-	assert.Negative(t, natural("ether1", "sfp1"))
-	assert.Zero(t, natural("wifi1", "wifi1"))
-	assert.Negative(t, natural("", "ether1"))
+	assert.Negative(t, ComparePorts("ether2", "ether10"))
+	assert.Positive(t, ComparePorts("ether10", "ether9"))
+	assert.Negative(t, ComparePorts("ether1", "sfp1"))
+	assert.Zero(t, ComparePorts("wifi1", "wifi1"))
+	assert.Negative(t, ComparePorts("", "ether1"))
 }
 
 // A switch learns every Wi-Fi client of an access point beside it on its
