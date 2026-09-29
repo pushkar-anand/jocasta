@@ -165,8 +165,11 @@ redraws every minute.
   port on the right. Its Wi-Fi devices are grouped by network, with each
   device's band.
 - A solid box is a device Jocasta reads. A dashed box only announced itself to
-  one it reads. A dotted box stands for something Jocasta cannot name: several
-  devices share one port behind it.
+  one it reads. A dotted box is inferred from several devices sharing one port
+  behind it. When one of them is a hypervisor, the box is that device and the
+  rest are its virtual machines. To mark a host Jocasta has not recognised,
+  set its type to Hypervisor on its page. A dotted box whose devices mostly
+  have a virtual machine's hardware address is labelled Hypervisor.
 - A device that has gone quiet stays where it was last seen, dimmed. Online
   devices no router, switch or access point has seen on a port are listed
   under the tree.
