@@ -1,6 +1,7 @@
 package web
 
 import (
+	"cmp"
 	"context"
 	"net/http"
 	"strconv"
@@ -22,23 +23,13 @@ type topologyPage struct {
 	VLANs []vlanKey
 }
 
-// vlanKey is one VLAN in the legend.
+// vlanKey is one VLAN in the legend. Label names it as the map names the
+// network in that VLAN, or by the VLAN alone when no network is in it.
 type vlanKey struct {
 	VLAN    int
-	Name    string
+	Label   string
 	Tone    int
 	Devices int
-}
-
-// Label is how the legend names the VLAN, as the map names a network: the
-// network's name when it has one, then the VLAN.
-func (k vlanKey) Label() string {
-	vlan := "VLAN\u00a0" + strconv.Itoa(k.VLAN)
-	if k.Name == "" {
-		return vlan
-	}
-
-	return k.Name + " · " + vlan
 }
 
 // topologyView serves the topology page.
@@ -93,11 +84,11 @@ func (h *Handler) buildTopology(ctx context.Context) (*topologyPage, error) {
 		return nil, err
 	}
 
-	names := make(map[int]string, len(nets))
+	labels := make(map[int]string, len(nets))
 
 	for _, n := range nets {
-		if n.VLAN > 0 && names[n.VLAN] == "" {
-			names[n.VLAN] = n.Name
+		if n.VLAN > 0 && labels[n.VLAN] == "" {
+			labels[n.VLAN] = networkLabel(n)
 		}
 	}
 
@@ -110,7 +101,8 @@ func (h *Handler) buildTopology(ctx context.Context) (*topologyPage, error) {
 	}
 
 	for i, v := range tree.VLANs {
-		data.VLANs = append(data.VLANs, vlanKey{VLAN: v, Name: names[v], Tone: i, Devices: counts[v]})
+		label := cmp.Or(labels[v], "VLAN\u00a0"+strconv.Itoa(v))
+		data.VLANs = append(data.VLANs, vlanKey{VLAN: v, Label: label, Tone: i, Devices: counts[v]})
 	}
 
 	return data, nil
