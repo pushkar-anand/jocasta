@@ -156,8 +156,8 @@ type Node struct {
 	// order.
 	Children []*Node
 
-	// Groups are the devices on this node, one group per port or Wi-Fi
-	// network and VLAN, in port order.
+	// Groups are the devices on this node, wired first, each in VLAN order,
+	// then one group per Wi-Fi network.
 	Groups []*Group
 }
 
@@ -174,10 +174,9 @@ type Link struct {
 	Trunk bool
 }
 
-// Group is the devices on one port or Wi-Fi network of a node, in one VLAN.
+// Group is the devices on a node in one VLAN: the wired ones, or the ones on
+// one Wi-Fi network. Each device says which port it is on.
 type Group struct {
-	// Port is empty on a node whose ports are unknown.
-	Port string
 	WiFi bool
 	SSID string
 	VLAN int

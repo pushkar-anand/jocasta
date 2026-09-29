@@ -70,9 +70,12 @@ func render(t *Tree) string {
 			names := make([]string, len(g.Devices))
 			for i, d := range g.Devices {
 				names[i] = d.Name
+				if d.Port != "" && !g.WiFi {
+					names[i] += "@" + d.Port
+				}
 			}
 
-			where := g.Port
+			where := "wired"
 			if g.WiFi {
 				where = "wifi " + g.SSID
 			}
@@ -128,12 +131,12 @@ func TestBuildFromTheRouterAlone(t *testing.T) {
 	})
 
 	assert.Equal(t, `read router
-  [ether7 vlan 10] pi
+  [wired vlan 10] pi@ether7
   seen ap-hall via "ether2" trunk
     [wifi home vlan 10] phone
     [wifi iot vlan 20] plug
   seen switch-a via "sfp1" trunk
-    [ vlan 10] desktop, nas
+    [wired vlan 10] desktop, nas
 `, render(tree))
 
 	assert.Equal(t, []int{10, 20}, tree.VLANs)
@@ -210,7 +213,7 @@ func TestBuildFromEveryDevice(t *testing.T) {
 
 	assert.Equal(t, `read router
   read switch-a via "sfp1" trunk
-    [ether4 vlan 10] desktop
+    [wired vlan 10] desktop@ether4
     read ap-hall via "ether8" trunk
       [wifi home vlan 10] phone
       [wifi iot vlan 20] plug
@@ -278,9 +281,9 @@ func TestBuildInfersAnUnnamedSwitch(t *testing.T) {
 	tree := Build([]Source{router}, []Device{dev(1, "tv", true), dev(2, "console", true), dev(3, "desk", true)})
 
 	assert.Equal(t, `read router
-  [ether6 vlan 10] desk
+  [wired vlan 10] desk@ether6
   unnamed  via "ether5"
-    [ vlan 10] console, tv
+    [wired vlan 10] console, tv
 `, render(tree))
 }
 
@@ -362,8 +365,7 @@ func TestBuildIsStable(t *testing.T) {
 	}
 
 	assert.Equal(t, `read router
-  [ether2 vlan 0] a
-  [ether10 vlan 0] b
+  [wired vlan 0] a@ether2, b@ether10
 `, first)
 }
 
@@ -432,8 +434,7 @@ func TestBuildIgnoresWhatAnUplinkLearns(t *testing.T) {
     [wifi home vlan 10] phone
     [wifi iot vlan 20] plug
   read switch-a via "sfp1" trunk
-    [ether3 vlan 10] server
-    [ether4 vlan 10] nas
+    [wired vlan 10] server@ether3, nas@ether4
 `, render(tree))
 }
 
@@ -455,7 +456,7 @@ func TestBuildHangsVirtualMachinesFromTheirHost(t *testing.T) {
 
 	assert.Equal(t, `read router
   host vm-host via "ether7"
-    [ vlan 10] db, web
+    [wired vlan 10] db, web
 `, render(tree))
 
 	n, ok := tree.Node(1)

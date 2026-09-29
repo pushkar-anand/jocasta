@@ -164,8 +164,11 @@ func TestPlaceTitlesGroups(t *testing.T) {
 		titles[i] = g.Title
 	}
 
-	// In port order: the access point on ether2 first.
-	assert.Equal(t, []string{"home · VLAN\u00a010", "iot · VLAN\u00a020", "ether7 · VLAN\u00a010", "VLAN\u00a010", "VLAN\u00a030"}, titles)
+	// The router's wired devices, then the access point on ether2, then the
+	// switch on sfp1.
+	assert.Equal(t, []string{
+		"Wired · VLAN\u00a010", "home · VLAN\u00a010", "iot · VLAN\u00a020", "Wired · VLAN\u00a010", "Wired · VLAN\u00a030",
+	}, titles)
 
 	for _, g := range l.Groups {
 		for _, c := range g.Chips {
@@ -198,8 +201,8 @@ func TestPlaceMarksThePathToEachDevice(t *testing.T) {
 func TestShortenCutsLongNames(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "short", shorten("short"))
-	assert.Equal(t, maxLabel, len([]rune(shorten(strings.Repeat("x", 40)))))
+	assert.Equal(t, "short", shorten("short", maxLabel))
+	assert.Equal(t, maxLabel, len([]rune(shorten(strings.Repeat("x", 40), maxLabel))))
 }
 
 func TestNodeNameSaysWhatAnUnnamedNodeIs(t *testing.T) {
@@ -228,4 +231,28 @@ func TestChipTitleSaysWhere(t *testing.T) {
 		chipTitle(&topology.Leaf{Name: "phone", WiFi: true, SSID: "home", Band: "5ghz-ax", VLAN: 10, Current: true}))
 	assert.Equal(t, "nas · ether4 · VLANs\u00a010, 20 · last seen here",
 		chipTitle(&topology.Leaf{Name: "nas", Port: "ether4", VLANs: []int{10, 20}, VLAN: 10}))
+}
+
+// A wired chip names its port and a Wi-Fi one its band, on the chip's right.
+func TestPlaceNamesEachChipsPortOrBand(t *testing.T) {
+	t.Parallel()
+
+	l := Place(network(t, 1))
+	require.NotNil(t, l)
+
+	asides := map[string]string{}
+
+	for _, g := range l.Groups {
+		for _, c := range g.Chips {
+			asides[c.Name] = c.Aside
+
+			if c.Aside != "" {
+				assert.InDelta(t, c.X+chipW-8, c.AsideAt.X, 0.01, c.Name)
+			}
+		}
+	}
+
+	assert.Equal(t, "ether7", asides["device-1"])
+	assert.Empty(t, asides["device-10"], "the switch is not read, so its ports are unknown")
+	assert.Empty(t, asides["device-80"], "no band was reported")
 }
