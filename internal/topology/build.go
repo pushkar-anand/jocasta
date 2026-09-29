@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/pushkar-anand/jocasta/internal/classify"
 )
 
 // Build assembles the tree from what sources say and places devices in it.
@@ -13,8 +15,7 @@ import (
 // node, from the latest reads where there are any and the last sighting
 // otherwise. Devices no source has seen are left out, except online ones,
 // which are listed in [Tree.Unplaced]. A device whose hardware address no
-// source reported, or that is itself a router, switch or access point, is not
-// a leaf.
+// source reported, or that is itself a node, is not a leaf.
 func Build(sources []Source, devices []Device) *Tree {
 	b := newBuilder(sources, devices)
 
@@ -40,8 +41,13 @@ type reader struct {
 
 	ports map[string]Port
 
+	// up is the port the source hangs from. Everything it learns there is
+	// above it or on another branch, so a sighting on it places nothing.
+	up string
+
 	// links is the ports leading to another read source. childOn is the node
-	// hanging from each, and onPort the seen or unnamed node on a port.
+	// hanging from each, and onPort the node on a port that was seen, inferred
+	// or made from a hypervisor.
 	links   map[string]bool
 	childOn map[string]*Node
 	onPort  map[string]*Node
@@ -302,6 +308,7 @@ func (b *builder) place(x *reader, up string, set []*reader) {
 // hangReader hangs c from parent, which is x's node or a node on x's port.
 func (b *builder) hangReader(c *reader, parent *Node, x *reader, parentPort string) {
 	up := b.toward[c][x]
+	c.up = up
 
 	link := &Link{ParentPort: parentPort, Port: up}
 
@@ -414,7 +421,7 @@ func (b *builder) placeStrangers() {
 
 	for _, x := range readers {
 		for _, p := range portsWithStrangers(x) {
-			if x.links[p] {
+			if x.links[p] || p == x.up {
 				continue
 			}
 
@@ -503,7 +510,7 @@ func (b *builder) attach() {
 
 	for _, r := range b.readers {
 		for _, s := range r.src.Seen {
-			if b.nodeMACs[s.MAC] || b.devByMAC[s.MAC] == nil {
+			if b.nodeMACs[s.MAC] || b.devByMAC[s.MAC] == nil || (r.up != "" && s.Port == r.up) {
 				continue
 			}
 
@@ -569,7 +576,7 @@ func (b *builder) attach() {
 		leaves = append(leaves, l)
 	}
 
-	b.inferSwitches(leaves)
+	leaves = b.inferSwitches(leaves)
 
 	for _, l := range leaves {
 		b.tree.leafByDevice[l.DeviceID] = l
@@ -577,10 +584,12 @@ func (b *builder) attach() {
 	}
 }
 
-// inferSwitches puts the devices sharing one wired port of a source under an
-// unnamed node on that port: something the tree does not read is plugged in
-// there, with all of them behind it.
-func (b *builder) inferSwitches(leaves []*Leaf) {
+// inferSwitches puts the devices sharing one wired port of a source under a
+// node on that port: something the tree does not read is plugged in there,
+// with all of them behind it. When exactly one of them is a hypervisor, the
+// rest are its virtual machines and it is that node. It returns the leaves
+// left once any hypervisor has become a node.
+func (b *builder) inferSwitches(leaves []*Leaf) []*Leaf {
 	type portKey struct {
 		r    *reader
 		port string
@@ -603,18 +612,92 @@ func (b *builder) inferSwitches(leaves []*Leaf) {
 		shared[k] = append(shared[k], l)
 	}
 
+	hosts := map[*Leaf]bool{}
+
 	for k, ls := range shared {
 		if len(ls) < 2 {
 			continue
 		}
 
-		allWiFi := !slices.ContainsFunc(ls, func(l *Leaf) bool { return !l.WiFi })
-		n := b.intermediate(k.r, k.port, allWiFi)
+		var n *Node
+
+		if h := hypervisor(ls); h != nil && k.r.onPort[k.port] == nil {
+			n = b.host(k.r, k.port, h)
+			hosts[h] = true
+		} else {
+			allWiFi := !slices.ContainsFunc(ls, func(l *Leaf) bool { return !l.WiFi })
+			n = b.intermediate(k.r, k.port, allWiFi)
+			n.VMs = n.Kind == NodeUnnamed && !allWiFi && mostlyVMs(ls)
+		}
 
 		for _, l := range ls {
 			l.Owner, l.Port = n, ""
 		}
 	}
+
+	return slices.DeleteFunc(leaves, func(l *Leaf) bool { return hosts[l] })
+}
+
+// hypervisor returns the one leaf in ls classed as a hypervisor, by the
+// classifier or its owner, and nil when there is none or more than one.
+func hypervisor(ls []*Leaf) *Leaf {
+	var found *Leaf
+
+	for _, l := range ls {
+		if l.Class != string(classify.Hypervisor) {
+			continue
+		}
+
+		if found != nil {
+			return nil
+		}
+
+		found = l
+	}
+
+	return found
+}
+
+// host makes hypervisor h the node on port p of x.
+func (b *builder) host(x *reader, p string, h *Leaf) *Node {
+	n := &Node{
+		Kind: NodeHost, Key: fmt.Sprintf("h%d", h.DeviceID), Name: h.Name,
+		DeviceID: h.DeviceID, Online: h.Online,
+	}
+
+	link := &Link{ParentPort: p}
+	link.VLANs, link.Trunk = carried(x.ports[p])
+
+	b.hang(n, x.node, link)
+	x.onPort[p] = n
+	b.nodeMACs[h.MAC] = true
+
+	return n
+}
+
+// vmPrefixes are the hardware address blocks hypervisors assign to virtual
+// machines: VirtualBox, QEMU and KVM, Proxmox, VMware, Hyper-V, Xen and
+// Parallels.
+var vmPrefixes = []string{
+	"08:00:27", "52:54:00", "bc:24:11",
+	"00:05:69", "00:0c:29", "00:1c:14", "00:50:56",
+	"00:15:5d", "00:16:3e", "00:1c:42",
+}
+
+// mostlyVMs reports whether more than half of ls have a virtual machine's
+// hardware address.
+func mostlyVMs(ls []*Leaf) bool {
+	vms := 0
+
+	for _, l := range ls {
+		mac := strings.ToLower(l.MAC)
+
+		if slices.ContainsFunc(vmPrefixes, func(p string) bool { return strings.HasPrefix(mac, p) }) {
+			vms++
+		}
+	}
+
+	return vms*2 > len(ls)
 }
 
 // group files l in its owner's group for its port or Wi-Fi network and VLAN.

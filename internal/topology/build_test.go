@@ -376,3 +376,144 @@ func TestNaturalOrdersPortNumbers(t *testing.T) {
 	assert.Zero(t, natural("wifi1", "wifi1"))
 	assert.Negative(t, natural("", "ether1"))
 }
+
+// A switch learns every Wi-Fi client of an access point beside it on its
+// uplink, and the access point learns the switch's wired devices on its own.
+// Neither is where those devices are: each is placed where it plugs in or
+// associates, however recently a source heard it through its uplink.
+func TestBuildIgnoresWhatAnUplinkLearns(t *testing.T) {
+	t.Parallel()
+
+	router := Source{
+		ID: 1, Name: "routeros:gateway", Identity: "router", Gateway: true, ReadAt: earlier,
+		Own: []string{routerMAC},
+		Ports: []Port{
+			{Name: "ether2", Kind: PortWired, Tagged: []int{10, 20}},
+			{Name: "sfp1", Kind: PortWired, Tagged: []int{10, 20}},
+		},
+		Seen: []Sighting{
+			old(seen("ether2", 0xc0, 0)), old(seen("ether2", 1, 10)), old(seen("ether2", 2, 20)),
+			old(seen("sfp1", 0xb0, 0)), old(seen("sfp1", 3, 10)), old(seen("sfp1", 4, 10)),
+		},
+		Neighbours: []Neighbour{
+			{Port: "ether2", MAC: apMAC, Identity: "ap-hall"},
+			{Port: "sfp1", MAC: switchMAC, Identity: "switch-a"},
+		},
+	}
+
+	sw := Source{
+		ID: 2, Name: "routeros:switch_a", Identity: "switch-a", ReadAt: now,
+		Own:   []string{switchMAC},
+		Ports: []Port{{Name: "sfp1", Kind: PortWired, Tagged: []int{10, 20}}, {Name: "ether3", Kind: PortWired, PVID: 10}, {Name: "ether4", Kind: PortWired, PVID: 10}},
+		Seen: []Sighting{
+			seen("sfp1", 0xa0, 0), seen("sfp1", 0xc0, 0), seen("sfp1", 1, 10), seen("sfp1", 2, 20),
+			seen("ether3", 3, 10), seen("ether4", 4, 10),
+		},
+		Neighbours: []Neighbour{{Port: "sfp1", MAC: routerMAC, Identity: "router"}},
+	}
+
+	ap := Source{
+		ID: 3, Name: "routeros:ap_hall", Identity: "ap-hall", ReadAt: earlier,
+		Own:   []string{apMAC},
+		Ports: []Port{{Name: "ether1", Kind: PortWired, Tagged: []int{10, 20}}, {Name: "wifi1", Kind: PortWiFi}, {Name: "wifi2", Kind: PortWiFi}},
+		Seen: []Sighting{
+			old(seen("ether1", 0xa0, 0)), old(seen("ether1", 3, 10)), old(seen("ether1", 4, 10)),
+			old(wifi("wifi1", 1, 10, "home")), old(wifi("wifi2", 2, 20, "iot")),
+		},
+		Neighbours: []Neighbour{{Port: "ether1", MAC: routerMAC, Identity: "router"}},
+	}
+
+	tree := Build([]Source{router, sw, ap}, []Device{
+		dev(1, "phone", true), dev(2, "plug", true), dev(3, "server", true), dev(4, "nas", true),
+	})
+
+	assert.Equal(t, `read router
+  read ap-hall via "ether2" trunk
+    [wifi home vlan 10] phone
+    [wifi iot vlan 20] plug
+  read switch-a via "sfp1" trunk
+    [ether3 vlan 10] server
+    [ether4 vlan 10] nas
+`, render(tree))
+}
+
+// A hypervisor sharing a port with its virtual machines is the node on that
+// port, whether the classifier or its owner said so.
+func TestBuildHangsVirtualMachinesFromTheirHost(t *testing.T) {
+	t.Parallel()
+
+	router := Source{
+		ID: 1, Name: "a", Identity: "router", Gateway: true, ReadAt: now, Own: []string{routerMAC},
+		Ports: []Port{{Name: "ether7", Kind: PortWired, PVID: 10}},
+		Seen:  []Sighting{seen("ether7", 1, 10), seen("ether7", 2, 10), seen("ether7", 3, 10)},
+	}
+
+	host := dev(1, "vm-host", true)
+	host.Class = "hypervisor"
+
+	tree := Build([]Source{router}, []Device{host, dev(2, "web", true), dev(3, "db", true)})
+
+	assert.Equal(t, `read router
+  host vm-host via "ether7"
+    [ vlan 10] db, web
+`, render(tree))
+
+	n, ok := tree.Node(1)
+	require.True(t, ok)
+	assert.Equal(t, NodeHost, n.Kind)
+
+	_, isLeaf := tree.Leaf(1)
+	assert.False(t, isLeaf)
+	assert.Empty(t, tree.Unplaced)
+}
+
+// With two hypervisors on one port, neither is plainly the host.
+func TestBuildLeavesTwoHypervisorsBehindASwitch(t *testing.T) {
+	t.Parallel()
+
+	router := Source{
+		ID: 1, Name: "a", Identity: "router", Gateway: true, ReadAt: now, Own: []string{routerMAC},
+		Ports: []Port{{Name: "ether7", Kind: PortWired, PVID: 10}},
+		Seen:  []Sighting{seen("ether7", 1, 10), seen("ether7", 2, 10)},
+	}
+
+	a, c := dev(1, "host-a", true), dev(2, "host-b", true)
+	a.Class, c.Class = "hypervisor", "hypervisor"
+
+	tree := Build([]Source{router}, []Device{a, c})
+
+	require.Len(t, tree.Root.Children, 1)
+	assert.Equal(t, NodeUnnamed, tree.Root.Children[0].Kind)
+	assert.False(t, tree.Root.Children[0].VMs)
+}
+
+// Devices mostly carrying virtual machine addresses behind one port, with no
+// hypervisor known, are behind a virtual machine host.
+func TestBuildMarksAVirtualMachineHost(t *testing.T) {
+	t.Parallel()
+
+	// VirtualBox and QEMU address blocks; the rest of each address is
+	// arbitrary.
+	vbox, qemu, plain := "08:00:27:00:00:01", "52:54:00:00:00:02", mac(3)
+
+	router := Source{
+		ID: 1, Name: "a", Identity: "router", Gateway: true, ReadAt: now, Own: []string{routerMAC},
+		Ports: []Port{{Name: "ether7", Kind: PortWired, PVID: 10}},
+		Seen: []Sighting{
+			{Port: "ether7", MAC: vbox, LastSeen: now},
+			{Port: "ether7", MAC: qemu, LastSeen: now},
+			{Port: "ether7", MAC: plain, LastSeen: now},
+		},
+	}
+
+	tree := Build([]Source{router}, []Device{
+		{ID: 1, MAC: vbox, Name: "vm-a", Online: true},
+		{ID: 2, MAC: qemu, Name: "vm-b", Online: true},
+		{ID: 3, MAC: plain, Name: "desktop", Online: true},
+	})
+
+	require.Len(t, tree.Root.Children, 1)
+	n := tree.Root.Children[0]
+	assert.Equal(t, NodeUnnamed, n.Kind)
+	assert.True(t, n.VMs)
+}

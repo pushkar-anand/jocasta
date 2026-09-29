@@ -101,11 +101,13 @@ type Device struct {
 type NodeKind string
 
 // A node Jocasta reads, one that only announced itself to a device Jocasta
-// reads, and one inferred from several devices sharing one port.
+// reads, one inferred from several devices sharing one port, and a
+// hypervisor on a port it shares with its virtual machines.
 const (
 	NodeRead    NodeKind = "read"
 	NodeSeen    NodeKind = "seen"
 	NodeUnnamed NodeKind = "unnamed"
+	NodeHost    NodeKind = "host"
 )
 
 // Tree is the whole network, from the router down.
@@ -124,7 +126,7 @@ type Tree struct {
 	leafByDevice map[int64]*Leaf
 }
 
-// Node is a router, switch or access point.
+// Node is a router, switch, access point or hypervisor.
 type Node struct {
 	Kind NodeKind
 
@@ -145,6 +147,10 @@ type Node struct {
 	// WiFi marks an unnamed node whose devices are all on Wi-Fi: an access
 	// point nothing announced.
 	WiFi bool
+
+	// VMs marks an unnamed node whose devices are mostly virtual machines: a
+	// hypervisor the inventory does not know as one.
+	VMs bool
 
 	// Uplink is how the node hangs from Parent, nil on the root.
 	Uplink *Link
@@ -210,7 +216,7 @@ type Leaf struct {
 }
 
 // Node returns the node that is device id, and false when the device is not a
-// router, switch or access point in the tree.
+// node in the tree.
 func (t *Tree) Node(id int64) (*Node, bool) {
 	n, ok := t.nodeByDevice[id]
 
