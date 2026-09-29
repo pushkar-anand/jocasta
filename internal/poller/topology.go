@@ -51,23 +51,9 @@ func (t *Topology) Name() string { return "topology_reader" }
 func (t *Topology) Interval() time.Duration { return t.interval }
 
 // DueIn resumes the schedule across a restart: what is left of the interval
-// since any source was last read, or nothing when none has been. A store that
-// cannot be read waits a full interval, as dueIn does.
+// since any source was last read, or nothing when none has been.
 func (t *Topology) DueIn(ctx context.Context) time.Duration {
-	at, err := t.store.LastTopologyReadAt(ctx)
-
-	switch {
-	case errors.Is(err, inventory.ErrNotFound):
-		return 0
-	case err != nil:
-		t.logger.ErrorContext(ctx, "could not tell when the topology was last read, holding off for one interval",
-			logger.Err(err),
-		)
-
-		return t.interval
-	}
-
-	return t.interval - time.Since(at)
+	return resumeIn(ctx, t.interval, t.logger, t.store.LastTopologyReadAt)
 }
 
 // Run reads every source and records what each said. A source that fails is
@@ -90,7 +76,7 @@ func (t *Topology) readAndSave(ctx context.Context, r plugin.TopologyReader) err
 	topo, err := r.Topology(ctx)
 
 	switch {
-	case err != nil && len(topo.Seen) == 0 && len(topo.Neighbours) == 0:
+	case err != nil && topo.Empty():
 		return fmt.Errorf("read topology from %s: %w", r.Name(), err)
 	case err != nil:
 		t.logger.WarnContext(ctx, "source described its ports in part",
@@ -99,12 +85,24 @@ func (t *Topology) readAndSave(ctx context.Context, r plugin.TopologyReader) err
 		)
 	}
 
-	if err := t.store.RecordTopology(ctx, r.Name(), r.Kind(), topo); err != nil {
-		return fmt.Errorf("record topology from %s: %w", r.Name(), err)
+	return SaveTopology(ctx, t.store, t.logger, r, topo)
+}
+
+// SaveTopology records what src said is plugged into it and logs what was
+// recorded.
+func SaveTopology(
+	ctx context.Context,
+	store *inventory.Store,
+	log *slog.Logger,
+	src plugin.TopologyReader,
+	topo plugin.Topology,
+) error {
+	if err := store.RecordTopology(ctx, src.Name(), src.Kind(), topo); err != nil {
+		return fmt.Errorf("record topology from %s: %w", src.Name(), err)
 	}
 
-	t.logger.InfoContext(ctx, "recorded topology",
-		slog.String("src", r.Name()),
+	log.InfoContext(ctx, "recorded topology",
+		slog.String("src", src.Name()),
 		slog.Int("ports", len(topo.Ports)),
 		slog.Int("seen", len(topo.Seen)),
 		slog.Int("neighbours", len(topo.Neighbours)),

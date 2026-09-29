@@ -15,6 +15,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/config"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/plugin"
+	"github.com/pushkar-anand/jocasta/internal/poller"
 )
 
 type PluginCmd struct {
@@ -104,7 +105,7 @@ func (p *PluginRunCmd) Run(
 		return nil
 	}
 
-	return saveTopology(ctx, log, src, *topo, store)
+	return poller.SaveTopology(ctx, store, log, src, *topo)
 }
 
 // runTopology reads a switch or access point, which has no devices or
@@ -116,7 +117,7 @@ func (p *PluginRunCmd) runTopology(
 	store *inventory.Store,
 ) error {
 	topo, err := src.Topology(ctx)
-	if err != nil && len(topo.Seen) == 0 {
+	if err != nil && topo.Empty() {
 		return fmt.Errorf("read topology from %s: %w", src.Name(), err)
 	}
 
@@ -132,7 +133,7 @@ func (p *PluginRunCmd) runTopology(
 		return nil
 	}
 
-	return saveTopology(ctx, log, src, topo, store)
+	return poller.SaveTopology(ctx, store, log, src, topo)
 }
 
 // printTopology reads and prints what is plugged into a router read for its
@@ -151,7 +152,7 @@ func (p *PluginRunCmd) printTopology(
 			logger.Err(err),
 		)
 
-		if len(topo.Seen) == 0 {
+		if topo.Empty() {
 			return nil, nil
 		}
 	}
@@ -161,28 +162,6 @@ func (p *PluginRunCmd) printTopology(
 	}
 
 	return &topo, nil
-}
-
-// saveTopology records what a source said is plugged into it.
-func saveTopology(
-	ctx context.Context,
-	log *slog.Logger,
-	src plugin.TopologyReader,
-	topo plugin.Topology,
-	store *inventory.Store,
-) error {
-	if err := store.RecordTopology(ctx, src.Name(), src.Kind(), topo); err != nil {
-		return fmt.Errorf("record topology: %w", err)
-	}
-
-	log.InfoContext(ctx, "recorded topology",
-		slog.String("src", src.Name()),
-		slog.Int("ports", len(topo.Ports)),
-		slog.Int("seen", len(topo.Seen)),
-		slog.Int("neighbours", len(topo.Neighbours)),
-	)
-
-	return nil
 }
 
 // save records the reading. It runs after the facts are printed so a database
