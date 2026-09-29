@@ -254,7 +254,7 @@ func (p *placer) position(n *topology.Node, left, top float64) (*Box, []string) 
 		H:    nodeH,
 		Key:  nodeKey(n),
 	}
-	box.Label = shorten(nodeName(n))
+	box.Label = shorten(NodeName(n))
 
 	p.out.Boxes = append(p.out.Boxes, box)
 	p.bottom = max(p.bottom, top+nodeH)
@@ -312,26 +312,31 @@ func (p *placer) nodeEdge(from Point, child *Box, link *topology.Link) *Edge {
 		return e
 	}
 
-	vlans := vlanList(link.VLANs)
+	e.Label = LinkLabel(link)
+	e.Title = e.Label
 
 	switch {
 	case link.Trunk:
 		e.Kind = "trunk"
-		e.Label = join(link.ParentPort, "trunk")
-		e.Title = join(link.ParentPort, "VLANs\u00a0"+vlans)
-	case vlans != "":
-		e.Label = join(link.ParentPort, "VLAN\u00a0"+vlans)
-		e.Title = e.Label
-	default:
-		e.Label = link.ParentPort
-		e.Title = e.Label
-	}
-
-	if child.WiFi && child.Kind == topology.NodeUnnamed {
+		e.Title = join(link.ParentPort, "VLANs\u00a0"+vlanList(link.VLANs))
+	case child.WiFi && child.Kind == topology.NodeUnnamed:
 		e.Kind = "wifi"
 	}
 
 	return e
+}
+
+// LinkLabel names the parent's port a node hangs from and what it carries:
+// "sfp1 · trunk", or "ether4 · VLAN 10" for a port carrying one VLAN.
+func LinkLabel(link *topology.Link) string {
+	switch {
+	case link.Trunk:
+		return join(link.ParentPort, "trunk")
+	case len(link.VLANs) > 0:
+		return join(link.ParentPort, "VLAN\u00a0"+vlanList(link.VLANs))
+	default:
+		return link.ParentPort
+	}
 }
 
 // group places one column of devices with its top left at (left, top).
@@ -371,11 +376,26 @@ func (p *placer) group(g *topology.Group, left, top float64) (*Group, []string) 
 	return out, keys
 }
 
-// chipTitle says what a device is and where: its name, its port or Wi-Fi
-// network and band, its VLANs, and whether that is only where it was last
-// seen.
+// chipTitle says what a device is and where, and whether that is only where it
+// was last seen.
 func chipTitle(l *topology.Leaf) string {
 	parts := []string{l.Name}
+
+	if where := Where(l); where != "" {
+		parts = append(parts, where)
+	}
+
+	if !l.Current {
+		parts = append(parts, "last seen here")
+	}
+
+	return strings.Join(parts, " · ")
+}
+
+// Where says where a device is on the node it hangs from: its port, or its
+// Wi-Fi network and band, then its VLANs.
+func Where(l *topology.Leaf) string {
+	var parts []string
 
 	switch {
 	case l.WiFi:
@@ -388,10 +408,6 @@ func chipTitle(l *topology.Leaf) string {
 		parts = append(parts, "VLANs\u00a0"+vlanList(l.VLANs))
 	} else if l.VLAN > 0 {
 		parts = append(parts, "VLAN\u00a0"+strconv.Itoa(l.VLAN))
-	}
-
-	if !l.Current {
-		parts = append(parts, "last seen here")
 	}
 
 	return strings.Join(parts, " · ")
@@ -444,8 +460,9 @@ func nodeKey(n *topology.Node) string {
 	return n.Key
 }
 
-// nodeName is what a node is called on the page.
-func nodeName(n *topology.Node) string {
+// NodeName is what a node is called on the page: its name, or what it is when
+// it has none.
+func NodeName(n *topology.Node) string {
 	switch {
 	case n.Name != "":
 		return n.Name

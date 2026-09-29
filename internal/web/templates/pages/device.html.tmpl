@@ -3,6 +3,33 @@
 
 {{ template "partial/device-panel" . }}
 
+{{- with .Connection }}
+<section class="block">
+    <h2 class="section">Connected</h2>
+    <div class="card panel">
+        {{- if .Placed }}
+        <ol class="path" aria-label="Path from the internet to this device">
+            <li class="path__hop">Internet</li>
+            {{- range .Hops }}
+            <li class="path__hop">
+                {{- with .Via }}<span class="chip">{{ . }}</span>{{ end }}
+                {{- if .DeviceID }}<a href="/devices/{{ .DeviceID }}">{{ .Name }}</a>{{ else }}<span>{{ .Name }}</span>{{ end }}
+            </li>
+            {{- end }}
+            <li class="path__hop path__hop--here">
+                {{- with .Last }}<span class="chip chip--brand">{{ . }}</span>{{ end }}
+                <strong>{{ $.Device.Name }}</strong>
+                {{- if not .Current }}<span class="chip">last seen here</span>{{ end }}
+            </li>
+        </ol>
+        <p class="path__more"><a href="/topology?focus={{ .Focus }}">Show on topology</a></p>
+        {{- else }}
+        <p class="dim">No router, switch or access point has seen this device on a port.</p>
+        {{- end }}
+    </div>
+</section>
+{{- end }}
+
 {{- with .Device }}
 <section class="block">
     <h2 class="section">Addresses</h2>

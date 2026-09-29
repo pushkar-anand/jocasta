@@ -3490,3 +3490,31 @@ td .traffic__tried {
     border-color: var(--brand);
     color: var(--text);
 }
+
+/* A device's path from the internet down, on its page. */
+.path {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 4px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.path__hop {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.path__hop + .path__hop::before {
+    content: "›";
+    margin: 0 4px;
+    color: var(--text-3);
+}
+
+.path__more {
+    margin: 12px 0 0;
+    font-size: var(--fs-support);
+}
