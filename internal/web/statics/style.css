@@ -3375,7 +3375,8 @@ td .traffic__tried {
     stroke-width: 1.5;
 }
 
-.topo__frame--unnamed {
+.topo__frame--unnamed,
+.topo__frame--host {
     stroke: var(--text-3);
     stroke-dasharray: 2 3;
     stroke-width: 1.5;
