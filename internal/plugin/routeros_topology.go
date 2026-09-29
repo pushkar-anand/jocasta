@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/netip"
 	"slices"
 	"strings"
@@ -276,16 +277,9 @@ func (r *RouterOS) sightings(ctx context.Context, t switchTables, kinds map[stri
 		}
 	}
 
-	out := make([]Sighting, 0, len(seen))
-	for _, s := range seen {
-		out = append(out, s)
-	}
-
-	slices.SortFunc(out, func(a, b Sighting) int {
+	return slices.SortedFunc(maps.Values(seen), func(a, b Sighting) int {
 		return cmp.Or(strings.Compare(a.Port, b.Port), strings.Compare(a.MAC, b.MAC), cmp.Compare(a.VLAN, b.VLAN))
 	})
-
-	return out
 }
 
 // neighbours returns the devices that announced themselves, one per hardware
@@ -296,8 +290,6 @@ func (r *RouterOS) neighbours(ctx context.Context, ns []routeros.Neighbor, kinds
 	// port, and the VLAN interface on top of it. Rows are merged per address,
 	// and a wired port or radio replaces a VLAN interface.
 	byMAC := make(map[string]*Neighbour, len(ns))
-
-	var order []string
 
 	for _, n := range ns {
 		mac, ok := hosts.CanonicalMAC(n.MACAddress)
@@ -317,7 +309,6 @@ func (r *RouterOS) neighbours(ctx context.Context, ns []routeros.Neighbor, kinds
 		if !ok {
 			nb = &Neighbour{Port: port, MAC: mac}
 			byMAC[id] = nb
-			order = append(order, id)
 		}
 
 		if kinds[nb.Port] == PortVirtual && kinds[port] != PortVirtual {
@@ -334,13 +325,15 @@ func (r *RouterOS) neighbours(ctx context.Context, ns []routeros.Neighbor, kinds
 		}
 	}
 
-	out := make([]Neighbour, 0, len(order))
-	for _, id := range order {
-		out = append(out, *byMAC[id])
+	out := make([]Neighbour, 0, len(byMAC))
+	for _, nb := range byMAC {
+		out = append(out, *nb)
 	}
 
+	// A neighbour that announced no address is keyed by its identity, so the
+	// identity breaks the tie between two of them on one port.
 	slices.SortFunc(out, func(a, b Neighbour) int {
-		return cmp.Or(strings.Compare(a.Port, b.Port), strings.Compare(a.MAC, b.MAC))
+		return cmp.Or(strings.Compare(a.Port, b.Port), strings.Compare(a.MAC, b.MAC), strings.Compare(a.Identity, b.Identity))
 	})
 
 	return out
