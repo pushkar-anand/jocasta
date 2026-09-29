@@ -3,6 +3,7 @@ package topology
 import (
 	"cmp"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -41,16 +42,19 @@ type reader struct {
 
 	ports map[string]Port
 
+	// toward[b] is the port of this source that b is behind, as its tables
+	// say.
+	toward map[*reader]string
+
 	// up is the port the source hangs from. Everything it learns there is
 	// above it or on another branch, so a sighting on it places nothing.
 	up string
 
-	// links is the ports leading to another read source. childOn is the node
-	// hanging from each, and onPort the node on a port that was seen, inferred
-	// or made from a hypervisor.
-	links   map[string]bool
-	childOn map[string]*Node
-	onPort  map[string]*Node
+	// links is the ports leading to another read source, and onPort the node
+	// on a port: a read source, an announced neighbour, an inferred node or a
+	// hypervisor.
+	links  map[string]bool
+	onPort map[string]*Node
 }
 
 // current reports whether s came from the source's latest read.
@@ -65,9 +69,6 @@ type builder struct {
 	byOwn      map[string]*reader
 	byIdentity map[string]*reader
 	devByMAC   map[string]*Device
-
-	// toward[a][b] is the port of a that b is behind, as a's tables say.
-	toward map[*reader]map[*reader]string
 
 	root  *reader
 	depth map[*Node]int
@@ -87,7 +88,6 @@ func newBuilder(sources []Source, devices []Device) *builder {
 		byOwn:      map[string]*reader{},
 		byIdentity: map[string]*reader{},
 		devByMAC:   map[string]*Device{},
-		toward:     map[*reader]map[*reader]string{},
 		depth:      map[*Node]int{},
 		seen:       map[string]*Node{},
 		nodeMACs:   map[string]bool{},
@@ -106,12 +106,12 @@ func newBuilder(sources []Source, devices []Device) *builder {
 		src := &sorted[i]
 
 		r := &reader{
-			src:     src,
-			node:    &Node{Kind: NodeRead, Key: fmt.Sprintf("s%d", src.ID), Name: cmp.Or(src.Identity, src.Name), Online: true},
-			ports:   map[string]Port{},
-			links:   map[string]bool{},
-			childOn: map[string]*Node{},
-			onPort:  map[string]*Node{},
+			src:    src,
+			node:   &Node{Kind: NodeRead, Key: fmt.Sprintf("s%d", src.ID), Name: cmp.Or(src.Identity, src.Name), Online: true},
+			ports:  map[string]Port{},
+			toward: map[*reader]string{},
+			links:  map[string]bool{},
+			onPort: map[string]*Node{},
 		}
 
 		for _, p := range src.Ports {
@@ -123,12 +123,7 @@ func newBuilder(sources []Source, devices []Device) *builder {
 				b.byOwn[mac] = r
 			}
 
-			b.nodeMACs[mac] = true
-
-			if d, ok := b.devByMAC[mac]; ok && r.node.DeviceID == 0 {
-				r.node.DeviceID = d.ID
-				r.node.Online = d.Online
-			}
+			b.claim(r.node, mac)
 		}
 
 		if src.Identity != "" {
@@ -136,10 +131,24 @@ func newBuilder(sources []Source, devices []Device) *builder {
 		}
 
 		b.readers = append(b.readers, r)
-		b.toward[r] = map[*reader]string{}
 	}
 
 	return b
+}
+
+// claim marks mac as a node's rather than a leaf's, and makes n the inventory
+// device with that address when n is none yet.
+func (b *builder) claim(n *Node, mac string) {
+	if mac == "" {
+		return
+	}
+
+	b.nodeMACs[mac] = true
+
+	if d, ok := b.devByMAC[mac]; ok && n.DeviceID == 0 {
+		n.DeviceID = d.ID
+		n.Online = d.Online
+	}
 }
 
 // pickRoot returns the gateway, the first in name order when several say they
@@ -198,7 +207,6 @@ func (b *builder) findLinks() {
 
 			b.setToward(a, other, n.Port)
 
-			other.node.Platform = cmp.Or(other.node.Platform, n.Platform)
 			other.node.Board = cmp.Or(other.node.Board, n.Board)
 		}
 	}
@@ -207,21 +215,21 @@ func (b *builder) findLinks() {
 // setToward records that other is behind port of a. A wired port or radio
 // replaces a VLAN or bridge interface, since the port is where it plugs in.
 func (b *builder) setToward(a, other *reader, port string) {
-	have := b.toward[a][other]
+	have := a.toward[other]
 	if have == "" || (a.ports[have].Kind == PortVirtual && a.ports[port].Kind != PortVirtual) {
-		b.toward[a][other] = port
+		a.toward[other] = port
 	}
 }
 
 // upPort returns the port of z that x is behind, or failing that the root.
 func (b *builder) upPort(z, x *reader) string {
-	return cmp.Or(b.toward[z][x], b.toward[z][b.root])
+	return cmp.Or(z.toward[x], z.toward[b.root])
 }
 
 // below reports whether z sees y on a port other than the one leading back
 // towards x, which puts y in z's subtree.
 func (b *builder) below(z, y, x *reader) bool {
-	p := b.toward[z][y]
+	p := z.toward[y]
 
 	return p != "" && p != b.upPort(z, x)
 }
@@ -239,7 +247,7 @@ func (b *builder) place(x *reader, up string, set []*reader) {
 	var unseen []*reader
 
 	for _, y := range set {
-		p := b.toward[x][y]
+		p := x.toward[y]
 		if p == "" || p == up {
 			unseen = append(unseen, y)
 
@@ -288,26 +296,26 @@ func (b *builder) place(x *reader, up string, set []*reader) {
 			}
 
 			b.hangReader(c, parent, x, parentPort)
-			b.place(c, b.toward[c][x], sub)
+			b.place(c, c.toward[x], sub)
 		}
 
 		for _, z := range branch {
 			if !taken[z] {
 				b.hangReader(z, parent, x, parentPort)
-				b.place(z, b.toward[z][x], nil)
+				b.place(z, z.toward[x], nil)
 			}
 		}
 	}
 
 	for _, y := range unseen {
 		b.hangReader(y, x.node, x, "")
-		b.place(y, b.toward[y][x], nil)
+		b.place(y, y.toward[x], nil)
 	}
 }
 
 // hangReader hangs c from parent, which is x's node or a node on x's port.
 func (b *builder) hangReader(c *reader, parent *Node, x *reader, parentPort string) {
-	up := b.toward[c][x]
+	up := c.toward[x]
 	c.up = up
 
 	link := &Link{ParentPort: parentPort, Port: up}
@@ -315,7 +323,7 @@ func (b *builder) hangReader(c *reader, parent *Node, x *reader, parentPort stri
 	switch {
 	case parentPort != "":
 		link.VLANs, link.Trunk = carried(x.ports[parentPort])
-		x.childOn[parentPort] = c.node
+		x.onPort[parentPort] = c.node
 	case up != "":
 		link.VLANs, link.Trunk = carried(c.ports[up])
 	}
@@ -372,40 +380,33 @@ func (b *builder) intermediate(x *reader, p string, wifi bool) *Node {
 		n = &Node{Kind: NodeUnnamed, Key: fmt.Sprintf("u%d:%s", x.src.ID, p), Online: true, WiFi: wifi}
 	}
 
+	b.hangOnPort(x, p, n)
+
+	return n
+}
+
+// hangOnPort hangs n from port p of x as the node on that port.
+func (b *builder) hangOnPort(x *reader, p string, n *Node) {
 	link := &Link{ParentPort: p}
 	link.VLANs, link.Trunk = carried(x.ports[p])
 
 	b.hang(n, x.node, link)
 	x.onPort[p] = n
-
-	return n
 }
+
+// seenKey is the key of the node made from neighbour n.
+func seenKey(n Neighbour) string { return "n" + cmp.Or(n.MAC, n.Identity) }
 
 // seenNode returns the node for a neighbour no source reads.
 func (b *builder) seenNode(n Neighbour) *Node {
-	key := "n" + cmp.Or(n.MAC, n.Identity)
+	key := seenKey(n)
 
 	if node, ok := b.seen[key]; ok {
 		return node
 	}
 
-	node := &Node{
-		Kind:     NodeSeen,
-		Key:      key,
-		Name:     cmp.Or(n.Identity, n.MAC),
-		Platform: n.Platform,
-		Board:    n.Board,
-		Online:   true,
-	}
-
-	if d, ok := b.devByMAC[n.MAC]; ok {
-		node.DeviceID = d.ID
-		node.Online = d.Online
-	}
-
-	if n.MAC != "" {
-		b.nodeMACs[n.MAC] = true
-	}
+	node := &Node{Kind: NodeSeen, Key: key, Name: cmp.Or(n.Identity, n.MAC), Board: n.Board, Online: true}
+	b.claim(node, n.MAC)
 
 	b.seen[key] = node
 
@@ -426,7 +427,7 @@ func (b *builder) placeStrangers() {
 			}
 
 			s := b.strangers(x, p)
-			if len(s) != 1 || b.seen["n"+cmp.Or(s[0].MAC, s[0].Identity)] != nil {
+			if len(s) != 1 || b.seen[seenKey(s[0])] != nil {
 				continue
 			}
 
@@ -562,15 +563,11 @@ func (b *builder) attach() {
 			l.VLAN = sp.r.ports[sp.s.Port].PVID
 		}
 
-		switch {
-		case sp.link:
-			// Seen only on a port leading to another source, which did not
-			// see it: it is somewhere on that branch.
-			l.Owner = cmp.Or(sp.r.onPort[sp.s.Port], sp.r.childOn[sp.s.Port])
-			l.Port = ""
-		case sp.r.onPort[sp.s.Port] != nil:
-			l.Owner = sp.r.onPort[sp.s.Port]
-			l.Port = ""
+		// A device seen on a port with a node on it is somewhere behind that
+		// node. On a port leading to another source, that source did not see
+		// it, so it is somewhere on that branch.
+		if n := sp.r.onPort[sp.s.Port]; n != nil {
+			l.Owner, l.Port = n, ""
 		}
 
 		leaves = append(leaves, l)
@@ -660,17 +657,9 @@ func hypervisor(ls []*Leaf) *Leaf {
 
 // host makes hypervisor h the node on port p of x.
 func (b *builder) host(x *reader, p string, h *Leaf) *Node {
-	n := &Node{
-		Kind: NodeHost, Key: fmt.Sprintf("h%d", h.DeviceID), Name: h.Name,
-		DeviceID: h.DeviceID, Online: h.Online,
-	}
-
-	link := &Link{ParentPort: p}
-	link.VLANs, link.Trunk = carried(x.ports[p])
-
-	b.hang(n, x.node, link)
-	x.onPort[p] = n
-	b.nodeMACs[h.MAC] = true
+	n := &Node{Kind: NodeHost, Key: fmt.Sprintf("h%d", h.DeviceID), Name: h.Name, Online: true}
+	b.claim(n, h.MAC)
+	b.hangOnPort(x, p, n)
 
 	return n
 }
@@ -762,13 +751,7 @@ func (b *builder) finish() {
 		walk(b.tree.Root)
 	}
 
-	b.tree.VLANs = slices.Sorted(func(yield func(int) bool) {
-		for v := range vlans {
-			if !yield(v) {
-				return
-			}
-		}
-	})
+	b.tree.VLANs = slices.Sorted(maps.Keys(vlans))
 
 	for _, d := range b.devByMAC {
 		_, placed := b.tree.leafByDevice[d.ID]
@@ -787,14 +770,7 @@ func (b *builder) finish() {
 }
 
 func sortedKeys[V any](m map[string]V) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-
-	slices.SortFunc(keys, natural)
-
-	return keys
+	return slices.SortedFunc(maps.Keys(m), natural)
 }
 
 // compareBool orders false before true.

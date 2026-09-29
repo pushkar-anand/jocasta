@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -240,16 +239,11 @@ func (s *Store) Topology(ctx context.Context) (*topology.Tree, error) {
 
 	for _, n := range neighbours {
 		if i, ok := index[n.SourceID]; ok {
-			addr, _ := netip.ParseAddr(n.Address.String)
-
 			sources[i].Neighbours = append(sources[i].Neighbours, topology.Neighbour{
-				Port:      n.Port,
-				MAC:       n.MAC,
-				Addr:      addr,
-				Identity:  n.Identity,
-				Platform:  n.Platform.String,
-				Board:     n.Board.String,
-				TheirPort: n.TheirPort.String,
+				Port:     n.Port,
+				MAC:      n.MAC,
+				Identity: n.Identity,
+				Board:    n.Board.String,
 			})
 		}
 	}

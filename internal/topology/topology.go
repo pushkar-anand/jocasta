@@ -10,7 +10,7 @@
 package topology
 
 import (
-	"net/netip"
+	"slices"
 	"time"
 )
 
@@ -74,13 +74,10 @@ type Sighting struct {
 
 // Neighbour is a device that announced itself on one of a source's ports.
 type Neighbour struct {
-	Port      string
-	MAC       string
-	Addr      netip.Addr
-	Identity  string
-	Platform  string
-	Board     string
-	TheirPort string
+	Port     string
+	MAC      string
+	Identity string
+	Board    string
 }
 
 // Device is an inventory device the tree can place by its hardware address.
@@ -136,9 +133,8 @@ type Node struct {
 
 	// Name is the device's identity, or its inventory name, and empty for an
 	// unnamed switch.
-	Name     string
-	Platform string
-	Board    string
+	Name  string
+	Board string
 
 	// DeviceID is the inventory device this node is, zero when there is none.
 	DeviceID int64
@@ -238,9 +234,7 @@ func Path(n *Node) []*Node {
 		out = append(out, n)
 	}
 
-	for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
-		out[i], out[j] = out[j], out[i]
-	}
+	slices.Reverse(out)
 
 	return out
 }
