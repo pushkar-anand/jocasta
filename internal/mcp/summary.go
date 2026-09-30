@@ -18,9 +18,10 @@ func getStats(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	t := &mcpsdk.Tool{
 		Name:  "get_stats",
 		Title: "Count devices",
-		Description: "Count the devices in the inventory: the total, how many are online and offline, how many the owner " +
+		Description: "Count the devices in the inventory: the total, how many were seen recently or are quiet, how many the owner " +
 			"marked as ignored, and how many were first discovered in the last 24 hours. " +
-			"Unlike list_devices, the counts include ignored devices.",
+			"Use it for an inventory summary; use list_devices to identify individual devices. " +
+			"The counts include ignored devices and reflect past scans, not live reachability.",
 		InputSchema:  schemaFor[struct{}](),
 		OutputSchema: schemaFor[getStatsOutput](),
 		Annotations:  readOnly(),
@@ -53,7 +54,8 @@ func listGroups(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 		Name:  "list_groups",
 		Title: "List groups",
 		Description: "List the group names the owner has filed devices under. " +
-			"Pass one to list_devices as group to see its devices.",
+			"Use it to choose a group filter, then pass a name to list_devices as group to see its devices. " +
+			"It returns names only, without device counts; groups with no assigned devices are absent.",
 		InputSchema:  schemaFor[struct{}](),
 		OutputSchema: schemaFor[listGroupsOutput](),
 		Annotations:  readOnly(),

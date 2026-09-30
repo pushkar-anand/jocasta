@@ -91,6 +91,8 @@ func serviceKey(p *inventory.TrafficPeer) string {
 	return strconv.Itoa(int(p.Protocol)) + "/" + strconv.Itoa(int(p.ServicePort))
 }
 
+// parseServiceKey decodes a protocol/port filter. It reports false for missing
+// components or numbers outside the wire fields' ranges.
 func parseServiceKey(k string) (protocol uint8, port uint16, ok bool) {
 	a, b, found := strings.Cut(k, "/")
 	if !found {

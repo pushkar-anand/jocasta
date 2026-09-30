@@ -56,6 +56,8 @@ type index struct {
 	orgs   map[uint32]Org
 }
 
+// load builds the embedded address and organisation index, skipping rows whose
+// fields cannot be parsed.
 func load() *index {
 	ix := &index{orgs: make(map[uint32]Org, 90_000)}
 

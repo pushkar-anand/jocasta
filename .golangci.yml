@@ -63,6 +63,12 @@ linters:
     - sloglint
 
   settings:
+    staticcheck:
+      # Keep the default checks and enforce package and exported-name docs.
+      checks:
+        - all
+        - -ST1003
+        - -ST1016
     misspell:
       # "routeros" is the vendor's own spelling of its operating system.
       ignore-rules:

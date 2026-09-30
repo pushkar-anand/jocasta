@@ -58,6 +58,8 @@ func main() {
 	}
 }
 
+// run downloads vendor assignments and short names, then replaces data.txt
+// after checking the minimum entry count.
 func run() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
@@ -107,6 +109,8 @@ func fetch(ctx context.Context, url string, fn func(io.Reader) error) error {
 	return fn(resp.Body)
 }
 
+// loadIEEE adds registered prefixes and names to table, replacing duplicate
+// prefixes. Rows without a usable prefix or name are skipped.
 func loadIEEE(ctx context.Context, url string, table map[string]*entry) error {
 	return fetch(ctx, url, func(body io.Reader) error {
 		r := csv.NewReader(body)
@@ -145,6 +149,8 @@ func loadIEEE(ctx context.Context, url string, table map[string]*entry) error {
 	})
 }
 
+// loadManuf adds Wireshark's short names and missing prefixes to table while
+// preserving registered names already supplied by IEEE.
 func loadManuf(ctx context.Context, table map[string]*entry) error {
 	return fetch(ctx, manufURL, func(body io.Reader) error {
 		raw, err := io.ReadAll(body)
@@ -246,6 +252,8 @@ func normalise(field string) (string, bool) {
 	}
 }
 
+// write replaces data.txt with vendor records in prefix order. A write failure
+// can leave a partial file.
 func write(table map[string]*entry) error {
 	const out = "data.txt"
 

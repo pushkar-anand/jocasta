@@ -52,6 +52,8 @@ func main() {
 	}
 }
 
+// run downloads this month's ASN data, falling back to last month's, and
+// replaces the embedded tables only after the minimum range count is met.
 func run() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
@@ -221,6 +223,8 @@ func writeOrgs(orgs map[uint32]string) error {
 	})
 }
 
+// writeGz replaces name with gzip data supplied by fill and logs its entry
+// count. A write failure can leave a partial file.
 func writeGz(name string, fill func(*bufio.Writer) (int, error)) error {
 	f, err := os.Create(name) //nolint:gosec // one of two constant names in this file.
 	if err != nil {

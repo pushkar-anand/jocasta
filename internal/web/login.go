@@ -11,8 +11,10 @@ import (
 // view, since that struct is what the signed-in shell needs and this page has
 // none of it.
 type loginData struct {
-	Title string
-	Error string
+	Title      string
+	Error      string
+	Username   string
+	RememberMe bool
 }
 
 // login serves the sign-in page. /login has to stay reachable without a
@@ -33,6 +35,8 @@ func (h *Handler) login(
 	}
 }
 
+// loginForm verifies credentials and redirects to the overview or the second
+// authentication step. Authentication failures use the shared error renderer.
 func (h *Handler) loginForm(
 	sm *auth.Session,
 	a *auth.Auth,

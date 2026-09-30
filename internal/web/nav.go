@@ -80,6 +80,8 @@ type permChoiceView struct {
 	Options []permOption
 }
 
+// permChoice builds the role picker, omitting Editor when writes are forbidden.
+// An unrecognised selection defaults to Viewer.
 func permChoice(field, legend, selected string, allowWrite bool) permChoiceView {
 	v := permChoiceView{
 		Field:  field,

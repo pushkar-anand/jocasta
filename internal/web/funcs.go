@@ -256,7 +256,7 @@ func presenceLabel(now, t time.Time) string {
 func dot(now, t time.Time) template.HTML {
 	label := presenceLabel(now, t)
 	if !t.IsZero() {
-		label += " — " + ago(now, t)
+		label += ": " + ago(now, t)
 	}
 
 	// Fixed element, class from decay, label from presenceLabel and ago:

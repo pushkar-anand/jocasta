@@ -76,6 +76,8 @@ func TokenFromContext(ctx context.Context) *models.ApiToken {
 	return token
 }
 
+// ServeHTTP verifies a bearer token and adds it to the request context.
+// Unless method checks are disabled, a read-only token cannot make writes.
 func (m *TokenMiddleware) ServeHTTP(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -106,7 +108,7 @@ func (m *TokenMiddleware) ServeHTTP(
 	if m.methodScope && !readOnly(r.Method) && token.Scope != dbtype.TokenReadWrite {
 		m.jw.WriteProblem(w, r, response.NewProblem().
 			WithStatus(http.StatusForbidden).
-			WithDetail("this token is read-only").
+			WithDetail("This token is read-only. Use a read_write token to change the inventory.").
 			Build())
 
 		return
@@ -132,6 +134,6 @@ func (m *TokenMiddleware) unauthorized(w http.ResponseWriter, r *http.Request) {
 
 	m.jw.WriteProblem(w, r, response.NewProblem().
 		WithStatus(http.StatusUnauthorized).
-		WithDetail("missing or invalid API token").
+		WithDetail("API token not recognised. Send an active token in the Authorization header as Bearer <token>.").
 		Build())
 }

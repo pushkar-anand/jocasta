@@ -35,6 +35,8 @@ func main() {
 	}
 }
 
+// run executes one CLI command and releases its database and signal handlers.
+// The version command does not load configuration or open the database.
 func run(args []string) error {
 	ctx := context.Background()
 

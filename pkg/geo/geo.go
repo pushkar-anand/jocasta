@@ -42,6 +42,8 @@ func pack(code string) uint16 { return uint16(code[0])<<8 | uint16(code[1]) }
 
 func unpack(c uint16) string { return string([]byte{byte(c >> 8), byte(c & 0xff)}) }
 
+// load builds the embedded address-to-country table, skipping rows without a
+// parseable address and a two-letter country code.
 func load() *rangetable.Table[uint16] {
 	t := &rangetable.Table[uint16]{}
 

@@ -17,8 +17,9 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 )
 
+// ScanCmd configures a single sweep and optional inventory update.
 type ScanCmd struct {
-	Target       string        `arg:"" help:"Target CIDR prefix to sweep (e.g. 192.0.2.0/24)."`
+	Target       string        `arg:"" help:"Target CIDR prefix to sweep, for example 192.0.2.0/24."`
 	Rate         int           `name:"rate" help:"Maximum ICMP echo probes per second." default:"1000"`
 	Rounds       int           `name:"rounds" help:"Probes per address before declaring host down." default:"2"`
 	Wait         time.Duration `name:"wait" help:"Wait duration for replies after final probe." default:"2s"`
@@ -29,6 +30,8 @@ type ScanCmd struct {
 	Source       string        `name:"source" help:"Name recorded as the origin of these results. Defaults to scan.source, then this host's name."`
 }
 
+// Run sweeps Target and prints the hosts that answered. Save also records them
+// in the inventory after printing the results.
 func (s *ScanCmd) Run(
 	ctx context.Context,
 	cfg *config.Config,
@@ -38,7 +41,7 @@ func (s *ScanCmd) Run(
 ) error {
 	p, err := netip.ParsePrefix(s.Target)
 	if err != nil {
-		return fmt.Errorf("invalid CIDR prefix %q: %w", s.Target, err)
+		return fmt.Errorf("cannot read CIDR prefix %q; use an address and prefix length, such as 192.0.2.0/24: %w", s.Target, err)
 	}
 
 	opts := []scanner.Option{
@@ -95,6 +98,8 @@ func (s *ScanCmd) save(
 	return nil
 }
 
+// outputScanResults writes hosts as JSON or a table with identity and response
+// times. An empty table is replaced by a message that no hosts answered.
 func outputScanResults(w io.Writer, hosts []scanner.Host, asJSON bool) error {
 	if asJSON {
 		return writeJSON(w, hosts)

@@ -257,6 +257,8 @@ func (c Cursor) Where(sb squirrel.SelectBuilder, valueColumn, idColumn string) s
 		})
 }
 
+// encodeValue returns a cursor value's text and kind. Unsupported types return
+// an error wrapping ErrUnsortableValue.
 func encodeValue(v any) (string, Kind, error) {
 	switch t := v.(type) {
 	case string:
@@ -276,6 +278,8 @@ func encodeValue(v any) (string, Kind, error) {
 	}
 }
 
+// decodeValue restores a cursor value, using int64 and float64 for numbers.
+// Unknown kinds return ErrKind; parse failures wrap ErrMalformed.
 func decodeValue(kind Kind, raw string) (any, error) {
 	switch kind {
 	case KindString:

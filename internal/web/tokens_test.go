@@ -199,7 +199,7 @@ func TestCreateTokenRejectsAMissingName(t *testing.T) {
 	rec := requestAs(t, h, cookies, http.MethodPost, "/settings/tokens", form.Encode())
 
 	require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Bad request")
+	assert.Contains(t, rec.Body.String(), "Request could not be processed")
 }
 
 // onlyTokenRowID pulls the id out of the one row's `id="token-row-N"` marker,

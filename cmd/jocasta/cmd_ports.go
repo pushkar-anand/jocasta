@@ -130,6 +130,8 @@ func portTargets(target string) ([]netip.Addr, error) {
 	return slices.Collect(seq), nil
 }
 
+// outputPortScans writes results as JSON or a table of open ports. An empty
+// table is replaced by a message that no open ports were found.
 func outputPortScans(w io.Writer, results []scanner.PortScan, asJSON bool) error {
 	if asJSON {
 		return writeJSON(w, results)

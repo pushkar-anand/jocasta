@@ -78,12 +78,12 @@ the endpoint.
 
 | Tool | What it answers |
 |---|---|
-| `list_devices` | Which devices match a search, group, network, type or online status. |
+| `list_devices` | Which devices match a search, group, network, type or presence (seen recently or quiet). |
 | `get_device` | Everything about one device: addresses, ports, sources, your labels. |
 | `list_events` | What changed, across the network or for one device. |
 | `list_networks`, `get_network` | The network segments, and how many devices are on each. |
 | `list_groups` | The groups you filed devices under. |
-| `get_stats` | How many devices, online, offline, ignored and new in the last 24 hours. |
+| `get_stats` | How many devices were seen recently, are quiet, are ignored or were discovered in the last 24 hours. |
 | `get_port_overview` | Open ports across the network, and the commonest services. |
 | `list_scans` | When scans ran, and what they found. |
 | `list_traffic` | Who devices exchanged data with. Needs traffic collection. |

@@ -59,7 +59,7 @@
             <p class="dim">This first account is the admin. You can add more users later.</p>
 
             {{- with .Error }}
-                <p class="failure">{{ . }}</p>
+                <p class="failure" role="alert">{{ . }} <a href="/login">Sign in</a></p>
             {{- end }}
 
             <form method="post" action="/setup" class="authform">

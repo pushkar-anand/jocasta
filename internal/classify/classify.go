@@ -136,6 +136,7 @@ type Facts struct {
 	FirstHost  bool // holds an address ending in .1
 }
 
+// facts normalises text and ports for rule matching without modifying in.
 func facts(in Input) Facts {
 	ports := slices.Clone(in.OpenPorts)
 	slices.Sort(ports)
@@ -162,7 +163,7 @@ func (f Facts) hasPort(p uint16) bool { _, ok := slices.BinarySearch(f.Ports, p)
 
 // Device guesses what kind of thing in describes.
 //
-// It walks [ruleset] once. Among the rules that match, the winner is the one
+// Among the rules that match, the winner is the one
 // with the most conditions; a tie goes to whichever is listed first. The same
 // input therefore always gives the same answer.
 func Device(in Input) Result {

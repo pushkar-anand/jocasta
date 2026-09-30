@@ -445,6 +445,8 @@ func newEvent(e *models.Event) *Event {
 	}
 }
 
+// newScan attaches source and network names to a recorded scan. FinishedAt is
+// zero until the scan has finished.
 func newScan(s *models.Scan, source, network string) *Scan {
 	sc := &Scan{
 		ID:        s.ID,

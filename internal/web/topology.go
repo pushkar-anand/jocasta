@@ -67,6 +67,8 @@ func (h *Handler) topologyLive() response.HandlerFunc {
 	}
 }
 
+// buildTopology prepares the connection tree and its VLAN legend. A nil Layout
+// means no topology is available and the page should show setup guidance.
 func (h *Handler) buildTopology(ctx context.Context) (*topologyPage, error) {
 	tree, err := h.store.Topology(ctx)
 	if err != nil {

@@ -56,7 +56,7 @@ const triageSteps = `Triage the devices in my jocasta network inventory that I h
 2. Pick the devices that need attention:
    - No label: I have not named it. Look at the most recently discovered first.
    - A doubtful class: no type set by me, and the classifier's guess made with low confidence or not made at all. A guess can also be plainly wrong, such as an appliance classed as a phone because of its vendor.
-   - Likely duplicates: a device with a randomised hardware address gets a new record whenever it presents a new address, often one per network it joins. Records with the same hostname, or the same vendor and a similar hostname, where at most one is online, are probably one device.
+   - Likely duplicates: a device with a randomised hardware address gets a new record whenever it presents a new address, often one per network it joins. Records with the same hostname, or the same vendor and a similar hostname, where at most one was seen recently, are probably one device.
    - A device on a guest network with no label is probably a visitor's.
    Leave out devices that already have a label and a class I can trust, unless they look like duplicates.
 3. Where the list is not enough, call get_device for a device's address history and what each source reported, and list_events with its id and kind DEVICE_CLASSIFIED for the classifier's reasons.
@@ -106,12 +106,12 @@ const reportSteps = `Write a report of what changed on my network in the %[1]d d
 
 1. Call get_stats for the current totals.
 2. Read the change log with list_events, exclude_ignored true and limit 500, following next_cursor until you reach an event that occurred before %[2]s. Leave out the events before that. If the log ends before reaching it, say how far back it goes.
-3. Call list_devices with status offline. A device whose last_seen falls in the period went quiet during it: the change log has no event for a device going offline.
+3. Call list_devices with status offline. A device whose last_seen falls in the period went quiet during it: the change log has no event for a device becoming quiet.
 4. Call list_traffic with first_contact_only true and days %[1]d. If recorded is false, nothing collects traffic: leave out the first contacts and probing sections. If first_contacts.partial is true, say traffic records only begin at first_contacts.started.
    Then call list_traffic with days %[1]d and no other arguments, and keep its probing list.
 5. Report in this order, leaving out a section with nothing in it:
    - Summary: the totals now and the headline changes, in two or three sentences.
-   - New devices: each DEVICE_DISCOVERED in the period, with what the device is, its network, whether it is online now, and whether I have labelled it.
+   - New devices: each DEVICE_DISCOVERED in the period, with what the device is, its network, whether it was seen recently, and whether I have labelled it.
    - Gone quiet: the devices from step 3, with when each was last seen.
    - First contacts: from step 4, the organisations each device exchanged data with for the first time, grouped by device.
    - Probing: from step 4, each device that probed the network, with how many addresses or ports it tried and when. Say which ones look like a host I run scans from (its label, name or notes suggest it) and which do not.

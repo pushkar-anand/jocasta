@@ -163,7 +163,7 @@ func (a *Auth) Login(
 }
 
 // establishSession renews the session token, so a token held while anonymous
-// can't carry over into the authenticated session, then records who the
+// cannot carry over into the authenticated session, then records who the
 // session belongs to. Both signing in and completing setup need this exact
 // sequence to leave a visitor signed in. It also clears any pending-2FA state,
 // so a session that arrives by way of VerifyTOTP carries no stale pending

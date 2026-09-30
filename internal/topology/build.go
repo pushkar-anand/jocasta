@@ -79,6 +79,8 @@ type builder struct {
 	nodeMACs map[string]bool
 }
 
+// newBuilder prepares source and device identities for tree construction.
+// Sources sharing a hardware address are resolved in source-name order.
 func newBuilder(sources []Source, devices []Device) *builder {
 	b := &builder{
 		tree: &Tree{

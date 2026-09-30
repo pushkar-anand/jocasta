@@ -61,6 +61,43 @@ func TestSecurityEnrollAndConfirmShowsRecoveryCodesOnce(t *testing.T) {
 	assert.NotContains(t, again.Body.String(), "Recovery codes")
 }
 
+// TestSecurityConfirmationErrorsKeepTheirForms covers failed enrollment and
+// recovery-code replacement, including field hints and unchanged credentials.
+func TestSecurityConfirmationErrorsKeepTheirForms(t *testing.T) {
+	t.Parallel()
+
+	t.Run("enrollment code", func(t *testing.T) {
+		a := testAuth(t)
+		h := newWebHandlerWithAuth(t, testStore(t), a)
+		cookies := signIn(t, h)
+		require.Equal(t, http.StatusSeeOther, requestAs(t, h, cookies, http.MethodPost, "/settings/security/totp/enroll", "").Code)
+
+		for _, code := range []string{"short", "abcdef"} {
+			rec := requestAs(t, h, cookies, http.MethodPost, "/settings/security/totp/confirm", url.Values{"code": {code}}.Encode())
+			require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
+			assert.Contains(t, rec.Body.String(), "6-digit code your authenticator app shows now")
+			assert.Contains(t, rec.Body.String(), `aria-describedby="confirm-error"`)
+			assert.Contains(t, rec.Body.String(), "totp-qr.png")
+		}
+	})
+
+	t.Run("recovery code password", func(t *testing.T) {
+		a := testAuth(t)
+		h := newWebHandlerWithAuth(t, testStore(t), a)
+		secret, _ := enrollTOTP(t, a, testUsername)
+		cookies := signInWithCode(t, h, secret)
+
+		for _, password := range []string{"short", "not-the-password"} {
+			rec := requestAs(t, h, cookies, http.MethodPost, "/settings/security/recovery-codes/regenerate", url.Values{"password": {password}}.Encode())
+			require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
+			assert.Contains(t, rec.Body.String(), `aria-labelledby="regenerate-dialog-title" open`)
+			assert.Contains(t, rec.Body.String(), `aria-describedby="regenerate-error"`)
+			assert.Contains(t, rec.Body.String(), "10 recovery codes remaining")
+			assert.NotContains(t, rec.Body.String(), `value="`+password+`"`)
+		}
+	})
+}
+
 func TestSecurityDisableRequiresPassword(t *testing.T) {
 	t.Parallel()
 
@@ -72,6 +109,10 @@ func TestSecurityDisableRequiresPassword(t *testing.T) {
 	wrong := requestAs(t, h, cookies, http.MethodPost, "/settings/security/totp/disable",
 		url.Values{"password": {"not-the-password"}}.Encode())
 	require.Equal(t, http.StatusUnprocessableEntity, wrong.Code)
+	assert.Contains(t, wrong.Body.String(), "That password did not match.")
+	assert.Contains(t, wrong.Body.String(), `aria-labelledby="disable-dialog-title" open`)
+	assert.Contains(t, wrong.Body.String(), `aria-describedby="disable-error"`)
+	assert.NotContains(t, wrong.Body.String(), "not-the-password")
 
 	right := requestAs(t, h, cookies, http.MethodPost, "/settings/security/totp/disable",
 		url.Values{"password": {testPassword}}.Encode())

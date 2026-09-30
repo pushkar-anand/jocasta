@@ -217,7 +217,7 @@ func TestHandlerRequiresAToken(t *testing.T) {
 			status, body := postWithToken(t, srv.URL, token)
 			assert.Equal(t, http.StatusUnauthorized, status)
 			assert.Equal(t, float64(http.StatusUnauthorized), body["status"])
-			assert.Equal(t, "missing or invalid API token", body["detail"])
+			assert.Equal(t, "API token not recognised. Send an active token in the Authorization header as Bearer <token>.", body["detail"])
 		})
 	}
 }

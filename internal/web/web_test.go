@@ -81,7 +81,7 @@ func testReader(t *testing.T) *request.Reader {
 }
 
 // testUsername and testPassword name the one account seeded into every test
-// Auth, so a test that needs a signed-in view doesn't have to invent its own
+// Auth, so a test that needs a signed-in view does not have to invent its own
 // credential.
 const (
 	testUsername = "jocasta-test"

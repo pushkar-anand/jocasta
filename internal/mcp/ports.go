@@ -33,7 +33,7 @@ func getPortOverview(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) 
 	t := &mcpsdk.Tool{
 		Name:  "get_port_overview",
 		Title: "Summarise open ports",
-		Description: "Summarise the open TCP ports across the network: how many are open now and on how many devices, " +
+		Description: "Summarise the TCP ports recorded open across the network: how many and on how many devices, " +
 			"how many opened and closed in the last 24 hours, and the commonest services with how many devices offer each. " +
 			"Ignored devices are left out. A service name is the service usually found on that port number; Jocasta does not " +
 			"detect the software behind it. A port with no usual service is listed by number alone. " +

@@ -74,7 +74,7 @@ func Get() Info {
 	return i
 }
 
-// String renders the information over a few lines, for `jocasta version`.
+// String renders the information over a few lines, for jocasta version.
 func (i Info) String() string {
 	v := i.Version
 	if i.Modified {

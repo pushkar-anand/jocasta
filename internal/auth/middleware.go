@@ -38,6 +38,8 @@ func NewSessionMiddleware(
 	}
 }
 
+// ServeHTTP redirects requests to setup or sign-in when required, respecting
+// the configured exemptions. Setup is inaccessible after the first account.
 func (m *sessionMiddleware) ServeHTTP(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -54,7 +56,7 @@ func (m *sessionMiddleware) ServeHTTP(
 
 	setupRequired, err := m.a.SetupRequired(ctx)
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		http.Error(w, "Could not check account setup. Try again; if this continues, ask an admin to check the server log.", http.StatusInternalServerError)
 		return
 	}
 

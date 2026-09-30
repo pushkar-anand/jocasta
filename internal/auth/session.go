@@ -101,7 +101,7 @@ func WithCookieSecure(secure bool) SessionOption {
 }
 
 // NewSession sets every cookie and lifetime option explicitly, so a change to
-// the library's defaults can't quietly move jocasta's session semantics.
+// the library's defaults cannot quietly move jocasta's session semantics.
 //
 // The lifetime, idle timeout, and cookie-secure flag start at the values a
 // deployment can override through config. jocasta fixes the cookie name, path,

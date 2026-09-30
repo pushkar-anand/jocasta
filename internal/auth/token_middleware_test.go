@@ -58,7 +58,7 @@ func TestTokenMiddlewareRejectsAMissingToken(t *testing.T) {
 
 	body := problemBody(t, rec)
 	assert.Equal(t, float64(http.StatusUnauthorized), body["status"])
-	assert.Equal(t, "missing or invalid API token", body["detail"])
+	assert.Equal(t, "API token not recognised. Send an active token in the Authorization header as Bearer <token>.", body["detail"])
 }
 
 func TestTokenMiddlewareRejectsAnInvalidToken(t *testing.T) {
@@ -97,7 +97,7 @@ func TestTokenMiddlewareRejectsAWriteFromAReadOnlyToken(t *testing.T) {
 
 	body := problemBody(t, rec)
 	assert.Equal(t, float64(http.StatusForbidden), body["status"])
-	assert.Equal(t, "this token is read-only", body["detail"])
+	assert.Equal(t, "This token is read-only. Use a read_write token to change the inventory.", body["detail"])
 }
 
 func TestTokenMiddlewareAllowsAValidToken(t *testing.T) {

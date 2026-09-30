@@ -24,6 +24,8 @@ func (h *Handler) setup() response.HandlerFunc {
 	}
 }
 
+// setupForm creates the first admin account and signs it in. Further account
+// creation attempts are refused by the authentication service.
 func (h *Handler) setupForm(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	type setupForm struct {
 		Username string `schema:"username" validate:"required,min=3,max=100"`

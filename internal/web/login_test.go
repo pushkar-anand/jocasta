@@ -19,7 +19,7 @@ func TestLoginFormRejectsWrongPassword(t *testing.T) {
 
 	h := empty(t)
 
-	form := url.Values{"username": {testUsername}, "password": {"wrong-password"}}
+	form := url.Values{"username": {testUsername}, "password": {"wrong-password"}, "remember_me": {"true"}}
 
 	req := httptest.NewRequestWithContext(
 		t.Context(), http.MethodPost, "/login", strings.NewReader(form.Encode()),
@@ -31,6 +31,10 @@ func TestLoginFormRejectsWrongPassword(t *testing.T) {
 
 	require.Equal(t, http.StatusUnauthorized, rec.Code)
 	assert.Contains(t, rec.Body.String(), "That username and password do not match.")
+	assert.Contains(t, rec.Body.String(), `value="`+testUsername+`"`)
+	assert.Contains(t, rec.Body.String(), `name="remember_me" value="true" checked`)
+	assert.Contains(t, rec.Body.String(), `aria-describedby="login-error"`)
+	assert.NotContains(t, rec.Body.String(), "wrong-password")
 }
 
 // Signing out is a POST, since a link would let another site spend the

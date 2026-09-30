@@ -237,7 +237,7 @@ func portScanConfigured(ctx context.Context, store *inventory.Store) bool {
 // ErrorPageData is the response.WithErrorDataFunc hook the server wires into
 // the shared HTMLWriter, keyed by status the same way WithErrorTemplates is;
 // each case supplies whatever its own template needs.
-func ErrorPageData(_ *http.Request, _ error, status int) map[string]any {
+func ErrorPageData(r *http.Request, _ error, status int) map[string]any {
 	switch status {
 	case http.StatusBadRequest, http.StatusRequestEntityTooLarge, http.StatusUnprocessableEntity:
 		// A request the sender can fix and resend: it did not parse, was too
@@ -245,33 +245,35 @@ func ErrorPageData(_ *http.Request, _ error, status int) map[string]any {
 		// case below, since almost every form that reaches it is behind the
 		// signed-in shell; setup and sign-in guard their own inputs in the
 		// markup, so a crafted request is the only way they land here.
-		return shellData("Bad request")
+		return shellData("Request could not be processed")
 	case http.StatusUnauthorized:
 		// The sign-in page's own fields (see loginData), since TemplateLogin
 		// renders standalone like login itself does.
 		return map[string]any{
-			"Title": "Sign in",
-			"Error": "That username and password do not match. Check both and try again.",
+			"Title":      "Error: Sign in",
+			"Error":      "That username and password do not match. Check both and try again.",
+			"Username":   r.PostForm.Get("username"),
+			"RememberMe": r.PostForm.Get("remember_me") == "true",
 		}
 	case http.StatusPreconditionRequired:
 		// The second-factor page's own fields (see totpData), since
 		// TemplateTOTP renders standalone too.
 		return map[string]any{
-			"Title": "Enter your code",
+			"Title": "Error: Enter your code",
 			"Error": "That code did not work. Enter the code your authenticator app shows now, or a recovery code.",
 		}
 	case http.StatusConflict:
 		// The setup page's own fields, for the reason the 401 case above uses
 		// loginData: TemplateSetup renders standalone too.
 		return map[string]any{
-			"Title": "Set up admin account",
+			"Title": "Error: Set up admin account",
 			"Error": "An admin account already exists. Sign in with it.",
 		}
 	case http.StatusForbidden:
 		// Forbidden renders inside the signed-in shell, since the visitor
 		// reaching it is signed in, so it needs view's fields the same way the
 		// 404 case below does.
-		return shellData("Forbidden")
+		return shellData("Permission needed")
 	default:
 		// The 404 page is built from layout/head and layout/foot like every
 		// other page, so it needs the same view fields.
