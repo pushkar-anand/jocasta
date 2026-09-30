@@ -977,6 +977,15 @@ func mdnsHost(ip, mac, hostname string) scanner.Host {
 	return h
 }
 
+// ssdpHost builds a swept host named after its UPnP friendlyName, as a sweep
+// names a host that no other lookup gives a name.
+func ssdpHost(ip, mac, label string) scanner.Host {
+	h := host(ip, mac, label)
+	h.NameSource = dbtype.HostnameFromSSDP
+
+	return h
+}
+
 // netbiosHost builds a swept host named over NetBIOS, as a sweep names a host
 // that neither reverse DNS nor mDNS gives a name.
 func netbiosHost(ip, mac, hostname string) scanner.Host {
@@ -1084,4 +1093,24 @@ func TestARouterClaimTakesALowerRankedName(t *testing.T) {
 	name, standing := claimOf(t, conn, deviceIDByMAC(t, conn, macA), "test-router")
 	assert.Equal(t, "office-printer", name)
 	assert.Equal(t, string(dbtype.HostnameFromDHCPLease), standing)
+}
+
+// A friendlyName names a device nothing else names, spaces and all, and ranks
+// below a NetBIOS name on the sweep's claim.
+func TestAnSSDPLabelNamesADeviceBelowNetBIOS(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, ssdpHost("192.0.2.10", macA, "Living Room TV"))
+
+	id := deviceIDByMAC(t, conn, macA)
+	require.Equal(t, "Living Room TV", queryString(t, conn, `SELECT hostname FROM devices`))
+
+	sweep(t, s, netbiosHost("192.0.2.10", macA, "LIVINGROOM"))
+	sweep(t, s, ssdpHost("192.0.2.10", macA, "Living Room TV"))
+
+	name, standing := claimOf(t, conn, id, "test-sweep")
+	assert.Equal(t, "LIVINGROOM", name)
+	assert.Equal(t, string(dbtype.HostnameFromNetBIOS), standing)
 }

@@ -1,7 +1,7 @@
 // Package scanner discovers hosts on a network by sweeping an address range with
 // ICMP echo requests and enriching whatever answers with a MAC address and a
-// hostname, from reverse DNS or, failing that, from the host itself over mDNS
-// or NetBIOS.
+// hostname, from reverse DNS or, failing that, from the host itself over mDNS,
+// NetBIOS or SSDP.
 package scanner
 
 import (
@@ -13,6 +13,7 @@ import (
 	"maps"
 	"net/netip"
 	"slices"
+	"sync/atomic"
 	"time"
 
 	"github.com/pushkar-anand/build-with-go/logger"
@@ -104,11 +105,17 @@ type Scanner struct {
 	resolveMACs    bool
 	resolveMDNS    bool
 	resolveNetBIOS bool
+	resolveSSDP    bool
 
-	// mdnsPort and netbiosPort are where each protocol's queries go, which a
-	// test points at a responder of its own.
+	// mdnsPort, netbiosPort and ssdpGroup are where each protocol's queries
+	// go, which a test points at a responder of its own.
 	mdnsPort    uint16
 	netbiosPort uint16
+	ssdpGroup   netip.AddrPort
+
+	// ssdpFailed is set once an SSDP search has failed, so later failures are
+	// logged at debug level.
+	ssdpFailed atomic.Bool
 }
 
 // Option configures a Scanner.
@@ -159,6 +166,12 @@ func WithNetBIOSResolution(v bool) Option {
 	return func(s *Scanner) { s.resolveNetBIOS = v }
 }
 
+// WithSSDPResolution controls asking hosts that answered, and have no name
+// from reverse DNS, mDNS or NetBIOS, for their name over SSDP.
+func WithSSDPResolution(v bool) Option {
+	return func(s *Scanner) { s.resolveSSDP = v }
+}
+
 // WithMACResolution controls ARP-table lookups for hosts that answered.
 func WithMACResolution(v bool) Option {
 	return func(s *Scanner) { s.resolveMACs = v }
@@ -178,6 +191,8 @@ func New(log *slog.Logger, opts ...Option) *Scanner {
 		resolveNetBIOS: true,
 		mdnsPort:       standardMDNSPort,
 		netbiosPort:    standardNetBIOSPort,
+		resolveSSDP:    true,
+		ssdpGroup:      standardSSDPGroup,
 	}
 
 	for _, opt := range opts {
@@ -287,25 +302,53 @@ func (s *Scanner) enrich(ctx context.Context, replies map[netip.Addr]time.Durati
 	}
 
 	if s.resolveMDNS {
-		s.nameOver(ctx, found, mdns, s.mdnsPort, dbtype.HostnameFromMDNS)
+		s.nameOver(ctx, found, s.perHost(mdns, s.mdnsPort), dbtype.HostnameFromMDNS)
 	}
 
 	if s.resolveNetBIOS {
-		s.nameOver(ctx, found, netbios, s.netbiosPort, dbtype.HostnameFromNetBIOS)
+		s.nameOver(ctx, found, s.perHost(netbios, s.netbiosPort), dbtype.HostnameFromNetBIOS)
+	}
+
+	if s.resolveSSDP {
+		s.nameOver(ctx, found, s.askSSDP, dbtype.HostnameFromSSDP)
 	}
 
 	return found
 }
 
-// nameOver asks each host in found that has no name for one over proto, on
-// port. It names each host that answers, with standing as the name's source.
-// A host that already has a name is not asked, because the lookups run from
-// the highest standing down.
+// perHost returns the lookup that sends proto's query to port on each host.
+func (s *Scanner) perHost(proto nameProtocol, port uint16) nameLookup {
+	return func(ctx context.Context, addrs []netip.Addr) (map[netip.Addr]string, error) {
+		return askNames(ctx, proto, addrs, port, s.rate, askWait)
+	}
+}
+
+// askSSDP is the SSDP lookup. A host that cannot send the search, such as
+// one without a route for multicast, fails it on every sweep, so only the
+// first failure is returned and the rest are logged at debug level.
+func (s *Scanner) askSSDP(ctx context.Context, addrs []netip.Addr) (map[netip.Addr]string, error) {
+	names, err := askSSDP(ctx, s.ssdpGroup, addrs, ssdpWait)
+	if err != nil && ctx.Err() == nil && !s.ssdpFailed.CompareAndSwap(false, true) {
+		s.log.DebugContext(ctx, "could not ask hosts for their names over SSDP", logger.Err(err))
+
+		return names, nil
+	}
+
+	return names, err
+}
+
+// nameLookup asks addrs for their names, and returns the names that came
+// back, with any error that cut the lookup short.
+type nameLookup func(ctx context.Context, addrs []netip.Addr) (map[netip.Addr]string, error)
+
+// nameOver asks each host in found that has no name for one with ask. It names
+// each host that answers, with standing as the name's source. A host that
+// already has a name is not asked, because the lookups run from the highest
+// standing down.
 func (s *Scanner) nameOver(
 	ctx context.Context,
 	found []Host,
-	proto nameProtocol,
-	port uint16,
+	ask nameLookup,
 	standing dbtype.HostnameSource,
 ) {
 	var nameless []netip.Addr
@@ -322,7 +365,7 @@ func (s *Scanner) nameOver(
 
 	// The names that arrived before a failure are still the hosts' own
 	// answers, so they are kept.
-	names, err := askNames(ctx, proto, nameless, port, s.rate, askWait)
+	names, err := ask(ctx, nameless)
 	if err != nil {
 		s.log.WarnContext(ctx, "could not ask hosts for their names",
 			slog.String("standing", string(standing)),

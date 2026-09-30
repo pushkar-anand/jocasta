@@ -141,6 +141,8 @@ func standing(s dbtype.HostnameSource) string {
 		return "mDNS"
 	case dbtype.HostnameFromNetBIOS:
 		return "NetBIOS"
+	case dbtype.HostnameFromSSDP:
+		return "UPnP"
 	}
 
 	// A standing added in Go and not yet worded here still has to render as

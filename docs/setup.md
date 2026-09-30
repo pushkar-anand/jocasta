@@ -111,6 +111,8 @@ the source ranked highest here:
 4. A dynamic DHCP lease on your router.
 5. NetBIOS, asked of each address the sweep finds that has no name from
    reverse DNS or mDNS.
+6. SSDP, the label in the UPnP description of each address still without a
+   name.
 
 When two sources of the same rank disagree, the one heard from last wins. The
 device page lists the name each source gives. Once a sweep has a name for a
@@ -133,6 +135,17 @@ Jocasta sends one query to each device still without a name, on UDP port 137.
 Windows answers only with file and printer sharing turned on, and by default
 only a query from its own segment. To turn it off, set
 `scan.devices.resolve_netbios: false`.
+
+SSDP gives a name to TVs, speakers, media players, printers and routers that
+nothing else names, such as `Living Room TV`. After a sweep that leaves a
+device without a name, Jocasta sends one SSDP search to the multicast group
+`239.255.255.250:1900`. For each device still without a name that answers, it
+fetches the UPnP description the answer points to and takes the
+`friendlyName` from it. It fetches only from the address that answered, over
+plain HTTP, at most 64 KB, and for at most 2 seconds. The search reaches only
+Jocasta's own segment, and only with host networking, since a bridge network
+does not pass multicast. To turn it off, set
+`scan.devices.resolve_ssdp: false`.
 
 ## Read devices from your router
 

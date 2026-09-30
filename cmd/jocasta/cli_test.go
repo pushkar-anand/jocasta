@@ -98,6 +98,7 @@ func TestCLIScanCommandDefaults(t *testing.T) {
 	assert.True(t, cli.Scan.ResolveMACs)
 	assert.True(t, cli.Scan.ResolveMDNS)
 	assert.True(t, cli.Scan.ResolveNetBIOS)
+	assert.True(t, cli.Scan.ResolveSSDP)
 	assert.False(t, cli.Scan.JSON)
 }
 
@@ -113,6 +114,7 @@ func TestCLIScanCommandCustomFlags(t *testing.T) {
 		"--no-resolve-macs",
 		"--no-resolve-mdns",
 		"--no-resolve-netbios",
+		"--no-resolve-ssdp",
 		"--json",
 	})
 	require.NoError(t, err)
@@ -126,6 +128,7 @@ func TestCLIScanCommandCustomFlags(t *testing.T) {
 	assert.False(t, cli.Scan.ResolveMACs)
 	assert.False(t, cli.Scan.ResolveMDNS)
 	assert.False(t, cli.Scan.ResolveNetBIOS)
+	assert.False(t, cli.Scan.ResolveSSDP)
 	assert.True(t, cli.Scan.JSON)
 }
 

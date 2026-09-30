@@ -51,8 +51,9 @@ $ jocasta scan 192.0.2.0/24 --save --rate 500 --no-resolve-names
 
 The sweep uses a raw ICMP socket where it can and an unprivileged datagram
 socket otherwise, so it runs without root. A host with no reverse DNS name is
-asked for its name over mDNS, then over NetBIOS if it is still nameless.
-`--no-resolve-mdns` and `--no-resolve-netbios` turn each off.
+asked for its name over mDNS, then over NetBIOS, then over SSDP, until one
+gives it a name. `--no-resolve-mdns`, `--no-resolve-netbios` and
+`--no-resolve-ssdp` turn each off.
 
 ## ports
 
