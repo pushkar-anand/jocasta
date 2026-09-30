@@ -24,7 +24,7 @@ type responder struct {
 
 // newResponder starts a responder on addr that answers with name, sending each
 // answer from reply, or from the socket it listens on when reply is nil. Port 0
-// picks a free port, which port reports.
+// picks a free port, which the port method reports.
 func newResponder(t *testing.T, addr, name string, reply *net.UDPConn) *responder {
 	t.Helper()
 

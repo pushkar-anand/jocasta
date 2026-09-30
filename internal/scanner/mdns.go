@@ -33,8 +33,8 @@ const maxNameLength = 253
 // something unusable as a name, is absent.
 //
 // Queries go out at rate per second. It returns once every address has
-// answered, wait after the last query, or when ctx is done, with ctx's error
-// and the names that arrived before it.
+// answered, or wait after the last query. When ctx ends first, it returns the
+// names that arrived before then, with ctx's error.
 func askMDNS(
 	ctx context.Context,
 	addrs []netip.Addr,
@@ -101,6 +101,7 @@ func askMDNS(
 }
 
 // sendMDNS writes one reverse query to each target, paced to rate per second.
+// When ctx ends it stops and returns nil, leaving ctx's error to the caller.
 func sendMDNS(
 	ctx context.Context,
 	pc net.PacketConn,
@@ -131,14 +132,15 @@ func sendMDNS(
 	return nil
 }
 
-// readMDNS records the first usable answer from each target in names until
-// every target has answered or a read fails, which the read deadline makes
-// happen.
+// readMDNS records the first usable answer from each target in names. It
+// returns once every target has answered or a read fails.
 func readMDNS(pc net.PacketConn, want map[netip.AddrPort]string, names map[netip.Addr]string) {
 	// An mDNS message can fill a jumbo frame (RFC 6762, section 17).
 	buf := make([]byte, 9000)
 
 	for len(names) < len(want) {
+		// The read deadline askMDNS sets is what fails this read once the
+		// wait is over.
 		n, from, err := pc.ReadFrom(buf)
 		if err != nil {
 			return
@@ -169,7 +171,8 @@ func readMDNS(pc net.PacketConn, want map[netip.AddrPort]string, names map[netip
 	}
 }
 
-// reverseName is the in-addr.arpa name a reverse lookup of a asks about.
+// reverseName returns the in-addr.arpa name that a reverse lookup of a asks
+// about.
 func reverseName(a netip.Addr) string {
 	b := a.As4()
 
@@ -199,12 +202,11 @@ func reverseQuery(name string) ([]byte, error) {
 // parseReverseAnswer returns the name a response gives for the reverse name q,
 // and false when it is no response, has no PTR answer for q, or names
 // something unusable as a name.
-//
-// The message ID is not checked. A responder may echo the query's or send
-// zero, and the query sends zero, so it tells nothing apart.
 func parseReverseAnswer(b []byte, q string) (string, bool) {
 	var p dnsmessage.Parser
 
+	// The message ID is left unchecked. A responder may echo the query's or
+	// send zero, and the query sends zero, so the ID tells nothing apart.
 	h, err := p.Start(b)
 	if err != nil || !h.Response {
 		return "", false

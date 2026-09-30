@@ -32,8 +32,8 @@ Jocasta identifies a device by its hardware (MAC) address. An IP address is
 treated as a lease the device holds for now, so the label, group and notes you
 give a device stay with it when the address changes.
 
-On its own, Jocasta sweeps the networks you list and names each device that
-answers from reverse DNS, or by asking the device over mDNS. Connect your
+On its own, Jocasta sweeps the networks you list. It takes each device's name
+from reverse DNS, or asks the device itself over mDNS. Connect your
 router and it also reads the router's ARP and DHCP tables. The router sees
 every segment, so devices a single machine cannot reach still get a vendor
 and a name.

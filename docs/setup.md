@@ -100,8 +100,8 @@ the source ranked highest here:
 3. mDNS, asked of each address the sweep finds that has no reverse DNS name.
 4. A dynamic DHCP lease on your router.
 
-Two sources of the same rank go by the one heard from last. The device page
-lists the name each source gives.
+When two sources of the same rank disagree, the one heard from last wins. The
+device page lists the name each source gives.
 
 mDNS names phones, TVs, printers and computers that reverse DNS does not
 know, such as `living-room-tv.local`. Jocasta sends one query to each such

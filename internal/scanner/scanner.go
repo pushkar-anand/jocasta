@@ -53,8 +53,8 @@ type Host struct {
 }
 
 // MarshalJSON writes the sweep's fields alongside the embedded host's. Without
-// it Go promotes [hosts.Host.MarshalJSON] and silently drops RTT, SeenAt and
-// Self.
+// it Go promotes [hosts.Host.MarshalJSON] and silently drops every field
+// declared on Host itself.
 func (h Host) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Addr       netip.Addr    `json:"addr"`
@@ -296,7 +296,7 @@ func (s *Scanner) nameOverMDNS(ctx context.Context, found []Host) {
 	// answers, so they are kept.
 	names, err := askMDNS(ctx, nameless, mdnsPort, s.rate, mdnsWait)
 	if err != nil {
-		s.log.WarnContext(ctx, "could not ask every host for its name over mDNS", logger.Err(err))
+		s.log.WarnContext(ctx, "could not ask hosts for their names over mDNS", logger.Err(err))
 	}
 
 	for i, h := range found {
