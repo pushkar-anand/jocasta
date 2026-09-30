@@ -490,6 +490,37 @@ func TestMissingEndpointIsToldApartFromARefusal(t *testing.T) {
 	assert.NotErrorIs(t, err, ErrUnauthorized)
 }
 
+// RouterOS 7 answers a menu it lacks, such as the wireless package's on a
+// router running wifi, with a 400.
+func TestMissingMenuIsAMissingEndpoint(t *testing.T) {
+	t.Parallel()
+
+	r := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"detail":"no such command or directory (wireless)","error":400,"message":"Bad Request"}`))
+	})
+
+	_, err := r.DHCPLeases(t.Context())
+	require.ErrorIs(t, err, ErrNotFound)
+}
+
+// Any other 400 is the router refusing the request, which a missing menu is
+// kept apart from.
+func TestOtherBadRequestsAreNotAMissingEndpoint(t *testing.T) {
+	t.Parallel()
+
+	r := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"detail":"unknown parameter","error":400,"message":"Bad Request"}`))
+	})
+
+	_, err := r.DHCPLeases(t.Context())
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, ErrNotFound)
+}
+
 // Something answering this port that is not a router describes itself in its
 // own terms, and the status is still the fact.
 func TestANonRouterErrorBodyStillCarriesTheStatus(t *testing.T) {

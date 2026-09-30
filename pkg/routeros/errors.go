@@ -105,6 +105,13 @@ func (e *Error) Unwrap() error {
 		return ErrUnauthorized
 	case http.StatusNotFound:
 		return ErrNotFound
+	case http.StatusBadRequest:
+		// A menu the router lacks, such as the wireless package's on a router
+		// running wifi, is "no such command or directory (wireless)". The
+		// router gives no code for it, so the text is all there is to match.
+		if strings.HasPrefix(e.Detail, "no such command") {
+			return ErrNotFound
+		}
 	case http.StatusInternalServerError:
 		if stdFailure(e.Detail) == stdFailureNotAllowed {
 			return ErrUnauthorized
