@@ -73,7 +73,8 @@ var samples = []Message{
 
 // Validate reports a URL that is not an absolute http or https address, a
 // header that cannot be sent, a missing body, a body that does not parse or
-// render, and a JSON body that renders as something other than JSON.
+// render, and a JSON body that renders as something other than JSON. On
+// success it keeps the parsed body, which Send executes.
 func (h *HTTP) Validate() error {
 	if _, err := parseURL(h.URL); err != nil {
 		return err
