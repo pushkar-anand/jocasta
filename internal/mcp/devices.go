@@ -107,9 +107,14 @@ type getDeviceInput struct {
 type getDeviceOutput struct {
 	Device  *inventory.Device  `json:"device"`
 	Sources []*inventory.Claim `json:"sources"`
+
+	// Connection is absent when no router, switch or access point has been
+	// read, and for an ignored device, which the tree leaves out.
+	Connection *connection `json:"connection,omitempty" jsonschema:"Where the device is plugged in and how fast its connection runs, from the tables of the routers, switches and access points Jocasta reads. Absent when none has been read, and for an ignored device."`
 }
 
-// getDevice is inventory.Store.Device and DeviceSources, offered as one tool.
+// getDevice is inventory.Store.Device and DeviceSources, and the device's place
+// in inventory.Store.Topology, offered as one tool.
 func getDevice(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	t := &mcpsdk.Tool{
 		Name:  "get_device",
@@ -118,6 +123,9 @@ func getDevice(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 			"its classification, every address it has held and when, and every TCP port a scan has recorded open, " +
 			"with when each opened or closed. Also returns what each discovery source (a network sweep, a router's " +
 			"ARP or DHCP table) claims about the device and when that source last saw it; sources can disagree. " +
+			"Where a router, switch or access point is read, it also says where the device is plugged in: the path " +
+			"down from the router, the port or Wi-Fi network, the VLAN, and how fast the link runs or how strong the " +
+			"Wi-Fi signal is. " +
 			"Use list_events with this id for the device's history, including why its classification changed.",
 		InputSchema:  getDeviceSchema(),
 		OutputSchema: schemaFor[getDeviceOutput](),
@@ -139,7 +147,22 @@ func getDevice(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 			return nil, getDeviceOutput{}, err
 		}
 
-		return nil, getDeviceOutput{Device: device, Sources: sources}, nil
+		out := getDeviceOutput{Device: device, Sources: sources}
+
+		if device.Ignored {
+			return nil, out, nil
+		}
+
+		tree, err := store.Topology(ctx)
+		if err != nil {
+			return nil, getDeviceOutput{}, err
+		}
+
+		if tree.Root != nil {
+			out.Connection = connectionOf(tree, in.ID)
+		}
+
+		return nil, out, nil
 	}
 
 	return func(s *mcpsdk.Server, log *slog.Logger) { addTool(s, log, t, handler) }
