@@ -163,9 +163,27 @@ func TestHostnameSourceRank(t *testing.T) {
 	t.Parallel()
 
 	// Highest first, as the name election reads them.
-	ordered := []HostnameSource{HostnameFromDNS, HostnameFromDHCPStatic, HostnameFromMDNS, HostnameFromDHCPLease, ""}
+	ordered := []HostnameSource{
+		HostnameFromDNS,
+		HostnameFromDHCPStatic,
+		HostnameFromMDNS,
+		HostnameFromDHCPLease,
+		HostnameFromNetBIOS,
+		"",
+	}
 
 	for i := 1; i < len(ordered); i++ {
 		assert.Greater(t, ordered[i-1].Rank(), ordered[i].Rank(), "%q should outrank %q", ordered[i-1], ordered[i])
 	}
+}
+
+func TestHostnameSourceSwept(t *testing.T) {
+	t.Parallel()
+
+	assert.True(t, HostnameFromDNS.Swept())
+	assert.True(t, HostnameFromMDNS.Swept())
+	assert.True(t, HostnameFromNetBIOS.Swept())
+	assert.False(t, HostnameFromDHCPStatic.Swept())
+	assert.False(t, HostnameFromDHCPLease.Swept())
+	assert.False(t, HostnameSource("").Swept())
 }

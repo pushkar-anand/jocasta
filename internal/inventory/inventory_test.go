@@ -977,6 +977,15 @@ func mdnsHost(ip, mac, hostname string) scanner.Host {
 	return h
 }
 
+// netbiosHost builds a swept host named over NetBIOS, as a sweep names a host
+// that neither reverse DNS nor mDNS gives a name.
+func netbiosHost(ip, mac, hostname string) scanner.Host {
+	h := host(ip, mac, hostname)
+	h.NameSource = dbtype.HostnameFromNetBIOS
+
+	return h
+}
+
 // A reverse lookup that times out leaves a host nameless, so the sweep asks it
 // over mDNS. That answer must not replace the DNS name the sweep holds, or the
 // device would be renamed now and renamed back on the next sweep.
@@ -1026,4 +1035,53 @@ func TestAnMDNSNameReplacesAnEarlierMDNSName(t *testing.T) {
 	name, standing := claimOf(t, conn, deviceIDByMAC(t, conn, macA), "test-sweep")
 	assert.Equal(t, "backup.local", name)
 	assert.Equal(t, string(dbtype.HostnameFromMDNS), standing)
+}
+
+// An mDNS query that goes unanswered for one sweep sends the host to NetBIOS.
+// That answer must not replace the mDNS name the sweep holds.
+func TestANetBIOSNameDoesNotReplaceTheSweepsMDNSName(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, mdnsHost("192.0.2.10", macA, "gaming-pc.local"))
+	sweep(t, s, netbiosHost("192.0.2.10", macA, "DESKTOP-4F2K"))
+
+	id := deviceIDByMAC(t, conn, macA)
+
+	name, standing := claimOf(t, conn, id, "test-sweep")
+	assert.Equal(t, "gaming-pc.local", name)
+	assert.Equal(t, string(dbtype.HostnameFromMDNS), standing)
+
+	assert.NotContains(t, eventKinds(t, conn, id), dbtype.EventHostnameChanged)
+}
+
+// Once a host the sweep only knew over NetBIOS answers mDNS, the mDNS name
+// takes the claim.
+func TestAnMDNSNameReplacesTheSweepsNetBIOSName(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, netbiosHost("192.0.2.10", macA, "DESKTOP-4F2K"))
+	sweep(t, s, mdnsHost("192.0.2.10", macA, "gaming-pc.local"))
+
+	name, standing := claimOf(t, conn, deviceIDByMAC(t, conn, macA), "test-sweep")
+	assert.Equal(t, "gaming-pc.local", name)
+	assert.Equal(t, string(dbtype.HostnameFromMDNS), standing)
+}
+
+// A router's claim holds no swept name, so a dynamic lease still replaces the
+// static lease it held.
+func TestARouterClaimTakesALowerRankedName(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	report(t, s, fact("192.0.2.10", macA, "printer", true, dbtype.HostnameFromDHCPStatic))
+	report(t, s, fact("192.0.2.10", macA, "office-printer", true, dbtype.HostnameFromDHCPLease))
+
+	name, standing := claimOf(t, conn, deviceIDByMAC(t, conn, macA), "test-router")
+	assert.Equal(t, "office-printer", name)
+	assert.Equal(t, string(dbtype.HostnameFromDHCPLease), standing)
 }

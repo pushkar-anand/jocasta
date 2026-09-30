@@ -1,6 +1,7 @@
 // Package scanner discovers hosts on a network by sweeping an address range with
 // ICMP echo requests and enriching whatever answers with a MAC address and a
-// hostname, from reverse DNS or, failing that, from the host itself over mDNS.
+// hostname, from reverse DNS or, failing that, from the host itself over mDNS
+// or NetBIOS.
 package scanner
 
 import (
@@ -99,13 +100,15 @@ type Scanner struct {
 	// that a switch or a cheap IoT device treats as a flood.
 	rate int
 
-	resolveNames bool
-	resolveMACs  bool
-	resolveMDNS  bool
+	resolveNames   bool
+	resolveMACs    bool
+	resolveMDNS    bool
+	resolveNetBIOS bool
 
-	// mdnsPort is where mDNS queries go, which a test points at a responder
-	// of its own.
-	mdnsPort uint16
+	// mdnsPort and netbiosPort are where each protocol's queries go, which a
+	// test points at a responder of its own.
+	mdnsPort    uint16
+	netbiosPort uint16
 }
 
 // Option configures a Scanner.
@@ -150,6 +153,12 @@ func WithMDNSResolution(v bool) Option {
 	return func(s *Scanner) { s.resolveMDNS = v }
 }
 
+// WithNetBIOSResolution controls asking hosts that answered, and have no name
+// from reverse DNS or mDNS, for their name over NetBIOS.
+func WithNetBIOSResolution(v bool) Option {
+	return func(s *Scanner) { s.resolveNetBIOS = v }
+}
+
 // WithMACResolution controls ARP-table lookups for hosts that answered.
 func WithMACResolution(v bool) Option {
 	return func(s *Scanner) { s.resolveMACs = v }
@@ -159,14 +168,16 @@ func WithMACResolution(v bool) Option {
 // a /24 in a couple of seconds, gentle enough not to upset IoT firmware.
 func New(log *slog.Logger, opts ...Option) *Scanner {
 	s := &Scanner{
-		log:          log,
-		rounds:       2,
-		wait:         2 * time.Second,
-		rate:         1000,
-		resolveNames: true,
-		resolveMACs:  true,
-		resolveMDNS:  true,
-		mdnsPort:     standardMDNSPort,
+		log:            log,
+		rounds:         2,
+		wait:           2 * time.Second,
+		rate:           1000,
+		resolveNames:   true,
+		resolveMACs:    true,
+		resolveMDNS:    true,
+		resolveNetBIOS: true,
+		mdnsPort:       standardMDNSPort,
+		netbiosPort:    standardNetBIOSPort,
 	}
 
 	for _, opt := range opts {
@@ -276,16 +287,27 @@ func (s *Scanner) enrich(ctx context.Context, replies map[netip.Addr]time.Durati
 	}
 
 	if s.resolveMDNS {
-		s.nameOverMDNS(ctx, found)
+		s.nameOver(ctx, found, mdns, s.mdnsPort, dbtype.HostnameFromMDNS)
+	}
+
+	if s.resolveNetBIOS {
+		s.nameOver(ctx, found, netbios, s.netbiosPort, dbtype.HostnameFromNetBIOS)
 	}
 
 	return found
 }
 
-// nameOverMDNS asks each host in found that has no name for one over mDNS, and
-// names the hosts that answer. A host named by reverse DNS is not asked,
-// because that name outranks an mDNS one wherever names are elected.
-func (s *Scanner) nameOverMDNS(ctx context.Context, found []Host) {
+// nameOver asks each host in found that has no name for one over proto, on
+// port. It names each host that answers, with standing as the name's source.
+// A host that already has a name is not asked, because the lookups run from
+// the highest standing down.
+func (s *Scanner) nameOver(
+	ctx context.Context,
+	found []Host,
+	proto nameProtocol,
+	port uint16,
+	standing dbtype.HostnameSource,
+) {
 	var nameless []netip.Addr
 
 	for _, h := range found {
@@ -300,9 +322,12 @@ func (s *Scanner) nameOverMDNS(ctx context.Context, found []Host) {
 
 	// The names that arrived before a failure are still the hosts' own
 	// answers, so they are kept.
-	names, err := askMDNS(ctx, nameless, s.mdnsPort, s.rate, mdnsWait)
+	names, err := askNames(ctx, proto, nameless, port, s.rate, askWait)
 	if err != nil {
-		s.log.WarnContext(ctx, "could not ask hosts for their names over mDNS", logger.Err(err))
+		s.log.WarnContext(ctx, "could not ask hosts for their names",
+			slog.String("standing", string(standing)),
+			logger.Err(err),
+		)
 	}
 
 	for i, h := range found {
@@ -312,7 +337,7 @@ func (s *Scanner) nameOverMDNS(ctx context.Context, found []Host) {
 		}
 
 		found[i].Host = h.Named(name)
-		found[i].NameSource = dbtype.HostnameFromMDNS
+		found[i].NameSource = standing
 	}
 }
 

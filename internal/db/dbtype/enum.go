@@ -207,9 +207,19 @@ const (
 	// HostnameFromMDNS is a name a sweep learned by asking the device over
 	// mDNS, which is the name the device answers to on the local network.
 	HostnameFromMDNS HostnameSource = "MDNS"
+
+	// HostnameFromNetBIOS is a name a sweep learned by asking the device over
+	// NetBIOS, which Windows and Samba answer.
+	HostnameFromNetBIOS HostnameSource = "NETBIOS"
 )
 
-var hostnameSources = []HostnameSource{HostnameFromDNS, HostnameFromDHCPStatic, HostnameFromDHCPLease, HostnameFromMDNS}
+var hostnameSources = []HostnameSource{
+	HostnameFromDNS,
+	HostnameFromDHCPStatic,
+	HostnameFromDHCPLease,
+	HostnameFromMDNS,
+	HostnameFromNetBIOS,
+}
 
 // Valid reports whether s is one of the known hostname sources.
 func (s HostnameSource) Valid() bool { return slices.Contains(hostnameSources, s) }
@@ -224,19 +234,36 @@ func (s HostnameSource) Valid() bool { return slices.Contains(hostnameSources, s
 // network and a lease name may resolve to nothing. It ranks below a static
 // lease, because an operator chose that name.
 //
+// A NetBIOS name ranks last. It is 15 characters at most, often cut short
+// from the name the device gives elsewhere, and resolves only where NetBIOS
+// name service still runs.
+//
 // An unknown standing ranks zero, so a known name still beats an unknown one.
 func (s HostnameSource) Rank() int {
 	switch s {
 	case HostnameFromDNS:
-		return 4
+		return 5
 	case HostnameFromDHCPStatic:
-		return 3
+		return 4
 	case HostnameFromMDNS:
-		return 2
+		return 3
 	case HostnameFromDHCPLease:
+		return 2
+	case HostnameFromNetBIOS:
 		return 1
 	default:
 		return 0
+	}
+}
+
+// Swept reports whether a sweep learns names of standing s, by asking the
+// device or the resolver about the address that answered it.
+func (s HostnameSource) Swept() bool {
+	switch s {
+	case HostnameFromDNS, HostnameFromMDNS, HostnameFromNetBIOS:
+		return true
+	default:
+		return false
 	}
 }
 

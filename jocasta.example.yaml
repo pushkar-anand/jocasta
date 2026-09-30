@@ -61,6 +61,7 @@ scan:
     resolve_names: true   # reverse DNS on addresses that answered
     resolve_macs: true    # read the neighbour table for hardware addresses
     resolve_mdns: true    # ask hosts over mDNS when reverse DNS gives no name or is off
+    resolve_netbios: true # ask hosts over NetBIOS when reverse DNS and mDNS give no name
   ports:
     enabled: false
     interval: "6h"

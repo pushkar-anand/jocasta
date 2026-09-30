@@ -951,8 +951,8 @@ func (s *Store) applyClaim(ctx context.Context, p *pass, d *models.Device, f plu
 
 // recordClaim files this source's reading over what the same source said
 // before, except that a reading with no name leaves the last name in place
-// (see UpsertDeviceSource). A name that must yield to a reverse DNS name the
-// claim holds leaves that name in place too (see yieldsToDNS).
+// (see UpsertDeviceSource). A swept name that ranks below the one the claim
+// holds leaves that name in place too (see yieldsToHeldName).
 //
 // last_seen advances whenever the source still reports the device, presence or
 // not: a router still holds a static lease with nothing plugged in. Whether
@@ -965,7 +965,7 @@ func (s *Store) recordClaim(ctx context.Context, p *pass, deviceID int64, f plug
 
 	name := f.Host.Hostname()
 
-	yields, err := yieldsToDNS(ctx, p, deviceID, f)
+	yields, err := yieldsToHeldName(ctx, p, deviceID, f)
 	if err != nil {
 		return err
 	}
@@ -990,17 +990,24 @@ func (s *Store) recordClaim(ctx context.Context, p *pass, deviceID int64, f plug
 	return nil
 }
 
-// yieldsToDNS reports whether the name f carries must leave this source's claim
-// alone: the claim holds a reverse DNS name and f's name was learned some other
-// way.
+// yieldsToHeldName reports whether the name f carries must leave this source's
+// claim alone: both names were learned by a sweep, and the one the claim holds
+// ranks higher.
 //
-// A sweep asks a host over mDNS when reverse DNS gave it no name, and a lookup
-// that runs past its timeout gives none too. Letting that answer replace the
-// DNS name would rename the device, and the next sweep's DNS answer would
-// rename it back. Only a sweep's claim holds a DNS name, so the claims of
-// every other source take each new name they are given.
-func yieldsToDNS(ctx context.Context, p *pass, deviceID int64, f plugin.Fact) (bool, error) {
-	if f.Host.Hostname() == "" || f.HostnameSource == dbtype.HostnameFromDNS {
+// A sweep asks each lookup in turn, from the highest standing down, and asks
+// the next only when the one before gave no name. A lookup that runs past its
+// timeout gives none too. Letting the next lookup's answer replace the held
+// name would rename the device, and the next sweep's answer would rename it
+// back. The claims of every other source hold no swept name, so they take
+// each new name they are given.
+//
+// The held name has no expiry. A device that stops answering the higher
+// lookup for good, such as a NAS with Avahi turned off, keeps that name until
+// the lookup, or a higher one, gives another. This is accepted: a sweep's
+// empty lookup has always left the last name in place, and a label on the
+// device is shown in place of the name either way.
+func yieldsToHeldName(ctx context.Context, p *pass, deviceID int64, f plugin.Fact) (bool, error) {
+	if f.Host.Hostname() == "" || !f.HostnameSource.Swept() {
 		return false, nil
 	}
 
@@ -1016,7 +1023,9 @@ func yieldsToDNS(ctx context.Context, p *pass, deviceID int64, f plugin.Fact) (b
 		return false, fmt.Errorf("claim about device %d: %w", deviceID, err)
 	}
 
-	return held.Hostname.Valid && held.HostnameSource == dbtype.HostnameFromDNS, nil
+	return held.Hostname.Valid &&
+		held.HostnameSource.Swept() &&
+		held.HostnameSource.Rank() > f.HostnameSource.Rank(), nil
 }
 
 // claimDetail renders what only this source knows as the column's JSON, null

@@ -113,8 +113,9 @@ func TestLoadConfig(t *testing.T) {
 	// An unnamed source would file every sweep under one blank row.
 	assert.Equal(t, defaultSource(), cfg.Scan.Source)
 
-	// Asking hosts over mDNS is on by default.
+	// Asking hosts over mDNS and NetBIOS is on by default.
 	assert.True(t, cfg.Scan.Devices.ResolveMDNS)
+	assert.True(t, cfg.Scan.Devices.ResolveNetBIOS)
 
 	// The port scan is off by default on a six-hour interval; the environment
 	// turns it on and hands it a spec.

@@ -134,7 +134,7 @@ ON CONFLICT (device_id, source_id)
                   last_seen       = excluded.last_seen;
 
 -- The name one source last gave a device, which decides whether a sweep's
--- mDNS name may replace it (see yieldsToDNS).
+-- lower-ranked name may replace it (see yieldsToHeldName).
 -- name: GetDeviceSourceName :one
 SELECT hostname, hostname_source
 FROM device_sources

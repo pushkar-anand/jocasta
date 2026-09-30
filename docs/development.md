@@ -16,8 +16,8 @@ make htmx           # refresh the vendored htmx
 ## Layout
 
 - `cmd/jocasta`: CLI entry point.
-- `internal/scanner`: the ICMP sweep, and the reverse DNS and mDNS lookups
-  that name what answers.
+- `internal/scanner`: the ICMP sweep, and the reverse DNS, mDNS and NetBIOS
+  lookups that name what answers.
 - `internal/plugin`: sources beyond the sweep (RouterOS).
 - `internal/inventory`: the store, covering identity resolution, address
   handling, device classification and the change log.
@@ -63,6 +63,13 @@ learned. When sources disagree, the name with the higher standing is shown.
    there. A name that resolves ranks above one a device only claims.
 3. Word it for the device page in `standing`, in `internal/web/funcs.go`.
 4. List it in [Name devices](setup.md#name-devices).
+
+A sweep that asks devices for their names takes two more steps:
+
+1. Add a `nameProtocol` for it in `internal/scanner`, in a file of its own,
+   as `mdns.go` and `netbios.go` are, and ask it in `enrich` in rank order.
+2. Add it to `HostnameSource.Swept`, so a lower-ranked lookup never replaces
+   its name on the sweep's claim.
 
 The column has no CHECK, so a new standing needs no migration.
 
