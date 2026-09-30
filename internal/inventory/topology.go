@@ -67,6 +67,9 @@ func (s *Store) RecordTopology(ctx context.Context, source string, kind dbtype.S
 			Wifi:      seen.WiFi,
 			Ssid:      nullString(seen.SSID),
 			Band:      nullString(seen.Band),
+			TxRate:    seen.TxRate,
+			RxRate:    seen.RxRate,
+			Signal:    int64(seen.Signal),
 			FirstSeen: at,
 			LastSeen:  at,
 		})
@@ -90,13 +93,16 @@ func replaceTopologyPorts(ctx context.Context, q *models.Queries, sourceID int64
 
 	for _, p := range ports {
 		err := q.InsertTopologyPort(ctx, models.InsertTopologyPortParams{
-			SourceID: sourceID,
-			Name:     p.Name,
-			Kind:     string(p.Kind),
-			Pvid:     int64(p.PVID),
-			Tagged:   joinVLANs(p.Tagged),
-			Untagged: joinVLANs(p.Untagged),
-			Running:  p.Running,
+			SourceID:   sourceID,
+			Name:       p.Name,
+			Kind:       string(p.Kind),
+			Pvid:       int64(p.PVID),
+			Tagged:     joinVLANs(p.Tagged),
+			Untagged:   joinVLANs(p.Untagged),
+			Running:    p.Running,
+			Rate:       p.Rate,
+			Capable:    p.Capable,
+			FullDuplex: p.FullDuplex,
 		})
 		if err != nil {
 			return fmt.Errorf("insert port %s: %w", p.Name, err)
@@ -219,6 +225,11 @@ func (s *Store) Topology(ctx context.Context) (*topology.Tree, error) {
 				PVID:     int(p.Pvid),
 				Tagged:   splitVLANs(p.Tagged),
 				Untagged: splitVLANs(p.Untagged),
+				Speed: topology.Speed{
+					Rate:       p.Rate,
+					Capable:    p.Capable,
+					FullDuplex: p.FullDuplex,
+				},
 			})
 		}
 	}
@@ -232,6 +243,7 @@ func (s *Store) Topology(ctx context.Context) (*topology.Tree, error) {
 				WiFi:     seen.Wifi,
 				SSID:     seen.Ssid.String,
 				Band:     seen.Band.String,
+				Radio:    topology.Radio{Down: seen.TxRate, Up: seen.RxRate, Signal: int(seen.Signal)},
 				LastSeen: seen.LastSeen.Time,
 			})
 		}

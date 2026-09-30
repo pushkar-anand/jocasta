@@ -185,13 +185,16 @@ type TopologyNode struct {
 }
 
 type TopologyPort struct {
-	SourceID int64  `json:"source_id"`
-	Name     string `json:"name"`
-	Kind     string `json:"kind"`
-	Pvid     int64  `json:"pvid"`
-	Tagged   string `json:"tagged"`
-	Untagged string `json:"untagged"`
-	Running  bool   `json:"running"`
+	SourceID   int64  `json:"source_id"`
+	Name       string `json:"name"`
+	Kind       string `json:"kind"`
+	Pvid       int64  `json:"pvid"`
+	Tagged     string `json:"tagged"`
+	Untagged   string `json:"untagged"`
+	Running    bool   `json:"running"`
+	Rate       int64  `json:"rate"`
+	Capable    int64  `json:"capable"`
+	FullDuplex bool   `json:"full_duplex"`
 }
 
 type TopologySighting struct {
@@ -204,6 +207,9 @@ type TopologySighting struct {
 	Band      sql.NullString `json:"band"`
 	FirstSeen dbtype.Time    `json:"first_seen"`
 	LastSeen  dbtype.Time    `json:"last_seen"`
+	TxRate    int64          `json:"tx_rate"`
+	RxRate    int64          `json:"rx_rate"`
+	Signal    int64          `json:"signal"`
 }
 
 type TrafficHourly struct {

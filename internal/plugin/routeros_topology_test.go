@@ -19,8 +19,9 @@ import (
 )
 
 // switchA is a switch as its tables describe it: an uplink trunk on sfp1, a
-// desktop on ether4 in VLAN 10, a radio with one client in VLAN 20, and the
-// router it hangs from announcing itself on the uplink.
+// desktop on ether4 in VLAN 10 whose gigabit link came up at 100 Mbps, a
+// radio with one client in VLAN 20, and the router it hangs from announcing
+// itself on the uplink.
 var switchA = switchTables{
 	identity: "switch-a",
 	ifaces: []routeros.Interface{
@@ -55,9 +56,16 @@ var switchA = switchTables{
 			Identity: "router", Platform: "MikroTik", Board: "RB5009", InterfaceName: "ether3"},
 	},
 	regs: []routeros.Registration{
-		{Interface: "wifi1", MACAddress: "00:00:5E:00:53:20", SSID: "iot", Band: "2ghz-ax"},
+		{Interface: "wifi1", MACAddress: "00:00:5E:00:53:20", SSID: "iot", Band: "2ghz-ax",
+			Signal: "-55", TxRate: 28_900_000, RxRate: 54_000_000},
 		// Joined, but has sent nothing the bridge learned.
 		{Interface: "wifi1", MACAddress: "00:00:5E:00:53:21", SSID: "iot", Band: "2ghz-ax"},
+	},
+	links: []routeros.Link{
+		{Name: "sfp1", Rate: 10_000_000_000, FullDuplex: true, Advertising: "1G-baseX,10G-baseCR"},
+		{Name: "ether4", Rate: 100_000_000, FullDuplex: true,
+			Advertising: "100M-baseT-full,1G-baseT-full", PartnerAdvertising: "100M-baseT-full,1G-baseT-full"},
+		{Name: "ether5", Advertising: "100M-baseT-full,1G-baseT-full"},
 	},
 }
 
@@ -91,9 +99,15 @@ func TestBuildTopologyListsPortsWithTheirVLANs(t *testing.T) {
 	got := testRouterOS(t).buildTopology(t.Context(), switchA)
 
 	assert.Equal(t, []TopologyPort{
-		{Name: "ether4", Kind: PortWired, PVID: 10, Untagged: []int{10}, Running: true},
+		{
+			Name: "ether4", Kind: PortWired, PVID: 10, Untagged: []int{10}, Running: true,
+			Rate: 100_000_000, Capable: 1_000_000_000, FullDuplex: true,
+		},
 		{Name: "ether5", Kind: PortWired},
-		{Name: "sfp1", Kind: PortWired, PVID: 1, Tagged: []int{10, 20}, Running: true},
+		{
+			Name: "sfp1", Kind: PortWired, PVID: 1, Tagged: []int{10, 20}, Running: true,
+			Rate: 10_000_000_000, FullDuplex: true,
+		},
 		{Name: "wifi1", Kind: PortWiFi, PVID: 20, Untagged: []int{20}, Running: true},
 	}, got.Ports)
 }
@@ -107,7 +121,10 @@ func TestBuildTopologyListsWhatEachPortLearned(t *testing.T) {
 		{Port: "ether4", MAC: "00:00:5e:00:53:10", VLAN: 10},
 		{Port: "sfp1", MAC: "00:00:5e:00:53:01", VLAN: 10},
 		{Port: "sfp1", MAC: "00:00:5e:00:53:01", VLAN: 20},
-		{Port: "wifi1", MAC: "00:00:5e:00:53:20", VLAN: 20, WiFi: true, SSID: "iot", Band: "2ghz-ax"},
+		{
+			Port: "wifi1", MAC: "00:00:5e:00:53:20", VLAN: 20, WiFi: true, SSID: "iot", Band: "2ghz-ax",
+			TxRate: 28_900_000, RxRate: 54_000_000, Signal: -55,
+		},
 		{Port: "wifi1", MAC: "00:00:5e:00:53:21", VLAN: 20, WiFi: true, SSID: "iot", Band: "2ghz-ax"},
 	}, got.Seen)
 }
@@ -147,6 +164,7 @@ func TestTopologyReadsEveryTable(t *testing.T) {
 		"/rest/interface/bridge/host":             `[{"mac-address":"00:00:5E:00:53:10","on-interface":"ether4","vid":"10"}]`,
 		"/rest/ip/neighbor":                       `[]`,
 		"/rest/interface/wifi/registration-table": `[]`,
+		"/rest/interface/ethernet/monitor":        `[{"name":"ether4","status":"link-ok","rate":"1Gbps","full-duplex":"true"}]`,
 	})
 
 	got, err := r.Topology(t.Context())
@@ -154,7 +172,10 @@ func TestTopologyReadsEveryTable(t *testing.T) {
 
 	assert.Equal(t, "switch-a", got.Identity)
 	assert.Equal(t, []string{"00:00:5e:00:53:a4"}, got.Own)
-	assert.Equal(t, []TopologyPort{{Name: "ether4", Kind: PortWired, PVID: 10, Untagged: []int{10}, Running: true}}, got.Ports)
+	assert.Equal(t, []TopologyPort{{
+		Name: "ether4", Kind: PortWired, PVID: 10, Untagged: []int{10}, Running: true,
+		Rate: 1_000_000_000, FullDuplex: true,
+	}}, got.Ports)
 	assert.Equal(t, []Sighting{{Port: "ether4", MAC: "00:00:5e:00:53:10", VLAN: 10}}, got.Seen)
 }
 

@@ -323,9 +323,11 @@ func (b *builder) hangReader(c *reader, parent *Node, x *reader, parentPort stri
 	switch {
 	case parentPort != "":
 		link.VLANs, link.Trunk = carried(x.ports[parentPort])
+		link.Speed = x.ports[parentPort].Speed
 		x.onPort[parentPort] = c.node
 	case up != "":
 		link.VLANs, link.Trunk = carried(c.ports[up])
+		link.Speed = c.ports[up].Speed
 	}
 
 	b.hang(c.node, parent, link)
@@ -387,7 +389,7 @@ func (b *builder) intermediate(x *reader, p string, wifi bool) *Node {
 
 // hangOnPort hangs n from port p of x as the node on that port.
 func (b *builder) hangOnPort(x *reader, p string, n *Node) {
-	link := &Link{ParentPort: p}
+	link := &Link{ParentPort: p, Speed: x.ports[p].Speed}
 	link.VLANs, link.Trunk = carried(x.ports[p])
 
 	b.hang(n, x.node, link)
@@ -550,6 +552,12 @@ func (b *builder) attach() {
 
 		if w, ok := wifi[mac]; ok {
 			l.WiFi, l.SSID, l.Band = true, w.s.SSID, w.s.Band
+
+			if w.cur {
+				l.Radio = w.s.Radio
+			}
+		} else if sp.cur {
+			l.Speed = sp.r.ports[sp.s.Port].Speed
 		}
 
 		l.VLANs = slices.Compact(slices.Sorted(slices.Values(vlans[mac])))
@@ -567,7 +575,7 @@ func (b *builder) attach() {
 		// node. On a port leading to another source, that source did not see
 		// it, so it is somewhere on that branch.
 		if n := sp.r.onPort[sp.s.Port]; n != nil {
-			l.Owner, l.Port = n, ""
+			behind(l, n)
 		}
 
 		leaves = append(leaves, l)
@@ -579,6 +587,12 @@ func (b *builder) attach() {
 		b.tree.leafByDevice[l.DeviceID] = l
 		b.group(l)
 	}
+}
+
+// behind moves l under node n on its port. The port's link is n's, so l no
+// longer has a port or its speed.
+func behind(l *Leaf, n *Node) {
+	l.Owner, l.Port, l.Speed = n, "", Speed{}
 }
 
 // inferSwitches puts the devices sharing one wired port of a source under a
@@ -628,7 +642,7 @@ func (b *builder) inferSwitches(leaves []*Leaf) []*Leaf {
 		}
 
 		for _, l := range ls {
-			l.Owner, l.Port = n, ""
+			behind(l, n)
 		}
 	}
 

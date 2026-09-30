@@ -190,6 +190,13 @@ type TopologyPort struct {
 	Untagged []int
 
 	Running bool
+
+	// Rate is the speed the port's link came up at, and Capable the fastest
+	// both ends offer, in bits per second. Each is zero when unknown, and
+	// FullDuplex means nothing without a Rate.
+	Rate       int64
+	Capable    int64
+	FullDuplex bool
 }
 
 // Sighting is one hardware address learned on one port.
@@ -206,6 +213,13 @@ type Sighting struct {
 	WiFi bool
 	SSID string
 	Band string
+
+	// TxRate is the rate the radio sends to the client at and RxRate the rate
+	// it receives from it at, in bits per second, and Signal is the client's
+	// signal at the radio in dBm. Each is zero when unknown.
+	TxRate int64
+	RxRate int64
+	Signal int
 }
 
 // Neighbour is a device that announced itself on one port.

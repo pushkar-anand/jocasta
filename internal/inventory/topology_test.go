@@ -10,21 +10,29 @@ import (
 
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/plugin"
+	"github.com/pushkar-anand/jocasta/internal/topology"
 )
 
 // switchRead is one read of a switch: a trunk to the router, a desktop on
-// ether4, and the router announcing itself on the trunk.
+// ether4 with a gigabit link, a Wi-Fi client, and the router announcing
+// itself on the trunk.
 func switchRead(at time.Time) plugin.Topology {
 	return plugin.Topology{
 		Identity: "switch-a",
 		Own:      []string{"00:00:5e:00:53:a1"},
 		Ports: []plugin.TopologyPort{
-			{Name: "ether4", Kind: plugin.PortWired, PVID: 10, Untagged: []int{10}, Running: true},
+			{
+				Name: "ether4", Kind: plugin.PortWired, PVID: 10, Untagged: []int{10}, Running: true,
+				Rate: 1_000_000_000, Capable: 1_000_000_000, FullDuplex: true,
+			},
 			{Name: "sfp1", Kind: plugin.PortWired, PVID: 1, Tagged: []int{10, 20}, Running: true},
 		},
 		Seen: []plugin.Sighting{
 			{Port: "ether4", MAC: macA, VLAN: 10},
-			{Port: "wifi1", MAC: macB, VLAN: 20, WiFi: true, SSID: "iot", Band: "2ghz-ax"},
+			{
+				Port: "wifi1", MAC: macB, VLAN: 20, WiFi: true, SSID: "iot", Band: "2ghz-ax",
+				TxRate: 28_900_000, RxRate: 54_000_000, Signal: -55,
+			},
 		},
 		Neighbours: []plugin.Neighbour{{
 			Port: "sfp1", MAC: "00:00:5e:00:53:c1", Addr: netip.MustParseAddr("192.0.2.1"),
@@ -169,4 +177,25 @@ func TestTopologyPlacesARecordedDevice(t *testing.T) {
 	assert.Equal(t, 10, leaf.VLAN)
 	assert.True(t, leaf.Current)
 	assert.Same(t, tree.Root, leaf.Owner)
+	assert.Equal(t, topology.Speed{Rate: 1_000_000_000, Capable: 1_000_000_000, FullDuplex: true}, leaf.Speed)
+}
+
+// A Wi-Fi client's rates and signal come back as its speed.
+func TestTopologyKeepsAWiFiClientsRates(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.11", macB, "phone.local"))
+
+	read := switchRead(time.Now().UTC())
+	read.Gateway = true
+
+	require.NoError(t, s.RecordTopology(t.Context(), "routeros:gateway", dbtype.SourceRouter, read))
+
+	tree, err := s.Topology(t.Context())
+	require.NoError(t, err)
+
+	leaf, ok := tree.Leaf(deviceIDByMAC(t, conn, macB))
+	require.True(t, ok)
+	assert.Equal(t, topology.Radio{Down: 28_900_000, Up: 54_000_000, Signal: -55}, leaf.Radio)
 }
