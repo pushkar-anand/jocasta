@@ -149,8 +149,11 @@ What each table adds:
   port. RouterOS runs it on the `LAN` interface list by default; see
   `/ip neighbor discovery-settings`.
 - The Wi-Fi registration table marks Wi-Fi clients and names their network
-  and band, from the wifi or the wireless package. A router managing access
-  points with CAPsMAN lists their clients too.
+  and band, from the wifi or the wireless package, with the rate each way and
+  the signal. A router managing access points with CAPsMAN lists their
+  clients too.
+- The Ethernet monitor gives the rate each Ethernet and SFP port's link runs
+  at, and the fastest rate both ends offer.
 
 Check a source with `jocasta plugin run switch_core`, which prints its ports,
 the addresses learned on each, and its neighbours.

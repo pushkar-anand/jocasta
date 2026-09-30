@@ -15,7 +15,8 @@ import (
 )
 
 // recordRouter records a router read that learned the laptop on ether4 in
-// VLAN 10, and the nas behind a switch that announced itself on sfp1.
+// VLAN 10, on a gigabit link that came up at 100 Mbps, and the nas behind a
+// switch that announced itself on sfp1.
 func recordRouter(t *testing.T, store *inventory.Store) {
 	t.Helper()
 
@@ -24,8 +25,14 @@ func recordRouter(t *testing.T, store *inventory.Store) {
 		Gateway:  true,
 		Own:      []string{"00:00:5e:00:53:a0"},
 		Ports: []plugin.TopologyPort{
-			{Name: "ether4", Kind: plugin.PortWired, PVID: 10, Untagged: []int{10}, Running: true},
-			{Name: "sfp1", Kind: plugin.PortWired, Tagged: []int{10}, Running: true},
+			{
+				Name: "ether4", Kind: plugin.PortWired, PVID: 10, Untagged: []int{10}, Running: true,
+				Rate: 100_000_000, Capable: 1_000_000_000, FullDuplex: true,
+			},
+			{
+				Name: "sfp1", Kind: plugin.PortWired, Tagged: []int{10}, Running: true,
+				Rate: 10_000_000_000, FullDuplex: true,
+			},
 		},
 		Seen: []plugin.Sighting{
 			{Port: "ether4", MAC: macA, VLAN: 10},
@@ -111,6 +118,23 @@ func TestDevicePageShowsWhereTheDeviceIsConnected(t *testing.T) {
 	assert.Contains(t, body, "<span class=\"chip chip--brand\">VLAN\u00a010</span>")
 	assert.Contains(t, body, `href="/topology?focus=d2"`)
 	assert.NotContains(t, body, "last seen here")
+	assert.NotContains(t, body, "Gbps", "the nas is behind the switch, whose link it is")
+}
+
+// A device alone on a port shows the port's rate, and a link that came up
+// below what both ends can run says so.
+func TestDevicePageShowsTheLinkSpeed(t *testing.T) {
+	t.Parallel()
+
+	store := sweptPair(t)
+	recordRouter(t, store)
+
+	rec := get(t, newWebHandler(t, store), "/devices/1")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+	assert.Contains(t, body, "<strong>laptop.example.com</strong><span class=\"chip\">100\u00a0Mbps</span>")
+	assert.Contains(t, body, "Both ends can run at 1\u00a0Gbps, and this link runs slower.")
 }
 
 func TestDevicePageSaysWhenNothingHasSeenTheDevice(t *testing.T) {

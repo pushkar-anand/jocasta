@@ -19,9 +19,13 @@
             <li class="path__hop path__hop--here">
                 {{- with .Last }}<span class="chip chip--brand">{{ . }}</span>{{ end }}
                 <strong>{{ $.Device.Name }}</strong>
+                {{- with .Speed }}<span class="chip">{{ . }}</span>{{ end }}
                 {{- if not .Current }}<span class="chip">last seen here</span>{{ end }}
             </li>
         </ol>
+        {{- with .Capable }}
+        <p class="path__more">Both ends can run at {{ . }}, and this link runs slower. Try another cable, or reseat this one at both ends.</p>
+        {{- end }}
         <p class="path__more"><a href="/topology?focus={{ .Focus }}">Show on topology</a></p>
         {{- else }}
         <p class="dim">No router, switch or access point has seen this device on a port.</p>
