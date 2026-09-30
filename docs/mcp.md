@@ -80,6 +80,7 @@ the endpoint.
 |---|---|
 | `list_devices` | Which devices match a search, group, network, type or presence (seen recently or quiet). |
 | `get_device` | Everything about one device: addresses, ports, sources, your labels, and where it is plugged in and how fast. |
+| `explain_device` | Why a device has the class it has: the facts the classifier used, the rule that decided and every other rule that matched. |
 | `list_events` | What changed, across the network or for one device. |
 | `list_networks`, `get_network` | The network segments, and how many devices are on each. |
 | `list_groups` | The groups you filed devices under. |

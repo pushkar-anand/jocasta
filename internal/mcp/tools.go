@@ -30,6 +30,7 @@ func tools(store *inventory.Store) []tool {
 	return []tool{
 		{register: listDevices(store)},
 		{register: getDevice(store)},
+		{register: explainDevice(store)},
 		{register: listEvents(store)},
 		{register: listNetworks(store)},
 		{register: getNetwork(store)},

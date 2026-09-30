@@ -59,7 +59,7 @@ const triageSteps = `Triage the devices in my jocasta network inventory that I h
    - Likely duplicates: a device with a randomised hardware address gets a new record whenever it presents a new address, often one per network it joins. Records with the same hostname, or the same vendor and a similar hostname, where at most one was seen recently, are probably one device.
    - A device on a guest network with no label is probably a visitor's.
    Leave out devices that already have a label and a class I can trust, unless they look like duplicates.
-3. Where the list is not enough, call get_device for a device's address history and what each source reported, and list_events with its id and kind DEVICE_CLASSIFIED for the classifier's reasons.
+3. Where the list is not enough, call get_device for a device's address history and what each source reported, and explain_device for the facts and rules behind its class.
 4. For each device, propose a label, a group (one I already use where it fits), a type where the class looks wrong, and whether to mark it ignored (an older duplicate record, or a visitor's device). Give the reason in one line, and say how sure you are.
 
 Present the proposals as one table: id, what the network calls the device, proposed label, group, type, ignored, and reason.`

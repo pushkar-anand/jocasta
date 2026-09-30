@@ -1,8 +1,8 @@
 package classify
 
-// This file is a debugging aid for tuning the rules against real data. It
-// reports every rule that matched an input and which one [Device] picked.
-// Nothing in production depends on it.
+// This file reports every rule that matched an input and which one [Device]
+// picked: the case the explain_device MCP tool shows, and a way to tune the
+// rules against real data.
 
 import (
 	"cmp"
