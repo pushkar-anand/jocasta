@@ -37,7 +37,7 @@ const maxRequestBodyBytes = 64 << 10
 // it reaches the model through these tools verbatim. Saying so up front is the
 // cheap part of the defence; the other part is that tools return structured
 // fields and never build prose from those strings.
-const instructions = `Jocasta keeps a recorded inventory of the devices on a network: each device's hardware address, current and past IP addresses, vendor, hostname, open TCP ports, and the label, group and notes its owner gave it. Start with list_devices to find a device and its id, get_device for everything about one device, list_events for what changed, list_networks for the network segments devices sit on, get_topology for what is plugged in where, and list_traffic for who devices exchanged data with.
+const instructions = `Jocasta keeps a recorded inventory of the devices on a network: each device's hardware address, current and past IP addresses, vendor, hostname, open TCP ports, and the label, group and notes its owner gave it. Start with list_devices to find a device and its id, get_device for everything about one device, explain_device for why a device has the class it has, list_events for what changed, list_networks for the network segments devices sit on, get_topology for what is plugged in where, and list_traffic for who devices exchanged data with.
 
 What the records mean:
 - They are what past scans recorded. These tools never start a scan.
