@@ -3,6 +3,7 @@ package config
 import (
 	"log/slog"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -175,7 +176,7 @@ func TestLoadConfig(t *testing.T) {
 
 	// Notification destinations are keyed by name too, and an override aimed
 	// at one leaves the other alone.
-	require.Len(t, cfg.Notify, 2)
+	require.Len(t, cfg.Notify, 3)
 
 	phone := cfg.Notify["phone"]
 	assert.True(t, phone.On(), "on when enabled is left out")
@@ -190,6 +191,18 @@ func TestLoadConfig(t *testing.T) {
 	assert.Equal(t, 5*time.Second, automation.Timeout)
 	require.NotNil(t, automation.Webhook)
 	assert.Equal(t, "placeholder-secret", automation.Webhook.Secret)
+
+	// An http destination keeps its headers and its body template as written.
+	chat := cfg.Notify["chat"]
+	require.NotNil(t, chat.HTTP)
+	assert.Equal(t, "https://chat.example.com/hook", chat.HTTP.URL)
+	assert.Equal(t, `{"text": {{ json .Title }}}`, chat.HTTP.Body)
+	require.Len(t, chat.HTTP.Headers, 1)
+
+	for k, v := range chat.HTTP.Headers {
+		assert.True(t, strings.EqualFold("X-Api-Key", k), k)
+		assert.Equal(t, "placeholder-key", v)
+	}
 }
 
 // An explicit path that does not exist is reported. Silently falling back to

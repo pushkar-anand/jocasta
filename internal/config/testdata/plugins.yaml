@@ -36,3 +36,9 @@ notify:
     webhook:
       url: https://hooks.example.com/jocasta
       secret: placeholder-secret
+  chat:
+    http:
+      url: https://chat.example.com/hook
+      headers:
+        X-Api-Key: placeholder-key
+      body: '{"text": {{ json .Title }}}'

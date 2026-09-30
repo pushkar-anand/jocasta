@@ -2,7 +2,9 @@
 // reads it.
 //
 // Each service is a [Provider] in a file of its own. Adding one takes that
-// file, a field on [Config] and a line in its provider method.
+// file, a field on [Config] and a line in its provider method. Most services
+// take a JSON POST, and the [HTTP] provider reaches them with a template. A
+// service gets a provider of its own only when [HTTP] cannot reach it.
 package notify
 
 import (
@@ -47,6 +49,7 @@ type Config struct {
 
 	Ntfy    *Ntfy    `koanf:"ntfy"`
 	Webhook *Webhook `koanf:"webhook"`
+	HTTP    *HTTP    `koanf:"http"`
 }
 
 // On reports whether the destination is enabled.
@@ -75,9 +78,13 @@ func (c Config) provider() (Kind, Provider, error) {
 		add(KindWebhook, c.Webhook)
 	}
 
+	if c.HTTP != nil {
+		add(KindHTTP, c.HTTP)
+	}
+
 	switch len(providers) {
 	case 0:
-		return "", nil, errors.New("names no service; add an ntfy or a webhook block")
+		return "", nil, errors.New("names no service; add an ntfy, webhook or http block")
 	case 1:
 		return kinds[0], providers[0], nil
 	}
