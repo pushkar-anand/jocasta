@@ -665,3 +665,44 @@ func TestBoolRendersTheWayTheRouterDoes(t *testing.T) {
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"flag":"true"}`, string(b))
 }
+
+func TestRateReadsEveryRenderingTheRouterUses(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		json string
+		want Rate
+	}{
+		"bare count":       {`"54000000"`, 54_000_000},
+		"gigabit":          {`"1Gbps"`, 1_000_000_000},
+		"fraction":         {`"2.5Gbps"`, 2_500_000_000},
+		"megabit":          {`"100Mbps"`, 100_000_000},
+		"wireless package": {`"866.6Mbps-80MHz/2S/SGI"`, 866_600_000},
+		"number":           {`54000000`, 54_000_000},
+		"empty":            {`""`, 0},
+		"null":             {`null`, 0},
+		"odd":              {`"fast"`, 0},
+		"odd unit":         {`"5Xbps"`, 0},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			var row struct {
+				Rate Rate `json:"rate"`
+			}
+
+			require.NoError(t, json.Unmarshal([]byte(`{"rate":`+tc.json+`}`), &row))
+			assert.Equal(t, tc.want, row.Rate)
+		})
+	}
+}
+
+func TestParseRateReadsAnAdvertisedMode(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, Rate(2_500_000_000), ParseRate("2.5G-baseT"))
+	assert.Equal(t, Rate(10_000_000), ParseRate("10M-baseT-half"))
+	assert.Equal(t, Rate(10_000_000_000), ParseRate("10G-baseCR"))
+}

@@ -1,6 +1,7 @@
 package routeros
 
 import (
+	"io"
 	"net/http"
 	"testing"
 
@@ -160,7 +161,7 @@ func TestRegistrationsReadTheWifiPackage(t *testing.T) {
 	t.Parallel()
 
 	r := serve(t, respond(t, wifiRegistrationAPI, `[
-	  {".id":"*1","interface":"wifi1","mac-address":"00:00:5E:00:53:40","ssid":"home","band":"5ghz-ax","signal":"-58","uptime":"1h2m"}
+	  {".id":"*1","interface":"wifi1","mac-address":"00:00:5E:00:53:40","ssid":"home","band":"5ghz-ax","signal":"-58","uptime":"1h2m","tx-rate":"28900000","rx-rate":"54000000"}
 	]`))
 
 	regs, err := r.Registrations(t.Context())
@@ -170,7 +171,10 @@ func TestRegistrationsReadTheWifiPackage(t *testing.T) {
 	assert.Equal(t, Registration{
 		Interface: "wifi1", MACAddress: "00:00:5E:00:53:40", SSID: "home",
 		Band: "5ghz-ax", Signal: "-58", Uptime: "1h2m",
+		TxRate: 28_900_000, RxRate: 54_000_000,
 	}, regs[0])
+
+	assert.Equal(t, -58, regs[0].DBM())
 }
 
 // A router on the wireless package has no wifi menu. Its registration table
@@ -183,7 +187,7 @@ func TestRegistrationsFallBackToTheWirelessPackage(t *testing.T) {
 
 		switch req.URL.Path {
 		case basePath + wirelessRegistrationAPI:
-			_, _ = w.Write([]byte(`[{".id":"*1","interface":"wlan2","mac-address":"00:00:5E:00:53:41","signal-strength":"-61@6Mbps","uptime":"5m"}]`))
+			_, _ = w.Write([]byte(`[{".id":"*1","interface":"wlan2","mac-address":"00:00:5E:00:53:41","signal-strength":"-61@6Mbps","uptime":"5m","tx-rate":"130Mbps-20MHz/2S/SGI","rx-rate":"104Mbps-20MHz/2S"}]`))
 		case basePath + wirelessAPI:
 			_, _ = w.Write([]byte(`[{".id":"*1","name":"wlan2","ssid":"iot","band":"2ghz-b/g/n"}]`))
 		default:
@@ -199,7 +203,16 @@ func TestRegistrationsFallBackToTheWirelessPackage(t *testing.T) {
 	assert.Equal(t, Registration{
 		Interface: "wlan2", MACAddress: "00:00:5E:00:53:41", SSID: "iot",
 		Band: "2ghz-b/g/n", Signal: "-61@6Mbps", Uptime: "5m",
+		TxRate: 130_000_000, RxRate: 104_000_000,
 	}, regs[0])
+
+	assert.Equal(t, -61, regs[0].DBM())
+}
+
+func TestRegistrationWithNoSignalHasNoDBM(t *testing.T) {
+	t.Parallel()
+
+	assert.Zero(t, Registration{}.DBM())
 }
 
 func TestRegistrationsOnARouterWithNoWifiIsEmpty(t *testing.T) {
@@ -225,4 +238,80 @@ func TestRegistrationsPassOnARefusal(t *testing.T) {
 
 	_, err := r.Registrations(t.Context())
 	require.ErrorIs(t, err, ErrUnauthorized)
+}
+
+// The monitor is a command: the Ethernet and SFP ports go in a POST, and once
+// makes it answer a single time. A port with no link has no rate, and an SFP
+// module does not report the other end's modes. The rows are in the shape
+// RouterOS returns.
+func TestLinksRunTheMonitorOnce(t *testing.T) {
+	t.Parallel()
+
+	r := serve(t, func(w http.ResponseWriter, req *http.Request) {
+		assert.Equal(t, basePath+ethernetMonitorAPI, req.URL.Path)
+		assert.Equal(t, http.MethodPost, req.Method)
+		assert.Equal(t, "application/json", req.Header.Get("Content-Type"))
+
+		body, err := io.ReadAll(req.Body)
+		assert.NoError(t, err)
+		assert.JSONEq(t, `{"numbers":"ether1,ether2,sfp1","once":""}`, string(body))
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[
+		  {"name":"ether1","status":"link-ok","rate":"1Gbps","full-duplex":"true",
+		   "advertising":"10M-baseT-half,100M-baseT-full,1G-baseT-full,2.5G-baseT",
+		   "link-partner-advertising":"10M-baseT-half,100M-baseT-full,1G-baseT-full"},
+		  {"name":"ether2","status":"no-link","auto-negotiation":"done",
+		   "advertising":"10M-baseT-half,1G-baseT-full","link-partner-advertising":""},
+		  {"name":"sfp1","status":"link-ok","rate":"10Gbps","full-duplex":"true",
+		   "advertising":"1G-baseX,10G-baseCR","link-partner-advertising":""}
+		]`))
+	})
+
+	links, err := r.Links(t.Context(), []Interface{
+		{Name: "ether1", Type: "ether"},
+		{Name: "ether2", Type: "ether"},
+		{Name: "sfp1", Type: "ether"},
+		{Name: "ether9", Type: "ether", Disabled: true},
+		{Name: "bridge", Type: "bridge"},
+		{Name: "wifi1", Type: "wifi"},
+	})
+	require.NoError(t, err)
+	require.Len(t, links, 3)
+
+	assert.Equal(t, Rate(1_000_000_000), links[0].Rate)
+	assert.True(t, bool(links[0].FullDuplex))
+	assert.Equal(t, Rate(1_000_000_000), links[0].Capable())
+
+	assert.Zero(t, links[1].Rate)
+	assert.False(t, bool(links[1].FullDuplex))
+
+	assert.Equal(t, Rate(10_000_000_000), links[2].Rate)
+	assert.Zero(t, links[2].Capable())
+}
+
+// Both ends offer gigabit and the link came up at 100 Mbps.
+func TestLinkCapableIsTheFastestBothEndsOffer(t *testing.T) {
+	t.Parallel()
+
+	l := Link{
+		Rate:               100_000_000,
+		Advertising:        "10M-baseT-full,100M-baseT-full,1G-baseT-full,2.5G-baseT",
+		PartnerAdvertising: "10M-baseT-half,100M-baseT-full,1G-baseT-half,1G-baseT-full",
+	}
+
+	assert.Equal(t, Rate(1_000_000_000), l.Capable())
+	assert.Less(t, l.Rate, l.Capable())
+}
+
+func TestLinksWithNoEthernetPortAsksNothing(t *testing.T) {
+	t.Parallel()
+
+	r := serve(t, func(http.ResponseWriter, *http.Request) {
+		t.Error("the router was asked")
+	})
+
+	links, err := r.Links(t.Context(), []Interface{{Name: "bridge", Type: "bridge"}})
+	require.NoError(t, err)
+	assert.Empty(t, links)
 }

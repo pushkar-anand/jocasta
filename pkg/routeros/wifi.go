@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 )
 
 // Registration is one Wi-Fi client associated with one of the router's
@@ -22,8 +24,29 @@ type Registration struct {
 	// "2ghz-n".
 	Band string `json:"band"`
 
+	// Signal is the client's signal at the radio in dBm, as the router
+	// renders it: "-58" in the wifi package, "-61@6Mbps" in the wireless
+	// package. [Registration.DBM] reads either.
 	Signal string `json:"signal"`
 	Uptime string `json:"uptime"`
+
+	// TxRate is the rate the radio last sent to the client at, and RxRate the
+	// rate it last received from it at.
+	TxRate Rate `json:"tx-rate"`
+	RxRate Rate `json:"rx-rate"`
+}
+
+// DBM returns the client's signal in dBm, and zero when the router reported
+// none.
+func (g Registration) DBM() int {
+	head, _, _ := strings.Cut(g.Signal, "@")
+
+	dbm, err := strconv.Atoi(strings.TrimSpace(head))
+	if err != nil {
+		return 0
+	}
+
+	return dbm
 }
 
 // wirelessRegistration is a row of the wireless package's registration table,
@@ -33,6 +56,8 @@ type wirelessRegistration struct {
 	MACAddress     string `json:"mac-address"`
 	SignalStrength string `json:"signal-strength"`
 	Uptime         string `json:"uptime"`
+	TxRate         Rate   `json:"tx-rate"`
+	RxRate         Rate   `json:"rx-rate"`
 }
 
 // wirelessInterface is a row of /interface/wireless, read for what the
@@ -93,6 +118,8 @@ func (r *RouterOS) wirelessRegistrations(ctx context.Context) ([]Registration, e
 			Band:       i.Band,
 			Signal:     row.SignalStrength,
 			Uptime:     row.Uptime,
+			TxRate:     row.TxRate,
+			RxRate:     row.RxRate,
 		})
 	}
 

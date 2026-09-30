@@ -16,6 +16,9 @@ const (
 	bridgeVLANAPI = "/interface/bridge/vlan"
 	bridgeHostAPI = "/interface/bridge/host"
 
+	// ethernetMonitorAPI is a command, which the REST API runs on a POST.
+	ethernetMonitorAPI = "/interface/ethernet/monitor"
+
 	// RouterOS 7.13 replaced the wireless package with wifi. A router carries
 	// one or the other, or neither.
 	wifiRegistrationAPI     = "/interface/wifi/registration-table"
