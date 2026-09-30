@@ -7,6 +7,7 @@
 package inventory
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/binary"
@@ -267,8 +268,8 @@ func loadNetworks(ctx context.Context, q *models.Queries) (networks, error) {
 //
 // A sweep is one source among several. What makes it particular is only that
 // everything it returns answered a probe, and that any name it carries came
-// from the reverse lookup it performed, so it states those two things and
-// hands the facts to the same path every source uses.
+// from a lookup it performed, so it states those two things and hands the
+// facts to the same path every source uses.
 func (s *Store) RecordSweep(
 	ctx context.Context,
 	source string,
@@ -284,7 +285,7 @@ func (s *Store) RecordSweep(
 }
 
 // sweptFacts says what a sweep result claims: the address answered, so the
-// device is here now, and a name it carries was resolved over DNS.
+// device is here now, and a name it carries has the standing the sweep gave it.
 func sweptFacts(hosts []scanner.Host) []plugin.Fact {
 	facts := make([]plugin.Fact, len(hosts))
 
@@ -293,8 +294,10 @@ func sweptFacts(hosts []scanner.Host) []plugin.Fact {
 
 		// The standing travels with the name: a fact carrying a source for a
 		// name it does not have is a standing for nothing.
+		// A name with no stated standing is taken as reverse DNS, the lookup
+		// [hosts.BuildHost] performs for a sweep.
 		if h.Hostname() != "" {
-			f.HostnameSource = dbtype.HostnameFromDNS
+			f.HostnameSource = cmp.Or(h.NameSource, dbtype.HostnameFromDNS)
 		}
 
 		facts[i] = f
@@ -948,7 +951,8 @@ func (s *Store) applyClaim(ctx context.Context, p *pass, d *models.Device, f plu
 
 // recordClaim files this source's reading over what the same source said
 // before, except that a reading with no name leaves the last name in place
-// (see UpsertDeviceSource).
+// (see UpsertDeviceSource). A name that must yield to a reverse DNS name the
+// claim holds leaves that name in place too (see yieldsToDNS).
 //
 // last_seen advances whenever the source still reports the device, presence or
 // not: a router still holds a static lease with nothing plugged in. Whether
@@ -959,10 +963,21 @@ func (s *Store) recordClaim(ctx context.Context, p *pass, deviceID int64, f plug
 		return fmt.Errorf("detail of %s: %w", f.Host.Address(), err)
 	}
 
+	name := f.Host.Hostname()
+
+	yields, err := yieldsToDNS(ctx, p, deviceID, f)
+	if err != nil {
+		return err
+	}
+
+	if yields {
+		name = ""
+	}
+
 	err = p.q.UpsertDeviceSource(ctx, models.UpsertDeviceSourceParams{
 		DeviceID:       deviceID,
 		SourceID:       p.sourceID,
-		Hostname:       nullString(f.Host.Hostname()),
+		Hostname:       nullString(name),
 		HostnameSource: f.HostnameSource,
 		Detail:         detail,
 		FirstSeen:      p.at,
@@ -973,6 +988,35 @@ func (s *Store) recordClaim(ctx context.Context, p *pass, deviceID int64, f plug
 	}
 
 	return nil
+}
+
+// yieldsToDNS reports whether the name f carries must leave this source's claim
+// alone: the claim holds a reverse DNS name and f's name was learned some other
+// way.
+//
+// A sweep asks a host over mDNS when reverse DNS gave it no name, and a lookup
+// that runs past its timeout gives none too. Letting that answer replace the
+// DNS name would rename the device, and the next sweep's DNS answer would
+// rename it back. Only a sweep's claim holds a DNS name, so the claims of
+// every other source take each new name they are given.
+func yieldsToDNS(ctx context.Context, p *pass, deviceID int64, f plugin.Fact) (bool, error) {
+	if f.Host.Hostname() == "" || f.HostnameSource == dbtype.HostnameFromDNS {
+		return false, nil
+	}
+
+	held, err := p.q.GetDeviceSourceName(ctx, models.GetDeviceSourceNameParams{
+		DeviceID: deviceID,
+		SourceID: p.sourceID,
+	})
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+
+	if err != nil {
+		return false, fmt.Errorf("claim about device %d: %w", deviceID, err)
+	}
+
+	return held.Hostname.Valid && held.HostnameSource == dbtype.HostnameFromDNS, nil
 }
 
 // claimDetail renders what only this source knows as the column's JSON, null

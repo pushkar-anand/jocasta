@@ -794,6 +794,37 @@ func (q *Queries) GetDeviceByMAC(ctx context.Context, mac dbtype.MAC) (*Device, 
 	return &i, err
 }
 
+const getDeviceSourceName = `-- name: GetDeviceSourceName :one
+SELECT hostname, hostname_source
+FROM device_sources
+WHERE device_id = ?
+  AND source_id = ?
+`
+
+type GetDeviceSourceNameParams struct {
+	DeviceID int64 `json:"device_id"`
+	SourceID int64 `json:"source_id"`
+}
+
+type GetDeviceSourceNameRow struct {
+	Hostname       sql.NullString        `json:"hostname"`
+	HostnameSource dbtype.HostnameSource `json:"hostname_source"`
+}
+
+// The name one source last gave a device, which decides whether a sweep's
+// mDNS name may replace it (see yieldsToDNS).
+//
+//	SELECT hostname, hostname_source
+//	FROM device_sources
+//	WHERE device_id = ?
+//	  AND source_id = ?
+func (q *Queries) GetDeviceSourceName(ctx context.Context, arg GetDeviceSourceNameParams) (*GetDeviceSourceNameRow, error) {
+	row := q.queryRow(ctx, q.getDeviceSourceNameStmt, getDeviceSourceName, arg.DeviceID, arg.SourceID)
+	var i GetDeviceSourceNameRow
+	err := row.Scan(&i.Hostname, &i.HostnameSource)
+	return &i, err
+}
+
 const identifyDevice = `-- name: IdentifyDevice :exec
 UPDATE devices
 SET mac             = ?1,

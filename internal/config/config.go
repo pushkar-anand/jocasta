@@ -116,6 +116,11 @@ type (
 			Wait         time.Duration `koanf:"wait"`
 			ResolveNames bool          `koanf:"resolve_names"`
 			ResolveMACs  bool          `koanf:"resolve_macs"`
+
+			// ResolveMDNS turns on asking each host that answered, and has no
+			// reverse DNS name, for its name over mDNS. With ResolveNames off,
+			// that is every host that answered.
+			ResolveMDNS bool `koanf:"resolve_mdns"`
 		} `koanf:"devices"`
 
 		Ports struct {

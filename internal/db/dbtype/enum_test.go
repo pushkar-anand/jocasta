@@ -110,7 +110,7 @@ func TestHostnameSourceScansNull(t *testing.T) {
 	require.NoError(t, s.Scan(nil))
 	assert.Equal(t, HostnameSource(""), s)
 
-	require.ErrorContains(t, s.Scan("MDNS"), `"MDNS" is not a valid hostname source`)
+	require.ErrorContains(t, s.Scan("WINS"), `"WINS" is not a valid hostname source`)
 }
 
 func TestEnumValid(t *testing.T) {
@@ -157,4 +157,15 @@ func TestUserRoleCanWrite(t *testing.T) {
 	assert.True(t, RoleReadWrite.CanWrite())
 	assert.True(t, RoleAdmin.CanWrite())
 	assert.False(t, UserRole("").CanWrite(), "an unset role cannot write")
+}
+
+func TestHostnameSourceRank(t *testing.T) {
+	t.Parallel()
+
+	// Highest first, as the name election reads them.
+	ordered := []HostnameSource{HostnameFromDNS, HostnameFromDHCPStatic, HostnameFromMDNS, HostnameFromDHCPLease, ""}
+
+	for i := 1; i < len(ordered); i++ {
+		assert.Greater(t, ordered[i-1].Rank(), ordered[i].Rank(), "%q should outrank %q", ordered[i-1], ordered[i])
+	}
 }

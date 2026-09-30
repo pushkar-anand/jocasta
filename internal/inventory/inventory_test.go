@@ -967,3 +967,63 @@ func TestDeviceSourcesOfAnUnknownDeviceIsEmpty(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, claims)
 }
+
+// mdnsHost builds a swept host named over mDNS, as a sweep names a host that
+// reverse DNS gives no name.
+func mdnsHost(ip, mac, hostname string) scanner.Host {
+	h := host(ip, mac, hostname)
+	h.NameSource = dbtype.HostnameFromMDNS
+
+	return h
+}
+
+// A reverse lookup that times out leaves a host nameless, so the sweep asks it
+// over mDNS. That answer must not replace the DNS name the sweep holds, or the
+// device would be renamed now and renamed back on the next sweep.
+func TestAnMDNSNameDoesNotReplaceTheSweepsDNSName(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, host("192.0.2.10", macA, "nas.example.com"))
+	sweep(t, s, mdnsHost("192.0.2.10", macA, "diskstation.local"))
+	sweep(t, s, host("192.0.2.10", macA, "nas.example.com"))
+
+	id := deviceIDByMAC(t, conn, macA)
+
+	name, standing := claimOf(t, conn, id, "test-sweep")
+	assert.Equal(t, "nas.example.com", name)
+	assert.Equal(t, string(dbtype.HostnameFromDNS), standing)
+
+	assert.Equal(t, "nas.example.com", queryString(t, conn, `SELECT hostname FROM devices`))
+	assert.NotContains(t, eventKinds(t, conn, id), dbtype.EventHostnameChanged)
+}
+
+// Once reverse DNS names a host the sweep only knew over mDNS, the DNS name
+// takes the claim.
+func TestADNSNameReplacesTheSweepsMDNSName(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, mdnsHost("192.0.2.10", macA, "diskstation.local"))
+	sweep(t, s, host("192.0.2.10", macA, "nas.example.com"))
+
+	name, standing := claimOf(t, conn, deviceIDByMAC(t, conn, macA), "test-sweep")
+	assert.Equal(t, "nas.example.com", name)
+	assert.Equal(t, string(dbtype.HostnameFromDNS), standing)
+}
+
+// A device that renames itself over mDNS is renamed on the claim.
+func TestAnMDNSNameReplacesAnEarlierMDNSName(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, mdnsHost("192.0.2.10", macA, "diskstation.local"))
+	sweep(t, s, mdnsHost("192.0.2.10", macA, "backup.local"))
+
+	name, standing := claimOf(t, conn, deviceIDByMAC(t, conn, macA), "test-sweep")
+	assert.Equal(t, "backup.local", name)
+	assert.Equal(t, string(dbtype.HostnameFromMDNS), standing)
+}

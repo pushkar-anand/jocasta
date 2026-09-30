@@ -96,6 +96,7 @@ func TestCLIScanCommandDefaults(t *testing.T) {
 	assert.Equal(t, 2*time.Second, cli.Scan.Wait)
 	assert.True(t, cli.Scan.ResolveNames)
 	assert.True(t, cli.Scan.ResolveMACs)
+	assert.True(t, cli.Scan.ResolveMDNS)
 	assert.False(t, cli.Scan.JSON)
 }
 
@@ -109,6 +110,7 @@ func TestCLIScanCommandCustomFlags(t *testing.T) {
 		"--wait", "500ms",
 		"--no-resolve-names",
 		"--no-resolve-macs",
+		"--no-resolve-mdns",
 		"--json",
 	})
 	require.NoError(t, err)
@@ -120,6 +122,7 @@ func TestCLIScanCommandCustomFlags(t *testing.T) {
 	assert.Equal(t, 500*time.Millisecond, cli.Scan.Wait)
 	assert.False(t, cli.Scan.ResolveNames)
 	assert.False(t, cli.Scan.ResolveMACs)
+	assert.False(t, cli.Scan.ResolveMDNS)
 	assert.True(t, cli.Scan.JSON)
 }
 

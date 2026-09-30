@@ -32,9 +32,10 @@ Jocasta identifies a device by its hardware (MAC) address. An IP address is
 treated as a lease the device holds for now, so the label, group and notes you
 give a device stay with it when the address changes.
 
-On its own, Jocasta sweeps the networks you list. Connect your router and it
-also reads the router's ARP and DHCP tables. The router sees every segment, so
-devices a single machine cannot reach still get a vendor and a name.
+On its own, Jocasta sweeps the networks you list. It takes each device's name
+from reverse DNS, or asks the device itself over mDNS. Connect your router and
+it also reads the router's ARP and DHCP tables. The router sees every segment,
+so devices a single machine cannot reach still get a vendor and a name.
 
 New devices, addresses gained or dropped, and hostname changes go into a
 change log. Sweeps run on a timer, every five minutes by default, or when you
@@ -50,7 +51,7 @@ Some features need a source connected first. The **Needs** column says which.
 
 | Feature | What it does | Needs |
 |---|---|---|
-| Device inventory | Every device with its addresses, segment, vendor, name, and when it was last seen. Search and filter by group, network or presence. | Nothing. Without the router, only devices on Jocasta's own segment get a hardware address, vendor and name. |
+| Device inventory | Every device with its addresses, segment, vendor, name, and when it was last seen. Search and filter by group, network or presence. | Nothing. Without the router, only devices on Jocasta's own segment get a hardware address and vendor. |
 | Your own labels | Give a device a label, a group and notes, or mark it ignored. Scans never overwrite them. | Nothing |
 | Network view | Each segment as its own page with the devices on it. | Nothing. Segment names and VLAN tags come from the router. |
 | Change log | What appeared, moved or was renamed, and when, for one device or the whole network. | Nothing |

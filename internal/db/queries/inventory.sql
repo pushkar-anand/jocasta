@@ -133,6 +133,14 @@ ON CONFLICT (device_id, source_id)
                   detail          = excluded.detail,
                   last_seen       = excluded.last_seen;
 
+-- The name one source last gave a device, which decides whether a sweep's
+-- mDNS name may replace it (see yieldsToDNS).
+-- name: GetDeviceSourceName :one
+SELECT hostname, hostname_source
+FROM device_sources
+WHERE device_id = ?
+  AND source_id = ?;
+
 -- Election reads this to pick the name the device list shows and searches on;
 -- the device page reads it to show the claims that lost.
 -- name: ListDeviceSources :many
