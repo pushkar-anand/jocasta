@@ -39,11 +39,6 @@ type task interface {
 
 // dueIn is DueIn for a task that resumes from its last successful scan of
 // kind: due interval after that scan, or now when there has been none.
-//
-// A store that cannot be read waits a full interval. Not knowing whether the
-// work is due is a reason to hold off: running anyway would turn a restart
-// loop into a scan loop, the one failure the stored schedule exists to
-// prevent.
 func dueIn(
 	ctx context.Context,
 	store *inventory.Store,
@@ -51,14 +46,31 @@ func dueIn(
 	interval time.Duration,
 	log *slog.Logger,
 ) time.Duration {
-	at, err := store.LastSuccessfulScanAt(ctx, kind)
+	last := func(ctx context.Context) (time.Time, error) { return store.LastSuccessfulScanAt(ctx, kind) }
+
+	return resumeIn(ctx, interval, log.With(slog.String("kind", string(kind))), last)
+}
+
+// resumeIn returns what is left of interval since the time last reports, and
+// nothing when last finds no earlier run.
+//
+// A store that cannot be read waits a full interval. Not knowing whether the
+// work is due is a reason to hold off: running anyway would turn a restart
+// loop into a scan loop, the one failure the stored schedule exists to
+// prevent.
+func resumeIn(
+	ctx context.Context,
+	interval time.Duration,
+	log *slog.Logger,
+	last func(context.Context) (time.Time, error),
+) time.Duration {
+	at, err := last(ctx)
 
 	switch {
 	case errors.Is(err, inventory.ErrNotFound):
 		return 0
 	case err != nil:
-		log.ErrorContext(ctx, "could not tell when the last scan ran, holding off for one interval",
-			slog.String("kind", string(kind)),
+		log.ErrorContext(ctx, "could not tell when the task last ran, holding off for one interval",
 			logger.Err(err),
 		)
 

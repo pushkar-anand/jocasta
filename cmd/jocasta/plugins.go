@@ -13,8 +13,9 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/routeros"
 )
 
-// hostDiscoverers builds every enabled source that can be asked which devices
-// it knows about.
+// routerOSSources builds every enabled RouterOS instance. The router and each
+// switch or access point are one list, which hostDiscoverers and
+// topologyReaders each take their share of.
 //
 // They are built here because internal/plugin would have to import
 // internal/config and every implementation to do it, turning a near-leaf
@@ -31,27 +32,6 @@ import (
 // Instances are returned in name order because map iteration is not ordered,
 // and a poller that reads its sources in a different order every cycle is
 // harder to read in a log than one that does not.
-//
-// A source marked topology_only is a switch or access point, and is left out:
-// the router above it lists the devices.
-func hostDiscoverers(ctx context.Context, cfg *config.Config, log *slog.Logger) ([]plugin.HostDiscoverer, error) {
-	sources, err := routerOSSources(ctx, cfg, log)
-	if err != nil {
-		return nil, err
-	}
-
-	out := make([]plugin.HostDiscoverer, 0, len(sources))
-
-	for _, p := range sources {
-		if !p.IsTopologyOnly() {
-			out = append(out, p)
-		}
-	}
-
-	return out, nil
-}
-
-// routerOSSources builds every enabled RouterOS instance, in name order.
 func routerOSSources(ctx context.Context, cfg *config.Config, log *slog.Logger) ([]*plugin.RouterOS, error) {
 	names := slices.Sorted(maps.Keys(cfg.Plugins.RouterOS))
 	out := make([]*plugin.RouterOS, 0, len(names))
@@ -75,6 +55,33 @@ func routerOSSources(ctx context.Context, cfg *config.Config, log *slog.Logger) 
 	}
 
 	return out, nil
+}
+
+// hostDiscoverers returns the sources that can be asked which devices they
+// know about. A source marked topology_only is a switch or access point, and
+// is left out: the router above it lists the devices.
+func hostDiscoverers(sources []*plugin.RouterOS) []plugin.HostDiscoverer {
+	out := make([]plugin.HostDiscoverer, 0, len(sources))
+
+	for _, p := range sources {
+		if !p.IsTopologyOnly() {
+			out = append(out, p)
+		}
+	}
+
+	return out
+}
+
+// topologyReaders returns the sources that can say what is plugged into them,
+// which is every one: the router and each switch or access point alike.
+func topologyReaders(sources []*plugin.RouterOS) []plugin.TopologyReader {
+	out := make([]plugin.TopologyReader, len(sources))
+
+	for i, p := range sources {
+		out[i] = p
+	}
+
+	return out
 }
 
 // newRouterOS builds one configured RouterOS source.
@@ -106,7 +113,7 @@ func newRouterOS(name string, cfg config.RouterOS, log *slog.Logger) (*plugin.Ro
 }
 
 // trafficReporters builds every enabled source that receives the flows a router
-// exports, under the same rules as hostDiscoverers: off unless enabled, name
+// exports, under the same rules as routerOSSources: off unless enabled, name
 // order, and an entry that cannot be built is a config error.
 func trafficReporters(ctx context.Context, cfg *config.Config, log *slog.Logger) ([]plugin.TrafficReporter, error) {
 	names := slices.Sorted(maps.Keys(cfg.Plugins.NetFlow))

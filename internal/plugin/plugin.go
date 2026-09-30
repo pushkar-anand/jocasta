@@ -162,6 +162,10 @@ type Topology struct {
 	ReadAt time.Time
 }
 
+// Empty reports whether a read learned nothing about what is plugged in: no
+// address on any port and no neighbour.
+func (t Topology) Empty() bool { return len(t.Seen) == 0 && len(t.Neighbours) == 0 }
+
 // PortKind is what sort of interface a port is.
 type PortKind string
 

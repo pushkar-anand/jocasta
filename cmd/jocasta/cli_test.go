@@ -459,7 +459,7 @@ func TestCLIPluginRunNeedsAName(t *testing.T) {
 
 // The builder skips a disabled instance and orders what is left, so a poller
 // reads its sources the same way on every cycle.
-func TestHostDiscoverersSkipsDisabledInstances(t *testing.T) {
+func TestRouterOSSourcesSkipDisabledInstances(t *testing.T) {
 	t.Parallel()
 
 	cfg := &config.Config{}
@@ -469,8 +469,10 @@ func TestHostDiscoverersSkipsDisabledInstances(t *testing.T) {
 		"spare":   {Enabled: false, Host: "203.0.113.1"},
 	}
 
-	ds, err := hostDiscoverers(t.Context(), cfg, slog.New(slog.DiscardHandler))
+	sources, err := routerOSSources(t.Context(), cfg, slog.New(slog.DiscardHandler))
 	require.NoError(t, err)
+
+	ds := hostDiscoverers(sources)
 
 	names := make([]string, len(ds))
 	for i, d := range ds {
@@ -491,10 +493,37 @@ func TestHostDiscoverersLeavesOutTopologyOnlySources(t *testing.T) {
 		"switch_a": {Enabled: true, Host: "192.0.2.2", TopologyOnly: true},
 	}
 
-	ds, err := hostDiscoverers(t.Context(), cfg, slog.New(slog.DiscardHandler))
+	sources, err := routerOSSources(t.Context(), cfg, slog.New(slog.DiscardHandler))
 	require.NoError(t, err)
+
+	ds := hostDiscoverers(sources)
 	require.Len(t, ds, 1)
 	assert.Equal(t, "routeros:gateway", ds[0].Name())
+}
+
+// Every RouterOS source is read for the topology, the router and a switch
+// alike.
+func TestTopologyReadersIncludesEverySource(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Plugins.RouterOS = map[string]config.RouterOS{
+		"gateway":  {Enabled: true, Host: "192.0.2.1"},
+		"switch_a": {Enabled: true, Host: "192.0.2.2", TopologyOnly: true},
+		"spare":    {Enabled: false, Host: "203.0.113.1"},
+	}
+
+	sources, err := routerOSSources(t.Context(), cfg, slog.New(slog.DiscardHandler))
+	require.NoError(t, err)
+
+	rs := topologyReaders(sources)
+
+	names := make([]string, len(rs))
+	for i, r := range rs {
+		names[i] = r.Name()
+	}
+
+	assert.Equal(t, []string{"routeros:gateway", "routeros:switch_a"}, names)
 }
 
 func TestPortsPollerAcceptsABlankSpec(t *testing.T) {
@@ -522,7 +551,7 @@ func TestPortsPollerRejectsABadSpec(t *testing.T) {
 
 // A misconfigured entry is a config error. A source that stayed quiet would
 // look exactly like a network with nothing on it.
-func TestHostDiscoverersRejectsAnInstanceWithNoHost(t *testing.T) {
+func TestRouterOSSourcesRejectsAnInstanceWithNoHost(t *testing.T) {
 	t.Parallel()
 
 	cfg := &config.Config{}
@@ -530,7 +559,7 @@ func TestHostDiscoverersRejectsAnInstanceWithNoHost(t *testing.T) {
 		"gateway": {Enabled: true},
 	}
 
-	_, err := hostDiscoverers(t.Context(), cfg, slog.New(slog.DiscardHandler))
+	_, err := routerOSSources(t.Context(), cfg, slog.New(slog.DiscardHandler))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "gateway")
 }
