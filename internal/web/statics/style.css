@@ -3421,6 +3421,11 @@ td .traffic__tried {
     font-size: 12px;
 }
 
+.topo__chip-aside {
+    fill: var(--text-3);
+    font-size: 10px;
+}
+
 .topo__chip--offline .topo__chip-label {
     fill: var(--text-3);
 }

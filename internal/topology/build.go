@@ -689,7 +689,8 @@ func mostlyVMs(ls []*Leaf) bool {
 	return vms*2 > len(ls)
 }
 
-// group files l in its owner's group for its port or Wi-Fi network and VLAN.
+// group files l in its owner's group for its VLAN, or for its Wi-Fi network
+// and VLAN.
 func (b *builder) group(l *Leaf) {
 	ssid := ""
 	if l.WiFi {
@@ -697,14 +698,14 @@ func (b *builder) group(l *Leaf) {
 	}
 
 	for _, g := range l.Owner.Groups {
-		if g.Port == l.Port && g.WiFi == l.WiFi && g.SSID == ssid && g.VLAN == l.VLAN {
+		if g.WiFi == l.WiFi && g.SSID == ssid && g.VLAN == l.VLAN {
 			g.Devices = append(g.Devices, l)
 
 			return
 		}
 	}
 
-	l.Owner.Groups = append(l.Owner.Groups, &Group{Port: l.Port, WiFi: l.WiFi, SSID: ssid, VLAN: l.VLAN, Devices: []*Leaf{l}})
+	l.Owner.Groups = append(l.Owner.Groups, &Group{WiFi: l.WiFi, SSID: ssid, VLAN: l.VLAN, Devices: []*Leaf{l}})
 }
 
 // finish orders the tree, lists the VLANs and the unplaced devices, and
@@ -726,7 +727,6 @@ func (b *builder) finish() {
 		slices.SortStableFunc(n.Groups, func(a, c *Group) int {
 			return cmp.Or(
 				compareBool(a.WiFi, c.WiFi),
-				ComparePorts(a.Port, c.Port),
 				strings.Compare(a.SSID, c.SSID),
 				cmp.Compare(a.VLAN, c.VLAN),
 			)
@@ -738,7 +738,7 @@ func (b *builder) finish() {
 			}
 
 			slices.SortStableFunc(g.Devices, func(a, c *Leaf) int {
-				return cmp.Or(strings.Compare(a.Name, c.Name), cmp.Compare(a.DeviceID, c.DeviceID))
+				return cmp.Or(ComparePorts(a.Port, c.Port), strings.Compare(a.Name, c.Name), cmp.Compare(a.DeviceID, c.DeviceID))
 			})
 		}
 

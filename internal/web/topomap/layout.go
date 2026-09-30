@@ -91,6 +91,11 @@ type Chip struct {
 	// Title is the device's full name and where it is, for its tooltip.
 	Title string
 
+	// Aside is the port a wired device is on, or the band of a Wi-Fi one,
+	// drawn at AsideAt on the chip's right.
+	Aside   string
+	AsideAt Point
+
 	// Tone is the colour index of the device's VLAN, -1 when it has none.
 	Tone int
 }
@@ -179,12 +184,13 @@ type slot struct {
 	node  *topology.Node
 }
 
-// slots returns what hangs below n in port order, wired before Wi-Fi.
+// slots returns what hangs below n: its wired devices, the nodes on its ports
+// in port order, then its Wi-Fi networks.
 func slots(n *topology.Node) []slot {
 	out := make([]slot, 0, len(n.Groups)+len(n.Children))
 
 	for _, g := range n.Groups {
-		out = append(out, slot{port: g.Port, wifi: g.WiFi, group: g})
+		out = append(out, slot{wifi: g.WiFi, group: g})
 	}
 
 	for _, c := range n.Children {
@@ -254,7 +260,7 @@ func (p *placer) position(n *topology.Node, left, top float64) (*Box, []string) 
 		H:    nodeH,
 		Key:  nodeKey(n),
 	}
-	box.Label = shorten(NodeName(n))
+	box.Label = shorten(NodeName(n), maxLabel)
 
 	p.out.Boxes = append(p.out.Boxes, box)
 	p.bottom = max(p.bottom, top+nodeH)
@@ -359,9 +365,21 @@ func (p *placer) group(g *topology.Group, left, top float64) (*Group, []string) 
 			X:     left,
 			Y:     top + headH + float64(i)*(chipH+chipGap),
 			Key:   netmap.DeviceKey(l.DeviceID),
-			Label: shorten(l.Name),
+			Label: shorten(l.Name, maxLabel),
 			Title: chipTitle(l),
 			Tone:  p.tone(l.VLAN),
+		}
+
+		switch {
+		case l.WiFi:
+			c.Aside = Band(l.Band)
+		default:
+			c.Aside = l.Port
+		}
+
+		if c.Aside != "" {
+			c.AsideAt = Point{c.X + chipW - 8, c.Y}
+			c.Label = shorten(l.Name, maxLabel-len([]rune(c.Aside))-2)
 		}
 
 		out.Chips = append(out.Chips, c)
@@ -436,19 +454,18 @@ func groupKind(g *topology.Group) string {
 	return "vlan"
 }
 
-// groupTitle names a group by its port or Wi-Fi network and its VLAN.
+// groupTitle names a group by its Wi-Fi network, or as wired, and its VLAN.
 func groupTitle(g *topology.Group) string {
-	where := g.Port
+	where := "Wired"
 	if g.WiFi {
-		where = g.SSID
+		where = cmp.Or(g.SSID, "Wi-Fi")
 	}
 
-	vlan := ""
-	if g.VLAN > 0 {
-		vlan = "VLAN\u00a0" + strconv.Itoa(g.VLAN)
+	if g.VLAN == 0 {
+		return where
 	}
 
-	return join(where, vlan)
+	return join(where, "VLAN\u00a0"+strconv.Itoa(g.VLAN))
 }
 
 // nodeKey is the key a node is selected by.
@@ -507,14 +524,14 @@ func vlanList(vlans []int) string {
 	return strings.Join(parts, ", ")
 }
 
-// shorten cuts a label that would run into its neighbour's column.
-func shorten(s string) string {
+// shorten cuts a label longer than n runes, so it stays inside its box.
+func shorten(s string, n int) string {
 	r := []rune(s)
-	if len(r) <= maxLabel {
+	if len(r) <= n {
 		return s
 	}
 
-	return string(r[:maxLabel-1]) + "…"
+	return string(r[:n-1]) + "…"
 }
 
 // num renders a coordinate to one decimal place, which keeps the SVG short.
