@@ -1,6 +1,11 @@
 package mcp
 
 import (
+	"context"
+	"log/slog"
+
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/topology"
 )
 
@@ -110,24 +115,18 @@ func connectionOf(tree *topology.Tree, id int64) *connection {
 		return &connection{}
 	}
 
-	c := &connection{
+	return &connection{
 		Placed:  true,
 		Current: leaf.Current,
 		Path:    hops(topology.Path(leaf.Owner)),
 		Port:    leaf.Port,
-		VLANs:   leaf.VLANs,
+		VLANs:   vlansOf(leaf),
 		WiFi:    leaf.WiFi,
 		SSID:    leaf.SSID,
 		Band:    leaf.Band,
 		Link:    linkOf(leaf.Speed),
 		Radio:   radioOf(leaf.Radio),
 	}
-
-	if len(c.VLANs) == 0 && leaf.VLAN > 0 {
-		c.VLANs = []int{leaf.VLAN}
-	}
-
-	return c
 }
 
 // hops is each node on a path as a tool reports it.
@@ -138,4 +137,169 @@ func hops(path []*topology.Node) []hop {
 	}
 
 	return out
+}
+
+// vlansOf is every VLAN l was seen in, or the VLAN of its network when no
+// source said.
+func vlansOf(l *topology.Leaf) []int {
+	if len(l.VLANs) == 0 && l.VLAN > 0 {
+		return []int{l.VLAN}
+	}
+
+	return l.VLANs
+}
+
+// topologyNode is one router, switch, access point or hypervisor in the tree.
+type topologyNode struct {
+	Key      string `json:"key" jsonschema:"Identifies the node within this result. Devices and child nodes name their node by it."`
+	Name     string `json:"name,omitempty" jsonschema:"The node's own name for itself, or its inventory name. Empty for a node nothing named."`
+	Kind     string `json:"kind" jsonschema:"How Jocasta knows the node: read (Jocasta reads its tables), seen (it announced itself to one Jocasta reads), unnamed (several devices share one port of a read node, so something sits there) or host (a hypervisor sharing a port with its virtual machines)."`
+	Likely   string `json:"likely,omitempty" jsonschema:"For an unnamed node, what it most likely is: access_point when every device on it is on Wi-Fi, hypervisor when most are virtual machines, switch otherwise."`
+	Board    string `json:"board,omitempty" jsonschema:"The hardware model the node announced."`
+	DeviceID int64  `json:"device_id,omitempty" jsonschema:"The inventory device the node is, for get_device. Absent when the inventory has none."`
+	Online   bool   `json:"online"`
+
+	Parent     string `json:"parent,omitempty" jsonschema:"The key of the node this one hangs from. Absent on the router."`
+	ParentPort string `json:"parent_port,omitempty" jsonschema:"The parent's port this node hangs from. Absent when unknown."`
+	Port       string `json:"port,omitempty" jsonschema:"This node's own port facing its parent. Absent when unknown."`
+	VLANs      []int  `json:"vlans,omitempty" jsonschema:"The VLANs the parent's port carries."`
+	Trunk      bool   `json:"trunk,omitempty" jsonschema:"The parent's port carries tagged VLANs."`
+	Link       *link  `json:"link,omitempty" jsonschema:"How fast the link to the parent runs. Absent when unknown."`
+}
+
+// placedDevice is one device and where it sits in the tree.
+type placedDevice struct {
+	DeviceID int64  `json:"device_id"`
+	Name     string `json:"name"`
+	Class    string `json:"class,omitempty"`
+	Online   bool   `json:"online"`
+
+	Node    string `json:"node" jsonschema:"The key of the node the device hangs from."`
+	Current bool   `json:"current" jsonschema:"Whether the latest read of that node saw the device there. False means this is where it was last seen."`
+	Port    string `json:"port,omitempty" jsonschema:"The node's port the device is on. Absent when unknown."`
+	VLANs   []int  `json:"vlans,omitempty"`
+
+	WiFi bool   `json:"wifi,omitempty"`
+	SSID string `json:"ssid,omitempty"`
+	Band string `json:"band,omitempty" jsonschema:"The Wi-Fi band as the access point names it, such as 5ghz-ax."`
+
+	Link  *link  `json:"link,omitempty" jsonschema:"How fast the device's own wired link runs. Absent when unknown, and for a device behind a node Jocasta does not read, whose port speed belongs to that node's link."`
+	Radio *radio `json:"radio,omitempty" jsonschema:"How the device's Wi-Fi connection runs."`
+}
+
+// unplacedDevice is an online device no source has seen on any port.
+type unplacedDevice struct {
+	DeviceID int64  `json:"device_id"`
+	Name     string `json:"name"`
+	Class    string `json:"class,omitempty"`
+}
+
+// getTopologyOutput is the whole tree, flattened: the nodes from the router
+// down, each after the node it hangs from, and the devices on each.
+type getTopologyOutput struct {
+	// Recorded is false when no router, switch or access point has been read,
+	// and the lists are empty.
+	Recorded bool             `json:"recorded"`
+	Nodes    []topologyNode   `json:"nodes"`
+	Devices  []placedDevice   `json:"devices"`
+	Unplaced []unplacedDevice `json:"unplaced"`
+}
+
+// getTopology is inventory.Store.Topology, offered as a tool.
+func getTopology(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
+	t := &mcpsdk.Tool{
+		Name:  "get_topology",
+		Title: "Get the network's topology",
+		Description: "Get what is plugged in where across the whole network, from the tables of the routers, switches and " +
+			"access points Jocasta reads. Returns the nodes (router, switches, access points, hypervisors) from the router " +
+			"down, each with the node and port it hangs from, the VLANs that port carries and how fast its link runs; " +
+			"every device placed on a node, with its port or Wi-Fi network, VLAN, and link speed or Wi-Fi rates and " +
+			"signal; and the online devices no port has seen. Ignored devices are left out. " +
+			"recorded is false when nothing has been read yet. For one device, get_device says the same about it.",
+		InputSchema:  schemaFor[struct{}](),
+		OutputSchema: schemaFor[getTopologyOutput](),
+		Annotations:  readOnly(),
+	}
+
+	handler := func(
+		ctx context.Context,
+		_ *mcpsdk.CallToolRequest,
+		_ struct{},
+	) (*mcpsdk.CallToolResult, getTopologyOutput, error) {
+		tree, err := store.Topology(ctx)
+		if err != nil {
+			return nil, getTopologyOutput{}, err
+		}
+
+		return nil, topologyOf(tree), nil
+	}
+
+	return func(s *mcpsdk.Server, log *slog.Logger) { addTool(s, log, t, handler) }
+}
+
+// topologyOf flattens tree into what get_topology answers with.
+func topologyOf(tree *topology.Tree) getTopologyOutput {
+	out := getTopologyOutput{
+		Recorded: tree.Root != nil,
+		Nodes:    []topologyNode{},
+		Devices:  []placedDevice{},
+		Unplaced: make([]unplacedDevice, 0, len(tree.Unplaced)),
+	}
+
+	if tree.Root != nil {
+		out.walk(tree.Root)
+	}
+
+	for _, l := range tree.Unplaced {
+		out.Unplaced = append(out.Unplaced, unplacedDevice{DeviceID: l.DeviceID, Name: l.Name, Class: l.Class})
+	}
+
+	return out
+}
+
+// walk adds n, the devices on it, and every node below it, in that order.
+func (o *getTopologyOutput) walk(n *topology.Node) {
+	node := topologyNode{
+		Key:      n.Key,
+		Name:     n.Name,
+		Kind:     string(n.Kind),
+		Likely:   likely(n),
+		Board:    n.Board,
+		DeviceID: n.DeviceID,
+		Online:   n.Online,
+	}
+
+	if n.Parent != nil {
+		node.Parent = n.Parent.Key
+	}
+
+	if up := n.Uplink; up != nil {
+		node.ParentPort, node.Port, node.VLANs, node.Trunk, node.Link = up.ParentPort, up.Port, up.VLANs, up.Trunk, linkOf(up.Speed)
+	}
+
+	o.Nodes = append(o.Nodes, node)
+
+	for _, g := range n.Groups {
+		for _, l := range g.Devices {
+			o.Devices = append(o.Devices, placedDevice{
+				DeviceID: l.DeviceID,
+				Name:     l.Name,
+				Class:    l.Class,
+				Online:   l.Online,
+				Node:     n.Key,
+				Current:  l.Current,
+				Port:     l.Port,
+				VLANs:    vlansOf(l),
+				WiFi:     l.WiFi,
+				SSID:     l.SSID,
+				Band:     l.Band,
+				Link:     linkOf(l.Speed),
+				Radio:    radioOf(l.Radio),
+			})
+		}
+	}
+
+	for _, c := range n.Children {
+		o.walk(c)
+	}
 }

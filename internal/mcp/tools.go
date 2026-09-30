@@ -38,6 +38,7 @@ func tools(store *inventory.Store) []tool {
 		{register: getPortOverview(store)},
 		{register: listScans(store)},
 		{register: listTraffic(store, time.Now)},
+		{register: getTopology(store)},
 		{writes: true, register: updateDeviceCuration(store)},
 	}
 }
