@@ -87,6 +87,7 @@ the endpoint.
 | `get_port_overview` | Open ports across the network, and the commonest services. |
 | `list_scans` | When scans ran, and what they found. |
 | `list_traffic` | Who devices exchanged data with. Needs traffic collection. |
+| `get_topology` | What is plugged in where, and how fast each link runs. Needs [topology set up](setup.md#show-what-is-plugged-in-where). |
 | `update_device_curation` | Sets a device's label, group, type, notes and ignored flag. `read_write` tokens only. |
 
 ## Prompts
