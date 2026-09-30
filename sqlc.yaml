@@ -57,6 +57,12 @@ sql:
             go_type: *timestamp
           - column: "outside_addresses.first_seen"
             go_type: *timestamp
+          - column: "topology_nodes.read_at"
+            go_type: *timestamp
+          - column: "topology_sightings.first_seen"
+            go_type: *timestamp
+          - column: "topology_sightings.last_seen"
+            go_type: *timestamp
           - column: "outside_addresses.last_seen"
             go_type: *timestamp
           - column: "addresses.last_seen"
@@ -184,6 +190,12 @@ sql:
           - column: "addresses.is_current"
             go_type: "bool"
           - column: "users.totp_enabled"
+            go_type: "bool"
+          - column: "topology_nodes.gateway"
+            go_type: "bool"
+          - column: "topology_ports.running"
+            go_type: "bool"
+          - column: "topology_sightings.wifi"
             go_type: "bool"
 
     strict_function_checks: true

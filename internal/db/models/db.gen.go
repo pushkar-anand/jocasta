@@ -114,6 +114,15 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deleteScansBeforeStmt, err = db.PrepareContext(ctx, deleteScansBefore); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteScansBefore: %w", err)
 	}
+	if q.deleteTopologyNeighboursStmt, err = db.PrepareContext(ctx, deleteTopologyNeighbours); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteTopologyNeighbours: %w", err)
+	}
+	if q.deleteTopologyPortsStmt, err = db.PrepareContext(ctx, deleteTopologyPorts); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteTopologyPorts: %w", err)
+	}
+	if q.deleteTopologySightingsBeforeStmt, err = db.PrepareContext(ctx, deleteTopologySightingsBefore); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteTopologySightingsBefore: %w", err)
+	}
 	if q.deleteTrafficBeforeStmt, err = db.PrepareContext(ctx, deleteTrafficBefore); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteTrafficBefore: %w", err)
 	}
@@ -174,6 +183,15 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.insertAddressStmt, err = db.PrepareContext(ctx, insertAddress); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertAddress: %w", err)
 	}
+	if q.insertTopologyNeighbourStmt, err = db.PrepareContext(ctx, insertTopologyNeighbour); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertTopologyNeighbour: %w", err)
+	}
+	if q.insertTopologyPortStmt, err = db.PrepareContext(ctx, insertTopologyPort); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertTopologyPort: %w", err)
+	}
+	if q.lastTopologyReadAtStmt, err = db.PrepareContext(ctx, lastTopologyReadAt); err != nil {
+		return nil, fmt.Errorf("error preparing query LastTopologyReadAt: %w", err)
+	}
 	if q.latestSuccessfulScanFinishedAtStmt, err = db.PrepareContext(ctx, latestSuccessfulScanFinishedAt); err != nil {
 		return nil, fmt.Errorf("error preparing query LatestSuccessfulScanFinishedAt: %w", err)
 	}
@@ -203,6 +221,18 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.listNetworksStmt, err = db.PrepareContext(ctx, listNetworks); err != nil {
 		return nil, fmt.Errorf("error preparing query ListNetworks: %w", err)
+	}
+	if q.listTopologyNeighboursStmt, err = db.PrepareContext(ctx, listTopologyNeighbours); err != nil {
+		return nil, fmt.Errorf("error preparing query ListTopologyNeighbours: %w", err)
+	}
+	if q.listTopologyNodesStmt, err = db.PrepareContext(ctx, listTopologyNodes); err != nil {
+		return nil, fmt.Errorf("error preparing query ListTopologyNodes: %w", err)
+	}
+	if q.listTopologyPortsStmt, err = db.PrepareContext(ctx, listTopologyPorts); err != nil {
+		return nil, fmt.Errorf("error preparing query ListTopologyPorts: %w", err)
+	}
+	if q.listTopologySightingsStmt, err = db.PrepareContext(ctx, listTopologySightings); err != nil {
+		return nil, fmt.Errorf("error preparing query ListTopologySightings: %w", err)
 	}
 	if q.listUsersStmt, err = db.PrepareContext(ctx, listUsers); err != nil {
 		return nil, fmt.Errorf("error preparing query ListUsers: %w", err)
@@ -311,6 +341,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.upsertSourceStmt, err = db.PrepareContext(ctx, upsertSource); err != nil {
 		return nil, fmt.Errorf("error preparing query UpsertSource: %w", err)
+	}
+	if q.upsertTopologyNodeStmt, err = db.PrepareContext(ctx, upsertTopologyNode); err != nil {
+		return nil, fmt.Errorf("error preparing query UpsertTopologyNode: %w", err)
+	}
+	if q.upsertTopologySightingStmt, err = db.PrepareContext(ctx, upsertTopologySighting); err != nil {
+		return nil, fmt.Errorf("error preparing query UpsertTopologySighting: %w", err)
 	}
 	if q.upsertTrafficStmt, err = db.PrepareContext(ctx, upsertTraffic); err != nil {
 		return nil, fmt.Errorf("error preparing query UpsertTraffic: %w", err)
@@ -470,6 +506,21 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing deleteScansBeforeStmt: %w", cerr)
 		}
 	}
+	if q.deleteTopologyNeighboursStmt != nil {
+		if cerr := q.deleteTopologyNeighboursStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteTopologyNeighboursStmt: %w", cerr)
+		}
+	}
+	if q.deleteTopologyPortsStmt != nil {
+		if cerr := q.deleteTopologyPortsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteTopologyPortsStmt: %w", cerr)
+		}
+	}
+	if q.deleteTopologySightingsBeforeStmt != nil {
+		if cerr := q.deleteTopologySightingsBeforeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteTopologySightingsBeforeStmt: %w", cerr)
+		}
+	}
 	if q.deleteTrafficBeforeStmt != nil {
 		if cerr := q.deleteTrafficBeforeStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteTrafficBeforeStmt: %w", cerr)
@@ -570,6 +621,21 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing insertAddressStmt: %w", cerr)
 		}
 	}
+	if q.insertTopologyNeighbourStmt != nil {
+		if cerr := q.insertTopologyNeighbourStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertTopologyNeighbourStmt: %w", cerr)
+		}
+	}
+	if q.insertTopologyPortStmt != nil {
+		if cerr := q.insertTopologyPortStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertTopologyPortStmt: %w", cerr)
+		}
+	}
+	if q.lastTopologyReadAtStmt != nil {
+		if cerr := q.lastTopologyReadAtStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing lastTopologyReadAtStmt: %w", cerr)
+		}
+	}
 	if q.latestSuccessfulScanFinishedAtStmt != nil {
 		if cerr := q.latestSuccessfulScanFinishedAtStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing latestSuccessfulScanFinishedAtStmt: %w", cerr)
@@ -618,6 +684,26 @@ func (q *Queries) Close() error {
 	if q.listNetworksStmt != nil {
 		if cerr := q.listNetworksStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listNetworksStmt: %w", cerr)
+		}
+	}
+	if q.listTopologyNeighboursStmt != nil {
+		if cerr := q.listTopologyNeighboursStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listTopologyNeighboursStmt: %w", cerr)
+		}
+	}
+	if q.listTopologyNodesStmt != nil {
+		if cerr := q.listTopologyNodesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listTopologyNodesStmt: %w", cerr)
+		}
+	}
+	if q.listTopologyPortsStmt != nil {
+		if cerr := q.listTopologyPortsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listTopologyPortsStmt: %w", cerr)
+		}
+	}
+	if q.listTopologySightingsStmt != nil {
+		if cerr := q.listTopologySightingsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listTopologySightingsStmt: %w", cerr)
 		}
 	}
 	if q.listUsersStmt != nil {
@@ -800,6 +886,16 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing upsertSourceStmt: %w", cerr)
 		}
 	}
+	if q.upsertTopologyNodeStmt != nil {
+		if cerr := q.upsertTopologyNodeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing upsertTopologyNodeStmt: %w", cerr)
+		}
+	}
+	if q.upsertTopologySightingStmt != nil {
+		if cerr := q.upsertTopologySightingStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing upsertTopologySightingStmt: %w", cerr)
+		}
+	}
 	if q.upsertTrafficStmt != nil {
 		if cerr := q.upsertTrafficStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing upsertTrafficStmt: %w", cerr)
@@ -874,6 +970,9 @@ type Queries struct {
 	deleteProbesBeforeStmt             *sql.Stmt
 	deleteRecoveryCodesByUserStmt      *sql.Stmt
 	deleteScansBeforeStmt              *sql.Stmt
+	deleteTopologyNeighboursStmt       *sql.Stmt
+	deleteTopologyPortsStmt            *sql.Stmt
+	deleteTopologySightingsBeforeStmt  *sql.Stmt
 	deleteTrafficBeforeStmt            *sql.Stmt
 	deviceAttemptsStmt                 *sql.Stmt
 	deviceBroadcastsStmt               *sql.Stmt
@@ -894,6 +993,9 @@ type Queries struct {
 	identifyDeviceStmt                 *sql.Stmt
 	incomingFromInternetStmt           *sql.Stmt
 	insertAddressStmt                  *sql.Stmt
+	insertTopologyNeighbourStmt        *sql.Stmt
+	insertTopologyPortStmt             *sql.Stmt
+	lastTopologyReadAtStmt             *sql.Stmt
 	latestSuccessfulScanFinishedAtStmt *sql.Stmt
 	listAPITokensByUserStmt            *sql.Stmt
 	listDeviceAddressesStmt            *sql.Stmt
@@ -904,6 +1006,10 @@ type Queries struct {
 	listDevicesStmt                    *sql.Stmt
 	listGroupsStmt                     *sql.Stmt
 	listNetworksStmt                   *sql.Stmt
+	listTopologyNeighboursStmt         *sql.Stmt
+	listTopologyNodesStmt              *sql.Stmt
+	listTopologyPortsStmt              *sql.Stmt
+	listTopologySightingsStmt          *sql.Stmt
 	listUsersStmt                      *sql.Stmt
 	moveAddressesStmt                  *sql.Stmt
 	moveDeviceSourcesStmt              *sql.Stmt
@@ -940,6 +1046,8 @@ type Queries struct {
 	upsertOutsideAddressStmt           *sql.Stmt
 	upsertProbesStmt                   *sql.Stmt
 	upsertSourceStmt                   *sql.Stmt
+	upsertTopologyNodeStmt             *sql.Stmt
+	upsertTopologySightingStmt         *sql.Stmt
 	upsertTrafficStmt                  *sql.Stmt
 }
 
@@ -977,6 +1085,9 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deleteProbesBeforeStmt:             q.deleteProbesBeforeStmt,
 		deleteRecoveryCodesByUserStmt:      q.deleteRecoveryCodesByUserStmt,
 		deleteScansBeforeStmt:              q.deleteScansBeforeStmt,
+		deleteTopologyNeighboursStmt:       q.deleteTopologyNeighboursStmt,
+		deleteTopologyPortsStmt:            q.deleteTopologyPortsStmt,
+		deleteTopologySightingsBeforeStmt:  q.deleteTopologySightingsBeforeStmt,
 		deleteTrafficBeforeStmt:            q.deleteTrafficBeforeStmt,
 		deviceAttemptsStmt:                 q.deviceAttemptsStmt,
 		deviceBroadcastsStmt:               q.deviceBroadcastsStmt,
@@ -997,6 +1108,9 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		identifyDeviceStmt:                 q.identifyDeviceStmt,
 		incomingFromInternetStmt:           q.incomingFromInternetStmt,
 		insertAddressStmt:                  q.insertAddressStmt,
+		insertTopologyNeighbourStmt:        q.insertTopologyNeighbourStmt,
+		insertTopologyPortStmt:             q.insertTopologyPortStmt,
+		lastTopologyReadAtStmt:             q.lastTopologyReadAtStmt,
 		latestSuccessfulScanFinishedAtStmt: q.latestSuccessfulScanFinishedAtStmt,
 		listAPITokensByUserStmt:            q.listAPITokensByUserStmt,
 		listDeviceAddressesStmt:            q.listDeviceAddressesStmt,
@@ -1007,6 +1121,10 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		listDevicesStmt:                    q.listDevicesStmt,
 		listGroupsStmt:                     q.listGroupsStmt,
 		listNetworksStmt:                   q.listNetworksStmt,
+		listTopologyNeighboursStmt:         q.listTopologyNeighboursStmt,
+		listTopologyNodesStmt:              q.listTopologyNodesStmt,
+		listTopologyPortsStmt:              q.listTopologyPortsStmt,
+		listTopologySightingsStmt:          q.listTopologySightingsStmt,
 		listUsersStmt:                      q.listUsersStmt,
 		moveAddressesStmt:                  q.moveAddressesStmt,
 		moveDeviceSourcesStmt:              q.moveDeviceSourcesStmt,
@@ -1043,6 +1161,8 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		upsertOutsideAddressStmt:           q.upsertOutsideAddressStmt,
 		upsertProbesStmt:                   q.upsertProbesStmt,
 		upsertSourceStmt:                   q.upsertSourceStmt,
+		upsertTopologyNodeStmt:             q.upsertTopologyNodeStmt,
+		upsertTopologySightingStmt:         q.upsertTopologySightingStmt,
 		upsertTrafficStmt:                  q.upsertTrafficStmt,
 	}
 }

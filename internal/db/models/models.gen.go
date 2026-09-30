@@ -165,6 +165,47 @@ type Source struct {
 	CreatedAt dbtype.Time       `json:"created_at"`
 }
 
+type TopologyNeighbour struct {
+	SourceID  int64          `json:"source_id"`
+	Port      string         `json:"port"`
+	MAC       string         `json:"mac"`
+	Identity  string         `json:"identity"`
+	Platform  sql.NullString `json:"platform"`
+	Board     sql.NullString `json:"board"`
+	TheirPort sql.NullString `json:"their_port"`
+	Address   sql.NullString `json:"address"`
+}
+
+type TopologyNode struct {
+	SourceID int64          `json:"source_id"`
+	Identity sql.NullString `json:"identity"`
+	Gateway  bool           `json:"gateway"`
+	OwnMacs  string         `json:"own_macs"`
+	ReadAt   dbtype.Time    `json:"read_at"`
+}
+
+type TopologyPort struct {
+	SourceID int64  `json:"source_id"`
+	Name     string `json:"name"`
+	Kind     string `json:"kind"`
+	Pvid     int64  `json:"pvid"`
+	Tagged   string `json:"tagged"`
+	Untagged string `json:"untagged"`
+	Running  bool   `json:"running"`
+}
+
+type TopologySighting struct {
+	SourceID  int64          `json:"source_id"`
+	Port      string         `json:"port"`
+	MAC       string         `json:"mac"`
+	Vlan      int64          `json:"vlan"`
+	Wifi      bool           `json:"wifi"`
+	Ssid      sql.NullString `json:"ssid"`
+	Band      sql.NullString `json:"band"`
+	FirstSeen dbtype.Time    `json:"first_seen"`
+	LastSeen  dbtype.Time    `json:"last_seen"`
+}
+
 type TrafficHourly struct {
 	SourceID      int64          `json:"source_id"`
 	DeviceID      int64          `json:"device_id"`
