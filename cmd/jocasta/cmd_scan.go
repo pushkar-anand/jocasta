@@ -19,16 +19,17 @@ import (
 
 // ScanCmd configures a single sweep and optional inventory update.
 type ScanCmd struct {
-	Target       string        `arg:"" help:"Target CIDR prefix to sweep, for example 192.0.2.0/24."`
-	Rate         int           `name:"rate" help:"Maximum ICMP echo probes per second." default:"1000"`
-	Rounds       int           `name:"rounds" help:"Probes per address before declaring host down." default:"2"`
-	Wait         time.Duration `name:"wait" help:"Wait duration for replies after final probe." default:"2s"`
-	ResolveNames bool          `name:"resolve-names" negatable:"" help:"Resolve hostnames via reverse DNS." default:"true"`
-	ResolveMACs  bool          `name:"resolve-macs" negatable:"" help:"Resolve MAC addresses via neighbour table." default:"true"`
-	ResolveMDNS  bool          `name:"resolve-mdns" negatable:"" help:"Ask hosts for their names over mDNS when reverse DNS gives none or is turned off." default:"true"`
-	JSON         bool          `name:"json" help:"Output results as JSON."`
-	Save         bool          `name:"save" help:"Record the results in the device inventory."`
-	Source       string        `name:"source" help:"Name recorded as the origin of these results. Defaults to scan.source, then this host's name."`
+	Target         string        `arg:"" help:"Target CIDR prefix to sweep, for example 192.0.2.0/24."`
+	Rate           int           `name:"rate" help:"Maximum ICMP echo probes per second." default:"1000"`
+	Rounds         int           `name:"rounds" help:"Probes per address before declaring host down." default:"2"`
+	Wait           time.Duration `name:"wait" help:"Wait duration for replies after final probe." default:"2s"`
+	ResolveNames   bool          `name:"resolve-names" negatable:"" help:"Resolve hostnames via reverse DNS." default:"true"`
+	ResolveMACs    bool          `name:"resolve-macs" negatable:"" help:"Resolve MAC addresses via neighbour table." default:"true"`
+	ResolveMDNS    bool          `name:"resolve-mdns" negatable:"" help:"Ask hosts for their names over mDNS when reverse DNS gives none or is turned off." default:"true"`
+	ResolveNetBIOS bool          `name:"resolve-netbios" negatable:"" help:"Ask hosts for their names over NetBIOS when reverse DNS and mDNS give none." default:"true"`
+	JSON           bool          `name:"json" help:"Output results as JSON."`
+	Save           bool          `name:"save" help:"Record the results in the device inventory."`
+	Source         string        `name:"source" help:"Name recorded as the origin of these results. Defaults to scan.source, then this host's name."`
 }
 
 // Run sweeps Target and prints the hosts that answered. Save also records them
@@ -52,6 +53,7 @@ func (s *ScanCmd) Run(
 		scanner.WithNameResolution(s.ResolveNames),
 		scanner.WithMACResolution(s.ResolveMACs),
 		scanner.WithMDNSResolution(s.ResolveMDNS),
+		scanner.WithNetBIOSResolution(s.ResolveNetBIOS),
 	}
 
 	sc := scanner.New(log, opts...)

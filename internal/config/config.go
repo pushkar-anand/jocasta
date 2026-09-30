@@ -121,6 +121,10 @@ type (
 			// reverse DNS name, for its name over mDNS. With ResolveNames off,
 			// that is every host that answered.
 			ResolveMDNS bool `koanf:"resolve_mdns"`
+
+			// ResolveNetBIOS turns on asking each host that answered, and has
+			// no name from reverse DNS or mDNS, for its name over NetBIOS.
+			ResolveNetBIOS bool `koanf:"resolve_netbios"`
 		} `koanf:"devices"`
 
 		Ports struct {

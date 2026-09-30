@@ -134,6 +134,7 @@ func run(args []string) error {
 		scanner.WithNameResolution(cfg.Scan.Devices.ResolveNames),
 		scanner.WithMACResolution(cfg.Scan.Devices.ResolveMACs),
 		scanner.WithMDNSResolution(cfg.Scan.Devices.ResolveMDNS),
+		scanner.WithNetBIOSResolution(cfg.Scan.Devices.ResolveNetBIOS),
 	)
 
 	// Kong hands each command only the arguments its Run signature names, so a

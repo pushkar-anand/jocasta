@@ -62,6 +62,14 @@ func TestResolveHostname(t *testing.T) {
 			want: nameClaim{name: "bound", standing: dbtype.HostnameFromDHCPStatic, at: at(1)},
 		},
 		{
+			name: "a dynamic lease outranks NetBIOS",
+			claims: []nameClaim{
+				{name: "DESKTOP-4F2K", standing: dbtype.HostnameFromNetBIOS, at: at(2)},
+				{name: "desktop", standing: dbtype.HostnameFromDHCPLease, at: at(1)},
+			},
+			want: nameClaim{name: "desktop", standing: dbtype.HostnameFromDHCPLease, at: at(1)},
+		},
+		{
 			name: "equal standing goes to the later sighting",
 			claims: []nameClaim{
 				{name: "old", standing: dbtype.HostnameFromDNS, at: at(1)},

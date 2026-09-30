@@ -35,18 +35,19 @@ var defaults = map[string]any{
 
 	"scan.source": defaultSource(),
 
-	"scan.devices.enabled":       true,
-	"scan.devices.interval":      "5m",
-	"scan.devices.rate":          1000,
-	"scan.devices.rounds":        2,
-	"scan.devices.wait":          "2s",
-	"scan.devices.resolve_names": true,
-	"scan.devices.resolve_macs":  true,
-	"scan.devices.resolve_mdns":  true,
-	"scan.ports.enabled":         false,
-	"scan.ports.interval":        "6h",
-	"scan.ports.custom":          "",
-	"scan.ports.concurrency":     scanner.DefaultConcurrency,
+	"scan.devices.enabled":         true,
+	"scan.devices.interval":        "5m",
+	"scan.devices.rate":            1000,
+	"scan.devices.rounds":          2,
+	"scan.devices.wait":            "2s",
+	"scan.devices.resolve_names":   true,
+	"scan.devices.resolve_macs":    true,
+	"scan.devices.resolve_mdns":    true,
+	"scan.devices.resolve_netbios": true,
+	"scan.ports.enabled":           false,
+	"scan.ports.interval":          "6h",
+	"scan.ports.custom":            "",
+	"scan.ports.concurrency":       scanner.DefaultConcurrency,
 }
 
 // DefaultNetFlowListen is the UDP address a NetFlow instance binds when it

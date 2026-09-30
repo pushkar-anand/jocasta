@@ -109,9 +109,13 @@ the source ranked highest here:
 2. A static DHCP lease on your router.
 3. mDNS, asked of each address the sweep finds that has no reverse DNS name.
 4. A dynamic DHCP lease on your router.
+5. NetBIOS, asked of each address the sweep finds that has no name from
+   reverse DNS or mDNS.
 
 When two sources of the same rank disagree, the one heard from last wins. The
-device page lists the name each source gives.
+device page lists the name each source gives. Once a sweep has a name for a
+device, a lower-ranked lookup does not replace it, so a device that misses
+one query keeps the name it had.
 
 mDNS gives a name to phones, TVs, printers and computers that reverse DNS
 does not know, such as `living-room-tv.local`. Jocasta sends one query to each
@@ -122,6 +126,13 @@ standard asks, so devices on other segments rarely get an mDNS name.
 To turn it off, set `scan.devices.resolve_mdns: false`. It does not depend on
 `scan.devices.resolve_names`: with reverse DNS off, no device has a reverse DNS
 name, so every device that answers the sweep is asked over mDNS.
+
+NetBIOS gives a name to Windows computers and to devices running Samba, such
+as a NAS. A NetBIOS name, such as `DESKTOP-4F2K`, is 15 characters at most.
+Jocasta sends one query to each device still without a name, on UDP port 137.
+Windows answers only with file and printer sharing turned on, and by default
+only a query from its own segment. To turn it off, set
+`scan.devices.resolve_netbios: false`.
 
 ## Read devices from your router
 
