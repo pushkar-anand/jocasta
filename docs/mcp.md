@@ -79,7 +79,7 @@ the endpoint.
 | Tool | What it answers |
 |---|---|
 | `list_devices` | Which devices match a search, group, network, type or presence (seen recently or quiet). |
-| `get_device` | Everything about one device: addresses, ports, sources, your labels. |
+| `get_device` | Everything about one device: addresses, ports, sources, your labels, and where it is plugged in and how fast. |
 | `list_events` | What changed, across the network or for one device. |
 | `list_networks`, `get_network` | The network segments, and how many devices are on each. |
 | `list_groups` | The groups you filed devices under. |
