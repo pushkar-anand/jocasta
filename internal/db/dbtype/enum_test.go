@@ -158,3 +158,14 @@ func TestUserRoleCanWrite(t *testing.T) {
 	assert.True(t, RoleAdmin.CanWrite())
 	assert.False(t, UserRole("").CanWrite(), "an unset role cannot write")
 }
+
+func TestHostnameSourceRank(t *testing.T) {
+	t.Parallel()
+
+	// Highest first, as the name election reads them.
+	ordered := []HostnameSource{HostnameFromDNS, HostnameFromDHCPStatic, HostnameFromMDNS, HostnameFromDHCPLease, ""}
+
+	for i := 1; i < len(ordered); i++ {
+		assert.Greater(t, ordered[i-1].Rank(), ordered[i].Rank(), "%q should outrank %q", ordered[i-1], ordered[i])
+	}
+}

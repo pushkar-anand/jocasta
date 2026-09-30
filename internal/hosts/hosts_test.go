@@ -384,3 +384,19 @@ func TestCanonicalMAC(t *testing.T) {
 		assert.Equal(t, tc.ok, ok, tc.in)
 	}
 }
+
+func TestNamedCopiesTheHostWithTheName(t *testing.T) {
+	t.Parallel()
+
+	h, err := BuildHost(t.Context(), HostInput{IP: "192.0.2.10", MAC: "00:00:0c:11:22:33", Hostname: suppliedName})
+	require.NoError(t, err)
+
+	named := h.Named("tv.local")
+
+	assert.Equal(t, "tv.local", named.Hostname())
+	assert.Equal(t, h.Address(), named.Address())
+	assert.Equal(t, h.Vendor(), named.Vendor())
+
+	// The host it was copied from keeps its own name.
+	assert.Equal(t, suppliedName, h.Hostname())
+}
