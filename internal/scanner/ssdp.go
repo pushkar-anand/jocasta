@@ -18,8 +18,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"golang.org/x/net/html/charset"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/text/encoding/charmap"
 )
 
 // standardSSDPGroup is the multicast group and port an SSDP search is sent to,
@@ -296,13 +296,13 @@ type description struct {
 
 // parseDescription returns the root device's friendlyName from the
 // description in b, and false when b does not parse or the name is one
-// cleanLabel refuses. A description in an encoding other than UTF-8, such as
-// ISO-8859-1, is read in the encoding it declares.
+// cleanLabel refuses. A description is read as UTF-8, or as ISO-8859-1 or
+// windows-1252 when it declares one of those (see legacyCharset).
 func parseDescription(b []byte) (string, bool) {
 	var d description
 
 	dec := xml.NewDecoder(bytes.NewReader(b))
-	dec.CharsetReader = charset.NewReaderLabel
+	dec.CharsetReader = legacyCharset
 
 	if err := dec.Decode(&d); err != nil {
 		return "", false
@@ -311,12 +311,28 @@ func parseDescription(b []byte) (string, bool) {
 	return cleanLabel(d.Device.FriendlyName)
 }
 
+// legacyCharset returns a reader that decodes input from the encoding label
+// names. The UPnP Device Architecture asks for UTF-8, and the older devices
+// that do not follow it declare ISO-8859-1 or windows-1252, so only those two
+// are read. Any other label is an error, which fails the parse. Reading only
+// these two keeps the tables for most other encodings out of the binary.
+func legacyCharset(label string, input io.Reader) (io.Reader, error) {
+	switch strings.ToLower(label) {
+	case "iso-8859-1", "iso8859-1", "latin1":
+		return charmap.ISO8859_1.NewDecoder().Reader(input), nil
+	case "windows-1252", "cp1252":
+		return charmap.Windows1252.NewDecoder().Reader(input), nil
+	default:
+		return nil, fmt.Errorf("description in %q, which is not read", label)
+	}
+}
+
 // cleanLabel collapses each run of white space in s to one space, trims the
 // ends, and reports whether what is left is valid UTF-8 of 1 to 64 printable
 // characters. A label is shown to a person, so it may hold spaces where a
-// host name may not. It holds no control or format character, so a device
-// cannot reverse how its label reads, as U+202E does, or hide characters in
-// it to look like another device's.
+// host name may not. A label it passes holds no control or format character,
+// so a device cannot reverse how its label reads, as U+202E does, or hide
+// characters in it to look like another device's.
 func cleanLabel(s string) (string, bool) {
 	if !utf8.ValidString(s) {
 		return "", false

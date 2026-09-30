@@ -163,6 +163,16 @@ func TestParseDescription(t *testing.T) {
 		{name: "a right-to-left override", body: deviceDescription("VT moor gniviL\u202e")},
 		{name: "a zero-width space", body: deviceDescription("Living\u200bRoom TV")},
 		{
+			name:   "a windows-1252 description",
+			body:   "<?xml version=\"1.0\" encoding=\"windows-1252\"?><root><device><friendlyName>\x80 TV</friendlyName></device></root>",
+			want:   "€ TV",
+			wantOK: true,
+		},
+		{
+			name: "a description in an encoding that is not read",
+			body: "<?xml version=\"1.0\" encoding=\"Shift_JIS\"?><root><device><friendlyName>TV</friendlyName></device></root>",
+		},
+		{
 			name:   "an ISO-8859-1 description",
 			body:   "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?><root><device><friendlyName>Caf\xe9 TV</friendlyName></device></root>",
 			want:   "Café TV",
