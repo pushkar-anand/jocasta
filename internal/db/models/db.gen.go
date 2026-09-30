@@ -126,6 +126,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deleteTrafficBeforeStmt, err = db.PrepareContext(ctx, deleteTrafficBefore); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteTrafficBefore: %w", err)
 	}
+	if q.deleteUncuratedDevicesBeforeStmt, err = db.PrepareContext(ctx, deleteUncuratedDevicesBefore); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteUncuratedDevicesBefore: %w", err)
+	}
 	if q.deviceAttemptsStmt, err = db.PrepareContext(ctx, deviceAttempts); err != nil {
 		return nil, fmt.Errorf("error preparing query DeviceAttempts: %w", err)
 	}
@@ -524,6 +527,11 @@ func (q *Queries) Close() error {
 	if q.deleteTrafficBeforeStmt != nil {
 		if cerr := q.deleteTrafficBeforeStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteTrafficBeforeStmt: %w", cerr)
+		}
+	}
+	if q.deleteUncuratedDevicesBeforeStmt != nil {
+		if cerr := q.deleteUncuratedDevicesBeforeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteUncuratedDevicesBeforeStmt: %w", cerr)
 		}
 	}
 	if q.deviceAttemptsStmt != nil {
@@ -974,6 +982,7 @@ type Queries struct {
 	deleteTopologyPortsStmt            *sql.Stmt
 	deleteTopologySightingsBeforeStmt  *sql.Stmt
 	deleteTrafficBeforeStmt            *sql.Stmt
+	deleteUncuratedDevicesBeforeStmt   *sql.Stmt
 	deviceAttemptsStmt                 *sql.Stmt
 	deviceBroadcastsStmt               *sql.Stmt
 	deviceNetworkNamesStmt             *sql.Stmt
@@ -1089,6 +1098,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deleteTopologyPortsStmt:            q.deleteTopologyPortsStmt,
 		deleteTopologySightingsBeforeStmt:  q.deleteTopologySightingsBeforeStmt,
 		deleteTrafficBeforeStmt:            q.deleteTrafficBeforeStmt,
+		deleteUncuratedDevicesBeforeStmt:   q.deleteUncuratedDevicesBeforeStmt,
 		deviceAttemptsStmt:                 q.deviceAttemptsStmt,
 		deviceBroadcastsStmt:               q.deviceBroadcastsStmt,
 		deviceNetworkNamesStmt:             q.deviceNetworkNamesStmt,

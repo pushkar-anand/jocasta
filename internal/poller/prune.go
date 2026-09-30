@@ -14,28 +14,24 @@ import (
 // the window.
 const pruneInterval = time.Hour
 
-// Prune deletes events, scans and traffic totals that have aged past their
+// Prune deletes the records and uncurated devices that have aged past their
 // retention windows.
 type Prune struct {
-	store            *inventory.Store
-	retention        time.Duration
-	trafficRetention time.Duration
-	logger           *slog.Logger
+	store     *inventory.Store
+	retention inventory.Retention
+	logger    *slog.Logger
 }
 
-// NewPrune builds the task that keeps the event and scan logs to retention and
-// the traffic totals to trafficRetention. Either may be zero, which keeps that
-// kind forever.
-func NewPrune(log *slog.Logger, store *inventory.Store, retention, trafficRetention time.Duration) *Prune {
+// NewPrune builds the task that keeps the inventory to r.
+func NewPrune(log *slog.Logger, store *inventory.Store, r inventory.Retention) *Prune {
 	if log == nil {
 		log = slog.Default()
 	}
 
 	return &Prune{
-		store:            store,
-		retention:        retention,
-		trafficRetention: trafficRetention,
-		logger:           log,
+		store:     store,
+		retention: r,
+		logger:    log,
 	}
 }
 
@@ -51,14 +47,15 @@ func (p *Prune) DueIn(context.Context) time.Duration { return 0 }
 
 // Run deletes whatever has aged past the retention window.
 func (p *Prune) Run(ctx context.Context) error {
-	res, err := p.store.Prune(ctx, p.retention, p.trafficRetention)
+	res, err := p.store.Prune(ctx, p.retention)
 	if err != nil {
 		return fmt.Errorf("prune: %w", err)
 	}
 
 	p.logger.InfoContext(ctx, "pruned records past retention",
-		slog.Duration("retention", p.retention),
-		slog.Duration("traffic_retention", p.trafficRetention),
+		slog.Duration("retention", p.retention.History),
+		slog.Duration("traffic_retention", p.retention.Traffic),
+		slog.Duration("device_retention", p.retention.Devices),
 		slog.Int64("events", res.Events),
 		slog.Int64("scans", res.Scans),
 		slog.Int64("traffic", res.Traffic),
@@ -66,6 +63,7 @@ func (p *Prune) Run(ctx context.Context) error {
 		slog.Int64("broadcasts", res.Broadcasts),
 		slog.Int64("probes", res.Probes),
 		slog.Int64("sightings", res.Sightings),
+		slog.Int64("devices", res.Devices),
 	)
 
 	return nil

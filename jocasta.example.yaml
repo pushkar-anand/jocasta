@@ -34,6 +34,8 @@ inventory:
 retention:
   history: "2160h"        # events and scans
   traffic: "720h"         # hourly traffic totals
+  devices: "2160h"        # devices never labelled, grouped, typed, noted or ignored,
+                          # after they were last seen
 
 # Where the network is.
 location:

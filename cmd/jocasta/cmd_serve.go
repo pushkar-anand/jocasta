@@ -107,10 +107,16 @@ func (s *ServeCmd) Run(
 		}
 	}
 
-	// Zero retention keeps a log forever; with both at zero there is nothing
-	// to schedule.
-	if cfg.Retention.History > 0 || cfg.Retention.Traffic > 0 {
-		err := p.Register(poller.NewPrune(log, store, cfg.Retention.History, cfg.Retention.Traffic))
+	// Zero retention keeps a kind forever; with every window at zero there is
+	// nothing to schedule.
+	r := inventory.Retention{
+		History: cfg.Retention.History,
+		Traffic: cfg.Retention.Traffic,
+		Devices: cfg.Retention.Devices,
+	}
+
+	if r.History > 0 || r.Traffic > 0 || r.Devices > 0 {
+		err := p.Register(poller.NewPrune(log, store, r))
 		if err != nil {
 			return fmt.Errorf("register pruner: %w", err)
 		}

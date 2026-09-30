@@ -142,7 +142,7 @@ func TestPruneDeletesSightingsPastRetention(t *testing.T) {
 
 	advance(testRetention + time.Hour)
 
-	res, err := s.Prune(t.Context(), testRetention, 0)
+	res, err := s.Prune(t.Context(), Retention{History: testRetention})
 	require.NoError(t, err)
 
 	assert.Equal(t, int64(2), res.Sightings)

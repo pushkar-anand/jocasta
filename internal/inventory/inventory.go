@@ -44,6 +44,10 @@ const DefaultRetention = 90 * 24 * time.Hour
 // with how busy the network is.
 const DefaultTrafficRetention = 30 * 24 * time.Hour
 
+// DefaultDeviceRetention is how long a device its owner never curated is kept
+// after it was last seen, when no retention is configured.
+const DefaultDeviceRetention = 90 * 24 * time.Hour
+
 // Store reads the inventory and writes scan results into it.
 type Store struct {
 	conn *sql.DB
