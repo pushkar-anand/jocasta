@@ -518,3 +518,89 @@ func TestBuildMarksAVirtualMachineHost(t *testing.T) {
 	assert.Equal(t, NodeUnnamed, n.Kind)
 	assert.True(t, n.VMs)
 }
+
+// A device alone on a port has that port's link. A hypervisor on a port has
+// the link, and its virtual machines, behind it, have none. So do the devices
+// behind an unnamed switch, whose link is the switch's.
+func TestBuildGivesTheLinkToWhatIsPluggedIn(t *testing.T) {
+	t.Parallel()
+
+	gigabit := Speed{Rate: 1_000_000_000, Capable: 1_000_000_000, FullDuplex: true}
+	slow := Speed{Rate: 100_000_000, Capable: 1_000_000_000, FullDuplex: true}
+
+	router := Source{
+		ID: 1, Name: "a", Identity: "router", Gateway: true, ReadAt: now, Own: []string{routerMAC},
+		Ports: []Port{
+			{Name: "ether2", Kind: PortWired, PVID: 10, Speed: slow},
+			{Name: "ether3", Kind: PortWired, PVID: 10, Speed: gigabit},
+			{Name: "ether7", Kind: PortWired, PVID: 10, Speed: gigabit},
+		},
+		Seen: []Sighting{
+			seen("ether2", 1, 10),
+			seen("ether3", 2, 10), seen("ether3", 3, 10),
+			seen("ether7", 4, 10), seen("ether7", 5, 10),
+		},
+	}
+
+	host := dev(4, "vm-host", true)
+	host.Class = "hypervisor"
+
+	tree := Build([]Source{router}, []Device{
+		dev(1, "desktop", true), dev(2, "tv", true), dev(3, "console", true), host, dev(5, "web", true),
+	})
+
+	desktop, ok := tree.Leaf(1)
+	require.True(t, ok)
+	assert.Equal(t, slow, desktop.Speed)
+	assert.True(t, desktop.Speed.Slow())
+	assert.False(t, gigabit.Slow())
+
+	tv, ok := tree.Leaf(2)
+	require.True(t, ok)
+	assert.Zero(t, tv.Speed, "behind an unnamed switch")
+	assert.Equal(t, gigabit, tv.Owner.Uplink.Speed, "the switch has the link")
+
+	n, ok := tree.Node(4)
+	require.True(t, ok)
+	assert.Equal(t, gigabit, n.Uplink.Speed)
+
+	web, ok := tree.Leaf(5)
+	require.True(t, ok)
+	assert.Zero(t, web.Speed, "a virtual machine is behind its host")
+}
+
+// A Wi-Fi client has its radio's rates. One placed from an older read has
+// none, and neither does a wired device placed from one.
+func TestBuildGivesAWiFiClientItsRates(t *testing.T) {
+	t.Parallel()
+
+	phone := wifi("wifi1", 1, 20, "home")
+	phone.Radio = Radio{Down: 866_600_000, Up: 650_000_000, Signal: -54}
+
+	gone := wifi("wifi1", 2, 20, "home")
+	gone.Radio = Radio{Down: 54_000_000, Up: 54_000_000, Signal: -80}
+
+	router := Source{
+		ID: 1, Name: "a", Identity: "router", Gateway: true, ReadAt: now, Own: []string{routerMAC},
+		Ports: []Port{
+			{Name: "wifi1", Kind: PortWiFi, PVID: 20},
+			{Name: "ether2", Kind: PortWired, PVID: 10, Speed: Speed{Rate: 1_000_000_000}},
+		},
+		Seen: []Sighting{phone, old(gone), old(seen("ether2", 3, 10))},
+	}
+
+	tree := Build([]Source{router}, []Device{dev(1, "phone", true), dev(2, "tablet", false), dev(3, "nas", false)})
+
+	l, ok := tree.Leaf(1)
+	require.True(t, ok)
+	assert.Equal(t, Radio{Down: 866_600_000, Up: 650_000_000, Signal: -54}, l.Radio)
+	assert.Zero(t, l.Speed)
+
+	for _, id := range []int64{2, 3} {
+		l, ok := tree.Leaf(id)
+		require.True(t, ok)
+		assert.False(t, l.Current)
+		assert.Zero(t, l.Speed, l.Name)
+		assert.Zero(t, l.Radio, l.Name)
+	}
+}

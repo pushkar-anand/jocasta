@@ -52,6 +52,31 @@ type Port struct {
 	PVID     int
 	Tagged   []int
 	Untagged []int
+
+	// Speed is the port's link.
+	Speed Speed
+}
+
+// Speed is how fast a wired link runs, as the latest read found it. Rate is
+// the rate it came up at and Capable the fastest both ends offer, in bits per
+// second, and zero is unknown in each.
+type Speed struct {
+	Rate       int64
+	Capable    int64
+	FullDuplex bool
+}
+
+// Slow reports whether the link came up below the rate both ends can run at.
+func (s Speed) Slow() bool { return s.Rate > 0 && s.Rate < s.Capable }
+
+// Radio is how a Wi-Fi client's connection runs, as the latest read found it.
+// Down is the rate the radio sends to the client at and Up the rate it
+// receives from it at, in bits per second, and Signal is the client's signal
+// at the radio in dBm. Zero is unknown in each.
+type Radio struct {
+	Down   int64
+	Up     int64
+	Signal int
 }
 
 // Sighting is one hardware address a source learned on one of its ports.
@@ -65,6 +90,9 @@ type Sighting struct {
 	WiFi bool
 	SSID string
 	Band string
+
+	// Radio is a Wi-Fi client's connection.
+	Radio Radio
 
 	// LastSeen is the last read that listed the address. A sighting from the
 	// source's latest read is current; an older one is where the address was
@@ -172,6 +200,9 @@ type Link struct {
 	// tagged VLANs.
 	VLANs []int
 	Trunk bool
+
+	// Speed is the link the node hangs from.
+	Speed Speed
 }
 
 // Group is the devices on a node in one VLAN: the wired ones, or the ones on
@@ -208,6 +239,13 @@ type Leaf struct {
 	// Current reports whether the latest read of Owner's source saw the
 	// device. A device placed from an older read is where it was last seen.
 	Current bool
+
+	// Speed is the link of Port, set when the device is on a read source's
+	// port by itself, and Radio is a Wi-Fi client's connection. Both are zero
+	// for a device behind a node, whose link is the node's, and for one
+	// placed from an older read.
+	Speed Speed
+	Radio Radio
 }
 
 // Node returns the node that is device id, and false when the device is not a

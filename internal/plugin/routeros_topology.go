@@ -25,6 +25,7 @@ type switchTables struct {
 	hosts     []routeros.BridgeHost
 	neighbors []routeros.Neighbor
 	regs      []routeros.Registration
+	links     []routeros.Link
 }
 
 // Topology reads what is plugged into the router. A table that fails is
@@ -51,6 +52,9 @@ func (r *RouterOS) Topology(ctx context.Context) (Topology, error) {
 
 	t.ifaces, err = r.client.Interfaces(ctx)
 	read("interfaces", err)
+
+	t.links, err = r.client.Links(ctx, t.ifaces)
+	read("links", err)
 
 	t.ports, err = r.client.BridgePorts(ctx)
 	read("bridge ports", err)
@@ -154,6 +158,12 @@ func buildPorts(t switchTables, kinds map[string]PortKind) []TopologyPort {
 		}
 
 		port(i.Name).Running = bool(i.Running)
+	}
+
+	for _, l := range t.links {
+		if p, ok := byName[l.Name]; ok && l.Rate > 0 {
+			p.Rate, p.Capable, p.FullDuplex = int64(l.Rate), int64(l.Capable()), bool(l.FullDuplex)
+		}
 	}
 
 	for _, bp := range t.ports {
@@ -264,22 +274,29 @@ func (r *RouterOS) sightings(ctx context.Context, t switchTables, kinds map[stri
 				continue
 			}
 
-			s := Sighting{Port: g.Interface, MAC: mac, VLAN: pvid[g.Interface], WiFi: true, SSID: g.SSID, Band: g.Band}
-			seen[key{s.Port, s.MAC, s.VLAN}] = s
+			s := Sighting{Port: g.Interface, MAC: mac, VLAN: pvid[g.Interface]}
+			seen[key{s.Port, s.MAC, s.VLAN}] = onWiFi(s, g)
 
 			continue
 		}
 
 		for _, k := range keys {
-			s := seen[k]
-			s.WiFi, s.SSID, s.Band = true, g.SSID, g.Band
-			seen[k] = s
+			seen[k] = onWiFi(seen[k], g)
 		}
 	}
 
 	return slices.SortedFunc(maps.Values(seen), func(a, b Sighting) int {
 		return cmp.Or(strings.Compare(a.Port, b.Port), strings.Compare(a.MAC, b.MAC), cmp.Compare(a.VLAN, b.VLAN))
 	})
+}
+
+// onWiFi marks s as a client of the radio g describes.
+func onWiFi(s Sighting, g routeros.Registration) Sighting {
+	s.WiFi, s.SSID, s.Band = true, g.SSID, g.Band
+	s.TxRate, s.RxRate = int64(g.TxRate), int64(g.RxRate)
+	s.Signal = g.DBM()
+
+	return s
 }
 
 // neighbours returns the devices that announced themselves, one per hardware

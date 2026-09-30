@@ -100,24 +100,27 @@ func (q *Queries) InsertTopologyNeighbour(ctx context.Context, arg InsertTopolog
 }
 
 const insertTopologyPort = `-- name: InsertTopologyPort :exec
-INSERT INTO topology_ports (source_id, name, kind, pvid, tagged, untagged, running)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO topology_ports (source_id, name, kind, pvid, tagged, untagged, running, rate, capable, full_duplex)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertTopologyPortParams struct {
-	SourceID int64  `json:"source_id"`
-	Name     string `json:"name"`
-	Kind     string `json:"kind"`
-	Pvid     int64  `json:"pvid"`
-	Tagged   string `json:"tagged"`
-	Untagged string `json:"untagged"`
-	Running  bool   `json:"running"`
+	SourceID   int64  `json:"source_id"`
+	Name       string `json:"name"`
+	Kind       string `json:"kind"`
+	Pvid       int64  `json:"pvid"`
+	Tagged     string `json:"tagged"`
+	Untagged   string `json:"untagged"`
+	Running    bool   `json:"running"`
+	Rate       int64  `json:"rate"`
+	Capable    int64  `json:"capable"`
+	FullDuplex bool   `json:"full_duplex"`
 }
 
 // InsertTopologyPort
 //
-//	INSERT INTO topology_ports (source_id, name, kind, pvid, tagged, untagged, running)
-//	VALUES (?, ?, ?, ?, ?, ?, ?)
+//	INSERT INTO topology_ports (source_id, name, kind, pvid, tagged, untagged, running, rate, capable, full_duplex)
+//	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 func (q *Queries) InsertTopologyPort(ctx context.Context, arg InsertTopologyPortParams) error {
 	_, err := q.exec(ctx, q.insertTopologyPortStmt, insertTopologyPort,
 		arg.SourceID,
@@ -127,6 +130,9 @@ func (q *Queries) InsertTopologyPort(ctx context.Context, arg InsertTopologyPort
 		arg.Tagged,
 		arg.Untagged,
 		arg.Running,
+		arg.Rate,
+		arg.Capable,
+		arg.FullDuplex,
 	)
 	return err
 }
@@ -247,14 +253,14 @@ func (q *Queries) ListTopologyNodes(ctx context.Context) ([]*ListTopologyNodesRo
 }
 
 const listTopologyPorts = `-- name: ListTopologyPorts :many
-SELECT source_id, name, kind, pvid, tagged, untagged, running
+SELECT source_id, name, kind, pvid, tagged, untagged, running, rate, capable, full_duplex
 FROM topology_ports
 ORDER BY source_id, name
 `
 
 // ListTopologyPorts
 //
-//	SELECT source_id, name, kind, pvid, tagged, untagged, running
+//	SELECT source_id, name, kind, pvid, tagged, untagged, running, rate, capable, full_duplex
 //	FROM topology_ports
 //	ORDER BY source_id, name
 func (q *Queries) ListTopologyPorts(ctx context.Context) ([]*TopologyPort, error) {
@@ -274,6 +280,9 @@ func (q *Queries) ListTopologyPorts(ctx context.Context) ([]*TopologyPort, error
 			&i.Tagged,
 			&i.Untagged,
 			&i.Running,
+			&i.Rate,
+			&i.Capable,
+			&i.FullDuplex,
 		); err != nil {
 			return nil, err
 		}
@@ -289,14 +298,14 @@ func (q *Queries) ListTopologyPorts(ctx context.Context) ([]*TopologyPort, error
 }
 
 const listTopologySightings = `-- name: ListTopologySightings :many
-SELECT source_id, port, mac, vlan, wifi, ssid, band, first_seen, last_seen
+SELECT source_id, port, mac, vlan, wifi, ssid, band, first_seen, last_seen, tx_rate, rx_rate, signal
 FROM topology_sightings
 ORDER BY source_id, port, mac, vlan
 `
 
 // ListTopologySightings
 //
-//	SELECT source_id, port, mac, vlan, wifi, ssid, band, first_seen, last_seen
+//	SELECT source_id, port, mac, vlan, wifi, ssid, band, first_seen, last_seen, tx_rate, rx_rate, signal
 //	FROM topology_sightings
 //	ORDER BY source_id, port, mac, vlan
 func (q *Queries) ListTopologySightings(ctx context.Context) ([]*TopologySighting, error) {
@@ -318,6 +327,9 @@ func (q *Queries) ListTopologySightings(ctx context.Context) ([]*TopologySightin
 			&i.Band,
 			&i.FirstSeen,
 			&i.LastSeen,
+			&i.TxRate,
+			&i.RxRate,
+			&i.Signal,
 		); err != nil {
 			return nil, err
 		}
@@ -371,12 +383,16 @@ func (q *Queries) UpsertTopologyNode(ctx context.Context, arg UpsertTopologyNode
 }
 
 const upsertTopologySighting = `-- name: UpsertTopologySighting :exec
-INSERT INTO topology_sightings (source_id, port, mac, vlan, wifi, ssid, band, first_seen, last_seen)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO topology_sightings (source_id, port, mac, vlan, wifi, ssid, band, tx_rate, rx_rate, signal, first_seen,
+                                last_seen)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (source_id, mac, port, vlan) DO UPDATE
     SET wifi      = excluded.wifi,
         ssid      = excluded.ssid,
         band      = excluded.band,
+        tx_rate   = excluded.tx_rate,
+        rx_rate   = excluded.rx_rate,
+        signal    = excluded.signal,
         last_seen = excluded.last_seen
 `
 
@@ -388,19 +404,26 @@ type UpsertTopologySightingParams struct {
 	Wifi      bool           `json:"wifi"`
 	Ssid      sql.NullString `json:"ssid"`
 	Band      sql.NullString `json:"band"`
+	TxRate    int64          `json:"tx_rate"`
+	RxRate    int64          `json:"rx_rate"`
+	Signal    int64          `json:"signal"`
 	FirstSeen dbtype.Time    `json:"first_seen"`
 	LastSeen  dbtype.Time    `json:"last_seen"`
 }
 
 // A read that sees the address again moves its last sighting on, and takes
-// what the radio says now about the network it joined.
+// what the radio says now about the network it joined and the connection.
 //
-//	INSERT INTO topology_sightings (source_id, port, mac, vlan, wifi, ssid, band, first_seen, last_seen)
-//	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+//	INSERT INTO topology_sightings (source_id, port, mac, vlan, wifi, ssid, band, tx_rate, rx_rate, signal, first_seen,
+//	                                last_seen)
+//	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 //	ON CONFLICT (source_id, mac, port, vlan) DO UPDATE
 //	    SET wifi      = excluded.wifi,
 //	        ssid      = excluded.ssid,
 //	        band      = excluded.band,
+//	        tx_rate   = excluded.tx_rate,
+//	        rx_rate   = excluded.rx_rate,
+//	        signal    = excluded.signal,
 //	        last_seen = excluded.last_seen
 func (q *Queries) UpsertTopologySighting(ctx context.Context, arg UpsertTopologySightingParams) error {
 	_, err := q.exec(ctx, q.upsertTopologySightingStmt, upsertTopologySighting,
@@ -411,6 +434,9 @@ func (q *Queries) UpsertTopologySighting(ctx context.Context, arg UpsertTopology
 		arg.Wifi,
 		arg.Ssid,
 		arg.Band,
+		arg.TxRate,
+		arg.RxRate,
+		arg.Signal,
 		arg.FirstSeen,
 		arg.LastSeen,
 	)

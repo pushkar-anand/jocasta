@@ -13,18 +13,22 @@ FROM topology_ports
 WHERE source_id = ?;
 
 -- name: InsertTopologyPort :exec
-INSERT INTO topology_ports (source_id, name, kind, pvid, tagged, untagged, running)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+INSERT INTO topology_ports (source_id, name, kind, pvid, tagged, untagged, running, rate, capable, full_duplex)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: UpsertTopologySighting :exec
 -- A read that sees the address again moves its last sighting on, and takes
--- what the radio says now about the network it joined.
-INSERT INTO topology_sightings (source_id, port, mac, vlan, wifi, ssid, band, first_seen, last_seen)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+-- what the radio says now about the network it joined and the connection.
+INSERT INTO topology_sightings (source_id, port, mac, vlan, wifi, ssid, band, tx_rate, rx_rate, signal, first_seen,
+                                last_seen)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (source_id, mac, port, vlan) DO UPDATE
     SET wifi      = excluded.wifi,
         ssid      = excluded.ssid,
         band      = excluded.band,
+        tx_rate   = excluded.tx_rate,
+        rx_rate   = excluded.rx_rate,
+        signal    = excluded.signal,
         last_seen = excluded.last_seen;
 
 -- name: DeleteTopologyNeighbours :exec
