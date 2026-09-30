@@ -113,8 +113,8 @@ type Scanner struct {
 	netbiosPort uint16
 	ssdpGroup   netip.AddrPort
 
-	// ssdpFailed is set once an SSDP search has failed, so later failures are
-	// logged at debug level.
+	// ssdpFailed is set while SSDP searches keep failing, so only the first
+	// failure in a run is logged as a warning. A search that works clears it.
 	ssdpFailed atomic.Bool
 }
 
@@ -166,8 +166,9 @@ func WithNetBIOSResolution(v bool) Option {
 	return func(s *Scanner) { s.resolveNetBIOS = v }
 }
 
-// WithSSDPResolution controls asking hosts that answered, and have no name
-// from reverse DNS, mDNS or NetBIOS, for their name over SSDP.
+// WithSSDPResolution controls naming hosts that answered, and have no name
+// from reverse DNS, mDNS or NetBIOS, after the friendlyName in their UPnP
+// description.
 func WithSSDPResolution(v bool) Option {
 	return func(s *Scanner) { s.resolveSSDP = v }
 }
@@ -310,7 +311,7 @@ func (s *Scanner) enrich(ctx context.Context, replies map[netip.Addr]time.Durati
 	}
 
 	if s.resolveSSDP {
-		s.nameOver(ctx, found, s.askSSDP, dbtype.HostnameFromSSDP)
+		s.nameOver(ctx, found, s.ssdpLookup, dbtype.HostnameFromSSDP)
 	}
 
 	return found
@@ -323,12 +324,19 @@ func (s *Scanner) perHost(proto nameProtocol, port uint16) nameLookup {
 	}
 }
 
-// askSSDP is the SSDP lookup. A host that cannot send the search, such as
-// one without a route for multicast, fails it on every sweep, so only the
-// first failure is returned and the rest are logged at debug level.
-func (s *Scanner) askSSDP(ctx context.Context, addrs []netip.Addr) (map[netip.Addr]string, error) {
+// ssdpLookup names addrs after their UPnP friendlyName, found with one SSDP
+// search. A machine that cannot send the search, such as one without a route
+// for multicast, fails it on every sweep, so only the first failure in each
+// run of failures is returned and the rest are logged at debug level.
+func (s *Scanner) ssdpLookup(ctx context.Context, addrs []netip.Addr) (map[netip.Addr]string, error) {
 	names, err := askSSDP(ctx, s.ssdpGroup, addrs, ssdpWait)
-	if err != nil && ctx.Err() == nil && !s.ssdpFailed.CompareAndSwap(false, true) {
+	if err == nil {
+		s.ssdpFailed.Store(false)
+
+		return names, nil
+	}
+
+	if ctx.Err() == nil && !s.ssdpFailed.CompareAndSwap(false, true) {
 		s.log.DebugContext(ctx, "could not ask hosts for their names over SSDP", logger.Err(err))
 
 		return names, nil

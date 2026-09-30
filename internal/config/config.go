@@ -126,9 +126,9 @@ type (
 			// no name from reverse DNS or mDNS, for its name over NetBIOS.
 			ResolveNetBIOS bool `koanf:"resolve_netbios"`
 
-			// ResolveSSDP turns on naming each host still without a name after
-			// the friendlyName in its UPnP description, found with one SSDP
-			// search.
+			// ResolveSSDP turns on taking the name of each host still without
+			// one from the friendlyName in its UPnP description, found with one
+			// SSDP search.
 			ResolveSSDP bool `koanf:"resolve_ssdp"`
 		} `koanf:"devices"`
 

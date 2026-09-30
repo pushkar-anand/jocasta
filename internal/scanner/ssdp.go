@@ -11,12 +11,14 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 	"unicode"
 	"unicode/utf8"
 
+	"golang.org/x/net/html/charset"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -45,6 +47,12 @@ const (
 	descriptionTimeout = 2 * time.Second
 	descriptionFetches = 8
 )
+
+// maxLocationsPerHost caps how many description URLs are kept from one
+// address. A host answers once for each UPnP root device it runs, such as a
+// router with a gateway device and a media server, and a few is all a real
+// host has.
+const maxLocationsPerHost = 4
 
 // maxLabelLength is the most characters a friendlyName may have. The UPnP
 // Device Architecture asks for fewer than 64, and one more is let through.
@@ -87,16 +95,23 @@ func askSSDP(
 
 	g.SetLimit(descriptionFetches)
 
-	for addr, loc := range locations {
+	for addr, locs := range locations {
 		g.Go(func() error {
-			name, ok := fetchFriendlyName(ctx, loc)
-			if !ok {
+			// The URLs come sorted, so a host with more than one root device
+			// is named after the same one on every sweep, and one that fails
+			// to fetch falls through to the next.
+			for _, loc := range locs {
+				name, ok := fetchFriendlyName(ctx, loc)
+				if !ok {
+					continue
+				}
+
+				mu.Lock()
+				names[addr] = name
+				mu.Unlock()
+
 				return nil
 			}
-
-			mu.Lock()
-			names[addr] = name
-			mu.Unlock()
 
 			return nil
 		})
@@ -110,16 +125,17 @@ func askSSDP(
 }
 
 // searchSSDP sends one search to group and returns, for each IPv4 address in
-// addrs that answered, the description URL its answer gave. It returns once
-// every address has given a usable URL, or wait after the search. It returns
+// addrs that answered, the usable description URLs its answers gave: at most
+// maxLocationsPerHost, each once, sorted. It reads answers for the whole of
+// wait, since a host answers once for each root device it runs, and returns
 // an error only when the search cannot be sent.
 func searchSSDP(
 	ctx context.Context,
 	group netip.AddrPort,
 	addrs []netip.Addr,
 	wait time.Duration,
-) (map[netip.Addr]*url.URL, error) {
-	locations := make(map[netip.Addr]*url.URL)
+) (map[netip.Addr][]*url.URL, error) {
+	locations := make(map[netip.Addr][]*url.URL)
 
 	asked := make(map[netip.Addr]bool, len(addrs))
 
@@ -157,7 +173,7 @@ func searchSSDP(
 
 	buf := make([]byte, 2048)
 
-	for len(locations) < len(asked) {
+	for {
 		// The read deadline is what fails this read once the wait is over or
 		// ctx ends.
 		n, from, err := pc.ReadFrom(buf)
@@ -177,7 +193,7 @@ func searchSSDP(
 			continue
 		}
 
-		if _, done := locations[addr]; done {
+		if len(locations[addr]) >= maxLocationsPerHost {
 			continue
 		}
 
@@ -186,9 +202,16 @@ func searchSSDP(
 			continue
 		}
 
-		if u, ok := descriptionURL(addr, loc); ok {
-			locations[addr] = u
+		u, ok := descriptionURL(addr, loc)
+		if !ok || slices.ContainsFunc(locations[addr], func(k *url.URL) bool { return k.String() == u.String() }) {
+			continue
 		}
+
+		locations[addr] = append(locations[addr], u)
+	}
+
+	for _, locs := range locations {
+		slices.SortFunc(locs, func(a, b *url.URL) int { return strings.Compare(a.String(), b.String()) })
 	}
 
 	return locations, nil
@@ -273,11 +296,15 @@ type description struct {
 
 // parseDescription returns the root device's friendlyName from the
 // description in b, and false when b does not parse or the name is one
-// cleanLabel refuses.
+// cleanLabel refuses. A description in an encoding other than UTF-8, such as
+// ISO-8859-1, is read in the encoding it declares.
 func parseDescription(b []byte) (string, bool) {
 	var d description
 
-	if err := xml.Unmarshal(b, &d); err != nil {
+	dec := xml.NewDecoder(bytes.NewReader(b))
+	dec.CharsetReader = charset.NewReaderLabel
+
+	if err := dec.Decode(&d); err != nil {
 		return "", false
 	}
 
@@ -285,9 +312,11 @@ func parseDescription(b []byte) (string, bool) {
 }
 
 // cleanLabel collapses each run of white space in s to one space, trims the
-// ends, and reports whether what is left is valid UTF-8 of 1 to 64 characters
-// with no control character. A label is shown to a person, so it may hold
-// spaces where a host name may not.
+// ends, and reports whether what is left is valid UTF-8 of 1 to 64 printable
+// characters. A label is shown to a person, so it may hold spaces where a
+// host name may not. It holds no control or format character, so a device
+// cannot reverse how its label reads, as U+202E does, or hide characters in
+// it to look like another device's.
 func cleanLabel(s string) (string, bool) {
 	if !utf8.ValidString(s) {
 		return "", false
@@ -299,7 +328,8 @@ func cleanLabel(s string) (string, bool) {
 		return "", false
 	}
 
-	if strings.IndexFunc(s, unicode.IsControl) >= 0 {
+	// IsPrint allows the ASCII space, which is the only space left.
+	if strings.IndexFunc(s, func(r rune) bool { return !unicode.IsPrint(r) }) >= 0 {
 		return "", false
 	}
 

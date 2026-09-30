@@ -27,7 +27,7 @@ type ScanCmd struct {
 	ResolveMACs    bool          `name:"resolve-macs" negatable:"" help:"Resolve MAC addresses via neighbour table." default:"true"`
 	ResolveMDNS    bool          `name:"resolve-mdns" negatable:"" help:"Ask hosts for their names over mDNS when reverse DNS gives none or is turned off." default:"true"`
 	ResolveNetBIOS bool          `name:"resolve-netbios" negatable:"" help:"Ask hosts for their names over NetBIOS when reverse DNS and mDNS give none." default:"true"`
-	ResolveSSDP    bool          `name:"resolve-ssdp" negatable:"" help:"Search for UPnP devices over SSDP and name hosts that still have no name after their friendlyName." default:"true"`
+	ResolveSSDP    bool          `name:"resolve-ssdp" negatable:"" help:"Take the name of each host still without one from its UPnP friendlyName, found with one SSDP search." default:"true"`
 	JSON           bool          `name:"json" help:"Output results as JSON."`
 	Save           bool          `name:"save" help:"Record the results in the device inventory."`
 	Source         string        `name:"source" help:"Name recorded as the origin of these results. Defaults to scan.source, then this host's name."`

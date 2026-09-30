@@ -3,6 +3,7 @@ package scanner
 import (
 	"context"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -159,6 +160,14 @@ func TestParseDescription(t *testing.T) {
 		{name: "white space only", body: deviceDescription("   ")},
 		{name: "no friendlyName", body: "<root><device><manufacturer>Example</manufacturer></device></root>"},
 		{name: "a control character", body: deviceDescription("TV\u0007")},
+		{name: "a right-to-left override", body: deviceDescription("VT moor gniviL\u202e")},
+		{name: "a zero-width space", body: deviceDescription("Living\u200bRoom TV")},
+		{
+			name:   "an ISO-8859-1 description",
+			body:   "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?><root><device><friendlyName>Caf\xe9 TV</friendlyName></device></root>",
+			want:   "Café TV",
+			wantOK: true,
+		},
 		{name: "not XML", body: "{\"name\": \"TV\"}"},
 		{name: "an entity it does not define", body: deviceDescription("&lol;")},
 	}
@@ -294,7 +303,7 @@ func TestAskSSDPRefusesALocationOnAnotherAddress(t *testing.T) {
 }
 
 // A host that cannot send the search fails it on every sweep, so only the
-// first failure reaches the caller.
+// first failure in a run reaches the caller.
 func TestScannerReturnsOnlyTheFirstSSDPFailure(t *testing.T) {
 	t.Parallel()
 
@@ -305,9 +314,130 @@ func TestScannerReturnsOnlyTheFirstSSDPFailure(t *testing.T) {
 
 	addrs := []netip.Addr{netip.MustParseAddr("127.0.0.1")}
 
-	_, err := s.askSSDP(t.Context(), addrs)
+	_, err := s.ssdpLookup(t.Context(), addrs)
 	require.Error(t, err)
 
-	_, err = s.askSSDP(t.Context(), addrs)
+	_, err = s.ssdpLookup(t.Context(), addrs)
 	require.NoError(t, err)
+}
+
+// A search that works ends a run of failures, so the next failure is the
+// first of a new run and reaches the caller.
+func TestScannerReturnsTheFirstSSDPFailureAfterASearchThatWorked(t *testing.T) {
+	t.Parallel()
+
+	s := New(slog.New(slog.DiscardHandler))
+	addrs := []netip.Addr{netip.MustParseAddr("127.0.0.1")}
+
+	// Port 0 is no destination, so the send fails.
+	broken := netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0)
+	working := netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), newResponder(t, "127.0.0.1:0", nil, ssdpReply("")).port())
+
+	s.ssdpGroup = broken
+	_, err := s.ssdpLookup(t.Context(), addrs)
+	require.Error(t, err)
+
+	s.ssdpGroup = working
+	_, err = s.ssdpLookup(t.Context(), addrs)
+	require.NoError(t, err)
+
+	s.ssdpGroup = broken
+	_, err = s.ssdpLookup(t.Context(), addrs)
+	require.Error(t, err)
+}
+
+// newSSDPResponder starts a responder on 127.0.0.1 that answers each search
+// with one answer for each of locations, in the order given, and returns
+// where to send the search.
+func newSSDPResponder(t *testing.T, locations ...string) netip.AddrPort {
+	t.Helper()
+
+	var lc net.ListenConfig
+
+	pc, err := lc.ListenPacket(t.Context(), "udp4", "127.0.0.1:0")
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = pc.Close() })
+
+	conn := pc.(*net.UDPConn)
+
+	go func() {
+		buf := make([]byte, 1500)
+
+		for {
+			n, from, err := conn.ReadFromUDPAddrPort(buf)
+			if err != nil {
+				return
+			}
+
+			for _, loc := range locations {
+				if raw, ok := ssdpReply(loc)(buf[:n]); ok {
+					_, _ = conn.WriteToUDPAddrPort(raw, from)
+				}
+			}
+		}
+	}()
+
+	return conn.LocalAddr().(*net.UDPAddr).AddrPort()
+}
+
+// A host with two root devices answers twice, in no set order. Its URLs are
+// fetched in sorted order, so it gets the same name on every search.
+func TestAskSSDPNamesAHostWithTwoRootDevicesTheSameEachTime(t *testing.T) {
+	t.Parallel()
+
+	gateway := descriptionServer(t, deviceDescription("Gateway"))
+	media := descriptionServer(t, deviceDescription("Media Server"))
+
+	gatewayURL := gateway.URL + "/description.xml"
+	mediaURL := media.URL + "/description.xml"
+
+	first, second := gatewayURL, mediaURL
+	if mediaURL < gatewayURL {
+		first, second = mediaURL, gatewayURL
+	}
+
+	want, err := fetchName(t, first)
+	require.NoError(t, err)
+
+	addrs := []netip.Addr{netip.MustParseAddr("127.0.0.1")}
+
+	// The later URL is answered first, then the other way round.
+	for _, order := range [][]string{{second, first}, {first, second}} {
+		names, err := askSSDP(t.Context(), newSSDPResponder(t, order...), addrs, 200*time.Millisecond)
+		require.NoError(t, err)
+
+		assert.Equal(t, map[netip.Addr]string{netip.MustParseAddr("127.0.0.1"): want}, names)
+	}
+}
+
+// When the first description does not fetch, the next one is tried.
+func TestAskSSDPTriesTheNextDescriptionWhenOneFails(t *testing.T) {
+	t.Parallel()
+
+	desc := descriptionServer(t, deviceDescription("Router"))
+
+	// /a.xml sorts before /description.xml, and the server answers it 404.
+	missing := desc.URL + "/a.xml"
+	found := desc.URL + "/description.xml"
+
+	names, err := askSSDP(t.Context(), newSSDPResponder(t, found, missing), []netip.Addr{netip.MustParseAddr("127.0.0.1")}, 200*time.Millisecond)
+	require.NoError(t, err)
+
+	assert.Equal(t, map[netip.Addr]string{netip.MustParseAddr("127.0.0.1"): "Router"}, names)
+}
+
+// fetchName returns the friendlyName served at loc.
+func fetchName(t *testing.T, loc string) (string, error) {
+	t.Helper()
+
+	u, err := url.Parse(loc)
+	if err != nil {
+		return "", err
+	}
+
+	name, ok := fetchFriendlyName(t.Context(), u)
+	require.True(t, ok)
+
+	return name, nil
 }
