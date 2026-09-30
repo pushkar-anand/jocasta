@@ -32,8 +32,8 @@ const maxNameLength = 253
 // something unusable as a name, is absent.
 //
 // Queries go out at rate per second. It returns once every address has given
-// a usable name, or wait after the last query. When ctx ends first, it returns the
-// names that arrived before then, with ctx's error.
+// a usable name, or wait after the last query. When ctx ends first, it
+// returns the names that arrived before then, with ctx's error.
 func askMDNS(
 	ctx context.Context,
 	addrs []netip.Addr,
@@ -73,7 +73,7 @@ func askMDNS(
 	var reader sync.WaitGroup
 
 	// The reader alone writes names until Wait returns, and returns by itself
-	// once every target has answered.
+	// once every target has given a usable name.
 	reader.Go(func() { readMDNS(pc, want, names) })
 
 	sendErr := sendMDNS(ctx, pc, targets, want, rate)
@@ -132,7 +132,7 @@ func sendMDNS(
 }
 
 // readMDNS records the first usable answer from each target in names. It
-// returns once every target has answered or a read fails.
+// returns once every target has given a usable name, or a read fails.
 func readMDNS(pc net.PacketConn, want map[netip.AddrPort]string, names map[netip.Addr]string) {
 	// An mDNS message can fill a jumbo frame (RFC 6762, section 17).
 	buf := make([]byte, 9000)

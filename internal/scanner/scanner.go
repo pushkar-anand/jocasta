@@ -144,8 +144,8 @@ func WithNameResolution(v bool) Option {
 }
 
 // WithMDNSResolution controls asking hosts that answered, and have no reverse
-// DNS name, for their name over mDNS. With reverse DNS turned off, that is every
-// host that answered.
+// DNS name, for their name over mDNS. With reverse DNS turned off, that is
+// every host that answered.
 func WithMDNSResolution(v bool) Option {
 	return func(s *Scanner) { s.resolveMDNS = v }
 }
