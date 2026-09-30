@@ -720,13 +720,13 @@ func (b *builder) finish() {
 		}
 
 		slices.SortStableFunc(n.Children, func(a, c *Node) int {
-			return cmp.Or(natural(a.Uplink.ParentPort, c.Uplink.ParentPort), strings.Compare(a.Name, c.Name))
+			return cmp.Or(ComparePorts(a.Uplink.ParentPort, c.Uplink.ParentPort), strings.Compare(a.Name, c.Name))
 		})
 
 		slices.SortStableFunc(n.Groups, func(a, c *Group) int {
 			return cmp.Or(
 				compareBool(a.WiFi, c.WiFi),
-				natural(a.Port, c.Port),
+				ComparePorts(a.Port, c.Port),
 				strings.Compare(a.SSID, c.SSID),
 				cmp.Compare(a.VLAN, c.VLAN),
 			)
@@ -770,7 +770,7 @@ func (b *builder) finish() {
 }
 
 func sortedKeys[V any](m map[string]V) []string {
-	return slices.SortedFunc(maps.Keys(m), natural)
+	return slices.SortedFunc(maps.Keys(m), ComparePorts)
 }
 
 // compareBool orders false before true.
@@ -785,9 +785,9 @@ func compareBool(a, c bool) int {
 	}
 }
 
-// natural compares port names the way a person reads them, so ether2 comes
+// ComparePorts orders port names the way a person reads them, so ether2 comes
 // before ether10.
-func natural(a, c string) int {
+func ComparePorts(a, c string) int {
 	for a != "" && c != "" {
 		da, ra := leadingDigits(a)
 		dc, rc := leadingDigits(c)
