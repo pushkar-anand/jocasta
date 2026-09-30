@@ -51,6 +51,15 @@ type (
 		Networks(ctx context.Context) ([]Network, error)
 	}
 
+	// TopologyReader answers "what is plugged into what".
+	TopologyReader interface {
+		Plugin
+
+		// Topology reads the source's switching tables once. Partial answers
+		// come back the same way [HostDiscoverer.Discover] returns them.
+		Topology(ctx context.Context) (Topology, error)
+	}
+
 	// TrafficReporter answers "who is talking to whom".
 	//
 	// The router pushes to it: a router
@@ -127,6 +136,87 @@ type Network struct {
 	// VLAN is the 802.1Q tag, zero on a segment that carries none. Untagged is
 	// a real answer.
 	VLAN int
+}
+
+// Topology is what one switching device knows about what is plugged into it:
+// its ports, the hardware addresses it learned on each, and the neighbours that
+// announced themselves. A tree of the whole network is assembled from one of
+// these per router, switch and access point.
+type Topology struct {
+	// Identity is the device's own name for itself.
+	Identity string
+
+	// Gateway marks the device that routes the network, which the tree hangs
+	// from, below the internet.
+	Gateway bool
+
+	// Own is the device's own hardware addresses, which is how another
+	// device's tables recognise it.
+	Own []string
+
+	Ports      []TopologyPort
+	Seen       []Sighting
+	Neighbours []Neighbour
+
+	// ReadAt is when the source was read.
+	ReadAt time.Time
+}
+
+// PortKind is what sort of interface a port is.
+type PortKind string
+
+// A wired port and a radio are drawn differently; anything else (a bridge, a
+// VLAN interface, a tunnel) is only a place an address can be learned.
+const (
+	PortWired   PortKind = "wired"
+	PortWiFi    PortKind = "wifi"
+	PortVirtual PortKind = "virtual"
+)
+
+// TopologyPort is one interface and the VLANs it carries.
+type TopologyPort struct {
+	Name string
+	Kind PortKind
+
+	// PVID is the VLAN untagged traffic on the port belongs to, zero when the
+	// device does not say. Tagged and Untagged are the VLANs the port carries
+	// each way, in order.
+	PVID     int
+	Tagged   []int
+	Untagged []int
+
+	Running bool
+}
+
+// Sighting is one hardware address learned on one port.
+type Sighting struct {
+	Port string
+	MAC  string
+
+	// VLAN is the VLAN the address was learned in, zero when the device does
+	// not say.
+	VLAN int
+
+	// WiFi marks a client associated with one of the device's radios, which
+	// SSID and Band describe.
+	WiFi bool
+	SSID string
+	Band string
+}
+
+// Neighbour is a device that announced itself on one port.
+type Neighbour struct {
+	Port string
+	MAC  string
+	Addr netip.Addr
+
+	Identity string
+	Platform string
+	Board    string
+
+	// TheirPort is the neighbour's own name for the port it announced itself
+	// from.
+	TheirPort string
 }
 
 // Fact is what one source claims about one device at one moment.

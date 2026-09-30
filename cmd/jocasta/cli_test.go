@@ -480,6 +480,23 @@ func TestHostDiscoverersSkipsDisabledInstances(t *testing.T) {
 	assert.Equal(t, []string{"routeros:gateway", "routeros:rack"}, names)
 }
 
+// A switch or access point is read for the topology page alone: the router
+// above it lists the devices.
+func TestHostDiscoverersLeavesOutTopologyOnlySources(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Plugins.RouterOS = map[string]config.RouterOS{
+		"gateway":  {Enabled: true, Host: "192.0.2.1"},
+		"switch_a": {Enabled: true, Host: "192.0.2.2", TopologyOnly: true},
+	}
+
+	ds, err := hostDiscoverers(t.Context(), cfg, slog.New(slog.DiscardHandler))
+	require.NoError(t, err)
+	require.Len(t, ds, 1)
+	assert.Equal(t, "routeros:gateway", ds[0].Name())
+}
+
 func TestPortsPollerAcceptsABlankSpec(t *testing.T) {
 	t.Parallel()
 
@@ -545,4 +562,29 @@ func TestOutputFactsEmpty(t *testing.T) {
 	require.NoError(t, outputFacts(&buf, nil, false))
 
 	assert.Contains(t, buf.String(), "no devices")
+}
+
+func TestOutputTopologyTable(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	require.NoError(t, outputTopology(&buf, plugin.Topology{
+		Identity: "switch-a",
+		Own:      []string{"00:00:5e:00:53:a1"},
+		Ports:    []plugin.TopologyPort{{Name: "sfp1", Kind: plugin.PortWired, PVID: 1, Tagged: []int{10, 20}, Running: true}},
+		Seen:     []plugin.Sighting{{Port: "wifi1", MAC: "00:00:5e:00:53:20", VLAN: 20, WiFi: true, SSID: "iot", Band: "2ghz-ax"}},
+		Neighbours: []plugin.Neighbour{{
+			Port: "sfp1", MAC: "00:00:5e:00:53:01", Addr: netip.MustParseAddr("192.0.2.1"),
+			Identity: "router", Platform: "MikroTik", TheirPort: "ether3",
+		}},
+	}, false))
+
+	out := buf.String()
+	assert.Contains(t, out, "switch-a (switch or access point)")
+	assert.Contains(t, out, "10,20")
+	assert.Contains(t, out, "iot")
+	assert.Contains(t, out, "2ghz-ax")
+	assert.Contains(t, out, "router")
+	assert.Contains(t, out, "192.0.2.1")
+	assert.Contains(t, out, "ether3")
 }

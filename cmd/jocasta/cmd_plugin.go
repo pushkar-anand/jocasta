@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/pushkar-anand/build-with-go/logger"
@@ -48,6 +49,10 @@ func (p *PluginRunCmd) Run(
 		return err
 	}
 
+	if src.IsTopologyOnly() {
+		return p.runTopology(ctx, log, src)
+	}
+
 	nets, err := src.Networks(ctx)
 	if err != nil {
 		// The segments only decorate the devices, so a source that will not
@@ -82,11 +87,49 @@ func (p *PluginRunCmd) Run(
 		return err
 	}
 
+	if err := p.printTopology(ctx, log, src); err != nil {
+		return err
+	}
+
 	if !p.Save {
 		return nil
 	}
 
 	return p.save(ctx, log, src, nets, facts, store)
+}
+
+// runTopology reads a switch or access point, which has no devices or
+// segments of its own to report.
+func (p *PluginRunCmd) runTopology(ctx context.Context, log *slog.Logger, src plugin.TopologyReader) error {
+	topo, err := src.Topology(ctx)
+	if err != nil && len(topo.Seen) == 0 {
+		return fmt.Errorf("read topology from %s: %w", src.Name(), err)
+	}
+
+	if err != nil {
+		log.WarnContext(ctx, "source answered in part", slog.String("src", src.Name()), logger.Err(err))
+	}
+
+	return outputTopology(os.Stdout, topo, p.JSON)
+}
+
+// printTopology reads and prints what is plugged into a router read for its
+// devices as well. The devices are the point of that read, so a topology that
+// will not come back is only logged.
+func (p *PluginRunCmd) printTopology(ctx context.Context, log *slog.Logger, src plugin.TopologyReader) error {
+	topo, err := src.Topology(ctx)
+	if err != nil {
+		log.WarnContext(ctx, "source did not say what is plugged into it",
+			slog.String("src", src.Name()),
+			logger.Err(err),
+		)
+
+		if len(topo.Seen) == 0 {
+			return nil
+		}
+	}
+
+	return outputTopology(os.Stdout, topo, p.JSON)
 }
 
 // save records the reading. It runs after the facts are printed so a database
@@ -186,4 +229,74 @@ func outputFacts(w io.Writer, facts []plugin.Fact, asJSON bool) error {
 	}
 
 	return tw.Flush()
+}
+
+// outputTopology prints what a source said is plugged into it: its ports, the
+// addresses learned on each, and its neighbours.
+func outputTopology(w io.Writer, t plugin.Topology, asJSON bool) error {
+	if asJSON {
+		return writeJSON(w, t)
+	}
+
+	role := "switch or access point"
+	if t.Gateway {
+		role = "gateway"
+	}
+
+	_, _ = fmt.Fprintf(w, "%s (%s)\n\n", cmp.Or(t.Identity, "unnamed"), role)
+
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(tw, "PORT\tKIND\tPVID\tTAGGED\tUNTAGGED\tRUNNING")
+
+	for _, p := range t.Ports {
+		_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%t\n",
+			p.Name, p.Kind, orDash(p.PVID), vlanList(p.Tagged), vlanList(p.Untagged), p.Running)
+	}
+
+	_, _ = fmt.Fprintln(tw)
+	_, _ = fmt.Fprintln(tw, "PORT\tMAC\tVLAN\tWIFI\tSSID\tBAND")
+
+	for _, s := range t.Seen {
+		_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%t\t%s\t%s\n",
+			s.Port, s.MAC, orDash(s.VLAN), s.WiFi, cmp.Or(s.SSID, "-"), cmp.Or(s.Band, "-"))
+	}
+
+	_, _ = fmt.Fprintln(tw)
+	_, _ = fmt.Fprintln(tw, "PORT\tNEIGHBOUR\tMAC\tADDRESS\tPLATFORM\tBOARD\tTHEIR PORT")
+
+	for _, n := range t.Neighbours {
+		addr := "-"
+		if n.Addr.IsValid() {
+			addr = n.Addr.String()
+		}
+
+		_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			n.Port, cmp.Or(n.Identity, "-"), cmp.Or(n.MAC, "-"), addr,
+			cmp.Or(n.Platform, "-"), cmp.Or(n.Board, "-"), cmp.Or(n.TheirPort, "-"))
+	}
+
+	return tw.Flush()
+}
+
+// orDash renders a VLAN, showing none as a dash.
+func orDash(n int) string {
+	if n == 0 {
+		return "-"
+	}
+
+	return strconv.Itoa(n)
+}
+
+// vlanList renders a set of VLANs as "10,20", or a dash when empty.
+func vlanList(vlans []int) string {
+	if len(vlans) == 0 {
+		return "-"
+	}
+
+	parts := make([]string, len(vlans))
+	for i, v := range vlans {
+		parts[i] = strconv.Itoa(v)
+	}
+
+	return strings.Join(parts, ",")
 }

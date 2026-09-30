@@ -31,9 +31,30 @@ import (
 // Instances are returned in name order because map iteration is not ordered,
 // and a poller that reads its sources in a different order every cycle is
 // harder to read in a log than one that does not.
+//
+// A source marked topology_only is a switch or access point, and is left out:
+// the router above it lists the devices.
 func hostDiscoverers(ctx context.Context, cfg *config.Config, log *slog.Logger) ([]plugin.HostDiscoverer, error) {
+	sources, err := routerOSSources(ctx, cfg, log)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]plugin.HostDiscoverer, 0, len(sources))
+
+	for _, p := range sources {
+		if !p.IsTopologyOnly() {
+			out = append(out, p)
+		}
+	}
+
+	return out, nil
+}
+
+// routerOSSources builds every enabled RouterOS instance, in name order.
+func routerOSSources(ctx context.Context, cfg *config.Config, log *slog.Logger) ([]*plugin.RouterOS, error) {
 	names := slices.Sorted(maps.Keys(cfg.Plugins.RouterOS))
-	out := make([]plugin.HostDiscoverer, 0, len(names))
+	out := make([]*plugin.RouterOS, 0, len(names))
 
 	for _, name := range names {
 		rc := cfg.Plugins.RouterOS[name]
@@ -71,7 +92,12 @@ func newRouterOS(name string, cfg config.RouterOS, log *slog.Logger) (*plugin.Ro
 		return nil, fmt.Errorf("plugin routeros %q: %w", name, err)
 	}
 
-	p, err := plugin.NewRouterOS(name, client, log)
+	var opts []plugin.RouterOSOption
+	if cfg.TopologyOnly {
+		opts = append(opts, plugin.TopologyOnly())
+	}
+
+	p, err := plugin.NewRouterOS(name, client, log, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("plugin routeros %q: %w", name, err)
 	}
