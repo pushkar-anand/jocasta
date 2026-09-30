@@ -171,6 +171,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getDeviceByMACStmt, err = db.PrepareContext(ctx, getDeviceByMAC); err != nil {
 		return nil, fmt.Errorf("error preparing query GetDeviceByMAC: %w", err)
 	}
+	if q.getDeviceSourceNameStmt, err = db.PrepareContext(ctx, getDeviceSourceName); err != nil {
+		return nil, fmt.Errorf("error preparing query GetDeviceSourceName: %w", err)
+	}
 	if q.getUserByIDStmt, err = db.PrepareContext(ctx, getUserByID); err != nil {
 		return nil, fmt.Errorf("error preparing query GetUserByID: %w", err)
 	}
@@ -604,6 +607,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getDeviceByMACStmt: %w", cerr)
 		}
 	}
+	if q.getDeviceSourceNameStmt != nil {
+		if cerr := q.getDeviceSourceNameStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getDeviceSourceNameStmt: %w", cerr)
+		}
+	}
 	if q.getUserByIDStmt != nil {
 		if cerr := q.getUserByIDStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getUserByIDStmt: %w", cerr)
@@ -997,6 +1005,7 @@ type Queries struct {
 	getDeviceStmt                      *sql.Stmt
 	getDeviceByCurrentIPStmt           *sql.Stmt
 	getDeviceByMACStmt                 *sql.Stmt
+	getDeviceSourceNameStmt            *sql.Stmt
 	getUserByIDStmt                    *sql.Stmt
 	getUserByUsernameStmt              *sql.Stmt
 	identifyDeviceStmt                 *sql.Stmt
@@ -1113,6 +1122,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getDeviceStmt:                      q.getDeviceStmt,
 		getDeviceByCurrentIPStmt:           q.getDeviceByCurrentIPStmt,
 		getDeviceByMACStmt:                 q.getDeviceByMACStmt,
+		getDeviceSourceNameStmt:            q.getDeviceSourceNameStmt,
 		getUserByIDStmt:                    q.getUserByIDStmt,
 		getUserByUsernameStmt:              q.getUserByUsernameStmt,
 		identifyDeviceStmt:                 q.identifyDeviceStmt,

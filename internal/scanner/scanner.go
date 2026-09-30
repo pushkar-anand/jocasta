@@ -102,6 +102,10 @@ type Scanner struct {
 	resolveNames bool
 	resolveMACs  bool
 	resolveMDNS  bool
+
+	// mdnsPort is where mDNS queries go, which a test points at a responder
+	// of its own.
+	mdnsPort uint16
 }
 
 // Option configures a Scanner.
@@ -140,7 +144,8 @@ func WithNameResolution(v bool) Option {
 }
 
 // WithMDNSResolution controls asking hosts that answered, and have no reverse
-// DNS name, for their name over mDNS.
+// DNS name, for their name over mDNS. With reverse DNS turned off, that is every
+// host that answered.
 func WithMDNSResolution(v bool) Option {
 	return func(s *Scanner) { s.resolveMDNS = v }
 }
@@ -161,6 +166,7 @@ func New(log *slog.Logger, opts ...Option) *Scanner {
 		resolveNames: true,
 		resolveMACs:  true,
 		resolveMDNS:  true,
+		mdnsPort:     standardMDNSPort,
 	}
 
 	for _, opt := range opts {
@@ -294,7 +300,7 @@ func (s *Scanner) nameOverMDNS(ctx context.Context, found []Host) {
 
 	// The names that arrived before a failure are still the hosts' own
 	// answers, so they are kept.
-	names, err := askMDNS(ctx, nameless, mdnsPort, s.rate, mdnsWait)
+	names, err := askMDNS(ctx, nameless, s.mdnsPort, s.rate, mdnsWait)
 	if err != nil {
 		s.log.WarnContext(ctx, "could not ask hosts for their names over mDNS", logger.Err(err))
 	}

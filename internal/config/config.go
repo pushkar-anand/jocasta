@@ -117,8 +117,8 @@ type (
 			ResolveNames bool          `koanf:"resolve_names"`
 			ResolveMACs  bool          `koanf:"resolve_macs"`
 
-			// ResolveMDNS asks a host that answered, and has no reverse DNS
-			// name, for its name over mDNS.
+			// ResolveMDNS asks a host that answered for its name over mDNS
+			// when reverse DNS gave none, or ResolveNames is off.
 			ResolveMDNS bool `koanf:"resolve_mdns"`
 		} `koanf:"devices"`
 

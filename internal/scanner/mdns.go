@@ -14,9 +14,8 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-// mdnsPort is where an mDNS responder listens. It is a variable so a test can
-// point queries at a responder of its own.
-var mdnsPort uint16 = 5353
+// standardMDNSPort is where an mDNS responder listens.
+const standardMDNSPort = 5353
 
 // mdnsWait is how long to keep reading answers after the last query is sent. A
 // responder answers a unicast query at once, so a device silent this long is
@@ -32,8 +31,8 @@ const maxNameLength = 253
 // names that came back. An address that did not answer, or answered with
 // something unusable as a name, is absent.
 //
-// Queries go out at rate per second. It returns once every address has
-// answered, or wait after the last query. When ctx ends first, it returns the
+// Queries go out at rate per second. It returns once every address has given
+// a usable name, or wait after the last query. When ctx ends first, it returns the
 // names that arrived before then, with ctx's error.
 func askMDNS(
 	ctx context.Context,

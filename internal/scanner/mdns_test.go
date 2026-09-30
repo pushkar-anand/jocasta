@@ -235,15 +235,10 @@ func TestParseReverseAnswer(t *testing.T) {
 	}
 }
 
-// TestEnrichNamesNamelessHostsOverMDNS changes mdnsPort, so it does not run
-// in parallel.
 func TestEnrichNamesNamelessHostsOverMDNS(t *testing.T) {
+	t.Parallel()
+
 	r := newResponder(t, "127.0.0.1:0", "tv.local.", nil)
-
-	saved := mdnsPort
-	mdnsPort = r.port()
-
-	t.Cleanup(func() { mdnsPort = saved })
 
 	replies := map[netip.Addr]time.Duration{netip.MustParseAddr("127.0.0.1"): time.Millisecond}
 
@@ -259,11 +254,14 @@ func TestEnrichNamesNamelessHostsOverMDNS(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			s := New(slog.New(slog.DiscardHandler),
 				WithNameResolution(false),
 				WithMACResolution(false),
 				WithMDNSResolution(tt.mdns),
 			)
+			s.mdnsPort = r.port()
 
 			found := s.enrich(t.Context(), replies, time.Now())
 			require.Len(t, found, 1)
