@@ -139,6 +139,8 @@ func (d *Device) Run(ctx context.Context) error {
 	return nil
 }
 
+// scanAndSaveNetwork sweeps network and records the result. A failed sweep
+// returns without recording a successful inventory update.
 func (d *Device) scanAndSaveNetwork(ctx context.Context, network *netip.Prefix) error {
 	result, err := d.scanner.Scan(ctx, *network)
 	if err != nil {

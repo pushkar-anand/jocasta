@@ -23,9 +23,11 @@ fills this gap. No added capability or sysctl is needed either way.
 ### Prebuilt binaries
 
 Every release publishes archives for Linux, macOS and Windows, on amd64 and
-arm64, with a `checksums.txt`, on the [releases page][releases]. Extract
-`jocasta`, put a `jocasta.yaml` next to it, and run `jocasta serve`. It runs
-without root.
+arm64, with a `checksums.txt`, on the [releases page][releases].
+
+1. Extract `jocasta` from the archive for your system.
+2. Put a `jocasta.yaml` next to it.
+3. From that directory, run `jocasta serve`. It runs without root.
 
 The binary listens on `localhost:8080` by default. Set `server.host: 0.0.0.0`
 to reach it from other machines.

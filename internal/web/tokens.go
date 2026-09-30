@@ -115,7 +115,7 @@ func (h *Handler) createToken(sm *auth.Session, a *auth.Auth) response.HandlerFu
 		}
 
 		// A token cannot out-reach the account that mints it: a read user gets
-		// read tokens only, so a read-only session can't hand itself write
+		// read tokens only, so a read-only session cannot hand itself write
 		// access to the JSON API through one.
 		if dbtype.TokenScope(input.Scope) == dbtype.TokenReadWrite && !sm.CurrentRole(ctx).CanWrite() {
 			return auth.ErrForbidden

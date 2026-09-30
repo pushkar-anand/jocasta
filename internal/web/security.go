@@ -1,6 +1,7 @@
 package web
 
 import (
+	"errors"
 	"fmt"
 	"image/png"
 	"net/http"
@@ -27,6 +28,10 @@ type securityData struct {
 	// RecoveryCodes is the one-shot flash a confirm or regenerate leaves for
 	// the GET it redirects to; see flashRecoveryCodes.
 	RecoveryCodes []string
+
+	// Error and ErrorAction keep a failed confirmation beside its field.
+	Error       string
+	ErrorAction string
 }
 
 // flashRecoveryCodes is where ConfirmTOTPEnrollment's and
@@ -34,49 +39,69 @@ type securityData struct {
 // shows them once.
 const flashRecoveryCodes = "flash.recovery_codes"
 
+// security serves the account's two-factor settings. Recovery codes from a
+// preceding confirmation or regeneration are displayed only once.
 func (h *Handler) security(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		ctx := r.Context()
+		return h.renderSecurity(w, r, sm, a, "", "")
+	}
+}
 
-		userID, err := currentUserID(sm, r)
+// renderSecurity shows security settings or a failed confirmation. Recovery
+// codes are consumed from the one-shot flash only for a successful page load.
+func (h *Handler) renderSecurity(w http.ResponseWriter, r *http.Request, sm *auth.Session, a *auth.Auth, action, message string) error {
+	ctx := r.Context()
+
+	userID, err := currentUserID(sm, r)
+	if err != nil {
+		return err
+	}
+
+	enabled, enrolling, secret, err := a.TOTPStatus(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	var remaining int64
+	if enabled {
+		remaining, err = a.RemainingRecoveryCodes(ctx, userID)
 		if err != nil {
 			return err
 		}
+	}
 
-		enabled, enrolling, secret, err := a.TOTPStatus(ctx, userID)
-		if err != nil {
-			return err
-		}
+	var codes []string
 
-		var remaining int64
-		if enabled {
-			remaining, err = a.RemainingRecoveryCodes(ctx, userID)
-			if err != nil {
-				return err
-			}
-		}
-
-		var codes []string
+	if message == "" {
 		if flash := sm.PopFlash(ctx, flashRecoveryCodes); flash != "" {
 			codes = strings.Split(flash, "\n")
 		}
-
-		h.htmlWriter.Success(w, r, templatePageSecurity, securityData{
-			view: view{
-				Title:      "Security",
-				Section:    "Security",
-				Role:       sm.CurrentRole(ctx),
-				SignedInAs: sm.CurrentUsername(ctx),
-			},
-			TOTPEnabled:            enabled,
-			Enrolling:              enrolling,
-			Secret:                 secret,
-			RecoveryCodesRemaining: remaining,
-			RecoveryCodes:          codes,
-		})
-
-		return nil
 	}
+
+	data := securityData{
+		view: view{
+			Title:      "Security",
+			Section:    "Security",
+			Role:       sm.CurrentRole(ctx),
+			SignedInAs: sm.CurrentUsername(ctx),
+		},
+		TOTPEnabled:            enabled,
+		Enrolling:              enrolling,
+		Secret:                 secret,
+		RecoveryCodesRemaining: remaining,
+		RecoveryCodes:          codes,
+		Error:                  message,
+		ErrorAction:            action,
+	}
+
+	if message != "" {
+		data.Title = "Error: Security"
+		h.htmlWriter.Error(w, r, http.StatusUnprocessableEntity, templatePageSecurity, data)
+	} else {
+		h.htmlWriter.Success(w, r, templatePageSecurity, data)
+	}
+
+	return nil
 }
 
 // securityEnroll starts (or restarts) enrollment and sends the visitor back
@@ -101,6 +126,8 @@ func (h *Handler) securityEnroll(sm *auth.Session, a *auth.Auth) response.Handle
 	}
 }
 
+// securityConfirm enables two-factor authentication after checking the pending
+// authenticator's code, then redirects to display the recovery codes once.
 func (h *Handler) securityConfirm(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	type confirmForm struct {
 		Code string `schema:"code" validate:"required,min=6,max=6"`
@@ -116,11 +143,19 @@ func (h *Handler) securityConfirm(sm *auth.Session, a *auth.Auth) response.Handl
 
 		input, err := h.reader.ReadAndValidateForm[confirmForm](r)
 		if err != nil {
+			if p, ok := errors.AsType[response.Problem](err); ok && p.Status() == http.StatusUnprocessableEntity {
+				return h.renderSecurity(w, r, sm, a, "confirm", "Enter the 6-digit code your authenticator app shows now.")
+			}
+
 			return err
 		}
 
 		codes, err := a.ConfirmTOTPEnrollment(ctx, userID, input.Code)
 		if err != nil {
+			if errors.Is(err, auth.ErrInvalidEnrollmentCode) {
+				return h.renderSecurity(w, r, sm, a, "confirm", "That code did not work. Enter the 6-digit code your authenticator app shows now.")
+			}
+
 			return err
 		}
 
@@ -131,6 +166,8 @@ func (h *Handler) securityConfirm(sm *auth.Session, a *auth.Auth) response.Handl
 	}
 }
 
+// securityDisable turns off two-factor authentication after checking the
+// account's password, then redirects to its security settings.
 func (h *Handler) securityDisable(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	type disableForm struct {
 		Password string `schema:"password" validate:"required,min=8,max=1000"`
@@ -146,10 +183,18 @@ func (h *Handler) securityDisable(sm *auth.Session, a *auth.Auth) response.Handl
 
 		input, err := h.reader.ReadAndValidateForm[disableForm](r)
 		if err != nil {
+			if p, ok := errors.AsType[response.Problem](err); ok && p.Status() == http.StatusUnprocessableEntity {
+				return h.renderSecurity(w, r, sm, a, "disable", "Enter your password, between 8 and 1000 characters.")
+			}
+
 			return err
 		}
 
 		if err := a.DisableTOTP(ctx, userID, input.Password); err != nil {
+			if errors.Is(err, auth.ErrInvalidPassword) {
+				return h.renderSecurity(w, r, sm, a, "disable", "That password did not match. Enter your account password and try again.")
+			}
+
 			return err
 		}
 
@@ -159,6 +204,8 @@ func (h *Handler) securityDisable(sm *auth.Session, a *auth.Auth) response.Handl
 	}
 }
 
+// securityRegenerateRecoveryCodes checks the password and replaces the recovery
+// codes, then redirects to display their plaintext values once.
 func (h *Handler) securityRegenerateRecoveryCodes(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	type regenerateForm struct {
 		Password string `schema:"password" validate:"required,min=8,max=1000"`
@@ -174,11 +221,19 @@ func (h *Handler) securityRegenerateRecoveryCodes(sm *auth.Session, a *auth.Auth
 
 		input, err := h.reader.ReadAndValidateForm[regenerateForm](r)
 		if err != nil {
+			if p, ok := errors.AsType[response.Problem](err); ok && p.Status() == http.StatusUnprocessableEntity {
+				return h.renderSecurity(w, r, sm, a, "regenerate", "Enter your password, between 8 and 1000 characters.")
+			}
+
 			return err
 		}
 
 		codes, err := a.RegenerateRecoveryCodes(ctx, userID, input.Password)
 		if err != nil {
+			if errors.Is(err, auth.ErrInvalidPassword) {
+				return h.renderSecurity(w, r, sm, a, "regenerate", "That password did not match. Enter your account password and try again.")
+			}
+
 			return err
 		}
 

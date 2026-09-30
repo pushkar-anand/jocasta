@@ -74,28 +74,29 @@ More screenshots: [docs/ui.md](docs/ui.md).
 
 ## Quick start
 
-Write a minimal `jocasta.yaml` naming the networks to sweep:
+1. Write a minimal `jocasta.yaml` naming the networks to sweep:
 
-```yaml
-networks:
-  - "192.0.2.0/24"
+   ```yaml
+   networks:
+     - "192.0.2.0/24"
 
-server:
-  auth:
-    cookie_secure: false   # only while you reach it over plain HTTP
-```
+   server:
+     auth:
+       cookie_secure: false   # only while you reach it over plain HTTP
+   ```
 
-Run the container on the host network, so it can read hardware addresses:
+2. Run the container on the host network, so it can read hardware addresses:
 
-```bash
-docker run -d --name jocasta --network host \
-  -v jocasta-data:/data \
-  -v ./jocasta.yaml:/data/jocasta.yaml:ro \
-  ghcr.io/pushkar-anand/jocasta:latest
-```
+   ```bash
+   docker run -d --name jocasta --network host \
+     -v jocasta-data:/data \
+     -v ./jocasta.yaml:/data/jocasta.yaml:ro \
+     ghcr.io/pushkar-anand/jocasta:latest
+   ```
 
-Open `http://<host>:8080` and create the admin account. The first sweep runs
-straight away and then every five minutes.
+3. Open `http://<host>:8080`.
+4. Create the admin account. The first sweep runs straight away and then
+   every five minutes.
 
 Every other setting, with its default, is in
 [`jocasta.example.yaml`](jocasta.example.yaml). For binaries, building from

@@ -3,7 +3,7 @@ package auth
 import "errors"
 
 // ErrInvalidCredentials is returned both for an unknown username and for a
-// wrong password, so a caller can't tell which by branching on the error.
+// wrong password, so a caller cannot tell which by branching on the error.
 var ErrInvalidCredentials = errors.New("invalid user or credentials")
 
 // ErrInvalidToken is returned for an API token that answers for no row,
@@ -34,7 +34,7 @@ var ErrInvalidTOTPCode = errors.New("invalid authentication code")
 var ErrInvalidEnrollmentCode = errors.New("invalid authentication code")
 
 // ErrInvalidPassword is returned by DisableTOTP and RegenerateRecoveryCodes
-// when the password confirming the action doesn't match. It is distinct from
+// when the password confirming the action does not match. It is distinct from
 // ErrInvalidCredentials, which is wired to the standalone sign-in page: both
 // actions are reached only by a visitor already signed in, on the settings
 // page, so the error lands back there.

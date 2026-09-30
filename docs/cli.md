@@ -16,7 +16,7 @@ jocasta <command> [flags]
 
 Every command takes `--help` for its own flags.
 
-## `serve`
+## serve
 
 ```bash
 jocasta serve                 # host and port from config
@@ -32,7 +32,7 @@ enabled `netflow` instance
 starts a listener for its router's flow exports, and an hourly prune deletes
 records older than their `retention` window.
 
-## `scan`
+## scan
 
 Runs one sweep and prints a table, or JSON with `--json`. With `--save` it also
 records the sweep in the inventory, under the name from `--source`, then
@@ -51,7 +51,7 @@ $ jocasta scan 192.0.2.0/24 --save --rate 500 --no-resolve-names
 The sweep uses a raw ICMP socket where it can and an unprivileged datagram
 socket otherwise, so it runs without root.
 
-## `ports`
+## ports
 
 Probes TCP ports with a plain `connect()`, so it needs no privileges and cannot
 change the target. With no argument it scans every current address in the
@@ -71,7 +71,7 @@ $ jocasta ports --save                      # every known address, recorded
 $ jocasta ports 192.0.2.0/24 --ports 1-1024 --json
 ```
 
-## `plugin run`
+## plugin run
 
 Reads one configured source without starting the server. Use it to check a
 credential or a firewall rule against the real router. It reads the instance

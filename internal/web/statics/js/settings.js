@@ -115,22 +115,24 @@
         if (!target) {
             return;
         }
-        var restore = function () {
+        var feedback = function (message) {
             var was = btn.getAttribute('data-label') || btn.textContent;
             btn.setAttribute('data-label', was);
-            btn.textContent = 'Copied';
+            btn.textContent = message;
             setTimeout(function () {
                 btn.textContent = was;
             }, 1500);
         };
         if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(target.textContent).then(restore, function () {
+            navigator.clipboard.writeText(target.textContent).then(function () {
+                feedback('Copied to clipboard');
+            }, function () {
                 selectText(target);
-                restore();
+                feedback('Could not copy. Copy the text manually.');
             });
         } else {
             selectText(target);
-            restore();
+            feedback('Copy the text manually.');
         }
     });
 

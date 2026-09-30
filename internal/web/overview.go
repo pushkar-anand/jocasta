@@ -43,6 +43,8 @@ type overviewData struct {
 	Stale         bool
 }
 
+// overview serves the inventory summary with the signed-in account's controls.
+// Failed reads return an error rather than showing an empty inventory.
 func (h *Handler) overview(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		data, err := buildOverviewData(r.Context(), h.store)

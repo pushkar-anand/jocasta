@@ -126,9 +126,8 @@ func Start(
 			// they give 401 and 407.
 			case errors.Is(err, auth.ErrInvalidTOTPCode):
 				return http.StatusPreconditionRequired
-			// Both reached only from the settings page, already signed in: the
-			// generic bad-request page they share is the right shell for a
-			// retry. The standalone sign-in page belongs to 401.
+			// Settings handlers render these beside the failed field. Keep the
+			// status mapping for errors returned outside those handlers too.
 			case errors.Is(err, auth.ErrInvalidEnrollmentCode), errors.Is(err, auth.ErrInvalidPassword):
 				return http.StatusUnprocessableEntity
 			case errors.Is(err, auth.ErrSetupComplete):
@@ -287,6 +286,9 @@ func safeMethod(method string) bool {
 	return false
 }
 
+// fromSameOrigin reports whether the request's browser headers allow a write.
+// Requests with neither fetch metadata nor Origin are allowed; an Origin
+// fallback must name the request's host.
 func fromSameOrigin(r *http.Request) bool {
 	// Sec-Fetch-Site is the browser's own account of where the request came
 	// from, and cannot be set by the page making it.

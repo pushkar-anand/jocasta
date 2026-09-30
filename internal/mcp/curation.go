@@ -21,7 +21,7 @@ type updateDeviceCurationInput struct {
 	Group   string `json:"group" jsonschema:"The group to file the device under. Empty clears it."`
 	Type    string `json:"type" jsonschema:"The device class, overriding the classifier's guess. Empty removes the override, so the guess applies again."`
 	Notes   string `json:"notes" jsonschema:"Free-text notes. Empty clears them."`
-	Ignored bool   `json:"ignored" jsonschema:"Whether to hide the device from device lists and counts of what is online."`
+	Ignored bool   `json:"ignored" jsonschema:"Whether to hide the device from default device lists. get_stats still includes ignored devices."`
 }
 
 // updateDeviceCurationOutput is the device as it stands after the change.

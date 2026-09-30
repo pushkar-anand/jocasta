@@ -271,6 +271,8 @@ type trafficSummary struct {
 	FromInternet int64
 }
 
+// summarise totals exchanged data and counts distinct local peers and internet
+// organisations. Attempts are counted separately from conversations.
 func summarise(t *inventory.DeviceTraffic, attempts []*inventory.Attempt) trafficSummary {
 	var s trafficSummary
 

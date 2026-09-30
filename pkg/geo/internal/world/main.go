@@ -82,6 +82,8 @@ func main() {
 	}
 }
 
+// run downloads country outlines and rebuilds world.gz after checking the
+// minimum country count. Network work has a five-minute deadline.
 func run() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
@@ -343,6 +345,8 @@ func offLine(p, a, b [2]float64) float64 {
 
 func num(f float64) string { return strconv.FormatFloat(math.Round(f*10)/10, 'f', -1, 64) }
 
+// write replaces world.gz with country outlines and label positions. A write
+// failure can leave a partial file.
 func write(countries []*country) error {
 	f, err := os.Create("world.gz")
 	if err != nil {

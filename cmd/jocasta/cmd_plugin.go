@@ -233,6 +233,9 @@ func outputNetworks(w io.Writer, nets []plugin.Network, asJSON bool) error {
 	return err
 }
 
+// outputFacts writes source claims as JSON or a table, including their
+// presence claims. An empty table is replaced by a message that no devices
+// were reported.
 func outputFacts(w io.Writer, facts []plugin.Fact, asJSON bool) error {
 	if asJSON {
 		return writeJSON(w, facts)

@@ -50,7 +50,7 @@ func TestSetupFormRejectsTooShortInput(t *testing.T) {
 	rec := requestAs(t, h, nil, http.MethodPost, "/setup", form.Encode())
 
 	require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Bad request")
+	assert.Contains(t, rec.Body.String(), "Request could not be processed")
 	assert.NotContains(t, rec.Body.String(), "Internal Server Error")
 }
 

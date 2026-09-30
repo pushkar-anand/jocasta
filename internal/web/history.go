@@ -131,6 +131,8 @@ func logCursor(raw string) (inventory.Cursor, string) {
 	return c, raw
 }
 
+// events serves a page of changes, optionally for one existing device.
+// An unreadable cursor falls back to the newest page.
 func (h *Handler) events(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
@@ -188,6 +190,8 @@ func (h *Handler) events(sm *auth.Session) response.HandlerFunc {
 	}
 }
 
+// scans serves a page of recorded scans, optionally filtered by kind.
+// An unreadable cursor falls back to the newest page.
 func (h *Handler) scans(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()

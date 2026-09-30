@@ -22,6 +22,8 @@ func DeviceClassRule(fl validator.FieldLevel) bool {
 // carries. The full log is at /events.
 const deviceEventLimit = 50
 
+// listDevices serves recorded devices matching the query filters. Ignored
+// devices are excluded unless include_ignored is set.
 func (h *Handler) listDevices(store *inventory.Store) response.HandlerFunc {
 	type (
 		// devicesRequest narrows a device list. Fields are matched by their
@@ -68,6 +70,8 @@ func (h *Handler) listDevices(store *inventory.Store) response.HandlerFunc {
 	}
 }
 
+// getDevice serves one device's identity, curation, addresses, ports and sources.
+// A missing device produces a not-found response.
 func (h *Handler) getDevice(store *inventory.Store) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		id, err := deviceID(r)
@@ -86,6 +90,8 @@ func (h *Handler) getDevice(store *inventory.Store) response.HandlerFunc {
 	}
 }
 
+// updateDevice replaces all owner-controlled fields, clearing omitted values,
+// and returns the updated device. Observed network facts are unchanged.
 func (h *Handler) updateDevice(store *inventory.Store) response.HandlerFunc {
 	// curationRequest is what a caller may change on a device. Every field is
 	// applied, so one left out of the body clears what was there.
@@ -122,6 +128,8 @@ func (h *Handler) updateDevice(store *inventory.Store) response.HandlerFunc {
 	}
 }
 
+// deviceEvents serves up to deviceEventLimit changes for an existing device.
+// A missing device produces a not-found response rather than an empty history.
 func (h *Handler) deviceEvents(store *inventory.Store) response.HandlerFunc {
 	type eventsResponse struct {
 		Events []*inventory.Event `json:"events"`
@@ -151,6 +159,7 @@ func (h *Handler) deviceEvents(store *inventory.Store) response.HandlerFunc {
 	}
 }
 
+// groups serves the owner-assigned group names available for filtering devices.
 func (h *Handler) groups(store *inventory.Store) response.HandlerFunc {
 	type groupsResponse struct {
 		Groups []string `json:"groups"`
@@ -168,6 +177,7 @@ func (h *Handler) groups(store *inventory.Store) response.HandlerFunc {
 	}
 }
 
+// stats serves inventory counts, including ignored devices.
 func (h *Handler) stats(store *inventory.Store) response.HandlerFunc {
 	// The counts are the whole response, so the wrapper only exists to name
 	// what this route returns; the fields are inlined by the embedding.

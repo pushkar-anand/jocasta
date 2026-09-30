@@ -78,7 +78,7 @@ func TestDot(t *testing.T) {
 	seen := string(dot(now, now.Add(-30*time.Minute)))
 	assert.Contains(t, seen, `role="img"`)
 	assert.Contains(t, seen, `class="dot decay--recent"`)
-	assert.Contains(t, seen, `aria-label="Seen recently — 30m ago"`, "the colour has a text alternative")
+	assert.Contains(t, seen, `aria-label="Seen recently: 30m ago"`, "the colour has a text alternative")
 
 	// Nothing was ever seen: the status stands alone, with no relative time.
 	assert.Contains(t, string(dot(now, time.Time{})), `aria-label="Not seen"`)

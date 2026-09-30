@@ -14,9 +14,8 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// For renders the errors the inventory returns that are not simply failures.
-// Anything else is nil, which the caller turns into a generic 500: all a
-// caller should learn about an unexpected error.
+// For maps recognised inventory errors to HTTP problems. It returns nil for
+// unexpected errors, whose details belong in the server log.
 func For(err error) response.Problem {
 	if errors.Is(err, inventory.ErrNotFound) {
 		return response.NewProblem().

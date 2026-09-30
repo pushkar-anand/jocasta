@@ -388,7 +388,7 @@ func TestScanCmdInvalidTarget(t *testing.T) {
 	cmd := ScanCmd{Target: "invalid-cidr"}
 	err := cmd.Run(t.Context(), nil, nil, nil, nil)
 	require.Error(t, err)
-	assert.ErrorContains(t, err, "invalid CIDR prefix")
+	assert.ErrorContains(t, err, "use an address and prefix length, such as 192.0.2.0/24")
 }
 
 // A successful run of the scan command needs an ICMP socket, which CI does not

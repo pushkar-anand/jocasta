@@ -51,7 +51,7 @@ func TestTopologySaysWhenNothingIsRead(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 
 	body := rec.Body.String()
-	assert.Contains(t, body, "Nothing is read yet.")
+	assert.Contains(t, body, "No topology recorded yet.")
 	assert.Contains(t, body, "setup.md#show-what-is-plugged-in-where")
 	assert.NotContains(t, body, `hx-get="/topology/live"`, "nothing to refresh")
 }

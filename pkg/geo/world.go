@@ -11,10 +11,9 @@ import (
 	"sync"
 )
 
-// The world map is drawn in an equirectangular projection on a canvas
-// WorldWidth across, from latitude worldNorth down to worldSouth: far enough
-// north for Greenland and Svalbard, and short of Antarctica, which nobody's
-// traffic goes to.
+// WorldWidth and WorldHeight are the dimensions of the world map's canvas.
+// Its equirectangular projection includes Greenland and Svalbard but omits
+// Antarctica.
 const (
 	WorldWidth  = 1000.0
 	WorldHeight = WorldWidth * (worldNorth - worldSouth) / 360
@@ -23,7 +22,8 @@ const (
 	worldSouth = -58.0
 )
 
-// Project places a longitude and latitude on the world map's canvas.
+// Project places a longitude and latitude, in degrees, on the world map's
+// canvas. Latitude is clamped to the map's north and south edges.
 func Project(lon, lat float64) (x, y float64) {
 	lat = math.Max(worldSouth, math.Min(worldNorth, lat))
 
@@ -42,7 +42,7 @@ type Country struct {
 	LabelX, LabelY float64
 }
 
-// The outlines are from Natural Earth's 1:10m countries, which are in the
+// worldData holds outlines from Natural Earth's 1:10m countries, which are in the
 // public domain, simplified and generated into world.gz by internal/world.
 //
 //go:embed world.gz
@@ -55,6 +55,8 @@ type worldIndex struct {
 	byCode map[string]int
 }
 
+// loadWorld indexes the embedded outlines by country code. It returns an empty
+// index if the gzip header cannot be read and skips malformed rows.
 func loadWorld() *worldIndex {
 	ix := &worldIndex{byCode: make(map[string]int)}
 
@@ -86,7 +88,8 @@ func loadWorld() *worldIndex {
 	return ix
 }
 
-// World returns every country's outline, by code.
+// World returns every country's outline, by code. The slice and its elements
+// are shared and must not be modified.
 func World() []Country { return world().list }
 
 // CountryOf returns the country with a two-letter code, and false for one the

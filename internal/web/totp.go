@@ -38,6 +38,8 @@ func (h *Handler) loginTOTP(sm *auth.Session) response.HandlerFunc {
 	}
 }
 
+// loginTOTPForm completes a pending sign-in with an authenticator or recovery
+// code. A successful recovery code cannot be reused.
 func (h *Handler) loginTOTPForm(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	type totpForm struct {
 		// max=64 fits a recovery code (xxxx-xxxx-xxxx-xxxx, 19 chars) as well

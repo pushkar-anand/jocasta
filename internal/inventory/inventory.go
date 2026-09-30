@@ -541,6 +541,9 @@ func (s *Store) close(ctx context.Context, scanID int64, found int, cause error)
 	return nil
 }
 
+// record applies one source fact within p's transaction and updates its counts
+// and touched devices. Facts without presence cannot take an address from its
+// current holder; facts identifying no device are counted as dropped.
 func (s *Store) record(ctx context.Context, p *pass, f plugin.Fact) error {
 	ip := dbtype.NewAddr(f.Host.Address())
 	mac := s.hardware(ctx, f)
@@ -763,6 +766,8 @@ func (s *Store) resolve(
 	return s.create(ctx, p, mac, f)
 }
 
+// create records a new device and its discovery event within p's transaction.
+// Without a hardware address, the device has only an IP identity.
 func (s *Store) create(ctx context.Context, p *pass, mac dbtype.MAC, f plugin.Fact) (*models.Device, error) {
 	source := dbtype.IdentityIP
 	if mac.Valid() {

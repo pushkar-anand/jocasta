@@ -22,11 +22,14 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// ServeCmd configures HTTP listener overrides for the running service.
 type ServeCmd struct {
 	Host string `name:"host" help:"Override server listen host."`
 	Port int    `name:"port" short:"p" help:"Override server listen port."`
 }
 
+// Run serves HTTP and runs the configured collectors and notification workers.
+// It waits for shutdown and stops the poller before returning.
 func (s *ServeCmd) Run(
 	ctx context.Context,
 	cfg *config.Config,

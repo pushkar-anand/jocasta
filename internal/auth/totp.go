@@ -212,6 +212,8 @@ func (a *Auth) VerifyTOTP(ctx context.Context, sm *Session, code string) (*model
 	return user, nil
 }
 
+// checkTOTPOrRecoveryCode reports whether code matches the user's authenticator
+// or an unused recovery code. A matching recovery code is consumed.
 func (a *Auth) checkTOTPOrRecoveryCode(ctx context.Context, user *models.User, code string) (bool, error) {
 	if user.TOTPSecret.Valid && totp.Validate(code, user.TOTPSecret.String) {
 		return true, nil
@@ -233,6 +235,9 @@ func (a *Auth) checkTOTPOrRecoveryCode(ctx context.Context, user *models.User, c
 	return true, nil
 }
 
+// regenerateRecoveryCodes replaces the user's recovery codes and returns their
+// plaintext values. Only hashes are stored. A failure after deletion leaves
+// the old codes unusable and may leave only part of the replacement stored.
 func (a *Auth) regenerateRecoveryCodes(ctx context.Context, userID int64) ([]string, error) {
 	if err := a.store.DeleteRecoveryCodesByUser(ctx, userID); err != nil {
 		return nil, fmt.Errorf("clear recovery codes: %w", err)

@@ -59,6 +59,8 @@ func (h *Handler) listDevices(sm *auth.Session, rows bool) response.HandlerFunc 
 	}
 }
 
+// device serves one device's details and history. A malformed or missing id
+// produces a not-found page.
 func (h *Handler) device(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		// A device that is not there is a page that is not there: a 404.

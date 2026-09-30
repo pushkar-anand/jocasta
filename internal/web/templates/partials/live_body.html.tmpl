@@ -45,7 +45,8 @@
             {{- end }}
         </div>
         {{- else }}
-        <p class="dim">No network has been swept yet.</p>
+        <p class="dim">No network has been swept yet. Add the prefixes to <code>networks</code> in the config file; see
+            <a href="https://github.com/pushkar-anand/jocasta/blob/main/docs/setup.md#configuration">Configure networks</a>.</p>
         {{- end }}
     </section>
 
@@ -155,7 +156,7 @@
                     {{- end }}
                 </ul>
                 {{- else }}
-                <p class="dim">No open services recorded yet.</p>
+                <p class="dim">No open services recorded yet. Services appear when a port scan finds a known service port open.</p>
                 {{- end }}
             </div>
 

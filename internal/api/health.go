@@ -8,6 +8,8 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/version"
 )
 
+// healthHandler serves the build version and server time. It does not check
+// the database or collectors.
 func (h *Handler) healthHandler() response.HandlerFunc {
 	type healthResponse struct {
 		Version string    `json:"version"`

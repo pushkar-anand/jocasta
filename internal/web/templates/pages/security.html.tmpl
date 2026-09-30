@@ -37,10 +37,14 @@
                 <p class="note">If you cannot scan it, enter this key in the app: <code>{{ .Secret }}</code></p>
 
                 <form method="post" action="/settings/security/totp/confirm" class="stack">
+                    {{- if eq .ErrorAction "confirm" }}
+                    <p class="failure" id="confirm-error" role="alert">{{ .Error }}</p>
+                    {{- end }}
                     <label class="stack">
                         <span class="eyebrow">Code</span>
                         <input class="input" type="text" name="code" inputmode="numeric" autocomplete="one-time-code"
-                               minlength="6" maxlength="6" autofocus required>
+                               minlength="6" maxlength="6" autofocus required
+                               {{ if eq .ErrorAction "confirm" }}aria-invalid="true" aria-describedby="confirm-error"{{ end }}>
                     </label>
                     <button type="submit" class="btn">Turn on</button>
                 </form>
@@ -64,7 +68,7 @@
                     </button>
                 </div>
 
-                <dialog class="modal" id="regenerate-dialog" aria-labelledby="regenerate-dialog-title">
+                <dialog class="modal" id="regenerate-dialog" aria-labelledby="regenerate-dialog-title"{{ if eq .ErrorAction "regenerate" }} open{{ end }}>
                     <div class="modal__head">
                         <div>
                             <h2 class="modal__title" id="regenerate-dialog-title">Regenerate recovery codes</h2>
@@ -80,10 +84,14 @@
 
                     <form method="post" action="/settings/security/recovery-codes/regenerate">
                         <div class="modal__body">
+                            {{- if eq .ErrorAction "regenerate" }}
+                            <p class="failure" id="regenerate-error" role="alert">{{ .Error }}</p>
+                            {{- end }}
                             <label class="stack">
                                 <span class="eyebrow">Password</span>
                                 <input class="input" type="password" name="password" autocomplete="current-password"
-                                       minlength="8" maxlength="1000" autofocus required>
+                                       minlength="8" maxlength="1000" autofocus required
+                                       {{ if eq .ErrorAction "regenerate" }}aria-invalid="true" aria-describedby="regenerate-error"{{ end }}>
                             </label>
                         </div>
                         <div class="modal__foot">
@@ -93,7 +101,7 @@
                     </form>
                 </dialog>
 
-                <dialog class="modal" id="disable-dialog" aria-labelledby="disable-dialog-title">
+                <dialog class="modal" id="disable-dialog" aria-labelledby="disable-dialog-title"{{ if eq .ErrorAction "disable" }} open{{ end }}>
                     <div class="modal__head">
                         <div>
                             <h2 class="modal__title" id="disable-dialog-title">Turn off two-factor authentication</h2>
@@ -109,10 +117,14 @@
 
                     <form method="post" action="/settings/security/totp/disable">
                         <div class="modal__body">
+                            {{- if eq .ErrorAction "disable" }}
+                            <p class="failure" id="disable-error" role="alert">{{ .Error }}</p>
+                            {{- end }}
                             <label class="stack">
                                 <span class="eyebrow">Password</span>
                                 <input class="input" type="password" name="password" autocomplete="current-password"
-                                       minlength="8" maxlength="1000" autofocus required>
+                                       minlength="8" maxlength="1000" autofocus required
+                                       {{ if eq .ErrorAction "disable" }}aria-invalid="true" aria-describedby="disable-error"{{ end }}>
                             </label>
                         </div>
                         <div class="modal__foot">

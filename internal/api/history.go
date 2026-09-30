@@ -8,6 +8,8 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
+// listEvents serves one page of changes, newest first, with a cursor for the
+// next page when more remain.
 func (h *Handler) listEvents(store *inventory.Store) response.HandlerFunc {
 	type (
 		// Cursor decodes itself out of the query string, so a client hands back
@@ -54,6 +56,8 @@ func (h *Handler) listEvents(store *inventory.Store) response.HandlerFunc {
 	}
 }
 
+// listScans serves one page of recorded scans, newest first, with a cursor for
+// the next page when more remain. It does not start a scan.
 func (h *Handler) listScans(store *inventory.Store) response.HandlerFunc {
 	type (
 		scansRequest struct {

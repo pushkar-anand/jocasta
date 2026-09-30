@@ -184,6 +184,8 @@ func orgName(number uint32, ip netip.Addr) (name, short string) {
 	return label, label
 }
 
+// trafficPeer converts a stored aggregate to a displayable peer, rejecting
+// addresses and hour values that cannot be parsed.
 func trafficPeer(row *models.DeviceTrafficRow) (*TrafficPeer, error) {
 	ip, err := netip.ParseAddr(row.PeerIP)
 	if err != nil {

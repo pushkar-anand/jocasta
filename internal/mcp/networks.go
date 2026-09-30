@@ -21,7 +21,7 @@ func listNetworks(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 		Name:  "list_networks",
 		Title: "List networks",
 		Description: "List the networks the inventory has recorded: each one's id, prefix, name and VLAN tag where a router " +
-			"reported them, and how many devices hold a current address on it, online and offline. " +
+			"reported them, and how many devices hold a current address on it, seen recently or quiet. " +
 			"A network nothing has been found on is listed at zero. " +
 			"Pass a network's id to list_devices as network_id to see the devices on it.",
 		InputSchema:  schemaFor[struct{}](),
@@ -62,7 +62,8 @@ func getNetwork(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 		Name:  "get_network",
 		Title: "Get a network",
 		Description: "Get one recorded network by id: its prefix, name, VLAN tag and device counts. " +
-			"Use list_devices with network_id for the devices on it.",
+			"Use it after list_networks when you need details for a known id. " +
+			"It does not return device records; use list_devices with network_id for the devices on it.",
 		InputSchema:  getNetworkSchema(),
 		OutputSchema: schemaFor[getNetworkOutput](),
 		Annotations:  readOnly(),

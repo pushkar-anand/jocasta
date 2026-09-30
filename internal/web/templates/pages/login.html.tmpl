@@ -1,7 +1,7 @@
 {{- /*
     Its own document, outside layout/head and layout/foot: that layout is the
     signed-in shell (sidebar, nav, sweep note), none of which applies to a
-    visitor who isn't signed in yet.
+    visitor who is not signed in yet.
 */ -}}
 {{ define "page/login" }}<!DOCTYPE html>
 <html lang="en">
@@ -58,24 +58,26 @@
             <h1>Sign in</h1>
 
             {{- with .Error }}
-                <p class="failure">{{ . }}</p>
+                <p class="failure" id="login-error" role="alert">{{ . }}</p>
             {{- end }}
 
             <form method="post" action="/login" class="authform">
                 <label class="stack">
                     <span class="eyebrow">Username</span>
-                    <input class="input" type="text" name="username" autocomplete="username" autofocus
+                    <input class="input" type="text" name="username" value="{{ .Username }}" autocomplete="username" autofocus
+                           {{ if .Error }}aria-invalid="true" aria-describedby="login-error"{{ end }}
                            minlength="3" maxlength="100" required>
                 </label>
 
                 <label class="stack">
                     <span class="eyebrow">Password</span>
                     <input class="input" type="password" name="password" autocomplete="current-password"
+                           {{ if .Error }}aria-invalid="true" aria-describedby="login-error"{{ end }}
                            minlength="8" maxlength="1000" required>
                 </label>
 
                 <label class="check">
-                    <input type="checkbox" name="remember_me" value="true">
+                    <input type="checkbox" name="remember_me" value="true"{{ if .RememberMe }} checked{{ end }}>
                     <span>Remember me</span>
                 </label>
 

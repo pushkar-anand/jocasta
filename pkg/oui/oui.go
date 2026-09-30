@@ -47,11 +47,12 @@ type Vendor struct {
 // prefix first would report the reseller.
 var prefixNibbles = [...]int{9, 7, 6}
 
-// table is parsed on first use. Decompressing and indexing sixty thousand
-// entries costs a few milliseconds, which a caller that never looks up a
-// vendor should not pay.
+// table is parsed on first use so callers that never look up a vendor do not
+// pay to index the embedded data.
 var table = sync.OnceValue(load)
 
+// load indexes the embedded vendor records by prefix, skipping malformed rows.
+// A missing short name falls back to the registered name.
 func load() map[string]Vendor {
 	m := make(map[string]Vendor, 64_000)
 
