@@ -170,15 +170,16 @@ func readMDNS(pc net.PacketConn, want map[netip.AddrPort]string, names map[netip
 	}
 }
 
-// reverseName returns the in-addr.arpa name that a reverse lookup of a asks
-// about.
-func reverseName(a netip.Addr) string {
-	b := a.As4()
+// reverseName returns the in-addr.arpa name that a reverse lookup of addr
+// asks about.
+func reverseName(addr netip.Addr) string {
+	b := addr.As4()
 
 	return fmt.Sprintf("%d.%d.%d.%d.in-addr.arpa.", b[3], b[2], b[1], b[0])
 }
 
-// reverseQuery builds a PTR query for name.
+// reverseQuery returns a PTR query for name with message ID 0, which
+// parseReverseAnswer relies on to ignore the ID.
 func reverseQuery(name string) ([]byte, error) {
 	n, err := dnsmessage.NewName(name)
 	if err != nil {
@@ -238,9 +239,9 @@ func parseReverseAnswer(b []byte, q string) (string, bool) {
 	}
 }
 
-// cleanName trims the root dot off name and reports whether what is left can
-// be shown as a device's name. A device writes its own answer, so the name can
-// hold any byte; a control character or space is refused.
+// cleanName trims the root dot off name and reports whether what is left is
+// valid UTF-8 of 1 to 253 bytes with no control character or space. A device
+// writes its own answer, so the name can hold any byte.
 func cleanName(name string) (string, bool) {
 	name = strings.TrimSuffix(name, ".")
 
