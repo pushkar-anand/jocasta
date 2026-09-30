@@ -30,7 +30,8 @@ inventory holds on `scan.ports.interval`. Each enabled `routeros` instance is
 also read for what is plugged into it, on `scan.devices.interval`. Each
 enabled `netflow` instance
 starts a listener for its router's flow exports, and an hourly prune deletes
-records older than their `retention` window.
+records older than their `retention` window, and devices you never curated
+that no scan has seen within `retention.devices`.
 
 ## scan
 

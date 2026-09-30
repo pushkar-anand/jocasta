@@ -258,7 +258,7 @@ func TestPruneDeletesTrafficPastItsOwnRetention(t *testing.T) {
 
 	advance(49 * time.Hour)
 
-	res, err := s.Prune(t.Context(), 0, 24*time.Hour)
+	res, err := s.Prune(t.Context(), Retention{Traffic: 24 * time.Hour})
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), res.Traffic)
 	assert.Zero(t, res.Events, "zero retention keeps events")

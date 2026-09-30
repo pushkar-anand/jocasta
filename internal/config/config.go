@@ -68,13 +68,17 @@ type (
 
 	// Retention says how long each kind of record is kept. Rows older than
 	// their window are deleted on an hourly prune; zero keeps that kind
-	// forever. Devices themselves are never pruned.
+	// forever.
 	Retention struct {
 		// History is how long the event log and the scan log are kept.
 		History time.Duration `koanf:"history"`
 
 		// Traffic is how long hourly traffic totals are kept.
 		Traffic time.Duration `koanf:"traffic"`
+
+		// Devices is how long a device nobody labelled, grouped, typed,
+		// noted or ignored is kept after a scan last saw it.
+		Devices time.Duration `koanf:"devices"`
 	}
 
 	// Location says where the network is.

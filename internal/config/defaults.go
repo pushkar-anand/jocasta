@@ -28,6 +28,7 @@ var defaults = map[string]any{
 
 	"retention.history": inventory.DefaultRetention.String(),
 	"retention.traffic": inventory.DefaultTrafficRetention.String(),
+	"retention.devices": inventory.DefaultDeviceRetention.String(),
 
 	"location.country":  "",
 	"location.timezone": "",
