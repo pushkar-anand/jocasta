@@ -1,6 +1,6 @@
 // Package scanner discovers hosts on a network by sweeping an address range with
 // ICMP echo requests and enriching whatever answers with a MAC address and a
-// hostname.
+// hostname, from reverse DNS or, failing that, from the host itself over mDNS.
 package scanner
 
 import (
@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/pushkar-anand/build-with-go/logger"
+	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/hosts"
 	"github.com/pushkar-anand/jocasta/pkg/cidr"
 )
@@ -45,6 +46,10 @@ type Host struct {
 	// embedded Interface names the interface holding it. Both are empty for
 	// every other host, whose interfaces are not visible from here.
 	Self bool
+
+	// NameSource is how the sweep learned the name the embedded host carries,
+	// and is empty when it carries none.
+	NameSource dbtype.HostnameSource
 }
 
 // MarshalJSON writes the sweep's fields alongside the embedded host's. Without
@@ -55,6 +60,7 @@ func (h Host) MarshalJSON() ([]byte, error) {
 		Addr       netip.Addr    `json:"addr"`
 		MAC        string        `json:"mac,omitempty"`
 		Hostname   string        `json:"hostname,omitempty"`
+		NameSource string        `json:"name_source,omitempty"`
 		RTT        time.Duration `json:"rtt"`
 		SeenAt     time.Time     `json:"seen_at"`
 		Vendor     string        `json:"vendor,omitempty"`
@@ -65,6 +71,7 @@ func (h Host) MarshalJSON() ([]byte, error) {
 		Addr:       h.Address(),
 		MAC:        h.MAC,
 		Hostname:   h.Hostname(),
+		NameSource: string(h.NameSource),
 		RTT:        h.RTT,
 		SeenAt:     h.SeenAt,
 		Vendor:     h.ShortName(),
@@ -94,6 +101,7 @@ type Scanner struct {
 
 	resolveNames bool
 	resolveMACs  bool
+	resolveMDNS  bool
 }
 
 // Option configures a Scanner.
@@ -131,6 +139,12 @@ func WithNameResolution(v bool) Option {
 	return func(s *Scanner) { s.resolveNames = v }
 }
 
+// WithMDNSResolution controls asking hosts that answered, and have no reverse
+// DNS name, for their name over mDNS.
+func WithMDNSResolution(v bool) Option {
+	return func(s *Scanner) { s.resolveMDNS = v }
+}
+
 // WithMACResolution controls ARP-table lookups for hosts that answered.
 func WithMACResolution(v bool) Option {
 	return func(s *Scanner) { s.resolveMACs = v }
@@ -146,6 +160,7 @@ func New(log *slog.Logger, opts ...Option) *Scanner {
 		rate:         1000,
 		resolveNames: true,
 		resolveMACs:  true,
+		resolveMDNS:  true,
 	}
 
 	for _, opt := range opts {
@@ -245,10 +260,54 @@ func (s *Scanner) enrich(ctx context.Context, replies map[netip.Addr]time.Durati
 
 	for _, h := range built {
 		addr := h.Address()
-		found = append(found, Host{Host: h, RTT: replies[addr], SeenAt: at, Self: self[addr]})
+
+		host := Host{Host: h, RTT: replies[addr], SeenAt: at, Self: self[addr]}
+		if h.Hostname() != "" {
+			host.NameSource = dbtype.HostnameFromDNS
+		}
+
+		found = append(found, host)
+	}
+
+	if s.resolveMDNS {
+		s.nameOverMDNS(ctx, found)
 	}
 
 	return found
+}
+
+// nameOverMDNS asks each host in found that has no name for one over mDNS, and
+// names the hosts that answer. A host named by reverse DNS is not asked,
+// because that name outranks an mDNS one wherever names are elected.
+func (s *Scanner) nameOverMDNS(ctx context.Context, found []Host) {
+	var nameless []netip.Addr
+
+	for _, h := range found {
+		if h.Hostname() == "" {
+			nameless = append(nameless, h.Address())
+		}
+	}
+
+	if len(nameless) == 0 {
+		return
+	}
+
+	// The names that arrived before a failure are still the hosts' own
+	// answers, so they are kept.
+	names, err := askMDNS(ctx, nameless, mdnsPort, s.rate, mdnsWait)
+	if err != nil {
+		s.log.WarnContext(ctx, "could not ask every host for its name over mDNS", logger.Err(err))
+	}
+
+	for i, h := range found {
+		name, ok := names[h.Address()]
+		if !ok {
+			continue
+		}
+
+		found[i].Host = h.Named(name)
+		found[i].NameSource = dbtype.HostnameFromMDNS
+	}
 }
 
 // hardware reads the two views of who holds an address: the kernel's neighbour

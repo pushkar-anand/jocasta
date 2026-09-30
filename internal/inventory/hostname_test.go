@@ -46,6 +46,22 @@ func TestResolveHostname(t *testing.T) {
 			want: nameClaim{name: "bound", standing: dbtype.HostnameFromDHCPStatic, at: at(1)},
 		},
 		{
+			name: "mDNS outranks a dynamic lease",
+			claims: []nameClaim{
+				{name: "leased", standing: dbtype.HostnameFromDHCPLease, at: at(2)},
+				{name: "tv.local", standing: dbtype.HostnameFromMDNS, at: at(1)},
+			},
+			want: nameClaim{name: "tv.local", standing: dbtype.HostnameFromMDNS, at: at(1)},
+		},
+		{
+			name: "a static lease outranks mDNS",
+			claims: []nameClaim{
+				{name: "tv.local", standing: dbtype.HostnameFromMDNS, at: at(2)},
+				{name: "bound", standing: dbtype.HostnameFromDHCPStatic, at: at(1)},
+			},
+			want: nameClaim{name: "bound", standing: dbtype.HostnameFromDHCPStatic, at: at(1)},
+		},
+		{
 			name: "equal standing goes to the later sighting",
 			claims: []nameClaim{
 				{name: "old", standing: dbtype.HostnameFromDNS, at: at(1)},

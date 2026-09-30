@@ -16,7 +16,8 @@ make htmx           # refresh the vendored htmx
 ## Layout
 
 - `cmd/jocasta`: CLI entry point.
-- `internal/scanner`: the ICMP sweep.
+- `internal/scanner`: the ICMP sweep, and the reverse DNS and mDNS lookups
+  that name what answers.
 - `internal/plugin`: sources beyond the sweep (RouterOS).
 - `internal/inventory`: the store, covering identity resolution, address
   handling, device classification and the change log.
@@ -50,6 +51,20 @@ file of its own, as `ntfy.go` and `webhook.go` are:
 3. Add an example to `jocasta.example.yaml`.
 
 The notifier, the settings page, the store and `cmd` need no change.
+
+## Add a name source
+
+Each name carries a standing, `dbtype.HostnameSource`, which says how it was
+learned. When sources disagree, the name with the higher standing is shown.
+
+1. Add a constant for it in `internal/db/dbtype/enum.go` and add it to
+   `hostnameSources`.
+2. Give it a place in `HostnameSource.Rank`, and say why in the comment
+   there. A name that resolves ranks above one a device only claims.
+3. Word it for the device page in `standing`, in `internal/web/funcs.go`.
+4. List it in [Name devices](setup.md#name-devices).
+
+The column has no CHECK, so a new standing needs no migration.
 
 ## Screenshots
 

@@ -7,6 +7,7 @@
 package inventory
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/binary"
@@ -263,8 +264,8 @@ func loadNetworks(ctx context.Context, q *models.Queries) (networks, error) {
 //
 // A sweep is one source among several. What makes it particular is only that
 // everything it returns answered a probe, and that any name it carries came
-// from the reverse lookup it performed, so it states those two things and
-// hands the facts to the same path every source uses.
+// from a lookup it performed, so it states those two things and hands the
+// facts to the same path every source uses.
 func (s *Store) RecordSweep(
 	ctx context.Context,
 	source string,
@@ -280,7 +281,7 @@ func (s *Store) RecordSweep(
 }
 
 // sweptFacts says what a sweep result claims: the address answered, so the
-// device is here now, and a name it carries was resolved over DNS.
+// device is here now, and a name it carries has the standing the sweep gave it.
 func sweptFacts(hosts []scanner.Host) []plugin.Fact {
 	facts := make([]plugin.Fact, len(hosts))
 
@@ -289,8 +290,10 @@ func sweptFacts(hosts []scanner.Host) []plugin.Fact {
 
 		// The standing travels with the name: a fact carrying a source for a
 		// name it does not have is a standing for nothing.
+		// A name with no stated standing is taken as reverse DNS, the lookup
+		// [hosts.BuildHost] performs for a sweep.
 		if h.Hostname() != "" {
-			f.HostnameSource = dbtype.HostnameFromDNS
+			f.HostnameSource = cmp.Or(h.NameSource, dbtype.HostnameFromDNS)
 		}
 
 		facts[i] = f

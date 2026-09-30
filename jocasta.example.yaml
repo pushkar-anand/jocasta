@@ -58,6 +58,7 @@ scan:
     wait: "2s"            # how long to wait for replies after the last probe
     resolve_names: true   # reverse DNS on addresses that answered
     resolve_macs: true    # read the neighbour table for hardware addresses
+    resolve_mdns: true    # ask hosts with no reverse DNS name for their name over mDNS
   ports:
     enabled: false
     interval: "6h"

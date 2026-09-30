@@ -110,7 +110,7 @@ func TestHostnameSourceScansNull(t *testing.T) {
 	require.NoError(t, s.Scan(nil))
 	assert.Equal(t, HostnameSource(""), s)
 
-	require.ErrorContains(t, s.Scan("MDNS"), `"MDNS" is not a valid hostname source`)
+	require.ErrorContains(t, s.Scan("WINS"), `"WINS" is not a valid hostname source`)
 }
 
 func TestEnumValid(t *testing.T) {

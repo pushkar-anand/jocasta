@@ -170,6 +170,14 @@ func (h Host) Hostname() string {
 	return h.hostname
 }
 
+// Named returns a copy of h that carries name, for a source that learns the
+// name after the host is built.
+func (h Host) Named(name string) *Host {
+	h.hostname = name
+
+	return &h
+}
+
 // ShortName is the vendor in display form, falling back to the full name and
 // then to empty.
 func (h Host) ShortName() string {

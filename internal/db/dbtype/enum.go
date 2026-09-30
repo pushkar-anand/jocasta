@@ -203,9 +203,13 @@ const (
 	// the static one deliberately, so its name is one they have already vetted.
 	HostnameFromDHCPStatic HostnameSource = "DHCP_STATIC"
 	HostnameFromDHCPLease  HostnameSource = "DHCP_LEASE"
+
+	// HostnameFromMDNS is a name a sweep learned by asking the device over
+	// mDNS, which is the name the device answers to on the local network.
+	HostnameFromMDNS HostnameSource = "MDNS"
 )
 
-var hostnameSources = []HostnameSource{HostnameFromDNS, HostnameFromDHCPStatic, HostnameFromDHCPLease}
+var hostnameSources = []HostnameSource{HostnameFromDNS, HostnameFromDHCPStatic, HostnameFromDHCPLease, HostnameFromMDNS}
 
 // Valid reports whether s is one of the known hostname sources.
 func (s HostnameSource) Valid() bool { return slices.Contains(hostnameSources, s) }
@@ -216,12 +220,17 @@ func (s HostnameSource) Valid() bool { return slices.Contains(hostnameSources, s
 // Where the resolver serves the router's leases the PTR is that same name with
 // the domain attached, so preferring DNS keeps the fuller spelling.
 //
+// An mDNS name sits between the two leases. It resolves on the local network,
+// which a dynamic lease name may not, and an operator chose the static one.
+//
 // An unknown standing ranks zero, so a known name still beats an unknown one.
 func (s HostnameSource) Rank() int {
 	switch s {
 	case HostnameFromDNS:
-		return 3
+		return 4
 	case HostnameFromDHCPStatic:
+		return 3
+	case HostnameFromMDNS:
 		return 2
 	case HostnameFromDHCPLease:
 		return 1

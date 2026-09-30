@@ -41,6 +41,7 @@ var defaults = map[string]any{
 	"scan.devices.wait":          "2s",
 	"scan.devices.resolve_names": true,
 	"scan.devices.resolve_macs":  true,
+	"scan.devices.resolve_mdns":  true,
 	"scan.ports.enabled":         false,
 	"scan.ports.interval":        "6h",
 	"scan.ports.custom":          "",
