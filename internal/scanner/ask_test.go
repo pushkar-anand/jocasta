@@ -199,19 +199,25 @@ func TestEnrichAsksEachLookupInTurn(t *testing.T) {
 
 	silent := func([]byte) ([]byte, bool) { return nil, false }
 
+	desc := descriptionServer(t, deviceDescription("Living Room TV"))
+	ssdpAnswers := ssdpReply(desc.URL + "/description.xml")
+
 	tests := []struct {
 		name         string
 		mdns         func([]byte) ([]byte, bool)
 		netbios      func([]byte) ([]byte, bool)
+		ssdp         func([]byte) ([]byte, bool)
 		off          bool
 		wantName     string
 		wantSource   dbtype.HostnameSource
 		wantNetBIOSQ int32
+		wantSSDPQ    int32
 	}{
 		{
-			name:       "mDNS answers, so NetBIOS is not asked",
+			name:       "mDNS answers, so NetBIOS and SSDP are not asked",
 			mdns:       mdnsReply("tv.local."),
 			netbios:    netbiosReply("TV"),
+			ssdp:       ssdpAnswers,
 			wantName:   "tv.local",
 			wantSource: dbtype.HostnameFromMDNS,
 		},
@@ -219,14 +225,26 @@ func TestEnrichAsksEachLookupInTurn(t *testing.T) {
 			name:         "mDNS is silent, so NetBIOS is asked",
 			mdns:         silent,
 			netbios:      netbiosReply("DESKTOP-4F2K"),
+			ssdp:         ssdpAnswers,
 			wantName:     "DESKTOP-4F2K",
 			wantSource:   dbtype.HostnameFromNetBIOS,
 			wantNetBIOSQ: 1,
 		},
 		{
-			name:    "both turned off",
+			name:         "mDNS and NetBIOS are silent, so SSDP is asked",
+			mdns:         silent,
+			netbios:      silent,
+			ssdp:         ssdpAnswers,
+			wantName:     "Living Room TV",
+			wantSource:   dbtype.HostnameFromSSDP,
+			wantNetBIOSQ: 1,
+			wantSSDPQ:    1,
+		},
+		{
+			name:    "all turned off",
 			mdns:    mdnsReply("tv.local."),
 			netbios: netbiosReply("TV"),
+			ssdp:    ssdpAnswers,
 			off:     true,
 		},
 	}
@@ -237,15 +255,18 @@ func TestEnrichAsksEachLookupInTurn(t *testing.T) {
 
 			m := newResponder(t, "127.0.0.1:0", nil, tt.mdns)
 			n := newResponder(t, "127.0.0.1:0", nil, tt.netbios)
+			g := newResponder(t, "127.0.0.1:0", nil, tt.ssdp)
 
 			s := New(slog.New(slog.DiscardHandler),
 				WithNameResolution(false),
 				WithMACResolution(false),
 				WithMDNSResolution(!tt.off),
 				WithNetBIOSResolution(!tt.off),
+				WithSSDPResolution(!tt.off),
 			)
 			s.mdnsPort = m.port()
 			s.netbiosPort = n.port()
+			s.ssdpGroup = netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), g.port())
 
 			found := s.enrich(t.Context(), replies, time.Now())
 			require.Len(t, found, 1)
@@ -253,6 +274,7 @@ func TestEnrichAsksEachLookupInTurn(t *testing.T) {
 			assert.Equal(t, tt.wantName, found[0].Hostname())
 			assert.Equal(t, tt.wantSource, found[0].NameSource)
 			assert.Equal(t, tt.wantNetBIOSQ, n.queries.Load())
+			assert.Equal(t, tt.wantSSDPQ, g.queries.Load())
 		})
 	}
 }

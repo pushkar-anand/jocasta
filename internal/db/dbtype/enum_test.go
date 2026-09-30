@@ -169,6 +169,7 @@ func TestHostnameSourceRank(t *testing.T) {
 		HostnameFromMDNS,
 		HostnameFromDHCPLease,
 		HostnameFromNetBIOS,
+		HostnameFromSSDP,
 		"",
 	}
 
@@ -183,6 +184,7 @@ func TestHostnameSourceSwept(t *testing.T) {
 	assert.True(t, HostnameFromDNS.Swept())
 	assert.True(t, HostnameFromMDNS.Swept())
 	assert.True(t, HostnameFromNetBIOS.Swept())
+	assert.True(t, HostnameFromSSDP.Swept())
 	assert.False(t, HostnameFromDHCPStatic.Swept())
 	assert.False(t, HostnameFromDHCPLease.Swept())
 	assert.False(t, HostnameSource("").Swept())

@@ -211,6 +211,11 @@ const (
 	// HostnameFromNetBIOS is a name a sweep learned by asking the device over
 	// NetBIOS, which Windows and Samba answer.
 	HostnameFromNetBIOS HostnameSource = "NETBIOS"
+
+	// HostnameFromSSDP is the friendlyName in the UPnP description of a device
+	// that answered a sweep's SSDP search, such as "Living Room TV". It is a
+	// label for people, so it may hold spaces.
+	HostnameFromSSDP HostnameSource = "SSDP"
 )
 
 var hostnameSources = []HostnameSource{
@@ -219,6 +224,7 @@ var hostnameSources = []HostnameSource{
 	HostnameFromDHCPLease,
 	HostnameFromMDNS,
 	HostnameFromNetBIOS,
+	HostnameFromSSDP,
 }
 
 // Valid reports whether s is one of the known hostname sources.
@@ -238,18 +244,23 @@ func (s HostnameSource) Valid() bool { return slices.Contains(hostnameSources, s
 // from the name the device gives elsewhere, and resolves only where NetBIOS
 // name service still runs.
 //
+// An SSDP friendlyName ranks below them all, because it is a label for people
+// and no host name at all.
+//
 // An unknown standing ranks zero, so a known name still beats an unknown one.
 func (s HostnameSource) Rank() int {
 	switch s {
 	case HostnameFromDNS:
-		return 5
+		return 6
 	case HostnameFromDHCPStatic:
-		return 4
+		return 5
 	case HostnameFromMDNS:
-		return 3
+		return 4
 	case HostnameFromDHCPLease:
-		return 2
+		return 3
 	case HostnameFromNetBIOS:
+		return 2
+	case HostnameFromSSDP:
 		return 1
 	default:
 		return 0
@@ -260,7 +271,7 @@ func (s HostnameSource) Rank() int {
 // device or the resolver about the address that answered it.
 func (s HostnameSource) Swept() bool {
 	switch s {
-	case HostnameFromDNS, HostnameFromMDNS, HostnameFromNetBIOS:
+	case HostnameFromDNS, HostnameFromMDNS, HostnameFromNetBIOS, HostnameFromSSDP:
 		return true
 	default:
 		return false

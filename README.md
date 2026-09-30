@@ -33,10 +33,10 @@ treated as a lease the device holds for now, so the label, group and notes you
 give a device stay with it when the address changes.
 
 On its own, Jocasta sweeps the networks you list. It takes each device's name
-from reverse DNS, or asks the device itself over mDNS or NetBIOS. Connect your
-router and it also reads the router's ARP and DHCP tables. The router sees
-every segment, so devices a single machine cannot reach still get a vendor
-and a name.
+from reverse DNS, or asks the device itself over mDNS, NetBIOS or SSDP.
+Connect your router and it also reads the router's ARP and DHCP tables. The
+router sees every segment, so devices a single machine cannot reach still get
+a vendor and a name.
 
 New devices, addresses gained or dropped, and hostname changes go into a
 change log. Sweeps run on a timer, every five minutes by default, or when you
