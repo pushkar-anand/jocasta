@@ -2,6 +2,7 @@ package web
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -88,4 +89,67 @@ func TestTopologyLiveIsTheTreeAlone(t *testing.T) {
 	assert.Contains(t, body, `class="card netmap topo"`)
 	assert.NotContains(t, body, `id="netmap-search"`, "the search outlives each refresh")
 	assert.NotContains(t, body, "<html")
+}
+
+// A device's page shows the path down to it, each hop linked, and links to
+// the device on the topology.
+func TestDevicePageShowsWhereTheDeviceIsConnected(t *testing.T) {
+	t.Parallel()
+
+	store := sweptPair(t)
+	recordRouter(t, store)
+
+	rec := get(t, newWebHandler(t, store), "/devices/2")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+	assert.Contains(t, body, `<h2 class="section">Connected</h2>`)
+	assert.Contains(t, body, ">router</span>", "the router has no inventory device here, so it is not a link")
+	assert.Contains(t, body, `<span class="chip">sfp1 · trunk</span>`)
+	assert.Contains(t, body, ">switch-a</span>")
+	assert.Contains(t, body, "<span class=\"chip chip--brand\">VLAN\u00a010</span>")
+	assert.Contains(t, body, `href="/topology?focus=d2"`)
+	assert.NotContains(t, body, "last seen here")
+}
+
+func TestDevicePageSaysWhenNothingHasSeenTheDevice(t *testing.T) {
+	t.Parallel()
+
+	store := sweptPair(t)
+	require.NoError(t, store.RecordTopology(t.Context(), "routeros:gateway", dbtype.SourceRouter, plugin.Topology{
+		Identity: "router", Gateway: true, ReadAt: time.Now(),
+	}))
+
+	rec := get(t, newWebHandler(t, store), "/devices/1")
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "No router, switch or access point has seen this device on a port.")
+}
+
+func TestDevicePageLeavesConnectedOutBeforeAnyRead(t *testing.T) {
+	t.Parallel()
+
+	rec := get(t, newWebHandler(t, sweptPair(t)), "/devices/1")
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.NotContains(t, rec.Body.String(), `<h2 class="section">Connected</h2>`)
+}
+
+// A device that is itself the router hangs straight from the internet.
+func TestDevicePageShowsTheRouterBelowTheInternet(t *testing.T) {
+	t.Parallel()
+
+	store := sweptPair(t)
+	require.NoError(t, store.RecordTopology(t.Context(), "routeros:gateway", dbtype.SourceRouter, plugin.Topology{
+		Identity: "router", Gateway: true, Own: []string{macA}, ReadAt: time.Now(),
+	}))
+
+	rec := get(t, newWebHandler(t, store), "/devices/1")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+	assert.Contains(t, body, `<li class="path__hop">Internet</li>`)
+	assert.Contains(t, body, "<strong>laptop.example.com</strong>")
+	assert.Contains(t, body, `href="/topology?focus=d1"`)
+	_, connected, _ := strings.Cut(body, `<h2 class="section">Connected</h2>`)
+	connected, _, _ = strings.Cut(connected, "</section>")
+	assert.NotContains(t, connected, `class="chip`, "nothing sits between the internet and the router")
 }

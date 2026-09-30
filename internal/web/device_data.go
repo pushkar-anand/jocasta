@@ -356,6 +356,11 @@ func buildDevicePageData(
 		return nil, err
 	}
 
+	conn, err := deviceConnection(ctx, store, device.ID)
+	if err != nil {
+		return nil, err
+	}
+
 	data := &curationForm{
 		Title:              device.Name(),
 		Section:            "Devices",
@@ -367,6 +372,7 @@ func buildDevicePageData(
 		LastChecked:        lastSweptAt(ctx, store),
 		PortScanConfigured: portScanConfigured(ctx, store),
 		Traffic:            traffic,
+		Connection:         conn,
 	}
 
 	data.Note = latestSweepNote(ctx, store)

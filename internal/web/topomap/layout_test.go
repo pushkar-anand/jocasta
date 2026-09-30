@@ -205,10 +205,10 @@ func TestShortenCutsLongNames(t *testing.T) {
 func TestNodeNameSaysWhatAnUnnamedNodeIs(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "vm-host", nodeName(&topology.Node{Kind: topology.NodeHost, Name: "vm-host"}))
-	assert.Equal(t, "Access point", nodeName(&topology.Node{Kind: topology.NodeUnnamed, WiFi: true}))
-	assert.Equal(t, "Hypervisor", nodeName(&topology.Node{Kind: topology.NodeUnnamed, VMs: true}))
-	assert.Equal(t, "Switch", nodeName(&topology.Node{Kind: topology.NodeUnnamed}))
+	assert.Equal(t, "vm-host", NodeName(&topology.Node{Kind: topology.NodeHost, Name: "vm-host"}))
+	assert.Equal(t, "Access point", NodeName(&topology.Node{Kind: topology.NodeUnnamed, WiFi: true}))
+	assert.Equal(t, "Hypervisor", NodeName(&topology.Node{Kind: topology.NodeUnnamed, VMs: true}))
+	assert.Equal(t, "Switch", NodeName(&topology.Node{Kind: topology.NodeUnnamed}))
 }
 
 func TestBandReadsAsPeopleSayIt(t *testing.T) {

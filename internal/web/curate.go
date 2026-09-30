@@ -43,6 +43,10 @@ type curationForm struct {
 	// Only the full page fills it.
 	Traffic *trafficSection
 
+	// Connection is where the device sits in the network's tree. Only the
+	// full page fills it, and only once a source has been read.
+	Connection *connection
+
 	// Saved marks the panel as having just been saved, which is the only way a
 	// swapped-in fragment can say that anything happened.
 	Saved bool
