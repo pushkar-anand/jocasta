@@ -1,6 +1,7 @@
 package web
 
 import (
+	"cmp"
 	"context"
 
 	"github.com/pushkar-anand/jocasta/internal/inventory"
@@ -27,6 +28,13 @@ type connection struct {
 	// Current is whether the latest reads saw the device there. A device
 	// placed from an older read is where it was last seen.
 	Current bool
+
+	// Speed is how fast the device's own connection runs, empty when that is
+	// unknown or the connection is another device's. Capable is set only on a
+	// wired link that came up below the rate both ends can run at, and is
+	// that rate.
+	Speed   string
+	Capable string
 
 	// Focus is the key the topology page opens on.
 	Focus string
@@ -63,6 +71,7 @@ func deviceConnection(ctx context.Context, store *inventory.Store, id int64) (*c
 
 		if node.Uplink != nil {
 			c.Last = topomap.LinkLabel(node.Uplink)
+			c.setSpeed(node.Uplink.Speed, topology.Radio{})
 		}
 
 		return c, nil
@@ -76,8 +85,19 @@ func deviceConnection(ctx context.Context, store *inventory.Store, id int64) (*c
 	c.Placed, c.Current = true, leaf.Current
 	c.Hops = hops(topology.Path(leaf.Owner))
 	c.Last = topomap.Where(leaf)
+	c.setSpeed(leaf.Speed, leaf.Radio)
 
 	return c, nil
+}
+
+// setSpeed sets Speed from the device's wired link s or its Wi-Fi connection
+// r, and sets Capable when s came up below the rate both ends can run at.
+func (c *connection) setSpeed(s topology.Speed, r topology.Radio) {
+	c.Speed = cmp.Or(topomap.SpeedLabel(s), topomap.RadioLabel(r))
+
+	if s.Slow() {
+		c.Capable = topomap.Rate(s.Capable)
+	}
 }
 
 // hops names each node on a path and how it hangs from the one before.

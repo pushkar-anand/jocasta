@@ -30,7 +30,10 @@ Everything Jocasta knows about one device:
   these.
 - Connected: the path from the internet to the device, through each router,
   switch and access point, with the port or Wi-Fi network, band and VLAN at
-  each step. Show on topology opens the Topology page on the device.
+  each step. A device plugged straight into a read port shows the link's
+  rate, and a Wi-Fi client its rate each way and its signal. When a wired
+  link runs below what both ends can, the page says so. Show on topology
+  opens the Topology page on the device.
 - Addresses: every address the device has held, and the network each is on.
 - Ports: once a port scan has reached the device (see [CLI](cli.md#ports)),
   the TCP ports it listens on, and the ones it has since closed.
