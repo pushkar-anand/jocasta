@@ -13,6 +13,7 @@
 package topomap
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strconv"
@@ -39,6 +40,10 @@ const (
 
 	margin    = 40.0
 	internetR = 20.0
+
+	// legendRoom is kept clear on the right, where the page floats its
+	// legend over the canvas.
+	legendRoom = 260.0
 
 	maxLabel = 26
 )
@@ -82,6 +87,9 @@ type Chip struct {
 	X, Y  float64
 	Key   string
 	Label string
+
+	// Title is the device's full name and where it is, for its tooltip.
+	Title string
 
 	// Tone is the colour index of the device's VLAN, -1 when it has none.
 	Tone int
@@ -140,7 +148,7 @@ func Place(tree *topology.Tree) *Layout {
 		On:   root.On,
 	})
 
-	p.out.Width = w + 2*margin
+	p.out.Width = w + 2*margin + legendRoom
 	p.out.Height = p.bottom + margin
 
 	return p.out
@@ -310,9 +318,9 @@ func (p *placer) nodeEdge(from Point, child *Box, link *topology.Link) *Edge {
 	case link.Trunk:
 		e.Kind = "trunk"
 		e.Label = join(link.ParentPort, "trunk")
-		e.Title = join(link.ParentPort, "VLANs "+vlans)
+		e.Title = join(link.ParentPort, "VLANs\u00a0"+vlans)
 	case vlans != "":
-		e.Label = join(link.ParentPort, "VLAN "+vlans)
+		e.Label = join(link.ParentPort, "VLAN\u00a0"+vlans)
 		e.Title = e.Label
 	default:
 		e.Label = link.ParentPort
@@ -347,6 +355,7 @@ func (p *placer) group(g *topology.Group, left, top float64) (*Group, []string) 
 			Y:     top + headH + float64(i)*(chipH+chipGap),
 			Key:   netmap.DeviceKey(l.DeviceID),
 			Label: shorten(l.Name),
+			Title: chipTitle(l),
 			Tone:  p.tone(l.VLAN),
 		}
 
@@ -360,6 +369,47 @@ func (p *placer) group(g *topology.Group, left, top float64) (*Group, []string) 
 	p.bottom = max(p.bottom, top+out.H)
 
 	return out, keys
+}
+
+// chipTitle says what a device is and where: its name, its port or Wi-Fi
+// network and band, its VLANs, and whether that is only where it was last
+// seen.
+func chipTitle(l *topology.Leaf) string {
+	parts := []string{l.Name}
+
+	switch {
+	case l.WiFi:
+		parts = append(parts, join(cmp.Or(l.SSID, "Wi-Fi"), Band(l.Band)))
+	case l.Port != "":
+		parts = append(parts, l.Port)
+	}
+
+	if len(l.VLANs) > 1 {
+		parts = append(parts, "VLANs\u00a0"+vlanList(l.VLANs))
+	} else if l.VLAN > 0 {
+		parts = append(parts, "VLAN\u00a0"+strconv.Itoa(l.VLAN))
+	}
+
+	if !l.Current {
+		parts = append(parts, "last seen here")
+	}
+
+	return strings.Join(parts, " · ")
+}
+
+// Band says a Wi-Fi band the way people do: RouterOS's "5ghz-ax" is "5 GHz",
+// and "2ghz-n" is "2.4 GHz". A band it does not recognise comes back as it is.
+func Band(band string) string {
+	ghz, _, ok := strings.Cut(strings.ToLower(band), "ghz")
+	if !ok {
+		return band
+	}
+
+	if ghz == "2" {
+		ghz = "2.4"
+	}
+
+	return ghz + " GHz"
 }
 
 func groupKind(g *topology.Group) string {
@@ -379,7 +429,7 @@ func groupTitle(g *topology.Group) string {
 
 	vlan := ""
 	if g.VLAN > 0 {
-		vlan = "VLAN " + strconv.Itoa(g.VLAN)
+		vlan = "VLAN\u00a0" + strconv.Itoa(g.VLAN)
 	}
 
 	return join(where, vlan)

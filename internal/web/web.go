@@ -174,6 +174,8 @@ func NewHandler(
 	h.mux.HandleFunc("GET /traffic", hw.Handle(h.traffic(sm)))
 	h.mux.HandleFunc("GET /map", hw.Handle(h.networkMap(sm)))
 	h.mux.HandleFunc("GET /map/live", hw.Handle(h.networkMapLive()))
+	h.mux.HandleFunc("GET /topology", hw.Handle(h.topologyView(sm)))
+	h.mux.HandleFunc("GET /topology/live", hw.Handle(h.topologyLive()))
 	h.mux.HandleFunc("GET /events", hw.Handle(h.events(sm)))
 	h.mux.HandleFunc("GET /scans", hw.Handle(h.scans(sm)))
 
