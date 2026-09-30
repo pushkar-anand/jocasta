@@ -22,7 +22,8 @@ make htmx           # refresh the vendored htmx
   handling, device classification and the change log.
 - `internal/classify`: the rules that guess a device's type from its vendor,
   name and open ports.
-- `internal/notify`: sends each finished scan's changes to ntfy or a webhook.
+- `internal/notify`: sends each finished scan's changes to ntfy, a webhook
+  or a templated HTTP request.
 - `internal/web`, `internal/api`: the HTML UI and the JSON API.
 - `internal/db`: connection, migrations, generated queries.
 
@@ -31,12 +32,20 @@ Queries are SQLC-generated from `internal/db/queries/`. The schema is in
 
 ## Add a notification service
 
-Each service is a provider in `internal/notify`, in a file of its own, as
-`ntfy.go` and `webhook.go` are:
+Most services take an HTTP request, and the `http` provider reaches them
+with a body template and no new code. For one of those, add a recipe to
+[Send to another service](setup.md#send-to-another-service).
+`TestRecipesInTheDocsRender` renders every recipe there, so a broken one
+fails the tests.
+
+A service gets a provider of its own only when the `http` provider cannot
+reach it: it needs more than one request, a protocol other than HTTP, or
+signing a template cannot do. Each provider is in `internal/notify`, in a
+file of its own, as `ntfy.go` and `webhook.go` are:
 
 1. Add a struct with `koanf` tags for its settings, and give it `Validate`,
    `Host` and `Send`. `Send` must not put a credential in its error. `post`
-   covers a service that takes a JSON request.
+   covers a service that takes an HTTP request.
 2. Add a field for it to `notify.Config`, and a line to `Config.provider`.
 3. Add an example to `jocasta.example.yaml`.
 

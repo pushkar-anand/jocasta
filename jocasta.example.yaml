@@ -108,3 +108,11 @@ notify:
     webhook:
       url: "https://hooks.example.com/jocasta"
       secret: "change-me"                       # signs each request; required
+  chat:
+    enabled: false
+    http:                                       # any service that takes an HTTP request;
+                                                # recipes in docs/setup.md
+      url: "https://discord.com/api/webhooks/<id>/<token>"
+      headers: {}                               # sent with each request, such as Authorization
+      # A Go template: json quotes a value, truncate cuts it to Discord's limit.
+      body: '{"content": {{ printf "%s\n%s" .Title .Body | truncate 2000 | json }}, "allowed_mentions": {"parse": []}}'

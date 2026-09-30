@@ -87,25 +87,31 @@ func Sign(secret string, body []byte) string {
 	return "sha256=" + hex.EncodeToString(mac.Sum(nil))
 }
 
-// webhookBody is the message, and the changes as data for a receiver that
-// acts on one device.
-func webhookBody(m Message) any {
-	type change struct {
-		Kind     dbtype.EventKind `json:"kind"`
-		DeviceID int64            `json:"device_id,omitempty"`
-		Device   string           `json:"device,omitempty"`
-		Change   string           `json:"change,omitempty"`
-	}
+// change is one change as data, for a receiver that acts on one device. The
+// webhook sends it as JSON and the http provider's template reads it.
+type change struct {
+	Kind     dbtype.EventKind `json:"kind"`
+	DeviceID int64            `json:"device_id,omitempty"`
+	Device   string           `json:"device,omitempty"`
+	Change   string           `json:"change,omitempty"`
+}
 
-	changes := make([]change, 0, len(m.Events))
+// changes returns m's events as data.
+func changes(m Message) []change {
+	out := make([]change, 0, len(m.Events))
 	for _, e := range m.Events {
-		changes = append(changes, change{Kind: e.Kind, DeviceID: e.DeviceID, Device: e.DeviceName, Change: e.Change()})
+		out = append(out, change{Kind: e.Kind, DeviceID: e.DeviceID, Device: e.DeviceName, Change: e.Change()})
 	}
 
+	return out
+}
+
+// webhookBody is the message, and the changes as data.
+func webhookBody(m Message) any {
 	return struct {
 		Title   string   `json:"title"`
 		Message string   `json:"message"`
 		ScanID  int64    `json:"scan_id,omitempty"`
 		Events  []change `json:"events"`
-	}{m.Title, m.Body, m.ScanID, changes}
+	}{m.Title, m.Body, m.ScanID, changes(m)}
 }

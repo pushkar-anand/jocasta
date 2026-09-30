@@ -212,3 +212,125 @@ func TestNewDestinationRejectsBadConfig(t *testing.T) {
 		assert.Error(t, err, name)
 	}
 }
+
+func TestHTTPShapesTheBody(t *testing.T) {
+	srv, got := server(t, http.StatusOK)
+
+	d := destination(t, "chat", notify.Config{HTTP: &notify.HTTP{
+		URL:     srv.URL + "/hook",
+		Headers: map[string]string{"x-api-key": "placeholder-key"},
+		Body: `{"text": {{ printf "%s\n%s" .Title .Body | json }}, "scan": {{ .ScanID }},` +
+			` "devices": [{{ range $i, $e := .Events }}{{ if $i }}, {{ end }}{{ json $e.Device }}{{ end }}]}`,
+	}})
+	assert.Equal(t, notify.KindHTTP, d.Kind())
+	assert.Equal(t, strings.TrimPrefix(srv.URL, "http://"), d.Host())
+
+	require.NoError(t, d.Send(t.Context(), msg))
+
+	assert.Equal(t, http.MethodPost, got.method)
+	assert.Equal(t, "/hook", got.path)
+	assert.Equal(t, "application/json", got.header.Get("Content-Type"))
+	assert.Equal(t, "placeholder-key", got.header.Get("X-Api-Key"))
+	assert.Empty(t, got.header.Get(notify.HeaderSignature), "only the webhook is signed")
+	assert.Equal(t, map[string]any{
+		"text": msg.Title + "\n" + msg.Body, "scan": float64(7), "devices": []any{"host-a"},
+	}, got.body)
+}
+
+// The json function escapes what a device name or a message can hold.
+func TestHTTPEscapesValues(t *testing.T) {
+	srv, got := server(t, http.StatusOK)
+
+	d := destination(t, "chat", notify.Config{HTTP: &notify.HTTP{
+		URL:  srv.URL,
+		Body: `{"title": {{ json .Title }}, "message": {{ json .Body }}}`,
+	}})
+
+	m := notify.Message{Title: `a "quoted" \ title`, Body: "line one\nline <two>\t&"}
+	require.NoError(t, d.Send(t.Context(), m))
+
+	assert.Equal(t, map[string]any{"title": m.Title, "message": m.Body}, got.body)
+}
+
+// A Content-Type among the headers replaces JSON, and the body is then not
+// checked as JSON.
+func TestHTTPContentTypeFromHeaders(t *testing.T) {
+	var (
+		contentType string
+		raw         []byte
+	)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		contentType = r.Header.Get("Content-Type")
+		raw, _ = io.ReadAll(r.Body)
+	}))
+	t.Cleanup(srv.Close)
+
+	d := destination(t, "plain", notify.Config{HTTP: &notify.HTTP{
+		URL:     srv.URL,
+		Headers: map[string]string{"content-type": "text/plain; charset=utf-8"},
+		Body:    "{{ .Title }}: {{ .Body }}",
+	}})
+
+	require.NoError(t, d.Send(t.Context(), msg))
+	assert.Equal(t, "text/plain; charset=utf-8", contentType)
+	assert.Equal(t, msg.Title+": "+msg.Body, string(raw))
+}
+
+// A token in the URL or a header must not reach the log.
+func TestHTTPErrorsNameTheHostOnly(t *testing.T) {
+	srv, _ := server(t, http.StatusForbidden)
+	host := strings.TrimPrefix(srv.URL, "http://")
+
+	d := destination(t, "chat", notify.Config{HTTP: &notify.HTTP{
+		URL:     srv.URL + "/botplaceholder-token/sendMessage",
+		Headers: map[string]string{"Authorization": "Bearer placeholder-header"},
+		Body:    `{"text": {{ json .Body }}}`,
+	}})
+
+	err := d.Send(t.Context(), msg)
+	require.Error(t, err)
+	assert.Equal(t, host+" answered 403 Forbidden", err.Error())
+}
+
+func TestHTTPRejectsBadConfig(t *testing.T) {
+	const url = "https://hooks.example.com/x"
+
+	for name, h := range map[string]notify.HTTP{
+		"without url":         {Body: `{}`},
+		"relative url":        {URL: "/x", Body: `{}`},
+		"without body":        {URL: url},
+		"blank body":          {URL: url, Body: "  \n"},
+		"body does not parse": {URL: url, Body: `{"text": {{ json .Title }`},
+		"unknown field":       {URL: url, Body: `{"text": {{ json .Nope }}}`},
+		"unknown function":    {URL: url, Body: `{"text": {{ shout .Title }}}`},
+		"unquoted value":      {URL: url, Body: `{"text": "{{ .Body }}"}`},
+		"not json":            {URL: url, Body: `text={{ .Title }}`},
+		"bad header name":     {URL: url, Body: `{}`, Headers: map[string]string{"Bad Header": "x"}},
+		"bad header value":    {URL: url, Body: `{}`, Headers: map[string]string{"X-Key": "a\nb"}},
+		"indexes no events":   {URL: url, Body: `{"text": {{ json (index .Events 0).Device }}}`},
+	} {
+		_, err := notify.NewDestination("x", notify.Config{HTTP: &h})
+		assert.Error(t, err, name)
+	}
+}
+
+// truncate cuts by character, so a multi-byte name is not split, and leaves a
+// string that fits alone.
+func TestHTTPTruncate(t *testing.T) {
+	srv, got := server(t, http.StatusOK)
+
+	d := destination(t, "chat", notify.Config{HTTP: &notify.HTTP{
+		URL:  srv.URL,
+		Body: `{"short": {{ .Title | truncate 5 | json }}, "fits": {{ .Body | truncate 50 | json }}}`,
+	}})
+
+	require.NoError(t, d.Send(t.Context(), notify.Message{Title: "héllo wörld", Body: "fits"}))
+	assert.Equal(t, map[string]any{"short": "héll…", "fits": "fits"}, got.body)
+}
+
+// A provider that did not pass Validate sends nothing.
+func TestHTTPSendsOnlyAValidatedTemplate(t *testing.T) {
+	h := &notify.HTTP{URL: "https://hooks.example.com/x", Body: `{}`}
+	require.Error(t, h.Send(t.Context(), msg))
+}

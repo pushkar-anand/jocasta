@@ -1,6 +1,7 @@
 package web
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -187,4 +188,23 @@ func TestSavedMessageCountsAgree(t *testing.T) {
 	assert.Equal(t, "Saved: phone is sent nothing.", savedMessage("phone", 0))
 	assert.Equal(t, "Saved: phone is sent 1 kind of change.", savedMessage("phone", 1))
 	assert.Equal(t, "Saved: phone is sent 3 kinds of change.", savedMessage("phone", 3))
+}
+
+// A failed test names the settings its kind of destination has.
+func TestFailedTestMessageNamesTheKindsSettings(t *testing.T) {
+	t.Parallel()
+
+	for kind, c := range map[string]struct {
+		cfg   notify.Config
+		check string
+	}{
+		"ntfy":    {notify.Config{Ntfy: &notify.Ntfy{URL: "https://ntfy.example.com/t"}}, "url and token"},
+		"webhook": {notify.Config{Webhook: &notify.Webhook{URL: "https://hooks.example.com", Secret: "s"}}, "url and secret"},
+		"http":    {notify.Config{HTTP: &notify.HTTP{URL: "https://hooks.example.com", Body: `{}`}}, "url, headers and body"},
+	} {
+		d, err := notify.NewDestination("d", c.cfg)
+		require.NoError(t, err, kind)
+
+		assert.Contains(t, failedTestMessage(d, errors.New("boom")), "Check its "+c.check+" under notify", kind)
+	}
 }

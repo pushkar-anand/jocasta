@@ -216,8 +216,12 @@ func savedMessage(name string, kinds int) string {
 // check, which differ by the kind of destination.
 func failedTestMessage(d *notify.Destination, err error) string {
 	check := "url and secret"
-	if d.Kind() == notify.KindNtfy {
+
+	switch d.Kind() {
+	case notify.KindNtfy:
 		check = "url and token"
+	case notify.KindHTTP:
+		check = "url, headers and body"
 	}
 
 	return fmt.Sprintf("The test did not reach %s (%s). Check its %s under notify in the config file.",
