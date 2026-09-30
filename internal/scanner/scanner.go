@@ -298,8 +298,9 @@ func (s *Scanner) enrich(ctx context.Context, replies map[netip.Addr]time.Durati
 }
 
 // nameOver asks each host in found that has no name for one over proto, on
-// port, and names the hosts that answer with standing. A host that already has
-// a name is not asked, because the lookups run from the highest standing down.
+// port. It names each host that answers, with standing as the name's source.
+// A host that already has a name is not asked, because the lookups run from
+// the highest standing down.
 func (s *Scanner) nameOver(
 	ctx context.Context,
 	found []Host,

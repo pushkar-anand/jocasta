@@ -1000,6 +1000,12 @@ func (s *Store) recordClaim(ctx context.Context, p *pass, deviceID int64, f plug
 // name would rename the device, and the next sweep's answer would rename it
 // back. The claims of every other source hold no swept name, so they take
 // each new name they are given.
+//
+// The held name has no expiry. A device that stops answering the higher
+// lookup for good, such as a NAS with Avahi turned off, keeps that name until
+// the lookup, or a higher one, gives another. This is accepted: a sweep's
+// empty lookup has always left the last name in place, and a label on the
+// device is shown in place of the name either way.
 func yieldsToHeldName(ctx context.Context, p *pass, deviceID int64, f plugin.Fact) (bool, error) {
 	if f.Host.Hostname() == "" || !f.HostnameSource.Swept() {
 		return false, nil

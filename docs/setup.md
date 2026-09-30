@@ -114,8 +114,8 @@ the source ranked highest here:
 
 When two sources of the same rank disagree, the one heard from last wins. The
 device page lists the name each source gives. Once a sweep has a name for a
-device, a lower-ranked lookup does not replace it, so a device that misses
-one query keeps the name it had.
+device, a lower-ranked lookup does not replace it. The device keeps that name
+until the lookup that gave it, or a higher-ranked one, answers with another.
 
 mDNS gives a name to phones, TVs, printers and computers that reverse DNS
 does not know, such as `living-room-tv.local`. Jocasta sends one query to each
