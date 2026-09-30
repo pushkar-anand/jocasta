@@ -8,6 +8,21 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
 
+// Retention says how long each kind of record is kept. A window of zero keeps
+// that kind forever.
+type Retention struct {
+	// History bounds the event log, the scan log and topology sightings.
+	History time.Duration
+
+	// Traffic bounds hourly traffic totals and attempt, broadcast and probe
+	// counts.
+	Traffic time.Duration
+
+	// Devices bounds how long a device its owner never curated is kept after
+	// it was last seen. A curated device is kept forever.
+	Devices time.Duration
+}
+
 // Pruned counts what one prune deleted.
 type Pruned struct {
 	Events     int64
@@ -17,11 +32,10 @@ type Pruned struct {
 	Broadcasts int64
 	Probes     int64
 	Sightings  int64
+	Devices    int64
 }
 
-// Prune deletes every event, finished scan and topology sighting older than
-// retention, and every hourly traffic total and attempt count older than
-// trafficRetention. A retention of zero keeps that kind forever.
+// Prune deletes every record older than its window in r.
 //
 // Events go first and in the same transaction, so a reader never sees an event
 // whose scan has gone while the event stays. A scan's events are stamped at or
@@ -31,7 +45,11 @@ type Pruned struct {
 // A poller asking when its last successful scan ran loses the answer only when
 // no scan of its kind succeeded within the window, and then running at once is
 // what it would do anyway.
-func (s *Store) Prune(ctx context.Context, retention, trafficRetention time.Duration) (*Pruned, error) {
+//
+// A device is deleted only when its owner gave it no label, notes, group or
+// type and did not mark it ignored. A deleted device seen again comes back as
+// a new one.
+func (s *Store) Prune(ctx context.Context, r Retention) (*Pruned, error) {
 	now := s.now()
 
 	tx, err := s.conn.BeginTx(ctx, nil)
@@ -45,8 +63,8 @@ func (s *Store) Prune(ctx context.Context, retention, trafficRetention time.Dura
 
 	var res Pruned
 
-	if retention > 0 {
-		cutoff := dbtype.NewTime(now.Add(-retention))
+	if r.History > 0 {
+		cutoff := dbtype.NewTime(now.Add(-r.History))
 
 		if res.Events, err = q.DeleteEventsBefore(ctx, cutoff); err != nil {
 			return nil, fmt.Errorf("prune events: %w", err)
@@ -61,10 +79,10 @@ func (s *Store) Prune(ctx context.Context, retention, trafficRetention time.Dura
 		}
 	}
 
-	if trafficRetention > 0 {
+	if r.Traffic > 0 {
 		// Whole hours only: an hour is kept while any of it is inside the
 		// window, so a view of the last N days never starts mid-hour.
-		cutoff := hourOf(now.Add(-trafficRetention))
+		cutoff := hourOf(now.Add(-r.Traffic))
 
 		if res.Traffic, err = q.DeleteTrafficBefore(ctx, cutoff); err != nil {
 			return nil, fmt.Errorf("prune traffic: %w", err)
@@ -80,6 +98,14 @@ func (s *Store) Prune(ctx context.Context, retention, trafficRetention time.Dura
 
 		if res.Probes, err = q.DeleteProbesBefore(ctx, cutoff); err != nil {
 			return nil, fmt.Errorf("prune probes: %w", err)
+		}
+	}
+
+	if r.Devices > 0 {
+		cutoff := dbtype.NewTime(now.Add(-r.Devices))
+
+		if res.Devices, err = q.DeleteUncuratedDevicesBefore(ctx, cutoff); err != nil {
+			return nil, fmt.Errorf("prune devices: %w", err)
 		}
 	}
 

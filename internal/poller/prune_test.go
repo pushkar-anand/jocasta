@@ -21,7 +21,11 @@ func newPruneTask(t *testing.T) *Prune {
 
 	store := inventory.New(conn, slog.New(slog.DiscardHandler))
 
-	return NewPrune(slog.New(slog.DiscardHandler), store, inventory.DefaultRetention, inventory.DefaultTrafficRetention)
+	return NewPrune(slog.New(slog.DiscardHandler), store, inventory.Retention{
+		History: inventory.DefaultRetention,
+		Traffic: inventory.DefaultTrafficRetention,
+		Devices: inventory.DefaultDeviceRetention,
+	})
 }
 
 func TestPruneSchedule(t *testing.T) {

@@ -122,7 +122,7 @@ func TestPruneDeletesBroadcastsWithTraffic(t *testing.T) {
 	require.NoError(t, rec.Flush(t.Context()))
 	require.Len(t, broadcastRows(t, conn), 1)
 
-	res, err := s.Prune(t.Context(), 0, 24*time.Hour)
+	res, err := s.Prune(t.Context(), Retention{Traffic: 24 * time.Hour})
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), res.Broadcasts)
 	assert.Empty(t, broadcastRows(t, conn))

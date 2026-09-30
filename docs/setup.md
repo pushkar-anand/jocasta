@@ -87,6 +87,16 @@ location:
   timezone: "Australia/Sydney"   # an IANA zone name
 ```
 
+A device you have not labelled, grouped, typed, noted or ignored is deleted
+once no scan has seen it for 90 days. Phones leave one of these each time they
+change their privacy address. Anything you set on a device keeps it. Change the
+window, or set it to `0` to keep every device:
+
+```yaml
+retention:
+  devices: "2160h"
+```
+
 Do not commit a `jocasta.yaml` that holds real addresses or credentials.
 `jocasta.yaml` and `*.db` are already in `.gitignore`.
 

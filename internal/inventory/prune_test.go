@@ -37,7 +37,7 @@ func TestPruneDeletesEventsAndScansPastRetention(t *testing.T) {
 	recentEvents := countRows(t, conn, `SELECT COUNT(*) FROM events WHERE scan_id = ?`, recent.ScanID)
 	require.Positive(t, recentEvents)
 
-	res, err := s.Prune(t.Context(), testRetention, 0)
+	res, err := s.Prune(t.Context(), Retention{History: testRetention})
 	require.NoError(t, err)
 
 	assert.Equal(t, oldEvents, res.Events)
@@ -47,7 +47,7 @@ func TestPruneDeletesEventsAndScansPastRetention(t *testing.T) {
 	assert.Equal(t, int64(1), countRows(t, conn, `SELECT COUNT(*) FROM scans WHERE id = ?`, recent.ScanID))
 	assert.Equal(t, recentEvents, countRows(t, conn, `SELECT COUNT(*) FROM events`))
 
-	// Devices are not the log: the one the old sweep found is still there.
+	// With no device window, the device the old sweep found is still there.
 	assert.NotZero(t, deviceIDByMAC(t, conn, macA))
 }
 
@@ -64,7 +64,7 @@ func TestPruneKeepsARunningScan(t *testing.T) {
 
 	advance(testRetention + time.Hour)
 
-	res, err := s.Prune(t.Context(), testRetention, 0)
+	res, err := s.Prune(t.Context(), Retention{History: testRetention})
 	require.NoError(t, err)
 
 	assert.Zero(t, res.Scans)
@@ -89,9 +89,86 @@ func TestPruneKeepsAnEventAtTheCutoff(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	res, err := s.Prune(t.Context(), testRetention, 0)
+	res, err := s.Prune(t.Context(), Retention{History: testRetention})
 	require.NoError(t, err)
 
 	assert.Equal(t, int64(1), res.Events)
 	assert.Equal(t, int64(2), countRows(t, conn, `SELECT COUNT(*) FROM events`))
+}
+
+// A device away longer than the window goes when nobody curated it, and stays
+// when its owner set any one field or marked it ignored.
+func TestPruneDeletesOnlyUncuratedStaleDevices(t *testing.T) {
+	t.Parallel()
+
+	curations := map[string]Curation{
+		"label":   {Label: "Hallway camera"},
+		"notes":   {Notes: "Spare"},
+		"group":   {Group: "Garage"},
+		"type":    {Type: "camera"},
+		"ignored": {Ignored: true},
+	}
+
+	for name, c := range curations {
+		t.Run("kept for its "+name, func(t *testing.T) {
+			t.Parallel()
+
+			s, conn, advance := clockStore(t)
+			sweep(t, s, host("192.0.2.10", macA, "host-a"))
+			id := deviceIDByMAC(t, conn, macA)
+
+			_, err := s.UpdateCuration(t.Context(), id, c)
+			require.NoError(t, err)
+
+			advance(testRetention + time.Hour)
+
+			res, err := s.Prune(t.Context(), Retention{Devices: testRetention})
+			require.NoError(t, err)
+
+			assert.Zero(t, res.Devices)
+			assert.Equal(t, int64(1), countRows(t, conn, `SELECT COUNT(*) FROM devices WHERE id = ?`, id))
+		})
+	}
+
+	t.Run("deleted when uncurated", func(t *testing.T) {
+		t.Parallel()
+
+		s, conn, advance := clockStore(t)
+		sweep(t, s, host("192.0.2.10", macA, "host-a"))
+		stale := deviceIDByMAC(t, conn, macA)
+
+		advance(testRetention + time.Hour)
+
+		sweep(t, s, host("192.0.2.11", macB, "host-b"))
+		recent := deviceIDByMAC(t, conn, macB)
+
+		res, err := s.Prune(t.Context(), Retention{Devices: testRetention})
+		require.NoError(t, err)
+
+		assert.Equal(t, int64(1), res.Devices)
+		assert.Zero(t, countRows(t, conn, `SELECT COUNT(*) FROM devices WHERE id = ?`, stale))
+		assert.Equal(t, int64(1), countRows(t, conn, `SELECT COUNT(*) FROM devices WHERE id = ?`, recent))
+
+		// Its addresses and claims go with it; its events stay, unattached.
+		assert.Zero(t, countRows(t, conn, `SELECT COUNT(*) FROM addresses WHERE device_id = ?`, stale))
+		assert.Zero(t, countRows(t, conn, `SELECT COUNT(*) FROM device_sources WHERE device_id = ?`, stale))
+		assert.Zero(t, countRows(t, conn, `SELECT COUNT(*) FROM events WHERE device_id = ?`, stale))
+		assert.Positive(t, countRows(t, conn, `SELECT COUNT(*) FROM events WHERE device_id IS NULL`))
+	})
+
+	t.Run("seen again, it comes back as a new device", func(t *testing.T) {
+		t.Parallel()
+
+		s, conn, advance := clockStore(t)
+		sweep(t, s, host("192.0.2.10", macA, "host-a"))
+		first := deviceIDByMAC(t, conn, macA)
+
+		advance(testRetention + time.Hour)
+
+		_, err := s.Prune(t.Context(), Retention{Devices: testRetention})
+		require.NoError(t, err)
+
+		sweep(t, s, host("192.0.2.10", macA, "host-a"))
+		assert.NotEqual(t, first, deviceIDByMAC(t, conn, macA))
+	})
 }

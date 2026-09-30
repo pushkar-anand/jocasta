@@ -493,6 +493,39 @@ func (q *Queries) DeleteScansBefore(ctx context.Context, startedAt dbtype.Time) 
 	return result.RowsAffected()
 }
 
+const deleteUncuratedDevicesBefore = `-- name: DeleteUncuratedDevicesBefore :execrows
+DELETE
+FROM devices
+WHERE last_seen < ?
+  AND COALESCE(label, '') = ''
+  AND COALESCE(notes, '') = ''
+  AND COALESCE(group_name, '') = ''
+  AND COALESCE(device_type, '') = ''
+  AND is_ignored = 0
+`
+
+// A device no scan has seen since the cutoff is deleted only when its owner
+// has not touched it: a label, notes, group, type or the ignored flag keeps it
+// however long it stays away, since deleting an ignored device would bring it
+// back unignored the next time it is seen. Its addresses, ports, claims and
+// traffic go with it; its events stay, with device_id set to null.
+//
+//	DELETE
+//	FROM devices
+//	WHERE last_seen < ?
+//	  AND COALESCE(label, '') = ''
+//	  AND COALESCE(notes, '') = ''
+//	  AND COALESCE(group_name, '') = ''
+//	  AND COALESCE(device_type, '') = ''
+//	  AND is_ignored = 0
+func (q *Queries) DeleteUncuratedDevicesBefore(ctx context.Context, lastSeen dbtype.Time) (int64, error) {
+	result, err := q.exec(ctx, q.deleteUncuratedDevicesBeforeStmt, deleteUncuratedDevicesBefore, lastSeen)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deviceNetworkNames = `-- name: DeviceNetworkNames :many
 SELECT DISTINCT n.name AS name
 FROM addresses a

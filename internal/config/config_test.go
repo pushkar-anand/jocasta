@@ -166,10 +166,11 @@ func TestLoadConfig(t *testing.T) {
 	assert.Equal(t, ":9995", flows.Listen)
 	assert.Equal(t, []string{"192.0.2.1"}, flows.Exporters)
 
-	// Each retention window is its own duration: one overridden, the other
-	// still its default.
+	// Each retention window is its own duration: one overridden, the others
+	// still their defaults.
 	assert.Equal(t, 48*time.Hour, cfg.Retention.History)
 	assert.Equal(t, inventory.DefaultTrafficRetention, cfg.Retention.Traffic)
+	assert.Equal(t, inventory.DefaultDeviceRetention, cfg.Retention.Devices)
 
 	assert.Equal(t, "au", cfg.Location.Country, "as written; serve checks it")
 	assert.Equal(t, "Australia/Sydney", cfg.Location.Timezone)
