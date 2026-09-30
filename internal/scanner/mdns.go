@@ -100,7 +100,8 @@ func askMDNS(
 }
 
 // sendMDNS writes one reverse query to each target, paced to rate per second.
-// When ctx ends it stops and returns nil, leaving ctx's error to the caller.
+// It returns an error only when a query cannot be built. When ctx ends it
+// stops and returns nil, leaving ctx's error to the caller.
 func sendMDNS(
 	ctx context.Context,
 	pc net.PacketConn,
@@ -131,15 +132,15 @@ func sendMDNS(
 	return nil
 }
 
-// readMDNS records the first usable answer from each target in names. It
-// returns once every target has given a usable name, or a read fails.
+// readMDNS records in names the first usable name each target gives. It
+// returns once every target has given one, or a read fails.
 func readMDNS(pc net.PacketConn, want map[netip.AddrPort]string, names map[netip.Addr]string) {
 	// An mDNS message can fill a jumbo frame (RFC 6762, section 17).
 	buf := make([]byte, 9000)
 
 	for len(names) < len(want) {
 		// The read deadline askMDNS sets is what fails this read once the
-		// wait is over.
+		// wait is over or ctx ends.
 		n, from, err := pc.ReadFrom(buf)
 		if err != nil {
 			return
@@ -171,7 +172,7 @@ func readMDNS(pc net.PacketConn, want map[netip.AddrPort]string, names map[netip
 }
 
 // reverseName returns the in-addr.arpa name that a reverse lookup of addr
-// asks about.
+// asks about. addr must be an IPv4 address.
 func reverseName(addr netip.Addr) string {
 	b := addr.As4()
 
@@ -199,9 +200,9 @@ func reverseQuery(name string) ([]byte, error) {
 	return b.Finish()
 }
 
-// parseReverseAnswer returns the name a response gives for the reverse name q,
-// and false when it is no response, has no PTR answer for q, or names
-// something unusable as a name.
+// parseReverseAnswer returns the name that the response in b gives for the
+// reverse name q. It returns false when b is not a DNS response, has no PTR
+// answer for q, or gives a name cleanName refuses.
 func parseReverseAnswer(b []byte, q string) (string, bool) {
 	var p dnsmessage.Parser
 

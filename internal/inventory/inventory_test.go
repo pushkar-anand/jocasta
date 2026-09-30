@@ -969,7 +969,7 @@ func TestDeviceSourcesOfAnUnknownDeviceIsEmpty(t *testing.T) {
 }
 
 // mdnsHost builds a swept host named over mDNS, as a sweep names a host that
-// reverse DNS gave nothing.
+// reverse DNS gives no name.
 func mdnsHost(ip, mac, hostname string) scanner.Host {
 	h := host(ip, mac, hostname)
 	h.NameSource = dbtype.HostnameFromMDNS

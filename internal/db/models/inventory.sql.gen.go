@@ -812,7 +812,7 @@ type GetDeviceSourceNameRow struct {
 }
 
 // The name one source last gave a device, which decides whether a sweep's
-// mDNS name may replace it (see recordClaim).
+// mDNS name may replace it (see yieldsToDNS).
 //
 //	SELECT hostname, hostname_source
 //	FROM device_sources

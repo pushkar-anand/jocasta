@@ -220,8 +220,9 @@ func (s HostnameSource) Valid() bool { return slices.Contains(hostnameSources, s
 // Where the resolver serves the router's leases the PTR is that same name with
 // the domain attached, so preferring DNS keeps the fuller spelling.
 //
-// An mDNS name sits between the two leases. It resolves on the local network,
-// which a dynamic lease name may not, and an operator chose the static one.
+// An mDNS name ranks above a dynamic lease, because it resolves on the local
+// network and a lease name may resolve to nothing. It ranks below a static
+// lease, because an operator chose that name.
 //
 // An unknown standing ranks zero, so a known name still beats an unknown one.
 func (s HostnameSource) Rank() int {
