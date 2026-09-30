@@ -247,10 +247,21 @@ func TestReadLive(t *testing.T) {
 		regs, err := r.Registrations(t.Context())
 		require.NoError(t, err)
 
-		_, _ = w.Write([]byte("\nWIFI-CLIENT\tINTERFACE\tSSID\tBAND\tSIGNAL\n"))
+		_, _ = w.Write([]byte("\nWIFI-CLIENT\tINTERFACE\tSSID\tBAND\tSIGNAL\tTX\tRX\n"))
 
 		for _, g := range regs {
-			_, _ = w.Write([]byte(row(g.MACAddress, g.Interface, g.SSID, g.Band, g.Signal)))
+			_, _ = w.Write([]byte(row(g.MACAddress, g.Interface, g.SSID, g.Band, g.Signal,
+				strconv.FormatInt(int64(g.TxRate), 10), strconv.FormatInt(int64(g.RxRate), 10))))
+		}
+
+		links, err := r.Links(t.Context(), ifaces)
+		require.NoError(t, err)
+
+		_, _ = w.Write([]byte("\nPORT\tRATE\tFULL-DUPLEX\tCAPABLE\n"))
+
+		for _, l := range links {
+			_, _ = w.Write([]byte(row(l.Name, strconv.FormatInt(int64(l.Rate), 10),
+				strconv.FormatBool(bool(l.FullDuplex)), strconv.FormatInt(int64(l.Capable()), 10))))
 		}
 
 		_ = w.Flush()

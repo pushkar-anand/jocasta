@@ -9,7 +9,8 @@
 //
 // Everything here reads; nothing writes. The router is a source of facts about
 // the network, and a client that cannot change its configuration cannot break
-// the network by being wrong.
+// the network by being wrong. A POST here runs a console command that only
+// reports, such as the Ethernet monitor.
 //
 // Values arrive as the router renders them. RouterOS returns most fields as
 // strings, including its booleans, which [Bool] absorbs. Addresses and
@@ -19,6 +20,7 @@
 package routeros
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json/v2"
@@ -157,15 +159,36 @@ func (r *RouterOS) Addr() string { return r.url.String() }
 // certificate does not verify is [ErrTLS], and one that answers with a status
 // is an [Error] carrying whatever the router said about why.
 func (r *RouterOS) get[T any](ctx context.Context, path string) (*T, error) {
+	return r.do[T](ctx, http.MethodGet, path, nil)
+}
+
+// post runs a console command that takes arguments, which the REST API
+// addresses with a POST carrying them as a JSON object. It answers the way
+// [RouterOS.get] does.
+func (r *RouterOS) post[T any](ctx context.Context, path string, args map[string]string) (*T, error) {
+	body, err := json.Marshal(args)
+	if err != nil {
+		return nil, fmt.Errorf("request encode: %w", err)
+	}
+
+	return r.do[T](ctx, http.MethodPost, path, bytes.NewReader(body))
+}
+
+// do sends one request and decodes the answer.
+func (r *RouterOS) do[T any](ctx context.Context, method, path string, payload io.Reader) (*T, error) {
 	uri := r.url.JoinPath(path).String()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, uri, nil)
+	req, err := http.NewRequestWithContext(ctx, method, uri, payload)
 	if err != nil {
 		return nil, fmt.Errorf("request create: %w", err)
 	}
 
 	req.SetBasicAuth(r.cfg.User, r.cfg.Password)
 	req.Header.Set("Accept", "application/json")
+
+	if payload != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 
 	resp, err := r.client.Do(req)
 	if err != nil {

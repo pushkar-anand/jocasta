@@ -490,6 +490,37 @@ func TestMissingEndpointIsToldApartFromARefusal(t *testing.T) {
 	assert.NotErrorIs(t, err, ErrUnauthorized)
 }
 
+// RouterOS 7 answers a menu it lacks, such as the wireless package's on a
+// router running wifi, with a 400.
+func TestMissingMenuIsAMissingEndpoint(t *testing.T) {
+	t.Parallel()
+
+	r := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"detail":"no such command or directory (wireless)","error":400,"message":"Bad Request"}`))
+	})
+
+	_, err := r.DHCPLeases(t.Context())
+	require.ErrorIs(t, err, ErrNotFound)
+}
+
+// Any other 400 is the router refusing the request, which a missing menu is
+// kept apart from.
+func TestOtherBadRequestsAreNotAMissingEndpoint(t *testing.T) {
+	t.Parallel()
+
+	r := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"detail":"unknown parameter","error":400,"message":"Bad Request"}`))
+	})
+
+	_, err := r.DHCPLeases(t.Context())
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, ErrNotFound)
+}
+
 // Something answering this port that is not a router describes itself in its
 // own terms, and the status is still the fact.
 func TestANonRouterErrorBodyStillCarriesTheStatus(t *testing.T) {
@@ -633,4 +664,45 @@ func TestBoolRendersTheWayTheRouterDoes(t *testing.T) {
 	}{Flag: true})
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"flag":"true"}`, string(b))
+}
+
+func TestRateReadsEveryRenderingTheRouterUses(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		json string
+		want Rate
+	}{
+		"bare count":       {`"54000000"`, 54_000_000},
+		"gigabit":          {`"1Gbps"`, 1_000_000_000},
+		"fraction":         {`"2.5Gbps"`, 2_500_000_000},
+		"megabit":          {`"100Mbps"`, 100_000_000},
+		"wireless package": {`"866.6Mbps-80MHz/2S/SGI"`, 866_600_000},
+		"number":           {`54000000`, 54_000_000},
+		"empty":            {`""`, 0},
+		"null":             {`null`, 0},
+		"odd":              {`"fast"`, 0},
+		"odd unit":         {`"5Xbps"`, 0},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			var row struct {
+				Rate Rate `json:"rate"`
+			}
+
+			require.NoError(t, json.Unmarshal([]byte(`{"rate":`+tc.json+`}`), &row))
+			assert.Equal(t, tc.want, row.Rate)
+		})
+	}
+}
+
+func TestParseRateReadsAnAdvertisedMode(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, Rate(2_500_000_000), ParseRate("2.5G-baseT"))
+	assert.Equal(t, Rate(10_000_000), ParseRate("10M-baseT-half"))
+	assert.Equal(t, Rate(10_000_000_000), ParseRate("10G-baseCR"))
 }
