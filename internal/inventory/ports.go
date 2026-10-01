@@ -185,7 +185,6 @@ func (s *Store) gatherPorts(
 		}
 
 		sum.Devices++
-		sum.Open += len(scan.Open)
 
 		d, ok := found[holder.ID]
 		if !ok {
@@ -223,6 +222,8 @@ func (s *Store) recordPorts(
 	if err != nil {
 		return err
 	}
+
+	sum.Open += len(found.open)
 
 	for _, port := range slices.Sorted(maps.Keys(found.open)) {
 		if err := s.openPort(ctx, q, scanID, at, deviceID, port, wasOpen); err != nil {
