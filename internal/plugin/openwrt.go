@@ -30,9 +30,27 @@ type OpenWrt struct {
 	client *openwrt.OpenWrt
 	logger *slog.Logger
 
+	// topologyOnly marks an access point or switch read for its switching
+	// tables alone. The router that routes the network is the one without it.
+	topologyOnly bool
+
 	// now is a field so tests can pin the timestamp their facts carry.
 	now func() time.Time
 }
+
+// OpenWrtOption configures an OpenWrt source.
+type OpenWrtOption func(*OpenWrt)
+
+// OpenWrtTopologyOnly marks the source as an access point or switch: it is
+// read for what is plugged into it, and is not the device the network hangs
+// from.
+func OpenWrtTopologyOnly() OpenWrtOption {
+	return func(o *OpenWrt) { o.topologyOnly = true }
+}
+
+// IsTopologyOnly reports whether the source is read for its switching tables
+// alone, which is why it is left out of device discovery.
+func (o *OpenWrt) IsTopologyOnly() bool { return o.topologyOnly }
 
 // ErrNoOpenWrtName refuses a missing name: the name is a database key, and one
 // default would file two routers' facts under one source.
@@ -43,7 +61,7 @@ var ErrNoOpenWrtName = errors.New("plugin: openwrt instance has no name")
 //
 // It performs no I/O, so a router that is down at startup is retried later
 // while the server still starts.
-func NewOpenWrt(name string, client *openwrt.OpenWrt, log *slog.Logger) (*OpenWrt, error) {
+func NewOpenWrt(name string, client *openwrt.OpenWrt, log *slog.Logger, opts ...OpenWrtOption) (*OpenWrt, error) {
 	if name == "" {
 		return nil, ErrNoOpenWrtName
 	}
@@ -56,12 +74,18 @@ func NewOpenWrt(name string, client *openwrt.OpenWrt, log *slog.Logger) (*OpenWr
 		log = slog.Default()
 	}
 
-	return &OpenWrt{
+	o := &OpenWrt{
 		name:   openWrtPrefix + name,
 		client: client,
 		logger: log.With(slog.String("plugin", openWrtPrefix+name)),
 		now:    time.Now,
-	}, nil
+	}
+
+	for _, opt := range opts {
+		opt(o)
+	}
+
+	return o, nil
 }
 
 // Name returns the plugin's configured name.
@@ -302,4 +326,5 @@ func classifyOpenWrt(err error) error {
 var (
 	_ Plugin         = (*OpenWrt)(nil)
 	_ HostDiscoverer = (*OpenWrt)(nil)
+	_ TopologyScoped = (*OpenWrt)(nil)
 )

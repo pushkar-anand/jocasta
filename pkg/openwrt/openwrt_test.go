@@ -160,6 +160,17 @@ func (f *fakeRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// A file read is keyed by its path.
+	if key == "file read" {
+		var args struct {
+			Path string `json:"path"`
+		}
+
+		_ = json.Unmarshal(req.Params[3], &args)
+
+		key = "read " + args.Path
+	}
+
 	// uci get is keyed by the config and the section type it asks for.
 	if key == "uci get" {
 		var args struct {

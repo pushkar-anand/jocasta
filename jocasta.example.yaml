@@ -100,6 +100,7 @@ plugins:
       ssl: false              # true once luci-ssl is installed
       insecure: false         # true for uhttpd's self-signed cert
       timeout: "15s"
+      topology_only: false    # true for an access point; the router lists the devices
   netflow:
     gateway:
       enabled: true

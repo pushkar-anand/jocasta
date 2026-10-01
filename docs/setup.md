@@ -199,14 +199,16 @@ Check it with `jocasta plugin run gateway` before starting the server. See
 Jocasta reads OpenWrt over ubus, the JSON-RPC endpoint LuCI uses, at
 `http://<router>/ubus`. Any router with LuCI installed serves it, so there is
 nothing to install. Jocasta reads the neighbour table, the DHCP leases and the
-static leases, and the interfaces with their VLANs. It changes nothing on the
-router.
+static leases, and the interfaces with their VLANs. For the Topology page it
+also reads the ports, the bridge table and the Wi-Fi clients. It changes
+nothing on the router.
 
 Give Jocasta a login of its own that can only read. On the router:
 
 1. Copy [`openwrt/jocasta.json`](openwrt/jocasta.json) to
    `/usr/share/rpcd/acl.d/jocasta.json`. It grants the reads Jocasta makes and
-   nothing else.
+   nothing else. LuCI's own groups do not grant the bridge table, so root
+   cannot read it without this file either.
 2. Hash a password for the login:
 
    ```sh
@@ -255,13 +257,13 @@ device carries its tag.
 The Topology page draws the network from the internet down: the router, each
 switch and access point on the port it hangs from, and each device on its port
 or Wi-Fi network. It is built from the bridge and Wi-Fi tables of every
-MikroTik Jocasta reads, so the router from
+MikroTik and OpenWrt router Jocasta reads, so the router from
 [Read devices from your router](#read-devices-from-your-router) already gives
 a first picture. A switch or access point that announces itself to the router
 appears there with the devices behind it.
 
 To see which port of a switch or access point each device is on, add it as
-another RouterOS instance with `topology_only: true`:
+another instance with `topology_only: true`, under `routeros` or `openwrt`:
 
 ```yaml
 plugins:
@@ -279,10 +281,10 @@ plugins:
 ```
 
 A `topology_only` source is left out of device discovery, so its management
-address cannot rename a network. Every RouterOS source is read for its
-topology on `scan.devices.interval`.
+address cannot rename a network. Every RouterOS and OpenWrt source is read
+for its topology on `scan.devices.interval`.
 
-What each table adds:
+What each RouterOS table adds:
 
 - The bridge host table says which port each hardware address is behind, and
   in which VLAN when the bridge has VLAN filtering on.
@@ -295,6 +297,23 @@ What each table adds:
   clients too.
 - The Ethernet monitor gives the rate each Ethernet and SFP port's link runs
   at, and the fastest rate both ends offer.
+
+What each OpenWrt table adds:
+
+- The kernel's bridge table says which port each hardware address is behind.
+  On a router with a DSA switch, as most current ones have, each switch port
+  is a device of its own, so the table names the port. On an older router
+  with a swconfig switch, every switch port is one device, so the table names
+  only that device.
+- The bridge-vlan sections of the network configuration say which VLANs each
+  port carries.
+- iwinfo's station list marks Wi-Fi clients and names their network and
+  band, with the rate each way and the signal.
+- LuCI's device list gives the rate each port's link runs at.
+
+OpenWrt runs no neighbour discovery by default, so an OpenWrt source names no
+neighbours. The router still finds an OpenWrt access point among the
+addresses on its ports when the access point is read too.
 
 Check a source with `jocasta plugin run switch_core`, which prints its ports,
 the addresses learned on each, and its neighbours.

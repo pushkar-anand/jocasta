@@ -265,7 +265,15 @@ func fakeUbus(t *testing.T, answers map[string]string) *openwrt.OpenWrt {
 
 		key := object + " " + method
 
+		var path struct {
+			Path string `json:"path"`
+		}
+
+		_ = json.Unmarshal(req.Params[3], &path)
+
 		switch key {
+		case "file read":
+			key = "read " + path.Path
 		case "session login":
 			_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":[0,{"ubus_rpc_session":"s"}]}`))
 

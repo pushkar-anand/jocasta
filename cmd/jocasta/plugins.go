@@ -176,7 +176,12 @@ func newOpenWrt(name string, cfg config.OpenWrt, log *slog.Logger) (*plugin.Open
 		return nil, fmt.Errorf("plugin openwrt %q: %w", name, err)
 	}
 
-	p, err := plugin.NewOpenWrt(name, client, log)
+	var opts []plugin.OpenWrtOption
+	if cfg.TopologyOnly {
+		opts = append(opts, plugin.OpenWrtTopologyOnly())
+	}
+
+	p, err := plugin.NewOpenWrt(name, client, log, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("plugin openwrt %q: %w", name, err)
 	}

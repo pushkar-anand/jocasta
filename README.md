@@ -59,7 +59,7 @@ Some features need a source connected first. The **Needs** column says which.
 | Open ports | Which TCP ports each device listens on, and when that changed. | Port scanning turned on |
 | Traffic | Who each device talks to, on your network and on the internet, over the last day, week or month. Shows devices probing the network, and which of your services the internet reached or tried to reach. | Router flow exports |
 | Map | The last hour's traffic as a live tree, from the router out to each network, device and organisation, and a world map of the countries the network talked to. | Router flow exports |
-| Topology | The network from the internet down: each switch and access point on its port, and each device on its port or Wi-Fi network, in its VLAN's colour. Each device's page shows the path to it. | A MikroTik router. Switches and access points read as well show each device's port. |
+| Topology | The network from the internet down: each switch and access point on its port, and each device on its port or Wi-Fi network, in its VLAN's colour. Each device's page shows the path to it. | A MikroTik or OpenWrt router. Switches and access points read as well show each device's port. |
 | API | A JSON API over the same data, for scripts. | Nothing |
 | MCP server | An [MCP](https://modelcontextprotocol.io) endpoint, so AI agents such as Claude Code can look up devices, label them, and report what changed. | Turned on in config |
 | One binary | An embedded database, no other services to run. | |

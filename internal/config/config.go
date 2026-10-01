@@ -206,6 +206,11 @@ type (
 		Insecure bool `koanf:"insecure"`
 
 		Timeout time.Duration `koanf:"timeout"`
+
+		// TopologyOnly marks an access point or switch read only for what is
+		// plugged into it. Its devices and segments are left to the router,
+		// as for a RouterOS instance.
+		TopologyOnly bool `koanf:"topology_only"`
 	}
 
 	// NetFlow names one UDP listener that receives the flows a router exports
