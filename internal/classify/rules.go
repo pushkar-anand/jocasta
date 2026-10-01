@@ -24,6 +24,9 @@ type Cond struct {
 	AnyPort []uint16 // at least one of these is open
 	AllPort []uint16 // all of these are open
 
+	Service    string   // this service type is advertised, lowercased, such as "_ipp._tcp"
+	AnyService []string // at least one of these is advertised
+
 	Randomised *bool // the address is (or is not) locally administered
 	FirstHost  bool  // holds the .1 of its subnet, where a gateway lives
 
@@ -133,6 +136,8 @@ func match(c Cond, f Facts) (conds int, ok bool) {
 		test(c.Port != 0, c.Port != 0 && f.hasPort(c.Port)) &&
 		test(len(c.AnyPort) > 0, anyPort(f, c.AnyPort)) &&
 		test(len(c.AllPort) > 0, allPort(f, c.AllPort)) &&
+		test(c.Service != "", c.Service != "" && f.hasService(c.Service)) &&
+		test(len(c.AnyService) > 0, slices.ContainsFunc(c.AnyService, f.hasService)) &&
 		test(c.Randomised != nil, c.Randomised != nil && *c.Randomised == f.Randomised) &&
 		test(c.FirstHost, f.FirstHost) &&
 		test(c.MinServer > 0, countServer(f) >= c.MinServer) &&
@@ -201,6 +206,21 @@ func port(p uint16, reason string, c Class, weak bool) Rule {
 	return Rule{Cond: Cond{Port: p}, Class: c, Reason: reason, Weak: weak}
 }
 
+// svc is a shorthand for a rule that any of types being advertised fires. The
+// reason names the first.
+func svc(types []string, reason string, c Class, weak bool) Rule {
+	return Rule{Cond: Cond{AnyService: types}, Class: c, Reason: "advertises " + reason, Weak: weak}
+}
+
+// castModel reports whether a Google Cast model the device gives matches re.
+func castModel(re *regexp.Regexp) func(Facts) bool {
+	return func(f Facts) bool { return slices.ContainsFunc(f.Models, re.MatchString) }
+}
+
+// googleSpeaker matches the models of Google's smart speakers, which advertise
+// Google Cast as a Chromecast does.
+var googleSpeaker = regexp.MustCompile(`nest (?:mini|audio)|google home`)
+
 // net is a shorthand for a network-name rule. Always weak: a VLAN name is a
 // hint about what belongs there, and proves nothing about any one device.
 func net(sub, reason string, c Class) Rule {
@@ -226,8 +246,28 @@ var ruleset = []Rule{
 		Reason: "cast port beside a stack of service ports",
 	},
 
-	// Definitive: a manufacturer that makes one kind of thing, or a name that
-	// spells the product out.
+	// A Google speaker advertises Google Cast as a Chromecast does. Its model
+	// names it, and so does the speaker-group service a Chromecast lacks.
+	{
+		Cond:   Cond{Service: "_googlecast._tcp", When: castModel(googleSpeaker)},
+		Class:  Speaker,
+		Reason: "advertises Google Cast as a Google smart speaker model",
+	},
+	{
+		Cond:   Cond{Service: "_googlecast._tcp", AnyService: []string{"_googlezone._tcp"}},
+		Class:  Speaker,
+		Reason: "advertises Google Cast and a Google speaker group",
+	},
+
+	// Definitive: a manufacturer that makes one kind of thing, a name that
+	// spells the product out, or a service only one kind of device offers.
+	// The services lead, so they beat a name or vendor rule as specific as
+	// they are: the device announced them itself.
+
+	svc([]string{"_ipp._tcp", "_ipps._tcp", "_printer._tcp", "_pdl-datastream._tcp"}, "a print service", Printer, false),
+	svc([]string{"_androidtvremote2._tcp"}, "the Android TV remote service", TV, false),
+	svc([]string{"_home-assistant._tcp"}, "Home Assistant", IoTHub, false),
+	svc([]string{"_hap._tcp", "_hap._udp", "_matter._tcp", "_matterc._udp", "_esphomelib._tcp"}, "a smart-home accessory service (HomeKit, Matter or ESPHome)", SmartHome, false),
 
 	host(`iphone`, "the name says iPhone", Phone, false),
 	host(`ipad`, "the name says iPad", Tablet, false),
@@ -367,6 +407,19 @@ var ruleset = []Rule{
 	net("voip", `on a VoIP segment`, VoIP),
 
 	// Weak: a hint that needs corroboration to mean much.
+
+	svc([]string{"_googlecast._tcp", "_airplay._tcp"}, "a casting service (Google Cast or AirPlay)", Streaming, true),
+	svc([]string{"_spotify-connect._tcp", "_sonos._tcp"}, "a speaker service (Spotify Connect or Sonos)", Speaker, true),
+	svc([]string{"_adisk._tcp", "_afpovertcp._tcp"}, "a network disk service (Time Machine or AFP)", NAS, true),
+	{
+		Cond:   Cond{Service: "_smb._tcp", AnyService: []string{"_nfs._tcp"}},
+		Class:  NAS,
+		Reason: "advertises both SMB and NFS file sharing",
+		Weak:   true,
+	},
+	svc([]string{"_companion-link._tcp", "_apple-mobdev2._tcp"}, "an Apple device link service", Phone, true),
+	svc([]string{"_rfb._tcp"}, "screen sharing (VNC)", Desktop, true),
+	svc([]string{"_workstation._tcp", "_ssh._tcp", "_sftp-ssh._tcp"}, "a workstation or SSH service", Server, true),
 
 	host(`(?:\b|_)tv(?:\b|_)`, `the name contains "tv"`, TV, true),
 	host(`server|(?:\b|_)srv-|-srv(?:\b|_)|ubuntu|debian|centos|fedora|(?:\b|_)docker(?:\b|_)|portainer|(?:\b|_)k8s(?:\b|_)|(?:\b|_)kube`, "the name suggests a server", Server, true),

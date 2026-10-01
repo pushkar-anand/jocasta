@@ -290,7 +290,7 @@ func sweptFacts(hosts []scanner.Host) []plugin.Fact {
 	facts := make([]plugin.Fact, len(hosts))
 
 	for i, h := range hosts {
-		f := plugin.Fact{Host: h.Host, Present: true, SeenAt: h.SeenAt}
+		f := plugin.Fact{Host: h.Host, Present: true, Services: h.Services, SeenAt: h.SeenAt}
 
 		// The standing travels with the name: a fact carrying a source for a
 		// name it does not have is a standing for nothing.
@@ -609,6 +609,10 @@ func (s *Store) record(ctx context.Context, p *pass, f plugin.Fact) error {
 	}
 
 	if err := s.applyClaim(ctx, p, target, f); err != nil {
+		return err
+	}
+
+	if err := recordServices(ctx, p, target.ID, f.Services); err != nil {
 		return err
 	}
 

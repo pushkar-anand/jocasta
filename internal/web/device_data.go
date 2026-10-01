@@ -370,6 +370,7 @@ func buildDevicePageData(
 		Events:             events,
 		Claims:             claims,
 		LastChecked:        lastSweptAt(ctx, store),
+		Ports:              portRows(device.Ports, device.Services),
 		PortScanConfigured: portScanConfigured(ctx, store),
 		Traffic:            traffic,
 		Connection:         conn,

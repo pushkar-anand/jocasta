@@ -757,6 +757,39 @@ func TestDevicePageShowsOpenPorts(t *testing.T) {
 	assert.NotContains(t, body, "ZgotmplZ")
 }
 
+// A device that advertises services shows them in the Ports table, beside the
+// port the scan found open where they share one. With no port scan yet, the
+// table still shows the advertised rows and says why the rest is unknown.
+func TestDevicePageMergesAdvertisedServicesIntoPorts(t *testing.T) {
+	t.Parallel()
+
+	store := testStore(t)
+
+	tv := host("192.0.2.10", macA, "")
+	tv.Services = []hosts.Service{
+		{Type: "_googlecast._tcp", Instance: "Android_0123", Port: 8009, Label: "Living Room TV", Model: "Chromecast HD"},
+		{Type: "_matterc._udp", Instance: "0123", Port: 5540},
+		{Type: "_example._tcp", Instance: "Something", Port: 9999},
+	}
+
+	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix), []scanner.Host{tv})
+	require.NoError(t, err)
+
+	rec := get(t, newWebHandler(t, store), "/devices/1")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+
+	assert.Contains(t, body, "Advertised as")
+	assert.Contains(t, body, "Google Cast")
+	assert.Contains(t, body, "Living Room TV &middot; Chromecast HD")
+	assert.Contains(t, body, "5540/udp")
+	assert.Contains(t, body, `<span class="mono dim">_example._tcp</span>`)
+	assert.Contains(t, body, `<span class="chip">advertised</span>`)
+	assert.Contains(t, body, "only the services this device advertises are listed")
+	assert.NotContains(t, body, "ZgotmplZ")
+}
+
 // The list carries the open ports a scan has found, as chips beside the
 // address they answer on, so a reader does not have to open each device to see
 // what it exposes.

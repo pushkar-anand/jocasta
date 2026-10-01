@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pushkar-anand/jocasta/internal/hosts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/dns/dnsmessage"
@@ -114,7 +115,7 @@ func TestBrowseDNSSD(t *testing.T) {
 	services, err := browseDNSSD(t.Context(), group, []netip.Addr{addr}, 200*time.Millisecond)
 	require.NoError(t, err)
 
-	assert.Equal(t, []Service{
+	assert.Equal(t, []hosts.Service{
 		{Type: "_androidtvremote2._tcp", Instance: "Living Room TV", Port: 6466},
 		{
 			Type: "_googlecast._tcp", Instance: "Android_0123456789abcdef0123456789abcdef", Port: 8009,
@@ -157,7 +158,7 @@ func TestBrowseDNSSDFilesAServiceUnderItsTarget(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.NotContains(t, services, netip.MustParseAddr("127.0.0.1"))
-	assert.Equal(t, []Service{{Type: "_airplay._tcp", Instance: "Office", Port: 7000}}, services[netip.MustParseAddr("127.0.0.2")])
+	assert.Equal(t, []hosts.Service{{Type: "_airplay._tcp", Instance: "Office", Port: 7000}}, services[netip.MustParseAddr("127.0.0.2")])
 }
 
 func TestParseServiceTypes(t *testing.T) {
@@ -192,12 +193,12 @@ func TestParseInstances(t *testing.T) {
 		{
 			name: "the instance keeps its case",
 			ad:   advert{typ: "_airplay._tcp.local.", instance: "Living Room TV", port: 7000, target: "tv.local."},
-			want: []owned{{from, Service{Type: "_airplay._tcp", Instance: "Living Room TV", Port: 7000}}},
+			want: []owned{{from, hosts.Service{Type: "_airplay._tcp", Instance: "Living Room TV", Port: 7000}}},
 		},
 		{
 			name: "a dot in the instance",
 			ad:   advert{typ: "_airplay._tcp.local.", instance: "Mr. Speaker", port: 7000, target: "speaker.local."},
-			want: []owned{{from, Service{Type: "_airplay._tcp", Instance: "Mr. Speaker", Port: 7000}}},
+			want: []owned{{from, hosts.Service{Type: "_airplay._tcp", Instance: "Mr. Speaker", Port: 7000}}},
 		},
 		{
 			name: "the Cast name and model",
@@ -205,7 +206,7 @@ func TestParseInstances(t *testing.T) {
 				typ: "_googlecast._tcp.local.", instance: "Nest-Mini-0123", port: 8009, target: "nest.local.",
 				txt: []string{"md=Google Nest Mini", "FN=Kitchen speaker", "rs"},
 			},
-			want: []owned{{from, Service{
+			want: []owned{{from, hosts.Service{
 				Type: "_googlecast._tcp", Instance: "Nest-Mini-0123", Port: 8009,
 				Label: "Kitchen speaker", Model: "Google Nest Mini",
 			}}},
@@ -213,7 +214,7 @@ func TestParseInstances(t *testing.T) {
 		{
 			name: "a target on the address that answered",
 			ad:   advert{typ: "_airplay._tcp.local.", instance: "TV", port: 7000, target: "tv.local.", a: from},
-			want: []owned{{from, Service{Type: "_airplay._tcp", Instance: "TV", Port: 7000}}},
+			want: []owned{{from, hosts.Service{Type: "_airplay._tcp", Instance: "TV", Port: 7000}}},
 		},
 		{
 			name: "a target on another address",
@@ -221,7 +222,7 @@ func TestParseInstances(t *testing.T) {
 				typ: "_airplay._tcp.local.", instance: "TV", port: 7000, target: "tv.local.",
 				a: netip.MustParseAddr("192.0.2.11"),
 			},
-			want: []owned{{netip.MustParseAddr("192.0.2.11"), Service{Type: "_airplay._tcp", Instance: "TV", Port: 7000}}},
+			want: []owned{{netip.MustParseAddr("192.0.2.11"), hosts.Service{Type: "_airplay._tcp", Instance: "TV", Port: 7000}}},
 		},
 		{
 			name: "a type not asked about",
@@ -244,13 +245,13 @@ func TestDNSSDName(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		services []Service
+		services []hosts.Service
 		want     string
 		wantOK   bool
 	}{
 		{
 			name: "the Cast name wins",
-			services: []Service{
+			services: []hosts.Service{
 				{Type: "_airplay._tcp", Instance: "Bedroom"},
 				{Type: "_googlecast._tcp", Instance: "Nest-Mini-0123", Label: "Kitchen speaker", Model: "Google Nest Mini"},
 			},
@@ -258,7 +259,7 @@ func TestDNSSDName(t *testing.T) {
 		},
 		{
 			name: "a Cast group the speaker leads does not name it",
-			services: []Service{
+			services: []hosts.Service{
 				{Type: "_googlecast._tcp", Instance: "Google-Cast-Group-0123456789abcdef", Label: "Downstairs", Model: castGroupModel},
 				{Type: "_spotify-connect._tcp", Instance: "Kitchen"},
 			},
@@ -266,7 +267,7 @@ func TestDNSSDName(t *testing.T) {
 		},
 		{
 			name: "the name most services share",
-			services: []Service{
+			services: []hosts.Service{
 				{Type: "_airplay._tcp", Instance: "Living Room TV"},
 				{Type: "_androidtvremote2._tcp", Instance: "Living Room TV"},
 				{Type: "_http._tcp", Instance: "Web interface"},
@@ -275,7 +276,7 @@ func TestDNSSDName(t *testing.T) {
 		},
 		{
 			name: "a tie goes to the first in sort order",
-			services: []Service{
+			services: []hosts.Service{
 				{Type: "_http._tcp", Instance: "Office printer"},
 				{Type: "_ipp._tcp", Instance: "Laser"},
 			},
@@ -283,17 +284,17 @@ func TestDNSSDName(t *testing.T) {
 		},
 		{
 			name:     "the AirPlay hardware address is stripped",
-			services: []Service{{Type: "_raop._tcp", Instance: "00005E005301@Kitchen"}},
+			services: []hosts.Service{{Type: "_raop._tcp", Instance: "00005E005301@Kitchen"}},
 			want:     "Kitchen", wantOK: true,
 		},
 		{
 			name:     "the Avahi hardware address is stripped",
-			services: []Service{{Type: "_workstation._tcp", Instance: "host-a [00:00:5e:00:53:01]"}},
+			services: []hosts.Service{{Type: "_workstation._tcp", Instance: "host-a [00:00:5e:00:53:01]"}},
 			want:     "host-a", wantOK: true,
 		},
 		{
 			name: "machine IDs are left out",
-			services: []Service{
+			services: []hosts.Service{
 				{Type: "_googlecast._tcp", Instance: "Android_0123456789abcdef0123456789abcdef"},
 				{Type: "_matter._tcp", Instance: "00000000-0000-0000-0000-000000000001"},
 			},

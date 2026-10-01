@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pushkar-anand/jocasta/internal/hosts"
 	"golang.org/x/net/dns/dnsmessage"
 )
 
@@ -48,27 +49,6 @@ const castService = "_googlecast._tcp"
 // advertises each group it leads, so a group's name is not the speaker's.
 const castGroupModel = "Google Cast Group"
 
-// Service is one service a host advertises over DNS-SD.
-type Service struct {
-	// Type is the service type without the domain, such as
-	// "_googlecast._tcp".
-	Type string `json:"type"`
-
-	// Instance is the name the host gives the service, such as "Living Room
-	// TV", and is empty when that name is one cleanLabel refuses.
-	Instance string `json:"instance,omitempty"`
-
-	// Port is the port the service listens on, and zero when no SRV record
-	// came with it.
-	Port uint16 `json:"port,omitempty"`
-
-	// Label and Model are the name a Google Cast device shows its owner and
-	// its model, such as "Google Nest Mini", from its TXT record. Both are
-	// empty for any other service type.
-	Label string `json:"label,omitempty"`
-	Model string `json:"model,omitempty"`
-}
-
 // browseDNSSD asks group for every service type advertised on the segment, then
 // for the instances of each type, and returns the services each IPv4 address
 // in addrs advertises, sorted by type and instance. An address that advertised
@@ -85,8 +65,8 @@ func browseDNSSD(
 	group netip.AddrPort,
 	addrs []netip.Addr,
 	wait time.Duration,
-) (map[netip.Addr][]Service, error) {
-	services := make(map[netip.Addr][]Service)
+) (map[netip.Addr][]hosts.Service, error) {
+	services := make(map[netip.Addr][]hosts.Service)
 
 	asked := make(map[netip.Addr]bool, len(addrs))
 
@@ -137,14 +117,14 @@ func browseDNSSD(
 
 			// A responder repeats its answer when it sees another querier's
 			// question, so the same instance can arrive twice.
-			if !slices.ContainsFunc(services[o.addr], func(k Service) bool { return k.Type == o.Type && k.Instance == o.Instance }) {
+			if !slices.ContainsFunc(services[o.addr], func(k hosts.Service) bool { return k.Type == o.Type && k.Instance == o.Instance }) {
 				services[o.addr] = append(services[o.addr], o.Service)
 			}
 		}
 	})
 
 	for _, s := range services {
-		slices.SortFunc(s, func(a, b Service) int {
+		slices.SortFunc(s, func(a, b hosts.Service) int {
 			return cmp.Or(strings.Compare(a.Type, b.Type), strings.Compare(a.Instance, b.Instance))
 		})
 	}
@@ -242,7 +222,7 @@ func parseServiceTypes(b []byte) []string {
 // owned is a service and the address that runs it.
 type owned struct {
 	addr netip.Addr
-	Service
+	hosts.Service
 }
 
 // parseInstances returns the services the response in b, which came from
@@ -262,7 +242,7 @@ func parseInstances(b []byte, types []string, from netip.Addr) []owned {
 	// Names are matched without regard to case (RFC 6762, section 16), so
 	// both maps are keyed in lower case.
 	instances := make(map[string]*instance)
-	hosts := make(map[string][]netip.Addr)
+	targets := make(map[string][]netip.Addr)
 
 	records := responseRecords(b)
 
@@ -296,7 +276,7 @@ func parseInstances(b []byte, types []string, from netip.Addr) []owned {
 				in.txt = body.TXT
 			}
 		case *dnsmessage.AResource:
-			hosts[name] = append(hosts[name], netip.AddrFrom4(body.A))
+			targets[name] = append(targets[name], netip.AddrFrom4(body.A))
 		}
 	}
 
@@ -305,11 +285,11 @@ func parseInstances(b []byte, types []string, from netip.Addr) []owned {
 	for _, in := range instances {
 		owner := from
 
-		if addrs := hosts[in.target]; len(addrs) > 0 && !slices.Contains(addrs, from) {
+		if addrs := targets[in.target]; len(addrs) > 0 && !slices.Contains(addrs, from) {
 			owner = slices.MinFunc(addrs, netip.Addr.Compare)
 		}
 
-		s := Service{
+		s := hosts.Service{
 			Type: strings.TrimSuffix(in.typ, ".local."),
 			Port: in.port,
 		}
@@ -399,7 +379,7 @@ var (
 // once any hardware address is stripped, leaving out names that hold a
 // machine ID. Two names shared equally go to the first in sort order, so the
 // name is the same on every sweep.
-func dnssdName(services []Service) (string, bool) {
+func dnssdName(services []hosts.Service) (string, bool) {
 	for _, s := range services {
 		if s.Label != "" && s.Model != castGroupModel {
 			return s.Label, true

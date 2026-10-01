@@ -504,6 +504,31 @@ WHERE device_id = sqlc.arg(device_id)
   AND port = sqlc.arg(port)
   AND state = 'open';
 
+-- Every service a device has advertised within the history window, for the
+-- device page and the classifier.
+-- name: ListDeviceServices :many
+SELECT *
+FROM device_services
+WHERE device_id = ?
+ORDER BY type, instance;
+
+-- name: DeleteDeviceServicesBefore :execrows
+DELETE
+FROM device_services
+WHERE last_seen < ?;
+
+-- A service a sweep heard. first_seen holds the first sweep that heard it, and
+-- the rest is what the latest one said.
+-- name: UpsertDeviceService :exec
+INSERT INTO device_services (device_id, type, instance, port, label, model, first_seen, last_seen)
+VALUES (sqlc.arg(device_id), sqlc.arg(type), sqlc.arg(instance), sqlc.arg(port),
+        sqlc.narg(label), sqlc.narg(model), sqlc.arg(seen_at), sqlc.arg(seen_at))
+ON CONFLICT (device_id, type, instance)
+    DO UPDATE SET port      = excluded.port,
+                  label     = excluded.label,
+                  model     = excluded.model,
+                  last_seen = excluded.last_seen;
+
 -- name: ScanSummary :one
 -- One scan with its source and network, and whether it is the first to
 -- succeed for that source, kind and network.

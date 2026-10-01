@@ -150,6 +150,11 @@ responder on the same machine, such as Avahi. Like SSDP, it reaches only
 Jocasta's own segment, and only with host networking. To turn it off, set
 `scan.devices.resolve_dnssd: false`.
 
+Jocasta also records the services each device advertises, named or not, and
+lists them in the device page's Ports table. The classifier reads them: a
+print service marks a printer, and the Android TV remote service a TV. A
+service no sweep has heard within `retention.history` drops off.
+
 SSDP names TVs, speakers, media players, printers and routers that nothing
 else names. The name is the label the device shows its owner, such as
 `Living Room TV`. After a sweep that leaves a device without a name, Jocasta

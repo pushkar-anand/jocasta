@@ -261,6 +261,10 @@ type Fact struct {
 	// the device page can say why a source believes what it does.
 	Detail map[string]string
 
+	// Services are what the device advertised over DNS-SD. Only a sweep
+	// browses for them; a router leaves this empty.
+	Services []hosts.Service
+
 	// SeenAt is when the source was read. The router measures age in durations
 	// against a clock this process cannot see, so this is the only honest
 	// timestamp available.

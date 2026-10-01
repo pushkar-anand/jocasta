@@ -11,7 +11,8 @@ import (
 // Retention says how long each kind of record is kept. A window of zero keeps
 // that kind forever.
 type Retention struct {
-	// History bounds the event log, the scan log and topology sightings.
+	// History bounds the event log, the scan log, topology sightings and the
+	// services a device has stopped advertising.
 	History time.Duration
 
 	// Traffic bounds hourly traffic totals and attempt, broadcast and probe
@@ -32,6 +33,7 @@ type Pruned struct {
 	Broadcasts int64
 	Probes     int64
 	Sightings  int64
+	Services   int64
 	Devices    int64
 }
 
@@ -76,6 +78,10 @@ func (s *Store) Prune(ctx context.Context, r Retention) (*Pruned, error) {
 
 		if res.Sightings, err = q.DeleteTopologySightingsBefore(ctx, cutoff); err != nil {
 			return nil, fmt.Errorf("prune sightings: %w", err)
+		}
+
+		if res.Services, err = q.DeleteDeviceServicesBefore(ctx, cutoff); err != nil {
+			return nil, fmt.Errorf("prune services: %w", err)
 		}
 	}
 

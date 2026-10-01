@@ -1,8 +1,8 @@
 {{- /*
-    Takes a slice of ports. The TCP ports a scan has found a device listening
-    on, and the ones it used to answer on before the service stopped. Only a
-    port seen open is ever recorded, so a short list here means a small
-    surface.
+    Takes a slice of port rows. Each is a port a scan found a device listening
+    on, or listening on before the service stopped, or a port the device
+    advertises a service on over DNS-SD. Only a port seen open or advertised
+    is ever recorded, so a short list here means a small surface.
 */ -}}
 {{ define "partial/device-ports" }}
 <div class="card card--table">
@@ -12,6 +12,7 @@
             <tr>
                 <th scope="col">Port</th>
                 <th scope="col">Service</th>
+                <th scope="col">Advertised as</th>
                 <th scope="col">State</th>
                 <th scope="col">First seen</th>
             </tr>
@@ -19,7 +20,13 @@
             <tbody>
             {{- range . }}
             <tr>
-                <td><span class="mono strong">{{ .Number }}</span></td>
+                <td>
+                    {{- if .Number }}
+                    <span class="mono strong">{{ .Number }}{{ if .UDP }}/udp{{ end }}</span>
+                    {{- else }}
+                    <span class="dim">&mdash;</span>
+                    {{- end }}
+                </td>
                 <td>
                     {{- if .Service }}
                     {{ .Service }}
@@ -28,7 +35,20 @@
                     {{- end }}
                 </td>
                 <td>
-                    {{- if .Open }}
+                    {{- range $i, $a := .Advertised }}
+                    {{- if $i }}<br>{{ end }}
+                    {{- if $a.Name }}{{ $a.Name }}{{ else }}<span class="mono dim">{{ $a.Type }}</span>{{ end }}
+                    {{- if or $a.Instance $a.Model }}
+                    <br><span class="dim">{{ $a.Instance }}{{ if and $a.Instance $a.Model }} &middot; {{ end }}{{ $a.Model }}</span>
+                    {{- end }}
+                    {{- else }}
+                    <span class="dim">&mdash;</span>
+                    {{- end }}
+                </td>
+                <td>
+                    {{- if not .Scanned }}
+                    <span class="chip">advertised</span>
+                    {{- else if .Open }}
                     <span class="chip chip--ok">open</span>
                     {{- else }}
                     <span class="chip">closed {{ stamp .ChangedAt "" }}</span>

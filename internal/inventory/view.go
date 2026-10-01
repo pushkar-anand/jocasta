@@ -74,6 +74,11 @@ type Device struct {
 	// be more than a row can hold; the device page reads Ports.
 	OpenPorts []uint16 `json:"open_ports,omitempty"`
 
+	// Services is every service the device advertised over DNS-SD within the
+	// history window, by type and instance. Only Device fills it, as it does
+	// Ports.
+	Services []*Service `json:"services,omitempty"`
+
 	// Networks is the distinct set of recorded prefixes the device currently
 	// holds an address on, in CIDR order. A list reads this to say where a
 	// device lives; the per-address history, and the prefixes older addresses
@@ -119,6 +124,33 @@ type Port struct {
 	FirstSeen time.Time `json:"first_seen"`
 	LastSeen  time.Time `json:"last_seen"`
 	ChangedAt time.Time `json:"changed_at"`
+}
+
+// Service is one service a device advertised over DNS-SD within the history
+// window. The device announced it itself, so it is listed whether or not a
+// port scan reached its port.
+type Service struct {
+	// Type is the service type without the domain, such as
+	// "_googlecast._tcp".
+	Type string `json:"type"`
+
+	// Instance is the name the device gives the service, such as "Living Room
+	// TV", and is empty when that name was no fit to show.
+	Instance string `json:"instance,omitempty"`
+
+	// Port is where the service listens, and zero when the device gave none.
+	Port uint16 `json:"port,omitempty"`
+
+	// Label and Model are the name a Google Cast device shows its owner and
+	// its model, such as "Google Nest Mini". Both are empty for any other
+	// service type.
+	Label string `json:"label,omitempty"`
+	Model string `json:"model,omitempty"`
+
+	// FirstSeen is the first sweep that heard the service, and LastSeen the
+	// latest.
+	FirstSeen time.Time `json:"first_seen"`
+	LastSeen  time.Time `json:"last_seen"`
 }
 
 // PortOverview is the compact service picture shown on the overview page.
@@ -394,6 +426,18 @@ func newPort(p *models.DevicePort) *Port {
 		FirstSeen: p.FirstSeen.Time,
 		LastSeen:  p.LastSeen.Time,
 		ChangedAt: p.ChangedAt.Time,
+	}
+}
+
+func newService(r *models.DeviceService) *Service {
+	return &Service{
+		Type:      r.Type,
+		Instance:  r.Instance,
+		Port:      uint16(r.Port), //nolint:gosec // range enforced by the column CHECK.
+		Label:     r.Label.String,
+		Model:     r.Model.String,
+		FirstSeen: r.FirstSeen.Time,
+		LastSeen:  r.LastSeen.Time,
 	}
 }
 
