@@ -252,6 +252,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.listUsersStmt, err = db.PrepareContext(ctx, listUsers); err != nil {
 		return nil, fmt.Errorf("error preparing query ListUsers: %w", err)
 	}
+	if q.markPresentStmt, err = db.PrepareContext(ctx, markPresent); err != nil {
+		return nil, fmt.Errorf("error preparing query MarkPresent: %w", err)
+	}
+	if q.markQuietStmt, err = db.PrepareContext(ctx, markQuiet); err != nil {
+		return nil, fmt.Errorf("error preparing query MarkQuiet: %w", err)
+	}
 	if q.moveAddressesStmt, err = db.PrepareContext(ctx, moveAddresses); err != nil {
 		return nil, fmt.Errorf("error preparing query MoveAddresses: %w", err)
 	}
@@ -272,6 +278,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.portStatsStmt, err = db.PrepareContext(ctx, portStats); err != nil {
 		return nil, fmt.Errorf("error preparing query PortStats: %w", err)
+	}
+	if q.presentOfSourceStmt, err = db.PrepareContext(ctx, presentOfSource); err != nil {
+		return nil, fmt.Errorf("error preparing query PresentOfSource: %w", err)
+	}
+	if q.presentWithAddressesStmt, err = db.PrepareContext(ctx, presentWithAddresses); err != nil {
+		return nil, fmt.Errorf("error preparing query PresentWithAddresses: %w", err)
 	}
 	if q.probePortsStmt, err = db.PrepareContext(ctx, probePorts); err != nil {
 		return nil, fmt.Errorf("error preparing query ProbePorts: %w", err)
@@ -305,6 +317,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.setDeviceHostnameStmt, err = db.PrepareContext(ctx, setDeviceHostname); err != nil {
 		return nil, fmt.Errorf("error preparing query SetDeviceHostname: %w", err)
+	}
+	if q.setDeviceWatchedStmt, err = db.PrepareContext(ctx, setDeviceWatched); err != nil {
+		return nil, fmt.Errorf("error preparing query SetDeviceWatched: %w", err)
 	}
 	if q.setUserTOTPSecretStmt, err = db.PrepareContext(ctx, setUserTOTPSecret); err != nil {
 		return nil, fmt.Errorf("error preparing query SetUserTOTPSecret: %w", err)
@@ -754,6 +769,16 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing listUsersStmt: %w", cerr)
 		}
 	}
+	if q.markPresentStmt != nil {
+		if cerr := q.markPresentStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing markPresentStmt: %w", cerr)
+		}
+	}
+	if q.markQuietStmt != nil {
+		if cerr := q.markQuietStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing markQuietStmt: %w", cerr)
+		}
+	}
 	if q.moveAddressesStmt != nil {
 		if cerr := q.moveAddressesStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing moveAddressesStmt: %w", cerr)
@@ -787,6 +812,16 @@ func (q *Queries) Close() error {
 	if q.portStatsStmt != nil {
 		if cerr := q.portStatsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing portStatsStmt: %w", cerr)
+		}
+	}
+	if q.presentOfSourceStmt != nil {
+		if cerr := q.presentOfSourceStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing presentOfSourceStmt: %w", cerr)
+		}
+	}
+	if q.presentWithAddressesStmt != nil {
+		if cerr := q.presentWithAddressesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing presentWithAddressesStmt: %w", cerr)
 		}
 	}
 	if q.probePortsStmt != nil {
@@ -842,6 +877,11 @@ func (q *Queries) Close() error {
 	if q.setDeviceHostnameStmt != nil {
 		if cerr := q.setDeviceHostnameStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing setDeviceHostnameStmt: %w", cerr)
+		}
+	}
+	if q.setDeviceWatchedStmt != nil {
+		if cerr := q.setDeviceWatchedStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing setDeviceWatchedStmt: %w", cerr)
 		}
 	}
 	if q.setUserTOTPSecretStmt != nil {
@@ -1064,6 +1104,8 @@ type Queries struct {
 	listTopologyPortsStmt              *sql.Stmt
 	listTopologySightingsStmt          *sql.Stmt
 	listUsersStmt                      *sql.Stmt
+	markPresentStmt                    *sql.Stmt
+	markQuietStmt                      *sql.Stmt
 	moveAddressesStmt                  *sql.Stmt
 	moveDeviceSourcesStmt              *sql.Stmt
 	moveEventsStmt                     *sql.Stmt
@@ -1071,6 +1113,8 @@ type Queries struct {
 	organisationDevicesStmt            *sql.Stmt
 	outsideAddressesStmt               *sql.Stmt
 	portStatsStmt                      *sql.Stmt
+	presentOfSourceStmt                *sql.Stmt
+	presentWithAddressesStmt           *sql.Stmt
 	probePortsStmt                     *sql.Stmt
 	probedDevicesStmt                  *sql.Stmt
 	probingHoursStmt                   *sql.Stmt
@@ -1082,6 +1126,7 @@ type Queries struct {
 	scanSummaryStmt                    *sql.Stmt
 	setDeviceClassStmt                 *sql.Stmt
 	setDeviceHostnameStmt              *sql.Stmt
+	setDeviceWatchedStmt               *sql.Stmt
 	setUserTOTPSecretStmt              *sql.Stmt
 	topOrganisationsStmt               *sql.Stmt
 	touchAPITokenByHashStmt            *sql.Stmt
@@ -1185,6 +1230,8 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		listTopologyPortsStmt:              q.listTopologyPortsStmt,
 		listTopologySightingsStmt:          q.listTopologySightingsStmt,
 		listUsersStmt:                      q.listUsersStmt,
+		markPresentStmt:                    q.markPresentStmt,
+		markQuietStmt:                      q.markQuietStmt,
 		moveAddressesStmt:                  q.moveAddressesStmt,
 		moveDeviceSourcesStmt:              q.moveDeviceSourcesStmt,
 		moveEventsStmt:                     q.moveEventsStmt,
@@ -1192,6 +1239,8 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		organisationDevicesStmt:            q.organisationDevicesStmt,
 		outsideAddressesStmt:               q.outsideAddressesStmt,
 		portStatsStmt:                      q.portStatsStmt,
+		presentOfSourceStmt:                q.presentOfSourceStmt,
+		presentWithAddressesStmt:           q.presentWithAddressesStmt,
 		probePortsStmt:                     q.probePortsStmt,
 		probedDevicesStmt:                  q.probedDevicesStmt,
 		probingHoursStmt:                   q.probingHoursStmt,
@@ -1203,6 +1252,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		scanSummaryStmt:                    q.scanSummaryStmt,
 		setDeviceClassStmt:                 q.setDeviceClassStmt,
 		setDeviceHostnameStmt:              q.setDeviceHostnameStmt,
+		setDeviceWatchedStmt:               q.setDeviceWatchedStmt,
 		setUserTOTPSecretStmt:              q.setUserTOTPSecretStmt,
 		topOrganisationsStmt:               q.topOrganisationsStmt,
 		touchAPITokenByHashStmt:            q.touchAPITokenByHashStmt,

@@ -73,6 +73,8 @@ type Device struct {
 	IsIgnored             bool                  `json:"is_ignored"`
 	FirstSeen             dbtype.Time           `json:"first_seen"`
 	LastSeen              dbtype.Time           `json:"last_seen"`
+	PresentSince          dbtype.NullTime       `json:"present_since"`
+	IsWatched             bool                  `json:"is_watched"`
 }
 
 type DevicePort struct {

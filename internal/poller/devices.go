@@ -160,6 +160,8 @@ func (d *Device) scanAndSaveNetwork(ctx context.Context, network *netip.Prefix) 
 		slog.Int("identified", saved.Identified),
 		slog.Int("merged", saved.Merged),
 		slog.Int("released", saved.Released),
+		slog.Int("back", saved.Back),
+		slog.Int("quiet", saved.Quiet),
 	)
 
 	return nil
@@ -185,14 +187,19 @@ func (d *Device) discoverAndSave(ctx context.Context, p plugin.HostDiscoverer) e
 	case err != nil && len(facts) == 0:
 		return fmt.Errorf("discover %s: %w", p.Name(), err)
 	case err != nil:
-		d.logger.WarnContext(ctx, "source answered in part",
+		d.logger.WarnContext(ctx, "source answered in part; devices missing from it are not judged quiet until it reads whole",
 			slog.String("src", p.Name()),
 			slog.Int("facts", len(facts)),
 			logger.Err(err),
 		)
 	}
 
-	saved, err := d.store.RecordFacts(ctx, p.Name(), p.Kind(), facts)
+	record := d.store.RecordFacts
+	if err != nil {
+		record = d.store.RecordPartialFacts
+	}
+
+	saved, err := record(ctx, p.Name(), p.Kind(), facts)
 	if err != nil {
 		return fmt.Errorf("record facts from %s: %w", p.Name(), err)
 	}
@@ -206,6 +213,8 @@ func (d *Device) discoverAndSave(ctx context.Context, p plugin.HostDiscoverer) e
 		slog.Int("identified", saved.Identified),
 		slog.Int("merged", saved.Merged),
 		slog.Int("dropped", saved.Dropped),
+		slog.Int("back", saved.Back),
+		slog.Int("quiet", saved.Quiet),
 	)
 
 	return nil

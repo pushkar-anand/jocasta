@@ -130,6 +130,25 @@ func TestPruneDeletesOnlyUncuratedStaleDevices(t *testing.T) {
 		})
 	}
 
+	t.Run("kept for being watched", func(t *testing.T) {
+		t.Parallel()
+
+		s, conn, advance := clockStore(t)
+		sweep(t, s, host("192.0.2.10", macA, "host-a"))
+		id := deviceIDByMAC(t, conn, macA)
+
+		_, err := s.Watch(t.Context(), id, true)
+		require.NoError(t, err)
+
+		advance(testRetention + time.Hour)
+
+		res, err := s.Prune(t.Context(), Retention{Devices: testRetention})
+		require.NoError(t, err)
+
+		assert.Zero(t, res.Devices)
+		assert.Equal(t, int64(1), countRows(t, conn, `SELECT COUNT(*) FROM devices WHERE id = ?`, id))
+	})
+
 	t.Run("deleted when uncurated", func(t *testing.T) {
 		t.Parallel()
 

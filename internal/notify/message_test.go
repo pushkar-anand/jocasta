@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -116,4 +117,39 @@ func TestLineWithoutADevice(t *testing.T) {
 	// The device was deleted since; the change still reads.
 	assert.Equal(t, "192.0.2.10", notify.Line(&inventory.Event{Kind: discovered, NewValue: "192.0.2.10"}))
 	assert.Equal(t, "started listening on port 22", notify.Line(&inventory.Event{Kind: opened, NewValue: "22"}))
+}
+
+func TestWatchedDevicesGoingQuiet(t *testing.T) {
+	quiet := []dbtype.EventKind{dbtype.EventDeviceQuiet, dbtype.EventDeviceBack, discovered}
+	at := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+
+	m, ok := notify.ForScan(9, sweepOf(
+		&inventory.Event{ID: 1, Kind: dbtype.EventDeviceQuiet, DeviceName: "nas", OldValue: "2026-01-01T11:42:00Z", At: at},
+	), quiet)
+	require.True(t, ok)
+
+	assert.Equal(t, "1 device went quiet on 192.0.2.0/24", m.Title)
+	assert.Equal(t, "nas went quiet after 18 minutes without an answer", m.Body)
+
+	m, ok = notify.ForScan(9, sweepOf(
+		&inventory.Event{ID: 1, Kind: dbtype.EventDeviceBack, DeviceName: "nas", OldValue: "2026-01-01T10:00:00Z", At: at},
+		&inventory.Event{ID: 2, Kind: dbtype.EventDeviceBack, DeviceName: "camera", OldValue: "2026-01-01T11:00:00Z", At: at},
+	), quiet)
+	require.True(t, ok)
+
+	assert.Equal(t, "2 devices came back on 192.0.2.0/24", m.Title)
+	assert.Equal(t, "nas came back after 2 hours quiet\ncamera came back after 1 hour quiet", m.Body)
+}
+
+func TestAQuietDeviceLeadsAMixedMessage(t *testing.T) {
+	at := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+
+	m, ok := notify.ForScan(9, sweepOf(
+		&inventory.Event{ID: 1, Kind: discovered, DeviceName: "host-b", NewValue: "192.0.2.11", At: at},
+		&inventory.Event{ID: 2, Kind: dbtype.EventDeviceQuiet, DeviceName: "nas", OldValue: "2026-01-01T11:40:00Z", At: at},
+	), []dbtype.EventKind{dbtype.EventDeviceQuiet, discovered})
+	require.True(t, ok)
+
+	assert.Equal(t, "2 changes on 192.0.2.0/24", m.Title)
+	assert.Equal(t, "nas went quiet after 20 minutes without an answer\nhost-b · 192.0.2.11", m.Body)
 }

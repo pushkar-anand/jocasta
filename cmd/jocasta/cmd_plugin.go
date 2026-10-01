@@ -74,6 +74,7 @@ func (p *PluginRunCmd) Run(
 	}
 
 	facts, err := src.Discover(ctx)
+	partial := err != nil
 
 	// A half-read source still has something to show, so the error is reported
 	// alongside the rows.
@@ -82,7 +83,7 @@ func (p *PluginRunCmd) Run(
 	}
 
 	if err != nil {
-		log.WarnContext(ctx, "source answered in part",
+		log.WarnContext(ctx, "source answered in part; devices missing from it are not judged quiet until it reads whole",
 			slog.String("src", src.Name()),
 			slog.Int("facts", len(facts)),
 			logger.Err(err),
@@ -110,7 +111,7 @@ func (p *PluginRunCmd) Run(
 		return nil
 	}
 
-	if err := p.save(ctx, log, src, nets, facts, store); err != nil {
+	if err := p.save(ctx, log, src, nets, facts, partial, store); err != nil {
 		return err
 	}
 
@@ -192,6 +193,7 @@ func (p *PluginRunCmd) save(
 	src plugin.HostDiscoverer,
 	nets []plugin.Network,
 	facts []plugin.Fact,
+	partial bool,
 	store *inventory.Store,
 ) error {
 	// Segments first, for the same reason the poller does it in that order: an
@@ -200,7 +202,12 @@ func (p *PluginRunCmd) save(
 		return fmt.Errorf("record networks: %w", err)
 	}
 
-	res, err := store.RecordFacts(ctx, src.Name(), src.Kind(), facts)
+	record := store.RecordFacts
+	if partial {
+		record = store.RecordPartialFacts
+	}
+
+	res, err := record(ctx, src.Name(), src.Kind(), facts)
 	if err != nil {
 		return fmt.Errorf("record facts: %w", err)
 	}
@@ -213,6 +220,8 @@ func (p *PluginRunCmd) save(
 		slog.Int("identified", res.Identified),
 		slog.Int("merged", res.Merged),
 		slog.Int("dropped", res.Dropped),
+		slog.Int("back", res.Back),
+		slog.Int("quiet", res.Quiet),
 	)
 
 	return nil
