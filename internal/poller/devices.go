@@ -187,7 +187,7 @@ func (d *Device) discoverAndSave(ctx context.Context, p plugin.HostDiscoverer) e
 	case err != nil && len(facts) == 0:
 		return fmt.Errorf("discover %s: %w", p.Name(), err)
 	case err != nil:
-		d.logger.WarnContext(ctx, "source answered in part",
+		d.logger.WarnContext(ctx, "source answered in part; devices missing from it are not judged quiet until it reads whole",
 			slog.String("src", p.Name()),
 			slog.Int("facts", len(facts)),
 			logger.Err(err),

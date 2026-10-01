@@ -83,7 +83,7 @@ func (p *PluginRunCmd) Run(
 	}
 
 	if err != nil {
-		log.WarnContext(ctx, "source answered in part",
+		log.WarnContext(ctx, "source answered in part; devices missing from it are not judged quiet until it reads whole",
 			slog.String("src", src.Name()),
 			slog.Int("facts", len(facts)),
 			logger.Err(err),
