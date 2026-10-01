@@ -147,6 +147,14 @@ a:hover {
     text-decoration: underline;
 }
 
+/* A link inside a sentence is underlined: in grey running text its colour
+   alone is too close to the words around it to mark it. */
+p a:not(.btn),
+a.inline {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
 :focus-visible {
     outline: 2px solid var(--brand);
     outline-offset: 2px;
@@ -1424,7 +1432,7 @@ input[type="radio"] {
     margin-left: 8px;
     font-family: var(--sans);
     font-weight: 600;
-    color: var(--brand);
+    color: var(--link);
 }
 
 /* A row of plain links that narrow a log to one kind. The current one marks
