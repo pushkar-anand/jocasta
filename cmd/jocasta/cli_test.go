@@ -577,6 +577,34 @@ func TestRouterSourcesRefusesANameUnderTwoKinds(t *testing.T) {
 	require.ErrorContains(t, err, `"gateway" is configured under both`)
 }
 
+// An OpenWrt access point marked topology_only is read for what is plugged
+// into it, and left out of device discovery like a RouterOS one.
+func TestOpenWrtTopologyOnlyIsReadForTopologyAlone(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Plugins.OpenWrt = map[string]config.OpenWrt{
+		"gateway": {Enabled: true, Host: "192.0.2.1"},
+		"attic":   {Enabled: true, Host: "192.0.2.3", TopologyOnly: true},
+	}
+
+	sources, err := routerSources(t.Context(), cfg, slog.New(slog.DiscardHandler))
+	require.NoError(t, err)
+
+	ds := hostDiscoverers(sources)
+	require.Len(t, ds, 1)
+	assert.Equal(t, "openwrt:gateway", ds[0].Name())
+
+	rs := topologyReaders(sources)
+
+	names := make([]string, len(rs))
+	for i, r := range rs {
+		names[i] = r.Name()
+	}
+
+	assert.Equal(t, []string{"openwrt:attic", "openwrt:gateway"}, names)
+}
+
 func TestPortsPollerAcceptsABlankSpec(t *testing.T) {
 	t.Parallel()
 

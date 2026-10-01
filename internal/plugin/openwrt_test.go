@@ -259,13 +259,22 @@ func fakeUbus(t *testing.T, answers map[string]string) *openwrt.OpenWrt {
 			Config  string   `json:"config"`
 			Type    string   `json:"type"`
 			Family  int      `json:"family"`
+			Device  string   `json:"device"`
 		}
 
 		_ = json.Unmarshal(req.Params[3], &args)
 
 		key := object + " " + method
 
+		var path struct {
+			Path string `json:"path"`
+		}
+
+		_ = json.Unmarshal(req.Params[3], &path)
+
 		switch key {
+		case "file read":
+			key = "read " + path.Path
 		case "session login":
 			_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":[0,{"ubus_rpc_session":"s"}]}`))
 
@@ -276,6 +285,8 @@ func fakeUbus(t *testing.T, answers map[string]string) *openwrt.OpenWrt {
 			key = "uci " + args.Config + " " + args.Type
 		case "luci-rpc getDHCPLeases":
 			key += " " + strconv.Itoa(args.Family)
+		case "iwinfo assoclist":
+			key += " " + args.Device
 		}
 
 		answer, ok := answers[key]

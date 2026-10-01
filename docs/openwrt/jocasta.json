@@ -5,14 +5,17 @@
 			"ubus": {
 				"system": [ "board" ],
 				"network.interface": [ "dump" ],
-				"luci-rpc": [ "getDHCPLeases" ],
+				"luci-rpc": [ "getDHCPLeases", "getNetworkDevices", "getWirelessDevices" ],
+				"iwinfo": [ "assoclist" ],
 				"uci": [ "get" ],
-				"file": [ "exec" ]
+				"file": [ "exec", "read" ]
 			},
 			"uci": [ "dhcp", "network" ],
 			"file": {
 				"/sbin/ip -4 neigh show": [ "exec" ],
-				"/sbin/ip -6 neigh show": [ "exec" ]
+				"/sbin/ip -6 neigh show": [ "exec" ],
+				"/sys/class/net/*/brforward": [ "read" ],
+				"/sys/class/net/*/brport/port_no": [ "read" ]
 			}
 		}
 	}

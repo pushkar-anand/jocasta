@@ -2,7 +2,9 @@ package openwrt
 
 import (
 	"log/slog"
+	"maps"
 	"os"
+	"slices"
 	"strconv"
 	"testing"
 
@@ -115,4 +117,45 @@ func TestReadLive(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Logf("vlans %v", vlans)
+
+	devices, err := o.NetworkDevices(t.Context())
+	require.NoError(t, err)
+
+	for _, name := range slices.Sorted(maps.Keys(devices)) {
+		d := devices[name]
+		t.Logf("device %-10s devtype=%-8s port=%t bridge=%t members=%v mac=%s up=%t carrier=%t speed=%d %s",
+			name, d.DevType, d.IsPort(), d.Bridge, d.Ports, d.MAC, d.Up, d.Link.Carrier, d.Link.Speed, d.Link.Duplex)
+
+		if d.Bridge {
+			fdb, err := o.BridgeFDB(t.Context(), name, d.Ports)
+			require.NoError(t, err)
+
+			for _, e := range fdb {
+				t.Logf("  fdb %s port=%q local=%t", e.MAC, e.Port, e.Local)
+			}
+		}
+	}
+
+	bridged, err := o.BridgeVLANs(t.Context())
+	require.NoError(t, err)
+
+	t.Logf("bridge vlans %v", bridged)
+
+	radios, err := o.WirelessDevices(t.Context())
+	require.NoError(t, err)
+
+	for _, r := range radios {
+		t.Logf("radio %s up=%t band=%q", r.Name, r.Up, r.Band)
+
+		for _, i := range r.Interfaces {
+			if i.Ifname == "" {
+				continue
+			}
+
+			st, err := o.Stations(t.Context(), i.Ifname)
+			require.NoError(t, err)
+
+			t.Logf("  %s %q %s: %d clients", i.Ifname, i.SSID, i.Mode, len(st))
+		}
+	}
 }
