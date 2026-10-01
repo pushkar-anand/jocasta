@@ -118,7 +118,8 @@ func TestDecay(t *testing.T) {
 	}{
 		{"never seen", time.Time{}, "decay--cold"},
 		{"moments ago", now.Add(-time.Second), "decay--fresh"},
-		{"within the hour", now.Add(-30 * time.Minute), "decay--recent"},
+		{"within the window", now.Add(-10 * time.Minute), "decay--recent"},
+		{"past the window, where the label says quiet", now.Add(-30 * time.Minute), "decay--stale"},
 		{"within the day", now.Add(-6 * time.Hour), "decay--stale"},
 		{"longer than that", now.Add(-100 * time.Hour), "decay--cold"},
 	}
@@ -126,9 +127,12 @@ func TestDecay(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tc.want, decay(now, tc.at))
+			assert.Equal(t, tc.want, decay(now, tc.at, 15*time.Minute))
 		})
 	}
+
+	// A window shorter than the fresh bucket ends both greens at once.
+	assert.Equal(t, "decay--stale", decay(now, now.Add(-3*time.Minute), 2*time.Minute))
 }
 
 func TestPct(t *testing.T) {

@@ -14,12 +14,12 @@ import (
 
 // Decay buckets. Something last heard from a device at some point, and how long
 // ago that was is what an operator reads a list for, so presence is shaded by
-// age. The thresholds are fixed durations, independent of the configured online
-// window, so the shading means the same thing whatever the sweeps do.
+// age. The two greens end at the online window, where the label stops saying
+// "Seen recently" and a watched device goes quiet, so the colour and the words
+// change together; the buckets either side are fixed.
 const (
-	decayFresh  = 5 * time.Minute
-	decayRecent = time.Hour
-	decayStale  = 24 * time.Hour
+	decayFresh = 5 * time.Minute
+	decayStale = 24 * time.Hour
 )
 
 // em is the character shown where a value is absent. A blank cell reads as a
@@ -244,9 +244,8 @@ func stamp(now, t time.Time, class string) template.HTML {
 
 // presenceLabel is the spoken status behind a dot: the words the legends use, so
 // the dot and the legend agree for a reader who only hears one of them.
-// "Seen recently" ends at the online window, where the counts, the filter and
-// a watched device's notification all say the device went quiet; the shading
-// keeps its fixed buckets.
+// "Seen recently" ends at the online window, where the counts, the filter, a
+// watched device's notification and decay's greens all draw the same line.
 func presenceLabel(now, t time.Time, window time.Duration) string {
 	if t.IsZero() {
 		return "Not seen"
@@ -274,20 +273,20 @@ func dot(now, t time.Time, window time.Duration) template.HTML {
 
 	// Fixed element, class from decay, label from presenceLabel and ago:
 	// every part is this package's own.
-	return template.HTML(`<span class="dot ` + decay(now, t) + `" role="img" aria-label="` + //nolint:gosec // G203: no user input in the parts
+	return template.HTML(`<span class="dot ` + decay(now, t, window) + `" role="img" aria-label="` + //nolint:gosec // G203: no user input in the parts
 		template.HTMLEscapeString(label) + `"></span>`)
 }
 
 // decay is the class naming how stale t is.
-func decay(now, t time.Time) string {
+func decay(now, t time.Time, window time.Duration) string {
 	if t.IsZero() {
 		return "decay--cold"
 	}
 
 	switch d := now.Sub(t); {
-	case d < decayFresh:
+	case d < min(decayFresh, window):
 		return "decay--fresh"
-	case d < decayRecent:
+	case d < window:
 		return "decay--recent"
 	case d < decayStale:
 		return "decay--stale"
