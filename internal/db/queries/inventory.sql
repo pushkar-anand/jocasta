@@ -284,9 +284,10 @@ WHERE started_at < ?
   AND status <> 'RUNNING';
 
 -- A device no scan has seen since the cutoff is deleted only when its owner
--- has not touched it: a label, notes, group, type or the ignored flag keeps it
--- however long it stays away, since deleting an ignored device would bring it
--- back unignored the next time it is seen. Its addresses, ports, claims and
+-- has not touched it: a label, notes, group, type, the ignored flag or watching
+-- keeps it however long it stays away, since deleting an ignored device would
+-- bring it back unignored the next time it is seen, and a watched one would
+-- come back unwatched. Its addresses, ports, claims and
 -- traffic go with it; its events stay, with device_id set to null.
 -- name: DeleteUncuratedDevicesBefore :execrows
 DELETE
@@ -296,7 +297,8 @@ WHERE last_seen < ?
   AND COALESCE(notes, '') = ''
   AND COALESCE(group_name, '') = ''
   AND COALESCE(device_type, '') = ''
-  AND is_ignored = 0;
+  AND is_ignored = 0
+  AND is_watched = 0;
 
 -- Reads.
 
