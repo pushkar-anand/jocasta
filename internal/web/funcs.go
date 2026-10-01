@@ -158,6 +158,7 @@ var sourceKeys = map[string]string{
 	"interface":    "Interface",
 	"arp_status":   "ARP status",
 	"arp_dynamic":  "Dynamic ARP",
+	"neigh_state":  "Neighbour state",
 	"dhcp_server":  "DHCP server",
 	"dhcp_status":  "Lease status",
 	"dhcp_dynamic": "Dynamic lease",

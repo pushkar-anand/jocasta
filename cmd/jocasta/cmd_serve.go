@@ -59,7 +59,7 @@ func (s *ServeCmd) Run(
 
 	defer p.Stop()
 
-	sources, err := routerOSSources(ctx, cfg, log)
+	sources, err := routerSources(ctx, cfg, log)
 	if err != nil {
 		return err
 	}
