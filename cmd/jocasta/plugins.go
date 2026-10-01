@@ -100,9 +100,6 @@ func newRouterSource(cfg *config.Config, name string, log *slog.Logger) (plugin.
 	return nil, fmt.Errorf("no source named %q is configured", name)
 }
 
-// topologyOnly is a source read for its switching tables alone.
-type topologyOnly interface{ IsTopologyOnly() bool }
-
 // hostDiscoverers returns the sources that can be asked which devices they
 // know about. A source marked topology_only is a switch or access point, and
 // is left out: the router above it lists the devices.
@@ -110,7 +107,7 @@ func hostDiscoverers(sources []plugin.Plugin) []plugin.HostDiscoverer {
 	out := make([]plugin.HostDiscoverer, 0, len(sources))
 
 	for _, p := range sources {
-		if t, ok := p.(topologyOnly); ok && t.IsTopologyOnly() {
+		if t, ok := p.(plugin.TopologyScoped); ok && t.IsTopologyOnly() {
 			continue
 		}
 

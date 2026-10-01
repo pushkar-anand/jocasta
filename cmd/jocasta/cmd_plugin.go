@@ -49,7 +49,7 @@ func (p *PluginRunCmd) Run(
 		return err
 	}
 
-	if t, ok := built.(topologyOnly); ok && t.IsTopologyOnly() {
+	if t, ok := built.(plugin.TopologyScoped); ok && t.IsTopologyOnly() {
 		reader, ok := built.(plugin.TopologyReader)
 		if !ok {
 			return fmt.Errorf("source %q is topology_only but cannot read topology", p.Name)

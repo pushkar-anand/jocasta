@@ -60,6 +60,17 @@ type (
 		Topology(ctx context.Context) (Topology, error)
 	}
 
+	// TopologyScoped answers "are you read for your switching tables alone".
+	//
+	// A switch or access point is read for what is plugged into it, and the
+	// router above it lists the devices and segments, so a source that says
+	// so is left out of device discovery.
+	TopologyScoped interface {
+		Plugin
+
+		IsTopologyOnly() bool
+	}
+
 	// TrafficReporter answers "who is talking to whom".
 	//
 	// The router pushes to it: a router

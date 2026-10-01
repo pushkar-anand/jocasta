@@ -120,21 +120,4 @@ func lookupVLAN(vlans map[string]routeros.VLAN, a routeros.IPAddress) (routeros.
 	return routeros.VLAN{}, false
 }
 
-// segment reads the prefix an address sits on, masked to its base.
-//
-// Loopback and link-local prefixes are dropped: the router holds addresses on
-// both and neither is a segment anything is inventoried on.
-func segment(s string) (netip.Prefix, bool) {
-	p, err := netip.ParsePrefix(s)
-	if err != nil {
-		return netip.Prefix{}, false
-	}
-
-	if p.Addr().IsLoopback() || p.Addr().IsLinkLocalUnicast() {
-		return netip.Prefix{}, false
-	}
-
-	return p.Masked(), true
-}
-
 var _ NetworkDiscoverer = (*RouterOS)(nil)

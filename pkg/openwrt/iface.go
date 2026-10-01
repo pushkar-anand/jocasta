@@ -1,10 +1,14 @@
 package openwrt
 
 import (
+	"cmp"
 	"context"
 	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 )
 
@@ -130,14 +134,32 @@ func tag(s string) (int, bool) {
 	return vid, true
 }
 
-// uciSections returns the sections of one type in one config file.
-func uciSections(ctx context.Context, o *OpenWrt, config, typ string) (map[string]map[string]jsontext.Value, error) {
+// section is one uci section, as option name to value.
+type section map[string]jsontext.Value
+
+// uciSections returns the sections of one type in one config file, in the
+// order the file lists them. Section names do not give that order, since an
+// anonymous section is named cfg followed by a hash.
+func uciSections(ctx context.Context, o *OpenWrt, config, typ string) ([]section, error) {
 	res, err := call[struct {
-		Values map[string]map[string]jsontext.Value `json:"values"`
+		Values map[string]section `json:"values"`
 	}](ctx, o, "uci", "get", map[string]string{"config": config, "type": typ})
 	if err != nil {
 		return nil, err
 	}
 
-	return res.Values, nil
+	out := slices.Collect(maps.Values(res.Values))
+
+	slices.SortFunc(out, func(a, b section) int { return cmp.Compare(a.index(), b.index()) })
+
+	return out, nil
+}
+
+// index is the section's position in its file, from uci's .index.
+func (s section) index() int {
+	var i int
+
+	_ = json.Unmarshal(s[".index"], &i)
+
+	return i
 }

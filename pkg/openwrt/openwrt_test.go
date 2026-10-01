@@ -26,6 +26,10 @@ type fakeRouter struct {
 	// result array, such as `[0,{"hostname":"OpenWrt"}]`.
 	answers map[string]string
 
+	// refused are the "object method" calls the login's ACL does not grant,
+	// which rpcd refuses on a live session as it refuses an expired one.
+	refused map[string]bool
+
 	mu       sync.Mutex
 	sessions map[string]bool
 	logins   atomic.Int32
@@ -128,6 +132,12 @@ func (f *fakeRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	key := object + " " + method
 
+	if f.refused[key] {
+		_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"error":{"code":-32002,"message":"Access denied"}}`))
+
+		return
+	}
+
 	// A command is keyed by what it runs, so two commands answer apart.
 	if key == "file exec" {
 		var args struct {
@@ -140,6 +150,12 @@ func (f *fakeRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		key = "exec " + args.Command
 		for _, p := range args.Params {
 			key += " " + p
+		}
+
+		if f.refused[key] {
+			_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":[6]}`))
+
+			return
 		}
 	}
 
@@ -225,34 +241,82 @@ func TestAWrongPasswordIsUnauthorized(t *testing.T) {
 }
 
 // A call refused on a session that was just opened is one the login's ACL does
-// not grant, which no retry will change.
-func TestACallTheACLRefusesIsUnauthorized(t *testing.T) {
+// not grant, which no retry will change, so the client does not log in again.
+func TestACallRefusedOnAFreshSessionIsUnauthorized(t *testing.T) {
 	t.Parallel()
 
-	f := &fakeRouter{password: "secret", sessions: map[string]bool{}}
+	f, o, _ := newFakeRouter(t, map[string]string{"system board": boardAnswer})
+	f.refused = map[string]bool{"system board": true}
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		// Every login works and every call after it is refused.
-		f.mu.Lock()
-		n := len(f.calls)
-		f.calls = append(f.calls, "")
-		f.mu.Unlock()
-
-		if n%2 == 0 {
-			_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":[0,{"ubus_rpc_session":"s"}]}`))
-
-			return
-		}
-
-		_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"error":{"code":-32002,"message":"Access denied"}}`))
-	}))
-	t.Cleanup(srv.Close)
-
-	_, err := clientFor(t, srv.URL, "secret").Board(t.Context())
+	_, err := o.Board(t.Context())
 	require.ErrorIs(t, err, ErrUnauthorized)
 
-	// One login, one refusal, one more login, one more refusal.
-	assert.Len(t, f.calls, 4)
+	assert.Equal(t, int32(1), f.logins.Load())
+}
+
+// rpcd refuses an expired session and a call the ACL does not grant alike. The
+// first refusal mid-session is taken as expiry and costs one more login; once
+// the fresh session is refused too, the call is remembered, and refusing it
+// again keeps the session.
+func TestACallTheACLRefusesKeepsTheSession(t *testing.T) {
+	t.Parallel()
+
+	f, o, _ := newFakeRouter(t, map[string]string{
+		"system board":           boardAnswer,
+		"luci-rpc getDHCPLeases": `[0,{"dhcp_leases":[]}]`,
+	})
+	f.refused = map[string]bool{"luci-rpc getDHCPLeases": true}
+
+	_, err := o.Board(t.Context())
+	require.NoError(t, err)
+
+	for range 3 {
+		_, err = o.DHCPLeases(t.Context())
+		require.ErrorIs(t, err, ErrUnauthorized)
+	}
+
+	_, err = o.Board(t.Context())
+	require.NoError(t, err)
+
+	assert.Equal(t, int32(2), f.logins.Load())
+}
+
+// The ACL grants a command, not every command, so one refused command leaves
+// the others working on the same session.
+func TestACommandTheACLRefusesLeavesTheOthers(t *testing.T) {
+	t.Parallel()
+
+	f, o, _ := newFakeRouter(t, map[string]string{
+		"exec /sbin/ip -4 neigh show": `[0,{"code":0,"stdout":"192.0.2.10 dev br-lan lladdr 00:00:5e:00:53:01 REACHABLE\n"}]`,
+	})
+	f.refused = map[string]bool{"exec /sbin/ip -6 neigh show": true}
+
+	for range 2 {
+		got, err := o.Neighbours(t.Context())
+		require.ErrorIs(t, err, ErrUnauthorized)
+		assert.Len(t, got, 1)
+	}
+
+	assert.Equal(t, int32(1), f.logins.Load())
+}
+
+// Once the ACL grants a call it once refused, the call works without a
+// restart.
+func TestACallTheACLGrantsLaterWorks(t *testing.T) {
+	t.Parallel()
+
+	f, o, _ := newFakeRouter(t, map[string]string{"system board": boardAnswer})
+	f.refused = map[string]bool{"system board": true}
+
+	_, err := o.Board(t.Context())
+	require.ErrorIs(t, err, ErrUnauthorized)
+
+	f.mu.Lock()
+	f.refused = nil
+	f.mu.Unlock()
+
+	_, err = o.Board(t.Context())
+	require.NoError(t, err)
 }
 
 func TestAMissingObjectIsNotFound(t *testing.T) {

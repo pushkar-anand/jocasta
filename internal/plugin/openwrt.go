@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
@@ -154,7 +156,9 @@ func (o *OpenWrt) collectNeighbours(ctx context.Context, c claims, entries []ope
 		d.present = d.present || e.Reachable()
 
 		d.set("interface", e.Device)
-		d.set("neigh_state", e.State)
+
+		// Lowercase, as RouterOS words its ARP status.
+		d.set("neigh_state", strings.ToLower(e.State))
 	}
 }
 
@@ -183,12 +187,8 @@ func (o *OpenWrt) collectLeases(ctx context.Context, c claims, leases []openwrt.
 		d := draftFor(c, claimKey{mac: mac, addr: addr})
 		d.present = true
 
-		kind := "dynamic"
-		if _, ok := named[mac]; ok {
-			kind = "static"
-		}
-
-		d.set("dhcp", kind)
+		_, static := named[mac]
+		d.set("dhcp_dynamic", strconv.FormatBool(!static))
 
 		// The static name, when there is one, is applied by nameStatic. dnsmasq
 		// reports it as the lease's hostname too, but a lease alone cannot say
@@ -222,7 +222,7 @@ func (o *OpenWrt) collectStatic(ctx context.Context, c claims, static []openwrt.
 			}
 
 			d := draftFor(c, claimKey{mac: mac, addr: addr})
-			d.set("dhcp", "static")
+			d.set("dhcp_dynamic", "false")
 		}
 	}
 }
@@ -285,7 +285,9 @@ func deviceAddr(s string) (string, bool) {
 
 // classifyOpenWrt maps the client's errors onto this package's, so nothing
 // above has to import pkg/openwrt to tell a retryable failure from one that
-// needs a human.
+// needs a human. ErrNotFound stays unmapped, because it is neither: it is
+// most often a package the router lacks, such as rpcd-mod-luci, and its own
+// message says which object is missing.
 func classifyOpenWrt(err error) error {
 	switch {
 	case errors.Is(err, openwrt.ErrUnauthorized):

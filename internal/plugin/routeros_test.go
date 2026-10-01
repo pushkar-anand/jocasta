@@ -50,7 +50,7 @@ func facts(t *testing.T, arp []routeros.ARPEntry, leases []routeros.DHCPLease) [
 	r.collectLeases(t.Context(), c, leases)
 	shareByDevice(c)
 
-	out, err := r.build(t.Context(), c)
+	out, err := buildFacts(t.Context(), r.logger, r.now(), c)
 	require.NoError(t, err)
 
 	return out

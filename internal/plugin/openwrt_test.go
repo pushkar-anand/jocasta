@@ -98,7 +98,7 @@ func TestOpenWrtNeighboursSayWhoIsHere(t *testing.T) {
 	assert.True(t, here.Present)
 	assert.Equal(t, "00:00:5e:00:53:01", here.Host.MAC)
 	assert.Equal(t, "br-lan", here.Detail["interface"])
-	assert.Equal(t, openwrt.NeighReachable, here.Detail["neigh_state"])
+	assert.Equal(t, "reachable", here.Detail["neigh_state"])
 	assert.Equal(t, pinned, here.SeenAt)
 
 	assert.False(t, factAt(t, facts, "192.0.2.11").Present)
@@ -135,7 +135,7 @@ func TestOpenWrtLeasesNameDevices(t *testing.T) {
 	assert.Equal(t, "phone-a", f.Host.Hostname())
 	assert.Equal(t, dbtype.HostnameFromDHCPLease, f.HostnameSource)
 	assert.True(t, f.Present)
-	assert.Equal(t, "dynamic", f.Detail["dhcp"])
+	assert.Equal(t, "true", f.Detail["dhcp_dynamic"])
 }
 
 // A static host's name is the operator's choice, so it ranks above what the
@@ -145,14 +145,14 @@ func TestOpenWrtStaticHostsNameAtTheirStanding(t *testing.T) {
 	t.Parallel()
 
 	static := []openwrt.StaticHost{
-		{Name: "living-room-tv", MACs: []string{"1e:2a:29:9c:9c:e3"}, Address: "192.0.2.50"},
+		{Name: "living-room-tv", MACs: []string{"00:00:5e:00:53:14"}, Address: "192.0.2.50"},
 		{Name: "nas", MACs: []string{"00:00:5e:00:53:09"}, Address: "192.0.2.60"},
 	}
 
 	facts := openWrtFacts(t, static, []openwrt.Neighbour{
-		{Address: "192.0.2.5", Device: "br-lan", MAC: "1e:2a:29:9c:9c:e3", State: openwrt.NeighStale},
+		{Address: "192.0.2.5", Device: "br-lan", MAC: "00:00:5e:00:53:14", State: openwrt.NeighStale},
 	}, []openwrt.Lease{
-		{Address: "192.0.2.50", MAC: "1E:2A:29:9C:9C:E3", Hostname: "android-1234"},
+		{Address: "192.0.2.50", MAC: "00:00:5E:00:53:14", Hostname: "android-1234"},
 	})
 
 	require.Len(t, facts, 3)
@@ -164,7 +164,7 @@ func TestOpenWrtStaticHostsNameAtTheirStanding(t *testing.T) {
 	}
 
 	assert.True(t, factAt(t, facts, "192.0.2.50").Present)
-	assert.Equal(t, "static", factAt(t, facts, "192.0.2.50").Detail["dhcp"])
+	assert.Equal(t, "false", factAt(t, facts, "192.0.2.50").Detail["dhcp_dynamic"])
 
 	nas := factAt(t, facts, "192.0.2.60")
 	assert.False(t, nas.Present)

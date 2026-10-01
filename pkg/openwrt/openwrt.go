@@ -86,9 +86,10 @@ type (
 		url    string
 
 		// mu guards session, which every call shares until the router expires
-		// it.
+		// it, and refused, the calls the login's ACL does not grant.
 		mu      sync.Mutex
 		session string
+		refused map[string]bool
 	}
 )
 
@@ -159,34 +160,49 @@ func (o *OpenWrt) Addr() string { return o.url }
 
 // call runs method on object with args and decodes what it returns into T.
 //
-// It logs in first when there is no session, and once more when the router
-// says the session is gone: rpcd expires a session after five idle minutes,
-// which is shorter than a sweep's interval. A call refused again on a fresh
-// session is one the login is not allowed to make.
+// It logs in first when there is no session. rpcd answers a session it has
+// expired and a call the login's ACL does not grant with the same refusal, so
+// a refusal on a session that was not just opened is taken as expiry: rpcd
+// expires a session after five idle minutes, which is shorter than a sweep's
+// interval. The client logs in once more and retries. A call refused on a
+// fresh session is one the ACL does not grant, which is [ErrUnauthorized]
+// and is remembered, so the next refusal of that call keeps the session.
+// The call is still made each time, so a fixed ACL takes effect without a
+// restart.
 func call[T any](ctx context.Context, o *OpenWrt, object, method string, args any) (*T, error) {
-	session, err := o.currentSession(ctx)
+	key, err := callKey(object, method, args)
+	if err != nil {
+		return nil, err
+	}
+
+	session, fresh, err := o.currentSession(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	data, err := o.do(ctx, session, object, method, args)
-	if errors.Is(err, errAccessDenied) {
+
+	if errors.Is(err, errAccessDenied) && !fresh && !o.isRefused(key) {
 		o.forget(session)
 
-		if session, err = o.currentSession(ctx); err != nil {
+		if session, _, err = o.currentSession(ctx); err != nil {
 			return nil, err
 		}
 
 		data, err = o.do(ctx, session, object, method, args)
+	}
 
-		if errors.Is(err, errAccessDenied) {
-			return nil, fmt.Errorf("%w: %w", ErrUnauthorized, err)
-		}
+	if errors.Is(err, errAccessDenied) {
+		o.refuse(key)
+
+		return nil, fmt.Errorf("%w: %w", ErrUnauthorized, err)
 	}
 
 	if err != nil {
 		return nil, err
 	}
+
+	o.allow(key)
 
 	var t T
 
@@ -203,24 +219,41 @@ func call[T any](ctx context.Context, o *OpenWrt, object, method string, args an
 	return &t, nil
 }
 
+// callKey names a call the way rpcd's ACL grants it: by object and method,
+// and for the file object by its arguments as well, since the ACL grants a
+// path or a command there, and can grant one `file exec` command and refuse
+// another.
+func callKey(object, method string, args any) (string, error) {
+	if object != "file" {
+		return object + " " + method, nil
+	}
+
+	b, err := json.Marshal(args, json.Deterministic(true))
+	if err != nil {
+		return "", fmt.Errorf("request encode: %w", err)
+	}
+
+	return object + " " + method + " " + string(b), nil
+}
+
 // currentSession returns the session calls share, logging in when there is
-// none.
-func (o *OpenWrt) currentSession(ctx context.Context) (string, error) {
+// none. fresh reports whether it logged in to answer.
+func (o *OpenWrt) currentSession(ctx context.Context) (session string, fresh bool, err error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
 	if o.session != "" {
-		return o.session, nil
+		return o.session, false, nil
 	}
 
-	session, err := o.login(ctx)
+	session, err = o.login(ctx)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 
 	o.session = session
 
-	return session, nil
+	return session, true, nil
 }
 
 // forget drops session, unless another call already replaced it.
@@ -231,6 +264,35 @@ func (o *OpenWrt) forget(session string) {
 	if o.session == session {
 		o.session = ""
 	}
+}
+
+// isRefused reports whether the ACL refused the call named key on a fresh
+// session.
+func (o *OpenWrt) isRefused(key string) bool {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	return o.refused[key]
+}
+
+// refuse remembers that the ACL refuses the call named key.
+func (o *OpenWrt) refuse(key string) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	if o.refused == nil {
+		o.refused = make(map[string]bool)
+	}
+
+	o.refused[key] = true
+}
+
+// allow forgets a refusal of the call named key, once the ACL grants it.
+func (o *OpenWrt) allow(key string) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	delete(o.refused, key)
 }
 
 // login asks rpcd for a session. A wrong user or password answers with a

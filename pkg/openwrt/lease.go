@@ -6,7 +6,6 @@ import (
 	"encoding/json/v2"
 	"errors"
 	"fmt"
-	"maps"
 	"slices"
 	"strings"
 )
@@ -107,7 +106,8 @@ type StaticHost struct {
 	Address string
 }
 
-// StaticHosts returns the host sections of the DHCP configuration.
+// StaticHosts returns the host sections of the DHCP configuration, in the
+// order the file lists them.
 func (o *OpenWrt) StaticHosts(ctx context.Context) ([]StaticHost, error) {
 	sections, err := uciSections(ctx, o, "dhcp", "host")
 	if err != nil {
@@ -116,11 +116,7 @@ func (o *OpenWrt) StaticHosts(ctx context.Context) ([]StaticHost, error) {
 
 	out := make([]StaticHost, 0, len(sections))
 
-	// Sorted by section name, so the same configuration reads the same way
-	// every time.
-	for _, name := range slices.Sorted(maps.Keys(sections)) {
-		s := sections[name]
-
+	for _, s := range sections {
 		h := StaticHost{
 			Name: first(uciValue(s["name"])),
 			MACs: uciValue(s["mac"]),

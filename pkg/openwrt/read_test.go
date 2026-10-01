@@ -98,11 +98,11 @@ func TestDHCPLeases(t *testing.T) {
 
 	_, o, _ := newFakeRouter(t, map[string]string{
 		"luci-rpc getDHCPLeases 4": `[0,{"dhcp_leases":[` +
-			`{"expires":43200,"hostname":"phone-a","macaddr":"16:30:A1:4E:06:42","duid":"011630a14e0642","ipaddr":"192.0.2.119"},` +
-			`{"expires":43200,"hostname":"*","macaddr":"BA:D1:CD:A8:75:A5","ipaddr":"192.0.2.136"},` +
-			`{"expires":false,"macaddr":"1E:2A:29:9C:9C:E3","ipaddr":"192.0.2.50"}]}]`,
+			`{"expires":43200,"hostname":"phone-a","macaddr":"00:00:5E:00:53:11","duid":"0100005e005311","ipaddr":"192.0.2.119"},` +
+			`{"expires":43200,"hostname":"*","macaddr":"00:00:5E:00:53:12","ipaddr":"192.0.2.136"},` +
+			`{"expires":false,"macaddr":"00:00:5E:00:53:14","ipaddr":"192.0.2.50"}]}]`,
 		"luci-rpc getDHCPLeases 6": `[0,{"dhcp6_leases":[` +
-			`{"expires":3600,"hostname":"laptop","duid":"00010001","macaddr":"BA:D1:CD:A8:75:A5",` +
+			`{"expires":3600,"hostname":"laptop","duid":"00010001","macaddr":"00:00:5E:00:53:12",` +
 			`"ip6addr":"2001:db8::a","ip6addrs":["2001:db8::a","2001:db8::b"]},` +
 			`{"expires":3600,"duid":"00040000","ip6addr":"2001:db8::c"}]}]`,
 	})
@@ -111,11 +111,11 @@ func TestDHCPLeases(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, []Lease{
-		{Address: "192.0.2.119", MAC: "16:30:A1:4E:06:42", Hostname: "phone-a"},
-		{Address: "192.0.2.136", MAC: "BA:D1:CD:A8:75:A5"},
-		{Address: "192.0.2.50", MAC: "1E:2A:29:9C:9C:E3"},
-		{Address: "2001:db8::a", MAC: "BA:D1:CD:A8:75:A5", Hostname: "laptop", IPv6: true},
-		{Address: "2001:db8::b", MAC: "BA:D1:CD:A8:75:A5", Hostname: "laptop", IPv6: true},
+		{Address: "192.0.2.119", MAC: "00:00:5E:00:53:11", Hostname: "phone-a"},
+		{Address: "192.0.2.136", MAC: "00:00:5E:00:53:12"},
+		{Address: "192.0.2.50", MAC: "00:00:5E:00:53:14"},
+		{Address: "2001:db8::a", MAC: "00:00:5E:00:53:12", Hostname: "laptop", IPv6: true},
+		{Address: "2001:db8::b", MAC: "00:00:5E:00:53:12", Hostname: "laptop", IPv6: true},
 		{Address: "2001:db8::c", IPv6: true},
 	}, got)
 }
@@ -125,7 +125,7 @@ func TestDHCPLeasesKeepsTheFamilyThatWorked(t *testing.T) {
 	t.Parallel()
 
 	_, o, _ := newFakeRouter(t, map[string]string{
-		"luci-rpc getDHCPLeases 4": `[0,{"dhcp_leases":[{"hostname":"tv","macaddr":"1E:2A:29:9C:9C:E3","ipaddr":"192.0.2.50"}]}]`,
+		"luci-rpc getDHCPLeases 4": `[0,{"dhcp_leases":[{"hostname":"tv","macaddr":"00:00:5E:00:53:14","ipaddr":"192.0.2.50"}]}]`,
 		"luci-rpc getDHCPLeases 6": `[9]`,
 	})
 
@@ -138,19 +138,21 @@ func TestStaticHosts(t *testing.T) {
 	t.Parallel()
 
 	_, o, _ := newFakeRouter(t, map[string]string{
+		// Anonymous sections are named after a hash, so their names sort in
+		// no particular order and .index is the order in the file.
 		"uci dhcp host": `[0,{"values":{` +
-			`"cfg01":{".type":"host","name":"living-room-tv","mac":"1e:2a:29:9c:9c:e3","ip":"192.0.2.50"},` +
-			`"cfg02":{".type":"host","name":"laptop","mac":["ba:d1:cd:a8:75:a5","ba:d1:cd:a8:75:a6"]},` +
-			`"cfg03":{".type":"host","name":"nas","mac":"00:00:5e:00:53:01 00:00:5e:00:53:02","ip":"192.0.2.60"},` +
-			`"cfg04":{".type":"host","mac":"00:00:5e:00:53:09","ip":"ignore"}}}]`,
+			`"cfgf1a2b3":{".type":"host",".index":5,"name":"living-room-tv","mac":"00:00:5e:00:53:14","ip":"192.0.2.50"},` +
+			`"cfg05c4d2":{".type":"host",".index":6,"name":"laptop","mac":["00:00:5e:00:53:12","00:00:5e:00:53:13"]},` +
+			`"cfga9e8f7":{".type":"host",".index":7,"name":"nas","mac":"00:00:5e:00:53:01 00:00:5e:00:53:02","ip":"192.0.2.60"},` +
+			`"cfg11b2c3":{".type":"host",".index":8,"mac":"00:00:5e:00:53:09","ip":"ignore"}}}]`,
 	})
 
 	got, err := o.StaticHosts(t.Context())
 	require.NoError(t, err)
 
 	assert.Equal(t, []StaticHost{
-		{Name: "living-room-tv", MACs: []string{"1e:2a:29:9c:9c:e3"}, Address: "192.0.2.50"},
-		{Name: "laptop", MACs: []string{"ba:d1:cd:a8:75:a5", "ba:d1:cd:a8:75:a6"}},
+		{Name: "living-room-tv", MACs: []string{"00:00:5e:00:53:14"}, Address: "192.0.2.50"},
+		{Name: "laptop", MACs: []string{"00:00:5e:00:53:12", "00:00:5e:00:53:13"}},
 		{Name: "nas", MACs: []string{"00:00:5e:00:53:01", "00:00:5e:00:53:02"}, Address: "192.0.2.60"},
 		{MACs: []string{"00:00:5e:00:53:09"}},
 	}, got)
