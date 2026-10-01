@@ -1,7 +1,12 @@
 {{- /* Closes what layout/head opened. */ -}}
 {{ define "layout/foot" }}</main>
 <footer class="footer">
-    Sweeps run on a schedule under <code>jocasta serve</code> and on demand with <code>jocasta scan</code>.
+    {{- with build }}
+    <span>Jocasta {{ if .URL }}<a href="{{ .URL }}">{{ .Version }}</a>{{ else }}{{ .Version }}{{ end }}</span>
+    {{- end }}
+    <a href="https://github.com/pushkar-anand/jocasta/tree/main/docs">Docs</a>
+    <a href="https://github.com/pushkar-anand/jocasta/blob/main/docs/mcp.md">MCP</a>
+    <a href="https://github.com/pushkar-anand/jocasta/issues/new">Report an issue</a>
 </footer>
 </div>
 </div>

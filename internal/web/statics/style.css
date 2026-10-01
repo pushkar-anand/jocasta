@@ -428,10 +428,34 @@ h1 {
     padding: var(--pad);
 }
 
+/* The build and where to read more, in one quiet line with dots between. */
 .footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
     padding: 0 var(--pad) 24px;
     font-size: 12px;
     color: var(--text-3);
+}
+
+/* Inline-block keeps a link's underline from running under its dot. */
+.footer > * + *::before {
+    content: "·";
+    display: inline-block;
+    margin: 0 8px;
+    color: var(--text-3);
+}
+
+.footer a {
+    color: var(--text-2);
+    text-decoration: underline;
+    text-decoration-color: var(--border-strong);
+    text-underline-offset: 2px;
+}
+
+.footer a:hover {
+    color: var(--text);
+    text-decoration-color: currentColor;
 }
 
 /* A block is a titled run of content: the section heading, whatever sits
