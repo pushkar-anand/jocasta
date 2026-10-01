@@ -158,6 +158,9 @@ func (b *browser) newTab(cookies []*http.Cookie, origin string) (*tab, func(), e
 	err := chromedp.Run(ctx,
 		network.Enable(),
 		cdplog.Enable(),
+		// Tabs in one Chrome share its cookies, so a signed-out page drawn
+		// after a signed-in one would find the session still there.
+		network.ClearBrowserCookies(),
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			for _, c := range cookies {
 				err := network.SetCookie(c.Name, c.Value).WithURL(origin).WithHTTPOnly(c.HttpOnly).Do(ctx)
