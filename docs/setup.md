@@ -304,7 +304,8 @@ What each OpenWrt table adds:
   On a router with a DSA switch, as most current ones have, each switch port
   is a device of its own, so the table names the port. On an older router
   with a swconfig switch, every switch port is one device, so the table names
-  only that device.
+  only that device. rpcd reads at most 256 entries of the table. A bridge that
+  holds more shows the first 256, and the read logs a warning saying so.
 - The bridge-vlan sections of the network configuration say which VLANs each
   port carries.
 - iwinfo's station list marks Wi-Fi clients and names their network and

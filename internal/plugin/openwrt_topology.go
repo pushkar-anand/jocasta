@@ -14,6 +14,9 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/openwrt"
 )
 
+// wifiModeAP is the mode of a radio interface that serves an access point.
+const wifiModeAP = "ap"
+
 // openWrtTables is every table Topology reads, gathered before any of it is
 // mapped, so the mapping can be tested without a router.
 type openWrtTables struct {
@@ -67,9 +70,11 @@ func (o *OpenWrt) Topology(ctx context.Context) (Topology, error) {
 		}
 
 		// Entries come back even when a member's port number does not, so
-		// both are kept.
+		// both are kept. The error already names the bridge.
 		t.fdb[name], err = o.client.BridgeFDB(ctx, name, d.Ports)
-		read("bridge table of "+name, err)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("read %w", classifyOpenWrt(err)))
+		}
 	}
 
 	t.vlans, err = o.client.BridgeVLANs(ctx)
@@ -80,7 +85,9 @@ func (o *OpenWrt) Topology(ctx context.Context) (Topology, error) {
 
 	for _, r := range t.radios {
 		for _, i := range r.Interfaces {
-			if i.Ifname == "" {
+			// A station interface, a repeater's or a Wi-Fi uplink's, lists
+			// the access point it joined, which is no client of this one.
+			if i.Ifname == "" || i.Mode != wifiModeAP {
 				continue
 			}
 
@@ -89,9 +96,14 @@ func (o *OpenWrt) Topology(ctx context.Context) (Topology, error) {
 		}
 	}
 
-	learned := len(t.stations) > 0
+	learned := false
+
 	for _, entries := range t.fdb {
 		learned = learned || len(entries) > 0
+	}
+
+	for _, st := range t.stations {
+		learned = learned || len(st) > 0
 	}
 
 	if !learned && len(errs) > 0 {
@@ -109,7 +121,7 @@ func (o *OpenWrt) buildTopology(ctx context.Context, t openWrtTables) Topology {
 		switch {
 		case !d.IsPort():
 			kinds[name] = PortVirtual
-		case d.Wireless || d.DevType == "wlan":
+		case d.IsWireless():
 			kinds[name] = PortWiFi
 		default:
 			kinds[name] = PortWired
@@ -138,7 +150,7 @@ func openWrtOwnMACs(t openWrtTables) []string {
 	}
 
 	for _, d := range t.devices {
-		if d.Type != 772 {
+		if !d.IsLoopback() {
 			add(d.MAC)
 		}
 	}

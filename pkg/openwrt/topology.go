@@ -16,8 +16,9 @@ import (
 type NetDevice struct {
 	Name string `json:"name"`
 
-	// DevType is the kernel's device type, such as "ethernet", "bridge",
-	// "vlan" or "wlan". A DSA switch port reports "ethernet" like any other.
+	// DevType is the kernel's device type, such as "ethernet", "dsa",
+	// "bridge", "vlan" or "wlan". A DSA switch's user port, such as lan1,
+	// reports "dsa".
 	DevType string `json:"devtype"`
 
 	// Type is the hardware type from if_arp.h: 1 for Ethernet, 772 for
@@ -46,18 +47,25 @@ type NetDevice struct {
 	} `json:"link"`
 }
 
-// arpHrdLoopback is the hardware type of a loopback device.
+// arpHrdLoopback is the hardware type of a loopback device, from if_arp.h.
 const arpHrdLoopback = 772
 
+// IsLoopback reports whether the device is the loopback device.
+func (d NetDevice) IsLoopback() bool { return d.Type == arpHrdLoopback }
+
+// IsWireless reports whether the device is a radio's interface.
+func (d NetDevice) IsWireless() bool { return d.Wireless || d.DevType == "wlan" }
+
 // IsPort reports whether the device is a port something can be plugged into:
-// an Ethernet port or a radio's interface. A bridge, a VLAN device, a tunnel
-// and loopback are only places an address can be learned.
+// an Ethernet port, a DSA switch's user port or a radio's interface. A bridge,
+// a VLAN device, a tunnel and loopback are only places an address can be
+// learned.
 func (d NetDevice) IsPort() bool {
-	if d.Bridge || d.Type == arpHrdLoopback {
+	if d.Bridge || d.IsLoopback() {
 		return false
 	}
 
-	return d.Wireless || d.DevType == "wlan" || d.DevType == "ethernet"
+	return d.IsWireless() || d.DevType == "ethernet" || d.DevType == "dsa"
 }
 
 // NetworkDevices returns every network device on the router, keyed by name.
@@ -221,8 +229,19 @@ type FDBEntry struct {
 // the ageing timer, the port number's high byte and padding.
 const fdbEntrySize = 16
 
-// ErrBadFDB is a bridge table that is not a whole number of entries.
-var ErrBadFDB = errors.New("openwrt: bridge table is not a whole number of entries")
+// fileReadCap is the most rpcd's file read returns from a file whose size the
+// kernel does not report, as brforward's is not: one read of 4096 bytes. That
+// is 256 bridge entries.
+const fileReadCap = 4096
+
+var (
+	// ErrBadFDB is a bridge table that is not a whole number of entries.
+	ErrBadFDB = errors.New("openwrt: bridge table is not a whole number of entries")
+
+	// ErrFDBCapped is a bridge table that filled the most rpcd's file read
+	// returns, so entries past the first 256 may be missing.
+	ErrFDBCapped = errors.New("openwrt: bridge table filled rpcd's 4096-byte read, so entries past 256 may be missing")
+)
 
 // BridgeFDB returns the hardware addresses bridge has learned, each on the
 // member port it was learned on. members are the bridge's ports, whose port
@@ -232,6 +251,11 @@ var ErrBadFDB = errors.New("openwrt: bridge table is not a whole number of entri
 // needs no package, through rpcd's file read. Each member's number comes from
 // its brport/port_no. A member whose number cannot be read leaves its entries
 // with no port, alongside the error.
+//
+// rpcd reads at most 4096 bytes of the table, which is 256 entries, and says
+// nothing when there are more. A table that fills the read comes back with
+// [ErrFDBCapped]. No command reads it whole without an rpcd ACL that would let
+// the login read any file, so the cap stands.
 func (o *OpenWrt) BridgeFDB(ctx context.Context, bridge string, members []string) ([]FDBEntry, error) {
 	res, err := call[struct {
 		Data string `json:"data"`
@@ -266,6 +290,10 @@ func (o *OpenWrt) BridgeFDB(ctx context.Context, bridge string, members []string
 	entries, err := ParseFDB(raw)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("bridge table of %s: %w", bridge, err))
+	}
+
+	if len(raw) >= fileReadCap {
+		errs = append(errs, fmt.Errorf("bridge table of %s: %w", bridge, ErrFDBCapped))
 	}
 
 	out := make([]FDBEntry, 0, len(entries))

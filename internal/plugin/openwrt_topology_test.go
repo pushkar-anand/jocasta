@@ -19,8 +19,8 @@ func netDevice(name, devtype string, up, carrier bool, speed int, duplex string)
 	return d
 }
 
-// homeTables is a router with a VLAN-aware bridge over two wired ports and a
-// 2.4 GHz network, and a 5 GHz network in no bridge.
+// homeTables is a router with a VLAN-aware bridge over two DSA switch ports
+// and a 2.4 GHz network, and a 5 GHz network in no bridge.
 func homeTables() openWrtTables {
 	bridge := netDevice("br-lan", "bridge", true, true, 1000, "unknown")
 	bridge.Bridge, bridge.Ports = true, []string{"lan1", "lan2", "phy0-ap0"}
@@ -38,8 +38,8 @@ func homeTables() openWrtTables {
 		identity: "gateway",
 		devices: map[string]openwrt.NetDevice{
 			"br-lan":    bridge,
-			"lan1":      netDevice("lan1", "ethernet", true, true, 1000, "full"),
-			"lan2":      netDevice("lan2", "ethernet", true, false, 0, ""),
+			"lan1":      netDevice("lan1", "dsa", true, true, 1000, "full"),
+			"lan2":      netDevice("lan2", "dsa", true, false, 0, ""),
 			"br-lan.20": netDevice("br-lan.20", "vlan", true, true, 0, ""),
 			"phy0-ap0":  radio0,
 			"phy1-ap0":  radio1,
@@ -161,4 +161,41 @@ func TestOpenWrtTopologyWithoutTheBridgeTableFails(t *testing.T) {
 	topo, err := testOpenWrtWith(t, answers).Topology(t.Context())
 	require.ErrorIs(t, err, ErrAuth)
 	assert.True(t, topo.Empty())
+}
+
+// A station interface lists the access point it joined, which is no client of
+// this one, so it is not asked.
+func TestOpenWrtTopologyAsksOnlyAccessPoints(t *testing.T) {
+	t.Parallel()
+
+	answers := maps.Clone(openWrtTopologyAnswers)
+	answers["luci-rpc getWirelessDevices"] = `[0,{"radio0":{"up":true,"config":{"band":"5g"},"interfaces":[` +
+		`{"ifname":"phy0-ap0","config":{"mode":"ap","ssid":"Home"}},` +
+		`{"ifname":"phy0-sta0","config":{"mode":"sta","ssid":"Upstream"}}]}}]`
+	answers["iwinfo assoclist phy0-ap0"] = `[0,{"results":[{"mac":"00:00:5E:00:53:21","signal":-50,"rx":{"rate":6000},"tx":{"rate":6000}}]}]`
+	answers["iwinfo assoclist phy0-sta0"] = `[0,{"results":[{"mac":"00:00:5E:00:53:99","signal":-70,"rx":{"rate":6000},"tx":{"rate":6000}}]}]`
+
+	topo, err := testOpenWrtWith(t, answers).Topology(t.Context())
+	require.NoError(t, err)
+
+	var macs []string
+	for _, s := range topo.Seen {
+		macs = append(macs, s.MAC)
+	}
+
+	assert.Equal(t, []string{"00:00:5e:00:53:01", "00:00:5e:00:53:21"}, macs)
+}
+
+// A radio that was asked and failed has learned nothing, so with the bridge
+// table refused too the read fails, as a RouterOS one does.
+func TestOpenWrtTopologyWithNothingLearnedFails(t *testing.T) {
+	t.Parallel()
+
+	answers := maps.Clone(openWrtTopologyAnswers)
+	delete(answers, "read /sys/class/net/br-lan/brforward")
+	answers["luci-rpc getWirelessDevices"] = `[0,{"radio0":{"up":true,"interfaces":[{"ifname":"phy0-ap0","config":{"mode":"ap"}}]}}]`
+
+	topo, err := testOpenWrtWith(t, answers).Topology(t.Context())
+	require.ErrorIs(t, err, ErrAuth)
+	assert.Equal(t, Topology{}, topo)
 }

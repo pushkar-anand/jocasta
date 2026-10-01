@@ -2,6 +2,7 @@ package openwrt
 
 import (
 	"encoding/base64"
+	"fmt"
 	"net"
 	"testing"
 
@@ -144,6 +145,41 @@ func TestBridgeFDBKeepsTheTableWhenAPortNumberFails(t *testing.T) {
 	assert.Equal(t, []FDBEntry{{MAC: "00:00:5e:00:53:01"}}, got)
 }
 
+// rpcd reads at most 4096 bytes of the table, 256 entries. A table that fills
+// the read may have been cut short, and says so beside the entries it has.
+func TestBridgeFDBReportsATableThatFillsTheRead(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		entries int
+		capped  bool
+	}{
+		{entries: 255},
+		{entries: 256, capped: true},
+	}
+
+	for _, tt := range tests {
+		var rows []RawFDBEntry
+		for i := range tt.entries {
+			rows = append(rows, RawFDBEntry{MAC: fmt.Sprintf("00:00:5e:00:%02x:%02x", i/256, i%256), PortNo: 1})
+		}
+
+		_, o, _ := newFakeRouter(t, map[string]string{
+			"read /sys/class/net/br-lan/brforward":    `[0,{"data":"` + base64.StdEncoding.EncodeToString(fdbTable(t, rows...)) + `"}]`,
+			"read /sys/class/net/lan1/brport/port_no": `[0,{"data":"0x1\n"}]`,
+		})
+
+		got, err := o.BridgeFDB(t.Context(), "br-lan", []string{"lan1"})
+		assert.Len(t, got, tt.entries)
+
+		if tt.capped {
+			require.ErrorIs(t, err, ErrFDBCapped)
+		} else {
+			require.NoError(t, err)
+		}
+	}
+}
+
 // The ACL file grants the bridge table; without it the read is refused.
 func TestBridgeFDBWithoutTheACLIsUnauthorized(t *testing.T) {
 	t.Parallel()
@@ -157,11 +193,13 @@ func TestBridgeFDBWithoutTheACLIsUnauthorized(t *testing.T) {
 func TestNetworkDevices(t *testing.T) {
 	t.Parallel()
 
-	// Trimmed from the test router's answer, with a DSA port and a radio.
+	// Trimmed from the test router's answer, with a DSA switch's user port and
+	// its conduit, and a radio.
 	_, o, _ := newFakeRouter(t, map[string]string{
 		"luci-rpc getNetworkDevices": `[0,{` +
 			`"br-lan":{"name":"br-lan","bridge":true,"ports":["lan1","phy0-ap0"],"devtype":"bridge","type":1,"up":true,"mac":"00:00:5E:00:53:F0","link":{"speed":1000,"duplex":"unknown","carrier":true}},` +
-			`"lan1":{"name":"lan1","devtype":"ethernet","type":1,"up":true,"mac":"00:00:5E:00:53:F0","link":{"speed":1000,"duplex":"full","carrier":true}},` +
+			`"eth0":{"name":"eth0","devtype":"ethernet","type":1,"up":true,"mac":"00:00:5E:00:53:F0","link":{"speed":1000,"duplex":"full","carrier":true}},` +
+			`"lan1":{"name":"lan1","devtype":"dsa","type":1,"up":true,"mac":"00:00:5E:00:53:F0","link":{"speed":1000,"duplex":"full","carrier":true}},` +
 			`"phy0-ap0":{"name":"phy0-ap0","wireless":true,"devtype":"wlan","type":1,"up":true,"mac":"00:00:5E:00:53:F1","link":{"carrier":true}},` +
 			`"br-lan.20":{"name":"br-lan.20","devtype":"vlan","type":1,"up":true,"mac":"00:00:5E:00:53:F0","link":{"carrier":true}},` +
 			`"lo":{"name":"lo","devtype":"ethernet","type":772,"up":true,"link":{"carrier":true}}}]`,
@@ -169,7 +207,7 @@ func TestNetworkDevices(t *testing.T) {
 
 	got, err := o.NetworkDevices(t.Context())
 	require.NoError(t, err)
-	require.Len(t, got, 5)
+	require.Len(t, got, 6)
 
 	assert.Equal(t, []string{"lan1", "phy0-ap0"}, got["br-lan"].Ports)
 	assert.Equal(t, 1000, got["lan1"].Link.Speed)
@@ -180,7 +218,12 @@ func TestNetworkDevices(t *testing.T) {
 		ports[name] = d.IsPort()
 	}
 
-	assert.Equal(t, map[string]bool{"br-lan": false, "lan1": true, "phy0-ap0": true, "br-lan.20": false, "lo": false}, ports)
+	assert.Equal(t, map[string]bool{
+		"br-lan": false, "eth0": true, "lan1": true, "phy0-ap0": true, "br-lan.20": false, "lo": false,
+	}, ports)
+
+	assert.True(t, got["lo"].IsLoopback())
+	assert.True(t, got["phy0-ap0"].IsWireless())
 }
 
 func TestWirelessDevices(t *testing.T) {
