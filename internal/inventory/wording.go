@@ -95,6 +95,11 @@ func (e *Event) Change() string {
 		}).Change()
 	}
 
+	// So is a type the user set, under the field's name.
+	if e.Kind == dbtype.EventDeviceEdited && e.Detail == "type" {
+		return "type: " + (&Event{OldValue: classLabel(e.OldValue), NewValue: classLabel(e.NewValue)}).Change()
+	}
+
 	// An edit says which field it was about, since the user owns several. A
 	// scan's event is about the one thing that kind of event can change.
 	var field string
@@ -118,4 +123,13 @@ func (e *Event) Change() string {
 	}
 
 	return ""
+}
+
+// classLabel is a class identifier's name, and nothing for nothing.
+func classLabel(id string) string {
+	if id == "" {
+		return ""
+	}
+
+	return classify.Class(id).Label()
 }

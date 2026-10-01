@@ -57,6 +57,13 @@ func TestChange(t *testing.T) {
 	edit.NewValue = ""
 	assert.Equal(t, "label: Printer → cleared", edit.Change())
 
+	// A type the user set shows the class's name, as a reclassification does.
+	typed := &Event{Kind: dbtype.EventDeviceEdited, Detail: "type", NewValue: "game_console"}
+	assert.Equal(t, "type: Game console", typed.Change())
+
+	typed.OldValue, typed.NewValue = "game_console", ""
+	assert.Equal(t, "type: Game console → cleared", typed.Change())
+
 	// A released address is named on its own.
 	assert.Equal(t, "192.0.2.55",
 		(&Event{Kind: dbtype.EventAddressReleased, OldValue: "192.0.2.55", Detail: "unanswered"}).Change())
