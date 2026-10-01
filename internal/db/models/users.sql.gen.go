@@ -161,14 +161,14 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (*User
 const listUsers = `-- name: ListUsers :many
 SELECT id, username, password_hash, role, created_at, totp_secret, totp_enabled, totp_confirmed_at
 FROM users
-ORDER BY created_at
+ORDER BY created_at, id
 `
 
 // ListUsers
 //
 //	SELECT id, username, password_hash, role, created_at, totp_secret, totp_enabled, totp_confirmed_at
 //	FROM users
-//	ORDER BY created_at
+//	ORDER BY created_at, id
 func (q *Queries) ListUsers(ctx context.Context) ([]*User, error) {
 	rows, err := q.query(ctx, q.listUsersStmt, listUsers)
 	if err != nil {

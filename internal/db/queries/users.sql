@@ -20,7 +20,7 @@ FROM users;
 -- name: ListUsers :many
 SELECT *
 FROM users
-ORDER BY created_at;
+ORDER BY created_at, id;
 
 -- name: SetUserTOTPSecret :exec
 UPDATE users
