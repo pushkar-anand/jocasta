@@ -92,25 +92,5 @@
     "issue": "L3",
     "check": "text-spills",
     "el": "tr#device-row-N > td.dim"
-  },
-  {
-    "issue": "S7",
-    "check": "tiny-text",
-    "el": "brandmark__sub"
-  },
-  {
-    "issue": "S7",
-    "check": "tiny-text",
-    "el": "sidebar__eyebrow"
-  },
-  {
-    "issue": "S7",
-    "check": "tiny-text",
-    "el": "authcard__sub"
-  },
-  {
-    "issue": "S7",
-    "check": "tiny-text",
-    "el": "usermenu__group"
   }
 ]
