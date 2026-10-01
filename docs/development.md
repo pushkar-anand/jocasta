@@ -18,7 +18,7 @@ make htmx           # refresh the vendored htmx
 - `cmd/jocasta`: CLI entry point.
 - `internal/scanner`: the ICMP sweep, and the reverse DNS, mDNS, NetBIOS,
   DNS-SD and SSDP lookups that name what answers.
-- `internal/plugin`: sources beyond the sweep (RouterOS).
+- `internal/plugin`: sources beyond the sweep (RouterOS, OpenWrt, NetFlow).
 - `internal/inventory`: the store, covering identity resolution, address
   handling, device classification and the change log.
 - `internal/classify`: the rules that guess a device's type from its vendor,

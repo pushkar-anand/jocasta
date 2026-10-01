@@ -40,18 +40,27 @@ func (p *PluginRunCmd) Run(
 	log *slog.Logger,
 	store *inventory.Store,
 ) error {
-	rc, ok := cfg.Plugins.RouterOS[p.Name]
-	if !ok {
-		return fmt.Errorf("no source named %q is configured", p.Name)
+	if err := uniqueSourceNames(cfg); err != nil {
+		return err
 	}
 
-	src, err := newRouterOS(p.Name, rc, log)
+	built, err := newRouterSource(cfg, p.Name, log)
 	if err != nil {
 		return err
 	}
 
-	if src.IsTopologyOnly() {
-		return p.runTopology(ctx, log, src, store)
+	if t, ok := built.(topologyOnly); ok && t.IsTopologyOnly() {
+		reader, ok := built.(plugin.TopologyReader)
+		if !ok {
+			return fmt.Errorf("source %q is topology_only but cannot read topology", p.Name)
+		}
+
+		return p.runTopology(ctx, log, reader, store)
+	}
+
+	src, ok := built.(routerReader)
+	if !ok {
+		return fmt.Errorf("source %q cannot list devices", p.Name)
 	}
 
 	nets, err := src.Networks(ctx)
@@ -88,9 +97,13 @@ func (p *PluginRunCmd) Run(
 		return err
 	}
 
-	topo, err := p.printTopology(ctx, log, src)
-	if err != nil {
-		return err
+	var topo *plugin.Topology
+
+	reader, readsTopology := built.(plugin.TopologyReader)
+	if readsTopology {
+		if topo, err = p.printTopology(ctx, log, reader); err != nil {
+			return err
+		}
 	}
 
 	if !p.Save {
@@ -105,7 +118,14 @@ func (p *PluginRunCmd) Run(
 		return nil
 	}
 
-	return poller.SaveTopology(ctx, store, log, src, *topo)
+	return poller.SaveTopology(ctx, store, log, reader, *topo)
+}
+
+// routerReader is a source that lists the devices it knows and the segments
+// it serves, as every router kind does.
+type routerReader interface {
+	plugin.HostDiscoverer
+	plugin.NetworkDiscoverer
 }
 
 // runTopology reads a switch or access point, which has no devices or

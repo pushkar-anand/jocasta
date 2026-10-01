@@ -481,7 +481,7 @@ func TestRouterOSSourcesSkipDisabledInstances(t *testing.T) {
 		"spare":   {Enabled: false, Host: "203.0.113.1"},
 	}
 
-	sources, err := routerOSSources(t.Context(), cfg, slog.New(slog.DiscardHandler))
+	sources, err := routerSources(t.Context(), cfg, slog.New(slog.DiscardHandler))
 	require.NoError(t, err)
 
 	ds := hostDiscoverers(sources)
@@ -505,7 +505,7 @@ func TestHostDiscoverersLeavesOutTopologyOnlySources(t *testing.T) {
 		"switch_a": {Enabled: true, Host: "192.0.2.2", TopologyOnly: true},
 	}
 
-	sources, err := routerOSSources(t.Context(), cfg, slog.New(slog.DiscardHandler))
+	sources, err := routerSources(t.Context(), cfg, slog.New(slog.DiscardHandler))
 	require.NoError(t, err)
 
 	ds := hostDiscoverers(sources)
@@ -513,7 +513,7 @@ func TestHostDiscoverersLeavesOutTopologyOnlySources(t *testing.T) {
 	assert.Equal(t, "routeros:gateway", ds[0].Name())
 }
 
-// Every RouterOS source is read for the topology, the router and a switch
+// Every source that reads topology is read for it, the router and a switch
 // alike.
 func TestTopologyReadersIncludesEverySource(t *testing.T) {
 	t.Parallel()
@@ -525,7 +525,7 @@ func TestTopologyReadersIncludesEverySource(t *testing.T) {
 		"spare":    {Enabled: false, Host: "203.0.113.1"},
 	}
 
-	sources, err := routerOSSources(t.Context(), cfg, slog.New(slog.DiscardHandler))
+	sources, err := routerSources(t.Context(), cfg, slog.New(slog.DiscardHandler))
 	require.NoError(t, err)
 
 	rs := topologyReaders(sources)
@@ -536,6 +536,45 @@ func TestTopologyReadersIncludesEverySource(t *testing.T) {
 	}
 
 	assert.Equal(t, []string{"routeros:gateway", "routeros:switch_a"}, names)
+}
+
+// An OpenWrt router lists its devices beside a RouterOS one, in name order.
+func TestHostDiscoverersIncludesOpenWrt(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Plugins.RouterOS = map[string]config.RouterOS{
+		"gateway": {Enabled: true, Host: "192.0.2.1"},
+	}
+	cfg.Plugins.OpenWrt = map[string]config.OpenWrt{
+		"attic": {Enabled: true, Host: "192.0.2.3"},
+		"spare": {Enabled: false, Host: "203.0.113.1"},
+	}
+
+	sources, err := routerSources(t.Context(), cfg, slog.New(slog.DiscardHandler))
+	require.NoError(t, err)
+
+	ds := hostDiscoverers(sources)
+
+	names := make([]string, len(ds))
+	for i, d := range ds {
+		names[i] = d.Name()
+	}
+
+	assert.Equal(t, []string{"openwrt:attic", "routeros:gateway"}, names)
+}
+
+// `jocasta plugin run` takes the bare instance name, so one name under two
+// router kinds is refused.
+func TestRouterSourcesRefusesANameUnderTwoKinds(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Plugins.RouterOS = map[string]config.RouterOS{"gateway": {Enabled: true, Host: "192.0.2.1"}}
+	cfg.Plugins.OpenWrt = map[string]config.OpenWrt{"gateway": {Enabled: true, Host: "192.0.2.3"}}
+
+	_, err := routerSources(t.Context(), cfg, slog.New(slog.DiscardHandler))
+	require.ErrorContains(t, err, `"gateway" is configured under both`)
 }
 
 func TestPortsPollerAcceptsABlankSpec(t *testing.T) {
@@ -571,7 +610,7 @@ func TestRouterOSSourcesRejectsAnInstanceWithNoHost(t *testing.T) {
 		"gateway": {Enabled: true},
 	}
 
-	_, err := routerOSSources(t.Context(), cfg, slog.New(slog.DiscardHandler))
+	_, err := routerSources(t.Context(), cfg, slog.New(slog.DiscardHandler))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "gateway")
 }

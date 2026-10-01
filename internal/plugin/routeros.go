@@ -280,12 +280,16 @@ func (r *RouterOS) collectLeases(ctx context.Context, c claims, leases []routero
 }
 
 // build turns the merged drafts into facts.
+func (r *RouterOS) build(ctx context.Context, c claims) ([]Fact, error) {
+	return buildFacts(ctx, r.logger, r.now(), c)
+}
+
+// buildFacts turns a router's merged drafts into facts stamped seenAt, sorted
+// by address.
 //
 // Name resolution stays off: a nameless row would otherwise come back carrying
 // whatever this host's resolver said, filed under the router's claim.
-func (r *RouterOS) build(ctx context.Context, c claims) ([]Fact, error) {
-	seenAt := r.now()
-
+func buildFacts(ctx context.Context, log *slog.Logger, seenAt time.Time, c claims) ([]Fact, error) {
 	facts := make([]Fact, 0, len(c))
 
 	var errs []error
@@ -321,7 +325,7 @@ func (r *RouterOS) build(ctx context.Context, c claims) ([]Fact, error) {
 	})
 
 	if len(errs) > 0 {
-		r.logger.DebugContext(ctx, "some rows did not build", slog.Int("failed", len(errs)))
+		log.DebugContext(ctx, "some rows did not build", slog.Int("failed", len(errs)))
 	}
 
 	return facts, errors.Join(errs...)

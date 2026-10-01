@@ -66,7 +66,8 @@ Some features need a source connected first. The **Needs** column says which.
 
 Sources supported today:
 
-- **Router tables:** MikroTik RouterOS, read over its REST API. See
+- **Router tables:** MikroTik RouterOS, read over its REST API, and OpenWrt,
+  read over ubus. See
   [Read devices from your router](docs/setup.md#read-devices-from-your-router)
   and [Show what is plugged in where](docs/setup.md#show-what-is-plugged-in-where).
 - **Router flow exports:** any router that sends NetFlow v5, v9 or IPFIX. See

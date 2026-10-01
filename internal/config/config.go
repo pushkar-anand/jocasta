@@ -183,6 +183,31 @@ type (
 		TopologyOnly bool `koanf:"topology_only"`
 	}
 
+	// OpenWrt names one OpenWrt router to read devices from, over the ubus
+	// JSON-RPC endpoint uhttpd serves at /ubus.
+	//
+	// The credentials stay here and never reach the store, which only ever sees
+	// the instance name and the facts.
+	OpenWrt struct {
+		Enabled bool `koanf:"enabled"`
+
+		// Host is the router's address or name, without a port.
+		Host string `koanf:"host"`
+		Port int    `koanf:"port"`
+
+		// User and Password are an rpcd login, from /etc/config/rpcd.
+		User     string `koanf:"user"`
+		Password string `koanf:"password"`
+
+		// SSL selects https. Insecure skips certificate verification, which
+		// the common setup needs: uhttpd serves a self-signed certificate
+		// unless one is installed.
+		SSL      bool `koanf:"ssl"`
+		Insecure bool `koanf:"insecure"`
+
+		Timeout time.Duration `koanf:"timeout"`
+	}
+
 	// NetFlow names one UDP listener that receives the flows a router exports
 	// over NetFlow v5, v9 or IPFIX.
 	NetFlow struct {
@@ -233,6 +258,7 @@ type (
 	// silently.
 	Plugins struct {
 		RouterOS map[string]RouterOS `koanf:"routeros"`
+		OpenWrt  map[string]OpenWrt  `koanf:"openwrt"`
 		NetFlow  map[string]NetFlow  `koanf:"netflow"`
 	}
 

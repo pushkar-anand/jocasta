@@ -173,7 +173,11 @@ set `scan.devices.resolve_ssdp: false`.
 
 A sweep from one machine only sees hardware addresses on its own segment. On a
 network split into VLANs, reading the router's ARP and DHCP tables identifies
-the rest. MikroTik RouterOS is supported, over its REST API:
+the rest. MikroTik RouterOS and OpenWrt are supported.
+
+### MikroTik RouterOS
+
+Jocasta reads RouterOS over its REST API:
 
 ```yaml
 plugins:
@@ -189,6 +193,62 @@ plugins:
 
 Check it with `jocasta plugin run gateway` before starting the server. See
 [CLI](cli.md#plugin-run).
+
+### OpenWrt
+
+Jocasta reads OpenWrt over ubus, the JSON-RPC endpoint LuCI uses, at
+`http://<router>/ubus`. Any router with LuCI installed serves it, so there is
+nothing to install. Jocasta reads the neighbour table, the DHCP leases and the
+static leases, and the interfaces with their VLANs. It changes nothing on the
+router.
+
+Give Jocasta a login of its own that can only read. On the router:
+
+1. Copy [`openwrt/jocasta.json`](openwrt/jocasta.json) to
+   `/usr/share/rpcd/acl.d/jocasta.json`. It grants the reads Jocasta makes and
+   nothing else.
+2. Hash a password for the login:
+
+   ```sh
+   uhttpd -m 'change-me'
+   ```
+
+3. Add the login to `/etc/config/rpcd`, with the hash the last step printed:
+
+   ```
+   config login
+   	option username 'jocasta'
+   	option password '$1$...'
+   	list read 'jocasta'
+   ```
+
+4. Reload rpcd:
+
+   ```sh
+   /etc/init.d/rpcd reload
+   ```
+
+Then add the router to Jocasta:
+
+```yaml
+plugins:
+  openwrt:
+    gateway:                 # instance name, shown as the source
+      enabled: true
+      host: "192.0.2.1"
+      user: "jocasta"
+      password: "change-me"  # or JOCASTA_PLUGINS__OPENWRT__GATEWAY__PASSWORD
+      ssl: false             # true once luci-ssl is installed
+      insecure: false        # true for uhttpd's self-signed cert
+```
+
+Check it with `jocasta plugin run gateway`. A login rpcd refuses, or one
+missing the ACL file, reads as credentials rejected.
+
+A name you set under Network → DHCP and DNS → Static Leases ranks above the
+name a device asks for, as a static lease does on RouterOS. A network is named
+after its OpenWrt interface, such as `lan` or `iot`, and an interface on a VLAN
+device carries its tag.
 
 ## Show what is plugged in where
 

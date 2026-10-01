@@ -10,12 +10,13 @@ import (
 
 	"github.com/pushkar-anand/jocasta/internal/config"
 	"github.com/pushkar-anand/jocasta/internal/plugin"
+	"github.com/pushkar-anand/jocasta/pkg/openwrt"
 	"github.com/pushkar-anand/jocasta/pkg/routeros"
 )
 
-// routerOSSources builds every enabled RouterOS instance. The router and each
-// switch or access point are one list, which hostDiscoverers and
-// topologyReaders each take their share of.
+// routerSources builds every enabled router, switch and access point, of every
+// kind. They are one list, which hostDiscoverers and topologyReaders each take
+// their share of.
 //
 // They are built here because internal/plugin would have to import
 // internal/config and every implementation to do it, turning a near-leaf
@@ -32,13 +33,19 @@ import (
 // Instances are returned in name order because map iteration is not ordered,
 // and a poller that reads its sources in a different order every cycle is
 // harder to read in a log than one that does not.
-func routerOSSources(ctx context.Context, cfg *config.Config, log *slog.Logger) ([]*plugin.RouterOS, error) {
+func routerSources(ctx context.Context, cfg *config.Config, log *slog.Logger) ([]plugin.Plugin, error) {
+	if err := uniqueSourceNames(cfg); err != nil {
+		return nil, err
+	}
+
 	names := slices.Sorted(maps.Keys(cfg.Plugins.RouterOS))
-	out := make([]*plugin.RouterOS, 0, len(names))
+	names = append(names, slices.Sorted(maps.Keys(cfg.Plugins.OpenWrt))...)
+	slices.Sort(names)
+
+	out := make([]plugin.Plugin, 0, len(names))
 
 	for _, name := range names {
-		rc := cfg.Plugins.RouterOS[name]
-		if !rc.Enabled {
+		if !sourceEnabled(cfg, name) {
 			// Said out loud, because a configured entry that reads nothing is
 			// indistinguishable from a source with nothing to report.
 			log.InfoContext(ctx, "source is configured but not enabled", slog.String("src", name))
@@ -46,7 +53,7 @@ func routerOSSources(ctx context.Context, cfg *config.Config, log *slog.Logger) 
 			continue
 		}
 
-		p, err := newRouterOS(name, rc, log)
+		p, err := newRouterSource(cfg, name, log)
 		if err != nil {
 			return nil, err
 		}
@@ -57,28 +64,73 @@ func routerOSSources(ctx context.Context, cfg *config.Config, log *slog.Logger) 
 	return out, nil
 }
 
+// uniqueSourceNames refuses an instance name used under two router kinds.
+// `jocasta plugin run` takes the bare name, which would then name two
+// sources.
+func uniqueSourceNames(cfg *config.Config) error {
+	for name := range cfg.Plugins.OpenWrt {
+		if _, ok := cfg.Plugins.RouterOS[name]; ok {
+			return fmt.Errorf("source name %q is configured under both plugins.routeros and plugins.openwrt", name)
+		}
+	}
+
+	return nil
+}
+
+// sourceEnabled reports whether the router instance called name says enabled.
+func sourceEnabled(cfg *config.Config, name string) bool {
+	if rc, ok := cfg.Plugins.RouterOS[name]; ok {
+		return rc.Enabled
+	}
+
+	return cfg.Plugins.OpenWrt[name].Enabled
+}
+
+// newRouterSource builds the router instance called name, of whichever kind
+// it is configured as.
+func newRouterSource(cfg *config.Config, name string, log *slog.Logger) (plugin.Plugin, error) {
+	if rc, ok := cfg.Plugins.RouterOS[name]; ok {
+		return newRouterOS(name, rc, log)
+	}
+
+	if oc, ok := cfg.Plugins.OpenWrt[name]; ok {
+		return newOpenWrt(name, oc, log)
+	}
+
+	return nil, fmt.Errorf("no source named %q is configured", name)
+}
+
+// topologyOnly is a source read for its switching tables alone.
+type topologyOnly interface{ IsTopologyOnly() bool }
+
 // hostDiscoverers returns the sources that can be asked which devices they
 // know about. A source marked topology_only is a switch or access point, and
 // is left out: the router above it lists the devices.
-func hostDiscoverers(sources []*plugin.RouterOS) []plugin.HostDiscoverer {
+func hostDiscoverers(sources []plugin.Plugin) []plugin.HostDiscoverer {
 	out := make([]plugin.HostDiscoverer, 0, len(sources))
 
 	for _, p := range sources {
-		if !p.IsTopologyOnly() {
-			out = append(out, p)
+		if t, ok := p.(topologyOnly); ok && t.IsTopologyOnly() {
+			continue
+		}
+
+		if d, ok := p.(plugin.HostDiscoverer); ok {
+			out = append(out, d)
 		}
 	}
 
 	return out
 }
 
-// topologyReaders returns the sources that can say what is plugged into them,
-// which is every one: the router and each switch or access point alike.
-func topologyReaders(sources []*plugin.RouterOS) []plugin.TopologyReader {
-	out := make([]plugin.TopologyReader, len(sources))
+// topologyReaders returns the sources that can say what is plugged into them:
+// the router and each switch or access point alike.
+func topologyReaders(sources []plugin.Plugin) []plugin.TopologyReader {
+	out := make([]plugin.TopologyReader, 0, len(sources))
 
-	for i, p := range sources {
-		out[i] = p
+	for _, p := range sources {
+		if r, ok := p.(plugin.TopologyReader); ok {
+			out = append(out, r)
+		}
 	}
 
 	return out
@@ -112,8 +164,31 @@ func newRouterOS(name string, cfg config.RouterOS, log *slog.Logger) (*plugin.Ro
 	return p, nil
 }
 
+// newOpenWrt builds one configured OpenWrt source.
+func newOpenWrt(name string, cfg config.OpenWrt, log *slog.Logger) (*plugin.OpenWrt, error) {
+	client, err := openwrt.New(&openwrt.Config{
+		Host:     cfg.Host,
+		Port:     cfg.Port,
+		User:     cfg.User,
+		Password: cfg.Password,
+		SSL:      cfg.SSL,
+		Insecure: cfg.Insecure,
+		Timeout:  cfg.Timeout,
+	}, log)
+	if err != nil {
+		return nil, fmt.Errorf("plugin openwrt %q: %w", name, err)
+	}
+
+	p, err := plugin.NewOpenWrt(name, client, log)
+	if err != nil {
+		return nil, fmt.Errorf("plugin openwrt %q: %w", name, err)
+	}
+
+	return p, nil
+}
+
 // trafficReporters builds every enabled source that receives the flows a router
-// exports, under the same rules as routerOSSources: off unless enabled, name
+// exports, under the same rules as routerSources: off unless enabled, name
 // order, and an entry that cannot be built is a config error.
 func trafficReporters(ctx context.Context, cfg *config.Config, log *slog.Logger) ([]plugin.TrafficReporter, error) {
 	names := slices.Sorted(maps.Keys(cfg.Plugins.NetFlow))

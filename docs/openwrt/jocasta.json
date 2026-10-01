@@ -1,0 +1,19 @@
+{
+	"jocasta": {
+		"description": "Read-only access for jocasta",
+		"read": {
+			"ubus": {
+				"system": [ "board" ],
+				"network.interface": [ "dump" ],
+				"luci-rpc": [ "getDHCPLeases" ],
+				"uci": [ "get" ],
+				"file": [ "exec" ]
+			},
+			"uci": [ "dhcp", "network" ],
+			"file": {
+				"/sbin/ip -4 neigh show": [ "exec" ],
+				"/sbin/ip -6 neigh show": [ "exec" ]
+			}
+		}
+	}
+}

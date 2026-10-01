@@ -91,6 +91,15 @@ plugins:
       user: "jocasta"
       password: "change-me"
       topology_only: true     # read what is plugged into it; the router above lists the devices
+  openwrt:
+    attic:                    # an OpenWrt router; names are shared with routeros, so pick another
+      enabled: false
+      host: "192.0.2.3"
+      user: "jocasta"         # an rpcd login with the ACL in docs/openwrt/jocasta.json
+      password: "change-me"
+      ssl: false              # true once luci-ssl is installed
+      insecure: false         # true for uhttpd's self-signed cert
+      timeout: "15s"
   netflow:
     gateway:
       enabled: true
