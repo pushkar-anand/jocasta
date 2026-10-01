@@ -510,7 +510,7 @@ func TestEveryNamedTemplateExists(t *testing.T) {
 
 	tmpl := template.Must(
 		template.New("").
-			Funcs(funcs(time.Now)).
+			Funcs(funcs(time.Now, 15*time.Minute)).
 			ParseFS(templatesFS,
 				"templates/pages/*.html.tmpl",
 				"templates/partials/*.html.tmpl"),

@@ -377,6 +377,10 @@ type DeviceFilter struct {
 	Status Status
 	Sort   Sort
 
+	// Watched admits only the devices the owner watches. False is every
+	// device.
+	Watched bool
+
 	// IncludeIgnored admits the devices the user has marked ignored, which are
 	// left out otherwise.
 	IncludeIgnored bool

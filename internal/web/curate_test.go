@@ -322,3 +322,62 @@ func TestCurationIsEscaped(t *testing.T) {
 		})
 	}
 }
+
+// post submits a form the way htmx does for a POST, carrying the signed-in
+// cookies.
+func post(t *testing.T, h http.Handler, cookies []*http.Cookie, target string, form url.Values) *httptest.ResponseRecorder {
+	t.Helper()
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, target, strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	return rec
+}
+
+// Watching answers with the panel, which says what changed and offers the
+// button that undoes it, and the list then marks the device and can narrow to
+// it.
+func TestWatchingADevice(t *testing.T) {
+	t.Parallel()
+
+	h, cookies := editor(t)
+
+	page := requestAs(t, h, cookies, http.MethodGet, "/devices/1", "").Body.String()
+	assert.Contains(t, page, ">Watch</button>")
+	assert.Contains(t, page, "Seen recently since")
+
+	rec := post(t, h, cookies, "/devices/1/watch", url.Values{"watched": {"1"}})
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+	assert.NotContains(t, body, "<!DOCTYPE html>")
+	assert.Contains(t, body, "Watching printer.local.")
+	assert.Contains(t, body, "Yes, told when it goes quiet or comes back")
+	assert.Contains(t, body, ">Stop watching</button>")
+
+	list := get(t, h, "/devices?watched=1").Body.String()
+	assert.Contains(t, list, "printer.local")
+	assert.NotContains(t, list, "nas.local")
+	assert.Contains(t, list, `aria-label="Watched"`)
+
+	rec = post(t, h, cookies, "/devices/1/watch", url.Values{"watched": {"0"}})
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "Stopped watching printer.local.")
+}
+
+// A read-only account sees whether a device is watched and cannot change it.
+func TestWatchingIsForWriters(t *testing.T) {
+	t.Parallel()
+
+	h := seeded(t)
+
+	rec := post(t, h, nil, "/devices/1/watch", url.Values{"watched": {"1"}})
+	assert.NotEqual(t, http.StatusOK, rec.Code)
+}
