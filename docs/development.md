@@ -38,9 +38,9 @@ no longer matches anything.
 
 The run also compares the first screen of every page on the home network with
 a stored picture in `testdata/golden/`: on a phone, a tablet and a laptop in
-light, and the laptop in dark. A picture fails when more than 0.2% of its
-pixels changed. When a change is meant, store the new pictures and commit
-them with it:
+light, and the laptop in dark. A picture fails when more than 64 of its pixels
+changed, which a single word added or lost exceeds. When a change is meant,
+store the new pictures and commit them with it:
 
 ```bash
 E2E_UPDATE=1 make e2e

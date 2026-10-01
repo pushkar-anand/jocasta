@@ -18,12 +18,12 @@ import (
 const goldenDir = "testdata/golden"
 
 // A pixel counts as changed when any channel moves by more than
-// goldenChannel, which absorbs anti-aliasing that differs between Chrome
-// builds. A picture fails when more than goldenShare of its pixels changed:
-// a moved control or a wrapped line changes far more than that.
+// goldenChannel, which absorbs anti-aliasing that differs between runs. A
+// picture fails when more than goldenPixels changed: a single short word
+// added or lost, such as a name in the top bar, changes several hundred.
 const (
 	goldenChannel = 40
-	goldenShare   = 0.002
+	goldenPixels  = 64
 )
 
 // isGolden picks the shots with a stored picture: the home network, as admin,
@@ -75,7 +75,7 @@ func compareGolden(s *shot, update bool, artifacts string) error {
 
 	// A picture within tolerance is kept as stored even when updating, so a
 	// change rewrites only the pictures it actually moved.
-	if err == nil && changed <= goldenShare {
+	if err == nil && changed <= goldenPixels {
 		return nil
 	}
 
@@ -93,12 +93,12 @@ func compareGolden(s *shot, update bool, artifacts string) error {
 		}
 	}
 
-	return fmt.Errorf("%s: %.2f%% of pixels changed; if the change is meant, run with E2E_UPDATE=1", name, changed*100)
+	return fmt.Errorf("%s: %d pixels changed; if the change is meant, run with E2E_UPDATE=1", name, changed)
 }
 
-// pixelDiff returns the share of pixels that changed between two pictures,
-// and the new picture with changed pixels painted red.
-func pixelDiff(a, b []byte) (float64, image.Image, error) {
+// pixelDiff returns how many pixels changed between two pictures, and the
+// new picture with changed pixels painted red.
+func pixelDiff(a, b []byte) (int, image.Image, error) {
 	ia, err := png.Decode(bytes.NewReader(a))
 	if err != nil {
 		return 0, nil, err
@@ -110,7 +110,7 @@ func pixelDiff(a, b []byte) (float64, image.Image, error) {
 	}
 
 	if ia.Bounds() != ib.Bounds() {
-		return 1, ib, fmt.Errorf("size changed from %v to %v", ia.Bounds().Size(), ib.Bounds().Size())
+		return ia.Bounds().Dx() * ia.Bounds().Dy(), ib, fmt.Errorf("size changed from %v to %v", ia.Bounds().Size(), ib.Bounds().Size())
 	}
 
 	r := ib.Bounds()
@@ -132,7 +132,7 @@ func pixelDiff(a, b []byte) (float64, image.Image, error) {
 		}
 	}
 
-	return float64(changed) / float64(r.Dx()*r.Dy()), diff, nil
+	return changed, diff, nil
 }
 
 func apart(a, b color.Color) bool {
