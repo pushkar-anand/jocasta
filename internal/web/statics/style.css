@@ -2024,8 +2024,16 @@ td .traffic__tried {
 }
 
 @media (max-width: 34rem) {
+    /* Hidden from sight only: it is the logo link's name for a screen
+       reader, which display: none would take away. */
     .brandmark__text {
-        display: none;
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
     }
 
     .act {

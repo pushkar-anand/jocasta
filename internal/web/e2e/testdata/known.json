@@ -19,11 +19,6 @@
     "check": "axe:link-in-text-block"
   },
   {
-    "issue": "S9",
-    "check": "axe:link-name",
-    "el": ".brandmark"
-  },
-  {
     "issue": "C10",
     "check": "axe:nested-interactive",
     "el": ".netmap__svg"
