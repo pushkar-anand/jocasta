@@ -1,15 +1,5 @@
 [
   {
-    "issue": "C3",
-    "check": "axe:color-contrast",
-    "el": ".chip--ok"
-  },
-  {
-    "issue": "C3",
-    "check": "axe:color-contrast",
-    "el": ".chip--fail"
-  },
-  {
     "issue": "C4",
     "check": "axe:color-contrast",
     "el": ".clear"

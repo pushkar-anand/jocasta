@@ -1019,9 +1019,11 @@ a.netcard:hover {
     text-transform: none;
 }
 
+/* Text on the soft fills takes the ink step, which clears 4.5:1 in both
+   themes; the fill colours themselves are too light to read on. */
 .chip--ok {
     background: var(--good-soft);
-    color: var(--good);
+    color: var(--ok-ink);
 }
 
 .chip--warn {
@@ -1031,7 +1033,7 @@ a.netcard:hover {
 
 .chip--fail {
     background: var(--critical-soft);
-    color: var(--critical);
+    color: var(--critical-ink);
 }
 
 .chip--quiet {
