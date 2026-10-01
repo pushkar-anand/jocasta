@@ -342,6 +342,75 @@ func TestNetFlowScalesBySamplingRate(t *testing.T) {
 	assert.Equal(t, uint64(1000), flows[0].Packets)
 }
 
+// ipfixSampledPacket is ipfixPacket preceded by an options template and record
+// saying the exporter selects interval packets and skips space, laid out as
+// softflowd 1.0 sends them: meteringProcessId as the scope, then
+// systemInitTimeMilliseconds, samplingPacketInterval, samplingPacketSpace,
+// selectorAlgorithm and interfaceName.
+func ipfixSampledPacket(interval, space uint32) []byte {
+	optTmpl := be{}.u16(300).u16(6).u16(1).
+		u16(143).u16(4).
+		u16(160).u16(8).
+		u16(305).u16(4).
+		u16(306).u16(4).
+		u16(304).u16(2).
+		u16(82).u16(16)
+
+	optRec := be{}.u32(1).u64(0).u32(interval).u32(space).u16(1)
+	optRec = append(optRec, []byte("eth0\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")...)
+
+	full := ipfixPacket(256)
+
+	body := append(set(3, optTmpl), set(300, optRec)...)
+	body = append(body, full[16:]...)
+
+	hdr := be{}.u16(10).u16(u16len(16 + len(body))).u32(exportSecs()).u32(1).u32(0)
+
+	return append(hdr, body...)
+}
+
+// softflowd says it samples one packet in 100 as an interval of 1 and a space
+// of 99, which goflow2 alone reads as a rate of 1. The flows are scaled by 100,
+// in the packet that says so and in the data-only packets after it.
+func TestNetFlowScalesIPFIXByPacketIntervalAndSpace(t *testing.T) {
+	t.Parallel()
+
+	n := testNetFlow(t)
+
+	flows, err := n.decode(nfExporter, ipfixSampledPacket(1, 99), time.Now())
+	require.NoError(t, err)
+	require.Len(t, flows, 1)
+	assert.Equal(t, uint64(204_800), flows[0].Bytes)
+	assert.Equal(t, uint64(400), flows[0].Packets)
+
+	flows, err = n.decode(nfExporter, ipfixDataOnly(256), time.Now())
+	require.NoError(t, err)
+	require.Len(t, flows, 1)
+	assert.Equal(t, uint64(204_800), flows[0].Bytes)
+}
+
+// An interval with no space skipped is every packet, as is an interval of
+// several packets in a cycle of the same length.
+func TestPacketSpaceRate(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		interval, space uint32
+		want            uint64
+	}{
+		{interval: 1, space: 0, want: 4},
+		{interval: 1, space: 99, want: 400},
+		{interval: 10, space: 990, want: 400},
+	}
+
+	for _, tt := range tests {
+		flows, err := testNetFlow(t).decode(nfExporter, ipfixSampledPacket(tt.interval, tt.space), time.Now())
+		require.NoError(t, err)
+		require.Len(t, flows, 1)
+		assert.Equal(t, tt.want, flows[0].Packets, "interval %d space %d", tt.interval, tt.space)
+	}
+}
+
 func TestNetFlowKeepsTemplatesPerExporter(t *testing.T) {
 	t.Parallel()
 
