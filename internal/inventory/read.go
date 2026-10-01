@@ -350,7 +350,7 @@ func (s *Store) PortScanTargets(ctx context.Context) ([]scanner.PortTarget, erro
 
 	extra := make(map[netip.Addr][]uint16)
 	for _, r := range ports {
-		// Both port columns are CHECK-constrained to 0-65535.
+		// Both port columns are CHECK-constrained to fit a uint16.
 		extra[r.IP.Addr] = append(extra[r.IP.Addr], uint16(r.Port)) //nolint:gosec // range enforced by the column CHECK.
 	}
 

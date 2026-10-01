@@ -342,6 +342,35 @@ func TestAPortAServiceMovedAwayFromCloses(t *testing.T) {
 	assert.Equal(t, "open", queryString(t, conn, `SELECT state FROM device_ports WHERE port = 42000`))
 }
 
+// A device with two addresses whose service listens on one of them keeps the
+// port open, with no event, on every scan. A port closes only once no address
+// of the device answers on it.
+func TestAPortOpenOnOneAddressOfADeviceStaysOpen(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, host("192.0.2.10", macA, "host-a"), host("192.0.2.20", macA, "host-a"))
+	require.Equal(t, []string{"192.0.2.10", "192.0.2.20"}, currentIPs(t, conn, deviceIDByMAC(t, conn, macA)))
+
+	for range 2 {
+		recordPorts(t, s,
+			portScan("192.0.2.10", []uint16{8080}, []uint16{22, 8080}),
+			portScan("192.0.2.20", nil, []uint16{22, 8080}),
+		)
+	}
+
+	assert.Equal(t, "open", queryString(t, conn, `SELECT state FROM device_ports WHERE port = 8080`))
+	assert.Equal(t, 1, queryInt(t, conn, `SELECT COUNT(*) FROM events WHERE kind IN ('PORT_OPENED', 'PORT_CLOSED')`))
+
+	recordPorts(t, s,
+		portScan("192.0.2.10", nil, []uint16{22, 8080}),
+		portScan("192.0.2.20", nil, []uint16{22, 8080}),
+	)
+
+	assert.Equal(t, "closed", queryString(t, conn, `SELECT state FROM device_ports WHERE port = 8080`))
+}
+
 func TestPortOverviewSummarisesCurrentServicesAndChanges(t *testing.T) {
 	t.Parallel()
 
