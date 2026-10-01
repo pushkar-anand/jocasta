@@ -26,7 +26,7 @@ logger:
   format: "json"          # text | json
 
 inventory:
-  online_window: "15m"    # how long after its last sighting a device counts as online
+  online_window: "15m"    # how long after its last sighting a device counts as online; past it a watched one goes quiet
   address_grace: "6h"     # how long an address can go unseen before a later sweep retires it
 
 # How long records are kept; "0s" keeps that kind forever. Devices are never

@@ -78,7 +78,7 @@ the endpoint.
 
 | Tool | What it answers |
 |---|---|
-| `list_devices` | Which devices match a search, group, network, type or presence (seen recently or quiet). |
+| `list_devices` | Which devices match a search, group, network, type, presence (seen recently or quiet) or whether you watch them. |
 | `get_device` | Everything about one device: addresses, ports, advertised services, sources, your labels, and where it is plugged in and how fast. |
 | `explain_device` | Why a device has the class it has: the facts the classifier used, the rule that decided and every other rule that matched. |
 | `list_events` | What changed, across the network or for one device. |
@@ -90,6 +90,7 @@ the endpoint.
 | `list_traffic` | Who devices exchanged data with. Needs traffic collection. |
 | `get_topology` | What is plugged in where, and how fast each link runs. Needs [topology set up](setup.md#show-what-is-plugged-in-where). |
 | `update_device_curation` | Sets a device's label, group, type, notes and ignored flag. `read_write` tokens only. |
+| `watch_device` | Watches a device, or stops, so you are told when it goes quiet or comes back. `read_write` tokens only. |
 
 ## Prompts
 

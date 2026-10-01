@@ -430,3 +430,28 @@ func TestDeviceTraffic(t *testing.T) {
 	status, _, _ = get(t, h, "/devices/1/traffic?days=91")
 	assert.Equal(t, http.StatusUnprocessableEntity, status)
 }
+
+func TestWatchDevice(t *testing.T) {
+	t.Parallel()
+
+	h := seeded(t)
+
+	status, _, body := patchJSON(t, h, "/devices/1/watch", `{"watched": true}`)
+	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, true, body["watched"])
+
+	// Curation replaces every field it carries, and watching is not one.
+	_, _, body = patchJSON(t, h, "/devices/1", `{"label": "Office printer"}`)
+	assert.Equal(t, true, body["watched"])
+
+	_, _, listed := get(t, h, "/devices?watched=true")
+	assert.Len(t, list(t, listed, "devices"), 1)
+
+	// A body that does not say which way is refused, since reading it as
+	// false would stop watching.
+	status, _, _ = patchJSON(t, h, "/devices/1/watch", `{}`)
+	assert.Equal(t, http.StatusUnprocessableEntity, status)
+
+	status, _, _ = patchJSON(t, h, "/devices/999/watch", `{"watched": true}`)
+	assert.Equal(t, http.StatusNotFound, status)
+}

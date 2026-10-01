@@ -56,6 +56,7 @@ Some features need a source connected first. The **Needs** column says which.
 | Your own labels | Give a device a label, a group and notes, or mark it ignored. Scans never overwrite them. | Nothing |
 | Network view | Each segment as its own page with the devices on it. | Nothing. Segment names and VLAN tags come from the router. |
 | Change log | What appeared, moved or was renamed, and when, for one device or the whole network. | Nothing |
+| Presence | Watch a device to be told when it goes quiet or comes back. Each device's page says since when it has been seen recently, or quiet. | Nothing |
 | Open ports | Which TCP ports each device listens on, and when that changed. | Port scanning turned on |
 | Traffic | Who each device talks to, on your network and on the internet, over the last day, week or month. Shows devices probing the network, and which of your services the internet reached or tried to reach. | Router flow exports |
 | Map | The last hour's traffic as a live tree, from the router out to each network, device and organisation, and a world map of the countries the network talked to. | Router flow exports |
