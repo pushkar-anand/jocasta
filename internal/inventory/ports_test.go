@@ -318,7 +318,7 @@ func TestAnAdvertisedPortThatStopsAnsweringCloses(t *testing.T) {
 
 // A service that moves to a new port leaves its old one recorded open. The
 // targets carry the old port beside the new, so the next scan closes it.
-func TestAPortAServiceMovedAwayFromCloses(t *testing.T) {
+func TestAMovedServicesOldPortCloses(t *testing.T) {
 	t.Parallel()
 
 	s, conn := newStore(t)

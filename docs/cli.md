@@ -61,7 +61,7 @@ host also lists the services it advertises over DNS-SD.
 Probes TCP ports with a plain `connect()`, so it needs no privileges and cannot
 change the target. With no argument it scans every current address in the
 inventory, each also on the TCP ports its device advertises a service on and
-the ports recorded open on it;
+the ports recorded open on that device;
 give an address or a prefix to scan only that. `--ports` takes a
 spec like `22,80,443,8000-8100`; the default is a curated preset of about a
 hundred ports a homelab commonly runs. `--concurrency` caps how many

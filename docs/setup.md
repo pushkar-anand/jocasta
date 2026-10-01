@@ -152,11 +152,11 @@ Jocasta's own segment, and only with host networking. To turn it off, set
 
 Jocasta also records the services each device advertises, named or not, and
 lists them in the device page's Ports table. The port scan probes each
-advertised TCP port, so the table says whether it answers. It also probes
-every port recorded open, so a port a service has moved away from closes. The
-classifier reads them: a print service marks a printer, and the Android TV
-remote service a TV. A service no sweep has heard within `retention.history`
-drops off.
+advertised TCP port, so the table says whether it answers. The scan also
+probes every port recorded open, so when a service moves to a new port, its
+old port closes. The classifier reads them: a print service marks a printer,
+and the Android TV remote service a TV. A service no sweep has heard within
+`retention.history` drops off.
 
 SSDP names TVs, speakers, media players, printers and routers that nothing
 else names. The name is the label the device shows its owner, such as

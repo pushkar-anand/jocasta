@@ -335,8 +335,8 @@ func (s *Store) LastSuccessfulScanAt(ctx context.Context, k dbtype.ScanKind) (ti
 // address of every device the user has not ignored. The scan works from what
 // discovery has already found, so this is its whole target list. Each target's
 // Extra are the TCP ports its device advertised a service on, so the scan
-// says whether a port the device announced answers, and the ports recorded
-// open on it, so one that has stopped answering closes.
+// says whether a port the device announced answers. Extra also holds the ports
+// recorded open on the device, so one that has stopped answering closes.
 func (s *Store) PortScanTargets(ctx context.Context) ([]scanner.PortTarget, error) {
 	rows, err := s.q.AllCurrentAddresses(ctx)
 	if err != nil {
