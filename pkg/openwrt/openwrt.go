@@ -49,6 +49,15 @@ const (
 
 	// anonymous is the session a login is called with, before there is one.
 	anonymous = "00000000000000000000000000000000"
+
+	// defaultSessionTimeout is how long rpcd keeps an idle session, when a
+	// login does not say. It is rpcd's own default.
+	defaultSessionTimeout = 5 * time.Minute
+
+	// sessionMargin is taken off a session's timeout before it is trusted to
+	// be live: rpcd counts from the call it saw last, and this client from
+	// the answer it read, which arrives a little later.
+	sessionMargin = 10 * time.Second
 )
 
 type (
@@ -90,6 +99,18 @@ type (
 		mu      sync.Mutex
 		session string
 		refused map[string]bool
+
+		// used is when a call last worked on session, and idle how long rpcd
+		// keeps it after that. Between them they say whether session is live.
+		used time.Time
+		idle time.Duration
+
+		// opened is a session logged in to that no call has worked on yet. A
+		// refusal on it is the ACL's, since it cannot have expired.
+		opened string
+
+		// now is a field so tests can move the clock.
+		now func() time.Time
 	}
 )
 
@@ -151,6 +172,7 @@ func New(cfg *Config, log *slog.Logger) (*OpenWrt, error) {
 		client: &http.Client{Transport: transport, Timeout: c.Timeout},
 		logger: log,
 		url:    u.String(),
+		now:    time.Now,
 	}, nil
 }
 
@@ -161,28 +183,34 @@ func (o *OpenWrt) Addr() string { return o.url }
 // call runs method on object with args and decodes what it returns into T.
 //
 // It logs in first when there is no session. rpcd answers a session it has
-// expired and a call the login's ACL does not grant with the same refusal, so
-// a refusal on a session that was not just opened is taken as expiry: rpcd
-// expires a session after five idle minutes, which is shorter than a sweep's
-// interval. The client logs in once more and retries. A call refused on a
-// fresh session is one the ACL does not grant, which is [ErrUnauthorized]
-// and is remembered, so the next refusal of that call keeps the session.
-// The call is still made each time, so a fixed ACL takes effect without a
-// restart.
+// expired and a call the login's ACL does not grant with the same refusal.
+// rpcd expires a session after five idle minutes, which is shorter than a
+// sweep's interval, so the first call of a sweep usually meets an expired
+// session. A refusal is taken as expiry, and the client logs in once more and
+// retries, unless the session is known to be live: it was just opened, or a
+// call worked on it within its timeout and this call was refused before. A
+// call refused on a live session is one the ACL does not grant, which is
+// [ErrUnauthorized], and is remembered. Every sweep still makes the call on
+// a live session at least once, so a fixed ACL works without a restart.
 func call[T any](ctx context.Context, o *OpenWrt, object, method string, args any) (*T, error) {
 	key, err := callKey(object, method, args)
 	if err != nil {
 		return nil, err
 	}
 
-	session, fresh, err := o.currentSession(ctx)
+	session, live, err := o.currentSession(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	data, err := o.do(ctx, session, object, method, args)
 
-	if errors.Is(err, errAccessDenied) && !fresh && !o.isRefused(key) {
+	// On a live session a refusal is the ACL's when the session has served
+	// nothing yet, so it cannot have expired, or when the call was refused
+	// before. Any other refusal may be expiry.
+	byACL := live && (o.isFresh(session) || o.isRefused(key))
+
+	if errors.Is(err, errAccessDenied) && !byACL {
 		o.forget(session)
 
 		if session, _, err = o.currentSession(ctx); err != nil {
@@ -202,7 +230,7 @@ func call[T any](ctx context.Context, o *OpenWrt, object, method string, args an
 		return nil, err
 	}
 
-	o.allow(key)
+	o.worked(session, key)
 
 	var t T
 
@@ -237,23 +265,36 @@ func callKey(object, method string, args any) (string, error) {
 }
 
 // currentSession returns the session calls share, logging in when there is
-// none. fresh reports whether it logged in to answer.
-func (o *OpenWrt) currentSession(ctx context.Context) (session string, fresh bool, err error) {
+// none. live reports whether the session is known to be live: just opened, or
+// used within its timeout.
+func (o *OpenWrt) currentSession(ctx context.Context) (session string, live bool, err error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
 	if o.session != "" {
-		return o.session, false, nil
+		return o.session, o.now().Sub(o.used) < o.idle-sessionMargin, nil
 	}
 
-	session, err = o.login(ctx)
+	session, idle, err := o.login(ctx)
 	if err != nil {
 		return "", false, err
 	}
 
 	o.session = session
+	o.idle = idle
+	o.used = o.now()
+	o.opened = session
 
 	return session, true, nil
+}
+
+// isFresh reports whether session was opened for the call now asking and has
+// not served one since, so a refusal on it cannot be expiry.
+func (o *OpenWrt) isFresh(session string) bool {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	return o.opened == session
 }
 
 // forget drops session, unless another call already replaced it.
@@ -287,34 +328,50 @@ func (o *OpenWrt) refuse(key string) {
 	o.refused[key] = true
 }
 
-// allow forgets a refusal of the call named key, once the ACL grants it.
-func (o *OpenWrt) allow(key string) {
+// worked records that the call named key worked on session: the session is
+// live as of now, and the ACL grants the call, whatever it did before.
+func (o *OpenWrt) worked(session, key string) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
+
+	if o.session == session {
+		o.used = o.now()
+	}
+
+	if o.opened == session {
+		o.opened = ""
+	}
 
 	delete(o.refused, key)
 }
 
-// login asks rpcd for a session. A wrong user or password answers with a
-// permission status, which is [ErrUnauthorized].
-func (o *OpenWrt) login(ctx context.Context) (string, error) {
+// login asks rpcd for a session, and returns it with how long rpcd keeps it
+// idle. A wrong user or password answers with a permission status, which is
+// [ErrUnauthorized].
+func (o *OpenWrt) login(ctx context.Context) (string, time.Duration, error) {
 	data, err := o.do(ctx, anonymous, "session", "login", map[string]string{
 		"username": o.cfg.User,
 		"password": o.cfg.Password,
 	})
 	if err != nil {
-		return "", fmt.Errorf("login: %w", err)
+		return "", 0, fmt.Errorf("login: %w", err)
 	}
 
 	var res struct {
 		Session string `json:"ubus_rpc_session"`
+		Timeout int    `json:"timeout"`
 	}
 
 	if err := json.Unmarshal(data, &res); err != nil || res.Session == "" {
-		return "", fmt.Errorf("login: %w: no session in the answer", ErrUnexpected)
+		return "", 0, fmt.Errorf("login: %w: no session in the answer", ErrUnexpected)
 	}
 
-	return res.Session, nil
+	idle := defaultSessionTimeout
+	if res.Timeout > 0 {
+		idle = time.Duration(res.Timeout) * time.Second
+	}
+
+	return res.Session, idle, nil
 }
 
 // request is one JSON-RPC call to ubus.

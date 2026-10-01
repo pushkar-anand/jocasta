@@ -11,6 +11,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -298,6 +299,92 @@ func TestACommandTheACLRefusesLeavesTheOthers(t *testing.T) {
 	}
 
 	assert.Equal(t, int32(1), f.logins.Load())
+}
+
+// clock is a time a test moves by hand.
+type clock struct {
+	mu sync.Mutex
+	at time.Time
+}
+
+func (c *clock) now() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return c.at
+}
+
+func (c *clock) advance(d time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.at = c.at.Add(d)
+}
+
+// withClock points o at a clock the test moves.
+func withClock(o *OpenWrt) *clock {
+	c := &clock{at: time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)}
+	o.now = c.now
+
+	return c
+}
+
+// A sweep runs further apart than rpcd's idle timeout, so a remembered refusal
+// that opens the next sweep meets an expired session. It is retried on a new
+// one, so an ACL fixed between sweeps works then.
+func TestARefusalAfterTheSessionTimeoutIsRetried(t *testing.T) {
+	t.Parallel()
+
+	f, o, _ := newFakeRouter(t, map[string]string{
+		"system board":             boardAnswer,
+		"luci-rpc getDHCPLeases 4": `[0,{"dhcp_leases":[]}]`,
+		"luci-rpc getDHCPLeases 6": `[0,{"dhcp6_leases":[]}]`,
+	})
+	f.refused = map[string]bool{"luci-rpc getDHCPLeases": true}
+
+	c := withClock(o)
+
+	_, err := o.Board(t.Context())
+	require.NoError(t, err)
+
+	_, err = o.DHCPLeases(t.Context())
+	require.ErrorIs(t, err, ErrUnauthorized)
+
+	// The next sweep, after the ACL is fixed.
+	c.advance(5 * time.Minute)
+	f.expire()
+
+	f.mu.Lock()
+	f.refused = nil
+	f.mu.Unlock()
+
+	_, err = o.DHCPLeases(t.Context())
+	require.NoError(t, err)
+}
+
+// A login whose every call is refused never has a call work, and must still
+// log in again once its session times out.
+func TestASessionThatServedNothingIsRenewedAfterItsTimeout(t *testing.T) {
+	t.Parallel()
+
+	f, o, _ := newFakeRouter(t, map[string]string{"system board": boardAnswer})
+	f.refused = map[string]bool{"system board": true}
+
+	c := withClock(o)
+
+	_, err := o.Board(t.Context())
+	require.ErrorIs(t, err, ErrUnauthorized)
+
+	c.advance(5 * time.Minute)
+	f.expire()
+
+	f.mu.Lock()
+	f.refused = nil
+	f.mu.Unlock()
+
+	_, err = o.Board(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, int32(2), f.logins.Load())
 }
 
 // Once the ACL grants a call it once refused, the call works without a
