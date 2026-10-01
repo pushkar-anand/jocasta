@@ -129,3 +129,23 @@ func TestReadUserCannotMintAWriteToken(t *testing.T) {
 	ok := requestAs(t, write, writeCookies, http.MethodPost, "/settings/tokens", crafted)
 	assert.Equal(t, http.StatusSeeOther, ok.Code, "a writer's read_write token still issues")
 }
+
+// The error pages a signed-in account reaches are drawn inside the shell, so
+// they name the account in the user menu as every other page does.
+func TestErrorPagesNameTheAccount(t *testing.T) {
+	t.Parallel()
+
+	h, cookies := roleClient(t, dbtype.RoleRead)
+
+	for _, c := range []struct {
+		target string
+		status int
+	}{
+		{"/settings/users", http.StatusForbidden},
+		{"/no-such-page", http.StatusNotFound},
+	} {
+		rec := requestAs(t, h, cookies, http.MethodGet, c.target, "")
+		require.Equal(t, c.status, rec.Code, c.target)
+		assert.Contains(t, rec.Body.String(), `<span class="usermenu__name">member</span>`, c.target)
+	}
+}

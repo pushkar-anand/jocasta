@@ -150,6 +150,8 @@ func newWebHandler(t *testing.T, store *inventory.Store) http.Handler {
 func newWebHandlerWithAuth(t *testing.T, store *inventory.Store, a *auth.Auth, opts ...Option) http.Handler {
 	t.Helper()
 
+	sm := auth.NewSession(testLogger())
+
 	hw := response.NewHTMLWriter(testLogger(), nil,
 		response.WithErrorTemplates(map[int]string{
 			http.StatusBadRequest:            TemplateBadRequest,
@@ -179,10 +181,9 @@ func newWebHandlerWithAuth(t *testing.T, store *inventory.Store, a *auth.Auth, o
 
 			return 0
 		}),
-		response.WithErrorDataFunc(ErrorPageData),
+		response.WithErrorDataFunc(ErrorPageData(sm)),
 	)
 
-	sm := auth.NewSession(testLogger())
 	h := NewHandler(testLogger(), testReader(t), store, hw, sm, a, opts...)
 
 	return sm.LoadAndSave(h)

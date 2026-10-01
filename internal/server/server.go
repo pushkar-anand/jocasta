@@ -160,7 +160,7 @@ func Handler(
 			// becomes a 500.
 			return 0
 		}),
-		response.WithErrorDataFunc(web.ErrorPageData),
+		response.WithErrorDataFunc(web.ErrorPageData(sm)),
 	)
 
 	ap := api.NewHandler(cfg.Logger, reader, store, jw)
