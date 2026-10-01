@@ -13,6 +13,18 @@ make oui            # rebuild the embedded MAC-vendor table
 make htmx           # refresh the vendored htmx
 ```
 
+## Release
+
+After CI passes on `main`, run:
+
+```bash
+./scripts/release.sh v0.10.0
+```
+
+The script requires a clean working tree and a local `main` that matches
+`origin/main`. It checks that the tag is unused, creates an annotated tag,
+and pushes it to trigger the release workflow. It does not wait for the build.
+
 ## Layout
 
 - `cmd/jocasta`: CLI entry point.
