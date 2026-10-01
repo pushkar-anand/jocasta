@@ -175,6 +175,16 @@ func (s *Store) Device(ctx context.Context, id int64) (*Device, error) {
 		d.Ports = append(d.Ports, newPort(p))
 	}
 
+	services, err := s.q.ListDeviceServices(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("services of device %d: %w", id, err)
+	}
+
+	d.Services = make([]*Service, 0, len(services))
+	for _, sv := range services {
+		d.Services = append(d.Services, newService(sv))
+	}
+
 	return d, nil
 }
 

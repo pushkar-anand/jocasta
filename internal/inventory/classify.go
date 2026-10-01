@@ -105,8 +105,8 @@ func (s *Store) classifyOne(
 
 // classifyInput gathers what the classifier reasons over for the stored device
 // d: its vendor, name and hardware address kind, the ports a scan currently
-// finds open, the addresses it holds now, and the name of a network one of
-// them sits on.
+// finds open, the services it advertises and the models they give, the
+// addresses it holds now, and the name of a network one of them sits on.
 //
 // Reclassifying and explaining a guess both read the device through here, so
 // an explanation is always the case the classifier itself was given.
@@ -120,6 +120,21 @@ func classifyInput(ctx context.Context, q *models.Queries, d *models.Device) (cl
 	for _, p := range ports {
 		// device_ports.port is CHECK-constrained to 1-65535, so it fits.
 		open = append(open, uint16(p.Port)) //nolint:gosec // range enforced by the column CHECK.
+	}
+
+	advertised, err := q.ListDeviceServices(ctx, d.ID)
+	if err != nil {
+		return classify.Input{}, fmt.Errorf("services of device %d: %w", d.ID, err)
+	}
+
+	var services, models []string
+
+	for _, sv := range advertised {
+		services = append(services, sv.Type)
+
+		if sv.Model.Valid {
+			models = append(models, sv.Model.String)
+		}
 	}
 
 	names, err := q.DeviceNetworkNames(ctx, d.ID)
@@ -149,6 +164,8 @@ func classifyInput(ctx context.Context, q *models.Queries, d *models.Device) (cl
 		Hostname:    d.Hostname.String,
 		Randomised:  d.IsRandomised,
 		OpenPorts:   open,
+		Services:    services,
+		Models:      models,
 		NetworkName: network,
 		Addresses:   current,
 	}, nil

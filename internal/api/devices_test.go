@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pushkar-anand/jocasta/internal/hosts"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/stretchr/testify/assert"
@@ -152,6 +153,39 @@ func TestGetDeviceCarriesOpenPorts(t *testing.T) {
 	first, ok := list(t, listed, "devices")[0].(map[string]any)
 	require.True(t, ok)
 	assert.NotContains(t, first, "ports")
+}
+
+// A device that advertised services over DNS-SD carries them, and the list
+// leaves them out as it does ports.
+func TestGetDeviceCarriesServices(t *testing.T) {
+	t.Parallel()
+
+	store := testStore(t)
+
+	tv := host("192.0.2.10", macA, "")
+	tv.Services = []hosts.Service{{Type: "_googlecast._tcp", Instance: "Android_0123", Port: 8009, Label: "Living Room TV"}}
+
+	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix), []scanner.Host{tv})
+	require.NoError(t, err)
+
+	h := NewHandler(testLogger(), testReader(t), store, testJSONWriter())
+
+	status, _, body := get(t, h, "/devices/1")
+	require.Equal(t, http.StatusOK, status)
+
+	services := list(t, body, "services")
+	require.Len(t, services, 1)
+
+	sv, ok := services[0].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "_googlecast._tcp", sv["type"])
+	assert.Equal(t, float64(8009), sv["port"])
+	assert.Equal(t, "Living Room TV", sv["label"])
+
+	_, _, listed := get(t, h, "/devices")
+	first, ok := list(t, listed, "devices")[0].(map[string]any)
+	require.True(t, ok)
+	assert.NotContains(t, first, "services")
 }
 
 func TestGetDeviceUnknownIDIsNotFound(t *testing.T) {

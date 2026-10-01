@@ -1,6 +1,6 @@
 // Package classify guesses what kind of device a record describes (a phone, a
 // printer, a camera) from what a scan already knows about it: its vendor, its
-// name, and the TCP ports it answers on.
+// name, the TCP ports it answers on, and the services it advertises.
 //
 // The guess is advisory. Every rule here is a heuristic a determined device can
 // defeat, so a [Result] carries the confidence behind it and the reasons that
@@ -45,6 +45,14 @@ type Input struct {
 	// NetworkName is what the segment the device sits on is called, when it is
 	// called anything. An "IoT" or "cameras" VLAN is itself a weak classifier.
 	NetworkName string
+
+	// Services are the DNS-SD service types the device advertises, such as
+	// "_googlecast._tcp". Order, case and duplicates do not matter.
+	Services []string
+
+	// Models are the models the device gives in its service records, such as
+	// "Google Nest Mini". Only Google Cast gives one.
+	Models []string
 
 	// Addresses are the IP addresses the device currently holds. One fact is
 	// read from them: whether any is the .1 of its subnet, the address a home
@@ -133,7 +141,9 @@ type Facts struct {
 	Network    string // lowercased, trimmed
 	Randomised bool
 	Ports      []uint16
-	FirstHost  bool // holds an address ending in .1
+	Services   []string // lowercased, sorted, deduped
+	Models     []string // lowercased, trimmed
+	FirstHost  bool     // holds an address ending in .1
 }
 
 // facts normalises text and ports for rule matching without modifying in.
@@ -149,17 +159,33 @@ func facts(in Input) Facts {
 		}
 	}
 
+	services := make([]string, len(in.Services))
+	for i, s := range in.Services {
+		services[i] = strings.ToLower(s)
+	}
+
+	slices.Sort(services)
+
+	models := make([]string, len(in.Models))
+	for i, m := range in.Models {
+		models[i] = strings.ToLower(strings.TrimSpace(m))
+	}
+
 	return Facts{
 		Vendor:     normVendor(in.Vendor),
 		Hostname:   strings.ToLower(strings.TrimSpace(in.Hostname)),
 		Network:    strings.ToLower(strings.TrimSpace(in.NetworkName)),
 		Randomised: in.Randomised,
 		Ports:      slices.Compact(ports),
+		Services:   slices.Compact(services),
+		Models:     models,
 		FirstHost:  firstHost,
 	}
 }
 
 func (f Facts) hasPort(p uint16) bool { _, ok := slices.BinarySearch(f.Ports, p); return ok }
+
+func (f Facts) hasService(s string) bool { _, ok := slices.BinarySearch(f.Services, s); return ok }
 
 // Device guesses what kind of thing in describes.
 //

@@ -51,6 +51,11 @@ type ClassFacts struct {
 
 	Addresses []netip.Addr `json:"addresses"`  // held now
 	OpenPorts []uint16     `json:"open_ports"` // open now, in number order
+
+	// Services are the DNS-SD service types the device advertised within the
+	// history window, lowercased and sorted, and Models the models they give.
+	Services []string `json:"services"`
+	Models   []string `json:"models,omitempty"`
 }
 
 // ClassRule is one classification rule that matched a device.
@@ -100,6 +105,8 @@ func (s *Store) ExplainClass(ctx context.Context, id int64) (*ClassExplanation, 
 			Network:        in.NetworkName,
 			Addresses:      in.Addresses,
 			OpenPorts:      got.Facts.Ports,
+			Services:       got.Facts.Services,
+			Models:         got.Facts.Models,
 		},
 		OtherRules: []ClassRule{},
 	}

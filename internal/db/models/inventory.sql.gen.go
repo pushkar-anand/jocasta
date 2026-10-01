@@ -451,6 +451,25 @@ func (q *Queries) DeleteDevice(ctx context.Context, id int64) error {
 	return err
 }
 
+const deleteDeviceServicesBefore = `-- name: DeleteDeviceServicesBefore :execrows
+DELETE
+FROM device_services
+WHERE last_seen < ?
+`
+
+// DeleteDeviceServicesBefore
+//
+//	DELETE
+//	FROM device_services
+//	WHERE last_seen < ?
+func (q *Queries) DeleteDeviceServicesBefore(ctx context.Context, lastSeen dbtype.Time) (int64, error) {
+	result, err := q.exec(ctx, q.deleteDeviceServicesBeforeStmt, deleteDeviceServicesBefore, lastSeen)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteEventsBefore = `-- name: DeleteEventsBefore :execrows
 
 DELETE
@@ -1109,6 +1128,52 @@ func (q *Queries) ListDevicePorts(ctx context.Context, deviceID int64) ([]*Devic
 			&i.FirstSeen,
 			&i.LastSeen,
 			&i.ChangedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDeviceServices = `-- name: ListDeviceServices :many
+SELECT device_id, type, instance, port, label, model, first_seen, last_seen
+FROM device_services
+WHERE device_id = ?
+ORDER BY type, instance
+`
+
+// Every service a device has advertised within the history window, for the
+// device page and the classifier.
+//
+//	SELECT device_id, type, instance, port, label, model, first_seen, last_seen
+//	FROM device_services
+//	WHERE device_id = ?
+//	ORDER BY type, instance
+func (q *Queries) ListDeviceServices(ctx context.Context, deviceID int64) ([]*DeviceService, error) {
+	rows, err := q.query(ctx, q.listDeviceServicesStmt, listDeviceServices, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*DeviceService
+	for rows.Next() {
+		var i DeviceService
+		if err := rows.Scan(
+			&i.DeviceID,
+			&i.Type,
+			&i.Instance,
+			&i.Port,
+			&i.Label,
+			&i.Model,
+			&i.FirstSeen,
+			&i.LastSeen,
 		); err != nil {
 			return nil, err
 		}
@@ -1918,6 +1983,51 @@ func (q *Queries) UpdateDeviceCuration(ctx context.Context, arg UpdateDeviceCura
 		&i.LastSeen,
 	)
 	return &i, err
+}
+
+const upsertDeviceService = `-- name: UpsertDeviceService :exec
+INSERT INTO device_services (device_id, type, instance, port, label, model, first_seen, last_seen)
+VALUES (?1, ?2, ?3, ?4,
+        ?5, ?6, ?7, ?7)
+ON CONFLICT (device_id, type, instance)
+    DO UPDATE SET port      = excluded.port,
+                  label     = excluded.label,
+                  model     = excluded.model,
+                  last_seen = excluded.last_seen
+`
+
+type UpsertDeviceServiceParams struct {
+	DeviceID int64          `json:"device_id"`
+	Type     string         `json:"type"`
+	Instance string         `json:"instance"`
+	Port     int64          `json:"port"`
+	Label    sql.NullString `json:"label"`
+	Model    sql.NullString `json:"model"`
+	SeenAt   dbtype.Time    `json:"seen_at"`
+}
+
+// A service a sweep heard. first_seen holds the first sweep that heard it, and
+// the rest is what the latest one said.
+//
+//	INSERT INTO device_services (device_id, type, instance, port, label, model, first_seen, last_seen)
+//	VALUES (?1, ?2, ?3, ?4,
+//	        ?5, ?6, ?7, ?7)
+//	ON CONFLICT (device_id, type, instance)
+//	    DO UPDATE SET port      = excluded.port,
+//	                  label     = excluded.label,
+//	                  model     = excluded.model,
+//	                  last_seen = excluded.last_seen
+func (q *Queries) UpsertDeviceService(ctx context.Context, arg UpsertDeviceServiceParams) error {
+	_, err := q.exec(ctx, q.upsertDeviceServiceStmt, upsertDeviceService,
+		arg.DeviceID,
+		arg.Type,
+		arg.Instance,
+		arg.Port,
+		arg.Label,
+		arg.Model,
+		arg.SeenAt,
+	)
+	return err
 }
 
 const upsertDeviceSource = `-- name: UpsertDeviceSource :exec

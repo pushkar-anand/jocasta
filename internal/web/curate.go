@@ -34,6 +34,11 @@ type curationForm struct {
 	// panel swap has nothing to say about them.
 	Claims []*inventory.Claim
 
+	// Ports are the rows of the Ports section: the ports a scan recorded and
+	// the services the device advertised, merged by port. Only the full page
+	// fills it.
+	Ports []*portRow
+
 	// PortScanConfigured is whether any port scan has ever finished, which is
 	// how the Ports section tells "nothing is open" from "nothing has looked".
 	// Only the full page fills it.

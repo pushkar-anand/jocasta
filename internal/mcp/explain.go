@@ -22,12 +22,12 @@ func explainDevice(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 		Description: "Explain why a device has the class it has. Returns the class, the type its owner set and whether " +
 			"that overrides the classifier's guess, then the guess and its confidence (low, medium or high). " +
 			"Facts are what the classifier was given: vendor, hostname and where the hostname came from, whether the " +
-			"hardware address is randomised, the name of a network the device is on, its current addresses and the TCP " +
-			"ports open now. Rule is the rule that decided the guess, with its reason; other_rules are every other rule " +
+			"hardware address is randomised, the name of a network the device is on, its current addresses, the TCP " +
+			"ports open now, the service types it advertises and the models those services give. Rule is the rule that decided the guess, with its reason; other_rules are every other rule " +
 			"that matched and lost, the most specific first. The rule that tests the most facts wins, a rule for the " +
 			"same class raises the confidence, and a weak rule alone gives a low-confidence guess. " +
 			"Use it when a class looks wrong or doubtful, to see which fact to question. " +
-			"Every rule is a heuristic over names, vendors and ports, any of which a device can set. " +
+			"Every rule is a heuristic over names, vendors, ports and advertised services, any of which a device can set. " +
 			"The classifier reruns over what is recorded now, so the guess can differ from the device's recorded one " +
 			"until a scan next touches it. Use list_events with kind DEVICE_CLASSIFIED for how the guess changed over time.",
 		InputSchema:  explainDeviceSchema(),

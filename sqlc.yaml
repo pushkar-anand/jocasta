@@ -81,6 +81,10 @@ sql:
             go_type: *timestamp
           - column: "device_ports.changed_at"
             go_type: *timestamp
+          - column: "device_services.first_seen"
+            go_type: *timestamp
+          - column: "device_services.last_seen"
+            go_type: *timestamp
           - column: "scans.finished_at"
             go_type:
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"

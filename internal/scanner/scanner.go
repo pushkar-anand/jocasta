@@ -56,7 +56,7 @@ type Host struct {
 	// Services are what the address advertised over DNS-SD during the sweep,
 	// sorted by type and instance. They are empty when it advertised nothing
 	// or the browse is turned off.
-	Services []Service
+	Services []hosts.Service
 }
 
 // MarshalJSON writes the sweep's fields alongside the embedded host's. Without
@@ -64,17 +64,17 @@ type Host struct {
 // declared on Host itself.
 func (h Host) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
-		Addr       netip.Addr    `json:"addr"`
-		MAC        string        `json:"mac,omitempty"`
-		Hostname   string        `json:"hostname,omitempty"`
-		NameSource string        `json:"name_source,omitempty"`
-		RTT        time.Duration `json:"rtt"`
-		SeenAt     time.Time     `json:"seen_at"`
-		Vendor     string        `json:"vendor,omitempty"`
-		Randomised bool          `json:"randomised,omitempty"`
-		Self       bool          `json:"self,omitempty"`
-		Interface  string        `json:"interface,omitempty"`
-		Services   []Service     `json:"services,omitempty"`
+		Addr       netip.Addr      `json:"addr"`
+		MAC        string          `json:"mac,omitempty"`
+		Hostname   string          `json:"hostname,omitempty"`
+		NameSource string          `json:"name_source,omitempty"`
+		RTT        time.Duration   `json:"rtt"`
+		SeenAt     time.Time       `json:"seen_at"`
+		Vendor     string          `json:"vendor,omitempty"`
+		Randomised bool            `json:"randomised,omitempty"`
+		Self       bool            `json:"self,omitempty"`
+		Interface  string          `json:"interface,omitempty"`
+		Services   []hosts.Service `json:"services,omitempty"`
 	}{
 		Addr:       h.Address(),
 		MAC:        h.MAC,

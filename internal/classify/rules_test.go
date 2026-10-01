@@ -47,7 +47,11 @@ func TestNoDuplicateConditions(t *testing.T) {
 			key += "|all" + string(rune(p))
 		}
 
-		key += "|" + string(rune(r.Port))
+		key += "|" + string(rune(r.Port)) + "|" + r.Service
+
+		for _, s := range r.AnyService {
+			key += "|anysvc" + s
+		}
 
 		if r.Randomised != nil {
 			key += "|rand"
@@ -79,6 +83,7 @@ func positiveConds(c Cond) int {
 	for _, set := range []bool{
 		c.Vendor != "", c.Host != "", c.Network != "",
 		c.Port != 0, len(c.AnyPort) > 0, len(c.AllPort) > 0,
+		c.Service != "", len(c.AnyService) > 0,
 		c.Randomised != nil, c.MinServer > 0, c.When != nil,
 	} {
 		if set {
@@ -112,6 +117,36 @@ func TestFirstMatchAndSpecificity(t *testing.T) {
 		{
 			name: "underscored smart-bulb names match (the old \\b bug)",
 			in:   Input{Vendor: "WiZ", Hostname: "wiz_a1b2c3"},
+			want: SmartHome,
+		},
+		{
+			name: "the Android TV remote service beats the cast ports",
+			in:   Input{OpenPorts: []uint16{8008, 8009}, Services: []string{"_googlecast._tcp", "_androidtvremote2._tcp"}},
+			want: TV,
+		},
+		{
+			name: "a Google speaker model beats the cast ports",
+			in:   Input{OpenPorts: []uint16{8009}, Services: []string{"_googlecast._tcp"}, Models: []string{"Google Nest Mini"}},
+			want: Speaker,
+		},
+		{
+			name: "a Google speaker group marks a speaker",
+			in:   Input{Services: []string{"_googlecast._tcp", "_googlezone._tcp"}},
+			want: Speaker,
+		},
+		{
+			name: "Google Cast alone is a streaming device",
+			in:   Input{Services: []string{"_googlecast._tcp"}, Models: []string{"Chromecast"}},
+			want: Streaming,
+		},
+		{
+			name: "a print service beats a vendor that also makes PCs",
+			in:   Input{Vendor: "HP Inc.", Services: []string{"_ipp._tcp"}},
+			want: Printer,
+		},
+		{
+			name: "service types match in any case",
+			in:   Input{Services: []string{"_HAP._TCP"}},
 			want: SmartHome,
 		},
 		{
