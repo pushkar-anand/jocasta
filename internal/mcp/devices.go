@@ -20,6 +20,7 @@ type listDevicesInput struct {
 	Status         string `json:"status,omitempty" jsonschema:"Only devices seen recently (online) or not (offline). Omit for both."`
 	Sort           string `json:"sort,omitempty" jsonschema:"Order of the list. Defaults to last_seen, the most recently seen device first."`
 	IncludeIgnored bool   `json:"include_ignored,omitempty" jsonschema:"Also list the devices the user marked as ignored."`
+	Watched        bool   `json:"watched,omitempty" jsonschema:"Only the devices the owner watches. With status offline, the watched devices that are quiet now."`
 }
 
 // listDevicesOutput is the same shape GET /api/devices answers with, so an
@@ -35,7 +36,7 @@ func listDevices(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 		Name:  "list_devices",
 		Title: "List devices",
 		Description: "List the devices in the network inventory, optionally filtered by a search term, group, network, " +
-			"device class or presence (seen recently or quiet). " +
+			"device class, presence (seen recently or quiet) or whether the owner watches it. " +
 			"Each device carries its id, hardware address, current IP addresses, vendor, hostname, class, open port numbers, " +
 			"when it was first and last seen, and the label, group and notes its owner gave it. " +
 			"Devices the owner marked as ignored are left out unless include_ignored is set. " +
@@ -58,6 +59,7 @@ func listDevices(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 			Status:         inventory.Status(in.Status),
 			Sort:           inventory.Sort(in.Sort),
 			IncludeIgnored: in.IncludeIgnored,
+			Watched:        in.Watched,
 		})
 		if err != nil {
 			return nil, listDevicesOutput{}, err

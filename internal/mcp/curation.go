@@ -30,8 +30,7 @@ type updateDeviceCurationOutput struct {
 }
 
 // updateDeviceCuration is inventory.Store.UpdateCuration, offered as a tool.
-// It is the one tool that changes the inventory, so only a read_write token is
-// offered it.
+// It changes the inventory, so only a read_write token is offered it.
 func updateDeviceCuration(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	t := &mcpsdk.Tool{
 		Name:  "update_device_curation",
@@ -87,6 +86,67 @@ func updateDeviceCurationSchema() *jsonschema.Schema {
 	s.Properties["notes"].MaxLength = new(inventory.NotesMaxLength)
 
 	s.Properties["type"].Enum = append([]any{""}, enumOf(classify.Classes())...)
+
+	return s
+}
+
+// watchDeviceInput is a device and whether its owner should be told when it
+// goes quiet or comes back. Both are required: a call that left watched out
+// would otherwise stop watching.
+type watchDeviceInput struct {
+	ID      int64 `json:"id" jsonschema:"The device's id, as list_devices reports it."`
+	Watched bool  `json:"watched" jsonschema:"True to watch the device, false to stop."`
+}
+
+// watchDeviceOutput is the device as it stands after the change.
+type watchDeviceOutput struct {
+	Device *inventory.Device `json:"device"`
+}
+
+// watchDevice is inventory.Store.Watch, offered as a tool. It changes the
+// inventory, so only a read_write token is offered it.
+func watchDevice(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
+	t := &mcpsdk.Tool{
+		Name:  "watch_device",
+		Title: "Watch a device, or stop",
+		Description: "Set whether the owner is told when a device goes quiet (offline) or comes back. " +
+			"A watched device logs DEVICE_QUIET when it has not been seen for longer than the online window, and DEVICE_BACK when it is seen again; " +
+			"devices nobody watches log neither. The owner's notification settings decide whether either is sent anywhere. " +
+			"Watching is apart from update_device_curation, which leaves it unchanged. " +
+			"The change is recorded in the change log as DEVICE_EDITED. Returns the device as updated.",
+		InputSchema:  watchDeviceSchema(),
+		OutputSchema: schemaFor[watchDeviceOutput](),
+		Annotations: &mcpsdk.ToolAnnotations{
+			// It changes only a flag the owner can set back, and a second
+			// identical call changes nothing further.
+			DestructiveHint: new(false),
+			IdempotentHint:  true,
+			OpenWorldHint:   new(false),
+		},
+	}
+
+	handler := func(
+		ctx context.Context,
+		_ *mcpsdk.CallToolRequest,
+		in watchDeviceInput,
+	) (*mcpsdk.CallToolResult, watchDeviceOutput, error) {
+		device, err := store.Watch(ctx, in.ID, in.Watched)
+		if err != nil {
+			return nil, watchDeviceOutput{}, err
+		}
+
+		return nil, watchDeviceOutput{Device: device}, nil
+	}
+
+	return func(s *mcpsdk.Server, log *slog.Logger) { addTool(s, log, t, handler) }
+}
+
+// watchDeviceSchema is the schema inferred from watchDeviceInput, with the id
+// held to what the inventory issues.
+func watchDeviceSchema() *jsonschema.Schema {
+	s := schemaFor[watchDeviceInput]()
+
+	s.Properties["id"].Minimum = new(1.0)
 
 	return s
 }

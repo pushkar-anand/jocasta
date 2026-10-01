@@ -47,7 +47,8 @@ What the records mean:
 - Traffic is hourly totals the router exported. It covers only what passed the router while collection was on, so no traffic does not mean a device is silent. An internet peer's organisation is the network announcing its address, which for a cloud or CDN address is the provider. The service behind the address is unknown. Attempts are connections that never carried data; a few are ordinary, many to many addresses or ports is probing, and a device flagged as probing may be one the owner runs scans from.
 - Topology is what the routers, switches and access points Jocasta reads last reported: which port or Wi-Fi network each device was on, and how fast each link ran at that read. A device not current there is where it was last seen. A node that is unnamed was inferred from several devices sharing one port.
 - Devices the owner marked as ignored are left out unless asked for.
-- The label, group, type, notes and ignored flag are the owner's. update_device_curation, offered only to a read_write token, is the one tool that changes anything, and it changes only those.
+- A watched device is one the owner asked to be told about. Only a watched device logs DEVICE_QUIET, when no scan has seen it for longer than the online window, and DEVICE_BACK, when one sees it again. present_since is when a device's current run of sightings began; it is empty while the device is quiet.
+- The label, group, type, notes, ignored flag and watching are the owner's. update_device_curation and watch_device, offered only to a read_write token, are the only tools that change anything, and they change only those.
 
 A tool that fails returns an RFC 9457 problem document, the same one the JSON API answers with.
 
