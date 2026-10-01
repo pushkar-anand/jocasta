@@ -62,8 +62,10 @@
                 </form>
             </div>
         {{- else }}
-            <p class="dim">No destinations yet. Add one under <code>notify</code> in the config file; see
-                <a href="https://github.com/pushkar-anand/jocasta/blob/main/docs/setup.md#send-changes-to-your-phone">Send changes to your phone</a>.</p>
+            <div class="card empty">
+                <p>No destinations yet. Add one under <code>notify</code> in the config file; see
+                    <a href="https://github.com/pushkar-anand/jocasta/blob/main/docs/setup.md#send-changes-to-your-phone">Send changes to your phone</a>.</p>
+            </div>
         {{- end }}
     </section>
 

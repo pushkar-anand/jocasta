@@ -52,9 +52,13 @@
         </div>
     </div>
     {{- else if .Kind }}
-    <p class="dim">No scan of that kind has been recorded yet.</p>
+    <div class="card empty">
+        <p>No scan of that kind has been recorded yet.</p>
+    </div>
     {{- else }}
-    <p class="dim">No sweep has been recorded yet.</p>
+    <div class="card empty">
+        <p>No sweep has been recorded yet.</p>
+    </div>
     {{- end }}
     {{ template "partial/pager" . }}
 </section>
