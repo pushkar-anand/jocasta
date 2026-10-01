@@ -151,9 +151,10 @@ Jocasta's own segment, and only with host networking. To turn it off, set
 `scan.devices.resolve_dnssd: false`.
 
 Jocasta also records the services each device advertises, named or not, and
-lists them in the device page's Ports table. The classifier reads them: a
-print service marks a printer, and the Android TV remote service a TV. A
-service no sweep has heard within `retention.history` drops off.
+lists them in the device page's Ports table. The port scan probes each
+advertised TCP port, so the table says whether it answers. The classifier
+reads them: a print service marks a printer, and the Android TV remote service
+a TV. A service no sweep has heard within `retention.history` drops off.
 
 SSDP names TVs, speakers, media players, printers and routers that nothing
 else names. The name is the label the device shows its owner, such as
@@ -459,8 +460,9 @@ home_assistant:
 ## Optional features
 
 - **Port scanning**: set `scan.ports.enabled: true` to probe every known
-  address for open TCP ports on a timer. See [CLI](cli.md#ports) for one-off
-  scans.
+  address for open TCP ports on a timer. Each address is also probed on the
+  TCP ports its device advertises a service on. See [CLI](cli.md#ports) for
+  one-off scans.
 - **Traffic**: who each device talks to, from your router's flow exports,
   with a Traffic page and a live Map. See
   [Record who devices talk to](#record-who-devices-talk-to) and

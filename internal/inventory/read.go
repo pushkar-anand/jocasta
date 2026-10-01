@@ -13,6 +13,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/classify"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/db/models"
+	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/pushkar-anand/jocasta/pkg/cursor"
 )
 
@@ -332,19 +333,33 @@ func (s *Store) LastSuccessfulScanAt(ctx context.Context, k dbtype.ScanKind) (ti
 
 // PortScanTargets returns every address a port scan should probe: the current
 // address of every device the user has not ignored. The scan works from what
-// discovery has already found, so this is its whole target list.
-func (s *Store) PortScanTargets(ctx context.Context) ([]netip.Addr, error) {
+// discovery has already found, so this is its whole target list. Each target's
+// Extra are the TCP ports its device advertised a service on, so the scan
+// says whether a port the device announced answers.
+func (s *Store) PortScanTargets(ctx context.Context) ([]scanner.PortTarget, error) {
 	rows, err := s.q.AllCurrentAddresses(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("port scan targets: %w", err)
 	}
 
-	addrs := make([]netip.Addr, 0, len(rows))
-	for _, r := range rows {
-		addrs = append(addrs, r.IP.Addr)
+	advertised, err := s.q.AdvertisedTCPPorts(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("advertised ports: %w", err)
 	}
 
-	return addrs, nil
+	extra := make(map[netip.Addr][]uint16)
+	for _, r := range advertised {
+		// device_services.port is CHECK-constrained to 0-65535, and the query
+		// keeps only non-zero ones.
+		extra[r.IP.Addr] = append(extra[r.IP.Addr], uint16(r.Port)) //nolint:gosec // range enforced by the column CHECK.
+	}
+
+	targets := make([]scanner.PortTarget, 0, len(rows))
+	for _, r := range rows {
+		targets = append(targets, scanner.PortTarget{Addr: r.IP.Addr, Extra: extra[r.IP.Addr]})
+	}
+
+	return targets, nil
 }
 
 // Stats counts the inventory as a whole.

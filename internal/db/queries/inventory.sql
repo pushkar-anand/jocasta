@@ -460,6 +460,20 @@ WHERE a.is_current = 1
   AND d.is_ignored = 0
 ORDER BY a.device_id, a.ip;
 
+-- The TCP ports each current address of a device the user has not ignored
+-- advertised a service on, for a port scan to probe beside its preset. A UDP
+-- service is left out, since the scan connects over TCP.
+-- name: AdvertisedTCPPorts :many
+SELECT DISTINCT a.ip, s.port
+FROM addresses a
+         JOIN devices d ON d.id = a.device_id
+         JOIN device_services s ON s.device_id = a.device_id
+WHERE a.is_current = 1
+  AND d.is_ignored = 0
+  AND s.port > 0
+  AND s.type LIKE '%._tcp'
+ORDER BY a.ip, s.port;
+
 -- The ports currently recorded open on a device, for a fresh scan to diff
 -- itself against. Closed rows are history and left out: a scan no longer seeing
 -- a port only matters for one we thought was open.

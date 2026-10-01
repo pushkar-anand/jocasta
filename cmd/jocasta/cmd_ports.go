@@ -66,7 +66,7 @@ func (p *PortsCmd) Run(ctx context.Context, cfg *config.Config, log *slog.Logger
 
 // targets resolves what to scan: an explicit address or prefix, or every
 // current address in the inventory when none was given.
-func (p *PortsCmd) targets(ctx context.Context, store *inventory.Store) ([]netip.Addr, error) {
+func (p *PortsCmd) targets(ctx context.Context, store *inventory.Store) ([]scanner.PortTarget, error) {
 	if p.Target == "" {
 		targets, err := store.PortScanTargets(ctx)
 		if err != nil {
@@ -80,7 +80,12 @@ func (p *PortsCmd) targets(ctx context.Context, store *inventory.Store) ([]netip
 		return targets, nil
 	}
 
-	return portTargets(p.Target)
+	addrs, err := portTargets(p.Target)
+	if err != nil {
+		return nil, err
+	}
+
+	return scanner.Targets(addrs), nil
 }
 
 // save records the scan in the inventory. It runs after the results are printed

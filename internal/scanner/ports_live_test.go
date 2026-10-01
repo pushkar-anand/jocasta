@@ -43,7 +43,7 @@ func TestPortScanLive(t *testing.T) {
 	ps := NewPortScanner(log)
 
 	start := time.Now()
-	results := ps.Scan(t.Context(), targets, start)
+	results := ps.Scan(t.Context(), Targets(targets), start)
 
 	t.Logf("scanned %d ports on %d addresses in %s",
 		len(ps.Ports()), len(targets), time.Since(start).Round(time.Millisecond))

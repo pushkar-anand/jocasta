@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
+	"github.com/pushkar-anand/jocasta/internal/hosts"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -270,7 +271,49 @@ func TestPortScanTargetsSkipsIgnoredDevices(t *testing.T) {
 	targets, err := s.PortScanTargets(t.Context())
 	require.NoError(t, err)
 
-	assert.Equal(t, []netip.Addr{netip.MustParseAddr("192.0.2.10")}, targets)
+	assert.Equal(t, []scanner.PortTarget{{Addr: netip.MustParseAddr("192.0.2.10")}}, targets)
+}
+
+// A device's targets carry the TCP ports it advertised a service on, once each,
+// so the port scan probes them beside its preset. A UDP service is left out,
+// since the scan connects over TCP.
+func TestPortScanTargetsCarryAdvertisedTCPPorts(t *testing.T) {
+	t.Parallel()
+
+	s, _ := newStore(t)
+
+	tv := host("192.0.2.10", macA, "")
+	tv.Services = []hosts.Service{
+		{Type: "_googlecast._tcp", Instance: "TV", Port: 8009},
+		{Type: "_airplay._tcp", Instance: "TV", Port: 7000},
+		{Type: "_raop._tcp", Instance: "TV", Port: 7000},
+		{Type: "_matterc._udp", Instance: "TV", Port: 5540},
+		{Type: "_example._tcp", Instance: "No port"},
+	}
+
+	sweep(t, s, tv, host("192.0.2.11", macB, "host-b"))
+
+	targets, err := s.PortScanTargets(t.Context())
+	require.NoError(t, err)
+
+	assert.Equal(t, []scanner.PortTarget{
+		{Addr: netip.MustParseAddr("192.0.2.10"), Extra: []uint16{7000, 8009}},
+		{Addr: netip.MustParseAddr("192.0.2.11")},
+	}, targets)
+}
+
+// An advertised port the scan found open and later finds shut closes like any
+// other, because the scanned set names it.
+func TestAnAdvertisedPortThatStopsAnsweringCloses(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, "host-a"))
+
+	recordPorts(t, s, portScan("192.0.2.10", []uint16{10001}, []uint16{22, 10001}))
+	recordPorts(t, s, portScan("192.0.2.10", nil, []uint16{22, 10001}))
+
+	assert.Equal(t, "closed", queryString(t, conn, `SELECT state FROM device_ports WHERE port = 10001`))
 }
 
 func TestPortOverviewSummarisesCurrentServicesAndChanges(t *testing.T) {

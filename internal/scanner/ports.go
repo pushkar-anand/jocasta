@@ -29,6 +29,23 @@ const defaultDialTimeout = 500 * time.Millisecond
 // buys nothing, so the default stays well below where consumer gear strains.
 const DefaultConcurrency = 64
 
+// PortTarget is one address to probe. Extra are ports to probe on it beyond
+// the set every address gets, such as the ports of the services it advertises.
+type PortTarget struct {
+	Addr  netip.Addr
+	Extra []uint16
+}
+
+// Targets wraps addrs as targets with no extra ports.
+func Targets(addrs []netip.Addr) []PortTarget {
+	targets := make([]PortTarget, len(addrs))
+	for i, a := range addrs {
+		targets[i] = PortTarget{Addr: a}
+	}
+
+	return targets
+}
+
 // PortScan is what a probe found at one address.
 type PortScan struct {
 	// Addr is the address probed.
@@ -37,9 +54,10 @@ type PortScan struct {
 	// Open lists the ports that completed a TCP handshake, ascending.
 	Open []uint16
 
-	// Scanned lists every port probed, ascending, so a port missing from Open
-	// can be told from one that was never checked. Ingest needs the difference
-	// to know a port has closed.
+	// Scanned lists every port probed at this address, ascending, so a port
+	// missing from Open can be told from one that was never checked. Ingest
+	// needs the difference to know a port has closed. It is the scanner's set
+	// plus the target's Extra.
 	Scanned []uint16
 
 	// SeenAt is when the scan ran, taken once for the whole scan so every
@@ -48,9 +66,9 @@ type PortScan struct {
 }
 
 // MarshalJSON expands the open ports with the service each port usually
-// carries, and reduces Scanned to its length: the scanned list is the same
-// preset or spec for every address in a run, so its size is the only part
-// worth repeating per result.
+// carries, and reduces Scanned to its length: the scanned list is the preset
+// or spec for every address in a run, plus a few ports for some, so its size
+// is the only part worth repeating per result.
 func (s PortScan) MarshalJSON() ([]byte, error) {
 	type openPort struct {
 		Port    uint16 `json:"port"`
@@ -151,16 +169,21 @@ func (ps *PortScanner) Ports() []uint16 {
 	return slices.Clone(ps.ports)
 }
 
-// Scan probes every port on every target and returns one PortScan per target,
-// in the order they were given. at stamps every result. A target with nothing
+// Scan probes every port in the scanner's set, and the target's Extra, on every
+// target, and returns one PortScan per target, in the order they were given.
+// at stamps every result. A target with nothing
 // open still comes back, carrying the scanned set, because ingest reads that to
 // tell a port that has closed from one it never looked at.
 //
 // A cancelled context stops new connections; the ones in flight finish, so
 // every result stays coherent. It is not reported as an error: a short scan is
 // still a true account of what answered before it stopped.
-func (ps *PortScanner) Scan(ctx context.Context, targets []netip.Addr, at time.Time) []PortScan {
-	scanned := slices.Clone(ps.ports)
+func (ps *PortScanner) Scan(ctx context.Context, targets []PortTarget, at time.Time) []PortScan {
+	scanned := make([][]uint16, len(targets))
+	for i, t := range targets {
+		scanned[i] = normalisePorts(append(slices.Clone(ps.ports), t.Extra...))
+	}
+
 	found := newPortResults(len(targets))
 	dialer := &net.Dialer{Timeout: ps.timeout}
 
@@ -173,14 +196,14 @@ func (ps *PortScanner) Scan(ctx context.Context, targets []netip.Addr, at time.T
 	)
 
 feed:
-	for i, addr := range targets {
-		for _, port := range ps.ports {
+	for i, t := range targets {
+		for _, port := range scanned[i] {
 			if gctx.Err() != nil {
 				break feed
 			}
 
 			g.Go(func() error {
-				if probe(gctx, dialer, addr, port) {
+				if probe(gctx, dialer, t.Addr, port) {
 					found.add(i, port)
 				}
 
@@ -195,11 +218,11 @@ feed:
 
 	results := make([]PortScan, len(targets))
 
-	for i, addr := range targets {
+	for i, t := range targets {
 		results[i] = PortScan{
-			Addr:    addr,
+			Addr:    t.Addr,
 			Open:    found.sorted(i),
-			Scanned: scanned,
+			Scanned: scanned[i],
 			SeenAt:  at,
 		}
 	}

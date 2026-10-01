@@ -130,7 +130,7 @@ func TestPortScannerFindsOpenPorts(t *testing.T) {
 	)
 
 	at := time.Now()
-	got := ps.Scan(t.Context(), []netip.Addr{netip.MustParseAddr("127.0.0.1")}, at)
+	got := ps.Scan(t.Context(), Targets([]netip.Addr{netip.MustParseAddr("127.0.0.1")}), at)
 
 	require.Len(t, got, 1)
 	assert.Equal(t, []uint16{openPort}, got[0].Open)
@@ -152,13 +152,37 @@ func TestPortScannerReturnsEveryTargetInOrder(t *testing.T) {
 	}
 
 	ps := NewPortScanner(discardLogger(), WithPorts([]uint16{port}), WithDialTimeout(time.Second))
-	got := ps.Scan(t.Context(), targets, time.Now())
+	got := ps.Scan(t.Context(), Targets(targets), time.Now())
 
 	require.Len(t, got, 2)
 	assert.Equal(t, targets[0], got[0].Addr)
 	assert.Equal(t, targets[1], got[1].Addr)
 	assert.Empty(t, got[0].Open, "127.0.0.2 has no listener")
 	assert.Equal(t, []uint16{port}, got[1].Open)
+}
+
+// A target's extra ports are probed on that target alone, and its scanned set
+// says so, so ingest can close an advertised port that stops answering.
+func TestPortScannerProbesATargetsExtraPorts(t *testing.T) {
+	t.Parallel()
+
+	l := loopback(t)
+	extra := uint16(l.Addr().(*net.TCPAddr).Port) //nolint:gosec // kernel-assigned.
+
+	gone := loopback(t)
+	preset := uint16(gone.Addr().(*net.TCPAddr).Port) //nolint:gosec // kernel-assigned.
+	require.NoError(t, gone.Close())
+
+	ps := NewPortScanner(discardLogger(), WithPorts([]uint16{preset}), WithDialTimeout(time.Second))
+	got := ps.Scan(t.Context(), []PortTarget{
+		{Addr: netip.MustParseAddr("127.0.0.1"), Extra: []uint16{extra, preset}},
+		{Addr: netip.MustParseAddr("127.0.0.2")},
+	}, time.Now())
+
+	require.Len(t, got, 2)
+	assert.Equal(t, []uint16{extra}, got[0].Open)
+	assert.ElementsMatch(t, []uint16{preset, extra}, got[0].Scanned)
+	assert.Equal(t, []uint16{preset}, got[1].Scanned)
 }
 
 func TestPortScannerHandlesNoTargets(t *testing.T) {
