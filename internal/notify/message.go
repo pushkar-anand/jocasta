@@ -61,9 +61,14 @@ func ForScan(scanID int64, c *inventory.ScanChanges, kinds []dbtype.EventKind) (
 
 	m.Body = strings.Join(lines, "\n")
 
-	if allOf(events, dbtype.EventDeviceDiscovered) {
+	switch {
+	case allOf(events, dbtype.EventDeviceDiscovered):
 		m.Title = count(len(events), "new device", "new devices") + " " + where(c)
-	} else {
+	case allOf(events, dbtype.EventDeviceQuiet):
+		m.Title = count(len(events), "device went quiet", "devices went quiet") + " " + where(c)
+	case allOf(events, dbtype.EventDeviceBack):
+		m.Title = count(len(events), "device came back", "devices came back") + " " + where(c)
+	default:
 		m.Title = count(len(events), "change", "changes") + " " + where(c)
 	}
 
@@ -103,8 +108,8 @@ func where(c *inventory.ScanChanges) string {
 }
 
 // sortByKind groups events by kind, in the order dbtype.EventKinds lists
-// them, so new devices lead; within a kind they keep the order they happened
-// in.
+// them, so a watched device going quiet leads; within a kind they keep the
+// order they happened in.
 func sortByKind(events []*inventory.Event) {
 	rank := make(map[dbtype.EventKind]int)
 	for i, k := range dbtype.EventKinds() {

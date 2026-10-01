@@ -125,6 +125,8 @@ func TestEnumValid(t *testing.T) {
 	assert.True(t, EventAddressAdded.Valid())
 	assert.True(t, EventAddressReleased.Valid())
 	assert.True(t, EventPortOpened.Valid())
+	assert.True(t, EventDeviceQuiet.Valid())
+	assert.True(t, EventDeviceBack.Valid())
 	assert.True(t, HostnameFromDNS.Valid())
 	assert.True(t, PortClosed.Valid())
 	assert.False(t, PortState("filtered").Valid())

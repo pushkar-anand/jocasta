@@ -160,6 +160,8 @@ func (d *Device) scanAndSaveNetwork(ctx context.Context, network *netip.Prefix) 
 		slog.Int("identified", saved.Identified),
 		slog.Int("merged", saved.Merged),
 		slog.Int("released", saved.Released),
+		slog.Int("back", saved.Back),
+		slog.Int("quiet", saved.Quiet),
 	)
 
 	return nil
@@ -192,7 +194,12 @@ func (d *Device) discoverAndSave(ctx context.Context, p plugin.HostDiscoverer) e
 		)
 	}
 
-	saved, err := d.store.RecordFacts(ctx, p.Name(), p.Kind(), facts)
+	record := d.store.RecordFacts
+	if err != nil {
+		record = d.store.RecordPartialFacts
+	}
+
+	saved, err := record(ctx, p.Name(), p.Kind(), facts)
 	if err != nil {
 		return fmt.Errorf("record facts from %s: %w", p.Name(), err)
 	}
@@ -206,6 +213,8 @@ func (d *Device) discoverAndSave(ctx context.Context, p plugin.HostDiscoverer) e
 		slog.Int("identified", saved.Identified),
 		slog.Int("merged", saved.Merged),
 		slog.Int("dropped", saved.Dropped),
+		slog.Int("back", saved.Back),
+		slog.Int("quiet", saved.Quiet),
 	)
 
 	return nil

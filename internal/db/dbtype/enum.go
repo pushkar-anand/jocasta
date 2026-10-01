@@ -160,9 +160,21 @@ const (
 	// the guess lapsing back to nothing. The user's own answer, in
 	// device_type, is logged as EventDeviceEdited.
 	EventDeviceClassified EventKind = "DEVICE_CLASSIFIED"
+
+	// EventDeviceQuiet and EventDeviceBack record a watched device crossing the
+	// online window: a reading that could have seen it found it gone longer
+	// than the window, or a reading saw it again after that. Devices nobody
+	// watches cross it without an event, since phones and laptops do so all
+	// day.
+	EventDeviceQuiet EventKind = "DEVICE_QUIET"
+	EventDeviceBack  EventKind = "DEVICE_BACK"
 )
 
+// eventKinds leads with a watched device going quiet: of everything a scan can
+// report, that is the change an owner asked to hear about first.
 var eventKinds = []EventKind{
+	EventDeviceQuiet,
+	EventDeviceBack,
 	EventDeviceDiscovered,
 	EventDeviceIdentified,
 	EventDevicesMerged,

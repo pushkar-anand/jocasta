@@ -17,6 +17,8 @@ var wording = map[dbtype.EventKind]struct {
 	// label names the kind as a thing to be told about.
 	label string
 }{
+	dbtype.EventDeviceQuiet:      {"went quiet", "Watched device went quiet"},
+	dbtype.EventDeviceBack:       {"came back", "Watched device came back"},
 	dbtype.EventDeviceDiscovered: {"was discovered", "New device"},
 	dbtype.EventDeviceIdentified: {"was identified", "Hardware address learned"},
 	dbtype.EventDevicesMerged:    {"was merged with a duplicate", "Duplicates merged"},
@@ -72,6 +74,10 @@ func (e *Event) Change() string {
 		default:
 			return "port " + port
 		}
+	}
+
+	if e.Kind == dbtype.EventDeviceQuiet || e.Kind == dbtype.EventDeviceBack {
+		return presenceChange(e)
 	}
 
 	// A released address has nothing after it, and "→ cleared" would read as

@@ -45,6 +45,10 @@ sql:
             go_type: *timestamp
           - column: "devices.last_seen"
             go_type: *timestamp
+          - column: "devices.present_since"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "NullTime"
           - column: "addresses.first_seen"
             go_type: *timestamp
           - column: "traffic_hourly.hour"
@@ -190,6 +194,8 @@ sql:
           - column: "devices.is_randomised"
             go_type: "bool"
           - column: "devices.is_ignored"
+            go_type: "bool"
+          - column: "devices.is_watched"
             go_type: "bool"
           - column: "addresses.is_current"
             go_type: "bool"
