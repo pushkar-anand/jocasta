@@ -3,16 +3,11 @@
 package e2e
 
 import (
-	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
-	"strconv"
 	"strings"
-	"sync"
 	"testing"
 )
 
@@ -37,130 +32,23 @@ func TestAudit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fixtures := pick("E2E_FIXTURES", []fixture{fixtureEmpty, fixtureNormal, fixtureWeird, fixtureFresh}, func(f fixture) string { return f.name })
-	rs := pick("E2E_ROLES", []role{admin}, func(r role) string { return r.name }, roles...)
-	vs := pick("E2E_VIEWPORTS", viewports, func(v viewport) string { return v.name })
-	ts := pick("E2E_THEMES", themes, func(s string) string { return s })
-
-	type job struct {
-		a       *app
-		r       role
-		cookies []*http.Cookie
-		v       viewport
-		theme   string
-		p       page
-		s       state
+	m := matrix{
+		fixtures:  pick("E2E_FIXTURES", allFixtures, func(f fixture) string { return f.name }),
+		roles:     pick("E2E_ROLES", []role{admin}, func(r role) string { return r.name }, roles...),
+		viewports: pick("E2E_VIEWPORTS", viewports, func(v viewport) string { return v.name }),
+		themes:    pick("E2E_THEMES", themes, func(s string) string { return s }),
 	}
 
-	var jobs []job
+	var shots []*shot
 
-	for _, f := range fixtures {
-		a, stop, err := startApp(t.Context(), t.TempDir(), f)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer stop()
-
-		ps, err := pages(t.Context(), a)
-		if err != nil {
-			t.Fatal(err)
+	m.run(t, func(sh *shot) {
+		if err := os.WriteFile(filepath.Join(out, sh.file()), sh.png, 0o600); err != nil { //nolint:gosec // under the directory this run was pointed at
+			t.Error(err)
 		}
 
-		ps = pick("E2E_PAGES", ps, func(p page) string { return p.name })
-
-		for _, r := range rs {
-			var cookies []*http.Cookie
-			if !f.noUsers {
-				if cookies, err = a.signIn(t.Context(), r); err != nil {
-					t.Fatal(err)
-				}
-			}
-
-			for _, p := range ps {
-				if p.signedOut && r.name != rs[0].name {
-					continue
-				}
-
-				c := cookies
-				if p.signedOut {
-					c = nil
-				}
-
-				for _, v := range vs {
-					for _, theme := range ts {
-						for _, s := range p.states {
-							jobs = append(jobs, job{a, r, c, v, theme, p, s})
-						}
-					}
-				}
-			}
-		}
-	}
-
-	workers := 6
-	if n, err := strconv.Atoi(os.Getenv("E2E_PARALLEL")); err == nil && n > 0 {
-		workers = n
-	}
-
-	var (
-		mu    sync.Mutex
-		shots []*shot
-		wg    sync.WaitGroup
-		queue = make(chan job)
-	)
-
-	// Each worker has a Chrome of its own, so one that falls over takes only
-	// its own page with it; the worker starts another and tries once more.
-	for range workers {
-		wg.Go(func() {
-			var b *browser
-
-			defer func() {
-				if b != nil {
-					b.cancel()
-				}
-			}()
-
-			// Draining the queue even when Chrome will not start keeps the
-			// sender below from blocking on a worker that gave up.
-			for j := range queue {
-				sh, err := retry(t, &b, func(b *browser) (*shot, error) {
-					return capture(b, j.a, j.r, j.cookies, j.v, j.theme, j.p, j.s)
-				})
-				if errors.Is(err, errNotApplicable) {
-					continue
-				}
-
-				if err != nil {
-					t.Errorf("%s/%s/%s/%s/%s: %v", j.a.fixture.name, j.r.name, j.p.name, j.s.name, j.v.name, err)
-
-					continue
-				}
-
-				if err := os.WriteFile(filepath.Join(out, sh.file()), sh.png, 0o600); err != nil { //nolint:gosec // under the directory this run was pointed at
-					t.Error(err)
-				}
-
-				sh.png = nil
-
-				mu.Lock()
-
-				shots = append(shots, sh)
-				mu.Unlock()
-			}
-		})
-	}
-
-	for i, j := range jobs {
-		if i%100 == 0 {
-			t.Logf("%d/%d", i, len(jobs))
-		}
-
-		queue <- j
-	}
-
-	close(queue)
-	wg.Wait()
+		sh.png = nil
+		shots = append(shots, sh)
+	})
 
 	sort.Slice(shots, func(i, j int) bool { return shots[i].file() < shots[j].file() })
 
@@ -169,61 +57,6 @@ func TestAudit(t *testing.T) {
 	}
 
 	t.Log(summary(shots))
-}
-
-// retry runs capture on *b, starting a Chrome when there is none, and once
-// more on a fresh one when the first attempt fails: a Chrome that fell over
-// fails every page after it.
-func retry(t *testing.T, b **browser, capture func(*browser) (*shot, error)) (*shot, error) {
-	t.Helper()
-
-	var lastErr error
-
-	for range 2 {
-		if *b == nil {
-			nb, err := newBrowser(t.Context())
-			if err != nil {
-				lastErr = err
-
-				continue
-			}
-
-			*b = nb
-		}
-
-		sh, err := capture(*b)
-		if err == nil || errors.Is(err, errNotApplicable) {
-			return sh, err
-		}
-
-		lastErr = err
-
-		(*b).cancel()
-		*b = nil
-	}
-
-	return nil, lastErr
-}
-
-// pick narrows all to the names listed in env, or keeps def when env is
-// unset. extra are further choices env may name that def leaves out.
-func pick[T any](env string, def []T, name func(T) string, extra ...T) []T {
-	want := os.Getenv(env)
-	if want == "" {
-		return def
-	}
-
-	names := strings.Split(want, ",")
-
-	var out []T
-
-	for _, c := range append(slices.Clone(def), extra...) {
-		if slices.Contains(names, name(c)) && !slices.ContainsFunc(out, func(o T) bool { return name(o) == name(c) }) {
-			out = append(out, c)
-		}
-	}
-
-	return out
 }
 
 // summary counts each check's findings, and on how many pages.

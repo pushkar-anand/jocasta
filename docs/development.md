@@ -5,6 +5,8 @@
 ```bash
 make build          # build to bin/
 make test           # go test ./...
+make e2e            # browser tests a pull request must pass (needs Chrome)
+make e2e-full       # browser tests on every screen and account
 make lint           # golangci-lint (installs it to bin/ on first run)
 make dev            # hot-reload server via air
 make gen            # regenerate sqlc models
@@ -13,9 +15,46 @@ make oui            # rebuild the embedded MAC-vendor table
 make htmx           # refresh the vendored htmx
 ```
 
+## Browser tests
+
+`internal/web/e2e` drives Chrome over the real server, built with the `e2e`
+tag so `go test ./...` leaves it out. It needs Google Chrome or Chromium on
+`PATH`, or `E2E_CHROME` set to one.
+
+Each page is drawn over four fabricated inventories (empty, a home network,
+one with extreme data, and one with no accounts), and each dialog, menu and
+inline edit it opens is drawn too. Every drawing is checked for sideways
+scrolling, clipped or overlapping text, small tap targets, small text, WCAG
+2.2 AA failures (axe-core), script errors and failed requests.
+
+`make e2e` draws every page as admin on a phone, a tablet and a laptop, in
+both themes. It takes about two minutes, and CI does not run it: run it before
+opening a pull request that touches the UI. `make e2e-full` adds every other
+screen and account; `scripts/release.sh` runs it before tagging.
+
+A finding fails the run unless `testdata/known.json` lists it under an open
+issue. A fix deletes its entries. `make e2e-full` also fails on an entry that
+no longer matches anything.
+
+To look at a fixture in a browser:
+
+```bash
+E2E_SERVE=weird go test -tags e2e -run TestServe -timeout 0 ./internal/web/e2e/
+```
+
+To capture every page and read the findings, with no pass or fail:
+
+```bash
+E2E_AUDIT=$PWD/tmp/audit TMPDIR=$PWD/tmp go test -tags e2e -run TestAudit -timeout 0 ./internal/web/e2e/
+```
+
+`E2E_FIXTURES`, `E2E_ROLES`, `E2E_VIEWPORTS`, `E2E_THEMES` and `E2E_PAGES`
+narrow either run to a comma-separated list.
+
 ## Release
 
-After CI passes on `main`, run:
+After CI passes on `main`, run the following. It runs `make e2e-full` first,
+so Chrome must be installed.
 
 ```bash
 ./scripts/release.sh v0.10.0

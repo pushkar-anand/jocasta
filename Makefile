@@ -1,4 +1,4 @@
-.PHONY: tidy fmt build run gen new_migration docker oui asn geo world htmx test lint dev
+.PHONY: tidy fmt build run gen new_migration docker oui asn geo world htmx test lint dev e2e e2e-full
 
 .DEFAULT_GOAL := build
 
@@ -43,6 +43,18 @@ htmx: ## Refresh the vendored htmx. Usage: make htmx [HTMX_VERSION=2.0.8]
 
 test:
 	go test ./...
+
+# The browser tests write databases and Chrome profiles under TMPDIR; a full
+# run is larger than some /tmp partitions, so they go under tmp/ here.
+E2E_TMP := $(CURDIR)/tmp/e2e
+
+e2e: ## Run the browser tests a pull request must pass. Needs Chrome.
+	mkdir -p $(E2E_TMP)
+	TMPDIR=$(E2E_TMP) go test -tags e2e -count=1 -timeout 30m -run 'TestFixturesRender|TestE2E' ./internal/web/e2e/
+
+e2e-full: ## Run the browser tests on every screen and account, as a release does.
+	mkdir -p $(E2E_TMP)
+	E2E_FULL=1 TMPDIR=$(E2E_TMP) go test -tags e2e -count=1 -timeout 60m -run 'TestFixturesRender|TestE2E' ./internal/web/e2e/
 
 lint: ## Run golangci-lint
 	@if [ ! -f ./bin/golangci-lint ]; then \

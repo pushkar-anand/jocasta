@@ -1,0 +1,126 @@
+[
+  {
+    "issue": "C3",
+    "check": "axe:color-contrast",
+    "el": ".chip--ok"
+  },
+  {
+    "issue": "C3",
+    "check": "axe:color-contrast",
+    "el": ".chip--fail"
+  },
+  {
+    "issue": "C4",
+    "check": "axe:color-contrast",
+    "el": ".clear"
+  },
+  {
+    "issue": "C4",
+    "check": "axe:link-in-text-block"
+  },
+  {
+    "issue": "S9",
+    "check": "axe:link-name",
+    "el": ".brandmark"
+  },
+  {
+    "issue": "C10",
+    "check": "axe:nested-interactive",
+    "el": ".netmap__svg"
+  },
+  {
+    "issue": "C9",
+    "check": "axe:scrollable-region-focusable",
+    "el": ".scroller"
+  },
+  {
+    "issue": "S1",
+    "check": "off-left-edge",
+    "el": "usermenu__"
+  },
+  {
+    "issue": "M4",
+    "check": "overlap",
+    "el": "g.netmap__devices > a.netmap__dev"
+  },
+  {
+    "issue": "M4",
+    "check": "overlap",
+    "el": "text.netmap__label"
+  },
+  {
+    "issue": "M5",
+    "check": "overlap",
+    "el": "text.topo__group-title"
+  },
+  {
+    "issue": "M1",
+    "check": "overlap",
+    "el": "input#netmap-search"
+  },
+  {
+    "issue": "L3",
+    "check": "overlap",
+    "el": "nav.nav > a.navitem"
+  },
+  {
+    "issue": "D4",
+    "check": "overlap",
+    "el": "hN#page-title"
+  },
+  {
+    "issue": "D4",
+    "check": "page-scrolls-sideways",
+    "el": "hN#page-title"
+  },
+  {
+    "issue": "D4",
+    "check": "page-scrolls-sideways",
+    "el": "ol.path > li.path__hop"
+  },
+  {
+    "issue": "C2",
+    "check": "page-scrolls-sideways",
+    "el": "form.filters > label.field"
+  },
+  {
+    "issue": "C2",
+    "check": "page-scrolls-sideways",
+    "el": "form#device-filters > label.field"
+  },
+  {
+    "issue": "L1",
+    "check": "page-scrolls-sideways",
+    "el": "html"
+  },
+  {
+    "issue": "M6",
+    "check": "text-spills",
+    "el": "worldmap__scale"
+  },
+  {
+    "issue": "L3",
+    "check": "text-spills",
+    "el": "tr#device-row-N > td.dim"
+  },
+  {
+    "issue": "S7",
+    "check": "tiny-text",
+    "el": "brandmark__sub"
+  },
+  {
+    "issue": "S7",
+    "check": "tiny-text",
+    "el": "sidebar__eyebrow"
+  },
+  {
+    "issue": "S7",
+    "check": "tiny-text",
+    "el": "authcard__sub"
+  },
+  {
+    "issue": "S7",
+    "check": "tiny-text",
+    "el": "usermenu__group"
+  }
+]
