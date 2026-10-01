@@ -7,6 +7,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -66,6 +67,10 @@ type shot struct {
 	Problems []problem `json:"problems"`
 
 	png []byte
+
+	// golden is the first screen at 1x, for comparing against the stored
+	// picture; nil when this shot has none.
+	golden []byte
 }
 
 // problem is one fault a check found.
@@ -102,7 +107,7 @@ func newBrowser(ctx context.Context) (*browser, error) {
 		alloc, cancel = chromedp.NewExecAllocator(ctx, opts...)
 	}
 
-	bctx, bcancel := chromedp.NewContext(alloc)
+	bctx, bcancel := chromedp.NewContext(alloc, chromedp.WithErrorf(quietErrorf))
 	if err := chromedp.Run(bctx); err != nil {
 		bcancel()
 		cancel()
@@ -111,6 +116,17 @@ func newBrowser(ctx context.Context) (*browser, error) {
 	}
 
 	return &browser{ctx: bctx, cancel: func() { bcancel(); cancel() }}, nil
+}
+
+// quietErrorf logs chromedp's errors except the events it has no handler
+// for yet, which newer Chrome sends for every open dialog.
+func quietErrorf(format string, args ...any) {
+	msg := fmt.Sprintf(format, args...)
+	if strings.Contains(msg, "unhandled node event") {
+		return
+	}
+
+	log.Print(msg)
 }
 
 // tab is one page load's worth of listening: everything the console and the
@@ -278,7 +294,7 @@ func check(v viewport, out *[]problem) chromedp.Action {
 }
 
 // capture loads one page in one state, checks it, and screenshots it.
-func capture(b *browser, a *app, r role, cookies []*http.Cookie, v viewport, theme string, p page, s state) (*shot, error) {
+func capture(b *browser, a *app, r role, cookies []*http.Cookie, v viewport, theme string, p page, s state, golden bool) (*shot, error) {
 	t, cancel, err := b.newTab(cookies, a.srv.URL)
 	if err != nil {
 		return nil, err
@@ -309,6 +325,10 @@ func capture(b *browser, a *app, r role, cookies []*http.Cookie, v viewport, the
 		check(v, &sh.Problems),
 		screenshot(v, &sh.png),
 	)
+
+	if golden {
+		tasks = append(tasks, firstScreen(v, &sh.golden))
+	}
 
 	if os.Getenv("E2E_TIMING") != "" {
 		timed := make(chromedp.Tasks, 0, len(tasks))
@@ -383,6 +403,35 @@ func screenshot(v viewport, out *[]byte) chromedp.Action {
 			WithFromSurface(true).
 			WithClip(clip).
 			Do(ctx)
+
+		return err
+	})
+}
+
+// firstScreen captures what a reader sees before scrolling, at 1x so a
+// stored picture stays small, with the text caret hidden: it blinks.
+func firstScreen(v viewport, out *[]byte) chromedp.Action {
+	return chromedp.ActionFunc(func(ctx context.Context) error {
+		opts := []chromedp.EmulateViewportOption{chromedp.EmulateScale(1)}
+		if v.touch {
+			opts = append(opts, chromedp.EmulateMobile, chromedp.EmulateTouch)
+		}
+
+		err := chromedp.Tasks{
+			chromedp.EmulateViewport(v.w, v.h, opts...),
+			// Through the CSSOM: the content security policy refuses a
+			// <style> element, and a test must not need it lifted.
+			chromedp.Evaluate(`(() => {
+				if (document.activeElement) document.activeElement.style.caretColor = 'transparent';
+				window.scrollTo(0, 0);
+			})()`, nil),
+			chromedp.Sleep(100 * time.Millisecond),
+		}.Do(ctx)
+		if err != nil {
+			return err
+		}
+
+		*out, err = cdppage.CaptureScreenshot().WithFormat(cdppage.CaptureScreenshotFormatPng).WithFromSurface(true).Do(ctx)
 
 		return err
 	})
