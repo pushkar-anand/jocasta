@@ -444,9 +444,10 @@ h1 {
 
 .block__head {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
+    gap: 8px 16px;
 }
 
 /* h2. The section a page breaks into: named, in body colour, and carrying a
@@ -467,6 +468,12 @@ h1 {
 .block__head {
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border);
+}
+
+/* A head with no heading of its own, under a page title that already names
+   the section: only its count and actions remain, at the end of the row. */
+.block__head--end {
+    justify-content: flex-end;
 }
 
 .block__head .section {
@@ -2693,10 +2700,15 @@ td .traffic__tried {
 }
 
 /* The count and the Add action share the end of a block heading. */
+/* The count and the actions stay whole; when the row is short, they wrap
+   under whatever leads it rather than breaking word by word. */
 .block__headend {
     display: flex;
+    flex: none;
     align-items: center;
     gap: 14px;
+    margin-left: auto;
+    white-space: nowrap;
 }
 
 .block__headend .btn {
