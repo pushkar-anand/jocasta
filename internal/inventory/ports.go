@@ -130,11 +130,17 @@ func (s *Store) ingestPorts(ctx context.Context, scanID int64, scans []scanner.P
 	q := s.q.WithTx(tx)
 	at := s.stamp()
 	sum := &PortSummary{Targets: len(scans)}
-	touched := map[int64]struct{}{}
 
-	for _, scan := range scans {
-		if err := s.recordPorts(ctx, q, scanID, at, scan, sum, touched); err != nil {
-			return nil, nil, fmt.Errorf("record ports for %s: %w", scan.Addr, err)
+	found, err := s.gatherPorts(ctx, q, scans, sum)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ids := slices.Sorted(maps.Keys(found))
+
+	for _, id := range ids {
+		if err := s.recordPorts(ctx, q, scanID, at, id, found[id], sum); err != nil {
+			return nil, nil, err
 		}
 	}
 
@@ -142,53 +148,85 @@ func (s *Store) ingestPorts(ctx context.Context, scanID int64, scans []scanner.P
 		return nil, nil, fmt.Errorf("commit port ingest: %w", err)
 	}
 
-	return sum, slices.Sorted(maps.Keys(touched)), nil
+	return sum, ids, nil
 }
 
-// recordPorts diffs one address's scan against what the inventory has for its
-// device: a port newly open gets a row and an event, a port that was open and
-// was looked at again but did not answer flips to closed, and a port the scan
-// did not cover is left alone, since this run has no opinion on it.
+// devicePorts is what a scan found across every address of one device: the
+// ports that answered on any of them, and the ports probed on any of them.
+type devicePorts struct {
+	open    map[uint16]struct{}
+	scanned map[uint16]struct{}
+}
+
+// gatherPorts files each result under the device that holds its address now,
+// keyed by device id. A device can hold several addresses, such as a wired
+// and a Wi-Fi one, and a service can listen on one of them alone, so a port
+// is the device's own once any of its addresses answers on it.
+func (s *Store) gatherPorts(
+	ctx context.Context,
+	q *models.Queries,
+	scans []scanner.PortScan,
+	sum *PortSummary,
+) (map[int64]*devicePorts, error) {
+	found := make(map[int64]*devicePorts)
+
+	for _, scan := range scans {
+		holder, err := currentHolder(ctx, q, dbtype.NewAddr(scan.Addr))
+		if err != nil {
+			return nil, fmt.Errorf("record ports for %s: %w", scan.Addr, err)
+		}
+
+		if holder == nil {
+			s.log.DebugContext(ctx, "dropping a port result for an address no device holds", slog.String("addr", scan.Addr.String()))
+
+			sum.Dropped++
+
+			continue
+		}
+
+		sum.Devices++
+
+		d, ok := found[holder.ID]
+		if !ok {
+			d = &devicePorts{open: map[uint16]struct{}{}, scanned: map[uint16]struct{}{}}
+			found[holder.ID] = d
+		}
+
+		for _, port := range scan.Open {
+			d.open[port] = struct{}{}
+		}
+
+		for _, port := range scan.Scanned {
+			d.scanned[port] = struct{}{}
+		}
+	}
+
+	return found, nil
+}
+
+// recordPorts diffs what a scan found across a device's addresses against what
+// the inventory has for it: a port newly open gets a row and an event, a port
+// that was open and was looked at again but answered on none of its addresses
+// flips to closed, and a port the scan did not cover is left alone, since this
+// run has no opinion on it.
 func (s *Store) recordPorts(
 	ctx context.Context,
 	q *models.Queries,
 	scanID int64,
 	at dbtype.Time,
-	scan scanner.PortScan,
+	deviceID int64,
+	found *devicePorts,
 	sum *PortSummary,
-	touched map[int64]struct{},
 ) error {
-	ip := dbtype.NewAddr(scan.Addr)
-
-	holder, err := currentHolder(ctx, q, ip)
+	wasOpen, err := openPorts(ctx, q, deviceID)
 	if err != nil {
 		return err
 	}
 
-	if holder == nil {
-		s.log.DebugContext(ctx, "dropping a port result for an address no device holds", slog.String("addr", scan.Addr.String()))
+	sum.Open += len(found.open)
 
-		sum.Dropped++
-
-		return nil
-	}
-
-	touched[holder.ID] = struct{}{}
-	sum.Devices++
-	sum.Open += len(scan.Open)
-
-	wasOpen, err := openPorts(ctx, q, holder.ID)
-	if err != nil {
-		return err
-	}
-
-	openNow := make(map[uint16]struct{}, len(scan.Open))
-	for _, port := range scan.Open {
-		openNow[port] = struct{}{}
-	}
-
-	for _, port := range scan.Open {
-		if err := s.openPort(ctx, q, scanID, at, holder.ID, port, wasOpen); err != nil {
+	for _, port := range slices.Sorted(maps.Keys(found.open)) {
+		if err := s.openPort(ctx, q, scanID, at, deviceID, port, wasOpen); err != nil {
 			return err
 		}
 
@@ -197,20 +235,15 @@ func (s *Store) recordPorts(
 		}
 	}
 
-	scannedNow := make(map[uint16]struct{}, len(scan.Scanned))
-	for _, port := range scan.Scanned {
-		scannedNow[port] = struct{}{}
-	}
-
-	for port := range wasOpen {
-		_, stillOpen := openNow[port]
-		_, looked := scannedNow[port]
+	for _, port := range slices.Sorted(maps.Keys(wasOpen)) {
+		_, stillOpen := found.open[port]
+		_, looked := found.scanned[port]
 
 		if stillOpen || !looked {
 			continue
 		}
 
-		if err := s.closePort(ctx, q, scanID, at, holder.ID, port); err != nil {
+		if err := s.closePort(ctx, q, scanID, at, deviceID, port); err != nil {
 			return err
 		}
 

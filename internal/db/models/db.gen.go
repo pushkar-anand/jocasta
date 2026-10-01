@@ -27,9 +27,6 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.adoptCurationStmt, err = db.PrepareContext(ctx, adoptCuration); err != nil {
 		return nil, fmt.Errorf("error preparing query AdoptCuration: %w", err)
 	}
-	if q.advertisedTCPPortsStmt, err = db.PrepareContext(ctx, advertisedTCPPorts); err != nil {
-		return nil, fmt.Errorf("error preparing query AdvertisedTCPPorts: %w", err)
-	}
 	if q.allCurrentAddressesStmt, err = db.PrepareContext(ctx, allCurrentAddresses); err != nil {
 		return nil, fmt.Errorf("error preparing query AllCurrentAddresses: %w", err)
 	}
@@ -158,6 +155,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.enableUserTOTPStmt, err = db.PrepareContext(ctx, enableUserTOTP); err != nil {
 		return nil, fmt.Errorf("error preparing query EnableUserTOTP: %w", err)
+	}
+	if q.extraScanPortsStmt, err = db.PrepareContext(ctx, extraScanPorts); err != nil {
+		return nil, fmt.Errorf("error preparing query ExtraScanPorts: %w", err)
 	}
 	if q.finishScanStmt, err = db.PrepareContext(ctx, finishScan); err != nil {
 		return nil, fmt.Errorf("error preparing query FinishScan: %w", err)
@@ -379,11 +379,6 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing adoptCurationStmt: %w", cerr)
 		}
 	}
-	if q.advertisedTCPPortsStmt != nil {
-		if cerr := q.advertisedTCPPortsStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing advertisedTCPPortsStmt: %w", cerr)
-		}
-	}
 	if q.allCurrentAddressesStmt != nil {
 		if cerr := q.allCurrentAddressesStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing allCurrentAddressesStmt: %w", cerr)
@@ -597,6 +592,11 @@ func (q *Queries) Close() error {
 	if q.enableUserTOTPStmt != nil {
 		if cerr := q.enableUserTOTPStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing enableUserTOTPStmt: %w", cerr)
+		}
+	}
+	if q.extraScanPortsStmt != nil {
+		if cerr := q.extraScanPortsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing extraScanPortsStmt: %w", cerr)
 		}
 	}
 	if q.finishScanStmt != nil {
@@ -989,7 +989,6 @@ type Queries struct {
 	db                                 DBTX
 	tx                                 *sql.Tx
 	adoptCurationStmt                  *sql.Stmt
-	advertisedTCPPortsStmt             *sql.Stmt
 	allCurrentAddressesStmt            *sql.Stmt
 	allNetworksStmt                    *sql.Stmt
 	answerAttemptsStmt                 *sql.Stmt
@@ -1033,6 +1032,7 @@ type Queries struct {
 	disableUserTOTPStmt                *sql.Stmt
 	earliestTrafficStmt                *sql.Stmt
 	enableUserTOTPStmt                 *sql.Stmt
+	extraScanPortsStmt                 *sql.Stmt
 	finishScanStmt                     *sql.Stmt
 	firstContactsStmt                  *sql.Stmt
 	getAddressStmt                     *sql.Stmt
@@ -1110,7 +1110,6 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		db:                                 tx,
 		tx:                                 tx,
 		adoptCurationStmt:                  q.adoptCurationStmt,
-		advertisedTCPPortsStmt:             q.advertisedTCPPortsStmt,
 		allCurrentAddressesStmt:            q.allCurrentAddressesStmt,
 		allNetworksStmt:                    q.allNetworksStmt,
 		answerAttemptsStmt:                 q.answerAttemptsStmt,
@@ -1154,6 +1153,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		disableUserTOTPStmt:                q.disableUserTOTPStmt,
 		earliestTrafficStmt:                q.earliestTrafficStmt,
 		enableUserTOTPStmt:                 q.enableUserTOTPStmt,
+		extraScanPortsStmt:                 q.extraScanPortsStmt,
 		finishScanStmt:                     q.finishScanStmt,
 		firstContactsStmt:                  q.firstContactsStmt,
 		getAddressStmt:                     q.getAddressStmt,

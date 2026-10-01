@@ -316,6 +316,68 @@ func TestAnAdvertisedPortThatStopsAnsweringCloses(t *testing.T) {
 	assert.Equal(t, "closed", queryString(t, conn, `SELECT state FROM device_ports WHERE port = 10001`))
 }
 
+// A service that moves to a new port leaves its old one recorded open. The
+// targets carry the old port beside the new, so the next scan closes it.
+func TestAMovedServicesOldPortCloses(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	speaker := host("192.0.2.10", macA, "")
+	speaker.Services = []hosts.Service{{Type: "_spotify-connect._tcp", Instance: "Speaker", Port: 41000}}
+
+	sweep(t, s, speaker)
+	recordPorts(t, s, portScan("192.0.2.10", []uint16{41000}, []uint16{22, 41000}))
+
+	speaker.Services[0].Port = 42000
+	sweep(t, s, speaker)
+
+	targets, err := s.PortScanTargets(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, []scanner.PortTarget{{Addr: netip.MustParseAddr("192.0.2.10"), Extra: []uint16{41000, 42000}}}, targets)
+
+	recordPorts(t, s, portScan("192.0.2.10", []uint16{42000}, []uint16{22, 41000, 42000}))
+
+	assert.Equal(t, "closed", queryString(t, conn, `SELECT state FROM device_ports WHERE port = 41000`))
+	assert.Equal(t, "open", queryString(t, conn, `SELECT state FROM device_ports WHERE port = 42000`))
+}
+
+// A device with two addresses whose service listens on one of them keeps the
+// port open across scans, with the one event that opened it, and counts it
+// once. A port closes only once no address of the device answers on it.
+func TestAPortOpenOnOneAddressOfADeviceStaysOpen(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, host("192.0.2.10", macA, "host-a"), host("192.0.2.20", macA, "host-a"))
+	require.Equal(t, []string{"192.0.2.10", "192.0.2.20"}, currentIPs(t, conn, deviceIDByMAC(t, conn, macA)))
+
+	for range 2 {
+		recordPorts(t, s,
+			portScan("192.0.2.10", []uint16{8080}, []uint16{22, 8080}),
+			portScan("192.0.2.20", nil, []uint16{22, 8080}),
+		)
+	}
+
+	// Answering on both addresses is still one port of one device.
+	sum := recordPorts(t, s,
+		portScan("192.0.2.10", []uint16{8080}, []uint16{22, 8080}),
+		portScan("192.0.2.20", []uint16{8080}, []uint16{22, 8080}),
+	)
+
+	assert.Equal(t, 1, sum.Open)
+	assert.Equal(t, "open", queryString(t, conn, `SELECT state FROM device_ports WHERE port = 8080`))
+	assert.Equal(t, 1, queryInt(t, conn, `SELECT COUNT(*) FROM events WHERE kind IN ('PORT_OPENED', 'PORT_CLOSED')`))
+
+	recordPorts(t, s,
+		portScan("192.0.2.10", nil, []uint16{22, 8080}),
+		portScan("192.0.2.20", nil, []uint16{22, 8080}),
+	)
+
+	assert.Equal(t, "closed", queryString(t, conn, `SELECT state FROM device_ports WHERE port = 8080`))
+}
+
 func TestPortOverviewSummarisesCurrentServicesAndChanges(t *testing.T) {
 	t.Parallel()
 
