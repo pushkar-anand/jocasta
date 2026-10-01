@@ -44,6 +44,7 @@ var defaults = map[string]any{
 	"scan.devices.resolve_macs":    true,
 	"scan.devices.resolve_mdns":    true,
 	"scan.devices.resolve_netbios": true,
+	"scan.devices.resolve_dnssd":   true,
 	"scan.devices.resolve_ssdp":    true,
 	"scan.ports.enabled":           false,
 	"scan.ports.interval":          "6h",

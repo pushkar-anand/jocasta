@@ -62,6 +62,7 @@ scan:
     resolve_macs: true    # read the neighbour table for hardware addresses
     resolve_mdns: true    # ask hosts over mDNS when reverse DNS gives no name or is off
     resolve_netbios: true # ask hosts over NetBIOS when reverse DNS and mDNS give no name
+    resolve_dnssd: true   # browse advertised services and name the rest after the name they give them
     resolve_ssdp: true    # search over SSDP and name the rest after their UPnP friendlyName
   ports:
     enabled: false

@@ -15,7 +15,7 @@ const standardMDNSPort = 5353
 // itself (RFC 6762, section 5.5).
 var mdns = nameProtocol{
 	query: func(addr netip.Addr) ([]byte, error) {
-		return reverseQuery(reverseName(addr))
+		return ptrQuery(reverseName(addr))
 	},
 	answer: func(b []byte, addr netip.Addr) (string, bool) {
 		return parseReverseAnswer(b, reverseName(addr))
@@ -30,22 +30,24 @@ func reverseName(addr netip.Addr) string {
 	return fmt.Sprintf("%d.%d.%d.%d.in-addr.arpa.", b[3], b[2], b[1], b[0])
 }
 
-// reverseQuery returns a PTR query for name with message ID 0, which
-// parseReverseAnswer relies on to ignore the ID.
-func reverseQuery(name string) ([]byte, error) {
-	n, err := dnsmessage.NewName(name)
-	if err != nil {
-		return nil, err
-	}
-
+// ptrQuery returns a query with a PTR question for each of names, and message
+// ID 0, which parseReverseAnswer relies on to ignore the ID.
+func ptrQuery(names ...string) ([]byte, error) {
 	b := dnsmessage.NewBuilder(nil, dnsmessage.Header{})
 
 	if err := b.StartQuestions(); err != nil {
 		return nil, err
 	}
 
-	if err := b.Question(dnsmessage.Question{Name: n, Type: dnsmessage.TypePTR, Class: dnsmessage.ClassINET}); err != nil {
-		return nil, err
+	for _, name := range names {
+		n, err := dnsmessage.NewName(name)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := b.Question(dnsmessage.Question{Name: n, Type: dnsmessage.TypePTR, Class: dnsmessage.ClassINET}); err != nil {
+			return nil, err
+		}
 	}
 
 	return b.Finish()

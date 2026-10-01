@@ -1,7 +1,7 @@
 // Package scanner discovers hosts on a network by sweeping an address range with
 // ICMP echo requests and enriching whatever answers with a MAC address and a
 // hostname, from reverse DNS or, failing that, from the host itself over mDNS,
-// NetBIOS or SSDP.
+// NetBIOS, DNS-SD or SSDP.
 package scanner
 
 import (
@@ -52,6 +52,11 @@ type Host struct {
 	// NameSource is how the sweep learned the name the embedded host carries,
 	// and is empty when it carries none.
 	NameSource dbtype.HostnameSource
+
+	// Services are what the address advertised over DNS-SD during the sweep,
+	// sorted by type and instance. They are empty when it advertised nothing
+	// or the browse is turned off.
+	Services []Service
 }
 
 // MarshalJSON writes the sweep's fields alongside the embedded host's. Without
@@ -69,6 +74,7 @@ func (h Host) MarshalJSON() ([]byte, error) {
 		Randomised bool          `json:"randomised,omitempty"`
 		Self       bool          `json:"self,omitempty"`
 		Interface  string        `json:"interface,omitempty"`
+		Services   []Service     `json:"services,omitempty"`
 	}{
 		Addr:       h.Address(),
 		MAC:        h.MAC,
@@ -80,6 +86,7 @@ func (h Host) MarshalJSON() ([]byte, error) {
 		Randomised: h.Randomised(),
 		Self:       h.Self,
 		Interface:  h.Interface,
+		Services:   h.Services,
 	})
 }
 
@@ -105,13 +112,19 @@ type Scanner struct {
 	resolveMACs    bool
 	resolveMDNS    bool
 	resolveNetBIOS bool
+	resolveDNSSD   bool
 	resolveSSDP    bool
 
-	// mdnsPort, netbiosPort and ssdpGroup are where each protocol's queries
-	// go, which a test points at a responder of its own.
+	// mdnsPort, netbiosPort, dnssdGroup and ssdpGroup are where each
+	// protocol's queries go, which a test points at a responder of its own.
 	mdnsPort    uint16
 	netbiosPort uint16
+	dnssdGroup  netip.AddrPort
 	ssdpGroup   netip.AddrPort
+
+	// dnssdFailed is set while DNS-SD browses keep failing, as ssdpFailed is
+	// for SSDP searches.
+	dnssdFailed atomic.Bool
 
 	// ssdpFailed is set while SSDP searches keep failing, so only the first
 	// failure in a run is logged as a warning. A search that works clears it.
@@ -166,8 +179,15 @@ func WithNetBIOSResolution(v bool) Option {
 	return func(s *Scanner) { s.resolveNetBIOS = v }
 }
 
+// WithDNSSDResolution controls browsing the services hosts that answered
+// advertise over DNS-SD, and naming each that has no name from reverse DNS,
+// mDNS or NetBIOS after the name it gives them.
+func WithDNSSDResolution(v bool) Option {
+	return func(s *Scanner) { s.resolveDNSSD = v }
+}
+
 // WithSSDPResolution controls naming hosts that answered, and have no name
-// from reverse DNS, mDNS or NetBIOS, after the friendlyName in their UPnP
+// from reverse DNS, mDNS, NetBIOS or DNS-SD, after the friendlyName in their UPnP
 // description.
 func WithSSDPResolution(v bool) Option {
 	return func(s *Scanner) { s.resolveSSDP = v }
@@ -192,6 +212,8 @@ func New(log *slog.Logger, opts ...Option) *Scanner {
 		resolveNetBIOS: true,
 		mdnsPort:       standardMDNSPort,
 		netbiosPort:    standardNetBIOSPort,
+		resolveDNSSD:   true,
+		dnssdGroup:     standardDNSSDGroup,
 		resolveSSDP:    true,
 		ssdpGroup:      standardSSDPGroup,
 	}
@@ -310,6 +332,10 @@ func (s *Scanner) enrich(ctx context.Context, replies map[netip.Addr]time.Durati
 		s.nameOver(ctx, found, s.perHost(netbios, s.netbiosPort), dbtype.HostnameFromNetBIOS)
 	}
 
+	if s.resolveDNSSD {
+		s.browseServices(ctx, found)
+	}
+
 	if s.resolveSSDP {
 		s.nameOver(ctx, found, s.ssdpLookup, dbtype.HostnameFromSSDP)
 	}
@@ -343,6 +369,46 @@ func (s *Scanner) ssdpLookup(ctx context.Context, addrs []netip.Addr) (map[netip
 	}
 
 	return names, err
+}
+
+// browseServices records on each host in found the services it advertises over
+// DNS-SD, and names each host still without a name after the name it gives
+// them (see dnssdName). Every host is browsed, named or not, since what it
+// advertises says what it is. A machine that cannot join the mDNS group fails
+// on every sweep, so only the first failure in each run of failures is logged
+// as a warning.
+func (s *Scanner) browseServices(ctx context.Context, found []Host) {
+	addrs := make([]netip.Addr, len(found))
+
+	for i, h := range found {
+		addrs[i] = h.Address()
+	}
+
+	// The services that arrived before a failure are still the hosts' own
+	// answers, so they are kept.
+	services, err := browseDNSSD(ctx, s.dnssdGroup, addrs, dnssdWait)
+
+	switch {
+	case err == nil:
+		s.dnssdFailed.Store(false)
+	case ctx.Err() == nil && !s.dnssdFailed.CompareAndSwap(false, true):
+		s.log.DebugContext(ctx, "could not browse services over DNS-SD", logger.Err(err))
+	default:
+		s.log.WarnContext(ctx, "could not browse services over DNS-SD", logger.Err(err))
+	}
+
+	for i, h := range found {
+		found[i].Services = services[h.Address()]
+
+		if h.Hostname() != "" {
+			continue
+		}
+
+		if name, ok := dnssdName(found[i].Services); ok {
+			found[i].Host = h.Named(name)
+			found[i].NameSource = dbtype.HostnameFromDNSSD
+		}
+	}
 }
 
 // nameLookup asks addrs for their names, and returns the names that came

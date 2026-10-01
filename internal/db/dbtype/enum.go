@@ -212,6 +212,11 @@ const (
 	// NetBIOS, which Windows and Samba answer.
 	HostnameFromNetBIOS HostnameSource = "NETBIOS"
 
+	// HostnameFromDNSSD is the name a device gives the services it advertises
+	// over DNS-SD, found by browsing them over mDNS, such as "Living Room TV".
+	// It is a label for people, so it may hold spaces.
+	HostnameFromDNSSD HostnameSource = "DNSSD"
+
 	// HostnameFromSSDP is the friendlyName in the UPnP description of a device
 	// that answered a sweep's SSDP search, such as "Living Room TV". It is a
 	// label for people, so it may hold spaces.
@@ -224,6 +229,7 @@ var hostnameSources = []HostnameSource{
 	HostnameFromDHCPLease,
 	HostnameFromMDNS,
 	HostnameFromNetBIOS,
+	HostnameFromDNSSD,
 	HostnameFromSSDP,
 }
 
@@ -244,21 +250,25 @@ func (s HostnameSource) Valid() bool { return slices.Contains(hostnameSources, s
 // from the name the device gives elsewhere, and resolves only where NetBIOS
 // name service still runs.
 //
-// An SSDP friendlyName ranks below them all, because it is a label for people
-// and no host name at all.
+// A DNS-SD service name and an SSDP friendlyName rank below them all, because
+// each is a label for people and no host name at all. The DNS-SD name ranks
+// above, because the device announces it itself where an SSDP name takes a
+// fetch from a URL the device gives.
 //
 // An unknown standing ranks zero, so a known name still beats an unknown one.
 func (s HostnameSource) Rank() int {
 	switch s {
 	case HostnameFromDNS:
-		return 6
+		return 7
 	case HostnameFromDHCPStatic:
-		return 5
+		return 6
 	case HostnameFromMDNS:
-		return 4
+		return 5
 	case HostnameFromDHCPLease:
-		return 3
+		return 4
 	case HostnameFromNetBIOS:
+		return 3
+	case HostnameFromDNSSD:
 		return 2
 	case HostnameFromSSDP:
 		return 1
@@ -271,7 +281,7 @@ func (s HostnameSource) Rank() int {
 // device or the resolver about the address that answered it.
 func (s HostnameSource) Swept() bool {
 	switch s {
-	case HostnameFromDNS, HostnameFromMDNS, HostnameFromNetBIOS, HostnameFromSSDP:
+	case HostnameFromDNS, HostnameFromMDNS, HostnameFromNetBIOS, HostnameFromDNSSD, HostnameFromSSDP:
 		return true
 	default:
 		return false

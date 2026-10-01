@@ -986,6 +986,16 @@ func ssdpHost(ip, mac, label string) scanner.Host {
 	return h
 }
 
+// dnssdHost builds a swept host named after the name it gives the services it
+// advertises, as a sweep names a host that reverse DNS, mDNS and NetBIOS give
+// no name.
+func dnssdHost(ip, mac, label string) scanner.Host {
+	h := host(ip, mac, label)
+	h.NameSource = dbtype.HostnameFromDNSSD
+
+	return h
+}
+
 // netbiosHost builds a swept host named over NetBIOS, as a sweep names a host
 // that neither reverse DNS nor mDNS gives a name.
 func netbiosHost(ip, mac, hostname string) scanner.Host {
@@ -1111,6 +1121,29 @@ func TestAnSSDPLabelNamesADeviceBelowNetBIOS(t *testing.T) {
 	sweep(t, s, ssdpHost("192.0.2.10", macA, "Living Room TV"))
 
 	name, standing := claimOf(t, conn, id, "test-sweep")
+	assert.Equal(t, "LIVINGROOM", name)
+	assert.Equal(t, string(dbtype.HostnameFromNetBIOS), standing)
+}
+
+// A DNS-SD name ranks below a NetBIOS name and above an SSDP friendlyName on
+// the sweep's claim.
+func TestADNSSDNameRanksBetweenNetBIOSAndSSDP(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, ssdpHost("192.0.2.10", macA, "UPnP TV"))
+	sweep(t, s, dnssdHost("192.0.2.10", macA, "Living Room TV"))
+
+	id := deviceIDByMAC(t, conn, macA)
+	name, standing := claimOf(t, conn, id, "test-sweep")
+	assert.Equal(t, "Living Room TV", name)
+	assert.Equal(t, string(dbtype.HostnameFromDNSSD), standing)
+
+	sweep(t, s, netbiosHost("192.0.2.10", macA, "LIVINGROOM"))
+	sweep(t, s, dnssdHost("192.0.2.10", macA, "Living Room TV"))
+
+	name, standing = claimOf(t, conn, id, "test-sweep")
 	assert.Equal(t, "LIVINGROOM", name)
 	assert.Equal(t, string(dbtype.HostnameFromNetBIOS), standing)
 }

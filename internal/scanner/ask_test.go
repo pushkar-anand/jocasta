@@ -201,49 +201,74 @@ func TestEnrichAsksEachLookupInTurn(t *testing.T) {
 
 	desc := descriptionServer(t, deviceDescription("Living Room TV"))
 	ssdpAnswers := ssdpReply(desc.URL + "/description.xml")
+	dnssdAnswers := dnssdReply(t, livingRoomTV...)
 
 	tests := []struct {
 		name         string
 		mdns         func([]byte) ([]byte, bool)
 		netbios      func([]byte) ([]byte, bool)
+		dnssd        func([]byte) ([]byte, bool)
 		ssdp         func([]byte) ([]byte, bool)
 		off          bool
 		wantName     string
 		wantSource   dbtype.HostnameSource
+		wantServices int
 		wantNetBIOSQ int32
+		wantDNSSDQ   int32
 		wantSSDPQ    int32
 	}{
 		{
-			name:       "mDNS answers, so NetBIOS and SSDP are not asked",
-			mdns:       mdnsReply("tv.local."),
-			netbios:    netbiosReply("TV"),
-			ssdp:       ssdpAnswers,
-			wantName:   "tv.local",
-			wantSource: dbtype.HostnameFromMDNS,
+			name:         "mDNS answers, so NetBIOS and SSDP are not asked, and services are still browsed",
+			mdns:         mdnsReply("tv.local."),
+			netbios:      netbiosReply("TV"),
+			dnssd:        dnssdAnswers,
+			ssdp:         ssdpAnswers,
+			wantName:     "tv.local",
+			wantSource:   dbtype.HostnameFromMDNS,
+			wantServices: 2,
+			wantDNSSDQ:   2,
 		},
 		{
 			name:         "mDNS is silent, so NetBIOS is asked",
 			mdns:         silent,
 			netbios:      netbiosReply("DESKTOP-4F2K"),
+			dnssd:        dnssdAnswers,
 			ssdp:         ssdpAnswers,
 			wantName:     "DESKTOP-4F2K",
 			wantSource:   dbtype.HostnameFromNetBIOS,
+			wantServices: 2,
 			wantNetBIOSQ: 1,
+			wantDNSSDQ:   2,
 		},
 		{
-			name:         "mDNS and NetBIOS are silent, so SSDP is asked",
+			name:         "mDNS and NetBIOS are silent, so DNS-SD names it",
 			mdns:         silent,
 			netbios:      silent,
+			dnssd:        dnssdAnswers,
+			ssdp:         ssdpAnswers,
+			wantName:     "Living Room TV",
+			wantSource:   dbtype.HostnameFromDNSSD,
+			wantServices: 2,
+			wantNetBIOSQ: 1,
+			wantDNSSDQ:   2,
+		},
+		{
+			name:         "mDNS, NetBIOS and DNS-SD are silent, so SSDP is asked",
+			mdns:         silent,
+			netbios:      silent,
+			dnssd:        silent,
 			ssdp:         ssdpAnswers,
 			wantName:     "Living Room TV",
 			wantSource:   dbtype.HostnameFromSSDP,
 			wantNetBIOSQ: 1,
+			wantDNSSDQ:   1,
 			wantSSDPQ:    1,
 		},
 		{
 			name:    "all turned off",
 			mdns:    mdnsReply("tv.local."),
 			netbios: netbiosReply("TV"),
+			dnssd:   dnssdAnswers,
 			ssdp:    ssdpAnswers,
 			off:     true,
 		},
@@ -255,6 +280,7 @@ func TestEnrichAsksEachLookupInTurn(t *testing.T) {
 
 			m := newResponder(t, "127.0.0.1:0", nil, tt.mdns)
 			n := newResponder(t, "127.0.0.1:0", nil, tt.netbios)
+			d := newResponder(t, "127.0.0.1:0", nil, tt.dnssd)
 			g := newResponder(t, "127.0.0.1:0", nil, tt.ssdp)
 
 			s := New(slog.New(slog.DiscardHandler),
@@ -262,10 +288,12 @@ func TestEnrichAsksEachLookupInTurn(t *testing.T) {
 				WithMACResolution(false),
 				WithMDNSResolution(!tt.off),
 				WithNetBIOSResolution(!tt.off),
+				WithDNSSDResolution(!tt.off),
 				WithSSDPResolution(!tt.off),
 			)
 			s.mdnsPort = m.port()
 			s.netbiosPort = n.port()
+			s.dnssdGroup = netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), d.port())
 			s.ssdpGroup = netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), g.port())
 
 			found := s.enrich(t.Context(), replies, time.Now())
@@ -273,7 +301,9 @@ func TestEnrichAsksEachLookupInTurn(t *testing.T) {
 
 			assert.Equal(t, tt.wantName, found[0].Hostname())
 			assert.Equal(t, tt.wantSource, found[0].NameSource)
+			assert.Len(t, found[0].Services, tt.wantServices)
 			assert.Equal(t, tt.wantNetBIOSQ, n.queries.Load())
+			assert.Equal(t, tt.wantDNSSDQ, d.queries.Load())
 			assert.Equal(t, tt.wantSSDPQ, g.queries.Load())
 		})
 	}

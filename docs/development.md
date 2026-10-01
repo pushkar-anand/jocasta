@@ -16,8 +16,8 @@ make htmx           # refresh the vendored htmx
 ## Layout
 
 - `cmd/jocasta`: CLI entry point.
-- `internal/scanner`: the ICMP sweep, and the reverse DNS, mDNS, NetBIOS and
-  SSDP lookups that name what answers.
+- `internal/scanner`: the ICMP sweep, and the reverse DNS, mDNS, NetBIOS,
+  DNS-SD and SSDP lookups that name what answers.
 - `internal/plugin`: sources beyond the sweep (RouterOS).
 - `internal/inventory`: the store, covering identity resolution, address
   handling, device classification and the change log.
@@ -69,7 +69,8 @@ A sweep that asks devices for their names takes two more steps:
 1. Add its lookup in `internal/scanner`, in a file of its own, and ask it in
    `enrich` in rank order. A query sent to each host is a `nameProtocol`, as
    in `mdns.go` and `netbios.go`. Any other lookup is a `nameLookup`, as
-   `askSSDP` in `ssdp.go` is.
+   `askSSDP` in `ssdp.go` is, or names hosts itself, as `browseServices`
+   does with `dnssd.go`.
 2. Add it to `HostnameSource.Swept`, so a lower-ranked lookup never replaces
    its name on the sweep's claim.
 

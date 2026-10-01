@@ -141,6 +141,8 @@ func standing(s dbtype.HostnameSource) string {
 		return "mDNS"
 	case dbtype.HostnameFromNetBIOS:
 		return "NetBIOS"
+	case dbtype.HostnameFromDNSSD:
+		return "DNS-SD"
 	case dbtype.HostnameFromSSDP:
 		return "UPnP"
 	}

@@ -78,7 +78,7 @@ func TestParseReverseAnswer(t *testing.T) {
 		return raw
 	}
 
-	query, err := reverseQuery(q)
+	query, err := ptrQuery(q)
 	require.NoError(t, err)
 
 	tests := []struct {
