@@ -27,6 +27,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.adoptCurationStmt, err = db.PrepareContext(ctx, adoptCuration); err != nil {
 		return nil, fmt.Errorf("error preparing query AdoptCuration: %w", err)
 	}
+	if q.advertisedTCPPortsStmt, err = db.PrepareContext(ctx, advertisedTCPPorts); err != nil {
+		return nil, fmt.Errorf("error preparing query AdvertisedTCPPorts: %w", err)
+	}
 	if q.allCurrentAddressesStmt, err = db.PrepareContext(ctx, allCurrentAddresses); err != nil {
 		return nil, fmt.Errorf("error preparing query AllCurrentAddresses: %w", err)
 	}
@@ -374,6 +377,11 @@ func (q *Queries) Close() error {
 	if q.adoptCurationStmt != nil {
 		if cerr := q.adoptCurationStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing adoptCurationStmt: %w", cerr)
+		}
+	}
+	if q.advertisedTCPPortsStmt != nil {
+		if cerr := q.advertisedTCPPortsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing advertisedTCPPortsStmt: %w", cerr)
 		}
 	}
 	if q.allCurrentAddressesStmt != nil {
@@ -981,6 +989,7 @@ type Queries struct {
 	db                                 DBTX
 	tx                                 *sql.Tx
 	adoptCurationStmt                  *sql.Stmt
+	advertisedTCPPortsStmt             *sql.Stmt
 	allCurrentAddressesStmt            *sql.Stmt
 	allNetworksStmt                    *sql.Stmt
 	answerAttemptsStmt                 *sql.Stmt
@@ -1101,6 +1110,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		db:                                 tx,
 		tx:                                 tx,
 		adoptCurationStmt:                  q.adoptCurationStmt,
+		advertisedTCPPortsStmt:             q.advertisedTCPPortsStmt,
 		allCurrentAddressesStmt:            q.allCurrentAddressesStmt,
 		allNetworksStmt:                    q.allNetworksStmt,
 		answerAttemptsStmt:                 q.answerAttemptsStmt,

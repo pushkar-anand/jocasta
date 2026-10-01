@@ -49,6 +49,59 @@ func (q *Queries) AdoptCuration(ctx context.Context, arg AdoptCurationParams) er
 	return err
 }
 
+const advertisedTCPPorts = `-- name: AdvertisedTCPPorts :many
+SELECT DISTINCT a.ip, s.port
+FROM addresses a
+         JOIN devices d ON d.id = a.device_id
+         JOIN device_services s ON s.device_id = a.device_id
+WHERE a.is_current = 1
+  AND d.is_ignored = 0
+  AND s.port > 0
+  AND s.type LIKE '%._tcp'
+ORDER BY a.ip, s.port
+`
+
+type AdvertisedTCPPortsRow struct {
+	IP   dbtype.Addr `json:"ip"`
+	Port int64       `json:"port"`
+}
+
+// The TCP ports each current address of a device the user has not ignored
+// advertised a service on, for a port scan to probe beside its preset. A UDP
+// service is left out, since the scan connects over TCP.
+//
+//	SELECT DISTINCT a.ip, s.port
+//	FROM addresses a
+//	         JOIN devices d ON d.id = a.device_id
+//	         JOIN device_services s ON s.device_id = a.device_id
+//	WHERE a.is_current = 1
+//	  AND d.is_ignored = 0
+//	  AND s.port > 0
+//	  AND s.type LIKE '%._tcp'
+//	ORDER BY a.ip, s.port
+func (q *Queries) AdvertisedTCPPorts(ctx context.Context) ([]*AdvertisedTCPPortsRow, error) {
+	rows, err := q.query(ctx, q.advertisedTCPPortsStmt, advertisedTCPPorts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*AdvertisedTCPPortsRow
+	for rows.Next() {
+		var i AdvertisedTCPPortsRow
+		if err := rows.Scan(&i.IP, &i.Port); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const allCurrentAddresses = `-- name: AllCurrentAddresses :many
 SELECT a.device_id, a.ip
 FROM addresses a
