@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net"
 	"net/netip"
 	"slices"
@@ -220,8 +221,24 @@ func (n *NetFlow) decode(sender netip.Addr, payload []byte, received time.Time) 
 			msgs, err = protoproducer.ProcessMessageNetFlowV9Config(&v9, st.sampling, nil)
 			records, _, _, _ = protoproducer.SplitNetFlowSets(v9)
 		} else {
+			var options []netflow.OptionsDataFlowSet
+
+			records, _, _, options = protoproducer.SplitIPFIXSets(ipfix)
 			msgs, err = protoproducer.ProcessMessageIPFIXConfig(&ipfix, st.sampling, nil)
-			records, _, _, _ = protoproducer.SplitIPFIXSets(ipfix)
+
+			// goflow2 takes samplingPacketInterval as the rate, which is right
+			// only when nothing is skipped. Where the exporter says how many it
+			// skips, as softflowd does, the rate is worked out here and replaces
+			// goflow2's, for this packet and the ones after it.
+			if rate, ok := packetSpaceRate(options); ok && err == nil {
+				st.sampling.AddSamplingRate(10, ipfix.ObservationDomainId, rate)
+
+				for _, m := range msgs {
+					if pm, ok := m.(*protoproducer.ProtoProducerMessage); ok {
+						pm.SamplingRate = uint64(rate)
+					}
+				}
+			}
 		}
 
 	default:
@@ -266,6 +283,43 @@ func (n *NetFlow) decode(sender netip.Addr, payload []byte, received time.Time) 
 	}
 
 	return flows, nil
+}
+
+// IPFIX information elements that describe count-based sampling (RFC 5477):
+// select samplingPacketInterval packets, then skip samplingPacketSpace.
+const (
+	ieSamplingPacketInterval = 305
+	ieSamplingPacketSpace    = 306
+)
+
+// packetSpaceRate returns the sampling rate an IPFIX options record gives as a
+// packet interval and space, such as softflowd's 1 and 99 for one packet in
+// 100, and false when no record gives both.
+func packetSpaceRate(options []netflow.OptionsDataFlowSet) (uint32, bool) {
+	for _, set := range options {
+		for _, rec := range set.Records {
+			var interval, space uint32
+
+			hasInterval, err := protoproducer.NetFlowPopulate(rec.OptionsValues, ieSamplingPacketInterval, &interval)
+			if err != nil || !hasInterval || interval == 0 {
+				continue
+			}
+
+			hasSpace, err := protoproducer.NetFlowPopulate(rec.OptionsValues, ieSamplingPacketSpace, &space)
+			if err != nil || !hasSpace {
+				continue
+			}
+
+			rate := (uint64(interval) + uint64(space)) / uint64(interval)
+			if rate > math.MaxUint32 {
+				continue
+			}
+
+			return uint32(rate), true
+		}
+	}
+
+	return 0, false
 }
 
 // state returns the template and sampling memory for one exporter, creating it

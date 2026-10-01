@@ -350,6 +350,39 @@ On MikroTik RouterOS, point Traffic Flow at the Jocasta host (here
 /ip traffic-flow target add dst-address=192.0.2.10 port=2055 version=ipfix
 ```
 
+On OpenWrt, install softflowd and point it at the Jocasta host:
+
+```sh
+opkg update && opkg install softflowd
+uci set softflowd.@softflowd[0].enabled='1'
+uci set softflowd.@softflowd[0].host_port='192.0.2.10:2055'
+uci set softflowd.@softflowd[0].export_version='9'
+uci set softflowd.@softflowd[0].track_ipv6='1'
+uci set softflowd.@softflowd[0].timeout='maxlife=300'
+uci delete softflowd.@softflowd[0].sampling_rate
+uci commit softflowd
+/etc/init.d/softflowd enable
+/etc/init.d/softflowd start
+```
+
+Each line changes a default that would cost you traffic:
+
+- `export_version` 9 carries IPv6, which the default, 5, cannot. IPFIX (`10`)
+  works too.
+- `track_ipv6` records IPv6 conversations as well as IPv4.
+- `maxlife=300` reports a long download every five minutes. Without it, a
+  conversation is reported only when it ends, so a stream that runs all
+  evening lands in the hour it stopped.
+- Deleting `sampling_rate` counts every packet. The default, `100`, counts one
+  in 100. Jocasta scales sampled counts back up, but a conversation of a few
+  packets may not be counted at all.
+
+softflowd watches `br-lan`, the default LAN bridge. To record another
+segment, such as a VLAN on `br-lan.20`, add a softflowd section for its
+interface, with a `pid_file` and `control_socket` of its own. List the
+router's LAN address in `exporters`: that is the address the exports come
+from.
+
 Export from one router only. Two routers that both see a conversation both
 report it, and it is counted twice.
 
