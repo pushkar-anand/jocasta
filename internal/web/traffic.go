@@ -270,7 +270,7 @@ func (h *Handler) deviceTraffic() response.HandlerFunc {
 
 		q := r.URL.Query()
 
-		data, err := buildTrafficSection(r.Context(), h.store, id, trafficWindowKey(q), trafficFilterFrom(q), time.Now())
+		data, err := buildTrafficSection(r.Context(), h.store, id, trafficWindowKey(q), trafficFilterFrom(q), h.store.Now())
 		if err != nil {
 			return fmt.Errorf("device %d traffic: %w", id, err)
 		}
@@ -589,7 +589,7 @@ func addFirstContact(list []*inventory.FirstContact, c *inventory.FirstContact) 
 func (h *Handler) traffic(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
-		now := time.Now()
+		now := h.store.Now()
 		q := r.URL.Query()
 		win := windowFor(q.Get("window"))
 

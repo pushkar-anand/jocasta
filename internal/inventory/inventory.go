@@ -80,6 +80,12 @@ func (s *Store) OnlineWindow() time.Duration {
 	return s.onlineWindow
 }
 
+// Now reads the clock the store judges presence by, so a page can say how long
+// ago something happened against the same moment the store's queries use.
+func (s *Store) Now() time.Time {
+	return s.now()
+}
+
 // Option configures a Store.
 type Option func(*Store)
 

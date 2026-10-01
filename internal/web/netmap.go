@@ -179,7 +179,7 @@ func (h *Handler) networkMapLive() response.HandlerFunc {
 // buildMap prepares the last hour's network or world map. Before any traffic
 // is recorded, it returns page data without a layout for the setup message.
 func (h *Handler) buildMap(ctx context.Context, which string) (*mapPage, error) {
-	now := time.Now()
+	now := h.store.Now()
 	data := &mapPage{Watching: h.recent != nil}
 
 	var err error

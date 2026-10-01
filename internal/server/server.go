@@ -82,6 +82,24 @@ func Start(
 	validator *validator.Validator,
 	a *auth.Auth,
 ) error {
+	srv := server.New(
+		Handler(cfg, conn, store, validator, a),
+		server.WithLogger(cfg.Logger),
+		server.WithHostPort(cfg.Addr, cfg.Port),
+	)
+
+	return srv.Serve(ctx)
+}
+
+// Handler is everything Start serves, without the listener, so a browser test
+// can drive the same routes and headers a deployment does.
+func Handler(
+	cfg *Config,
+	conn *sql.DB,
+	store *inventory.Store,
+	validator *validator.Validator,
+	a *auth.Auth,
+) http.Handler {
 	reader := request.NewReader(
 		cfg.Logger,
 		validator,
@@ -213,13 +231,7 @@ func Start(
 	h := secureHeaders(sameOrigin(corsMW.Handler(logger.NewHTTPLogger(cfg.Logger)(mux))))
 	h = middleware.RequestID(h)
 
-	srv := server.New(
-		sm.LoadAndSave(h),
-		server.WithLogger(cfg.Logger),
-		server.WithHostPort(cfg.Addr, cfg.Port),
-	)
-
-	return srv.Serve(ctx)
+	return sm.LoadAndSave(h)
 }
 
 // maxRequestBodyBytes caps a PATCH body the reader will decode.

@@ -141,7 +141,7 @@ func buildOverviewData(
 	// and reports no error.
 	if scan, err := store.LatestScan(ctx); err == nil {
 		data.Scan = scan
-		data.Note = sweepNote(scan)
+		data.Note = sweepNote(store.Now(), scan)
 	}
 
 	if scan, err := store.LatestScanOfKind(ctx, dbtype.ScanPorts); err == nil {
@@ -170,5 +170,5 @@ func staleCollection(ctx context.Context, store *inventory.Store, lastCollected 
 
 	behind := 2 * max(store.OnlineWindow(), collectionStaleFloor)
 
-	return lastCollected.IsZero() || time.Since(lastCollected) > behind
+	return lastCollected.IsZero() || store.Now().Sub(lastCollected) > behind
 }

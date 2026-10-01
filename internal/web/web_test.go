@@ -313,10 +313,12 @@ func TestOverviewFlagsAStalledCollector(t *testing.T) {
 func TestSweepNoteMarksAFailure(t *testing.T) {
 	t.Parallel()
 
-	ok := sweepNote(&inventory.Scan{Status: dbtype.StatusOK, StartedAt: time.Now().Add(-4 * time.Minute)})
+	now := time.Now()
+
+	ok := sweepNote(now, &inventory.Scan{Status: dbtype.StatusOK, StartedAt: now.Add(-4 * time.Minute)})
 	assert.Equal(t, "4m ago", ok)
 
-	failed := sweepNote(&inventory.Scan{Status: dbtype.StatusFailed, StartedAt: time.Now().Add(-4 * time.Minute)})
+	failed := sweepNote(now, &inventory.Scan{Status: dbtype.StatusFailed, StartedAt: now.Add(-4 * time.Minute)})
 	assert.Equal(t, "4m ago · failed", failed)
 }
 
