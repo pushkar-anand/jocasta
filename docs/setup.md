@@ -111,7 +111,9 @@ the source ranked highest here:
 4. A dynamic DHCP lease on your router.
 5. NetBIOS, asked of each address the sweep finds that has no name from
    reverse DNS or mDNS.
-6. SSDP, the label in the UPnP description of each address still without a
+6. DNS-SD, the name each address still without a name gives the services it
+   advertises.
+7. SSDP, the label in the UPnP description of each address still without a
    name.
 
 When two sources of the same rank disagree, the one heard from last wins. The
@@ -135,6 +137,18 @@ Jocasta sends one query to each device still without a name, on UDP port 137.
 Windows answers only with file and printer sharing turned on, and by default
 only a query from its own segment. To turn it off, set
 `scan.devices.resolve_netbios: false`.
+
+DNS-SD names TVs, speakers, printers and other devices that advertise their
+services over mDNS but do not answer an mDNS query for their own name. After
+each sweep, Jocasta asks the multicast group `224.0.0.251:5353` which service
+types are on the segment, then which devices offer each one. A Google Cast
+device is named after the name its owner gave it in the Home app, such as
+`Living Room TV`. Any other device is named after the name most of its
+services share, leaving out names that are only a serial number or other ID.
+Jocasta binds UDP port 5353 to hear the answers, sharing it with any mDNS
+responder on the same machine, such as Avahi. Like SSDP, it reaches only
+Jocasta's own segment, and only with host networking. To turn it off, set
+`scan.devices.resolve_dnssd: false`.
 
 SSDP names TVs, speakers, media players, printers and routers that nothing
 else names. The name is the label the device shows its owner, such as

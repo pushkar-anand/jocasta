@@ -126,6 +126,11 @@ type (
 			// no name from reverse DNS or mDNS, for its name over NetBIOS.
 			ResolveNetBIOS bool `koanf:"resolve_netbios"`
 
+			// ResolveDNSSD turns on browsing the services hosts advertise over
+			// DNS-SD, and naming each host still without a name after the
+			// name it gives them.
+			ResolveDNSSD bool `koanf:"resolve_dnssd"`
+
 			// ResolveSSDP turns on taking the name of each host still without
 			// one from the friendlyName in its UPnP description, found with one
 			// SSDP search.
