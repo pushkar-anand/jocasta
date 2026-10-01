@@ -1,8 +1,16 @@
 package plugin
 
 import (
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"log/slog"
+	"maps"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"net/netip"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -220,4 +228,177 @@ func TestOpenWrtNetworks(t *testing.T) {
 		{Prefix: netip.MustParsePrefix("192.0.2.0/24"), Name: "lan"},
 		{Prefix: netip.MustParsePrefix("2001:db8:0:1::/64"), Name: "lan"},
 	}, got)
+}
+
+// fakeUbus answers ubus JSON-RPC from canned results keyed by "object method",
+// with `file exec` keyed by its command line and `uci get` by its config and
+// type. Every login works. A key with no answer is refused as rpcd refuses a
+// call the ACL does not grant.
+func fakeUbus(t *testing.T, answers map[string]string) *openwrt.OpenWrt {
+	t.Helper()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Params []jsontext.Value `json:"params"`
+		}
+
+		if err := json.UnmarshalRead(r.Body, &req); err != nil || len(req.Params) != 4 {
+			http.Error(w, "bad request", http.StatusBadRequest)
+
+			return
+		}
+
+		var object, method string
+
+		_ = json.Unmarshal(req.Params[1], &object)
+		_ = json.Unmarshal(req.Params[2], &method)
+
+		var args struct {
+			Command string   `json:"command"`
+			Params  []string `json:"params"`
+			Config  string   `json:"config"`
+			Type    string   `json:"type"`
+			Family  int      `json:"family"`
+		}
+
+		_ = json.Unmarshal(req.Params[3], &args)
+
+		key := object + " " + method
+
+		switch key {
+		case "session login":
+			_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":[0,{"ubus_rpc_session":"s"}]}`))
+
+			return
+		case "file exec":
+			key = strings.Join(append([]string{"exec", args.Command}, args.Params...), " ")
+		case "uci get":
+			key = "uci " + args.Config + " " + args.Type
+		case "luci-rpc getDHCPLeases":
+			key += " " + strconv.Itoa(args.Family)
+		}
+
+		answer, ok := answers[key]
+		if !ok {
+			answer = "[6]"
+		}
+
+		_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":` + answer + `}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	host, port, err := net.SplitHostPort(strings.TrimPrefix(srv.URL, "http://"))
+	require.NoError(t, err)
+
+	p, err := strconv.Atoi(port)
+	require.NoError(t, err)
+
+	client, err := openwrt.New(&openwrt.Config{Host: host, Port: p}, slog.New(slog.DiscardHandler))
+	require.NoError(t, err)
+
+	return client
+}
+
+// testOpenWrtWith builds the plugin over a fake router answering with answers.
+func testOpenWrtWith(t *testing.T, answers map[string]string) *OpenWrt {
+	t.Helper()
+
+	o := testOpenWrt(t)
+	o.client = fakeUbus(t, answers)
+
+	return o
+}
+
+// The tables as a router with one static host and two clients answers them.
+var openWrtAnswers = map[string]string{
+	"uci dhcp host": `[0,{"values":{"cfg1":{".index":3,"name":"living-room-tv","mac":"00:00:5e:00:53:14","ip":"192.0.2.50"}}}]`,
+	"exec /sbin/ip -4 neigh show": `[0,{"code":0,"stdout":` +
+		`"192.0.2.50 dev br-lan lladdr 00:00:5e:00:53:14 ref 1 used 0/0/0 probes 4 REACHABLE\n` +
+		`192.0.2.119 dev br-lan lladdr 00:00:5e:00:53:11 used 0/0/0 probes 1 STALE\n"}]`,
+	"exec /sbin/ip -6 neigh show": `[0,{"code":0,"stdout":""}]`,
+	"luci-rpc getDHCPLeases 4": `[0,{"dhcp_leases":[` +
+		`{"hostname":"android-1234","macaddr":"00:00:5E:00:53:14","ipaddr":"192.0.2.50"},` +
+		`{"hostname":"phone-a","macaddr":"00:00:5E:00:53:11","ipaddr":"192.0.2.119"}]}]`,
+	"luci-rpc getDHCPLeases 6": `[0,{"dhcp6_leases":[]}]`,
+	"network.interface dump": `[0,{"interface":[{"interface":"lan","up":true,"proto":"static",` +
+		`"device":"br-lan.10","l3_device":"br-lan.10","ipv4-address":[{"address":"192.0.2.1","mask":24}]}]}]`,
+	"uci network device":      `[0,{"values":{}}]`,
+	"uci network bridge-vlan": `[0,{"values":{"cfg2":{"device":"br-lan","vlan":"10"}}}]`,
+}
+
+func TestOpenWrtDiscoverReadsEveryTable(t *testing.T) {
+	t.Parallel()
+
+	facts, err := testOpenWrtWith(t, openWrtAnswers).Discover(t.Context())
+	require.NoError(t, err)
+	require.Len(t, facts, 2)
+
+	tv := factAt(t, facts, "192.0.2.50")
+	assert.Equal(t, "living-room-tv", tv.Host.Hostname())
+	assert.Equal(t, dbtype.HostnameFromDHCPStatic, tv.HostnameSource)
+	assert.True(t, tv.Present)
+
+	phone := factAt(t, facts, "192.0.2.119")
+	assert.Equal(t, "phone-a", phone.Host.Hostname())
+	assert.Equal(t, dbtype.HostnameFromDHCPLease, phone.HostnameSource)
+}
+
+// One table refused costs that table alone: the facts the others gave come
+// back beside an error that says the login lacks a grant.
+func TestOpenWrtDiscoverKeepsWhatAPartialReadGave(t *testing.T) {
+	t.Parallel()
+
+	answers := maps.Clone(openWrtAnswers)
+	delete(answers, "exec /sbin/ip -4 neigh show")
+	delete(answers, "exec /sbin/ip -6 neigh show")
+
+	facts, err := testOpenWrtWith(t, answers).Discover(t.Context())
+	require.ErrorIs(t, err, ErrAuth)
+	assert.Len(t, facts, 2)
+}
+
+func TestOpenWrtNetworksReadsVLANs(t *testing.T) {
+	t.Parallel()
+
+	nets, err := testOpenWrtWith(t, openWrtAnswers).Networks(t.Context())
+	require.NoError(t, err)
+
+	assert.Equal(t, []Network{{Prefix: netip.MustParsePrefix("192.0.2.0/24"), Name: "lan", VLAN: 10}}, nets)
+}
+
+// The VLANs only decorate the segments, so losing them costs only the tags.
+func TestOpenWrtNetworksWithoutVLANsKeepsTheSegments(t *testing.T) {
+	t.Parallel()
+
+	answers := maps.Clone(openWrtAnswers)
+	delete(answers, "uci network device")
+	delete(answers, "uci network bridge-vlan")
+
+	nets, err := testOpenWrtWith(t, answers).Networks(t.Context())
+	require.ErrorIs(t, err, ErrAuth)
+
+	assert.Equal(t, []Network{{Prefix: netip.MustParsePrefix("192.0.2.0/24"), Name: "lan"}}, nets)
+}
+
+func TestOpenWrtNetworksFailsWithoutInterfaces(t *testing.T) {
+	t.Parallel()
+
+	answers := maps.Clone(openWrtAnswers)
+	delete(answers, "network.interface dump")
+
+	_, err := testOpenWrtWith(t, answers).Networks(t.Context())
+	require.ErrorIs(t, err, ErrAuth)
+}
+
+func TestClassifyOpenWrt(t *testing.T) {
+	t.Parallel()
+
+	assert.ErrorIs(t, classifyOpenWrt(openwrt.ErrUnauthorized), ErrAuth)
+	assert.ErrorIs(t, classifyOpenWrt(openwrt.ErrUnreachable), ErrUnreachable)
+	assert.ErrorIs(t, classifyOpenWrt(openwrt.ErrTLS), ErrUnreachable)
+
+	// Neither retryable nor a credentials problem, so left as it came.
+	err := classifyOpenWrt(openwrt.ErrNotFound)
+	assert.NotErrorIs(t, err, ErrAuth)
+	assert.NotErrorIs(t, err, ErrUnreachable)
 }
