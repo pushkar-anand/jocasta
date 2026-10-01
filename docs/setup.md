@@ -353,7 +353,8 @@ On MikroTik RouterOS, point Traffic Flow at the Jocasta host (here
 On OpenWrt, install softflowd and point it at the Jocasta host:
 
 ```sh
-opkg update && opkg install softflowd
+opkg update && opkg install softflowd    # OpenWrt 24.10 and older
+apk update && apk add softflowd          # OpenWrt 25.12 and newer
 uci set softflowd.@softflowd[0].enabled='1'
 uci set softflowd.@softflowd[0].host_port='192.0.2.10:2055'
 uci set softflowd.@softflowd[0].export_version='9'
