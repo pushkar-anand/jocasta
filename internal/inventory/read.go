@@ -335,22 +335,22 @@ func (s *Store) LastSuccessfulScanAt(ctx context.Context, k dbtype.ScanKind) (ti
 // address of every device the user has not ignored. The scan works from what
 // discovery has already found, so this is its whole target list. Each target's
 // Extra are the TCP ports its device advertised a service on, so the scan
-// says whether a port the device announced answers.
+// says whether a port the device announced answers, and the ports recorded
+// open on it, so one that has stopped answering closes.
 func (s *Store) PortScanTargets(ctx context.Context) ([]scanner.PortTarget, error) {
 	rows, err := s.q.AllCurrentAddresses(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("port scan targets: %w", err)
 	}
 
-	advertised, err := s.q.AdvertisedTCPPorts(ctx)
+	ports, err := s.q.ExtraScanPorts(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("advertised ports: %w", err)
+		return nil, fmt.Errorf("extra scan ports: %w", err)
 	}
 
 	extra := make(map[netip.Addr][]uint16)
-	for _, r := range advertised {
-		// device_services.port is CHECK-constrained to 0-65535, and the query
-		// keeps only non-zero ones.
+	for _, r := range ports {
+		// Both port columns are CHECK-constrained to 0-65535.
 		extra[r.IP.Addr] = append(extra[r.IP.Addr], uint16(r.Port)) //nolint:gosec // range enforced by the column CHECK.
 	}
 

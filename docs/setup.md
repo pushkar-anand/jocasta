@@ -152,7 +152,8 @@ Jocasta's own segment, and only with host networking. To turn it off, set
 
 Jocasta also records the services each device advertises, named or not, and
 lists them in the device page's Ports table. The port scan probes each
-advertised TCP port, so the table says whether it answers. The classifier
+advertised TCP port, so the table says whether it answers. It also probes
+every port recorded open, so a port a service has moved away from closes. The classifier
 reads them: a print service marks a printer, and the Android TV remote service
 a TV. A service no sweep has heard within `retention.history` drops off.
 

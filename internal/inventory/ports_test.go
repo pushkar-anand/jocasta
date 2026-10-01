@@ -316,6 +316,32 @@ func TestAnAdvertisedPortThatStopsAnsweringCloses(t *testing.T) {
 	assert.Equal(t, "closed", queryString(t, conn, `SELECT state FROM device_ports WHERE port = 10001`))
 }
 
+// A service that moves to a new port leaves its old one recorded open. The
+// targets carry the old port beside the new, so the next scan closes it.
+func TestAPortAServiceMovedAwayFromCloses(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	speaker := host("192.0.2.10", macA, "")
+	speaker.Services = []hosts.Service{{Type: "_spotify-connect._tcp", Instance: "Speaker", Port: 41000}}
+
+	sweep(t, s, speaker)
+	recordPorts(t, s, portScan("192.0.2.10", []uint16{41000}, []uint16{22, 41000}))
+
+	speaker.Services[0].Port = 42000
+	sweep(t, s, speaker)
+
+	targets, err := s.PortScanTargets(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, []scanner.PortTarget{{Addr: netip.MustParseAddr("192.0.2.10"), Extra: []uint16{41000, 42000}}}, targets)
+
+	recordPorts(t, s, portScan("192.0.2.10", []uint16{42000}, []uint16{22, 41000, 42000}))
+
+	assert.Equal(t, "closed", queryString(t, conn, `SELECT state FROM device_ports WHERE port = 41000`))
+	assert.Equal(t, "open", queryString(t, conn, `SELECT state FROM device_ports WHERE port = 42000`))
+}
+
 func TestPortOverviewSummarisesCurrentServicesAndChanges(t *testing.T) {
 	t.Parallel()
 

@@ -49,59 +49,6 @@ func (q *Queries) AdoptCuration(ctx context.Context, arg AdoptCurationParams) er
 	return err
 }
 
-const advertisedTCPPorts = `-- name: AdvertisedTCPPorts :many
-SELECT DISTINCT a.ip, s.port
-FROM addresses a
-         JOIN devices d ON d.id = a.device_id
-         JOIN device_services s ON s.device_id = a.device_id
-WHERE a.is_current = 1
-  AND d.is_ignored = 0
-  AND s.port > 0
-  AND s.type LIKE '%._tcp'
-ORDER BY a.ip, s.port
-`
-
-type AdvertisedTCPPortsRow struct {
-	IP   dbtype.Addr `json:"ip"`
-	Port int64       `json:"port"`
-}
-
-// The TCP ports each current address of a device the user has not ignored
-// advertised a service on, for a port scan to probe beside its preset. A UDP
-// service is left out, since the scan connects over TCP.
-//
-//	SELECT DISTINCT a.ip, s.port
-//	FROM addresses a
-//	         JOIN devices d ON d.id = a.device_id
-//	         JOIN device_services s ON s.device_id = a.device_id
-//	WHERE a.is_current = 1
-//	  AND d.is_ignored = 0
-//	  AND s.port > 0
-//	  AND s.type LIKE '%._tcp'
-//	ORDER BY a.ip, s.port
-func (q *Queries) AdvertisedTCPPorts(ctx context.Context) ([]*AdvertisedTCPPortsRow, error) {
-	rows, err := q.query(ctx, q.advertisedTCPPortsStmt, advertisedTCPPorts)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []*AdvertisedTCPPortsRow
-	for rows.Next() {
-		var i AdvertisedTCPPortsRow
-		if err := rows.Scan(&i.IP, &i.Port); err != nil {
-			return nil, err
-		}
-		items = append(items, &i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const allCurrentAddresses = `-- name: AllCurrentAddresses :many
 SELECT a.device_id, a.ip
 FROM addresses a
@@ -682,6 +629,78 @@ func (q *Queries) DeviceStats(ctx context.Context, arg DeviceStatsParams) (*Devi
 		&i.Discovered,
 	)
 	return &i, err
+}
+
+const extraScanPorts = `-- name: ExtraScanPorts :many
+SELECT a.ip, s.port
+FROM addresses a
+         JOIN devices d ON d.id = a.device_id
+         JOIN device_services s ON s.device_id = a.device_id
+WHERE a.is_current = 1
+  AND d.is_ignored = 0
+  AND s.port > 0
+  AND s.type LIKE '%._tcp'
+UNION
+SELECT a.ip, p.port
+FROM addresses a
+         JOIN devices d ON d.id = a.device_id
+         JOIN device_ports p ON p.device_id = a.device_id
+WHERE a.is_current = 1
+  AND d.is_ignored = 0
+  AND p.state = 'open'
+ORDER BY ip, port
+`
+
+type ExtraScanPortsRow struct {
+	IP   dbtype.Addr `json:"ip"`
+	Port int64       `json:"port"`
+}
+
+// The ports a port scan probes on each current address of a device the user
+// has not ignored, beside its preset: the TCP ports the device advertised a
+// service on, and the ports recorded open on it. A UDP service is left out,
+// since the scan connects over TCP. The open ports are there so one that stops
+// answering is closed even once nothing else names it, as when a service
+// moves to a new port.
+//
+//	SELECT a.ip, s.port
+//	FROM addresses a
+//	         JOIN devices d ON d.id = a.device_id
+//	         JOIN device_services s ON s.device_id = a.device_id
+//	WHERE a.is_current = 1
+//	  AND d.is_ignored = 0
+//	  AND s.port > 0
+//	  AND s.type LIKE '%._tcp'
+//	UNION
+//	SELECT a.ip, p.port
+//	FROM addresses a
+//	         JOIN devices d ON d.id = a.device_id
+//	         JOIN device_ports p ON p.device_id = a.device_id
+//	WHERE a.is_current = 1
+//	  AND d.is_ignored = 0
+//	  AND p.state = 'open'
+//	ORDER BY ip, port
+func (q *Queries) ExtraScanPorts(ctx context.Context) ([]*ExtraScanPortsRow, error) {
+	rows, err := q.query(ctx, q.extraScanPortsStmt, extraScanPorts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*ExtraScanPortsRow
+	for rows.Next() {
+		var i ExtraScanPortsRow
+		if err := rows.Scan(&i.IP, &i.Port); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const finishScan = `-- name: FinishScan :exec
