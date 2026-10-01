@@ -33,6 +33,14 @@
                 <div><dt>Group</dt><dd>{{ dash .Group }}</dd></div>
                 <div><dt>First seen</dt><dd class="dim">{{ stamp .FirstSeen "" }}</dd></div>
                 <div><dt>Last seen</dt><dd class="dim">{{ stamp .LastSeen "" }}</dd></div>
+                {{- /* Since when, where stamp says how long ago: a run of
+                       sightings is read by when it began. A device present
+                       before presence was recorded has no start to give. */}}
+                <div><dt>Presence</dt><dd>
+                    {{- if .Online }}Seen recently{{ if not .PresentSince.IsZero }} since {{ since .PresentSince }}{{ end }}
+                    {{- else if .LastSeen.IsZero }}Not seen
+                    {{- else }}Quiet since {{ since .LastSeen }}{{ end -}}
+                </dd></div>
                 <div><dt>Last checked</dt><dd class="dim">{{ stamp $.LastChecked "" }}</dd></div>
             </dl>
 
@@ -65,6 +73,9 @@
                 {{- if .Device.Ignored }}
                 <div><dt>Ignored</dt><dd>Yes, hidden from lists</dd></div>
                 {{- end }}
+                {{- if .Device.Watched }}
+                <div><dt>Watched</dt><dd>Yes, told when it goes quiet or comes back</dd></div>
+                {{- end }}
             </dl>
 
             {{- if not .Role.CanWrite }}
@@ -73,8 +84,23 @@
             {{- if .Saved }}
             {{- /* tabindex so the swap can land focus on the outcome; sits by the
                    summary because the form it came from is now folded away. */}}
-            <p class="saved" role="status" tabindex="-1">Details saved.</p>
+            <p class="saved" role="status" tabindex="-1">{{ or .Notice "Details saved." }}</p>
             {{- end }}
+            {{- /* Watching is its own action: the edit form replaces every
+                   field it carries, and watching is not one of them. */}}
+            <form class="watch"
+                  hx-post="/devices/{{ .Device.ID }}/watch"
+                  hx-target="#device-panel"
+                  hx-swap="outerHTML">
+                {{- if .Device.Watched }}
+                <input type="hidden" name="watched" value="0">
+                <button type="submit" class="btn btn--quiet">Stop watching</button>
+                {{- else }}
+                <input type="hidden" name="watched" value="1">
+                <button type="submit" class="btn btn--quiet">Watch</button>
+                <span class="dim">Get told when it goes quiet or comes back.</span>
+                {{- end }}
+            </form>
             <details class="editpanel">
                 <summary>Edit details</summary>
                 <form class="curation"

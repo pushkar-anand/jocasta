@@ -41,6 +41,7 @@ type devicesData struct {
 	Status         string
 	Sort           string
 	IncludeIgnored bool
+	Watched        bool
 
 	// Page is the 1-based page the form asked for, before it is clamped to how
 	// many there turned out to be.
@@ -79,7 +80,7 @@ func (d *devicesData) Filtered() bool {
 	chosenNetwork := d.Network != "" && d.OnNetwork == nil
 
 	return d.Query != "" || d.Group != "" || chosenNetwork || d.Type != "" ||
-		d.Status != "" || d.Sort != "" || d.IncludeIgnored
+		d.Status != "" || d.Sort != "" || d.IncludeIgnored || d.Watched
 }
 
 // Count words how many devices are in the heading: the size of the match when a
@@ -124,6 +125,7 @@ func (d *devicesData) filter() inventory.DeviceFilter {
 		Status:         inventory.Status(d.Status),
 		Sort:           inventory.Sort(d.Sort),
 		IncludeIgnored: d.IncludeIgnored,
+		Watched:        d.Watched,
 	}
 }
 
@@ -160,6 +162,10 @@ func (d *devicesData) params() url.Values {
 
 	if d.IncludeIgnored {
 		q.Set("ignored", "1")
+	}
+
+	if d.Watched {
+		q.Set("watched", "1")
 	}
 
 	return q
@@ -242,6 +248,7 @@ func deviceForm(q deviceQuery) *devicesData {
 		Query:          strings.TrimSpace(q.Query),
 		Group:          q.Group,
 		IncludeIgnored: q.IncludeIgnored,
+		Watched:        q.Watched,
 		Page:           1,
 	}
 

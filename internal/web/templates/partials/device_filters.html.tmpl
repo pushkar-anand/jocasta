@@ -82,6 +82,11 @@
     </label>
 
     <label class="check">
+        <input type="checkbox" name="watched" value="1"{{ if .Watched }} checked{{ end }}>
+        <span>Watched only</span>
+    </label>
+
+    <label class="check">
         <input type="checkbox" name="ignored" value="1"{{ if .IncludeIgnored }} checked{{ end }}>
         <span>Show ignored</span>
     </label>

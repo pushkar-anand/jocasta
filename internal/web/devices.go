@@ -22,6 +22,7 @@ type deviceQuery struct {
 	Status         string `schema:"status" validate:"omitempty,max=40"`
 	Sort           string `schema:"sort" validate:"omitempty,max=40"`
 	IncludeIgnored bool   `schema:"ignored" validate:"omitempty"`
+	Watched        bool   `schema:"watched" validate:"omitempty"`
 	Page           int    `schema:"page" validate:"omitempty,min=1"`
 }
 

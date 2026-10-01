@@ -27,11 +27,13 @@ const (
 const em = "—"
 
 // funcs are the template helpers. Everything here is presentation: a template
-// should not be doing arithmetic or reaching for the clock.
-func funcs(now func() time.Time) template.FuncMap {
+// should not be doing arithmetic or reaching for the clock. window is the
+// store's online window, which decides when a dot's label says "Quiet".
+func funcs(now func() time.Time, window time.Duration) template.FuncMap {
 	return template.FuncMap{
 		"stamp":        func(t time.Time, class string) template.HTML { return stamp(now(), t, class) },
-		"dot":          func(t time.Time) template.HTML { return dot(now(), t) },
+		"since":        func(t time.Time) template.HTML { return since(now(), t) },
+		"dot":          func(t time.Time) template.HTML { return dot(now(), t, window) },
 		"healthLabel":  healthLabel,
 		"dash":         dash,
 		"pct":          pct,
@@ -241,15 +243,17 @@ func stamp(now, t time.Time, class string) template.HTML {
 }
 
 // presenceLabel is the spoken status behind a dot: the words the legends use, so
-// the dot and the legend agree for a reader who only hears one of them. It is
-// coarser than decay's four buckets on purpose: "recently" covers both greens.
-func presenceLabel(now, t time.Time) string {
+// the dot and the legend agree for a reader who only hears one of them.
+// "Seen recently" ends at the online window, where the counts, the filter and
+// a watched device's notification all say the device went quiet; the shading
+// keeps its fixed buckets.
+func presenceLabel(now, t time.Time, window time.Duration) string {
 	if t.IsZero() {
 		return "Not seen"
 	}
 
 	switch d := now.Sub(t); {
-	case d < decayRecent:
+	case d < window:
 		return "Seen recently"
 	case d < decayStale:
 		return "Quiet"
@@ -262,8 +266,8 @@ func presenceLabel(now, t time.Time) string {
 // the colour alone says nothing to a screen reader or a reader who cannot tell
 // the two greens apart. The label pairs the coarse status with how long ago the
 // last sighting was.
-func dot(now, t time.Time) template.HTML {
-	label := presenceLabel(now, t)
+func dot(now, t time.Time, window time.Duration) template.HTML {
+	label := presenceLabel(now, t, window)
 	if !t.IsZero() {
 		label += ": " + ago(now, t)
 	}
@@ -290,6 +294,32 @@ func decay(now, t time.Time) string {
 	}
 
 	return "decay--cold"
+}
+
+// since renders t as a <time> element naming the moment, for "since" phrases
+// where ago's "2d ago" would not read: the time alone today, the weekday and
+// time within the week, the date before that. The title carries the exact
+// local time and zone, as stamp's does.
+func since(now, t time.Time) template.HTML {
+	local, today := t.Local(), now.Local()
+
+	var label string
+
+	switch {
+	case local.YearDay() == today.YearDay() && local.Year() == today.Year():
+		label = local.Format("15:04")
+	case today.Sub(local) < 6*24*time.Hour:
+		label = local.Format("Mon 15:04")
+	case local.Year() == today.Year():
+		label = local.Format("2 Jan")
+	default:
+		label = local.Format("2 Jan 2006")
+	}
+
+	// Fixed element shape and timestamps straight from time.Format: nothing
+	// here is caller-supplied text.
+	return template.HTML(`<time datetime="` + local.Format(time.RFC3339) + //nolint:gosec // G203: no user input in the parts
+		`" title="` + local.Format("Mon 2 Jan 2006, 15:04 MST") + `">` + label + `</time>`)
 }
 
 // dash renders an absent value as a dash.
@@ -355,7 +385,9 @@ func scanFound(s *inventory.Scan) string {
 // all.
 func tone(k dbtype.EventKind) string {
 	switch k {
-	case dbtype.EventDeviceDiscovered:
+	case dbtype.EventDeviceQuiet:
+		return "act--warn"
+	case dbtype.EventDeviceDiscovered, dbtype.EventDeviceBack:
 		return "act--arrival"
 	case dbtype.EventDeviceIdentified, dbtype.EventAddressAdded, dbtype.EventPortOpened:
 		return "act--learned"
@@ -372,6 +404,8 @@ func tone(k dbtype.EventKind) string {
 // the tone class colours them. They are markup this package owns, which is what
 // makes returning them as HTML safe.
 var glyphs = map[dbtype.EventKind]template.HTML{
+	dbtype.EventDeviceQuiet:      `<path d="M5 12.5a10 10 0 0114 0"/><path d="M8.5 16a5 5 0 017 0"/><path d="M12 19.5h.01"/><path d="M3 3l18 18"/>`,
+	dbtype.EventDeviceBack:       `<path d="M2 8.8a15 15 0 0120 0"/><path d="M5 12.5a10 10 0 0114 0"/><path d="M8.5 16a5 5 0 017 0"/><path d="M12 19.5h.01"/>`,
 	dbtype.EventDeviceDiscovered: `<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>`,
 	dbtype.EventDeviceIdentified: `<circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/>`,
 	dbtype.EventDevicesMerged:    `<path d="M7 4v4a5 5 0 005 5h6"/><path d="M15 10l3 3-3 3"/>`,

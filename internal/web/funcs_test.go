@@ -65,23 +65,36 @@ func TestStamp(t *testing.T) {
 func TestPresenceLabel(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "Not seen", presenceLabel(now, time.Time{}))
-	assert.Equal(t, "Seen recently", presenceLabel(now, now.Add(-2*time.Minute)))
-	assert.Equal(t, "Seen recently", presenceLabel(now, now.Add(-50*time.Minute)))
-	assert.Equal(t, "Quiet", presenceLabel(now, now.Add(-3*time.Hour)))
-	assert.Equal(t, "Long quiet", presenceLabel(now, now.Add(-100*time.Hour)))
+	window := 15 * time.Minute
+
+	assert.Equal(t, "Not seen", presenceLabel(now, time.Time{}, window))
+	assert.Equal(t, "Seen recently", presenceLabel(now, now.Add(-2*time.Minute), window))
+	assert.Equal(t, "Quiet", presenceLabel(now, now.Add(-20*time.Minute), window),
+		"past the window, where a watched device is told as gone quiet")
+	assert.Equal(t, "Quiet", presenceLabel(now, now.Add(-3*time.Hour), window))
+	assert.Equal(t, "Long quiet", presenceLabel(now, now.Add(-100*time.Hour), window))
 }
 
 func TestDot(t *testing.T) {
 	t.Parallel()
 
-	seen := string(dot(now, now.Add(-30*time.Minute)))
+	seen := string(dot(now, now.Add(-10*time.Minute), 15*time.Minute))
 	assert.Contains(t, seen, `role="img"`)
 	assert.Contains(t, seen, `class="dot decay--recent"`)
-	assert.Contains(t, seen, `aria-label="Seen recently: 30m ago"`, "the colour has a text alternative")
+	assert.Contains(t, seen, `aria-label="Seen recently: 10m ago"`, "the colour has a text alternative")
 
 	// Nothing was ever seen: the status stands alone, with no relative time.
-	assert.Contains(t, string(dot(now, time.Time{})), `aria-label="Not seen"`)
+	assert.Contains(t, string(dot(now, time.Time{}, 15*time.Minute)), `aria-label="Not seen"`)
+}
+
+func TestSince(t *testing.T) {
+	t.Parallel()
+
+	local := now.Local()
+
+	assert.Contains(t, string(since(now, now.Add(-time.Minute))), ">"+local.Add(-time.Minute).Format("15:04")+"</time>")
+	assert.Contains(t, string(since(now, now.Add(-3*24*time.Hour))), ">"+local.Add(-3*24*time.Hour).Format("Mon 15:04")+"</time>")
+	assert.Contains(t, string(since(now, now.Add(-400*24*time.Hour))), ">"+local.Add(-400*24*time.Hour).Format("2 Jan 2006")+"</time>")
 }
 
 func TestWindowWords(t *testing.T) {
@@ -175,6 +188,8 @@ func TestTone(t *testing.T) {
 	t.Parallel()
 
 	assert.Equal(t, "act--arrival", tone(dbtype.EventDeviceDiscovered))
+	assert.Equal(t, "act--warn", tone(dbtype.EventDeviceQuiet))
+	assert.Equal(t, "act--arrival", tone(dbtype.EventDeviceBack))
 	assert.Equal(t, "act--learned", tone(dbtype.EventDeviceIdentified))
 	assert.Equal(t, "act--learned", tone(dbtype.EventAddressAdded))
 	assert.Equal(t, "act--shape", tone(dbtype.EventDevicesMerged))
@@ -231,9 +246,9 @@ func TestStatusClass(t *testing.T) {
 func TestFuncsCoverEveryHelperTheTemplatesUse(t *testing.T) {
 	t.Parallel()
 
-	registered := funcs(func() time.Time { return now })
+	registered := funcs(func() time.Time { return now }, 15*time.Minute)
 
-	for _, name := range []string{"stamp", "dot", "healthLabel", "dash", "pct", "took", "found", "sourcekey", "phrase", "tone", "eventIcon", "health", "statusClass", "change"} {
+	for _, name := range []string{"stamp", "dot", "healthLabel", "dash", "pct", "took", "found", "sourcekey", "phrase", "tone", "eventIcon", "health", "statusClass", "change", "since"} {
 		assert.Contains(t, registered, name)
 	}
 }
