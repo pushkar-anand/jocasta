@@ -140,3 +140,37 @@ func TestUpdateDeviceCurationIsNotReadOnly(t *testing.T) {
 	require.NotNil(t, ann.DestructiveHint)
 	assert.True(t, *ann.DestructiveHint)
 }
+
+func TestWatchDevice(t *testing.T) {
+	t.Parallel()
+
+	store := seededStore(t)
+	cs := connect(t, func(s *mcpsdk.Server, log *slog.Logger) {
+		listDevices(store)(s, log)
+		watchDevice(store)(s, log)
+		updateDeviceCuration(store)(s, log)
+	})
+
+	id := deviceID(t, cs, "printer")
+
+	out := decodeAs[watchDeviceOutput](t, callTool(t, cs, "watch_device", map[string]any{"id": id, "watched": true}))
+	require.NotNil(t, out.Device)
+	assert.True(t, out.Device.Watched)
+
+	// The list narrows to watched devices.
+	listed := decodeAs[listDevicesOutput](t, callTool(t, cs, "list_devices", map[string]any{"watched": true}))
+	require.Len(t, listed.Devices, 1)
+	assert.Equal(t, id, listed.Devices[0].ID)
+
+	// Curating the device, which replaces every field it carries, leaves
+	// watching alone.
+	cur := decodeAs[updateDeviceCurationOutput](t, callTool(t, cs, "update_device_curation", curation(id)))
+	assert.True(t, cur.Device.Watched)
+
+	// Leaving watched out would otherwise stop watching, so it is refused.
+	doc := problemOf(t, callTool(t, cs, "watch_device", map[string]any{"id": id}))
+	assert.Equal(t, float64(http.StatusBadRequest), doc["status"])
+
+	doc = problemOf(t, callTool(t, cs, "watch_device", map[string]any{"id": 9999, "watched": true}))
+	assert.Equal(t, float64(http.StatusNotFound), doc["status"])
+}

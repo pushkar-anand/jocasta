@@ -1031,6 +1031,13 @@ a.netcard:hover {
     color: var(--violet);
 }
 
+/* A watched device going quiet is the one change its owner asked to hear
+   about, so it alone takes the warning colour. */
+.act--warn .acticon {
+    background: var(--warning-soft);
+    color: var(--warning-ink);
+}
+
 .act__text {
     flex: 1 1 auto;
     min-width: 0;
@@ -1517,6 +1524,16 @@ input[type="radio"] {
    reads as the button it is. A save renders it closed again. */
 .editpanel {
     margin-top: 4px;
+}
+
+/* Watch sits above the edit form as its own action, with what it does beside
+   it until the device is watched. */
+.watch {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin: 4px 0 8px;
 }
 
 .editpanel > summary {

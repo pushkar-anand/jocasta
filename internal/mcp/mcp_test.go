@@ -293,4 +293,6 @@ func TestHandlerKeepsCurationFromAReadToken(t *testing.T) {
 
 	assert.NotContains(t, toolNames(t, connectHTTP(t, srv.URL, tok.read)), "update_device_curation")
 	assert.Contains(t, toolNames(t, connectHTTP(t, srv.URL, tok.readWrite)), "update_device_curation")
+	assert.NotContains(t, toolNames(t, connectHTTP(t, srv.URL, tok.read)), "watch_device")
+	assert.Contains(t, toolNames(t, connectHTTP(t, srv.URL, tok.readWrite)), "watch_device")
 }

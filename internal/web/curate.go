@@ -55,6 +55,16 @@ type curationForm struct {
 	// Saved marks the panel as having just been saved, which is the only way a
 	// swapped-in fragment can say that anything happened.
 	Saved bool
+
+	// Notice is what the saved message says when the save was not an edit of
+	// the details, such as watching the device. Empty says the details saved.
+	Notice string
+}
+
+// watchForm is whether the device should be watched, from the panel's Watch
+// and Stop watching buttons.
+type watchForm struct {
+	Watched bool `schema:"watched"`
 }
 
 // deviceEdit is what a caller may change on a device through the row or panel
@@ -152,8 +162,6 @@ func (h *Handler) updateDeviceRow(sm *auth.Session) response.HandlerFunc {
 // the panel, which carries the heading a new label changes.
 func (h *Handler) updateDevice(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		ctx := r.Context()
-
 		id, ok := pathID(r)
 		if !ok {
 			return inventory.ErrNotFound
@@ -169,29 +177,72 @@ func (h *Handler) updateDevice(sm *auth.Session) response.HandlerFunc {
 			return err
 		}
 
-		groups, err := h.store.Groups(ctx)
-		if err != nil {
-			return err
-		}
-
-		// Read after the write, so the log the response carries includes the edit
-		// that was just made.
-		events, err := h.store.DeviceEvents(ctx, device.ID, deviceHistoryLimit)
-		if err != nil {
-			return err
-		}
-
-		panel := &curationForm{
-			Device:      device,
-			Groups:      groups,
-			Events:      events,
-			LastChecked: lastSweptAt(ctx, h.store),
-			Saved:       true,
-			Role:        sm.CurrentRole(ctx),
-		}
-
-		h.htmlWriter.Success(w, r, templatePartialDevicePanel, panel)
-
-		return nil
+		return h.savedPanel(w, r, sm, device, "")
 	}
+}
+
+// watchDevice watches a device, or stops, from its own page, and answers with
+// the panel, which shows the change and carries the button that undoes it.
+func (h *Handler) watchDevice(sm *auth.Session) response.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		id, ok := pathID(r)
+		if !ok {
+			return inventory.ErrNotFound
+		}
+
+		data, err := h.reader.ReadAndValidateForm[watchForm](r)
+		if err != nil {
+			return err
+		}
+
+		device, err := h.store.Watch(r.Context(), id, data.Watched)
+		if err != nil {
+			return err
+		}
+
+		notice := "Stopped watching " + device.Name() + "."
+		if device.Watched {
+			notice = "Watching " + device.Name() + "."
+		}
+
+		return h.savedPanel(w, r, sm, device, notice)
+	}
+}
+
+// savedPanel answers a change made on the device's page with the panel, marked
+// saved, and the log that now includes the change.
+func (h *Handler) savedPanel(
+	w http.ResponseWriter,
+	r *http.Request,
+	sm *auth.Session,
+	device *inventory.Device,
+	notice string,
+) error {
+	ctx := r.Context()
+
+	groups, err := h.store.Groups(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Read after the write, so the log the response carries includes the edit
+	// that was just made.
+	events, err := h.store.DeviceEvents(ctx, device.ID, deviceHistoryLimit)
+	if err != nil {
+		return err
+	}
+
+	panel := &curationForm{
+		Device:      device,
+		Groups:      groups,
+		Events:      events,
+		LastChecked: lastSweptAt(ctx, h.store),
+		Saved:       true,
+		Notice:      notice,
+		Role:        sm.CurrentRole(ctx),
+	}
+
+	h.htmlWriter.Success(w, r, templatePartialDevicePanel, panel)
+
+	return nil
 }

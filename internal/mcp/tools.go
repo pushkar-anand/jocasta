@@ -41,6 +41,7 @@ func tools(store *inventory.Store) []tool {
 		{register: listTraffic(store, time.Now)},
 		{register: getTopology(store)},
 		{writes: true, register: updateDeviceCuration(store)},
+		{writes: true, register: watchDevice(store)},
 	}
 }
 

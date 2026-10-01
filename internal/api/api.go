@@ -48,6 +48,7 @@ func NewHandler(
 	h.mux.HandleFunc("GET /devices", jw.Handle(h.listDevices(store)))
 	h.mux.HandleFunc("GET /devices/{id}", jw.Handle(h.getDevice(store)))
 	h.mux.HandleFunc("PATCH /devices/{id}", jw.Handle(h.updateDevice(store)))
+	h.mux.HandleFunc("PATCH /devices/{id}/watch", jw.Handle(h.watchDevice(store)))
 	h.mux.HandleFunc("GET /devices/{id}/events", jw.Handle(h.deviceEvents(store)))
 	h.mux.HandleFunc("GET /devices/{id}/traffic", jw.Handle(h.deviceTraffic(store)))
 

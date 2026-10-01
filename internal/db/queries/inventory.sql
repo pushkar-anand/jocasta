@@ -94,6 +94,45 @@ UPDATE devices
 SET last_seen = sqlc.arg(last_seen)
 WHERE id = sqlc.arg(id);
 
+-- Presence. present_since is set from the sighting that ended a quiet spell
+-- and cleared when a reading that could have seen the device found it gone.
+
+-- name: MarkPresent :exec
+UPDATE devices
+SET present_since = sqlc.arg(present_since)
+WHERE id = sqlc.arg(id);
+
+-- name: MarkQuiet :exec
+UPDATE devices
+SET present_since = NULL
+WHERE id = sqlc.arg(id);
+
+-- The present devices a sweep could have seen are those holding a current
+-- address in its prefix. SQLite cannot test containment, so every present
+-- device's current addresses are returned for the sweep to test in Go.
+-- name: PresentWithAddresses :many
+SELECT d.id, d.last_seen, d.is_watched, a.ip
+FROM devices d
+         JOIN addresses a ON a.device_id = d.id AND a.is_current = 1
+WHERE d.present_since IS NOT NULL
+ORDER BY d.id;
+
+-- The present devices a source that reads every network could have seen are
+-- those it holds a claim for.
+-- name: PresentOfSource :many
+SELECT d.id, d.last_seen, d.is_watched
+FROM devices d
+         JOIN device_sources ds ON ds.device_id = d.id
+WHERE ds.source_id = ?
+  AND d.present_since IS NOT NULL
+ORDER BY d.id;
+
+-- name: SetDeviceWatched :one
+UPDATE devices
+SET is_watched = sqlc.arg(is_watched)
+WHERE id = sqlc.arg(id)
+RETURNING *;
+
 -- A device folded into another may carry a label the user set before its MAC
 -- was known, and the earlier of the two first_seen values is the true one.
 -- name: AdoptCuration :exec
@@ -245,9 +284,10 @@ WHERE started_at < ?
   AND status <> 'RUNNING';
 
 -- A device no scan has seen since the cutoff is deleted only when its owner
--- has not touched it: a label, notes, group, type or the ignored flag keeps it
--- however long it stays away, since deleting an ignored device would bring it
--- back unignored the next time it is seen. Its addresses, ports, claims and
+-- has not touched it: a label, notes, group, type, the ignored flag or watching
+-- keeps it however long it stays away, since deleting an ignored device would
+-- bring it back unignored the next time it is seen, and a watched one would
+-- come back unwatched. Its addresses, ports, claims and
 -- traffic go with it; its events stay, with device_id set to null.
 -- name: DeleteUncuratedDevicesBefore :execrows
 DELETE
@@ -257,7 +297,8 @@ WHERE last_seen < ?
   AND COALESCE(notes, '') = ''
   AND COALESCE(group_name, '') = ''
   AND COALESCE(device_type, '') = ''
-  AND is_ignored = 0;
+  AND is_ignored = 0
+  AND is_watched = 0;
 
 -- Reads.
 

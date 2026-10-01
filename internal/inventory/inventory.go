@@ -146,6 +146,13 @@ type Result struct {
 	// window. The rows are kept with is_current cleared.
 	Released int
 
+	// Back and Quiet count devices that crossed the online window: seen again
+	// after longer than the window, or found gone longer than it by a reading
+	// that could have seen them. Both count every device; only a watched one
+	// logs an event.
+	Back  int
+	Quiet int
+
 	// Dropped counts facts there was nothing to record against: no hardware
 	// address and no address any device holds, so believing them would invent a
 	// device with nothing to tell it apart.
@@ -163,6 +170,10 @@ type reading struct {
 	network *netip.Prefix
 
 	facts []plugin.Fact
+
+	// partial marks a reading the source could not finish, which says what it
+	// saw and nothing about what it did not.
+	partial bool
 }
 
 // pass carries what every write in one ingest shares, including the single
@@ -322,6 +333,19 @@ func (s *Store) RecordFacts(
 	facts []plugin.Fact,
 ) (*Result, error) {
 	return s.report(ctx, reading{source: source, kind: kind, facts: facts})
+}
+
+// RecordPartialFacts stores what a source said when part of its read failed,
+// such as one table answering while another timed out. The facts are recorded
+// as [Store.RecordFacts] records them, and no device is judged gone for being
+// missing from them: it may be missing from the part that failed.
+func (s *Store) RecordPartialFacts(
+	ctx context.Context,
+	source string,
+	kind dbtype.SourceKind,
+	facts []plugin.Fact,
+) (*Result, error) {
+	return s.report(ctx, reading{source: source, kind: kind, facts: facts, partial: true})
 }
 
 // RecordNetworks stores the segments a source says it serves.
@@ -520,6 +544,10 @@ func (s *Store) ingest(ctx context.Context, scanID, sourceID int64, r reading) (
 		}
 	}
 
+	if err := s.depart(ctx, p, r); err != nil {
+		return nil, nil, err
+	}
+
 	if err := tx.Commit(); err != nil {
 		return nil, nil, fmt.Errorf("commit ingest: %w", err)
 	}
@@ -617,6 +645,11 @@ func (s *Store) record(ctx context.Context, p *pass, f plugin.Fact) error {
 	}
 
 	if f.Present {
+		// Before the touch, so arrive still reads the previous sighting.
+		if err := s.arrive(ctx, p, target); err != nil {
+			return err
+		}
+
 		if err := p.q.TouchDevice(ctx, models.TouchDeviceParams{LastSeen: p.at, ID: target.ID}); err != nil {
 			return fmt.Errorf("touch device %d: %w", target.ID, err)
 		}

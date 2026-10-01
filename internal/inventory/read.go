@@ -76,6 +76,10 @@ func (s *Store) ListDevices(ctx context.Context, f DeviceFilter) ([]*Device, err
 			continue
 		}
 
+		if f.Watched && !d.Watched {
+			continue
+		}
+
 		devices = append(devices, d)
 	}
 

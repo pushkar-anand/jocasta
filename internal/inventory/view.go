@@ -48,6 +48,10 @@ type Device struct {
 	Group   string `json:"group,omitempty"`
 	Ignored bool   `json:"ignored"`
 
+	// Watched is whether the owner is told when the device goes quiet or
+	// comes back.
+	Watched bool `json:"watched"`
+
 	FirstSeen time.Time `json:"first_seen"`
 	LastSeen  time.Time `json:"last_seen"`
 
@@ -55,6 +59,11 @@ type Device struct {
 	// window. It is fixed when the device is read, so a list does not report
 	// two devices differently for having been formatted a second apart.
 	Online bool `json:"online"`
+
+	// PresentSince is when the device's current run of sightings began. It is
+	// zero while the device is quiet, and for one no reading has judged since
+	// presence was recorded.
+	PresentSince time.Time `json:"present_since,omitzero"`
 
 	// Current holds the addresses the device answers on now, in address order.
 	Current []netip.Addr `json:"current_addresses,omitempty"`
@@ -368,6 +377,10 @@ type DeviceFilter struct {
 	Status Status
 	Sort   Sort
 
+	// Watched admits only the devices the owner watches. False is every
+	// device.
+	Watched bool
+
 	// IncludeIgnored admits the devices the user has marked ignored, which are
 	// left out otherwise.
 	IncludeIgnored bool
@@ -402,9 +415,11 @@ func newDevice(d *models.Device, cutoff time.Time) *Device {
 		Notes:           d.Notes.String,
 		Group:           d.GroupName.String,
 		Ignored:         d.IsIgnored,
+		Watched:         d.IsWatched,
 		FirstSeen:       d.FirstSeen.Time,
 		LastSeen:        d.LastSeen.Time,
 		Online:          !d.LastSeen.Before(cutoff),
+		PresentSince:    d.PresentSince.Time.Time,
 	}
 }
 

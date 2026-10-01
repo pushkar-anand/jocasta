@@ -39,6 +39,7 @@ func (h *Handler) listDevices(store *inventory.Store) response.HandlerFunc {
 			Status         string `schema:"status" validate:"omitempty,oneof=online offline"`
 			Sort           string `schema:"sort" validate:"omitempty,oneof=last_seen name address type"`
 			IncludeIgnored bool   `schema:"include_ignored"`
+			Watched        bool   `schema:"watched"`
 		}
 
 		devicesResponse struct {
@@ -59,6 +60,7 @@ func (h *Handler) listDevices(store *inventory.Store) response.HandlerFunc {
 			Status:         inventory.Status(q.Status),
 			Sort:           inventory.Sort(q.Sort),
 			IncludeIgnored: q.IncludeIgnored,
+			Watched:        q.Watched,
 		})
 		if err != nil {
 			return err
@@ -118,6 +120,39 @@ func (h *Handler) updateDevice(store *inventory.Store) response.HandlerFunc {
 		}
 
 		device, err := store.UpdateCuration(r.Context(), id, inventory.Curation(*body))
+		if err != nil {
+			return err
+		}
+
+		h.jsonWriter.Ok(w, r, device)
+
+		return nil
+	}
+}
+
+// watchDevice sets whether the owner is told when a device goes quiet or comes
+// back, and returns the device. It is apart from updateDevice, which replaces
+// every field its body carries, so a client written before watching existed
+// cannot clear it.
+func (h *Handler) watchDevice(store *inventory.Store) response.HandlerFunc {
+	// watchRequest is required to say which way: a body that leaves it out is
+	// a mistake, and reading it as false would stop watching.
+	type watchRequest struct {
+		Watched *bool `json:"watched" validate:"required"`
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) error {
+		id, err := deviceID(r)
+		if err != nil {
+			return err
+		}
+
+		body, err := h.reader.ReadAndValidateJSON[watchRequest](r)
+		if err != nil {
+			return err
+		}
+
+		device, err := store.Watch(r.Context(), id, *body.Watched)
 		if err != nil {
 			return err
 		}
