@@ -48,18 +48,19 @@ func (s *shot) goldenFile() string {
 	return filepath.Join(goldenDir, strings.Join([]string{s.Page, s.State, s.Viewport, s.Theme}, "_")+".png")
 }
 
-// compareGolden checks s against its stored picture, or stores it when
-// update is set. On a mismatch it writes the picture taken and a map of what
-// changed under artifacts, when that is set.
+// compareGolden checks s against its stored picture, or, when update is
+// set, stores it if it is new or no longer matches. On a mismatch it writes
+// the picture taken and a map of what changed under artifacts, when that is
+// set.
 func compareGolden(s *shot, update bool, artifacts string) error {
 	name := s.goldenFile()
 
-	if update {
-		return os.WriteFile(name, s.golden, 0o600)
-	}
-
 	want, err := os.ReadFile(name) //nolint:gosec // a path built from the shot's own names
 	if errors.Is(err, fs.ErrNotExist) {
+		if update {
+			return os.WriteFile(name, s.golden, 0o600)
+		}
+
 		return fmt.Errorf("no stored picture %s; run with E2E_UPDATE=1 to take it", name)
 	}
 
@@ -68,12 +69,18 @@ func compareGolden(s *shot, update bool, artifacts string) error {
 	}
 
 	changed, diff, err := pixelDiff(want, s.golden)
-	if err != nil {
+	if err != nil && !update {
 		return fmt.Errorf("%s: %w", name, err)
 	}
 
-	if changed <= goldenShare {
+	// A picture within tolerance is kept as stored even when updating, so a
+	// change rewrites only the pictures it actually moved.
+	if err == nil && changed <= goldenShare {
 		return nil
+	}
+
+	if update {
+		return os.WriteFile(name, s.golden, 0o600)
 	}
 
 	if artifacts != "" {
