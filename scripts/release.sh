@@ -23,6 +23,9 @@ remote_refs=$(git ls-remote --exit-code origin refs/heads/main)
 remote_commit=${remote_refs%%$'\t'*}
 [[ $commit == "$remote_commit" ]] || die "Local main differs from origin/main; sync it before releasing"
 
+# Every screen and every account, which a pull request's run leaves out.
+make e2e-full || die "Browser tests failed; fix them before releasing"
+
 if git show-ref --verify --quiet "refs/tags/$version"; then
     die "Local tag $version already exists"
 fi

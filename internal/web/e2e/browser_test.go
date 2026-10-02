@@ -20,6 +20,7 @@ import (
 	cdppage "github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
+	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
 
 var (
@@ -329,10 +330,16 @@ func capture(b *browser, a *app, r role, cookies []*http.Cookie, v viewport, the
 		return nil, fmt.Errorf("%s %s: %w", p.name, s.name, err)
 	}
 
+	// An error page by design answers with its status, which the console
+	// reports too: a state that ends on one, and an admin page drawn for an
+	// account that is not.
+	status := s.status
+	if p.admin && r.role != dbtype.RoleAdmin {
+		status = http.StatusForbidden
+	}
+
 	for _, pr := range t.drain() {
-		// An error page by design answers with its status, which the
-		// console reports too.
-		if s.status != 0 && strings.Contains(pr.Detail, strconv.Itoa(s.status)) {
+		if status != 0 && strings.Contains(pr.Detail, strconv.Itoa(status)) {
 			continue
 		}
 
