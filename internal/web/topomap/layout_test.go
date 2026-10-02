@@ -256,3 +256,46 @@ func TestPlaceNamesEachChipsPortOrBand(t *testing.T) {
 	assert.Empty(t, asides["device-10"], "the switch is not read, so its ports are unknown")
 	assert.Empty(t, asides["device-80"], "no band was reported")
 }
+
+// A long group wraps its chips into columns, so it stays near as wide as it
+// is tall instead of drawing as one column thousands of pixels tall, and its
+// chips and its neighbours still never overlap.
+func TestLongGroupWrapsIntoColumns(t *testing.T) {
+	t.Parallel()
+
+	l := Place(network(t, 100))
+
+	var long *Group
+
+	for _, g := range l.Groups {
+		if long == nil || len(g.Chips) > len(long.Chips) {
+			long = g
+		}
+	}
+
+	require.Greater(t, len(long.Chips), 40, "a long group")
+	assert.Greater(t, long.W, chipW, "it takes more than one column")
+	assert.Less(t, long.H, 3*long.W, "and is not a sliver")
+
+	for i, a := range long.Chips {
+		assert.True(t, a.X >= long.X && a.X+chipW <= long.X+long.W, "chip %d inside its group", i)
+		assert.LessOrEqual(t, a.Y+chipH, long.Y+long.H, "chip %d inside its group", i)
+
+		for _, b := range long.Chips[i+1:] {
+			apart := a.X+chipW <= b.X || b.X+chipW <= a.X || a.Y+chipH <= b.Y || b.Y+chipH <= a.Y
+			assert.True(t, apart, "chips %s and %s overlap", a.Key, b.Key)
+		}
+	}
+
+	for i, a := range l.Groups {
+		for _, b := range l.Groups[i+1:] {
+			apart := a.X+a.W <= b.X || b.X+b.W <= a.X || a.Y+a.H <= b.Y || b.Y+b.H <= a.Y
+			assert.True(t, apart, "groups %q and %q overlap", a.Title, b.Title)
+		}
+	}
+
+	// A short group keeps its single column.
+	for _, g := range Place(network(t, 4)).Groups {
+		assert.InDelta(t, chipW, g.W, 0.01, "group %q", g.Title)
+	}
+}
