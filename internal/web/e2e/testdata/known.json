@@ -25,11 +25,6 @@
     "el": "text.topo__group-title"
   },
   {
-    "issue": "M1",
-    "check": "overlap",
-    "el": "input#netmap-search"
-  },
-  {
     "issue": "M6",
     "check": "text-spills",
     "el": "worldmap__scale"
