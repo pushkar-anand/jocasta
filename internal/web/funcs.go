@@ -111,9 +111,10 @@ func humanBytes(n int64) string {
 
 	v := float64(n)
 
-	for _, suffix := range []string{"kB", "MB", "GB", "TB"} {
+	// An int64 runs out in the exabytes, so EB is the last step.
+	for _, suffix := range []string{"kB", "MB", "GB", "TB", "PB", "EB"} {
 		v /= unit
-		if v < unit || suffix == "TB" {
+		if v < unit || suffix == "EB" {
 			// One decimal while it says something, none once the number
 			// carries the precision by itself.
 			if v < 10 {

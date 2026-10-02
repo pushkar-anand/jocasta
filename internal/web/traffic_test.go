@@ -1,6 +1,7 @@
 package web
 
 import (
+	"math"
 	"net/http"
 	"net/netip"
 	"strconv"
@@ -356,7 +357,10 @@ func TestHumanBytes(t *testing.T) {
 		{1_234_567, "1.2 MB"},
 		{25_000_000, "25 MB"},
 		{3_100_000_000_000, "3.1 TB"},
-		{9_000_000_000_000_000, "9000 TB"},
+		{999_000_000_000_000, "999 TB"},
+		{14_331_000_000_000_000, "14 PB"},
+		{9_000_000_000_000_000, "9.0 PB"},
+		{math.MaxInt64, "9.2 EB"},
 	}
 
 	for _, tt := range tests {
