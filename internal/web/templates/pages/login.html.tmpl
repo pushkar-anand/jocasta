@@ -61,17 +61,20 @@
                 <p class="failure" id="login-error" role="alert">{{ . }}</p>
             {{- end }}
 
+            {{- /* After a failed sign-in the username is kept, so focus starts
+                   on the password, where the retry begins. */}}
+            {{- $retry := and .Error .Username }}
             <form method="post" action="/login" class="authform">
                 <label class="stack" for="login-username">
                     <span class="eyebrow">Username</span>
-                    <input class="input" id="login-username" type="text" name="username" value="{{ .Username }}" autocomplete="username" autofocus
+                    <input class="input" id="login-username" type="text" name="username" value="{{ .Username }}" autocomplete="username"{{ if not $retry }} autofocus{{ end }}
                            {{ if .Error }}aria-invalid="true" aria-describedby="login-error"{{ end }}
                            minlength="3" maxlength="100" required>
                 </label>
 
                 <label class="stack" for="login-password">
                     <span class="eyebrow">Password</span>
-                    <input class="input" id="login-password" type="password" name="password" autocomplete="current-password"
+                    <input class="input" id="login-password" type="password" name="password" autocomplete="current-password"{{ if $retry }} autofocus{{ end }}
                            {{ if .Error }}aria-invalid="true" aria-describedby="login-error"{{ end }}
                            minlength="8" maxlength="1000" required>
                 </label>
