@@ -883,7 +883,9 @@ a.netcard:hover {
 /* A run of labelled values, in as many columns as fit. */
 .facts {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+    /* 9rem holds a hardware address whole; below that the grid drops a
+       column rather than break one. */
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
     gap: 14px 22px;
     margin: 0;
 }
@@ -908,6 +910,11 @@ a.netcard:hover {
     font-size: 13.5px;
     font-variant-numeric: tabular-nums;
     overflow-wrap: anywhere;
+}
+
+.facts dd.mono {
+    overflow-wrap: normal;
+    white-space: nowrap;
 }
 
 /* The Type value carries an icon, a label and sometimes a chip, which is more
@@ -1261,8 +1268,12 @@ tbody tr:hover {
     font-size: 12.5px;
 }
 
-.num {
+/* A number and its unit, and a date, are one value: "22 MB" broken after
+   22 reads as two. */
+.num,
+time {
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
 .lower {
