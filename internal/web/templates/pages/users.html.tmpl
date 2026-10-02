@@ -86,9 +86,9 @@
                         <p class="failure" id="username-error" role="alert">{{ . }}</p>
                     {{- end }}
 
-                    <label class="stack">
+                    <label class="stack" for="new-user-username">
                         <span class="eyebrow">Username</span>
-                        <input class="input" type="text" name="username" autocomplete="off" minlength="3"
+                        <input class="input" id="new-user-username" type="text" name="username" autocomplete="off" minlength="3"
                                maxlength="100" value="{{ .Username }}" autofocus
                                aria-describedby="username-help{{ if .Error }} username-error{{ end }}"
                                {{ if .Error }}aria-invalid="true"{{ end }} required>
@@ -100,6 +100,7 @@
                         <div class="pw-field">
                             <input class="input" id="new-user-password" type="password" name="password"
                                    autocomplete="new-password" minlength="8" maxlength="1000"
+                                   passwordrules="minlength: 8; maxlength: 1000;"
                                    aria-describedby="password-help" required>
                             <button type="button" class="pw-toggle" data-pw-toggle
                                     aria-controls="new-user-password" aria-pressed="false">Show</button>

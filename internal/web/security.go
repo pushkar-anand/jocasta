@@ -170,6 +170,9 @@ func (h *Handler) securityConfirm(sm *auth.Session, a *auth.Auth) response.Handl
 // account's password, then redirects to its security settings.
 func (h *Handler) securityDisable(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	type disableForm struct {
+		// Username is the hidden field that tells a password manager which
+		// login to fill. It is ignored: the session says whose account this is.
+		Username string `schema:"username"`
 		Password string `schema:"password" validate:"required,min=8,max=1000"`
 	}
 
@@ -208,6 +211,8 @@ func (h *Handler) securityDisable(sm *auth.Session, a *auth.Auth) response.Handl
 // codes, then redirects to display their plaintext values once.
 func (h *Handler) securityRegenerateRecoveryCodes(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	type regenerateForm struct {
+		// Username is ignored, as for disabling two-factor.
+		Username string `schema:"username"`
 		Password string `schema:"password" validate:"required,min=8,max=1000"`
 	}
 

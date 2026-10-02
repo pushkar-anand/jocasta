@@ -88,7 +88,8 @@ func TestSecurityConfirmationErrorsKeepTheirForms(t *testing.T) {
 		cookies := signInWithCode(t, h, secret)
 
 		for _, password := range []string{"short", "not-the-password"} {
-			rec := requestAs(t, h, cookies, http.MethodPost, "/settings/security/recovery-codes/regenerate", url.Values{"password": {password}}.Encode())
+			form := url.Values{"username": {testUsername}, "password": {password}}.Encode()
+			rec := requestAs(t, h, cookies, http.MethodPost, "/settings/security/recovery-codes/regenerate", form)
 			require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
 			assert.Contains(t, rec.Body.String(), `aria-labelledby="regenerate-dialog-title" open`)
 			assert.Contains(t, rec.Body.String(), `aria-describedby="regenerate-error"`)
@@ -114,8 +115,13 @@ func TestSecurityDisableRequiresPassword(t *testing.T) {
 	assert.Contains(t, wrong.Body.String(), `aria-describedby="disable-error"`)
 	assert.NotContains(t, wrong.Body.String(), "not-the-password")
 
+	// The dialog names the account for password managers, and the form
+	// posts it along with the password.
+	assert.Contains(t, wrong.Body.String(),
+		`<input type="text" id="disable-username" name="username" autocomplete="username"`)
+
 	right := requestAs(t, h, cookies, http.MethodPost, "/settings/security/totp/disable",
-		url.Values{"password": {testPassword}}.Encode())
+		url.Values{"username": {testUsername}, "password": {testPassword}}.Encode())
 	require.Equal(t, http.StatusSeeOther, right.Code)
 
 	// 2FA is off again: a fresh sign-in goes straight through.

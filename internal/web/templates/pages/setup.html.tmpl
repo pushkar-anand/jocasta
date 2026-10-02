@@ -65,9 +65,9 @@
 
             <form method="post" action="/setup" class="authform">
                 {{- /* The same fields, hints and Show toggle as Add a user. */}}
-                <label class="stack">
+                <label class="stack" for="setup-username">
                     <span class="eyebrow">Username</span>
-                    <input class="input" type="text" name="username" autocomplete="username" autofocus
+                    <input class="input" id="setup-username" type="text" name="username" autocomplete="username" autofocus
                            minlength="3" maxlength="100" aria-describedby="username-help" required>
                     <span class="hint" id="username-help">3&ndash;100 characters.</span>
                 </label>
@@ -77,6 +77,7 @@
                     <div class="pw-field">
                         <input class="input" id="setup-password" type="password" name="password"
                                autocomplete="new-password" minlength="8" maxlength="1000"
+                               passwordrules="minlength: 8; maxlength: 1000;"
                                aria-describedby="password-help" required>
                         <button type="button" class="pw-toggle" data-pw-toggle
                                 aria-controls="setup-password" aria-pressed="false">Show</button>
