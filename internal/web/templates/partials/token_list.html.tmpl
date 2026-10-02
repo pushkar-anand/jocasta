@@ -54,7 +54,7 @@
                     <tbody>
                     {{- range .Tokens }}
                         <tr id="token-row-{{ .ID }}">
-                            <td class="cell strong">{{ .Name }}</td>
+                            <td class="strong">{{ .Name }}</td>
                             <td>
                                 {{- if eq .Scope "read_write" }}
                                     <span class="chip chip--brand">Editor</span>
