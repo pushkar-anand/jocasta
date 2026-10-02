@@ -43,3 +43,8 @@ var ErrInvalidPassword = errors.New("incorrect password")
 // ErrNoTOTPEnrollment is returned when there is no unconfirmed secret to act
 // on: enrollment was never started, or was already confirmed or cancelled.
 var ErrNoTOTPEnrollment = errors.New("no totp enrollment in progress")
+
+// ErrSecondAdmin is returned when an account would be made admin while one
+// already is. An instance has one admin, made at setup; every account added
+// after it is a viewer or an editor.
+var ErrSecondAdmin = errors.New("an admin already exists")
