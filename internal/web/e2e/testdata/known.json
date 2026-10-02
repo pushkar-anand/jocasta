@@ -50,16 +50,6 @@
     "el": "ol.path > li.path__hop"
   },
   {
-    "issue": "C2",
-    "check": "page-scrolls-sideways",
-    "el": "form.filters > label.field"
-  },
-  {
-    "issue": "C2",
-    "check": "page-scrolls-sideways",
-    "el": "form#device-filters > label.field"
-  },
-  {
     "issue": "L1",
     "check": "page-scrolls-sideways",
     "el": "html"

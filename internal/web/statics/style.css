@@ -1324,10 +1324,30 @@ code {
     align-items: center;
     gap: 8px;
     height: 34px;
+    max-width: 100%;
     padding: 0 11px;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
+}
+
+/* A select grows to fill its pill, so its arrow sits at the pill's end
+   whatever the chosen option's length, and the pill stops growing at a
+   width an option list never needs: a 100-character group name would
+   otherwise stretch it across the page. */
+.field select {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.filters .field {
+    min-width: 0;
+}
+
+@media (min-width: 40rem) {
+    .field:not(.field--search):has(select) {
+        max-width: 16rem;
+    }
 }
 
 .field:focus-within {
