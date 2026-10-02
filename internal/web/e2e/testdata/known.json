@@ -1,10 +1,5 @@
 [
   {
-    "issue": "C9",
-    "check": "axe:scrollable-region-focusable",
-    "el": ".scroller"
-  },
-  {
     "issue": "M4",
     "check": "overlap",
     "el": "g.netmap__devices > a.netmap__dev"

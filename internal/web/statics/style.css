@@ -2312,6 +2312,15 @@ td .traffic__tried {
         border-bottom: none;
     }
 
+    /* A note row, such as a failed scan's error, belongs to the card above. */
+    table.stacks tbody tr:has(+ tr.row--note) {
+        border-bottom: none;
+    }
+
+    table.stacks tbody tr.row--note {
+        padding-top: 0;
+    }
+
     table.stacks td {
         padding: 4px 0;
         border: none;

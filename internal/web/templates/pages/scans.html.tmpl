@@ -18,7 +18,7 @@
     {{- if .Scans }}
     <div class="card card--table">
         <div class="scroller">
-            <table>
+            <table class="stacks">
                 <thead>
                 <tr>
                     <th scope="col">Started</th>
@@ -34,12 +34,12 @@
                 {{- range .Scans }}
                 <tr>
                     <td class="dim">{{ stamp .StartedAt "" }}</td>
-                    <td class="lower">{{ .Kind }}</td>
-                    <td class="strong">{{ .Source }}</td>
-                    <td class="mono">{{ dash .Network }}</td>
-                    <td>{{ found . }}</td>
-                    <td class="dim num">{{ took . }}</td>
-                    <td><span class="{{ statusClass .Status }}">{{ .Status }}</span></td>
+                    <td data-label="Kind" class="lower">{{ .Kind }}</td>
+                    <td data-label="Source" class="strong">{{ .Source }}</td>
+                    <td data-label="Network" class="mono">{{ dash .Network }}</td>
+                    <td data-label="Found">{{ found . }}</td>
+                    <td data-label="Took" class="dim num">{{ took . }}</td>
+                    <td data-label="Status"><span class="{{ statusClass .Status }}">{{ .Status }}</span></td>
                 </tr>
                 {{- with .Error }}
                 <tr class="row--note">
