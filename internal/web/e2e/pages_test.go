@@ -71,6 +71,25 @@ var (
 		`document.querySelectorAll('details:not(.usermenu)').forEach((d) => { d.open = true; })`, nil)}
 	openUserMenu = state{name: "user-menu", do: click("details.usermenu > summary")}
 	editRow      = state{name: "row-edit", do: click(`[hx-get$="/edit"]`)}
+
+	// openDrawer applies only where the menu button shows: below 60rem.
+	openDrawer = state{name: "drawer", do: chromedp.ActionFunc(func(ctx context.Context) error {
+		var shown bool
+
+		err := chromedp.Evaluate(`(() => {
+			const el = document.querySelector('.topbar__menu');
+			return !!el && getComputedStyle(el).display !== 'none';
+		})()`, &shown).Do(ctx)
+		if err != nil {
+			return err
+		}
+
+		if !shown {
+			return errNotApplicable
+		}
+
+		return click(".topbar__menu").Do(ctx)
+	})}
 )
 
 func dialog(id string) state {
@@ -87,7 +106,7 @@ func pages(ctx context.Context, a *app) ([]page, error) {
 			chromedp.SetValue(`input[name=password]`, "wrong-password", chromedp.ByQuery),
 			click(`form button[type=submit]`),
 		}, status: 401}}},
-		{name: "overview", path: "/", states: []state{base, openUserMenu}},
+		{name: "overview", path: "/", states: []state{base, openUserMenu, openDrawer}},
 		{name: "devices", path: "/devices", states: []state{base, editRow}},
 		{name: "devices-page2", path: "/devices?page=2", states: []state{base}},
 		{name: "devices-nomatch", path: "/devices?q=no-such-device-anywhere", states: []state{base}},

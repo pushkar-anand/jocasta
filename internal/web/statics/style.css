@@ -161,7 +161,7 @@ a.inline {
 }
 
 /* First tab stop on every page in the shell: off-screen until focused, then
-   pinned over the sticky topbar (z-index 10) and the mobile rail (20). */
+   pinned over the sticky topbar (z-index 10). */
 .skip-link {
     position: fixed;
     top: 8px;
@@ -336,6 +336,69 @@ a.inline {
     color: #c7cad2;
 }
 
+/* The rail again, as a drawer from the left for screens too narrow to keep
+   it: drawer.js moves the sidebar in while the menu button has it open. */
+.drawer {
+    position: fixed;
+    inset: 0 auto 0 0;
+    /* Wider than the rail, so the close button fits beside the brand. */
+    width: min(280px, calc(100vw - 56px));
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: var(--sidebar);
+    overflow-y: auto;
+}
+
+.drawer .sidebar {
+    display: flex;
+    position: static;
+    width: auto;
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+}
+
+.drawer::backdrop {
+    background: rgba(0, 0, 0, 0.45);
+}
+
+/* Only as wide as the brand, so it stays clear of the close button. */
+.drawer .brandmark {
+    align-self: flex-start;
+}
+
+.drawer__close {
+    position: absolute;
+    top: 20px;
+    right: 12px;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 0;
+    border-radius: var(--radius-sm);
+    color: var(--sidebar-muted);
+    cursor: pointer;
+}
+
+.drawer__close:hover {
+    background: var(--sidebar-hover);
+    color: #ffffff;
+}
+
+.drawer__close svg,
+.topbar__menu svg {
+    width: 18px;
+    height: 18px;
+}
+
 /* Frame */
 
 .frame {
@@ -382,6 +445,28 @@ a.inline {
     width: 1px;
     height: 18px;
     background: var(--border);
+}
+
+/* Shown below 60rem only, where it opens the drawer. */
+.topbar__menu {
+    display: none;
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    margin: 0 0 0 -6px;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 0;
+    border-radius: var(--radius-sm);
+    color: var(--text-2);
+    cursor: pointer;
+}
+
+.topbar__menu:hover {
+    background: var(--surface-2);
+    color: var(--text);
 }
 
 /* Sign out is a POST, so it is a one-button form. This keeps
@@ -1880,49 +1965,20 @@ td .traffic__tried {
 
 /* Narrow */
 
-/* The rail keeps the sections reachable at every width; below this it becomes
-   a header, since a 240px column of a 640px screen is most of it. */
+/* Below this a 240px rail would take most of the screen, so it moves into a
+   drawer behind the menu button. */
 @media (max-width: 60rem) {
     :root {
         --pad: 20px;
     }
 
-    .shell {
-        flex-direction: column;
-    }
-
+    /* The menu button opens the sections in a drawer instead. */
     .sidebar {
-        flex: 0 0 auto;
-        width: 100%;
-        min-width: 0;
-        height: auto;
-        flex-direction: row;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 16px;
-        overflow-x: auto;
-        overflow-y: visible;
-        z-index: 20;
-    }
-
-    .brandmark {
-        flex-shrink: 0;
-        padding: 0 8px 0 0;
-    }
-
-    .nav {
-        flex-shrink: 0;
-        flex-direction: row;
-        gap: 2px;
-    }
-
-    .navitem span {
-        white-space: nowrap;
-    }
-
-    /* The rail is a header now; the sweep line would push the sections off it. */
-    .sidebar__foot {
         display: none;
+    }
+
+    .topbar__menu {
+        display: flex;
     }
 
     .topbar {
@@ -1930,9 +1986,6 @@ td .traffic__tried {
         height: auto;
         flex-wrap: wrap;
         padding: 14px var(--pad);
-        /* The rail is a sticky strip at this width; a second sticky bar under it
-           would stack on top of the sections. */
-        position: static;
     }
 
     /* The title takes what the tools leave and wraps inside it, so the theme
@@ -2096,18 +2149,6 @@ td .traffic__tried {
 }
 
 @media (max-width: 34rem) {
-    /* Hidden from sight only: it is the logo link's name for a screen
-       reader, which display: none would take away. */
-    .brandmark__text {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        margin: -1px;
-        overflow: hidden;
-        clip-path: inset(50%);
-        white-space: nowrap;
-    }
-
     .act {
         display: grid;
         grid-template-columns: 26px minmax(0, 1fr);

@@ -109,7 +109,7 @@ func TestTokensPageLeadsWithTheList(t *testing.T) {
 	body := requestAs(t, h, signIn(t, h), http.MethodGet, "/settings/tokens", "").Body.String()
 
 	list := strings.Index(body, `id="token-list"`)
-	dialog := strings.Index(body, "<dialog")
+	dialog := strings.Index(body, `<dialog class="modal"`)
 
 	require.Positive(t, list)
 	require.Positive(t, dialog)
