@@ -265,9 +265,12 @@
                                 <span class="dim">{{ .Devices }} {{ if eq .Devices 1 }}device{{ else }}devices{{ end }}</span>
                             </summary>
                             <ul class="peers__list">
-                                {{- range .DeviceList }}
+                                {{- range .DevicesHead }}
                                 <li><a href="/devices/{{ .DeviceID }}#traffic">{{ .DeviceName }}</a>
                                     <span class="peers__detail">{{ bytes .Sent }} sent &middot; {{ bytes .Received }} received</span></li>
+                                {{- end }}
+                                {{- with .DevicesRest }}
+                                <li class="dim">and {{ count . }} more</li>
                                 {{- end }}
                             </ul>
                         </details>

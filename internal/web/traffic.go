@@ -87,6 +87,10 @@ type trafficSection struct {
 	Probed []*inventory.Probed
 }
 
+// Attribution credits the organisation names, in the words the traffic page
+// uses, as their licence requires.
+func (*trafficSection) Attribution() string { return asn.Attribution }
+
 // Empty reports whether the device neither talked nor tried anything in the
 // window.
 func (t *trafficSection) Empty() bool {
@@ -527,6 +531,19 @@ type orgDevices struct {
 
 	DeviceList []*inventory.DeviceTotal
 }
+
+// orgDeviceRows is how many devices an organisation's row opens to. A big
+// provider can be reached by most of the network, which would make one open
+// row longer than the card beside it.
+const orgDeviceRows = 10
+
+// DevicesHead is the devices the row lists, the busiest first.
+func (o *orgDevices) DevicesHead() []*inventory.DeviceTotal {
+	return o.DeviceList[:min(orgDeviceRows, len(o.DeviceList))]
+}
+
+// DevicesRest counts the ones DevicesHead leaves out.
+func (o *orgDevices) DevicesRest() int64 { return int64(max(0, len(o.DeviceList)-orgDeviceRows)) }
 
 // newOrg is an organisation some devices reached for the first time.
 type newOrg struct {
