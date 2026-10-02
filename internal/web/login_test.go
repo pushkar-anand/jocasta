@@ -35,6 +35,11 @@ func TestLoginFormRejectsWrongPassword(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), `name="remember_me" value="true" checked`)
 	assert.Contains(t, rec.Body.String(), `aria-describedby="login-error"`)
 	assert.NotContains(t, rec.Body.String(), "wrong-password")
+
+	// The username is kept, so the cursor goes where the retry starts: the
+	// password.
+	assert.Regexp(t, `<input[^>]*id="login-password"[^>]*autofocus`, rec.Body.String())
+	assert.NotRegexp(t, `<input[^>]*id="login-username"[^>]*autofocus`, rec.Body.String())
 }
 
 // Signing out is a POST, since a link would let another site spend the
