@@ -790,6 +790,31 @@ func TestDevicePageMergesAdvertisedServicesIntoPorts(t *testing.T) {
 	assert.NotContains(t, body, "ZgotmplZ")
 }
 
+// A device with many open ports shows the first few in the list and links to
+// the rest, so one busy device does not make its row a wall of chips.
+func TestDeviceListCapsOpenPorts(t *testing.T) {
+	t.Parallel()
+
+	store := testStore(t)
+
+	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix),
+		[]scanner.Host{host("192.0.2.10", macA, "nas.local")})
+	require.NoError(t, err)
+
+	ports := []uint16{21, 22, 80, 139, 443, 445, 548, 2049, 5000, 8080}
+	_, err = store.RecordPorts(t.Context(), "test-sweep", []scanner.PortScan{
+		{Addr: netip.MustParseAddr("192.0.2.10"), Open: ports, Scanned: ports},
+	})
+	require.NoError(t, err)
+
+	body := get(t, newWebHandler(t, store), "/devices").Body.String()
+
+	assert.Equal(t, 6, strings.Count(body, `class="chip chip--port"`))
+	assert.Contains(t, body, `chip--port">445<`)
+	assert.NotContains(t, body, `chip--port">548<`)
+	assert.Regexp(t, `<a class="chip chip--more" href="/devices/\d+#ports">\+4 more<span class="visually-hidden"> ports on nas.local</span></a>`, body)
+}
+
 // The list carries the open ports a scan has found, as chips beside the
 // address they answer on, so a reader does not have to open each device to see
 // what it exposes.

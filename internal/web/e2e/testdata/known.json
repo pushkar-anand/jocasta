@@ -30,11 +30,6 @@
     "el": "input#netmap-search"
   },
   {
-    "issue": "L3",
-    "check": "overlap",
-    "el": "nav.nav > a.navitem"
-  },
-  {
     "issue": "D4",
     "check": "overlap",
     "el": "hN#page-title"
@@ -53,22 +48,5 @@
     "issue": "M6",
     "check": "text-spills",
     "el": "worldmap__scale"
-  },
-  {
-    "issue": "L3",
-    "check": "text-spills",
-    "el": "tr#device-row-N > td.dim"
-  },
-  {
-    "issue": "L3",
-    "check": "page-scrolls-sideways",
-    "el": "html",
-    "page": "weird/devices/*"
-  },
-  {
-    "issue": "L3",
-    "check": "page-scrolls-sideways",
-    "el": "html",
-    "page": "weird/network-*/*"
   }
 ]

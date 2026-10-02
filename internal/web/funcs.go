@@ -63,10 +63,22 @@ func funcs(now func() time.Time, window time.Duration) template.FuncMap {
 		"count":        humanCount,
 		"proto":        protoName,
 		"portList":     portList,
+		"portsHead":    portsHead,
+		"portsMore":    portsMore,
 		"segtone":      segmentTone,
 		"services":     mapServices,
 	}
 }
+
+// rowPorts is how many open ports a device's row in the list shows. The rest
+// are counted, with a link to the device's own Ports section.
+const rowPorts = 6
+
+// portsHead is the ports a device's row shows.
+func portsHead(p []uint16) []uint16 { return p[:min(rowPorts, len(p))] }
+
+// portsMore is how many ports a device's row leaves out.
+func portsMore(p []uint16) int { return max(0, len(p)-rowPorts) }
 
 // segmentTones is how many colours the map cycles through for its networks.
 const segmentTones = 6
