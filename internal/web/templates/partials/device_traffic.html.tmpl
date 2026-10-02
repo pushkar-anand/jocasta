@@ -4,7 +4,7 @@
 
     The filter form, the tabs and the tries switch all fetch this fragment and
     swap it whole; htmx keeps focus in the search box across the swap because
-    it has an id. Without htmx they are plain links and a form submitting to
+    it has an id, and search.js keeps what was typed in it. Without htmx they are plain links and a form submitting to
     the device page, which renders the same section.
 
     The figures at the top are the whole period, before any filter. Under them
@@ -21,12 +21,12 @@
     {{- if not .Recorded }}
     <p class="dim">Traffic collection is not set up, so who this device talks to is unknown.</p>
     {{- else }}
-    <form class="filters" role="search" action="/devices/{{ .DeviceID }}#traffic" method="get"
+    <form id="traffic-filters" class="filters" role="search" action="/devices/{{ .DeviceID }}#traffic" method="get"
           hx-get="/devices/{{ .DeviceID }}/traffic"
           hx-target="#device-traffic"
           hx-swap="outerHTML"
           hx-sync="this:replace"
-          hx-trigger="input changed delay:300ms, change, submit">
+          hx-trigger="filter, submit" data-live>
         <input type="hidden" name="tab" value="{{ .Tab.Key }}">
 
         <label class="field field--search">

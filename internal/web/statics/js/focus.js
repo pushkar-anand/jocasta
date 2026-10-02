@@ -9,7 +9,10 @@
 //     selector. The device row uses it to send focus back to its Edit button
 //     when the inline edit form closes;
 //   * a region htmx has already focused (it honours [autofocus] in new content)
-//     is left alone.
+//     is left alone;
+//   * so is focus in a field outside the swapped content, such as a filter
+//     form's search box or select, which fetched the content and is still
+//     being used.
 //
 // The CSP forbids inline script, so this ships as a file.
 (function () {
@@ -23,6 +26,11 @@
 
         // htmx placed focus in this content already.
         if (swapped.matches('[autofocus]') || swapped.querySelector('[autofocus]')) {
+            return;
+        }
+
+        var active = document.activeElement;
+        if (active && active.matches('input, select, textarea') && !swapped.contains(active)) {
             return;
         }
 
