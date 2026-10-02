@@ -2061,6 +2061,34 @@ td .traffic__tried {
     }
 }
 
+/* The device list's group, under its name. Only shown where the Group
+   column is not. */
+.devrow__group {
+    display: none;
+}
+
+/* Between a phone and a wide screen the device list's seven columns do not
+   fit beside the rail or across a tablet. The group moves under the name,
+   which frees its column, and the cells close up. */
+@media (min-width: 40.0625rem) and (max-width: 72rem) {
+    #device-rows th,
+    #device-rows td {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    #device-rows th:nth-child(5),
+    #device-rows td:nth-child(5) {
+        display: none;
+    }
+
+    .devrow__group {
+        display: block;
+        margin: 2px 0 0 39px;
+        font-size: 12px;
+    }
+}
+
 /* The device list carries more columns than a phone can lay side by side. Below
    this width every row becomes a stacked card: the name leads, each other cell
    sits on its own line keyed by its data-label, and nothing is left to scroll
