@@ -2146,8 +2146,16 @@ td .traffic__tried {
         display: block;
     }
 
+    /* The card's padding framed a table head that is hidden now, and inset
+       the edit form's grey from the card's edges. The rows carry the inset
+       instead, and the card clips them to its corners. */
+    #device-rows .card--table {
+        padding: 0;
+        overflow: hidden;
+    }
+
     #device-rows tbody tr {
-        padding: 12px 14px;
+        padding: 12px 20px;
         border-bottom: 1px solid var(--border);
     }
 
@@ -2234,8 +2242,14 @@ td .traffic__tried {
         width: auto;
     }
 
+    /* As the device list: the rows carry the inset, not the card. */
+    .card--table:has(table.stacks) {
+        padding: 0;
+        overflow: hidden;
+    }
+
     table.stacks tbody tr {
-        padding: 12px 14px;
+        padding: 12px 20px;
         border-bottom: 1px solid var(--border);
     }
 
