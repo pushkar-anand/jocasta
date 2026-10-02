@@ -8,7 +8,7 @@
 {{ define "partial/device-sources" }}
 <div class="card card--table">
     <div class="scroller">
-        <table>
+        <table class="stacks">
             <thead>
             <tr>
                 <th scope="col">Source</th>
@@ -27,7 +27,7 @@
                         <span class="mono strong">{{ .Source }}</span>
                     </span>
                 </td>
-                <td>
+                <td data-label="Calls it">
                     {{- if .Hostname }}
                     {{ .Hostname }}
                     <span class="chip">{{ standing .HostnameSource }}</span>
@@ -35,7 +35,7 @@
                     <span class="dim">no name</span>
                     {{- end }}
                 </td>
-                <td>
+                <td data-label="Details">
                     {{- if .Detail }}
                     <dl class="detail">
                         {{- range .Detail }}
@@ -46,8 +46,8 @@
                     <span class="dim">&mdash;</span>
                     {{- end }}
                 </td>
-                <td class="dim">{{ stamp .FirstSeen "" }}</td>
-                <td class="dim">{{ stamp .LastSeen "" }}</td>
+                <td data-label="First heard" class="dim">{{ stamp .FirstSeen "" }}</td>
+                <td data-label="Last heard" class="dim">{{ stamp .LastSeen "" }}</td>
             </tr>
             {{- end }}
             </tbody>

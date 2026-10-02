@@ -7,7 +7,7 @@
 {{ define "partial/device-ports" }}
 <div class="card card--table">
     <div class="scroller">
-        <table>
+        <table class="stacks">
             <thead>
             <tr>
                 <th scope="col">Port</th>
@@ -27,14 +27,14 @@
                     <span class="dim">&mdash;</span>
                     {{- end }}
                 </td>
-                <td>
+                <td data-label="Service">
                     {{- if .Service }}
                     {{ .Service }}
                     {{- else }}
                     <span class="dim">&mdash;</span>
                     {{- end }}
                 </td>
-                <td>
+                <td data-label="Advertised as">
                     {{- range $i, $a := .Advertised }}
                     {{- if $i }}<br>{{ end }}
                     {{- if $a.Name }}{{ $a.Name }}{{ else }}<span class="mono dim">{{ $a.Type }}</span>{{ end }}
@@ -45,7 +45,7 @@
                     <span class="dim">&mdash;</span>
                     {{- end }}
                 </td>
-                <td>
+                <td data-label="State">
                     {{- if not .Scanned }}
                     <span class="chip">advertised</span>
                     {{- else if .Open }}
@@ -54,7 +54,7 @@
                     <span class="chip">closed {{ stamp .ChangedAt "" }}</span>
                     {{- end }}
                 </td>
-                <td class="dim">{{ stamp .FirstSeen "" }}</td>
+                <td data-label="First seen" class="dim">{{ stamp .FirstSeen "" }}</td>
             </tr>
             {{- end }}
             </tbody>

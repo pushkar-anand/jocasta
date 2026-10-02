@@ -89,7 +89,7 @@
     {{- if .Probers }}
     <div class="card card--table">
         <div class="scroller">
-            <table>
+            <table class="stacks">
                 <thead>
                 <tr>
                     <th scope="col">Device</th>
@@ -102,14 +102,14 @@
                 {{- range .Probers }}
                 <tr>
                     <td><a href="/devices/{{ .DeviceID }}#traffic">{{ .DeviceName }}</a></td>
-                    <td>
+                    <td data-label="What it did">
                         {{- if .SweptAddresses }}Tried {{ .Peers }} addresses{{ if .SweptPorts }}, up to {{ .MaxPorts }} ports on one{{ end }}
                         {{- else }}Tried {{ .MaxPorts }} ports on one address{{ end }}
                         {{- if gt .Hours 1 }} <span class="dim">in {{ .Hours }} hours</span>{{ end }}
                         {{- with .Ports }}<br><span class="dim">ports {{ portList . }}</span>{{ end }}
                     </td>
-                    <td class="num">{{ count .Answered }} of {{ count .Attempts }}</td>
-                    <td class="dim">{{ stamp .LastHour "" }}</td>
+                    <td data-label="Answered" class="num">{{ count .Answered }} of {{ count .Attempts }}</td>
+                    <td data-label="Last seen" class="dim">{{ stamp .LastHour "" }}</td>
                 </tr>
                 {{- end }}
                 </tbody>
@@ -139,7 +139,7 @@
     {{- if .Incoming }}
     <div class="card card--table">
         <div class="scroller">
-            <table>
+            <table class="stacks">
                 <thead>
                 <tr>
                     <th scope="col">Device</th>
@@ -154,12 +154,12 @@
                 {{- range .Incoming }}
                 <tr>
                     <td><a href="/devices/{{ .DeviceID }}?tab=internet#traffic">{{ .DeviceName }}</a></td>
-                    <td>{{ with .Service }}{{ . }} {{ end }}<span class="dim">{{ with proto .Protocol }}{{ . }} {{ end }}{{ .Port }}</span></td>
-                    <td>{{ count .Peers }} {{ if eq .Peers 1 }}address{{ else }}addresses{{ end }}
+                    <td data-label="Service">{{ with .Service }}{{ . }} {{ end }}<span class="dim">{{ with proto .Protocol }}{{ . }} {{ end }}{{ .Port }}</span></td>
+                    <td data-label="From">{{ count .Peers }} {{ if eq .Peers 1 }}address{{ else }}addresses{{ end }}
                         <span class="dim">&middot; {{ .Orgs }} {{ if eq .Orgs 1 }}organisation{{ else }}organisations{{ end }}</span></td>
-                    <td class="num">{{ count .Connections }}</td>
-                    <td class="num">{{ bytes .Sent }}</td>
-                    <td class="dim">{{ stamp .LastHour "" }}</td>
+                    <td data-label="Connections" class="num">{{ count .Connections }}</td>
+                    <td data-label="Sent" class="num">{{ bytes .Sent }}</td>
+                    <td data-label="Last seen" class="dim">{{ stamp .LastHour "" }}</td>
                 </tr>
                 {{- end }}
                 </tbody>
@@ -180,7 +180,7 @@
     {{- if .Probed }}
     <div class="card card--table">
         <div class="scroller">
-            <table>
+            <table class="stacks">
                 <thead>
                 <tr>
                     <th scope="col">Tried</th>
@@ -195,11 +195,11 @@
                     <td>
                         {{- if .Outside }}Outside address <span class="dim">of</span> {{ end -}}
                         <a{{ if .Outside }} class="inline"{{ end }} href="/devices/{{ .DeviceID }}#traffic">{{ .DeviceName }}</a></td>
-                    <td>{{ count .Peers }} {{ if eq .Peers 1 }}address{{ else }}addresses{{ end }}
+                    <td data-label="By">{{ count .Peers }} {{ if eq .Peers 1 }}address{{ else }}addresses{{ end }}
                         <span class="dim">&middot; {{ .Orgs }} {{ if eq .Orgs 1 }}organisation{{ else }}organisations{{ end }}</span>
                         {{- with .Ports }}<br><span class="dim">ports {{ portList . }}</span>{{ end }}</td>
-                    <td class="num">{{ count .Answered }} of {{ count .Attempts }}</td>
-                    <td class="dim">{{ stamp .LastHour "" }}</td>
+                    <td data-label="Answered" class="num">{{ count .Answered }} of {{ count .Attempts }}</td>
+                    <td data-label="Last seen" class="dim">{{ stamp .LastHour "" }}</td>
                 </tr>
                 {{- end }}
                 </tbody>
@@ -217,7 +217,7 @@
     {{- if .Busiest }}
     <div class="card card--table">
         <div class="scroller">
-            <table>
+            <table class="stacks">
                 <thead>
                 <tr>
                     <th scope="col">Device</th>
@@ -229,8 +229,8 @@
                 {{- range .Busiest }}
                 <tr>
                     <td><a href="/devices/{{ .DeviceID }}#traffic">{{ .DeviceName }}</a></td>
-                    <td class="num">{{ bytes .Sent }}</td>
-                    <td class="num">{{ bytes .Received }}</td>
+                    <td data-label="Sent" class="num">{{ bytes .Sent }}</td>
+                    <td data-label="Received" class="num">{{ bytes .Received }}</td>
                 </tr>
                 {{- end }}
                 </tbody>
@@ -247,7 +247,7 @@
     {{- if .TopOrgs }}
     <div class="card card--table">
         <div class="scroller">
-            <table>
+            <table class="stacks">
                 <thead>
                 <tr>
                     <th scope="col">Organisation</th>
@@ -272,8 +272,8 @@
                             </ul>
                         </details>
                     </td>
-                    <td class="num">{{ bytes .Sent }}</td>
-                    <td class="num">{{ bytes .Received }}</td>
+                    <td data-label="Sent" class="num">{{ bytes .Sent }}</td>
+                    <td data-label="Received" class="num">{{ bytes .Received }}</td>
                 </tr>
                 {{- end }}
                 </tbody>
@@ -296,7 +296,7 @@
     {{- if .NewOrgs }}
     <div class="card card--table">
         <div class="scroller">
-            <table>
+            <table class="stacks">
                 <thead>
                 <tr>
                     <th scope="col">Organisation</th>
@@ -321,8 +321,8 @@
                             </ul>
                         </details>
                     </td>
-                    <td class="dim">{{ stamp .First "" }}</td>
-                    <td class="num">{{ bytes .Bytes }}</td>
+                    <td data-label="First seen" class="dim">{{ stamp .First "" }}</td>
+                    <td data-label="Exchanged" class="num">{{ bytes .Bytes }}</td>
                 </tr>
                 {{- end }}
                 </tbody>

@@ -154,7 +154,7 @@
     {{- else if .IsBroadcasts }}
     <div class="card card--table">
         <div class="scroller">
-            <table>
+            <table class="stacks">
                 <thead>
                 <tr>
                     <th scope="col">What</th>
@@ -168,10 +168,10 @@
                 {{- range .Broadcasts }}
                 <tr>
                     <td>{{ .What }}</td>
-                    <td>{{ .To }} <span class="mono dim">{{ .Dst }}{{ with .Port }}:{{ . }}{{ end }}</span></td>
-                    <td class="num">{{ count .Packets }}</td>
-                    <td class="num">{{ bytes .Bytes }}</td>
-                    <td class="dim">{{ stamp .LastHour "" }}</td>
+                    <td data-label="Sent to">{{ .To }} <span class="mono dim">{{ .Dst }}{{ with .Port }}:{{ . }}{{ end }}</span></td>
+                    <td data-label="Packets" class="num">{{ count .Packets }}</td>
+                    <td data-label="Sent" class="num">{{ bytes .Bytes }}</td>
+                    <td data-label="Last seen" class="dim">{{ stamp .LastHour "" }}</td>
                 </tr>
                 {{- end }}
                 </tbody>
@@ -184,7 +184,7 @@
     {{- else if .IsInternet }}
     <div class="card card--table">
         <div class="scroller">
-            <table>
+            <table class="stacks">
                 <thead>
                 <tr>
                     <th scope="col">Organisation</th>
@@ -214,10 +214,10 @@
                             </ul>
                         </details>
                     </td>
-                    <td class="num">{{ template "partial/traffic-conns" . }}</td>
-                    <td class="num">{{ template "partial/traffic-bytes" .Sent }}</td>
-                    <td class="num">{{ template "partial/traffic-bytes" .Received }}</td>
-                    <td class="dim">{{ stamp .LastHour "" }}</td>
+                    <td data-label="Connections" class="num">{{ template "partial/traffic-conns" . }}</td>
+                    <td data-label="Sent" class="num">{{ template "partial/traffic-bytes" .Sent }}</td>
+                    <td data-label="Received" class="num">{{ template "partial/traffic-bytes" .Received }}</td>
+                    <td data-label="Last seen" class="dim">{{ stamp .LastHour "" }}</td>
                 </tr>
                 {{- end }}
                 </tbody>
@@ -228,7 +228,7 @@
     {{- else }}
     <div class="card card--table">
         <div class="scroller">
-            <table>
+            <table class="stacks">
                 <thead>
                 <tr>
                     <th scope="col">Talks to</th>
@@ -261,10 +261,10 @@
                             </ul>
                         </details>
                     </td>
-                    <td class="num">{{ template "partial/traffic-conns" . }}</td>
-                    <td class="num">{{ template "partial/traffic-bytes" .Sent }}</td>
-                    <td class="num">{{ template "partial/traffic-bytes" .Received }}</td>
-                    <td class="dim">{{ stamp .LastHour "" }}</td>
+                    <td data-label="Connections" class="num">{{ template "partial/traffic-conns" . }}</td>
+                    <td data-label="Sent" class="num">{{ template "partial/traffic-bytes" .Sent }}</td>
+                    <td data-label="Received" class="num">{{ template "partial/traffic-bytes" .Received }}</td>
+                    <td data-label="Last seen" class="dim">{{ stamp .LastHour "" }}</td>
                 </tr>
                 {{- end }}
                 {{- else }}
@@ -278,17 +278,17 @@
                         {{- with .Name }} <span class="dim">{{ . }}</span>{{ end }}
                         {{- end }}
                     </td>
-                    <td>
+                    <td data-label="Services">
                         {{- if .Services }}{{ template "partial/traffic-services" . }}{{ end }}
                         {{- if .Tried }}
                         <span class="traffic__tried"><span class="chip chip--warn">no data</span>
                             {{ .TriedSummary }} &middot; {{ count .Tries }} tried, {{ count .Answered }} answered</span>
                         {{- end }}
                     </td>
-                    <td class="num">{{ template "partial/traffic-conns" . }}</td>
-                    <td class="num">{{ template "partial/traffic-bytes" .Sent }}</td>
-                    <td class="num">{{ template "partial/traffic-bytes" .Received }}</td>
-                    <td class="dim">{{ stamp .LastHour "" }}</td>
+                    <td data-label="Connections" class="num">{{ template "partial/traffic-conns" . }}</td>
+                    <td data-label="Sent" class="num">{{ template "partial/traffic-bytes" .Sent }}</td>
+                    <td data-label="Received" class="num">{{ template "partial/traffic-bytes" .Received }}</td>
+                    <td data-label="Last seen" class="dim">{{ stamp .LastHour "" }}</td>
                 </tr>
                 {{- end }}
                 {{- end }}

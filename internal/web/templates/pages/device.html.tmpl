@@ -39,7 +39,7 @@
     <h2 class="section">Addresses</h2>
     <div class="card card--table">
         <div class="scroller">
-            <table>
+            <table class="stacks">
                 <thead>
                 <tr>
                     <th scope="col">Address</th>
@@ -58,7 +58,7 @@
                             <span class="mono strong">{{ .IP }}</span>
                         </span>
                     </td>
-                    <td>
+                    <td data-label="Network">
                         {{- with .Network }}
                         <span class="cell">
                             <a class="mono" href="/networks/{{ .ID }}">{{ .CIDR }}</a>
@@ -70,15 +70,15 @@
                         <span class="dim">&mdash;</span>
                         {{- end }}
                     </td>
-                    <td>
+                    <td data-label="Held">
                         {{- if .Current }}
                         <span class="chip chip--ok">now</span>
                         {{- else }}
                         <span class="chip">released</span>
                         {{- end }}
                     </td>
-                    <td class="dim">{{ stamp .FirstSeen "" }}</td>
-                    <td class="dim">{{ stamp .LastSeen "" }}</td>
+                    <td data-label="First seen" class="dim">{{ stamp .FirstSeen "" }}</td>
+                    <td data-label="Last seen" class="dim">{{ stamp .LastSeen "" }}</td>
                 </tr>
                 {{- end }}
                 </tbody>
