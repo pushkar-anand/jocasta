@@ -18,10 +18,5 @@
     "issue": "M4",
     "check": "overlap",
     "el": "text.netmap__label"
-  },
-  {
-    "issue": "M5",
-    "check": "overlap",
-    "el": "text.topo__group-title"
   }
 ]

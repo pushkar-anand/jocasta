@@ -15,6 +15,7 @@ package topomap
 import (
 	"cmp"
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -37,6 +38,12 @@ const (
 	// labels.
 	slotGap  = 28.0
 	levelGap = 64.0
+
+	// groupColumn is the most devices a group lists in one column. Past it
+	// the chips wrap into columns colGap apart, so a long group stays near
+	// as wide as it is tall rather than drawing as a sliver.
+	groupColumn = 24
+	colGap      = 8.0
 
 	margin    = 40.0
 	internetR = 20.0
@@ -240,7 +247,7 @@ func (p *placer) span(ss []slot) float64 {
 		if s.node != nil {
 			total += p.width[s.node]
 		} else {
-			total += chipW
+			total += groupWidth(s.group)
 		}
 	}
 
@@ -294,7 +301,7 @@ func (p *placer) position(n *topology.Node, left, top float64) (*Box, []string) 
 			On:    g.On,
 		})
 
-		x += chipW + slotGap
+		x += g.W + slotGap
 	}
 
 	box.On = strings.Join(keys, " ")
@@ -345,14 +352,35 @@ func LinkLabel(link *topology.Link) string {
 	}
 }
 
-// group places one column of devices with its top left at (left, top).
+// groupColumns is how many columns g's chips take: one up to groupColumn
+// devices, then as many as keep the group about as wide as it is tall.
+func groupColumns(g *topology.Group) int {
+	n := len(g.Devices)
+	if n <= groupColumn {
+		return 1
+	}
+
+	return max(2, int(math.Round(math.Sqrt(float64(n)*(chipH+chipGap)/(chipW+colGap)))))
+}
+
+// groupWidth is how wide g draws.
+func groupWidth(g *topology.Group) float64 {
+	cols := float64(groupColumns(g))
+
+	return cols*chipW + (cols-1)*colGap
+}
+
+// group places g's devices in columns with its top left at (left, top).
 func (p *placer) group(g *topology.Group, left, top float64) (*Group, []string) {
+	cols := groupColumns(g)
+	rows := (len(g.Devices) + cols - 1) / cols
+
 	out := &Group{
 		Group: g,
 		X:     left,
 		Y:     top,
-		W:     chipW,
-		H:     headH + float64(len(g.Devices))*(chipH+chipGap),
+		W:     groupWidth(g),
+		H:     headH + float64(rows)*(chipH+chipGap),
 		Title: groupTitle(g),
 		Tone:  p.tone(g.VLAN),
 	}
@@ -362,8 +390,8 @@ func (p *placer) group(g *topology.Group, left, top float64) (*Group, []string) 
 	for i, l := range g.Devices {
 		c := Chip{
 			Leaf:  l,
-			X:     left,
-			Y:     top + headH + float64(i)*(chipH+chipGap),
+			X:     left + float64(i/rows)*(chipW+colGap),
+			Y:     top + headH + float64(i%rows)*(chipH+chipGap),
 			Key:   netmap.DeviceKey(l.DeviceID),
 			Label: shorten(l.Name, maxLabel),
 			Title: chipTitle(l),
