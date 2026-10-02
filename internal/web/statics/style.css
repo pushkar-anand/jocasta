@@ -3259,9 +3259,12 @@ td .traffic__tried {
     stroke: var(--text-2);
 }
 
+/* Map text never draws under 11px, nor 13px for a hub's name, however far
+   out the map is zoomed: netmap.js sets --ppu, the screen pixels one SVG
+   unit takes, and the size grows in SVG units as it falls. */
 .netmap__hub-label {
     fill: var(--text);
-    font-size: 13px;
+    font-size: max(13px, calc(13px / var(--ppu, 1)));
     font-weight: 600;
     paint-order: stroke;
     stroke: var(--surface);
@@ -3292,7 +3295,23 @@ td .traffic__tried {
 
 .netmap__label {
     fill: var(--text-2);
-    font-size: 11px;
+    font-size: max(11px, calc(11px / var(--ppu, 1)));
+}
+
+/* A label that would overlap one already drawn waits until its node is
+   pointed at, focused, selected or found; see netmap.js. */
+.netmap__label.is-crowded,
+.netmap__hub-label.is-crowded {
+    opacity: 0;
+}
+
+.netmap__hubnode:hover .netmap__hub-label,
+.netmap__dev:hover .netmap__label,
+.netmap__dev:focus-visible .netmap__label,
+.netmap__dev.is-selected .netmap__label,
+.netmap__dev.is-peer .netmap__label,
+.netmap__dev--match .netmap__label {
+    opacity: 1;
 }
 
 .netmap a:hover .netmap__label,
@@ -3860,7 +3879,7 @@ td .traffic__tried {
 
 .topo__chip-aside {
     fill: var(--text-3);
-    font-size: 10px;
+    font-size: 11px;
 }
 
 .topo__chip--offline .topo__chip-label {

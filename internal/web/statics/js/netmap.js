@@ -15,7 +15,48 @@
     function apply(svg) {
         var v = view || base(svg);
         svg.setAttribute('viewBox', v.x + ' ' + v.y + ' ' + v.w + ' ' + v.h);
+        relabel(svg);
     }
+
+    // relabel keeps the labels readable at the current zoom. The stylesheet
+    // sizes them from --ppu, the screen pixels one SVG unit takes, so they
+    // never draw under 11px; a label that would then overlap one already
+    // placed is marked crowded and hidden until its node is pointed at,
+    // focused, selected or found. The router's name goes first, then the
+    // hubs', which the legend also names, then the devices'. Batched to one
+    // pass a frame, since a wheel fires many zooms.
+    var pending = null;
+
+    function relabel(svg) {
+        if (pending) return;
+        pending = requestAnimationFrame(function() {
+            pending = null;
+            if (!svg.isConnected) return;
+
+            var v = view || base(svg);
+            var r = svg.getBoundingClientRect();
+            if (!r.width || !r.height) return;
+            svg.style.setProperty('--ppu', Math.min(r.width / v.w, r.height / v.h));
+
+            var placed = [];
+            var order = ['.netmap__hub-label--router', '.netmap__hub-label:not(.netmap__hub-label--router)', '.netmap__label'];
+            order.flatMap(function(sel) {
+                return Array.from(svg.querySelectorAll(sel));
+            }).forEach(function(l) {
+                var b = l.getBoundingClientRect();
+                var crowded = placed.some(function(p) {
+                    return b.left < p.right && p.left < b.right && b.top < p.bottom && p.top < b.bottom;
+                });
+                l.classList.toggle('is-crowded', crowded);
+                if (!crowded) placed.push(b);
+            });
+        });
+    }
+
+    window.addEventListener('resize', function() {
+        var svg = mapSVG();
+        if (svg) relabel(svg);
+    });
 
     // point is where a client position falls in the SVG's units.
     function point(svg, cx, cy) {
@@ -316,6 +357,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         var svg = mapSVG();
         if (!svg) return;
+        relabel(svg);
         applyWorld(svg);
 
         var key = new URLSearchParams(window.location.search).get('focus');
