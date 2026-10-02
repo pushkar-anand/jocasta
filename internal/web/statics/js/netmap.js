@@ -38,17 +38,23 @@
             if (!r.width || !r.height) return;
             svg.style.setProperty('--ppu', Math.min(r.width / v.w, r.height / v.h));
 
-            var placed = [];
+            // Every label is shown and measured before any is hidden, so one
+            // layout serves the whole pass.
             var order = ['.netmap__hub-label--router', '.netmap__hub-label:not(.netmap__hub-label--router)', '.netmap__label'];
-            order.flatMap(function(sel) {
+            var labels = order.flatMap(function(sel) {
                 return Array.from(svg.querySelectorAll(sel));
-            }).forEach(function(l) {
-                var b = l.getBoundingClientRect();
+            });
+            labels.forEach(function(l) { l.classList.remove('is-crowded'); });
+            var boxes = labels.map(function(l) { return l.getBoundingClientRect(); });
+
+            var placed = [];
+            labels.forEach(function(l, i) {
+                var b = boxes[i];
                 var crowded = placed.some(function(p) {
                     return b.left < p.right && p.left < b.right && b.top < p.bottom && p.top < b.bottom;
                 });
-                l.classList.toggle('is-crowded', crowded);
-                if (!crowded) placed.push(b);
+                if (crowded) l.classList.add('is-crowded');
+                else placed.push(b);
             });
         });
     }
