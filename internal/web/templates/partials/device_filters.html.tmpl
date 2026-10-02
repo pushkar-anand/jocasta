@@ -5,7 +5,8 @@
     page OnNetwork is set and the network select is left out, since the path
     names the network already.
 
-    The form fetches only the table. It targets the fragment endpoint, which
+    The form fetches only the table, when search.js says to: see there for
+    when a search goes out. It targets the fragment endpoint, which
     answers with HX-Push-Url naming the page, so the address bar ends up
     somewhere that can be reloaded or shared. Without htmx it submits normally
     and the server renders the filtered page.
@@ -17,7 +18,7 @@
       hx-swap="outerHTML"
       hx-sync="this:replace"
       hx-request='{"timeout":15000}'
-      hx-trigger="input changed delay:300ms, change, submit">
+      hx-trigger="filter, submit" data-live>
     <label class="field field--search">
         <span class="visually-hidden">Find</span>
         <svg class="field__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"

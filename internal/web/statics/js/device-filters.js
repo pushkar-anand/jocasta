@@ -2,11 +2,6 @@
     if (!window.htmx) return;
 
     var activeRequest;
-    var requestedFilters;
-
-    function currentFilters() {
-        return new URLSearchParams(new FormData(document.getElementById('device-filters'))).toString();
-    }
 
     function pending() {
         var status = document.getElementById('device-filter-status');
@@ -20,13 +15,6 @@
         retry.hidden = true;
     }
 
-    // Delegate so filters restored by htmx history keep their feedback too.
-    function changed(event) {
-        if (event.target.closest('#device-filters')) pending();
-    }
-    document.addEventListener('input', changed);
-    document.addEventListener('change', changed);
-
     document.addEventListener('htmx:historyRestore', function() {
         if (!document.getElementById('device-filters')) return;
         document.getElementById('device-rows').hidden = false;
@@ -38,14 +26,14 @@
     document.addEventListener('htmx:beforeRequest', function(event) {
         if (event.detail.elt !== document.getElementById('device-filters')) return;
         activeRequest = event.detail.xhr;
-        requestedFilters = currentFilters();
         pending();
     });
 
     document.addEventListener('htmx:afterRequest', function(event) {
         if (event.detail.elt !== document.getElementById('device-filters') || event.detail.xhr !== activeRequest) return;
-        // A response may arrive during the debounce for newer input.
-        if (requestedFilters !== currentFilters()) {
+        // A response may arrive while search.js waits out a pause in newer
+        // typing; that search is on its way.
+        if (document.getElementById('device-filters').hasAttribute('data-waiting')) {
             pending();
             return;
         }
