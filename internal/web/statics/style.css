@@ -841,11 +841,12 @@ a.netcard:hover {
 
 /* Glanceable band */
 
+/* Cards side by side stretch to the taller one's height, so a pair ends on
+   one line. */
 .glance {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(21rem, 1fr));
     gap: 20px;
-    align-items: start;
 }
 
 /* Ports and services */
@@ -2343,6 +2344,33 @@ td .traffic__tried {
         content: "";
         display: block;
         clear: both;
+    }
+}
+
+/* A port change on a phone reads as one sentence, the device's name and what
+   it did flowing together, with the time under it, as Recent changes does.
+   Three columns would break a two-word name and wrap the text beside it. */
+@media (max-width: 40rem) {
+    .portchanges li {
+        display: block;
+        position: relative;
+        padding-left: 14px;
+    }
+
+    .portchanges li .dot {
+        position: absolute;
+        top: 0.45em;
+        left: 0;
+    }
+
+    .portchanges li time {
+        display: block;
+        margin: 2px 0 0;
+    }
+
+    /* Inside the sentence now, so colour alone no longer marks it a link. */
+    .portchanges li a {
+        text-decoration: underline;
     }
 }
 
