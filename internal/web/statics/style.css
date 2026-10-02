@@ -484,6 +484,15 @@ h1 {
     letter-spacing: -0.02em;
 }
 
+/* A title is often a device's name, which its owner typed: one line, cut
+   short with an ellipsis, with the whole of it in the title attribute. */
+#page-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .topbar__live {
     display: flex;
     align-items: center;
@@ -3844,6 +3853,10 @@ td .traffic__tried {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    /* A hop is a device's name, which may have no spaces to break at. */
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
 }
 
 .path__hop + .path__hop::before {

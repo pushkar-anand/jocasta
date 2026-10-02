@@ -168,7 +168,7 @@
     update too. Otherwise the page would go on calling the device by its old
     name, and the history would sit there saying nothing had happened.
 */}}
-<h1 id="page-title" hx-swap-oob="true">{{ .Device.Name }}</h1>
+<h1 id="page-title" title="{{ .Device.Name }}" hx-swap-oob="true">{{ .Device.Name }}</h1>
 <div id="device-history" hx-swap-oob="true">
     {{- template "partial/activity" .Events }}
 </div>
