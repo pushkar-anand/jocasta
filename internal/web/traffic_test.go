@@ -829,3 +829,23 @@ func TestTrafficPageSaysWhenTheRouterIsBehindNAT(t *testing.T) {
 		})
 	}
 }
+
+// An organisation reached by much of the network opens to its busiest 10
+// devices and a count of the rest, so one open row stays near the height of
+// the card beside it.
+func TestOrgRowListsItsBusiestDevices(t *testing.T) {
+	t.Parallel()
+
+	o := &orgDevices{}
+	for i := range 13 {
+		o.DeviceList = append(o.DeviceList, &inventory.DeviceTotal{DeviceID: int64(i + 1)})
+	}
+
+	assert.Len(t, o.DevicesHead(), 10)
+	assert.Equal(t, int64(1), o.DevicesHead()[0].DeviceID)
+	assert.Equal(t, int64(3), o.DevicesRest())
+
+	o.DeviceList = o.DeviceList[:4]
+	assert.Len(t, o.DevicesHead(), 4)
+	assert.Zero(t, o.DevicesRest())
+}
