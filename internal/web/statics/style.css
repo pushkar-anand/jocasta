@@ -3589,11 +3589,26 @@ td .traffic__tried {
     color: var(--text-3);
 }
 
-/* On a phone the legend would cover the map, so it goes under it. */
+/* On a phone nothing floats over another control: the search sits above the
+   card, the legend goes under the map, and the zoom buttons keep the map's
+   top corner to themselves. */
 @media (max-width: 700px) {
+    .netmap__search {
+        position: static;
+        display: block;
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
     .netmap {
+        display: flex;
+        flex-direction: column;
         height: auto;
         min-height: 0;
+    }
+
+    .netmap__zoom {
+        top: 12px;
     }
 
     .netmap__svg {
@@ -3601,6 +3616,7 @@ td .traffic__tried {
     }
 
     .netmap__legend {
+        order: 1;
         position: static;
         max-width: none;
         max-height: none;
