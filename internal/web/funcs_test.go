@@ -256,3 +256,19 @@ func TestFuncsCoverEveryHelperTheTemplatesUse(t *testing.T) {
 		assert.Contains(t, registered, name)
 	}
 }
+
+func TestBuildLinksAReleaseToItsNotes(t *testing.T) {
+	t.Parallel()
+
+	for _, c := range []struct {
+		in   string
+		want build
+	}{
+		{"1.4.0", build{Version: "1.4.0", URL: "https://github.com/pushkar-anand/jocasta/releases/tag/v1.4.0"}},
+		{"v1.4.0", build{Version: "1.4.0", URL: "https://github.com/pushkar-anand/jocasta/releases/tag/v1.4.0"}},
+		{"dev", build{Version: "dev"}},
+		{"v0.0.0-20261001120000-abcdef123456", build{Version: "v0.0.0-20261001120000-abcdef123456"}},
+	} {
+		assert.Equal(t, c.want, buildOf(c.in), c.in)
+	}
+}

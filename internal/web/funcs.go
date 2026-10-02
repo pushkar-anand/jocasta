@@ -3,6 +3,7 @@ package web
 import (
 	"html/template"
 	"net/netip"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/classify"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
+	"github.com/pushkar-anand/jocasta/internal/version"
 )
 
 // Decay buckets. Something last heard from a device at some point, and how long
@@ -56,6 +58,7 @@ func funcs(now func() time.Time, window time.Duration) template.FuncMap {
 		"scopedisplay": scopeDisplay,
 		"permchoice":   permChoice,
 		"scopechoice":  scopeChoice,
+		"build":        currentBuild,
 		"bytes":        humanBytes,
 		"count":        humanCount,
 		"proto":        protoName,
@@ -503,4 +506,30 @@ func addrs(list []netip.Addr) string {
 	}
 
 	return strings.Join(out, ", ")
+}
+
+// build is the running binary's version for the footer, and the page of its
+// release notes; URL is empty for a build that is not a release.
+type build struct {
+	Version string
+	URL     string
+}
+
+var releaseVersion = regexp.MustCompile(`^v?\d+\.\d+\.\d+$`)
+
+func currentBuild() build {
+	return buildOf(version.Get().Version)
+}
+
+// buildOf links a release's version to its notes. A release built by
+// GoReleaser carries "1.4.0", one built by go install "v1.4.0"; anything
+// else, such as "dev", has no notes to link to.
+func buildOf(v string) build {
+	if !releaseVersion.MatchString(v) {
+		return build{Version: v}
+	}
+
+	v = strings.TrimPrefix(v, "v")
+
+	return build{Version: v, URL: "https://github.com/pushkar-anand/jocasta/releases/tag/v" + v}
 }
