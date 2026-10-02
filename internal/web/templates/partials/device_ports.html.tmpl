@@ -3,9 +3,13 @@
     on, or listening on before the service stopped, or a port the device
     advertises a service on over DNS-SD. Only a port seen open or advertised
     is ever recorded, so a short list here means a small surface.
+
+    Past the tenth row the rest fold away behind "Show all", a native details
+    element after the table whose open state the stylesheet reads, so no
+    script is needed and a browser without :has() shows every row.
 */ -}}
 {{ define "partial/device-ports" }}
-<div class="card card--table">
+<div class="card card--table fold">
     <div class="scroller">
         <table class="stacks">
             <thead>
@@ -18,8 +22,8 @@
             </tr>
             </thead>
             <tbody>
-            {{- range . }}
-            <tr>
+            {{- range $n, $port := . }}
+            <tr{{ if ge $n 10 }} class="fold__row"{{ end }}>
                 <td>
                     {{- if .Number }}
                     <span class="mono strong">{{ .Number }}{{ if .UDP }}/udp{{ end }}</span>
@@ -60,5 +64,10 @@
             </tbody>
         </table>
     </div>
+    {{- if gt (len .) 10 }}
+    <details class="fold__toggle">
+        <summary><span class="fold__closed">Show all {{ len . }} ports</span><span class="fold__open">Show fewer ports</span></summary>
+    </details>
+    {{- end }}
 </div>
 {{ end }}
