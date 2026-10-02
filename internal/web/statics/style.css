@@ -3299,6 +3299,16 @@ td .traffic__tried {
     stroke-linejoin: round;
 }
 
+/* A name set across its branch is placed by its edge nearest the hub, so
+   however large it is drawn it grows away from the hub's nodes. */
+.netmap__hub-label--down {
+    dominant-baseline: text-before-edge;
+}
+
+.netmap__hub-label--up {
+    dominant-baseline: text-after-edge;
+}
+
 .netmap__dev {
     transition: opacity 0.15s;
 }

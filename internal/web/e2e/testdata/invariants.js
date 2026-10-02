@@ -103,10 +103,45 @@
     const leaves = all.filter((el) =>
         (ownText(el) || el.matches('a,button,input,select,textarea,summary,[role=button],[role=img],svg text'))
         && el.tagName !== 'svg');
+    const outline = (el) => {
+        const b = el.getBBox(), m = el.getScreenCTM();
+        return [[b.x, b.y], [b.x + b.width, b.y], [b.x + b.width, b.y + b.height], [b.x, b.y + b.height]]
+            .map(([x, y]) => [m.a * x + m.c * y + m.e, m.b * x + m.d * y + m.f]);
+    };
+    const outlines = (el) => (el instanceof SVGGraphicsElement && !(el instanceof SVGGElement) && !(el instanceof SVGAElement)
+        ? [el] : [...el.querySelectorAll('circle,rect,text,path,line,polygon')].filter(visible))
+        .map(outline);
+    // The area two convex outlines share: one clipped by each edge of the
+    // other, both wound the same way.
+    const shared = (p, q) => {
+        const wind = (poly) => poly.reduce((s, [x, y], i) => { const [u, v] = poly[(i + 1) % poly.length]; return s + x * v - u * y; }, 0);
+        if (wind(p) < 0) p = [...p].reverse();
+        if (wind(q) < 0) q = [...q].reverse();
+        let out = p;
+        for (let i = 0; i < q.length && out.length; i++) {
+            const [ax, ay] = q[i], [bx, by] = q[(i + 1) % q.length];
+            const side = ([x, y]) => (bx - ax) * (y - ay) - (by - ay) * (x - ax);
+            const cut = (s, e) => { const t = side(s) / (side(s) - side(e)); return [s[0] + t * (e[0] - s[0]), s[1] + t * (e[1] - s[1])]; };
+            const next = [];
+            for (let j = 0; j < out.length; j++) {
+                const s = out[j], e = out[(j + 1) % out.length];
+                if (side(e) >= 0) {
+                    if (side(s) < 0) next.push(cut(s, e));
+                    next.push(e);
+                } else if (side(s) >= 0) next.push(cut(s, e));
+            }
+            out = next;
+        }
+        return out.length < 3 ? 0 : Math.abs(wind(out)) / 2;
+    };
     const rects = leaves.map((el) => {
         // Inline text wraps; its client rects are the boxes the eye sees.
         const boxes = getComputedStyle(el).display === 'inline' ? [...el.getClientRects()] : [el.getBoundingClientRect()];
-        return { el, boxes };
+        // Inside a map, text is turned along its branch and a link wraps a
+        // dot and its name: the upright box round either is mostly empty
+        // corners, so each shape is compared by its own turned outline.
+        const shapes = el.closest('svg') ? outlines(el) : null;
+        return { el, boxes, shapes };
     });
     // A popover is drawn over the page on purpose: an opaque positioned
     // panel is its own layer, compared only with what is inside it.
@@ -131,7 +166,12 @@
             const inField = (x, y) => x.matches('input') && getComputedStyle(y).position === 'absolute' && y.parentElement === x.parentElement;
             if (inField(a.el, b.el) || inField(b.el, a.el)) continue;
             let worst = 0;
-            for (const ra of a.boxes) for (const rb of b.boxes) {
+            if (a.shapes && b.shapes) {
+                for (const pa of a.shapes) for (const pb of b.shapes) {
+                    const area = shared(pa, pb);
+                    if (area > 4) worst = Math.max(worst, area);
+                }
+            } else for (const ra of a.boxes) for (const rb of b.boxes) {
                 const w = Math.min(ra.right, rb.right) - Math.max(ra.left, rb.left);
                 const h = Math.min(ra.bottom, rb.bottom) - Math.max(ra.top, rb.top);
                 if (w > 2 && h > 2) worst = Math.max(worst, w * h);

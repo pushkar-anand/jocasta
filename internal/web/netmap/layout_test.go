@@ -127,6 +127,45 @@ func TestPlaceHubsInOrder(t *testing.T) {
 	assert.Equal(t, []int64{2, 3, 1}, ids)
 }
 
+// A name set across its hub's branch, as one above or below the router is,
+// sits past the hub's nodes, so none is drawn under it.
+func TestHubNameAcrossItsBranchClearsItsNodes(t *testing.T) {
+	t.Parallel()
+
+	m := withOrgs(manyDevices(24, 1, 2, 3), 12)
+	l := Place(m, []Segment{{ID: 1, Label: "lan"}, {ID: 2, Label: "servers"}, {ID: 3, Label: "iot"}})
+
+	across := 0
+
+	for _, h := range l.Hubs {
+		if h.Anchor != "middle" {
+			continue
+		}
+
+		across++
+
+		name := math.Hypot(h.LabelAt.X-h.At.X, h.LabelAt.Y-h.At.Y)
+
+		// It grows away from the hub, so a larger drawing stays clear too.
+		want := "down"
+		if h.At.Y > l.Router.Y {
+			want = "up"
+		}
+
+		assert.Equal(t, want, h.Hangs, "%s's name grows towards its nodes", h.Label)
+
+		for _, d := range l.Devices {
+			if d.Sector != h.Index {
+				continue
+			}
+
+			assert.Greater(t, name, math.Hypot(d.At.X-h.At.X, d.At.Y-h.At.Y)+7, "%s's name is drawn over %s", h.Label, d.Name)
+		}
+	}
+
+	require.Positive(t, across, "no hub sits above or below the router")
+}
+
 // The lines are the tree's branches: one to each node, one to each hub. An
 // active node lights its branch and its hub's; busier branches are thicker and
 // drawn last.
