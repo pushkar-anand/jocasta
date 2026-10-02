@@ -23,10 +23,5 @@
     "issue": "M5",
     "check": "overlap",
     "el": "text.topo__group-title"
-  },
-  {
-    "issue": "M6",
-    "check": "text-spills",
-    "el": "worldmap__scale"
   }
 ]
