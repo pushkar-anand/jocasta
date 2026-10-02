@@ -1,8 +1,20 @@
 {{- /*
     Viewer/Editor picker shared by the create-user and create-token forms.
-    Built by the permchoice func. Takes permChoiceView.
+    Built by the permchoice func. Takes permChoiceView. With only one option,
+    as for a viewer's token, there is nothing to pick: it is stated, and sent
+    in a hidden field.
 */ -}}
 {{ define "partial/permission-choice" }}
+    {{- if eq (len .Options) 1 }}
+    {{- with index .Options 0 }}
+    <div class="permchoice permchoice--fixed">
+        <span class="eyebrow">{{ $.Legend }}</span>
+        <span class="permchoice__name">{{ .Label }}</span>
+        <span class="permchoice__hint">{{ .Hint }}</span>
+        <input type="hidden" name="{{ $.Field }}" value="{{ .Value }}">
+    </div>
+    {{- end }}
+    {{- else }}
     <fieldset class="permchoice">
         <legend>{{ .Legend }}</legend>
         {{- range .Options }}
@@ -13,4 +25,5 @@
         </label>
         {{- end }}
     </fieldset>
+    {{- end }}
 {{ end }}
