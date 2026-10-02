@@ -1331,6 +1331,39 @@ tbody tr:hover {
     padding: 1px 6px;
 }
 
+/* The count of ports a device's row leaves out, linking to the rest. */
+.chip--more {
+    padding: 1px 6px;
+    color: var(--link);
+    text-transform: none;
+    white-space: nowrap;
+}
+
+/* A device's name and group are whatever its owner typed, so they wrap, at
+   any character if they must, rather than widen the table past its card. */
+#device-rows td:first-child .cell {
+    max-width: 20rem;
+}
+
+#device-rows td:first-child a,
+#device-rows td[data-label="Group"],
+.devrow__group {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* Breaking at any character would otherwise let the table squeeze the name
+   column first and split ordinary names mid-word. */
+@media (min-width: 40.0625rem) {
+    #device-rows td:first-child {
+        min-width: 11rem;
+    }
+
+    #device-rows td[data-label="Group"] {
+        max-width: 10rem;
+    }
+}
+
 .strong {
     font-weight: 600;
 }

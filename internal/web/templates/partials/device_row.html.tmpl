@@ -33,7 +33,8 @@
             <span class="mono">{{ addrs .Current }}</span>
             {{- with .OpenPorts }}
             <span class="chiprow">
-                {{- range . }}<span class="chip chip--port">{{ . }}</span>{{- end }}
+                {{- range portsHead . }}<span class="chip chip--port">{{ . }}</span>{{- end }}
+                {{- with portsMore . }}<a class="chip chip--more" href="/devices/{{ $.ID }}#ports">+{{ . }} more<span class="visually-hidden"> ports on {{ $.Name }}</span></a>{{ end }}
             </span>
             {{- end }}
         </span>
