@@ -53,11 +53,12 @@
     </div>
     {{- else if .Kind }}
     <div class="card empty">
-        <p>No scan of that kind has been recorded yet.</p>
+        <p>No {{ if eq .Kind "discovery" }}discovery sweeps{{ else if eq .Kind "ports" }}port scans{{ else }}imports{{ end }} recorded yet.</p>
     </div>
     {{- else }}
     <div class="card empty">
-        <p>No sweep has been recorded yet.</p>
+        <p>No scans recorded yet. <code>jocasta serve</code> runs them on a schedule, and
+            <code>jocasta scan</code> runs one now.</p>
     </div>
     {{- end }}
     {{ template "partial/pager" . }}

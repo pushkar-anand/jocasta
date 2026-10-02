@@ -73,6 +73,11 @@ func TestScansPageRejectsAnUnknownKind(t *testing.T) {
 func TestScansPageEmptyKindReadsRight(t *testing.T) {
 	t.Parallel()
 
-	body := get(t, seeded(t), "/scans?kind=ports").Body.String()
-	assert.Contains(t, body, "No scan of that kind has been recorded yet")
+	h := seeded(t)
+
+	assert.Contains(t, get(t, h, "/scans?kind=ports").Body.String(), "No port scans recorded yet.")
+	assert.Contains(t, get(t, h, "/scans?kind=import").Body.String(), "No imports recorded yet.")
+
+	// A log with nothing in it at all says how scans come to be.
+	assert.Contains(t, get(t, empty(t), "/scans").Body.String(), "No scans recorded yet.")
 }
