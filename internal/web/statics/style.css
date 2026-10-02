@@ -2962,6 +2962,11 @@ td .traffic__tried {
     border: none;
 }
 
+/* One permission, stated: its name sits under the label, the hint under it. */
+.permchoice--fixed {
+    gap: 3px;
+}
+
 .permchoice > legend {
     padding: 0;
     margin-bottom: 2px;

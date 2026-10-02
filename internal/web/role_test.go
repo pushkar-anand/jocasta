@@ -130,6 +130,23 @@ func TestReadUserCannotMintAWriteToken(t *testing.T) {
 	assert.Equal(t, http.StatusSeeOther, ok.Code, "a writer's read_write token still issues")
 }
 
+// A read user has one permission to give a token, so the form states it
+// rather than offering a group of one radio button, and still sends it.
+func TestReadUserIsToldTheTokenPermission(t *testing.T) {
+	t.Parallel()
+
+	read, readCookies := roleClient(t, dbtype.RoleRead)
+	form := requestAs(t, read, readCookies, http.MethodGet, "/settings/tokens", "").Body.String()
+
+	assert.NotContains(t, form, `type="radio" name="scope"`)
+	assert.Contains(t, form, `<input type="hidden" name="scope" value="read">`)
+	assert.Contains(t, form, `<span class="permchoice__name">Viewer</span>`)
+
+	write, writeCookies := roleClient(t, dbtype.RoleReadWrite)
+	assert.Contains(t, requestAs(t, write, writeCookies, http.MethodGet, "/settings/tokens", "").Body.String(),
+		`type="radio" name="scope"`, "a writer still chooses")
+}
+
 // The error pages a signed-in account reaches are drawn inside the shell, so
 // they name the account in the user menu as every other page does.
 func TestErrorPagesNameTheAccount(t *testing.T) {
