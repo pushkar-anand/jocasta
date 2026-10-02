@@ -36,9 +36,9 @@
                     {{- if eq .ErrorAction "confirm" }}
                     <p class="failure" id="confirm-error" role="alert">{{ .Error }}</p>
                     {{- end }}
-                    <label class="stack">
+                    <label class="stack" for="totp-code">
                         <span class="eyebrow">Code</span>
-                        <input class="input" type="text" name="code" inputmode="numeric" autocomplete="one-time-code"
+                        <input class="input" id="totp-code" type="text" name="code" inputmode="numeric" autocomplete="one-time-code"
                                minlength="6" maxlength="6" autofocus required
                                {{ if eq .ErrorAction "confirm" }}aria-invalid="true" aria-describedby="confirm-error"{{ end }}>
                     </label>
@@ -83,9 +83,13 @@
                             {{- if eq .ErrorAction "regenerate" }}
                             <p class="failure" id="regenerate-error" role="alert">{{ .Error }}</p>
                             {{- end }}
-                            <label class="stack">
+                            {{- /* Names the account, so a password manager fills
+                                   the password for this login. */}}
+                            <input type="text" id="regenerate-username" name="username" autocomplete="username"
+                                   value="{{ $.SignedInAs }}" hidden>
+                            <label class="stack" for="regenerate-password">
                                 <span class="eyebrow">Password</span>
-                                <input class="input" type="password" name="password" autocomplete="current-password"
+                                <input class="input" id="regenerate-password" type="password" name="password" autocomplete="current-password"
                                        minlength="8" maxlength="1000" autofocus required
                                        {{ if eq .ErrorAction "regenerate" }}aria-invalid="true" aria-describedby="regenerate-error"{{ end }}>
                             </label>
@@ -116,9 +120,13 @@
                             {{- if eq .ErrorAction "disable" }}
                             <p class="failure" id="disable-error" role="alert">{{ .Error }}</p>
                             {{- end }}
-                            <label class="stack">
+                            {{- /* Names the account, so a password manager fills
+                                   the password for this login. */}}
+                            <input type="text" id="disable-username" name="username" autocomplete="username"
+                                   value="{{ $.SignedInAs }}" hidden>
+                            <label class="stack" for="disable-password">
                                 <span class="eyebrow">Password</span>
-                                <input class="input" type="password" name="password" autocomplete="current-password"
+                                <input class="input" id="disable-password" type="password" name="password" autocomplete="current-password"
                                        minlength="8" maxlength="1000" autofocus required
                                        {{ if eq .ErrorAction "disable" }}aria-invalid="true" aria-describedby="disable-error"{{ end }}>
                             </label>
