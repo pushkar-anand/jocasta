@@ -34,11 +34,6 @@
     "el": ".scroller"
   },
   {
-    "issue": "S1",
-    "check": "off-left-edge",
-    "el": "usermenu__"
-  },
-  {
     "issue": "M4",
     "check": "overlap",
     "el": "g.netmap__devices > a.netmap__dev"

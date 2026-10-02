@@ -1863,19 +1863,27 @@ td .traffic__tried {
         position: static;
     }
 
+    /* The title takes what the tools leave and wraps inside it, so the theme
+       control and the user menu keep the end of the first row. The refresh
+       note drops to a row of its own: the tools box steps aside so the note
+       can be ordered after them. */
+    .topbar {
+        column-gap: 8px;
+        row-gap: 6px;
+    }
+
     .topbar__title {
+        flex: 1 1 0;
         flex-wrap: wrap;
         overflow-wrap: anywhere;
     }
 
     .topbar__tools {
-        flex: 0 1 auto;
-        min-width: 0;
-        flex-wrap: wrap;
-        gap: 8px;
+        display: contents;
     }
 
     .topbar__live {
+        order: 1;
         flex-basis: 100%;
         white-space: normal;
     }
@@ -2365,6 +2373,7 @@ td .traffic__tried {
     right: 0;
     z-index: 30;
     min-width: 226px;
+    max-width: calc(100vw - 2 * var(--pad));
     padding: 6px;
     background: var(--surface);
     border: 1px solid var(--border);
