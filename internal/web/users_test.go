@@ -178,7 +178,7 @@ func TestUsersPageLeadsWithTheList(t *testing.T) {
 	body := requestAs(t, h, signIn(t, h), http.MethodGet, "/settings/users", "").Body.String()
 
 	table := strings.Index(body, "<table>")
-	dialog := strings.Index(body, "<dialog")
+	dialog := strings.Index(body, `<dialog class="modal"`)
 
 	require.Positive(t, table)
 	require.Positive(t, dialog)
