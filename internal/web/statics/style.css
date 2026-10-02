@@ -3510,6 +3510,12 @@ td .traffic__tried {
     gap: 3px;
 }
 
+/* "Less" and "More" are the scale's ends, not names to share a row with a
+   count, so they keep their own width rather than shrink. */
+.worldmap__scale .netmap__key-label {
+    flex: none;
+}
+
 .worldmap__swatch {
     flex: none;
     width: 16px;
