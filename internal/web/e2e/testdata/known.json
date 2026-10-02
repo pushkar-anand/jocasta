@@ -50,11 +50,6 @@
     "el": "ol.path > li.path__hop"
   },
   {
-    "issue": "L1",
-    "check": "page-scrolls-sideways",
-    "el": "html"
-  },
-  {
     "issue": "M6",
     "check": "text-spills",
     "el": "worldmap__scale"
@@ -63,5 +58,17 @@
     "issue": "L3",
     "check": "text-spills",
     "el": "tr#device-row-N > td.dim"
+  },
+  {
+    "issue": "L3",
+    "check": "page-scrolls-sideways",
+    "el": "html",
+    "page": "weird/devices/*"
+  },
+  {
+    "issue": "L3",
+    "check": "page-scrolls-sideways",
+    "el": "html",
+    "page": "weird/network-*/*"
   }
 ]

@@ -20,6 +20,10 @@
                  aria-label="Watched"><title>Watched</title><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             {{- end }}
         </span>
+        {{- /* Shown in place of the Group column at middle widths; see style.css. */}}
+        {{- with .Group }}
+        <span class="devrow__group dim">{{ . }}</span>
+        {{- end }}
     </td>
     {{- /* The addresses the device answers on, and the ports it answers on
            there: a device's open ports are always on one of its addresses, so
