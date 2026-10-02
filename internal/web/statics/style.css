@@ -2148,6 +2148,75 @@ td .traffic__tried {
     }
 }
 
+/* The other wide tables, on the device page and the traffic page, take the
+   same shape on a phone: each row a card led by its first cell, every other
+   cell on its own line under its column's name. Their cells hold loose text
+   rather than one wrapper, so the name floats left of the value instead of
+   sharing a flex row with it. */
+@media (max-width: 40rem) {
+    table.stacks thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    table.stacks,
+    table.stacks tbody,
+    table.stacks tr,
+    table.stacks td {
+        display: block;
+        width: auto;
+    }
+
+    table.stacks tbody tr {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    table.stacks tbody tr:last-child {
+        border-bottom: none;
+    }
+
+    table.stacks td {
+        padding: 4px 0;
+        border: none;
+    }
+
+    table.stacks td[data-label] {
+        text-align: right;
+        overflow-wrap: anywhere;
+    }
+
+    table.stacks td[data-label]::before {
+        content: attr(data-label);
+        float: left;
+        margin-right: 16px;
+        padding-top: 2px;
+        color: var(--text-3);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-align: left;
+        text-transform: uppercase;
+    }
+
+    table.stacks td[data-label] .cell {
+        justify-content: flex-end;
+    }
+
+    /* Drops below a name whose row it would otherwise be squeezed beside. */
+    table.stacks td[data-label]::after {
+        content: "";
+        display: block;
+        clear: both;
+    }
+}
+
 @media (max-width: 34rem) {
     .act {
         display: grid;
