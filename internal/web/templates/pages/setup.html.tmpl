@@ -13,6 +13,7 @@
     <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/static/style.css">
     <script src="/static/js/theme.js"></script>
+    <script src="/static/js/settings.js" defer></script>
 </head>
 <body>
 <div class="authshell">
@@ -63,17 +64,25 @@
             {{- end }}
 
             <form method="post" action="/setup" class="authform">
+                {{- /* The same fields, hints and Show toggle as Add a user. */}}
                 <label class="stack">
                     <span class="eyebrow">Username</span>
                     <input class="input" type="text" name="username" autocomplete="username" autofocus
-                           minlength="3" maxlength="100" required>
+                           minlength="3" maxlength="100" aria-describedby="username-help" required>
+                    <span class="hint" id="username-help">3&ndash;100 characters.</span>
                 </label>
 
-                <label class="stack">
-                    <span class="eyebrow">Password</span>
-                    <input class="input" type="password" name="password" autocomplete="new-password"
-                           minlength="8" maxlength="1000" required>
-                </label>
+                <div class="formrow">
+                    <label class="eyebrow" for="setup-password">Password</label>
+                    <div class="pw-field">
+                        <input class="input" id="setup-password" type="password" name="password"
+                               autocomplete="new-password" minlength="8" maxlength="1000"
+                               aria-describedby="password-help" required>
+                        <button type="button" class="pw-toggle" data-pw-toggle
+                                aria-controls="setup-password" aria-pressed="false">Show</button>
+                    </div>
+                    <span class="hint" id="password-help">At least 8 characters.</span>
+                </div>
 
                 <button type="submit" class="btn authform__submit">Create admin account</button>
             </form>
