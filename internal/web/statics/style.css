@@ -3302,7 +3302,7 @@ td .traffic__tried {
    pointed at, focused, selected or found; see netmap.js. */
 .netmap__label.is-crowded,
 .netmap__hub-label.is-crowded {
-    opacity: 0;
+    display: none;
 }
 
 .netmap__hubnode:hover .netmap__hub-label,
@@ -3311,7 +3311,7 @@ td .traffic__tried {
 .netmap__dev.is-selected .netmap__label,
 .netmap__dev.is-peer .netmap__label,
 .netmap__dev--match .netmap__label {
-    opacity: 1;
+    display: inline;
 }
 
 .netmap a:hover .netmap__label,
