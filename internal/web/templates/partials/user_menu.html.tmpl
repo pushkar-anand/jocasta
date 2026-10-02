@@ -1,8 +1,7 @@
 {{- /*
     One topbar control for the signed-in identity and the account actions.
     Native <details> so it opens without script; settings.js only adds
-    Escape/outside-click close. Users is admin-only. Renders with an empty
-    name/role on the error pages, where the identity block drops out.
+    Escape/outside-click close. Users is admin-only.
     Takes view: SignedInAs, Role, Section.
 */ -}}
 {{ define "partial/user-menu" }}

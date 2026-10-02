@@ -235,10 +235,17 @@ func portScanConfigured(ctx context.Context, store *inventory.Store) bool {
 	return err == nil
 }
 
-// ErrorPageData is the response.WithErrorDataFunc hook the server wires into
-// the shared HTMLWriter, keyed by status the same way WithErrorTemplates is;
-// each case supplies whatever its own template needs.
-func ErrorPageData(r *http.Request, _ error, status int) map[string]any {
+// ErrorPageData returns the response.WithErrorDataFunc hook the server wires
+// into the shared HTMLWriter, keyed by status the same way WithErrorTemplates
+// is; each case supplies whatever its own template needs. sm names the
+// signed-in account for the pages drawn inside the signed-in shell.
+func ErrorPageData(sm *auth.Session) func(*http.Request, error, int) map[string]any {
+	return func(r *http.Request, _ error, status int) map[string]any {
+		return errorPageData(sm, r, status)
+	}
+}
+
+func errorPageData(sm *auth.Session, r *http.Request, status int) map[string]any {
 	switch status {
 	case http.StatusBadRequest, http.StatusRequestEntityTooLarge, http.StatusUnprocessableEntity:
 		// A request the sender can fix and resend: it did not parse, was too
@@ -246,7 +253,7 @@ func ErrorPageData(r *http.Request, _ error, status int) map[string]any {
 		// case below, since almost every form that reaches it is behind the
 		// signed-in shell; setup and sign-in guard their own inputs in the
 		// markup, so a crafted request is the only way they land here.
-		return shellData("Request could not be processed")
+		return shellData(sm, r, "Request could not be processed")
 	case http.StatusUnauthorized:
 		// The sign-in page's own fields (see loginData), since TemplateLogin
 		// renders standalone like login itself does.
@@ -274,24 +281,27 @@ func ErrorPageData(r *http.Request, _ error, status int) map[string]any {
 		// Forbidden renders inside the signed-in shell, since the visitor
 		// reaching it is signed in, so it needs view's fields the same way the
 		// 404 case below does.
-		return shellData("Permission needed")
+		return shellData(sm, r, "Permission needed")
 	default:
 		// The 404 page is built from layout/head and layout/foot like every
 		// other page, so it needs the same view fields.
-		return shellData("Not found")
+		return shellData(sm, r, "Not found")
 	}
 }
 
 // shellData is an error page's fields for a template rendered inside the
-// signed-in shell: view's fields, every one beyond Title at its zero value.
-func shellData(title string) map[string]any {
+// signed-in shell: view's fields, with the signed-in account and every other
+// field beyond Title at its zero value.
+func shellData(sm *auth.Session, r *http.Request, title string) map[string]any {
+	ctx := r.Context()
+
 	return map[string]any{
 		"Title":      title,
 		"Section":    "",
 		"Crumb":      nil,
 		"Live":       "",
-		"Role":       dbtype.UserRole(""),
-		"SignedInAs": "",
+		"Role":       sm.CurrentRole(ctx),
+		"SignedInAs": sm.CurrentUsername(ctx),
 		"Note":       "",
 	}
 }
