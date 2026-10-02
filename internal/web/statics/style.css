@@ -2996,6 +2996,13 @@ td .traffic__tried {
     color: var(--text-3);
 }
 
+/* What a field accepts, under it: the size and colour of a choice's
+   description, so a dialog's hints read as one kind of text. */
+.hint {
+    font-size: 12px;
+    color: var(--text-3);
+}
+
 /* Password reveal */
 
 .formrow {

@@ -92,7 +92,7 @@
                                maxlength="100" value="{{ .Username }}" autofocus
                                aria-describedby="username-help{{ if .Error }} username-error{{ end }}"
                                {{ if .Error }}aria-invalid="true"{{ end }} required>
-                        <span class="dim" id="username-help">3&ndash;100 characters.</span>
+                        <span class="hint" id="username-help">3&ndash;100 characters.</span>
                     </label>
 
                     <div class="formrow">
@@ -104,7 +104,7 @@
                             <button type="button" class="pw-toggle" data-pw-toggle
                                     aria-controls="new-user-password" aria-pressed="false">Show</button>
                         </div>
-                        <span class="dim" id="password-help">At least 8 characters.</span>
+                        <span class="hint" id="password-help">At least 8 characters.</span>
                     </div>
 
                     {{ template "partial/permission-choice" (permchoice "role" "Role" .SelectedRole true) }}
