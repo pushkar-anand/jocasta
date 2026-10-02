@@ -446,4 +446,11 @@ func TestCreateUser(t *testing.T) {
 		_, err := a.CreateUser(t.Context(), "ada", "another-password", dbtype.RoleRead)
 		assert.ErrorIs(t, err, ErrUsernameTaken)
 	})
+
+	t.Run("refuses a second admin", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := a.CreateUser(t.Context(), "linus", "another-password", dbtype.RoleAdmin)
+		assert.ErrorIs(t, err, ErrSecondAdmin)
+	})
 }

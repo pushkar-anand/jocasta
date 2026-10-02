@@ -232,8 +232,23 @@ func (a *Auth) CreateFirstUser(ctx context.Context, sm *Session, username, passw
 }
 
 // CreateUser adds another account, for an admin already signed in to hand to
-// someone else. It leaves the acting admin's own session untouched.
+// someone else. It leaves the acting admin's own session untouched. An
+// instance has one admin, so it refuses to make a second with
+// ErrSecondAdmin.
 func (a *Auth) CreateUser(ctx context.Context, username, password string, role dbtype.UserRole) (*models.User, error) {
+	if role == dbtype.RoleAdmin {
+		users, err := a.store.ListUsers(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("list users: %w", err)
+		}
+
+		for _, u := range users {
+			if u.Role == dbtype.RoleAdmin {
+				return nil, ErrSecondAdmin
+			}
+		}
+	}
+
 	return a.createUser(ctx, username, password, role)
 }
 
