@@ -13,10 +13,5 @@
     "issue": "M4",
     "check": "overlap",
     "el": "g.netmap__devices > a.netmap__dev"
-  },
-  {
-    "issue": "M4",
-    "check": "overlap",
-    "el": "text.netmap__label"
   }
 ]
