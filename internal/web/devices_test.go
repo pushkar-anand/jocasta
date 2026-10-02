@@ -815,6 +815,29 @@ func TestDeviceListCapsOpenPorts(t *testing.T) {
 	assert.Regexp(t, `<a class="chip chip--more" href="/devices/\d+#ports">\+4 more<span class="visually-hidden"> ports on nas.local</span></a>`, body)
 }
 
+// A device page lists its first 10 ports and folds the rest behind a switch
+// that names how many there are.
+func TestDevicePageFoldsLongPortLists(t *testing.T) {
+	t.Parallel()
+
+	store := testStore(t)
+
+	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix),
+		[]scanner.Host{host("192.0.2.10", macA, "nas.local")})
+	require.NoError(t, err)
+
+	ports := []uint16{21, 22, 80, 139, 443, 445, 548, 2049, 5000, 5001, 8080, 9000}
+	_, err = store.RecordPorts(t.Context(), "test-sweep", []scanner.PortScan{
+		{Addr: netip.MustParseAddr("192.0.2.10"), Open: ports, Scanned: ports},
+	})
+	require.NoError(t, err)
+
+	body := get(t, newWebHandler(t, store), "/devices/1").Body.String()
+
+	assert.Equal(t, 2, strings.Count(body, `<tr class="fold__row">`))
+	assert.Contains(t, body, `<span class="fold__closed">Show all 12 ports</span>`)
+}
+
 // The list carries the open ports a scan has found, as chips beside the
 // address they answer on, so a reader does not have to open each device to see
 // what it exposes.

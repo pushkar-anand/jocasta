@@ -1006,6 +1006,12 @@ a.netcard:hover {
     overflow-wrap: anywhere;
 }
 
+/* A fact that needs the card's width, such as notes, takes a row of its
+   own. */
+.facts__wide {
+    grid-column: 1 / -1;
+}
+
 .facts dd.mono {
     overflow-wrap: normal;
     white-space: nowrap;
@@ -1324,6 +1330,45 @@ tbody tr:hover {
     flex-direction: column;
     align-items: flex-start;
     gap: 3px;
+}
+
+/* A long list or text folded after its first part, with a native details
+   element as the switch: closed, the rows marked fold__row are hidden and
+   long notes stop at 8 lines; open, everything shows. The summary names
+   what it will do next. */
+.fold:not(:has(.fold__toggle[open])) .fold__row {
+    display: none;
+}
+
+.fold:not(:has(.fold__toggle[open])) .notes--long {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 8;
+    overflow: hidden;
+}
+
+.fold__toggle > summary {
+    display: inline-block;
+    padding: 6px 0;
+    color: var(--link);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    list-style: none;
+}
+
+.fold__toggle > summary::-webkit-details-marker {
+    display: none;
+}
+
+.card--table > .fold__toggle {
+    padding: 4px 14px 6px;
+    border-top: 1px solid var(--border);
+}
+
+.fold__toggle[open] .fold__closed,
+.fold__toggle:not([open]) .fold__open {
+    display: none;
 }
 
 /* Ports on an address: small numbers that wrap to keep the column narrow. */

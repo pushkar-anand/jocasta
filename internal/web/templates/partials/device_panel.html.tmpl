@@ -69,7 +69,24 @@
             <dl class="facts">
                 <div><dt>Label</dt><dd>{{ with .Device.Label }}{{ . }}{{ else }}<span class="dim">&mdash;</span>{{ end }}</dd></div>
                 <div><dt>Group</dt><dd>{{ with .Device.Group }}{{ . }}{{ else }}<span class="dim">&mdash;</span>{{ end }}</dd></div>
-                <div><dt>Notes</dt><dd>{{ with .Device.Notes }}{{ . }}{{ else }}<span class="dim">&mdash;</span>{{ end }}</dd></div>
+                {{- /* Notes take the card's width under the label and group.
+                       Long ones are cut at 8 lines with "Show all", the same
+                       details switch the ports table uses. */}}
+                <div class="facts__wide fold">
+                    <dt>Notes</dt>
+                    {{- with .Device.Notes }}
+                    {{- if gt (len .) 800 }}
+                    <dd class="notes notes--long">{{ . }}</dd>
+                    <dd><details class="fold__toggle">
+                        <summary><span class="fold__closed">Show all notes</span><span class="fold__open">Show fewer notes</span></summary>
+                    </details></dd>
+                    {{- else }}
+                    <dd class="notes">{{ . }}</dd>
+                    {{- end }}
+                    {{- else }}
+                    <dd><span class="dim">&mdash;</span></dd>
+                    {{- end }}
+                </div>
                 {{- if .Device.Ignored }}
                 <div><dt>Ignored</dt><dd>Yes, hidden from lists</dd></div>
                 {{- end }}
