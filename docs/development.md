@@ -36,6 +36,19 @@ A finding fails the run unless `testdata/known.json` lists it under an open
 issue. A fix deletes its entries. `make e2e-full` also fails on an entry that
 no longer matches anything.
 
+The run also compares the first screen of every page on the home network with
+a stored picture in `testdata/golden/`: on a phone, a tablet and a laptop in
+light, and the laptop in dark. A picture fails when more than 64 of its pixels
+changed, which a single word added or lost exceeds. When a change is meant,
+store the new pictures and commit them with it:
+
+```bash
+E2E_UPDATE=1 make e2e
+```
+
+To see what changed, set `E2E_ARTIFACTS` to a directory: each picture that
+differs is written there beside a map of the changed pixels.
+
 To look at a fixture in a browser:
 
 ```bash

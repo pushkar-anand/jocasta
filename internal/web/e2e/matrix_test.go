@@ -22,6 +22,10 @@ type matrix struct {
 	roles     []role
 	viewports []viewport
 	themes    []string
+
+	// golden picks the jobs whose first screen is compared against a
+	// stored picture; nil picks none.
+	golden func(job) bool
 }
 
 type job struct {
@@ -123,8 +127,10 @@ func (m matrix) run(t *testing.T, done func(*shot)) {
 			// Draining the queue even when Chrome will not start keeps the
 			// sender below from blocking on a worker that gave up.
 			for j := range queue {
+				golden := m.golden != nil && m.golden(j)
+
 				sh, err := retry(t, &b, func(b *browser) (*shot, error) {
-					return capture(b, j.a, j.r, j.cookies, j.v, j.theme, j.p, j.s)
+					return capture(b, j.a, j.r, j.cookies, j.v, j.theme, j.p, j.s, golden)
 				})
 				if errors.Is(err, errNotApplicable) {
 					continue

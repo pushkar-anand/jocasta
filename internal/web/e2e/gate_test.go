@@ -76,10 +76,13 @@ func (k known) covers(s *shot, p problem) bool {
 }
 
 // TestE2E draws every page in every state and fails on any finding the known
-// list does not cover. By default it draws what a pull request needs: every
-// fixture as admin on a phone, a tablet and a laptop, in both themes.
-// E2E_FULL=1 draws every screen and every account, and also fails on a
-// known entry that matched nothing, so a fix cannot leave its entry behind.
+// list does not cover, and on a first screen that no longer matches its
+// stored picture (see isGolden). By default it draws what a pull request
+// needs: every fixture as admin on a phone, a tablet and a laptop, in both
+// themes. E2E_FULL=1 draws every screen and every account, and also fails on
+// a known entry that matched nothing, so a fix cannot leave its entry behind.
+// E2E_UPDATE=1 stores the pictures taken instead of comparing them, and
+// E2E_ARTIFACTS names a directory for the pictures that differ.
 func TestE2E(t *testing.T) {
 	var list []known
 	if err := json.Unmarshal(knownJSON, &list); err != nil {
@@ -88,14 +91,35 @@ func TestE2E(t *testing.T) {
 
 	full := os.Getenv("E2E_FULL") != ""
 
-	m := matrix{fixtures: allFixtures, roles: []role{admin}, viewports: []viewport{phone, tablet, laptop}, themes: themes}
+	m := matrix{fixtures: allFixtures, roles: []role{admin}, viewports: []viewport{phone, tablet, laptop}, themes: themes, golden: isGolden}
 	if full {
 		m.roles, m.viewports = roles, viewports
 	}
 
 	used := make([]bool, len(list))
 
+	update := os.Getenv("E2E_UPDATE") != ""
+	artifacts := os.Getenv("E2E_ARTIFACTS")
+
+	if update {
+		if err := os.MkdirAll(goldenDir, 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if artifacts != "" {
+		if err := os.MkdirAll(artifacts, 0o750); err != nil { //nolint:gosec // the directory this run was pointed at
+			t.Fatal(err)
+		}
+	}
+
 	m.run(t, func(sh *shot) {
+		if sh.golden != nil {
+			if err := compareGolden(sh, update, artifacts); err != nil {
+				t.Error(err)
+			}
+		}
+
 		var unknown []string
 
 		for _, p := range sh.Problems {
