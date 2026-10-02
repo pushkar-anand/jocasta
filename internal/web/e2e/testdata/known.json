@@ -1,14 +1,5 @@
 [
   {
-    "issue": "C4",
-    "check": "axe:color-contrast",
-    "el": ".clear"
-  },
-  {
-    "issue": "C4",
-    "check": "axe:link-in-text-block"
-  },
-  {
     "issue": "C10",
     "check": "axe:nested-interactive",
     "el": ".netmap__svg"

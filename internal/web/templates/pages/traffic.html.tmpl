@@ -194,7 +194,7 @@
                 <tr>
                     <td>
                         {{- if .Outside }}Outside address <span class="dim">of</span> {{ end -}}
-                        <a href="/devices/{{ .DeviceID }}#traffic">{{ .DeviceName }}</a></td>
+                        <a{{ if .Outside }} class="inline"{{ end }} href="/devices/{{ .DeviceID }}#traffic">{{ .DeviceName }}</a></td>
                     <td>{{ count .Peers }} {{ if eq .Peers 1 }}address{{ else }}addresses{{ end }}
                         <span class="dim">&middot; {{ .Orgs }} {{ if eq .Orgs 1 }}organisation{{ else }}organisations{{ end }}</span>
                         {{- with .Ports }}<br><span class="dim">ports {{ portList . }}</span>{{ end }}</td>

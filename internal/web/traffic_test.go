@@ -751,7 +751,7 @@ func TestProbesFromTheInternetAreShown(t *testing.T) {
 
 	body := rec.Body.String()
 	assert.Contains(t, body, "Probed from the internet")
-	assert.Contains(t, body, `Outside address <span class="dim">of</span> <a href="/devices/2#traffic">nas.example.com</a>`)
+	assert.Contains(t, body, `Outside address <span class="dim">of</span> <a class="inline" href="/devices/2#traffic">nas.example.com</a>`)
 	assert.Contains(t, body, "ports 22, 3389")
 	assert.Contains(t, body, `<a href="/devices/1#traffic">laptop.example.com</a>`)
 	assert.NotContains(t, body, "ZgotmplZ")
