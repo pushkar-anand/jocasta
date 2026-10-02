@@ -50,7 +50,8 @@ const (
 	wide = 1.4
 
 	// hubLabelGap is how far a hub's name sits from it, towards the router,
-	// in the gap its devices leave clear.
+	// in the gap its devices leave clear, when the name runs along its
+	// branch.
 	hubLabelGap = 34.0
 
 	maxLabel = 24
@@ -92,6 +93,7 @@ type Hub struct {
 	At       Point
 	LabelAt  Point
 	Anchor   string // how its name is aligned on LabelAt
+	Hangs    string // "down" or "up", the way a name across its branch grows from LabelAt
 	Index    int    // which network, for its colour
 	Internet bool
 	Active   bool
@@ -232,20 +234,31 @@ func Place(m *inventory.TrafficMap, segments []Segment) *Layout {
 		c.hub.At = hub
 
 		// Its name goes on the side facing the router, which its nodes leave
-		// clear, a little below the line in.
+		// clear, a little below the line in. The name runs away from the
+		// hub, towards the router, clear of the hub's own nodes.
 		toRouter := math.Atan2(router.Y-hub.Y, router.X-hub.X)
-		c.hub.LabelAt = polar(hub, hubLabelGap, toRouter)
-		c.hub.LabelAt.Y += 4
+		gap := hubLabelGap
 
-		// The name runs away from the hub, towards the router, clear of the
-		// hub's own nodes.
 		switch cos := math.Cos(toRouter); {
 		case cos < -0.5:
 			c.hub.Anchor = "end"
 		case cos > 0.5:
 			c.hub.Anchor = "start"
 		default:
+			// Set across the branch, it is wider than the gap the nodes
+			// leave, so it starts past them and grows away from the hub.
 			c.hub.Anchor = "middle"
+			gap = c.radius + labelGap
+
+			c.hub.Hangs = "down"
+			if math.Sin(toRouter) < 0 {
+				c.hub.Hangs = "up"
+			}
+		}
+
+		c.hub.LabelAt = polar(hub, gap, toRouter)
+		if c.hub.Hangs == "" {
+			c.hub.LabelAt.Y += 4
 		}
 
 		// The nodes go round the hub, leaving the side that faces the router

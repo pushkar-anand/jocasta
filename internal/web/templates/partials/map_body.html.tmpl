@@ -114,7 +114,7 @@
             {{- range .Hubs }}
             <g class="netmap__hubnode{{ if .Internet }} netmap__hubnode--internet{{ else }} netmap__tone-{{ segtone .Index }}{{ end }}">
                 <circle class="netmap__hub" cx="{{ .At.X }}" cy="{{ .At.Y }}" r="13"><title>{{ .Label }} &middot; {{ .Nodes }}</title></circle>
-                <text class="netmap__hub-label" x="{{ .LabelAt.X }}" y="{{ .LabelAt.Y }}" text-anchor="{{ .Anchor }}">{{ .Label }}</text>
+                <text class="netmap__hub-label{{ with .Hangs }} netmap__hub-label--{{ . }}{{ end }}" x="{{ .LabelAt.X }}" y="{{ .LabelAt.Y }}" text-anchor="{{ .Anchor }}">{{ .Label }}</text>
             </g>
             {{- end }}
             <rect class="netmap__router" x="{{ .Router.X }}" y="{{ .Router.Y }}" width="36" height="36" rx="7"
