@@ -78,7 +78,7 @@ func NewHandler(
 	// is compiled into the binary.
 	templates := template.Must(
 		template.New("").
-			Funcs(funcs(time.Now, store.OnlineWindow())).
+			Funcs(funcs(store.Now, store.OnlineWindow())).
 			ParseFS(
 				templatesFS,
 				"templates/pages/*.html.tmpl",
@@ -196,12 +196,12 @@ func latestSweepNote(ctx context.Context, store *inventory.Store) string {
 		return ""
 	}
 
-	return sweepNote(scan)
+	return sweepNote(store.Now(), scan)
 }
 
-func sweepNote(scan *inventory.Scan) string {
+func sweepNote(now time.Time, scan *inventory.Scan) string {
 	// The rail labels the line "Last sweep", so the verb would be said twice.
-	note := ago(time.Now(), scan.StartedAt)
+	note := ago(now, scan.StartedAt)
 
 	// A collector that still records scan rows while failing every one of them
 	// would otherwise keep this line reading as healthy.

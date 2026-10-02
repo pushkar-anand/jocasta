@@ -5,7 +5,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/pushkar-anand/jocasta/internal/classify"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
@@ -358,7 +357,7 @@ func buildDevicePageData(
 	}
 
 	traffic, err := buildTrafficSection(ctx, store, device.ID,
-		trafficWindowKey(query), trafficFilterFrom(query), time.Now())
+		trafficWindowKey(query), trafficFilterFrom(query), store.Now())
 	if err != nil {
 		return nil, err
 	}
