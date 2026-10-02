@@ -76,7 +76,7 @@ const listAPITokensByUser = `-- name: ListAPITokensByUser :many
 SELECT id, user_id, name, token_hash, scope, created_at, last_used_at
 FROM api_tokens
 WHERE user_id = ?
-ORDER BY created_at DESC
+ORDER BY created_at DESC, id DESC
 `
 
 // ListAPITokensByUser
@@ -84,7 +84,7 @@ ORDER BY created_at DESC
 //	SELECT id, user_id, name, token_hash, scope, created_at, last_used_at
 //	FROM api_tokens
 //	WHERE user_id = ?
-//	ORDER BY created_at DESC
+//	ORDER BY created_at DESC, id DESC
 func (q *Queries) ListAPITokensByUser(ctx context.Context, userID int64) ([]*ApiToken, error) {
 	rows, err := q.query(ctx, q.listAPITokensByUserStmt, listAPITokensByUser, userID)
 	if err != nil {

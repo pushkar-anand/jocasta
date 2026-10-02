@@ -7,7 +7,7 @@ RETURNING *;
 SELECT *
 FROM api_tokens
 WHERE user_id = ?
-ORDER BY created_at DESC;
+ORDER BY created_at DESC, id DESC;
 
 -- name: TouchAPITokenByHash :one
 -- Runs on every API request: finding the row and recording its use in one

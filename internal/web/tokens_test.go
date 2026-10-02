@@ -1,13 +1,16 @@
 package web
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -222,4 +225,33 @@ func onlyTokenRowID(t *testing.T, body string) int64 {
 	require.Equal(t, -1, strings.Index(body[start+end:], marker), "expected only one token row")
 
 	return id
+}
+
+// Tokens created in the same moment, as a script minting several does, keep
+// one order from load to load: newest first, by creation and then by id.
+func TestTokensListInAFixedOrder(t *testing.T) {
+	t.Parallel()
+
+	a := testAuth(t)
+	h := newWebHandlerWithAuth(t, testStore(t), a)
+
+	users, err := a.ListUsers(t.Context())
+	require.NoError(t, err)
+
+	want := make([]string, 0, 30)
+
+	for i := range 30 {
+		name := fmt.Sprintf("token-%02d", i)
+		_, _, err := a.CreateToken(t.Context(), users[0].ID, name, dbtype.TokenRead)
+		require.NoError(t, err)
+
+		want = append([]string{name}, want...)
+	}
+
+	body := requestAs(t, h, signIn(t, h), http.MethodGet, "/settings/tokens", "").Body.String()
+
+	// Each name appears again in its row's revoke dialog; the table comes first.
+	got := regexp.MustCompile(`token-\d\d`).FindAllString(body, -1)
+	require.GreaterOrEqual(t, len(got), len(want))
+	assert.Equal(t, want, got[:len(want)])
 }
