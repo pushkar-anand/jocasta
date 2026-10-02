@@ -1,10 +1,5 @@
 [
   {
-    "issue": "C10",
-    "check": "axe:nested-interactive",
-    "el": ".netmap__svg"
-  },
-  {
     "issue": "C9",
     "check": "axe:scrollable-region-focusable",
     "el": ".scroller"
