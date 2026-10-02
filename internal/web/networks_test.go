@@ -94,7 +94,7 @@ func TestNetworkPageShowsTheTag(t *testing.T) {
 	assert.Contains(t, body, "VLAN 10")
 
 	// The friendly name leads the page: it is the heading and the browser title.
-	assert.Contains(t, body, `<h1 id="page-title">Home</h1>`)
+	assert.Contains(t, body, `<h1 id="page-title" title="Home">Home</h1>`)
 	assert.Contains(t, body, "<title>Home &middot; jocasta</title>")
 
 	// The CIDR is still shown, one line down in the summary card.

@@ -30,21 +30,6 @@
     "el": "input#netmap-search"
   },
   {
-    "issue": "D4",
-    "check": "overlap",
-    "el": "hN#page-title"
-  },
-  {
-    "issue": "D4",
-    "check": "page-scrolls-sideways",
-    "el": "hN#page-title"
-  },
-  {
-    "issue": "D4",
-    "check": "page-scrolls-sideways",
-    "el": "ol.path > li.path__hop"
-  },
-  {
     "issue": "M6",
     "check": "text-spills",
     "el": "worldmap__scale"
