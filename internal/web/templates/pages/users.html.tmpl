@@ -40,9 +40,11 @@
                         <tbody>
                         {{- range .Users }}
                             <tr>
-                                <td class="cell strong">
-                                    {{ .Username }}
-                                    {{- if eq .ID $.CurrentUserID }} <span class="chip chip--quiet chip--label">You</span>{{ end }}
+                                <td class="strong">
+                                    <span class="cell">
+                                        {{ .Username }}
+                                        {{- if eq .ID $.CurrentUserID }} <span class="chip chip--quiet chip--label">You</span>{{ end }}
+                                    </span>
                                 </td>
                                 <td>
                                     {{- if eq .Role "admin" }}
