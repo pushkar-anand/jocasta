@@ -101,7 +101,9 @@
         </dialog>
         {{- end }}
     {{- else }}
-        <p class="dim">No tokens yet. Create one to use the API or the MCP server.</p>
+        <div class="card empty">
+            <p>No tokens yet. Create one to use the API or the MCP server.</p>
+        </div>
     {{- end }}
 </div>
 {{ end }}

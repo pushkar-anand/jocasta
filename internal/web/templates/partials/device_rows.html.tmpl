@@ -58,9 +58,13 @@
     </nav>
     {{- end }}
     {{- else if .Filtered }}
-    <p class="dim">No device matches this filter.</p>
+    <div class="card empty">
+        <p>No device matches this filter.</p>
+    </div>
     {{- else }}
-    <p class="dim">No devices yet. They appear here after the first sweep of your networks.</p>
+    <div class="card empty">
+        <p>No devices yet. They appear here after the first sweep of your networks.</p>
+    </div>
     {{- end }}
 
     {{- /* Shared by every row's group field, so it is written once. */}}
