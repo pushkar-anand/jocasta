@@ -734,7 +734,7 @@ func TestDevicePageShowsOpenPorts(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = store.RecordPorts(t.Context(), "test-sweep", []scanner.PortScan{
-		{Addr: netip.MustParseAddr("192.0.2.10"), Open: []uint16{22}, Scanned: []uint16{22, 80, 443}},
+		{Addr: netip.MustParseAddr("192.0.2.10"), Open: []uint16{22}, Scanned: []uint16{22, 80, 443}, Answered: true},
 	})
 	require.NoError(t, err)
 

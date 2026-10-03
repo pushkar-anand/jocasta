@@ -11,11 +11,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// portScan builds one address's scan result the way the scanner hands it over.
+// portScan builds one address's scan result the way the scanner hands it over
+// for an address that answered.
 func portScan(addr string, open []uint16, scanned []uint16) scanner.PortScan {
 	return scanner.PortScan{
+		Addr:     netip.MustParseAddr(addr),
+		Open:     open,
+		Scanned:  scanned,
+		Answered: true,
+	}
+}
+
+// silentScan builds the result for an address that let every probe time out.
+func silentScan(addr string, scanned []uint16) scanner.PortScan {
+	return scanner.PortScan{
 		Addr:    netip.MustParseAddr(addr),
-		Open:    open,
 		Scanned: scanned,
 	}
 }
@@ -150,6 +160,48 @@ func TestRecordPortsClosesAPortThatStoppedAnswering(t *testing.T) {
 		dbtype.EventPortOpened,
 		dbtype.EventPortClosed,
 	}, eventKinds(t, conn, id))
+}
+
+// A host that answered nothing may be asleep or gone, so a scan of it closes
+// none of its ports and writes no events.
+func TestRecordPortsKeepsPortsOpenOnAHostThatDidNotAnswer(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, "host-a"))
+	id := deviceIDByMAC(t, conn, macA)
+
+	recordPorts(t, s, portScan("192.0.2.10", []uint16{22, 443}, []uint16{22, 80, 443}))
+
+	sum := recordPorts(t, s, silentScan("192.0.2.10", []uint16{22, 80, 443}))
+
+	assert.Zero(t, sum.Closed)
+	assert.Equal(t, []string{"open", "open"}, queryStrings(t, conn,
+		`SELECT state FROM device_ports WHERE device_id = ? ORDER BY port`, id))
+	assert.Zero(t, queryInt(t, conn,
+		`SELECT COUNT(*) FROM events WHERE device_id = ? AND kind = 'PORT_CLOSED'`, id))
+}
+
+// On a device with two addresses, the one that answered decides which ports
+// have closed, and the silent one has no say.
+func TestRecordPortsClosesFromTheAddressThatAnswered(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, "host-a"), host("192.0.2.20", macA, "host-a"))
+
+	recordPorts(t, s,
+		portScan("192.0.2.10", []uint16{22}, []uint16{22}),
+		portScan("192.0.2.20", []uint16{22}, []uint16{22}),
+	)
+
+	sum := recordPorts(t, s,
+		portScan("192.0.2.10", nil, []uint16{22}),
+		silentScan("192.0.2.20", []uint16{22}),
+	)
+
+	assert.Equal(t, 1, sum.Closed)
+	assert.Equal(t, "closed", queryString(t, conn, `SELECT state FROM device_ports WHERE port = 22`))
 }
 
 func TestRecordPortsLeavesAnUnscannedPortAlone(t *testing.T) {

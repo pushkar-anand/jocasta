@@ -135,7 +135,39 @@ func TestPortScannerFindsOpenPorts(t *testing.T) {
 	require.Len(t, got, 1)
 	assert.Equal(t, []uint16{openPort}, got[0].Open)
 	assert.Len(t, got[0].Scanned, 2)
+	assert.True(t, got[0].Answered)
 	assert.Equal(t, at, got[0].SeenAt)
+}
+
+// A host that refuses every connection is up, so its result says it answered
+// though nothing is open.
+func TestPortScannerCountsARefusalAsAnAnswer(t *testing.T) {
+	t.Parallel()
+
+	gone := loopback(t)
+	port := uint16(gone.Addr().(*net.TCPAddr).Port) //nolint:gosec // kernel-assigned.
+	require.NoError(t, gone.Close())
+
+	ps := NewPortScanner(discardLogger(), WithPorts([]uint16{port}), WithDialTimeout(time.Second))
+	got := ps.Scan(t.Context(), Targets([]netip.Addr{netip.MustParseAddr("127.0.0.1")}), time.Now())
+
+	require.Len(t, got, 1)
+	assert.Empty(t, got[0].Open)
+	assert.True(t, got[0].Answered)
+}
+
+// A host that lets every probe go unanswered has not answered, though every
+// port was probed. 192.0.2.1 is a documentation address that routes nowhere.
+func TestPortScannerReportsASilentHost(t *testing.T) {
+	t.Parallel()
+
+	ps := NewPortScanner(discardLogger(), WithPorts([]uint16{22, 80}), WithDialTimeout(100*time.Millisecond))
+	got := ps.Scan(t.Context(), Targets([]netip.Addr{netip.MustParseAddr("192.0.2.1")}), time.Now())
+
+	require.Len(t, got, 1)
+	assert.Empty(t, got[0].Open)
+	assert.Equal(t, []uint16{22, 80}, got[0].Scanned)
+	assert.False(t, got[0].Answered)
 }
 
 // Every target comes back in the order it was given, even one with nothing
