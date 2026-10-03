@@ -336,8 +336,12 @@ func (s *Store) LastSuccessfulScanAt(ctx context.Context, k dbtype.ScanKind) (ti
 }
 
 // PortScanTargets returns every address a port scan should probe: the current
-// address of every device the user has not ignored. The scan works from what
-// discovery has already found, so this is its whole target list. Each target's
+// address of every device the user has not ignored, on a recorded network. The
+// scan works from what discovery has already found, so this is its whole
+// target list. A recorded network is one the sweep covers or a segment a
+// router serves, so a neighbour a router knows beyond its own segments, such
+// as the ISP's gateway, is never probed. With no network recorded there are no
+// targets. Each target's
 // Extra are the TCP ports its device advertised a service on, so the scan
 // says whether a port the device announced answers. Extra also holds the ports
 // recorded open on the device, so one that has stopped answering closes.
@@ -352,6 +356,11 @@ func (s *Store) PortScanTargets(ctx context.Context) ([]scanner.PortTarget, erro
 		return nil, fmt.Errorf("extra scan ports: %w", err)
 	}
 
+	nets, err := loadNetworks(ctx, s.q)
+	if err != nil {
+		return nil, err
+	}
+
 	extra := make(map[netip.Addr][]uint16)
 	for _, r := range ports {
 		// Both port columns are CHECK-constrained to fit a uint16.
@@ -360,6 +369,10 @@ func (s *Store) PortScanTargets(ctx context.Context) ([]scanner.PortTarget, erro
 
 	targets := make([]scanner.PortTarget, 0, len(rows))
 	for _, r := range rows {
+		if _, ok := nets.find(r.IP.Addr); !ok {
+			continue
+		}
+
 		targets = append(targets, scanner.PortTarget{Addr: r.IP.Addr, Extra: extra[r.IP.Addr]})
 	}
 
