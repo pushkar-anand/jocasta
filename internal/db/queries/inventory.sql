@@ -133,15 +133,26 @@ SET is_watched = sqlc.arg(is_watched)
 WHERE id = sqlc.arg(id)
 RETURNING *;
 
--- A device folded into another may carry a label the user set before its MAC
--- was known, and the earlier of the two first_seen values is the true one.
--- name: AdoptCuration :exec
+-- A device folded into another may carry curation the user set before its MAC
+-- was known. A field both rows set keeps the surviving device's value, and a
+-- flag either row set stays set.
+--
+-- The folded row may have been seen while the surviving one went quiet, so
+-- the merged device keeps the earlier first_seen, the later last_seen and the
+-- earlier of the two present runs.
+-- name: AdoptCuration :one
 UPDATE devices
-SET label      = COALESCE(label, sqlc.narg(folded_label)),
-    notes      = COALESCE(notes, sqlc.narg(folded_notes)),
-    group_name = COALESCE(group_name, sqlc.narg(folded_group_name)),
-    first_seen = sqlc.arg(first_seen)
-WHERE id = sqlc.arg(id);
+SET label         = COALESCE(label, sqlc.narg(folded_label)),
+    notes         = COALESCE(notes, sqlc.narg(folded_notes)),
+    group_name    = COALESCE(group_name, sqlc.narg(folded_group_name)),
+    device_type   = COALESCE(device_type, sqlc.narg(folded_device_type)),
+    is_ignored    = sqlc.arg(is_ignored),
+    is_watched    = sqlc.arg(is_watched),
+    first_seen    = sqlc.arg(first_seen),
+    last_seen     = sqlc.arg(last_seen),
+    present_since = sqlc.narg(present_since)
+WHERE id = sqlc.arg(id)
+RETURNING *;
 
 -- Rows the surviving device already holds for the same address are left behind
 -- and go with the folded device when it is deleted.
@@ -207,6 +218,41 @@ ON CONFLICT (device_id, source_id)
                                         excluded.detail, device_sources.detail),
                   first_seen      = MIN(device_sources.first_seen, excluded.first_seen),
                   last_seen       = MAX(device_sources.last_seen, excluded.last_seen);
+
+-- Ports follow the device on a fold. A port both rows recorded keeps the newer
+-- reading's state with the outer bounds of both sightings.
+-- name: MoveDevicePorts :exec
+INSERT INTO device_ports (device_id, port, state, service, first_seen, last_seen, changed_at)
+SELECT sqlc.arg(into_id), ghost.port, ghost.state, ghost.service, ghost.first_seen, ghost.last_seen,
+       ghost.changed_at
+FROM device_ports ghost
+WHERE ghost.device_id = sqlc.arg(from_id)
+ON CONFLICT (device_id, port)
+    DO UPDATE SET state      = IIF(excluded.last_seen > device_ports.last_seen,
+                                   excluded.state, device_ports.state),
+                  service    = IIF(excluded.last_seen > device_ports.last_seen,
+                                   excluded.service, device_ports.service),
+                  changed_at = IIF(excluded.last_seen > device_ports.last_seen,
+                                   excluded.changed_at, device_ports.changed_at),
+                  first_seen = MIN(device_ports.first_seen, excluded.first_seen),
+                  last_seen  = MAX(device_ports.last_seen, excluded.last_seen);
+
+-- Services follow the device on a fold, merged as ports are.
+-- name: MoveDeviceServices :exec
+INSERT INTO device_services (device_id, type, instance, port, label, model, first_seen, last_seen)
+SELECT sqlc.arg(into_id), ghost.type, ghost.instance, ghost.port, ghost.label, ghost.model,
+       ghost.first_seen, ghost.last_seen
+FROM device_services ghost
+WHERE ghost.device_id = sqlc.arg(from_id)
+ON CONFLICT (device_id, type, instance)
+    DO UPDATE SET port       = IIF(excluded.last_seen > device_services.last_seen,
+                                   excluded.port, device_services.port),
+                  label      = IIF(excluded.last_seen > device_services.last_seen,
+                                   excluded.label, device_services.label),
+                  model      = IIF(excluded.last_seen > device_services.last_seen,
+                                   excluded.model, device_services.model),
+                  first_seen = MIN(device_services.first_seen, excluded.first_seen),
+                  last_seen  = MAX(device_services.last_seen, excluded.last_seen);
 
 -- name: MoveEvents :exec
 UPDATE events
