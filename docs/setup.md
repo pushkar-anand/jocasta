@@ -50,6 +50,10 @@ make docker           # -> jocasta:latest
 On first visit the web UI asks you to create the admin account. Further users
 and API tokens are under Settings.
 
+Until the admin account exists, whoever opens `/setup` first creates it. Finish
+setup straight after the first start, before anyone else on the network can
+reach the page.
+
 The session cookie is HTTPS-only by default. If you reach Jocasta over plain
 HTTP from anywhere but `localhost`, sign-in does not stick until you set
 `server.auth.cookie_secure: false`. Putting it behind a TLS reverse proxy is better.

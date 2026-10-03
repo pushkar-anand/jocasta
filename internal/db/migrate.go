@@ -24,6 +24,12 @@ var migrationFiles embed.FS
 // migrateDB brings conn to dbVersion using the embedded migrations. An already
 // matching schema succeeds, and conn remains open for the caller.
 func migrateDB(conn *sql.DB) error {
+	return migrateTo(conn, dbVersion)
+}
+
+// migrateTo brings conn to version, so a test can stop at an older schema,
+// fill it, and then run the migrations after it.
+func migrateTo(conn *sql.DB, version uint) error {
 	td, err := sqlite.WithInstance(conn, &sqlite.Config{})
 	if err != nil {
 		return fmt.Errorf("failed to init sqlite migration target: %w", err)
@@ -44,7 +50,7 @@ func migrateDB(conn *sql.DB) error {
 		return fmt.Errorf("failed to init migrate: %w", err)
 	}
 
-	err = m.Migrate(dbVersion)
+	err = m.Migrate(version)
 	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("failed to migrate: %w", err)
 	}

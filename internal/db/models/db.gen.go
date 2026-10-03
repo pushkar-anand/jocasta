@@ -69,6 +69,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.createEventStmt, err = db.PrepareContext(ctx, createEvent); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateEvent: %w", err)
 	}
+	if q.createFirstUserStmt, err = db.PrepareContext(ctx, createFirstUser); err != nil {
+		return nil, fmt.Errorf("error preparing query CreateFirstUser: %w", err)
+	}
 	if q.createNotifyRuleStmt, err = db.PrepareContext(ctx, createNotifyRule); err != nil {
 		return nil, fmt.Errorf("error preparing query CreateNotifyRule: %w", err)
 	}
@@ -462,6 +465,11 @@ func (q *Queries) Close() error {
 	if q.createEventStmt != nil {
 		if cerr := q.createEventStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing createEventStmt: %w", cerr)
+		}
+	}
+	if q.createFirstUserStmt != nil {
+		if cerr := q.createFirstUserStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing createFirstUserStmt: %w", cerr)
 		}
 	}
 	if q.createNotifyRuleStmt != nil {
@@ -1043,6 +1051,7 @@ type Queries struct {
 	createAPITokenStmt                 *sql.Stmt
 	createDeviceStmt                   *sql.Stmt
 	createEventStmt                    *sql.Stmt
+	createFirstUserStmt                *sql.Stmt
 	createNotifyRuleStmt               *sql.Stmt
 	createRecoveryCodeStmt             *sql.Stmt
 	createScanStmt                     *sql.Stmt
@@ -1169,6 +1178,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		createAPITokenStmt:                 q.createAPITokenStmt,
 		createDeviceStmt:                   q.createDeviceStmt,
 		createEventStmt:                    q.createEventStmt,
+		createFirstUserStmt:                q.createFirstUserStmt,
 		createNotifyRuleStmt:               q.createNotifyRuleStmt,
 		createRecoveryCodeStmt:             q.createRecoveryCodeStmt,
 		createScanStmt:                     q.createScanStmt,

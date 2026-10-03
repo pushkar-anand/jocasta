@@ -1,8 +1,11 @@
 package web
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -52,6 +55,45 @@ func TestSetupFormRejectsTooShortInput(t *testing.T) {
 	require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Request could not be processed")
 	assert.NotContains(t, rec.Body.String(), "Internal Server Error")
+}
+
+// TestSetupFormCreatesOneAdminUnderParallelPosts covers setup submitted from
+// several places at once, each with its own username. Exactly one becomes the
+// admin; the others are told setup is done.
+func TestSetupFormCreatesOneAdminUnderParallelPosts(t *testing.T) {
+	t.Parallel()
+
+	a := unseededAuth(t)
+	h := newWebHandlerWithAuth(t, testStore(t), a)
+
+	var (
+		wg       sync.WaitGroup
+		mu       sync.Mutex
+		statuses []int
+	)
+
+	for i := range 10 {
+		wg.Go(func() {
+			form := url.Values{"username": {fmt.Sprintf("admin-%d", i)}, "password": {"correct-password-1"}}
+			rec := requestAs(t, h, nil, http.MethodPost, "/setup", form.Encode())
+
+			mu.Lock()
+			defer mu.Unlock()
+
+			statuses = append(statuses, rec.Code)
+		})
+	}
+
+	wg.Wait()
+
+	slices.Sort(statuses)
+
+	want := append([]int{http.StatusFound}, slices.Repeat([]int{http.StatusConflict}, 9)...)
+	assert.Equal(t, want, statuses)
+
+	users, err := a.ListUsers(t.Context())
+	require.NoError(t, err)
+	assert.Len(t, users, 1)
 }
 
 func TestSetupFormRefusesOnceAnAccountExists(t *testing.T) {

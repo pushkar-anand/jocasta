@@ -75,6 +75,29 @@ func (f *fakeQueries) CreateUser(_ context.Context, arg models.CreateUserParams)
 	return u, nil
 }
 
+func (f *fakeQueries) CreateFirstUser(_ context.Context, arg models.CreateFirstUserParams) (*models.User, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if len(f.users) > 0 {
+		return nil, sql.ErrNoRows
+	}
+
+	f.nextID++
+
+	u := &models.User{
+		ID:           f.nextID,
+		Username:     arg.Username,
+		PasswordHash: arg.PasswordHash,
+		Role:         dbtype.RoleAdmin,
+		CreatedAt:    dbtype.NewTime(time.Now()),
+	}
+
+	f.users = map[string]*models.User{arg.Username: u}
+
+	return u, nil
+}
+
 func (f *fakeQueries) CountUsers(_ context.Context) (int64, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

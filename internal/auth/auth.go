@@ -28,6 +28,7 @@ type (
 		GetUserByUsername(ctx context.Context, username string) (*models.User, error)
 		GetUserByID(ctx context.Context, id int64) (*models.User, error)
 		CreateUser(ctx context.Context, arg models.CreateUserParams) (*models.User, error)
+		CreateFirstUser(ctx context.Context, arg models.CreateFirstUserParams) (*models.User, error)
 		CountUsers(ctx context.Context) (int64, error)
 		ListUsers(ctx context.Context) ([]*models.User, error)
 	}
@@ -209,9 +210,11 @@ func (a *Auth) SetupRequired(ctx context.Context) (bool, error) {
 }
 
 // CreateFirstUser creates the one account setup exists to create, as admin,
-// and signs it straight in. It goes through SetupRequired, so the check holds
-// even when the session middleware has not warmed the hasUsers cache first.
+// and signs it straight in. It returns ErrSetupComplete once any account
+// exists, including one that another setup request made a moment earlier.
 func (a *Auth) CreateFirstUser(ctx context.Context, sm *Session, username, password string) (*models.User, error) {
+	// A cheap refusal before the slow hash. The insert below is what
+	// decides between setup requests that pass this together.
 	required, err := a.SetupRequired(ctx)
 	if err != nil {
 		return nil, err
@@ -221,9 +224,22 @@ func (a *Auth) CreateFirstUser(ctx context.Context, sm *Session, username, passw
 		return nil, ErrSetupComplete
 	}
 
-	user, err := a.createUser(ctx, username, password, dbtype.RoleAdmin)
+	hash, err := a.hasher.Hash(password)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("hash password: %w", err)
+	}
+
+	user, err := a.store.CreateFirstUser(ctx, models.CreateFirstUserParams{
+		Username:     username,
+		PasswordHash: hash,
+	})
+
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		a.hasUsers.Store(true)
+		return nil, ErrSetupComplete
+	case err != nil:
+		return nil, fmt.Errorf("create first user %q: %w", username, err)
 	}
 
 	a.hasUsers.Store(true)
