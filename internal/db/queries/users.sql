@@ -3,6 +3,15 @@ INSERT INTO users (username, password_hash, role)
 VALUES (?, ?, ?)
 RETURNING *;
 
+-- name: CreateFirstUser :one
+-- Inserts the admin only into an empty table, checked and written in one
+-- statement, so setup run twice at once makes one account. No row comes back
+-- when an account already exists.
+INSERT INTO users (username, password_hash, role)
+SELECT @username, @password_hash, 'admin'
+WHERE NOT EXISTS (SELECT 1 FROM users)
+RETURNING *;
+
 -- name: GetUserByUsername :one
 SELECT *
 FROM users

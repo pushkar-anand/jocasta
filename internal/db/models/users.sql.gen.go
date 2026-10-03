@@ -28,6 +28,42 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const createFirstUser = `-- name: CreateFirstUser :one
+INSERT INTO users (username, password_hash, role)
+SELECT ?1, ?2, 'admin'
+WHERE NOT EXISTS (SELECT 1 FROM users)
+RETURNING id, username, password_hash, role, created_at, totp_secret, totp_enabled, totp_confirmed_at
+`
+
+type CreateFirstUserParams struct {
+	Username     string `json:"username"`
+	PasswordHash string `json:"password_hash"`
+}
+
+// Inserts the admin only into an empty table, checked and written in one
+// statement, so setup run twice at once makes one account. No row comes back
+// when an account already exists.
+//
+//	INSERT INTO users (username, password_hash, role)
+//	SELECT ?1, ?2, 'admin'
+//	WHERE NOT EXISTS (SELECT 1 FROM users)
+//	RETURNING id, username, password_hash, role, created_at, totp_secret, totp_enabled, totp_confirmed_at
+func (q *Queries) CreateFirstUser(ctx context.Context, arg CreateFirstUserParams) (*User, error) {
+	row := q.queryRow(ctx, q.createFirstUserStmt, createFirstUser, arg.Username, arg.PasswordHash)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Role,
+		&i.CreatedAt,
+		&i.TOTPSecret,
+		&i.TOTPEnabled,
+		&i.TOTPConfirmedAt,
+	)
+	return &i, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (username, password_hash, role)
 VALUES (?, ?, ?)

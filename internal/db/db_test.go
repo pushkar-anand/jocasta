@@ -147,6 +147,81 @@ func TestCreateUserRejectsDuplicateUsername(t *testing.T) {
 	assert.Contains(t, err.Error(), "UNIQUE constraint failed")
 }
 
+// TestCreateUserRefusesASecondAdmin checks the schema itself holds an
+// instance to one admin, whichever code path inserts the account.
+func TestCreateUserRefusesASecondAdmin(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	q := models.New(newTestDB(t))
+
+	_, err := q.CreateUser(ctx, models.CreateUserParams{Username: "ada", PasswordHash: "hash", Role: dbtype.RoleAdmin})
+	require.NoError(t, err)
+
+	_, err = q.CreateUser(ctx, models.CreateUserParams{Username: "grace", PasswordHash: "hash", Role: dbtype.RoleAdmin})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "UNIQUE constraint failed")
+
+	_, err = q.CreateUser(ctx, models.CreateUserParams{Username: "linus", PasswordHash: "hash", Role: dbtype.RoleReadWrite})
+	assert.NoError(t, err, "other roles have no limit")
+}
+
+// TestCreateFirstUserOnlyIntoAnEmptyTable checks the setup insert writes
+// nothing once any account exists.
+func TestCreateFirstUserOnlyIntoAnEmptyTable(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	q := models.New(newTestDB(t))
+
+	user, err := q.CreateFirstUser(ctx, models.CreateFirstUserParams{Username: "ada", PasswordHash: "hash"})
+	require.NoError(t, err)
+	assert.Equal(t, dbtype.RoleAdmin, user.Role)
+
+	_, err = q.CreateFirstUser(ctx, models.CreateFirstUserParams{Username: "grace", PasswordHash: "hash"})
+	require.ErrorIs(t, err, sql.ErrNoRows)
+}
+
+// TestMigrationKeepsTheOldestAdmin covers a database that already holds more
+// than one admin: the migration that limits it to one keeps the oldest and
+// makes the others editors, so it cannot fail and stop startup.
+func TestMigrationKeepsTheOldestAdmin(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+
+	conn, err := sql.Open("sqlite", dsn(filepath.Join(t.TempDir(), "test.db")))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = conn.Close() })
+
+	require.NoError(t, migrateTo(conn, 15))
+
+	for _, u := range []struct{ name, role string }{
+		{"ada", "admin"}, {"grace", "read"}, {"linus", "admin"}, {"ken", "admin"},
+	} {
+		_, err := conn.ExecContext(ctx,
+			`INSERT INTO users (username, password_hash, role) VALUES (?, 'hash', ?)`, u.name, u.role)
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, migrateTo(conn, dbVersion))
+
+	users, err := models.New(conn).ListUsers(ctx)
+	require.NoError(t, err)
+
+	roles := make(map[string]dbtype.UserRole, len(users))
+	for _, u := range users {
+		roles[u.Username] = u.Role
+	}
+
+	assert.Equal(t, map[string]dbtype.UserRole{
+		"ada":   dbtype.RoleAdmin,
+		"grace": dbtype.RoleRead,
+		"linus": dbtype.RoleReadWrite,
+		"ken":   dbtype.RoleReadWrite,
+	}, roles)
+}
+
 // TestTOTPSecretIsFixedOnceEnabled checks the guard on the two enrollment
 // writes: neither touches an account whose 2FA is already on.
 func TestTOTPSecretIsFixedOnceEnabled(t *testing.T) {
@@ -380,7 +455,7 @@ func TestTimestampWritersAgreeOnOrdering(t *testing.T) {
 
 	conn := newTestDB(t)
 
-	_, err := conn.ExecContext(t.Context(), `INSERT INTO users (username, password_hash, role) VALUES ('middle', 'h', 'admin')`)
+	_, err := conn.ExecContext(t.Context(), `INSERT INTO users (username, password_hash, role) VALUES ('middle', 'h', 'read')`)
 	require.NoError(t, err)
 
 	var middle dbtype.Time
@@ -388,7 +463,7 @@ func TestTimestampWritersAgreeOnOrdering(t *testing.T) {
 
 	insert := func(name string, at dbtype.Time) {
 		_, err := conn.ExecContext(t.Context(),
-			`INSERT INTO users (username, password_hash, role, created_at) VALUES (?, 'h', 'admin', ?)`, name, at)
+			`INSERT INTO users (username, password_hash, role, created_at) VALUES (?, 'h', 'read', ?)`, name, at)
 		require.NoError(t, err)
 	}
 
