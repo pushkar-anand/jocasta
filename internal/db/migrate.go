@@ -21,14 +21,13 @@ const migrationDir = "migrations"
 //go:embed migrations/*.sql
 var migrationFiles embed.FS
 
-// migrateDB brings conn to dbVersion using the embedded migrations. An already
-// matching schema succeeds, and conn remains open for the caller.
+// migrateDB brings conn to dbVersion, as migrateTo does.
 func migrateDB(conn *sql.DB) error {
 	return migrateTo(conn, dbVersion)
 }
 
-// migrateTo brings conn to version, so a test can stop at an older schema,
-// fill it, and then run the migrations after it.
+// migrateTo brings conn to version, up or down, using the embedded migrations.
+// An already matching schema succeeds, and conn remains open for the caller.
 func migrateTo(conn *sql.DB, version uint) error {
 	td, err := sqlite.WithInstance(conn, &sqlite.Config{})
 	if err != nil {

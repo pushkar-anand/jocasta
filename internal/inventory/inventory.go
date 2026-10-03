@@ -849,18 +849,27 @@ func (s *Store) create(ctx context.Context, p *pass, mac dbtype.MAC, f plugin.Fa
 
 // fold merges a device only ever known by its address into the one
 // its hardware address identifies. Curation the user applied to the weaker row
-// is carried over, since they had no way to know it was a duplicate.
+// is carried over, since they had no way to know it was a duplicate, and
+// everything recorded against the weaker row moves with it. into is updated
+// in place to the merged row.
 func (s *Store) fold(ctx context.Context, p *pass, ghost, into *models.Device) error {
-	err := p.q.AdoptCuration(ctx, models.AdoptCurationParams{
-		FoldedLabel:     ghost.Label,
-		FoldedNotes:     ghost.Notes,
-		FoldedGroupName: ghost.GroupName,
-		FirstSeen:       earlier(into.FirstSeen, ghost.FirstSeen),
-		ID:              into.ID,
+	merged, err := p.q.AdoptCuration(ctx, models.AdoptCurationParams{
+		FoldedLabel:      ghost.Label,
+		FoldedNotes:      ghost.Notes,
+		FoldedGroupName:  ghost.GroupName,
+		FoldedDeviceType: ghost.DeviceType,
+		IsIgnored:        into.IsIgnored || ghost.IsIgnored,
+		IsWatched:        into.IsWatched || ghost.IsWatched,
+		FirstSeen:        earlier(into.FirstSeen, ghost.FirstSeen),
+		LastSeen:         later(into.LastSeen, ghost.LastSeen),
+		PresentSince:     earlierRun(into.PresentSince, ghost.PresentSince),
+		ID:               into.ID,
 	})
 	if err != nil {
 		return fmt.Errorf("adopt curation of device %d: %w", ghost.ID, err)
 	}
+
+	*into = *merged
 
 	if err := p.q.MoveAddresses(ctx, models.MoveAddressesParams{IntoID: into.ID, FromID: ghost.ID}); err != nil {
 		return fmt.Errorf("move addresses of device %d: %w", ghost.ID, err)
@@ -873,9 +882,50 @@ func (s *Store) fold(ctx context.Context, p *pass, ghost, into *models.Device) e
 		return fmt.Errorf("move claims about device %d: %w", ghost.ID, err)
 	}
 
+	// The ports, services and hourly rows recorded against the ghost, and other
+	// devices' rows naming it as their peer, would go to the CASCADE as well.
+	intoID := sql.NullInt64{Int64: into.ID, Valid: true}
+	fromID := sql.NullInt64{Int64: ghost.ID, Valid: true}
+
+	moves := []struct {
+		what string
+		move func() error
+	}{
+		{"ports of", func() error {
+			return p.q.MoveDevicePorts(ctx, models.MoveDevicePortsParams{IntoID: into.ID, FromID: ghost.ID})
+		}},
+		{"services of", func() error {
+			return p.q.MoveDeviceServices(ctx, models.MoveDeviceServicesParams{IntoID: into.ID, FromID: ghost.ID})
+		}},
+		{"traffic of", func() error {
+			return p.q.MoveTraffic(ctx, models.MoveTrafficParams{IntoID: into.ID, FromID: ghost.ID})
+		}},
+		{"attempts of", func() error {
+			return p.q.MoveAttempts(ctx, models.MoveAttemptsParams{IntoID: into.ID, FromID: ghost.ID})
+		}},
+		{"probes of", func() error {
+			return p.q.MoveProbes(ctx, models.MoveProbesParams{IntoID: into.ID, FromID: ghost.ID})
+		}},
+		{"broadcasts of", func() error {
+			return p.q.MoveBroadcasts(ctx, models.MoveBroadcastsParams{IntoID: into.ID, FromID: ghost.ID})
+		}},
+		{"traffic with", func() error {
+			return p.q.RepointTrafficPeer(ctx, models.RepointTrafficPeerParams{IntoID: intoID, FromID: fromID})
+		}},
+		{"attempts on", func() error {
+			return p.q.RepointAttemptPeer(ctx, models.RepointAttemptPeerParams{IntoID: intoID, FromID: fromID})
+		}},
+	}
+
+	for _, m := range moves {
+		if err := m.move(); err != nil {
+			return fmt.Errorf("move %s device %d: %w", m.what, ghost.ID, err)
+		}
+	}
+
 	err = p.q.MoveEvents(ctx, models.MoveEventsParams{
-		IntoID: sql.NullInt64{Int64: into.ID, Valid: true},
-		FromID: sql.NullInt64{Int64: ghost.ID, Valid: true},
+		IntoID: intoID,
+		FromID: fromID,
 	})
 	if err != nil {
 		return fmt.Errorf("move events of device %d: %w", ghost.ID, err)
@@ -1154,6 +1204,28 @@ func earlier(a, b dbtype.Time) dbtype.Time {
 	}
 
 	return a
+}
+
+// later returns whichever of the two timestamps came last.
+func later(a, b dbtype.Time) dbtype.Time {
+	if b.After(a.Time) {
+		return b
+	}
+
+	return a
+}
+
+// earlierRun returns whichever of two present runs began first, or the one
+// that is set when the other device is quiet.
+func earlierRun(a, b dbtype.NullTime) dbtype.NullTime {
+	switch {
+	case !a.Valid:
+		return b
+	case !b.Valid:
+		return a
+	}
+
+	return dbtype.NullTime{Time: earlier(a.Time, b.Time), Valid: true}
 }
 
 func nullString(s string) sql.NullString {

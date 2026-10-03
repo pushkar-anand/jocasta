@@ -60,6 +60,12 @@ type PortScan struct {
 	// plus the target's Extra.
 	Scanned []uint16
 
+	// Answered reports whether the address replied on any port, by accepting
+	// the connection or refusing it. An address that let every probe time out
+	// may be asleep, gone or filtering, so its Scanned says nothing about which
+	// ports have closed.
+	Answered bool
+
 	// SeenAt is when the scan ran, taken once for the whole scan so every
 	// address it touched carries the same observation time.
 	SeenAt time.Time
@@ -203,9 +209,7 @@ feed:
 			}
 
 			g.Go(func() error {
-				if probe(gctx, dialer, t.Addr, port) {
-					found.add(i, port)
-				}
+				found.add(i, port, probe(gctx, dialer, t.Addr, port))
 
 				return nil
 			})
@@ -220,10 +224,11 @@ feed:
 
 	for i, t := range targets {
 		results[i] = PortScan{
-			Addr:    t.Addr,
-			Open:    found.sorted(i),
-			Scanned: scanned[i],
-			SeenAt:  at,
+			Addr:     t.Addr,
+			Open:     found.sorted(i),
+			Scanned:  scanned[i],
+			Answered: found.answered[i],
+			SeenAt:   at,
 		}
 	}
 
@@ -232,24 +237,31 @@ feed:
 	return results
 }
 
-// portResults collects the open ports found for each target by index. The
+// portResults collects what each target's probes found, by index. The
 // workers all write to it at once, so every method takes the lock, as the
 // sweep's results collector does.
 type portResults struct {
-	mu   sync.Mutex
-	open [][]uint16
+	mu       sync.Mutex
+	open     [][]uint16
+	answered []bool
 }
 
 func newPortResults(targets int) *portResults {
-	return &portResults{open: make([][]uint16, targets)}
+	return &portResults{open: make([][]uint16, targets), answered: make([]bool, targets)}
 }
 
-// add records that target i had port open.
-func (r *portResults) add(i int, port uint16) {
+// add records what probing port on target i found.
+func (r *portResults) add(i int, port uint16, got probeResult) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.open[i] = append(r.open[i], port)
+	if got == portOpen {
+		r.open[i] = append(r.open[i], port)
+	}
+
+	if got != portSilent {
+		r.answered[i] = true
+	}
 }
 
 // sorted returns target i's open ports in ascending order.
@@ -262,18 +274,37 @@ func (r *portResults) sorted(i int) []uint16 {
 	return r.open[i]
 }
 
-// probe reports whether a TCP connection to addr:port completes. A refused
-// connection, an unreachable host and a timeout are all "not open": the scan
-// does not distinguish a closed port from a filtered one.
-func probe(ctx context.Context, d *net.Dialer, addr netip.Addr, port uint16) bool {
+// probeResult is what one connection attempt found.
+type probeResult int
+
+const (
+	// portSilent is a port that gave no answer: a timeout, an unreachable
+	// host or a firewall dropping the attempt. It cannot tell a closed port
+	// from a host that is not there.
+	portSilent probeResult = iota
+
+	// portRefused is a port the host refused, so the host is up and the port
+	// is closed.
+	portRefused
+
+	// portOpen is a port that completed a handshake.
+	portOpen
+)
+
+// probe tries a TCP connection to addr:port.
+func probe(ctx context.Context, d *net.Dialer, addr netip.Addr, port uint16) probeResult {
 	conn, err := d.DialContext(ctx, "tcp", netip.AddrPortFrom(addr, port).String())
-	if err != nil {
-		return false
+
+	switch {
+	case err == nil:
+		_ = conn.Close()
+
+		return portOpen
+	case refused(err):
+		return portRefused
+	default:
+		return portSilent
 	}
-
-	_ = conn.Close()
-
-	return true
 }
 
 // ParsePortSpec turns a spec like "22,80,443,8000-8100" into a sorted,

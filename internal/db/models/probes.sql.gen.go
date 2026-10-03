@@ -71,6 +71,47 @@ func (q *Queries) DeleteProbesBefore(ctx context.Context, hour dbtype.Time) (int
 	return result.RowsAffected()
 }
 
+const moveProbes = `-- name: MoveProbes :exec
+INSERT INTO probes_hourly (source_id, device_id, hour, peer_ip, peer_asn, protocol,
+                           attempts, answered, port_count, ports, outside)
+SELECT ghost.source_id, ?1, ghost.hour, ghost.peer_ip, ghost.peer_asn, ghost.protocol,
+       ghost.attempts, ghost.answered, ghost.port_count, ghost.ports, ghost.outside
+FROM probes_hourly ghost
+WHERE ghost.device_id = ?2
+ON CONFLICT (device_id, hour, source_id, peer_ip, protocol) DO UPDATE
+    SET peer_asn   = COALESCE(peer_asn, excluded.peer_asn),
+        attempts   = attempts + excluded.attempts,
+        answered   = answered + excluded.answered,
+        ports      = IIF(excluded.port_count > port_count, excluded.ports, ports),
+        port_count = MAX(port_count, excluded.port_count),
+        outside    = MAX(outside, excluded.outside)
+`
+
+type MoveProbesParams struct {
+	IntoID int64 `json:"into_id"`
+	FromID int64 `json:"from_id"`
+}
+
+// A folded device's probes follow it, merged as attempts are.
+//
+//	INSERT INTO probes_hourly (source_id, device_id, hour, peer_ip, peer_asn, protocol,
+//	                           attempts, answered, port_count, ports, outside)
+//	SELECT ghost.source_id, ?1, ghost.hour, ghost.peer_ip, ghost.peer_asn, ghost.protocol,
+//	       ghost.attempts, ghost.answered, ghost.port_count, ghost.ports, ghost.outside
+//	FROM probes_hourly ghost
+//	WHERE ghost.device_id = ?2
+//	ON CONFLICT (device_id, hour, source_id, peer_ip, protocol) DO UPDATE
+//	    SET peer_asn   = COALESCE(peer_asn, excluded.peer_asn),
+//	        attempts   = attempts + excluded.attempts,
+//	        answered   = answered + excluded.answered,
+//	        ports      = IIF(excluded.port_count > port_count, excluded.ports, ports),
+//	        port_count = MAX(port_count, excluded.port_count),
+//	        outside    = MAX(outside, excluded.outside)
+func (q *Queries) MoveProbes(ctx context.Context, arg MoveProbesParams) error {
+	_, err := q.exec(ctx, q.moveProbesStmt, moveProbes, arg.IntoID, arg.FromID)
+	return err
+}
+
 const outsideAddresses = `-- name: OutsideAddresses :many
 SELECT DISTINCT CAST(address AS TEXT) AS address
 FROM outside_addresses
