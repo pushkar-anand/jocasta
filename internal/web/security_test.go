@@ -150,3 +150,49 @@ func TestSecurityQRRouteOnlyServesAPendingEnrollment(t *testing.T) {
 	assert.Equal(t, "image/png", during.Header().Get("Content-Type"))
 	assert.True(t, strings.HasPrefix(during.Body.String(), "\x89PNG"))
 }
+
+// TestSecurityKeepsTheSecretOnceTOTPIsOn covers a signed-in session reaching
+// enrollment while 2FA is already on, as a stale tab resubmitting would. The
+// secret stays out of reach and unchanged, and the recovery codes stay valid.
+func TestSecurityKeepsTheSecretOnceTOTPIsOn(t *testing.T) {
+	t.Parallel()
+
+	a := testAuth(t)
+	h := newWebHandlerWithAuth(t, testStore(t), a)
+	secret, recoveryCodes := enrollTOTP(t, a, testUsername)
+	cookies := signInWithCode(t, h, secret)
+
+	enroll := requestAs(t, h, cookies, http.MethodPost, "/settings/security/totp/enroll", "")
+	require.Equal(t, http.StatusSeeOther, enroll.Code)
+	assert.Equal(t, "/settings/security", enroll.Header().Get("Location"))
+
+	qr := requestAs(t, h, cookies, http.MethodGet, "/settings/security/totp-qr.png", "")
+	assert.Equal(t, http.StatusNotFound, qr.Code)
+
+	page := requestAs(t, h, cookies, http.MethodGet, "/settings/security", "")
+	require.Equal(t, http.StatusOK, page.Code)
+	assert.NotContains(t, page.Body.String(), secret)
+	assert.Contains(t, page.Body.String(),
+		"To use a different authenticator, turn two-factor authentication off and set it up again.")
+
+	code, err := totp.GenerateCode(secret, time.Now())
+	require.NoError(t, err)
+
+	confirm := requestAs(t, h, cookies, http.MethodPost, "/settings/security/totp/confirm",
+		url.Values{"code": {code}}.Encode())
+	require.Equal(t, http.StatusSeeOther, confirm.Code)
+	assert.Equal(t, "/settings/security", confirm.Header().Get("Location"))
+
+	// No new codes were minted, so the page shows none, and an original
+	// code still completes a sign-in.
+	after := requestAs(t, h, cookies, http.MethodGet, "/settings/security", "")
+	require.Equal(t, http.StatusOK, after.Code)
+	assert.NotContains(t, after.Body.String(), "Recovery codes")
+
+	pending := loginWith(t, h, testUsername, testPassword).Result().Cookies()
+	redeem := requestAs(t, h, pending, http.MethodPost, "/login/totp",
+		url.Values{"code": {recoveryCodes[0]}}.Encode())
+	assert.Equal(t, http.StatusFound, redeem.Code)
+
+	signInWithCode(t, h, secret)
+}

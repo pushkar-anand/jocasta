@@ -81,11 +81,12 @@ func (q *Queries) DisableUserTOTP(ctx context.Context, id int64) error {
 	return err
 }
 
-const enableUserTOTP = `-- name: EnableUserTOTP :exec
+const enableUserTOTP = `-- name: EnableUserTOTP :execrows
 UPDATE users
 SET totp_enabled      = 1,
     totp_confirmed_at = ?
 WHERE id = ?
+  AND totp_enabled = 0
 `
 
 type EnableUserTOTPParams struct {
@@ -93,15 +94,20 @@ type EnableUserTOTPParams struct {
 	ID              int64           `json:"id"`
 }
 
-// EnableUserTOTP
+// totp_enabled = 0 makes a second confirmation, from another tab, change no
+// row, so only one of them mints recovery codes.
 //
 //	UPDATE users
 //	SET totp_enabled      = 1,
 //	    totp_confirmed_at = ?
 //	WHERE id = ?
-func (q *Queries) EnableUserTOTP(ctx context.Context, arg EnableUserTOTPParams) error {
-	_, err := q.exec(ctx, q.enableUserTOTPStmt, enableUserTOTP, arg.TOTPConfirmedAt, arg.ID)
-	return err
+//	  AND totp_enabled = 0
+func (q *Queries) EnableUserTOTP(ctx context.Context, arg EnableUserTOTPParams) (int64, error) {
+	result, err := q.exec(ctx, q.enableUserTOTPStmt, enableUserTOTP, arg.TOTPConfirmedAt, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const getUserByID = `-- name: GetUserByID :one
@@ -201,10 +207,11 @@ func (q *Queries) ListUsers(ctx context.Context) ([]*User, error) {
 	return items, nil
 }
 
-const setUserTOTPSecret = `-- name: SetUserTOTPSecret :exec
+const setUserTOTPSecret = `-- name: SetUserTOTPSecret :execrows
 UPDATE users
 SET totp_secret = ?
 WHERE id = ?
+  AND totp_enabled = 0
 `
 
 type SetUserTOTPSecretParams struct {
@@ -212,12 +219,17 @@ type SetUserTOTPSecretParams struct {
 	ID         int64          `json:"id"`
 }
 
-// SetUserTOTPSecret
+// totp_enabled = 0 keeps the secret of an account with 2FA on out of reach of
+// a session, which has not shown the password. No row changes then.
 //
 //	UPDATE users
 //	SET totp_secret = ?
 //	WHERE id = ?
-func (q *Queries) SetUserTOTPSecret(ctx context.Context, arg SetUserTOTPSecretParams) error {
-	_, err := q.exec(ctx, q.setUserTOTPSecretStmt, setUserTOTPSecret, arg.TOTPSecret, arg.ID)
-	return err
+//	  AND totp_enabled = 0
+func (q *Queries) SetUserTOTPSecret(ctx context.Context, arg SetUserTOTPSecretParams) (int64, error) {
+	result, err := q.exec(ctx, q.setUserTOTPSecretStmt, setUserTOTPSecret, arg.TOTPSecret, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

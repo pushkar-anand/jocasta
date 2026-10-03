@@ -44,6 +44,11 @@ var ErrInvalidPassword = errors.New("incorrect password")
 // on: enrollment was never started, or was already confirmed or cancelled.
 var ErrNoTOTPEnrollment = errors.New("no totp enrollment in progress")
 
+// ErrTOTPEnabled is returned when enrollment is started or confirmed for an
+// account whose 2FA is already on. Changing authenticator means turning 2FA
+// off first, which asks for the password.
+var ErrTOTPEnabled = errors.New("totp already enabled")
+
 // ErrSecondAdmin is returned when an account would be made admin while one
 // already is. An instance has one admin, made at setup; every account added
 // after it is a viewer or an editor.

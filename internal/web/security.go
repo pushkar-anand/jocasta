@@ -106,7 +106,8 @@ func (h *Handler) renderSecurity(w http.ResponseWriter, r *http.Request, sm *aut
 
 // securityEnroll starts (or restarts) enrollment and sends the visitor back
 // to the GET, which now finds a pending secret and shows the QR/confirm
-// form.
+// form. With 2FA already on, as from a stale tab, it changes nothing and
+// sends the visitor to the same page, which says 2FA is on.
 func (h *Handler) securityEnroll(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
@@ -116,7 +117,7 @@ func (h *Handler) securityEnroll(sm *auth.Session, a *auth.Auth) response.Handle
 			return err
 		}
 
-		if _, err := a.StartTOTPEnrollment(ctx, userID, sm.CurrentUsername(ctx)); err != nil {
+		if _, err := a.StartTOTPEnrollment(ctx, userID, sm.CurrentUsername(ctx)); err != nil && !errors.Is(err, auth.ErrTOTPEnabled) {
 			return err
 		}
 
@@ -128,6 +129,7 @@ func (h *Handler) securityEnroll(sm *auth.Session, a *auth.Auth) response.Handle
 
 // securityConfirm enables two-factor authentication after checking the pending
 // authenticator's code, then redirects to display the recovery codes once.
+// With 2FA already on it redirects without minting codes.
 func (h *Handler) securityConfirm(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	type confirmForm struct {
 		Code string `schema:"code" validate:"required,min=6,max=6"`
@@ -151,11 +153,14 @@ func (h *Handler) securityConfirm(sm *auth.Session, a *auth.Auth) response.Handl
 		}
 
 		codes, err := a.ConfirmTOTPEnrollment(ctx, userID, input.Code)
-		if err != nil {
-			if errors.Is(err, auth.ErrInvalidEnrollmentCode) {
-				return h.renderSecurity(w, r, sm, a, "confirm", "That code did not work. Enter the 6-digit code your authenticator app shows now.")
-			}
 
+		switch {
+		case errors.Is(err, auth.ErrTOTPEnabled):
+			http.Redirect(w, r, "/settings/security", http.StatusSeeOther)
+			return nil
+		case errors.Is(err, auth.ErrInvalidEnrollmentCode):
+			return h.renderSecurity(w, r, sm, a, "confirm", "That code did not work. Enter the 6-digit code your authenticator app shows now.")
+		case err != nil:
 			return err
 		}
 
