@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
+	"github.com/pushkar-anand/jocasta/internal/plugin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -190,4 +191,40 @@ func TestPruneDeletesOnlyUncuratedStaleDevices(t *testing.T) {
 		sweep(t, s, host("192.0.2.10", macA, "host-a"))
 		assert.NotEqual(t, first, deviceIDByMAC(t, conn, macA))
 	})
+}
+
+// A pruned device's conversations with a kept device are the kept device's
+// history too, so they stay, with the address in place of the device.
+func TestPruningADeviceKeepsTheTrafficOthersHadWithIt(t *testing.T) {
+	t.Parallel()
+
+	s, conn, advance := clockStore(t)
+	sweep(t, s, host("192.0.2.10", macA, "host-a"), host("192.0.2.11", macB, "host-b"))
+	a, b := deviceIDByMAC(t, conn, macA), deviceIDByMAC(t, conn, macB)
+
+	start := s.now().UTC().Truncate(time.Hour)
+	rec := newRecorder(s, nil)
+
+	rec.Add(trafficSource{}, append([]plugin.Flow{
+		flow("192.0.2.10", "192.0.2.11", 51000, 22, 1000, start),
+		flow("192.0.2.11", "192.0.2.10", 22, 51000, 4000, start),
+	}, knock("192.0.2.10", "192.0.2.11", 23, "closed", start)...))
+	require.NoError(t, rec.Flush(t.Context()))
+
+	advance(testRetention + time.Hour)
+	sweep(t, s, host("192.0.2.10", macA, "host-a"))
+
+	res, err := s.Prune(t.Context(), Retention{Devices: testRetention})
+	require.NoError(t, err)
+	require.Equal(t, int64(1), res.Devices)
+
+	hour := start.Format(dbtype.Layout)
+
+	assert.Equal(t, []trafficRow{
+		{Device: a, Peer: "192.0.2.11", Service: 22, Out: 1000, In: 4000, Connections: 1, Hour: hour},
+	}, trafficRows(t, conn))
+
+	assert.Equal(t, int64(1), countRows(t, conn,
+		`SELECT COUNT(*) FROM attempts_hourly WHERE device_id = ? AND peer_ip = '192.0.2.11' AND peer_device_id IS NULL`, a))
+	assert.Zero(t, countRows(t, conn, `SELECT COUNT(*) FROM devices WHERE id = ?`, b))
 }

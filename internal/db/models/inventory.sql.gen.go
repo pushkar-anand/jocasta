@@ -530,8 +530,9 @@ WHERE last_seen < ?
 // has not touched it: a label, notes, group, type, the ignored flag or watching
 // keeps it however long it stays away, since deleting an ignored device would
 // bring it back unignored the next time it is seen, and a watched one would
-// come back unwatched. Its addresses, ports, claims and
-// traffic go with it; its events stay, with device_id set to null.
+// come back unwatched. Its addresses, ports, claims and the traffic it
+// recorded go with it. Its events stay, with device_id set to null, and so does
+// the traffic other devices recorded with it, with peer_device_id set to null.
 //
 //	DELETE
 //	FROM devices

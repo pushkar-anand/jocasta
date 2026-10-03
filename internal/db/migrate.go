@@ -21,9 +21,14 @@ const migrationDir = "migrations"
 //go:embed migrations/*.sql
 var migrationFiles embed.FS
 
-// migrateDB brings conn to dbVersion using the embedded migrations. An already
-// matching schema succeeds, and conn remains open for the caller.
+// migrateDB brings conn to dbVersion, as migrateTo does.
 func migrateDB(conn *sql.DB) error {
+	return migrateTo(conn, dbVersion)
+}
+
+// migrateTo brings conn to version, up or down, using the embedded migrations.
+// An already matching schema succeeds, and conn remains open for the caller.
+func migrateTo(conn *sql.DB, version uint) error {
 	td, err := sqlite.WithInstance(conn, &sqlite.Config{})
 	if err != nil {
 		return fmt.Errorf("failed to init sqlite migration target: %w", err)
@@ -44,7 +49,7 @@ func migrateDB(conn *sql.DB) error {
 		return fmt.Errorf("failed to init migrate: %w", err)
 	}
 
-	err = m.Migrate(dbVersion)
+	err = m.Migrate(version)
 	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("failed to migrate: %w", err)
 	}
