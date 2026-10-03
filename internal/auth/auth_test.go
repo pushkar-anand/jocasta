@@ -163,34 +163,34 @@ func (f *fakeQueries) DeleteAPIToken(_ context.Context, arg models.DeleteAPIToke
 	return nil
 }
 
-func (f *fakeQueries) SetUserTOTPSecret(_ context.Context, arg models.SetUserTOTPSecretParams) error {
+func (f *fakeQueries) SetUserTOTPSecret(_ context.Context, arg models.SetUserTOTPSecretParams) (int64, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	for _, u := range f.users {
-		if u.ID == arg.ID {
+		if u.ID == arg.ID && !u.TOTPEnabled {
 			u.TOTPSecret = arg.TOTPSecret
-			return nil
+			return 1, nil
 		}
 	}
 
-	return sql.ErrNoRows
+	return 0, nil
 }
 
-func (f *fakeQueries) EnableUserTOTP(_ context.Context, arg models.EnableUserTOTPParams) error {
+func (f *fakeQueries) EnableUserTOTP(_ context.Context, arg models.EnableUserTOTPParams) (int64, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	for _, u := range f.users {
-		if u.ID == arg.ID {
+		if u.ID == arg.ID && !u.TOTPEnabled {
 			u.TOTPEnabled = true
 			u.TOTPConfirmedAt = arg.TOTPConfirmedAt
 
-			return nil
+			return 1, nil
 		}
 	}
 
-	return sql.ErrNoRows
+	return 0, nil
 }
 
 func (f *fakeQueries) DisableUserTOTP(_ context.Context, id int64) error {

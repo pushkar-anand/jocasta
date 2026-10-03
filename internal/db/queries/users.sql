@@ -22,16 +22,22 @@ SELECT *
 FROM users
 ORDER BY created_at, id;
 
--- name: SetUserTOTPSecret :exec
+-- name: SetUserTOTPSecret :execrows
+-- totp_enabled = 0 keeps the secret of an account with 2FA on out of reach of
+-- a session, which has not shown the password. No row changes then.
 UPDATE users
 SET totp_secret = ?
-WHERE id = ?;
+WHERE id = ?
+  AND totp_enabled = 0;
 
--- name: EnableUserTOTP :exec
+-- name: EnableUserTOTP :execrows
+-- totp_enabled = 0 makes a second confirmation, from another tab, change no
+-- row, so only one of them mints recovery codes.
 UPDATE users
 SET totp_enabled      = 1,
     totp_confirmed_at = ?
-WHERE id = ?;
+WHERE id = ?
+  AND totp_enabled = 0;
 
 -- name: DisableUserTOTP :exec
 UPDATE users

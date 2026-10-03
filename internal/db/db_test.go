@@ -147,6 +147,43 @@ func TestCreateUserRejectsDuplicateUsername(t *testing.T) {
 	assert.Contains(t, err.Error(), "UNIQUE constraint failed")
 }
 
+// TestTOTPSecretIsFixedOnceEnabled checks the guard on the two enrollment
+// writes: neither touches an account whose 2FA is already on.
+func TestTOTPSecretIsFixedOnceEnabled(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	q := models.New(newTestDB(t))
+
+	user, err := q.CreateUser(ctx, models.CreateUserParams{Username: "ada", PasswordHash: "hash", Role: dbtype.RoleAdmin})
+	require.NoError(t, err)
+
+	secret := func(s string) models.SetUserTOTPSecretParams {
+		return models.SetUserTOTPSecretParams{TOTPSecret: sql.NullString{String: s, Valid: true}, ID: user.ID}
+	}
+	enable := models.EnableUserTOTPParams{TOTPConfirmedAt: dbtype.NewNullTime(time.Now()), ID: user.ID}
+
+	n, err := q.SetUserTOTPSecret(ctx, secret("FIRSTSECRET"))
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, n)
+
+	n, err = q.EnableUserTOTP(ctx, enable)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, n)
+
+	n, err = q.SetUserTOTPSecret(ctx, secret("SECONDSECRET"))
+	require.NoError(t, err)
+	assert.Zero(t, n, "a secret was replaced while 2FA was on")
+
+	n, err = q.EnableUserTOTP(ctx, enable)
+	require.NoError(t, err)
+	assert.Zero(t, n, "2FA was enabled a second time")
+
+	got, err := q.GetUserByID(ctx, user.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "FIRSTSECRET", got.TOTPSecret.String)
+}
+
 // TestNewAppliesPragmas checks the DSN pragmas actually reach the connection.
 // foreign_keys is the one that matters: without it every REFERENCES clause in
 // the schema is decorative.

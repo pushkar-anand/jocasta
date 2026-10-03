@@ -37,8 +37,8 @@ const recoveryCodeCount = 10
 // check two-factor authentication, and to issue and redeem the recovery
 // codes that back it.
 type totpManager interface {
-	SetUserTOTPSecret(ctx context.Context, arg models.SetUserTOTPSecretParams) error
-	EnableUserTOTP(ctx context.Context, arg models.EnableUserTOTPParams) error
+	SetUserTOTPSecret(ctx context.Context, arg models.SetUserTOTPSecretParams) (int64, error)
+	EnableUserTOTP(ctx context.Context, arg models.EnableUserTOTPParams) (int64, error)
 	DisableUserTOTP(ctx context.Context, id int64) error
 
 	CreateRecoveryCode(ctx context.Context, arg models.CreateRecoveryCodeParams) (*models.UserRecoveryCode, error)
@@ -49,19 +49,24 @@ type totpManager interface {
 
 // StartTOTPEnrollment generates a new, unconfirmed secret for userID and
 // stores it, overwriting any secret an earlier, abandoned attempt left.
-// Restarting enrollment is safe until ConfirmTOTPEnrollment flips
-// totp_enabled.
+// Once ConfirmTOTPEnrollment has turned 2FA on, it returns ErrTOTPEnabled and
+// leaves the secret as it is.
 func (a *Auth) StartTOTPEnrollment(ctx context.Context, userID int64, username string) (*otp.Key, error) {
 	key, err := totp.Generate(totp.GenerateOpts{Issuer: totpIssuer, AccountName: username})
 	if err != nil {
 		return nil, fmt.Errorf("generate totp key: %w", err)
 	}
 
-	if err := a.store.SetUserTOTPSecret(ctx, models.SetUserTOTPSecretParams{
+	n, err := a.store.SetUserTOTPSecret(ctx, models.SetUserTOTPSecretParams{
 		TOTPSecret: sql.NullString{String: key.Secret(), Valid: true},
 		ID:         userID,
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, fmt.Errorf("store totp secret: %w", err)
+	}
+
+	if n == 0 {
+		return nil, ErrTOTPEnabled
 	}
 
 	return key, nil
@@ -69,14 +74,15 @@ func (a *Auth) StartTOTPEnrollment(ctx context.Context, userID int64, username s
 
 // PendingTOTPKey rebuilds the otp.Key for userID's stored-but-unconfirmed
 // secret, so the QR route can render it without keeping the *otp.Key itself
-// around between requests.
+// around between requests. It returns ErrNoTOTPEnrollment when there is no
+// secret or 2FA is already on.
 func (a *Auth) PendingTOTPKey(ctx context.Context, userID int64) (*otp.Key, error) {
 	user, err := a.store.GetUserByID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user %d: %w", userID, err)
 	}
 
-	if !user.TOTPSecret.Valid {
+	if user.TOTPEnabled || !user.TOTPSecret.Valid {
 		return nil, ErrNoTOTPEnrollment
 	}
 
@@ -93,22 +99,34 @@ func (a *Auth) PendingTOTPKey(ctx context.Context, userID int64) (*otp.Key, erro
 // stored, and only on success flips totp_enabled and mints a fresh set of
 // recovery codes; an enrollment abandoned before this point leaves 2FA
 // off. The returned codes are plaintext, and this is the only call that ever
-// produces them; only their hashes are kept.
+// produces them; only their hashes are kept. It returns ErrTOTPEnabled, and
+// mints nothing, when 2FA is already on.
 func (a *Auth) ConfirmTOTPEnrollment(ctx context.Context, userID int64, code string) ([]string, error) {
 	user, err := a.store.GetUserByID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user %d: %w", userID, err)
 	}
 
+	if user.TOTPEnabled {
+		return nil, ErrTOTPEnabled
+	}
+
 	if !user.TOTPSecret.Valid || !totp.Validate(code, user.TOTPSecret.String) {
 		return nil, ErrInvalidEnrollmentCode
 	}
 
-	if err := a.store.EnableUserTOTP(ctx, models.EnableUserTOTPParams{
+	n, err := a.store.EnableUserTOTP(ctx, models.EnableUserTOTPParams{
 		TOTPConfirmedAt: dbtype.NewNullTime(a.now()),
 		ID:              userID,
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, fmt.Errorf("enable totp: %w", err)
+	}
+
+	// Another confirmation turned 2FA on between the read above and this
+	// write, and minted the codes.
+	if n == 0 {
+		return nil, ErrTOTPEnabled
 	}
 
 	return a.regenerateRecoveryCodes(ctx, userID)
@@ -158,7 +176,7 @@ func (a *Auth) RemainingRecoveryCodes(ctx context.Context, userID int64) (int64,
 }
 
 // TOTPStatus reports userID's current 2FA state for the settings page.
-// Secret is the pending enrollment's manual-entry key, meaningful only while
+// Secret is the pending enrollment's manual-entry key, and empty unless
 // enrolling is true.
 func (a *Auth) TOTPStatus(ctx context.Context, userID int64) (enabled, enrolling bool, secret string, err error) {
 	user, err := a.store.GetUserByID(ctx, userID)
@@ -166,7 +184,11 @@ func (a *Auth) TOTPStatus(ctx context.Context, userID int64) (enabled, enrolling
 		return false, false, "", fmt.Errorf("user %d: %w", userID, err)
 	}
 
-	return user.TOTPEnabled, !user.TOTPEnabled && user.TOTPSecret.Valid, user.TOTPSecret.String, nil
+	if user.TOTPEnabled || !user.TOTPSecret.Valid {
+		return user.TOTPEnabled, false, "", nil
+	}
+
+	return false, true, user.TOTPSecret.String, nil
 }
 
 // VerifyTOTP completes a sign-in Login left pending on a second factor. code
