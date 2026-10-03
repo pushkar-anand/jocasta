@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -190,10 +191,95 @@ func TestLoginTOTPExhaustedAttemptsEndsTheSession(t *testing.T) {
 	}
 
 	last := requestAs(t, h, cookies, http.MethodPost, "/login/totp", form.Encode())
-	require.Equal(t, http.StatusUnauthorized, last.Code, "the fifth wrong code ends the pending session")
+	require.Equal(t, http.StatusTooManyRequests, last.Code, "the fifth wrong code ends the pending session")
+	assert.Contains(t, last.Body.String(), "Too many codes did not work. Wait a few minutes, then try again.")
 
 	// Nothing is pending any more, so the second-factor page itself now
-	// behaves like a bad /login attempt too.
+	// behaves like a bad /login attempt.
 	after := requestAs(t, h, cookies, http.MethodGet, "/login/totp", "")
 	assert.Equal(t, http.StatusUnauthorized, after.Code)
+}
+
+// TestLoginTOTPParallelGuessesShareOneLimit covers wrong codes sent all at
+// once against one pending sign-in. They draw on the same allowance as codes
+// sent one after another, so no more than four get another try, and the
+// correct code is refused afterwards.
+func TestLoginTOTPParallelGuessesShareOneLimit(t *testing.T) {
+	t.Parallel()
+
+	a := testAuth(t)
+	h := newWebHandlerWithAuth(t, testStore(t), a)
+	secret, _ := enrollTOTP(t, a, testUsername)
+
+	cookies := loginWith(t, h, testUsername, testPassword).Result().Cookies()
+	form := url.Values{"code": {"000000"}}.Encode()
+
+	var (
+		wg       sync.WaitGroup
+		mu       sync.Mutex
+		statuses []int
+	)
+
+	for range 20 {
+		wg.Go(func() {
+			rec := requestAs(t, h, cookies, http.MethodPost, "/login/totp", form)
+
+			mu.Lock()
+			defer mu.Unlock()
+
+			statuses = append(statuses, rec.Code)
+		})
+	}
+
+	wg.Wait()
+
+	retries := 0
+
+	for _, s := range statuses {
+		switch s {
+		case http.StatusPreconditionRequired:
+			retries++
+		case http.StatusTooManyRequests, http.StatusUnauthorized:
+		default:
+			t.Errorf("unexpected status %d", s)
+		}
+	}
+
+	assert.LessOrEqual(t, retries, 4, "wrong codes that were offered another try")
+
+	pending := loginWith(t, h, testUsername, testPassword).Result().Cookies()
+	code, err := totp.GenerateCode(secret, time.Now())
+	require.NoError(t, err)
+
+	rec := requestAs(t, h, pending, http.MethodPost, "/login/totp", url.Values{"code": {code}}.Encode())
+	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
+}
+
+// TestLoginTOTPFreshSignInKeepsTheLimit covers starting over with the
+// password: the wrong codes already spent still count against the account.
+func TestLoginTOTPFreshSignInKeepsTheLimit(t *testing.T) {
+	t.Parallel()
+
+	a := testAuth(t)
+	h := newWebHandlerWithAuth(t, testStore(t), a)
+	secret, _ := enrollTOTP(t, a, testUsername)
+
+	form := url.Values{"code": {"000000"}}.Encode()
+
+	cookies := loginWith(t, h, testUsername, testPassword).Result().Cookies()
+	for range 4 {
+		rec := requestAs(t, h, cookies, http.MethodPost, "/login/totp", form)
+		require.Equal(t, http.StatusPreconditionRequired, rec.Code)
+	}
+
+	cookies = loginWith(t, h, testUsername, testPassword).Result().Cookies()
+	rec := requestAs(t, h, cookies, http.MethodPost, "/login/totp", form)
+	require.Equal(t, http.StatusTooManyRequests, rec.Code)
+
+	cookies = loginWith(t, h, testUsername, testPassword).Result().Cookies()
+	code, err := totp.GenerateCode(secret, time.Now())
+	require.NoError(t, err)
+
+	rec = requestAs(t, h, cookies, http.MethodPost, "/login/totp", url.Values{"code": {code}}.Encode())
+	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
 }

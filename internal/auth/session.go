@@ -40,11 +40,6 @@ type Data struct {
 	// PendingUsername mirrors PendingUserID the way Username mirrors UserID,
 	// so the second-factor page can address the account without a lookup.
 	PendingUsername string
-
-	// PendingAttempts counts consecutive wrong codes against PendingUserID.
-	// It bounds guesswork against a second factor already down to a 6-digit
-	// space; see [Auth.VerifyTOTP].
-	PendingAttempts int
 }
 
 // Session adapts the generic typed session to jocasta's own vocabulary
