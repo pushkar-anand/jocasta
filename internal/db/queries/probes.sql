@@ -38,6 +38,22 @@ DELETE
 FROM probes_hourly
 WHERE hour < ?;
 
+-- name: MoveProbes :exec
+-- A folded device's probes follow it, merged as attempts are.
+INSERT INTO probes_hourly (source_id, device_id, hour, peer_ip, peer_asn, protocol,
+                           attempts, answered, port_count, ports, outside)
+SELECT ghost.source_id, sqlc.arg(into_id), ghost.hour, ghost.peer_ip, ghost.peer_asn, ghost.protocol,
+       ghost.attempts, ghost.answered, ghost.port_count, ghost.ports, ghost.outside
+FROM probes_hourly ghost
+WHERE ghost.device_id = sqlc.arg(from_id)
+ON CONFLICT (device_id, hour, source_id, peer_ip, protocol) DO UPDATE
+    SET peer_asn   = COALESCE(peer_asn, excluded.peer_asn),
+        attempts   = attempts + excluded.attempts,
+        answered   = answered + excluded.answered,
+        ports      = IIF(excluded.port_count > port_count, excluded.ports, ports),
+        port_count = MAX(port_count, excluded.port_count),
+        outside    = MAX(outside, excluded.outside);
+
 -- name: ProbedDevices :many
 -- The devices the internet probed since a given hour, one row per device and
 -- whether its outside address was what was tried, most probes first. ports is

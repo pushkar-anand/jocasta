@@ -1701,6 +1701,93 @@ func (q *Queries) MoveAddresses(ctx context.Context, arg MoveAddressesParams) er
 	return err
 }
 
+const moveDevicePorts = `-- name: MoveDevicePorts :exec
+INSERT INTO device_ports (device_id, port, state, service, first_seen, last_seen, changed_at)
+SELECT ?1, ghost.port, ghost.state, ghost.service, ghost.first_seen, ghost.last_seen,
+       ghost.changed_at
+FROM device_ports ghost
+WHERE ghost.device_id = ?2
+ON CONFLICT (device_id, port)
+    DO UPDATE SET state      = IIF(excluded.last_seen > device_ports.last_seen,
+                                   excluded.state, device_ports.state),
+                  service    = IIF(excluded.last_seen > device_ports.last_seen,
+                                   excluded.service, device_ports.service),
+                  changed_at = IIF(excluded.last_seen > device_ports.last_seen,
+                                   excluded.changed_at, device_ports.changed_at),
+                  first_seen = MIN(device_ports.first_seen, excluded.first_seen),
+                  last_seen  = MAX(device_ports.last_seen, excluded.last_seen)
+`
+
+type MoveDevicePortsParams struct {
+	IntoID int64 `json:"into_id"`
+	FromID int64 `json:"from_id"`
+}
+
+// Ports follow the device on a fold. A port both rows recorded keeps the newer
+// reading's state with the outer bounds of both sightings.
+//
+//	INSERT INTO device_ports (device_id, port, state, service, first_seen, last_seen, changed_at)
+//	SELECT ?1, ghost.port, ghost.state, ghost.service, ghost.first_seen, ghost.last_seen,
+//	       ghost.changed_at
+//	FROM device_ports ghost
+//	WHERE ghost.device_id = ?2
+//	ON CONFLICT (device_id, port)
+//	    DO UPDATE SET state      = IIF(excluded.last_seen > device_ports.last_seen,
+//	                                   excluded.state, device_ports.state),
+//	                  service    = IIF(excluded.last_seen > device_ports.last_seen,
+//	                                   excluded.service, device_ports.service),
+//	                  changed_at = IIF(excluded.last_seen > device_ports.last_seen,
+//	                                   excluded.changed_at, device_ports.changed_at),
+//	                  first_seen = MIN(device_ports.first_seen, excluded.first_seen),
+//	                  last_seen  = MAX(device_ports.last_seen, excluded.last_seen)
+func (q *Queries) MoveDevicePorts(ctx context.Context, arg MoveDevicePortsParams) error {
+	_, err := q.exec(ctx, q.moveDevicePortsStmt, moveDevicePorts, arg.IntoID, arg.FromID)
+	return err
+}
+
+const moveDeviceServices = `-- name: MoveDeviceServices :exec
+INSERT INTO device_services (device_id, type, instance, port, label, model, first_seen, last_seen)
+SELECT ?1, ghost.type, ghost.instance, ghost.port, ghost.label, ghost.model,
+       ghost.first_seen, ghost.last_seen
+FROM device_services ghost
+WHERE ghost.device_id = ?2
+ON CONFLICT (device_id, type, instance)
+    DO UPDATE SET port       = IIF(excluded.last_seen > device_services.last_seen,
+                                   excluded.port, device_services.port),
+                  label      = IIF(excluded.last_seen > device_services.last_seen,
+                                   excluded.label, device_services.label),
+                  model      = IIF(excluded.last_seen > device_services.last_seen,
+                                   excluded.model, device_services.model),
+                  first_seen = MIN(device_services.first_seen, excluded.first_seen),
+                  last_seen  = MAX(device_services.last_seen, excluded.last_seen)
+`
+
+type MoveDeviceServicesParams struct {
+	IntoID int64 `json:"into_id"`
+	FromID int64 `json:"from_id"`
+}
+
+// Services follow the device on a fold, merged as ports are.
+//
+//	INSERT INTO device_services (device_id, type, instance, port, label, model, first_seen, last_seen)
+//	SELECT ?1, ghost.type, ghost.instance, ghost.port, ghost.label, ghost.model,
+//	       ghost.first_seen, ghost.last_seen
+//	FROM device_services ghost
+//	WHERE ghost.device_id = ?2
+//	ON CONFLICT (device_id, type, instance)
+//	    DO UPDATE SET port       = IIF(excluded.last_seen > device_services.last_seen,
+//	                                   excluded.port, device_services.port),
+//	                  label      = IIF(excluded.last_seen > device_services.last_seen,
+//	                                   excluded.label, device_services.label),
+//	                  model      = IIF(excluded.last_seen > device_services.last_seen,
+//	                                   excluded.model, device_services.model),
+//	                  first_seen = MIN(device_services.first_seen, excluded.first_seen),
+//	                  last_seen  = MAX(device_services.last_seen, excluded.last_seen)
+func (q *Queries) MoveDeviceServices(ctx context.Context, arg MoveDeviceServicesParams) error {
+	_, err := q.exec(ctx, q.moveDeviceServicesStmt, moveDeviceServices, arg.IntoID, arg.FromID)
+	return err
+}
+
 const moveDeviceSources = `-- name: MoveDeviceSources :exec
 INSERT INTO device_sources (device_id, source_id, hostname, hostname_source, detail, first_seen, last_seen)
 SELECT ?1, ghost.source_id, ghost.hostname, ghost.hostname_source, ghost.detail,

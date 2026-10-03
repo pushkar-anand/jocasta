@@ -41,6 +41,30 @@ DELETE
 FROM attempts_hourly
 WHERE hour < ?;
 
+-- name: MoveAttempts :exec
+-- A folded device's attempts follow it. An hour both rows recorded adds the
+-- counts, and keeps the port sample of the row that tried more ports.
+INSERT INTO attempts_hourly (source_id, device_id, hour, peer_device_id, peer_ip, peer_asn,
+                             protocol, attempts, answered, port_count, ports)
+SELECT ghost.source_id, sqlc.arg(into_id), ghost.hour, ghost.peer_device_id, ghost.peer_ip, ghost.peer_asn,
+       ghost.protocol, ghost.attempts, ghost.answered, ghost.port_count, ghost.ports
+FROM attempts_hourly ghost
+WHERE ghost.device_id = sqlc.arg(from_id)
+ON CONFLICT (device_id, hour, source_id, peer_ip, protocol) DO UPDATE
+    SET peer_device_id = COALESCE(peer_device_id, excluded.peer_device_id),
+        peer_asn       = COALESCE(peer_asn, excluded.peer_asn),
+        attempts       = attempts + excluded.attempts,
+        answered       = answered + excluded.answered,
+        ports          = IIF(excluded.port_count > port_count, excluded.ports, ports),
+        port_count     = MAX(port_count, excluded.port_count);
+
+-- name: RepointAttemptPeer :exec
+-- Other devices' attempts on a folded device name the device it was folded
+-- into.
+UPDATE attempts_hourly
+SET peer_device_id = sqlc.arg(into_id)
+WHERE peer_device_id = sqlc.arg(from_id);
+
 -- name: DeviceAttempts :many
 -- What one device tried to reach since a given hour, one row per peer and
 -- protocol, most attempts first. ports is every hour's sample joined; the

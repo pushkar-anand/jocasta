@@ -399,6 +399,129 @@ func TestRecordSweepFoldOfAWatchedRowIsNotABack(t *testing.T) {
 	assert.NotContains(t, eventKinds(t, conn, id), dbtype.EventDeviceBack)
 }
 
+// What was recorded against the weaker row follows it into the identified
+// device. Where both rows hold the same key, counts add up and the newer
+// reading of a port or service stands. Other devices' rows that name the
+// weaker row as their peer name the identified device instead.
+func TestRecordSweepFoldMovesWhatWasRecordedAgainstTheWeakerRow(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, host("192.0.2.10", macA, ""), host("192.0.2.30", macB, ""))
+	sweep(t, s, host("192.0.2.20", "", ""))
+
+	var ghost int64
+	require.NoError(t, conn.QueryRowContext(t.Context(), `SELECT id FROM devices WHERE mac IS NULL`).Scan(&ghost))
+
+	twin := deviceIDByMAC(t, conn, macA)
+	other := deviceIDByMAC(t, conn, macB)
+	source := queryInt(t, conn, `SELECT id FROM sources WHERE name = 'test-sweep'`)
+
+	const (
+		hour  = "2026-01-01T00:00:00.000Z"
+		early = "2026-01-01T00:00:01.000Z"
+		mid   = "2026-01-01T00:00:02.000Z"
+		late  = "2026-01-01T00:00:03.000Z"
+	)
+
+	_, err := conn.ExecContext(t.Context(), `
+		INSERT INTO device_ports (device_id, port, state, service, first_seen, last_seen, changed_at)
+		VALUES (:ghost, 22, 'open', 'ssh', :early, :late, :early),
+		       (:ghost, 80, 'closed', 'http', :mid, :late, :late),
+		       (:twin, 80, 'open', 'http', :early, :mid, :early),
+		       (:ghost, 443, 'closed', 'https', :early, :mid, :mid),
+		       (:twin, 443, 'open', 'https', :mid, :late, :mid);
+
+		INSERT INTO device_services (device_id, type, instance, port, first_seen, last_seen)
+		VALUES (:ghost, '_http._tcp', '', 80, :early, :late),
+		       (:ghost, '_ipp._tcp', 'printer-a', 631, :mid, :late),
+		       (:twin, '_ipp._tcp', 'printer-a', 0, :early, :mid);
+
+		INSERT INTO traffic_hourly (source_id, device_id, hour, peer_device_id, peer_ip, protocol, service_port,
+		                            bytes_out, bytes_in, packets_out, packets_in, connections, connections_in)
+		VALUES (:source, :ghost, :hour, NULL, '203.0.113.5', 6, 443, 100, 200, 1, 2, 1, 0),
+		       (:source, :twin, :hour, NULL, '203.0.113.5', 6, 443, 10, 20, 1, 1, 1, 1),
+		       (:source, :ghost, :hour, NULL, '203.0.113.5', 6, 80, 5, 5, 1, 1, 1, 0),
+		       (:source, :other, :hour, :ghost, '192.0.2.20', 6, 22, 7, 7, 1, 1, 1, 0);
+
+		INSERT INTO attempts_hourly (source_id, device_id, hour, peer_device_id, peer_ip, protocol,
+		                             attempts, answered, port_count, ports)
+		VALUES (:source, :ghost, :hour, NULL, '198.51.100.7', 6, 5, 1, 3, '22,23,80'),
+		       (:source, :twin, :hour, NULL, '198.51.100.7', 6, 2, 0, 1, '22'),
+		       (:source, :other, :hour, :ghost, '192.0.2.20', 6, 1, 0, 1, '23');
+
+		INSERT INTO probes_hourly (source_id, device_id, hour, peer_ip, protocol,
+		                           attempts, answered, port_count, ports, outside)
+		VALUES (:source, :ghost, :hour, '198.51.100.9', 6, 4, 0, 2, '22,3389', 1),
+		       (:source, :twin, :hour, '198.51.100.9', 6, 1, 1, 1, '22', 0);
+
+		INSERT INTO broadcasts_hourly (source_id, device_id, hour, dst_ip, kind, protocol, port, bytes, packets)
+		VALUES (:source, :ghost, :hour, '192.0.2.255', 'subnet', 17, 137, 50, 1),
+		       (:source, :twin, :hour, '192.0.2.255', 'subnet', 17, 137, 25, 1);`,
+		sql.Named("ghost", ghost), sql.Named("twin", twin), sql.Named("other", other),
+		sql.Named("source", source), sql.Named("hour", hour),
+		sql.Named("early", early), sql.Named("mid", mid), sql.Named("late", late))
+	require.NoError(t, err)
+
+	sweep(t, s, host("192.0.2.20", macA, ""))
+
+	require.Equal(t, twin, deviceIDByMAC(t, conn, macA))
+
+	t.Run("ports", func(t *testing.T) {
+		assert.Equal(t, []string{
+			"22 open " + early + " " + late,
+			"80 closed " + early + " " + late,
+			"443 open " + early + " " + late,
+		}, queryStrings(t, conn, `
+			SELECT port || ' ' || state || ' ' || first_seen || ' ' || last_seen
+			FROM device_ports WHERE device_id = ? ORDER BY port`, twin))
+	})
+
+	t.Run("services", func(t *testing.T) {
+		assert.Equal(t, []string{
+			"_http._tcp 80 " + early + " " + late,
+			"_ipp._tcp 631 " + early + " " + late,
+		}, queryStrings(t, conn, `
+			SELECT type || ' ' || port || ' ' || first_seen || ' ' || last_seen
+			FROM device_services WHERE device_id = ? ORDER BY type`, twin))
+	})
+
+	t.Run("traffic", func(t *testing.T) {
+		assert.Equal(t, []string{
+			"80 5 5 1 1 1 0",
+			"443 110 220 2 3 2 1",
+		}, queryStrings(t, conn, `
+			SELECT service_port || ' ' || bytes_out || ' ' || bytes_in || ' ' || packets_out || ' ' ||
+			       packets_in || ' ' || connections || ' ' || connections_in
+			FROM traffic_hourly WHERE device_id = ? ORDER BY service_port`, twin))
+	})
+
+	t.Run("attempts", func(t *testing.T) {
+		assert.Equal(t, []string{"7 1 3 22,23,80"}, queryStrings(t, conn, `
+			SELECT attempts || ' ' || answered || ' ' || port_count || ' ' || ports
+			FROM attempts_hourly WHERE device_id = ?`, twin))
+	})
+
+	t.Run("probes", func(t *testing.T) {
+		assert.Equal(t, []string{"5 1 2 22,3389 1"}, queryStrings(t, conn, `
+			SELECT attempts || ' ' || answered || ' ' || port_count || ' ' || ports || ' ' || outside
+			FROM probes_hourly WHERE device_id = ?`, twin))
+	})
+
+	t.Run("broadcasts", func(t *testing.T) {
+		assert.Equal(t, []string{"75 2"}, queryStrings(t, conn, `
+			SELECT bytes || ' ' || packets FROM broadcasts_hourly WHERE device_id = ?`, twin))
+	})
+
+	t.Run("peers", func(t *testing.T) {
+		assert.Equal(t, 1, queryInt(t, conn,
+			`SELECT count(*) FROM traffic_hourly WHERE device_id = ? AND peer_device_id = ?`, other, twin))
+		assert.Equal(t, 1, queryInt(t, conn,
+			`SELECT count(*) FROM attempts_hourly WHERE device_id = ? AND peer_device_id = ?`, other, twin))
+	})
+}
+
 // A lease handed to another device moves the address: only one device may hold
 // an address as current.
 func TestRecordSweepMovesAddressBetweenDevices(t *testing.T) {

@@ -219,6 +219,41 @@ ON CONFLICT (device_id, source_id)
                   first_seen      = MIN(device_sources.first_seen, excluded.first_seen),
                   last_seen       = MAX(device_sources.last_seen, excluded.last_seen);
 
+-- Ports follow the device on a fold. A port both rows recorded keeps the newer
+-- reading's state with the outer bounds of both sightings.
+-- name: MoveDevicePorts :exec
+INSERT INTO device_ports (device_id, port, state, service, first_seen, last_seen, changed_at)
+SELECT sqlc.arg(into_id), ghost.port, ghost.state, ghost.service, ghost.first_seen, ghost.last_seen,
+       ghost.changed_at
+FROM device_ports ghost
+WHERE ghost.device_id = sqlc.arg(from_id)
+ON CONFLICT (device_id, port)
+    DO UPDATE SET state      = IIF(excluded.last_seen > device_ports.last_seen,
+                                   excluded.state, device_ports.state),
+                  service    = IIF(excluded.last_seen > device_ports.last_seen,
+                                   excluded.service, device_ports.service),
+                  changed_at = IIF(excluded.last_seen > device_ports.last_seen,
+                                   excluded.changed_at, device_ports.changed_at),
+                  first_seen = MIN(device_ports.first_seen, excluded.first_seen),
+                  last_seen  = MAX(device_ports.last_seen, excluded.last_seen);
+
+-- Services follow the device on a fold, merged as ports are.
+-- name: MoveDeviceServices :exec
+INSERT INTO device_services (device_id, type, instance, port, label, model, first_seen, last_seen)
+SELECT sqlc.arg(into_id), ghost.type, ghost.instance, ghost.port, ghost.label, ghost.model,
+       ghost.first_seen, ghost.last_seen
+FROM device_services ghost
+WHERE ghost.device_id = sqlc.arg(from_id)
+ON CONFLICT (device_id, type, instance)
+    DO UPDATE SET port       = IIF(excluded.last_seen > device_services.last_seen,
+                                   excluded.port, device_services.port),
+                  label      = IIF(excluded.last_seen > device_services.last_seen,
+                                   excluded.label, device_services.label),
+                  model      = IIF(excluded.last_seen > device_services.last_seen,
+                                   excluded.model, device_services.model),
+                  first_seen = MIN(device_services.first_seen, excluded.first_seen),
+                  last_seen  = MAX(device_services.last_seen, excluded.last_seen);
+
 -- name: MoveEvents :exec
 UPDATE events
 SET device_id = sqlc.arg(into_id)
