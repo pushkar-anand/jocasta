@@ -11,8 +11,8 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 )
 
-// Ports probes the TCP ports of every address the inventory holds, on its own
-// schedule.
+// Ports probes the TCP ports of every address the inventory holds on a recorded
+// network, on its own schedule.
 //
 // It is a task apart from Device because it answers a different question,
 // what a device is running, and is judged by a different clock: the default
@@ -66,10 +66,11 @@ func (p *Ports) DueIn(ctx context.Context) time.Duration {
 	return dueIn(ctx, p.store, dbtype.ScanPorts, p.interval, p.logger)
 }
 
-// Run scans every current address in the inventory and records what answered.
+// Run scans every current address on a recorded network and records what
+// answered.
 //
-// With nothing to scan yet, because discovery has not run, it returns
-// errNotReady, so the poller retries in a minute.
+// With nothing to scan yet, because discovery has not run or has recorded no
+// network, it returns errNotReady, so the poller retries in a minute.
 func (p *Ports) Run(ctx context.Context) error {
 	targets, err := p.store.PortScanTargets(ctx)
 	if err != nil {
@@ -77,7 +78,7 @@ func (p *Ports) Run(ctx context.Context) error {
 	}
 
 	if len(targets) == 0 {
-		p.logger.InfoContext(ctx, "no addresses to port-scan yet; waiting for discovery to populate the inventory")
+		p.logger.InfoContext(ctx, "no address on a recorded network to port-scan yet; waiting for discovery to record one")
 
 		return errNotReady
 	}

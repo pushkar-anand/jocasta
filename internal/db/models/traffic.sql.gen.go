@@ -458,6 +458,59 @@ func (q *Queries) IncomingFromInternet(ctx context.Context, arg IncomingFromInte
 	return items, nil
 }
 
+const moveTraffic = `-- name: MoveTraffic :exec
+INSERT INTO traffic_hourly (source_id, device_id, hour, peer_device_id, peer_ip, peer_name, peer_asn,
+                            protocol, service_port, bytes_out, bytes_in, packets_out, packets_in, connections,
+                            connections_in)
+SELECT ghost.source_id, ?1, ghost.hour, ghost.peer_device_id, ghost.peer_ip, ghost.peer_name,
+       ghost.peer_asn, ghost.protocol, ghost.service_port, ghost.bytes_out, ghost.bytes_in, ghost.packets_out,
+       ghost.packets_in, ghost.connections, ghost.connections_in
+FROM traffic_hourly ghost
+WHERE ghost.device_id = ?2
+ON CONFLICT (device_id, hour, source_id, peer_ip, protocol, service_port) DO UPDATE
+    SET peer_device_id = COALESCE(peer_device_id, excluded.peer_device_id),
+        peer_name      = COALESCE(peer_name, excluded.peer_name),
+        peer_asn       = COALESCE(peer_asn, excluded.peer_asn),
+        bytes_out      = bytes_out + excluded.bytes_out,
+        bytes_in       = bytes_in + excluded.bytes_in,
+        packets_out    = packets_out + excluded.packets_out,
+        packets_in     = packets_in + excluded.packets_in,
+        connections    = connections + excluded.connections,
+        connections_in = connections_in + excluded.connections_in
+`
+
+type MoveTrafficParams struct {
+	IntoID int64 `json:"into_id"`
+	FromID int64 `json:"from_id"`
+}
+
+// A folded device's hours follow it. An hour both rows recorded with the same
+// peer and service holds flows from two of the device's addresses, so the
+// totals add up.
+//
+//	INSERT INTO traffic_hourly (source_id, device_id, hour, peer_device_id, peer_ip, peer_name, peer_asn,
+//	                            protocol, service_port, bytes_out, bytes_in, packets_out, packets_in, connections,
+//	                            connections_in)
+//	SELECT ghost.source_id, ?1, ghost.hour, ghost.peer_device_id, ghost.peer_ip, ghost.peer_name,
+//	       ghost.peer_asn, ghost.protocol, ghost.service_port, ghost.bytes_out, ghost.bytes_in, ghost.packets_out,
+//	       ghost.packets_in, ghost.connections, ghost.connections_in
+//	FROM traffic_hourly ghost
+//	WHERE ghost.device_id = ?2
+//	ON CONFLICT (device_id, hour, source_id, peer_ip, protocol, service_port) DO UPDATE
+//	    SET peer_device_id = COALESCE(peer_device_id, excluded.peer_device_id),
+//	        peer_name      = COALESCE(peer_name, excluded.peer_name),
+//	        peer_asn       = COALESCE(peer_asn, excluded.peer_asn),
+//	        bytes_out      = bytes_out + excluded.bytes_out,
+//	        bytes_in       = bytes_in + excluded.bytes_in,
+//	        packets_out    = packets_out + excluded.packets_out,
+//	        packets_in     = packets_in + excluded.packets_in,
+//	        connections    = connections + excluded.connections,
+//	        connections_in = connections_in + excluded.connections_in
+func (q *Queries) MoveTraffic(ctx context.Context, arg MoveTrafficParams) error {
+	_, err := q.exec(ctx, q.moveTrafficStmt, moveTraffic, arg.IntoID, arg.FromID)
+	return err
+}
+
 const organisationDevices = `-- name: OrganisationDevices :many
 SELECT CAST(t.peer_asn AS INTEGER)            AS peer_asn,
        d.id,
@@ -539,6 +592,28 @@ func (q *Queries) OrganisationDevices(ctx context.Context, arg OrganisationDevic
 		return nil, err
 	}
 	return items, nil
+}
+
+const repointTrafficPeer = `-- name: RepointTrafficPeer :exec
+UPDATE traffic_hourly
+SET peer_device_id = ?1
+WHERE peer_device_id = ?2
+`
+
+type RepointTrafficPeerParams struct {
+	IntoID sql.NullInt64 `json:"into_id"`
+	FromID sql.NullInt64 `json:"from_id"`
+}
+
+// Other devices' conversations with a folded device name the device it was
+// folded into.
+//
+//	UPDATE traffic_hourly
+//	SET peer_device_id = ?1
+//	WHERE peer_device_id = ?2
+func (q *Queries) RepointTrafficPeer(ctx context.Context, arg RepointTrafficPeerParams) error {
+	_, err := q.exec(ctx, q.repointTrafficPeerStmt, repointTrafficPeer, arg.IntoID, arg.FromID)
+	return err
 }
 
 const topOrganisations = `-- name: TopOrganisations :many

@@ -106,6 +106,38 @@ func (q *Queries) DeviceBroadcasts(ctx context.Context, arg DeviceBroadcastsPara
 	return items, nil
 }
 
+const moveBroadcasts = `-- name: MoveBroadcasts :exec
+INSERT INTO broadcasts_hourly (source_id, device_id, hour, dst_ip, kind, protocol, port, bytes, packets)
+SELECT ghost.source_id, ?1, ghost.hour, ghost.dst_ip, ghost.kind, ghost.protocol, ghost.port,
+       ghost.bytes, ghost.packets
+FROM broadcasts_hourly ghost
+WHERE ghost.device_id = ?2
+ON CONFLICT (device_id, hour, source_id, dst_ip, protocol, port) DO UPDATE
+    SET bytes   = bytes + excluded.bytes,
+        packets = packets + excluded.packets
+`
+
+type MoveBroadcastsParams struct {
+	IntoID int64 `json:"into_id"`
+	FromID int64 `json:"from_id"`
+}
+
+// A folded device's broadcasts follow it, and an hour both rows recorded adds
+// up.
+//
+//	INSERT INTO broadcasts_hourly (source_id, device_id, hour, dst_ip, kind, protocol, port, bytes, packets)
+//	SELECT ghost.source_id, ?1, ghost.hour, ghost.dst_ip, ghost.kind, ghost.protocol, ghost.port,
+//	       ghost.bytes, ghost.packets
+//	FROM broadcasts_hourly ghost
+//	WHERE ghost.device_id = ?2
+//	ON CONFLICT (device_id, hour, source_id, dst_ip, protocol, port) DO UPDATE
+//	    SET bytes   = bytes + excluded.bytes,
+//	        packets = packets + excluded.packets
+func (q *Queries) MoveBroadcasts(ctx context.Context, arg MoveBroadcastsParams) error {
+	_, err := q.exec(ctx, q.moveBroadcastsStmt, moveBroadcasts, arg.IntoID, arg.FromID)
+	return err
+}
+
 const upsertBroadcast = `-- name: UpsertBroadcast :exec
 INSERT INTO broadcasts_hourly (source_id, device_id, hour, dst_ip, kind, protocol, port, bytes, packets)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)

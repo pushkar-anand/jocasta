@@ -261,11 +261,29 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.moveAddressesStmt, err = db.PrepareContext(ctx, moveAddresses); err != nil {
 		return nil, fmt.Errorf("error preparing query MoveAddresses: %w", err)
 	}
+	if q.moveAttemptsStmt, err = db.PrepareContext(ctx, moveAttempts); err != nil {
+		return nil, fmt.Errorf("error preparing query MoveAttempts: %w", err)
+	}
+	if q.moveBroadcastsStmt, err = db.PrepareContext(ctx, moveBroadcasts); err != nil {
+		return nil, fmt.Errorf("error preparing query MoveBroadcasts: %w", err)
+	}
+	if q.moveDevicePortsStmt, err = db.PrepareContext(ctx, moveDevicePorts); err != nil {
+		return nil, fmt.Errorf("error preparing query MoveDevicePorts: %w", err)
+	}
+	if q.moveDeviceServicesStmt, err = db.PrepareContext(ctx, moveDeviceServices); err != nil {
+		return nil, fmt.Errorf("error preparing query MoveDeviceServices: %w", err)
+	}
 	if q.moveDeviceSourcesStmt, err = db.PrepareContext(ctx, moveDeviceSources); err != nil {
 		return nil, fmt.Errorf("error preparing query MoveDeviceSources: %w", err)
 	}
 	if q.moveEventsStmt, err = db.PrepareContext(ctx, moveEvents); err != nil {
 		return nil, fmt.Errorf("error preparing query MoveEvents: %w", err)
+	}
+	if q.moveProbesStmt, err = db.PrepareContext(ctx, moveProbes); err != nil {
+		return nil, fmt.Errorf("error preparing query MoveProbes: %w", err)
+	}
+	if q.moveTrafficStmt, err = db.PrepareContext(ctx, moveTraffic); err != nil {
+		return nil, fmt.Errorf("error preparing query MoveTraffic: %w", err)
 	}
 	if q.notifyRulesStmt, err = db.PrepareContext(ctx, notifyRules); err != nil {
 		return nil, fmt.Errorf("error preparing query NotifyRules: %w", err)
@@ -302,6 +320,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.releaseAddressStmt, err = db.PrepareContext(ctx, releaseAddress); err != nil {
 		return nil, fmt.Errorf("error preparing query ReleaseAddress: %w", err)
+	}
+	if q.repointAttemptPeerStmt, err = db.PrepareContext(ctx, repointAttemptPeer); err != nil {
+		return nil, fmt.Errorf("error preparing query RepointAttemptPeer: %w", err)
+	}
+	if q.repointTrafficPeerStmt, err = db.PrepareContext(ctx, repointTrafficPeer); err != nil {
+		return nil, fmt.Errorf("error preparing query RepointTrafficPeer: %w", err)
 	}
 	if q.retireAddressStmt, err = db.PrepareContext(ctx, retireAddress); err != nil {
 		return nil, fmt.Errorf("error preparing query RetireAddress: %w", err)
@@ -784,6 +808,26 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing moveAddressesStmt: %w", cerr)
 		}
 	}
+	if q.moveAttemptsStmt != nil {
+		if cerr := q.moveAttemptsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing moveAttemptsStmt: %w", cerr)
+		}
+	}
+	if q.moveBroadcastsStmt != nil {
+		if cerr := q.moveBroadcastsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing moveBroadcastsStmt: %w", cerr)
+		}
+	}
+	if q.moveDevicePortsStmt != nil {
+		if cerr := q.moveDevicePortsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing moveDevicePortsStmt: %w", cerr)
+		}
+	}
+	if q.moveDeviceServicesStmt != nil {
+		if cerr := q.moveDeviceServicesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing moveDeviceServicesStmt: %w", cerr)
+		}
+	}
 	if q.moveDeviceSourcesStmt != nil {
 		if cerr := q.moveDeviceSourcesStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing moveDeviceSourcesStmt: %w", cerr)
@@ -792,6 +836,16 @@ func (q *Queries) Close() error {
 	if q.moveEventsStmt != nil {
 		if cerr := q.moveEventsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing moveEventsStmt: %w", cerr)
+		}
+	}
+	if q.moveProbesStmt != nil {
+		if cerr := q.moveProbesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing moveProbesStmt: %w", cerr)
+		}
+	}
+	if q.moveTrafficStmt != nil {
+		if cerr := q.moveTrafficStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing moveTrafficStmt: %w", cerr)
 		}
 	}
 	if q.notifyRulesStmt != nil {
@@ -852,6 +906,16 @@ func (q *Queries) Close() error {
 	if q.releaseAddressStmt != nil {
 		if cerr := q.releaseAddressStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing releaseAddressStmt: %w", cerr)
+		}
+	}
+	if q.repointAttemptPeerStmt != nil {
+		if cerr := q.repointAttemptPeerStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing repointAttemptPeerStmt: %w", cerr)
+		}
+	}
+	if q.repointTrafficPeerStmt != nil {
+		if cerr := q.repointTrafficPeerStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing repointTrafficPeerStmt: %w", cerr)
 		}
 	}
 	if q.retireAddressStmt != nil {
@@ -1107,8 +1171,14 @@ type Queries struct {
 	markPresentStmt                    *sql.Stmt
 	markQuietStmt                      *sql.Stmt
 	moveAddressesStmt                  *sql.Stmt
+	moveAttemptsStmt                   *sql.Stmt
+	moveBroadcastsStmt                 *sql.Stmt
+	moveDevicePortsStmt                *sql.Stmt
+	moveDeviceServicesStmt             *sql.Stmt
 	moveDeviceSourcesStmt              *sql.Stmt
 	moveEventsStmt                     *sql.Stmt
+	moveProbesStmt                     *sql.Stmt
+	moveTrafficStmt                    *sql.Stmt
 	notifyRulesStmt                    *sql.Stmt
 	organisationDevicesStmt            *sql.Stmt
 	outsideAddressesStmt               *sql.Stmt
@@ -1121,6 +1191,8 @@ type Queries struct {
 	redeemRecoveryCodeStmt             *sql.Stmt
 	refreshAddressStmt                 *sql.Stmt
 	releaseAddressStmt                 *sql.Stmt
+	repointAttemptPeerStmt             *sql.Stmt
+	repointTrafficPeerStmt             *sql.Stmt
 	retireAddressStmt                  *sql.Stmt
 	scanEventsStmt                     *sql.Stmt
 	scanSummaryStmt                    *sql.Stmt
@@ -1233,8 +1305,14 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		markPresentStmt:                    q.markPresentStmt,
 		markQuietStmt:                      q.markQuietStmt,
 		moveAddressesStmt:                  q.moveAddressesStmt,
+		moveAttemptsStmt:                   q.moveAttemptsStmt,
+		moveBroadcastsStmt:                 q.moveBroadcastsStmt,
+		moveDevicePortsStmt:                q.moveDevicePortsStmt,
+		moveDeviceServicesStmt:             q.moveDeviceServicesStmt,
 		moveDeviceSourcesStmt:              q.moveDeviceSourcesStmt,
 		moveEventsStmt:                     q.moveEventsStmt,
+		moveProbesStmt:                     q.moveProbesStmt,
+		moveTrafficStmt:                    q.moveTrafficStmt,
 		notifyRulesStmt:                    q.notifyRulesStmt,
 		organisationDevicesStmt:            q.organisationDevicesStmt,
 		outsideAddressesStmt:               q.outsideAddressesStmt,
@@ -1247,6 +1325,8 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		redeemRecoveryCodeStmt:             q.redeemRecoveryCodeStmt,
 		refreshAddressStmt:                 q.refreshAddressStmt,
 		releaseAddressStmt:                 q.releaseAddressStmt,
+		repointAttemptPeerStmt:             q.repointAttemptPeerStmt,
+		repointTrafficPeerStmt:             q.repointTrafficPeerStmt,
 		retireAddressStmt:                  q.retireAddressStmt,
 		scanEventsStmt:                     q.scanEventsStmt,
 		scanSummaryStmt:                    q.scanSummaryStmt,

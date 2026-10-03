@@ -22,6 +22,36 @@ DELETE
 FROM traffic_hourly
 WHERE hour < ?;
 
+-- name: MoveTraffic :exec
+-- A folded device's hours follow it. An hour both rows recorded with the same
+-- peer and service holds flows from two of the device's addresses, so the
+-- totals add up.
+INSERT INTO traffic_hourly (source_id, device_id, hour, peer_device_id, peer_ip, peer_name, peer_asn,
+                            protocol, service_port, bytes_out, bytes_in, packets_out, packets_in, connections,
+                            connections_in)
+SELECT ghost.source_id, sqlc.arg(into_id), ghost.hour, ghost.peer_device_id, ghost.peer_ip, ghost.peer_name,
+       ghost.peer_asn, ghost.protocol, ghost.service_port, ghost.bytes_out, ghost.bytes_in, ghost.packets_out,
+       ghost.packets_in, ghost.connections, ghost.connections_in
+FROM traffic_hourly ghost
+WHERE ghost.device_id = sqlc.arg(from_id)
+ON CONFLICT (device_id, hour, source_id, peer_ip, protocol, service_port) DO UPDATE
+    SET peer_device_id = COALESCE(peer_device_id, excluded.peer_device_id),
+        peer_name      = COALESCE(peer_name, excluded.peer_name),
+        peer_asn       = COALESCE(peer_asn, excluded.peer_asn),
+        bytes_out      = bytes_out + excluded.bytes_out,
+        bytes_in       = bytes_in + excluded.bytes_in,
+        packets_out    = packets_out + excluded.packets_out,
+        packets_in     = packets_in + excluded.packets_in,
+        connections    = connections + excluded.connections,
+        connections_in = connections_in + excluded.connections_in;
+
+-- name: RepointTrafficPeer :exec
+-- Other devices' conversations with a folded device name the device it was
+-- folded into.
+UPDATE traffic_hourly
+SET peer_device_id = sqlc.arg(into_id)
+WHERE peer_device_id = sqlc.arg(from_id);
+
 -- name: DeviceTraffic :many
 -- One device's conversations since a given hour, one row per peer and
 -- service, busiest first. A peer that was a known device carries that

@@ -607,7 +607,7 @@ inventory:
 ## Optional features
 
 - **Port scanning**: set `scan.ports.enabled: true` to probe every known
-  address for open TCP ports on a timer. Each address is also probed on the
+  address on your networks for open TCP ports on a timer. Each address is also probed on the
   TCP ports its device advertises a service on. See [CLI](cli.md#ports) for
   one-off scans.
 - **Traffic**: who each device talks to, from your router's flow exports,

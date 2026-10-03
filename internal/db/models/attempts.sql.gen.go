@@ -221,6 +221,48 @@ func (q *Queries) DeviceAttempts(ctx context.Context, arg DeviceAttemptsParams) 
 	return items, nil
 }
 
+const moveAttempts = `-- name: MoveAttempts :exec
+INSERT INTO attempts_hourly (source_id, device_id, hour, peer_device_id, peer_ip, peer_asn,
+                             protocol, attempts, answered, port_count, ports)
+SELECT ghost.source_id, ?1, ghost.hour, ghost.peer_device_id, ghost.peer_ip, ghost.peer_asn,
+       ghost.protocol, ghost.attempts, ghost.answered, ghost.port_count, ghost.ports
+FROM attempts_hourly ghost
+WHERE ghost.device_id = ?2
+ON CONFLICT (device_id, hour, source_id, peer_ip, protocol) DO UPDATE
+    SET peer_device_id = COALESCE(peer_device_id, excluded.peer_device_id),
+        peer_asn       = COALESCE(peer_asn, excluded.peer_asn),
+        attempts       = attempts + excluded.attempts,
+        answered       = answered + excluded.answered,
+        ports          = IIF(excluded.port_count > port_count, excluded.ports, ports),
+        port_count     = MAX(port_count, excluded.port_count)
+`
+
+type MoveAttemptsParams struct {
+	IntoID int64 `json:"into_id"`
+	FromID int64 `json:"from_id"`
+}
+
+// A folded device's attempts follow it. An hour both rows recorded adds the
+// counts, and keeps the port sample of the row that tried more ports.
+//
+//	INSERT INTO attempts_hourly (source_id, device_id, hour, peer_device_id, peer_ip, peer_asn,
+//	                             protocol, attempts, answered, port_count, ports)
+//	SELECT ghost.source_id, ?1, ghost.hour, ghost.peer_device_id, ghost.peer_ip, ghost.peer_asn,
+//	       ghost.protocol, ghost.attempts, ghost.answered, ghost.port_count, ghost.ports
+//	FROM attempts_hourly ghost
+//	WHERE ghost.device_id = ?2
+//	ON CONFLICT (device_id, hour, source_id, peer_ip, protocol) DO UPDATE
+//	    SET peer_device_id = COALESCE(peer_device_id, excluded.peer_device_id),
+//	        peer_asn       = COALESCE(peer_asn, excluded.peer_asn),
+//	        attempts       = attempts + excluded.attempts,
+//	        answered       = answered + excluded.answered,
+//	        ports          = IIF(excluded.port_count > port_count, excluded.ports, ports),
+//	        port_count     = MAX(port_count, excluded.port_count)
+func (q *Queries) MoveAttempts(ctx context.Context, arg MoveAttemptsParams) error {
+	_, err := q.exec(ctx, q.moveAttemptsStmt, moveAttempts, arg.IntoID, arg.FromID)
+	return err
+}
+
 const probingHours = `-- name: ProbingHours :many
 SELECT a.device_id,
        CAST(COALESCE(d.label, '') AS TEXT)    AS label,
@@ -330,6 +372,28 @@ func (q *Queries) ProbingHours(ctx context.Context, arg ProbingHoursParams) ([]*
 		return nil, err
 	}
 	return items, nil
+}
+
+const repointAttemptPeer = `-- name: RepointAttemptPeer :exec
+UPDATE attempts_hourly
+SET peer_device_id = ?1
+WHERE peer_device_id = ?2
+`
+
+type RepointAttemptPeerParams struct {
+	IntoID sql.NullInt64 `json:"into_id"`
+	FromID sql.NullInt64 `json:"from_id"`
+}
+
+// Other devices' attempts on a folded device name the device it was folded
+// into.
+//
+//	UPDATE attempts_hourly
+//	SET peer_device_id = ?1
+//	WHERE peer_device_id = ?2
+func (q *Queries) RepointAttemptPeer(ctx context.Context, arg RepointAttemptPeerParams) error {
+	_, err := q.exec(ctx, q.repointAttemptPeerStmt, repointAttemptPeer, arg.IntoID, arg.FromID)
+	return err
 }
 
 const upsertAttempts = `-- name: UpsertAttempts :exec

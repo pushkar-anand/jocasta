@@ -520,7 +520,7 @@ func portScan(ctx context.Context, store *inventory.Store, devs []*device, at ti
 			open = open[:len(open)-1]
 		}
 
-		scans = append(scans, scanner.PortScan{Addr: netip.MustParseAddr(d.ip), Open: open, Scanned: dedupe(scanned), SeenAt: at})
+		scans = append(scans, scanner.PortScan{Addr: netip.MustParseAddr(d.ip), Open: open, Scanned: dedupe(scanned), Answered: true, SeenAt: at})
 	}
 
 	_, err := store.RecordPorts(ctx, sweeper, scans)

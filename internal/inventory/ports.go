@@ -152,7 +152,8 @@ func (s *Store) ingestPorts(ctx context.Context, scanID int64, scans []scanner.P
 }
 
 // devicePorts is what a scan found across every address of one device: the
-// ports that answered on any of them, and the ports probed on any of them.
+// ports that answered on any of them, and the ports probed on any of them that
+// answered the scan.
 type devicePorts struct {
 	open    map[uint16]struct{}
 	scanned map[uint16]struct{}
@@ -161,7 +162,9 @@ type devicePorts struct {
 // gatherPorts files each result under the device that holds its address now,
 // keyed by device id. A device can hold several addresses, such as a wired
 // and a Wi-Fi one, and a service can listen on one of them alone, so a port
-// is the device's own once any of its addresses answers on it.
+// is the device's own once any of its addresses answers on it. An address that
+// answered nothing adds nothing to the scanned set, so a device that is asleep
+// or gone keeps the ports it had.
 func (s *Store) gatherPorts(
 	ctx context.Context,
 	q *models.Queries,
@@ -194,6 +197,10 @@ func (s *Store) gatherPorts(
 
 		for _, port := range scan.Open {
 			d.open[port] = struct{}{}
+		}
+
+		if !scan.Answered {
+			continue
 		}
 
 		for _, port := range scan.Scanned {

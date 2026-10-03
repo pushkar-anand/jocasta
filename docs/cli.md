@@ -26,7 +26,7 @@ jocasta serve -p 9000         # override the port
 Starts the HTTP server. When `scan.devices.enabled` is set, it also starts a
 poller that sweeps every network in `networks` on `scan.devices.interval`. When
 `scan.ports.enabled` is set, a second poller port-scans every address the
-inventory holds on `scan.ports.interval`. Each enabled `routeros` and
+inventory holds on your networks, on `scan.ports.interval`. Each enabled `routeros` and
 `openwrt` instance is also read for what is plugged into it, on
 `scan.devices.interval`. Each
 enabled `netflow` instance
@@ -60,9 +60,11 @@ host also lists the services it advertises over DNS-SD.
 ## ports
 
 Probes TCP ports with a plain `connect()`, so it needs no privileges and cannot
-change the target. With no argument it scans every current address in the
-inventory, each also on the TCP ports its device advertises a service on and
-the ports recorded open on that device;
+change the target. With no argument it scans every current address the
+inventory holds on your networks: those in `networks` and the segments a
+router serves. A neighbour outside them, such as your ISP's gateway, is left
+alone. Each address is also scanned on the TCP ports its device advertises a
+service on and the ports recorded open on that device;
 give an address or a prefix to scan only that. `--ports` takes a
 spec like `22,80,443,8000-8100`; the default is a curated preset of about a
 hundred ports a homelab commonly runs. `--concurrency` caps how many

@@ -11,6 +11,18 @@ DELETE
 FROM broadcasts_hourly
 WHERE hour < ?;
 
+-- name: MoveBroadcasts :exec
+-- A folded device's broadcasts follow it, and an hour both rows recorded adds
+-- up.
+INSERT INTO broadcasts_hourly (source_id, device_id, hour, dst_ip, kind, protocol, port, bytes, packets)
+SELECT ghost.source_id, sqlc.arg(into_id), ghost.hour, ghost.dst_ip, ghost.kind, ghost.protocol, ghost.port,
+       ghost.bytes, ghost.packets
+FROM broadcasts_hourly ghost
+WHERE ghost.device_id = sqlc.arg(from_id)
+ON CONFLICT (device_id, hour, source_id, dst_ip, protocol, port) DO UPDATE
+    SET bytes   = bytes + excluded.bytes,
+        packets = packets + excluded.packets;
+
 -- name: DeviceBroadcasts :many
 -- What one device sent to everyone since a given hour, one row per group,
 -- protocol and port, most packets first.
