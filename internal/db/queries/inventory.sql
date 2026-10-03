@@ -133,15 +133,26 @@ SET is_watched = sqlc.arg(is_watched)
 WHERE id = sqlc.arg(id)
 RETURNING *;
 
--- A device folded into another may carry a label the user set before its MAC
--- was known, and the earlier of the two first_seen values is the true one.
--- name: AdoptCuration :exec
+-- A device folded into another may carry curation the user set before its MAC
+-- was known. A field both rows set keeps the surviving device's value, and a
+-- flag either row set stays set.
+--
+-- The folded row may have been seen while the surviving one went quiet, so
+-- the merged device keeps the earlier first_seen, the later last_seen and the
+-- earlier of the two present runs.
+-- name: AdoptCuration :one
 UPDATE devices
-SET label      = COALESCE(label, sqlc.narg(folded_label)),
-    notes      = COALESCE(notes, sqlc.narg(folded_notes)),
-    group_name = COALESCE(group_name, sqlc.narg(folded_group_name)),
-    first_seen = sqlc.arg(first_seen)
-WHERE id = sqlc.arg(id);
+SET label         = COALESCE(label, sqlc.narg(folded_label)),
+    notes         = COALESCE(notes, sqlc.narg(folded_notes)),
+    group_name    = COALESCE(group_name, sqlc.narg(folded_group_name)),
+    device_type   = COALESCE(device_type, sqlc.narg(folded_device_type)),
+    is_ignored    = sqlc.arg(is_ignored),
+    is_watched    = sqlc.arg(is_watched),
+    first_seen    = sqlc.arg(first_seen),
+    last_seen     = sqlc.arg(last_seen),
+    present_since = sqlc.narg(present_since)
+WHERE id = sqlc.arg(id)
+RETURNING *;
 
 -- Rows the surviving device already holds for the same address are left behind
 -- and go with the folded device when it is deleted.

@@ -12,41 +12,89 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
 
-const adoptCuration = `-- name: AdoptCuration :exec
+const adoptCuration = `-- name: AdoptCuration :one
 UPDATE devices
-SET label      = COALESCE(label, ?1),
-    notes      = COALESCE(notes, ?2),
-    group_name = COALESCE(group_name, ?3),
-    first_seen = ?4
-WHERE id = ?5
+SET label         = COALESCE(label, ?1),
+    notes         = COALESCE(notes, ?2),
+    group_name    = COALESCE(group_name, ?3),
+    device_type   = COALESCE(device_type, ?4),
+    is_ignored    = ?5,
+    is_watched    = ?6,
+    first_seen    = ?7,
+    last_seen     = ?8,
+    present_since = ?9
+WHERE id = ?10
+RETURNING id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, device_class, device_class_confidence, label, notes, group_name, is_ignored, first_seen, last_seen, present_since, is_watched
 `
 
 type AdoptCurationParams struct {
-	FoldedLabel     sql.NullString `json:"folded_label"`
-	FoldedNotes     sql.NullString `json:"folded_notes"`
-	FoldedGroupName sql.NullString `json:"folded_group_name"`
-	FirstSeen       dbtype.Time    `json:"first_seen"`
-	ID              int64          `json:"id"`
+	FoldedLabel      sql.NullString  `json:"folded_label"`
+	FoldedNotes      sql.NullString  `json:"folded_notes"`
+	FoldedGroupName  sql.NullString  `json:"folded_group_name"`
+	FoldedDeviceType sql.NullString  `json:"folded_device_type"`
+	IsIgnored        bool            `json:"is_ignored"`
+	IsWatched        bool            `json:"is_watched"`
+	FirstSeen        dbtype.Time     `json:"first_seen"`
+	LastSeen         dbtype.Time     `json:"last_seen"`
+	PresentSince     dbtype.NullTime `json:"present_since"`
+	ID               int64           `json:"id"`
 }
 
-// A device folded into another may carry a label the user set before its MAC
-// was known, and the earlier of the two first_seen values is the true one.
+// A device folded into another may carry curation the user set before its MAC
+// was known. A field both rows set keeps the surviving device's value, and a
+// flag either row set stays set.
+//
+// The folded row may have been seen while the surviving one went quiet, so
+// the merged device keeps the earlier first_seen, the later last_seen and the
+// earlier of the two present runs.
 //
 //	UPDATE devices
-//	SET label      = COALESCE(label, ?1),
-//	    notes      = COALESCE(notes, ?2),
-//	    group_name = COALESCE(group_name, ?3),
-//	    first_seen = ?4
-//	WHERE id = ?5
-func (q *Queries) AdoptCuration(ctx context.Context, arg AdoptCurationParams) error {
-	_, err := q.exec(ctx, q.adoptCurationStmt, adoptCuration,
+//	SET label         = COALESCE(label, ?1),
+//	    notes         = COALESCE(notes, ?2),
+//	    group_name    = COALESCE(group_name, ?3),
+//	    device_type   = COALESCE(device_type, ?4),
+//	    is_ignored    = ?5,
+//	    is_watched    = ?6,
+//	    first_seen    = ?7,
+//	    last_seen     = ?8,
+//	    present_since = ?9
+//	WHERE id = ?10
+//	RETURNING id, mac, identity_source, is_randomised, vendor, hostname, hostname_source, device_type, device_class, device_class_confidence, label, notes, group_name, is_ignored, first_seen, last_seen, present_since, is_watched
+func (q *Queries) AdoptCuration(ctx context.Context, arg AdoptCurationParams) (*Device, error) {
+	row := q.queryRow(ctx, q.adoptCurationStmt, adoptCuration,
 		arg.FoldedLabel,
 		arg.FoldedNotes,
 		arg.FoldedGroupName,
+		arg.FoldedDeviceType,
+		arg.IsIgnored,
+		arg.IsWatched,
 		arg.FirstSeen,
+		arg.LastSeen,
+		arg.PresentSince,
 		arg.ID,
 	)
-	return err
+	var i Device
+	err := row.Scan(
+		&i.ID,
+		&i.MAC,
+		&i.IdentitySource,
+		&i.IsRandomised,
+		&i.Vendor,
+		&i.Hostname,
+		&i.HostnameSource,
+		&i.DeviceType,
+		&i.DeviceClass,
+		&i.DeviceClassConfidence,
+		&i.Label,
+		&i.Notes,
+		&i.GroupName,
+		&i.IsIgnored,
+		&i.FirstSeen,
+		&i.LastSeen,
+		&i.PresentSince,
+		&i.IsWatched,
+	)
+	return &i, err
 }
 
 const allCurrentAddresses = `-- name: AllCurrentAddresses :many

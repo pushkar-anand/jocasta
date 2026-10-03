@@ -330,6 +330,75 @@ func TestRecordSweepFoldsDuplicate(t *testing.T) {
 	assert.Zero(t, queryInt(t, conn, `SELECT count(*) FROM events WHERE device_id IS NULL`))
 }
 
+// Every field the owner can set on the weaker row survives the fold. Where both
+// rows carry a type, the identified device keeps its own.
+func TestRecordSweepFoldKeepsEveryCurationField(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		twinType string
+		want     string
+	}{
+		{name: "the weaker row's type carries over", want: "nas"},
+		{name: "the identified device's own type wins", twinType: "server", want: "server"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			s, conn := newStore(t)
+
+			sweep(t, s, host("192.0.2.10", macA, ""))
+			sweep(t, s, host("192.0.2.20", "", ""))
+
+			_, err := conn.ExecContext(t.Context(),
+				`UPDATE devices SET device_type = 'nas', is_ignored = 1, is_watched = 1 WHERE mac IS NULL`)
+			require.NoError(t, err)
+
+			if tt.twinType != "" {
+				curate(t, conn, deviceIDByMAC(t, conn, macA), "device_type", tt.twinType)
+			}
+
+			sweep(t, s, host("192.0.2.20", macA, ""))
+
+			id := deviceIDByMAC(t, conn, macA)
+			assert.Equal(t, tt.want, queryString(t, conn, `SELECT device_type FROM devices WHERE id = ?`, id))
+			assert.Equal(t, 1, queryInt(t, conn, `SELECT is_ignored FROM devices WHERE id = ?`, id))
+			assert.Equal(t, 1, queryInt(t, conn, `SELECT is_watched FROM devices WHERE id = ?`, id))
+		})
+	}
+}
+
+// A watched weaker row folded into a device that had gone quiet does not bring
+// that device back: the weaker row was being seen all along, so the device's
+// present run is the one the weaker row began.
+func TestRecordSweepFoldOfAWatchedRowIsNotABack(t *testing.T) {
+	t.Parallel()
+
+	s, conn, advance := clockStore(t)
+
+	sweep(t, s, host("192.0.2.10", macA, ""))
+
+	advance(2 * DefaultOnlineWindow)
+
+	sweep(t, s, host("192.0.2.20", "", ""))
+
+	var ghost int64
+	require.NoError(t, conn.QueryRowContext(t.Context(), `SELECT id FROM devices WHERE mac IS NULL`).Scan(&ghost))
+
+	curate(t, conn, ghost, "is_watched", 1)
+	since := presentSince(t, conn, ghost)
+
+	res := sweep(t, s, host("192.0.2.20", macA, ""))
+
+	id := deviceIDByMAC(t, conn, macA)
+	assert.Zero(t, res.Back)
+	assert.Equal(t, since, presentSince(t, conn, id))
+	assert.NotContains(t, eventKinds(t, conn, id), dbtype.EventDeviceBack)
+}
+
 // A lease handed to another device moves the address: only one device may hold
 // an address as current.
 func TestRecordSweepMovesAddressBetweenDevices(t *testing.T) {
