@@ -270,6 +270,15 @@ func errorPageData(sm *auth.Session, r *http.Request, status int) map[string]any
 			"Title": "Error: Enter your code",
 			"Error": "That code did not work. Enter the code your authenticator app shows now, or a recovery code.",
 		}
+	case http.StatusTooManyRequests:
+		// Too many second-factor codes. The pending sign-in has ended, so
+		// the sign-in page is where trying again starts.
+		return map[string]any{
+			"Title":      "Error: Sign in",
+			"Error":      "Too many codes did not work. Wait a few minutes, then try again.",
+			"Username":   "",
+			"RememberMe": false,
+		}
 	case http.StatusConflict:
 		// The setup page's own fields, for the reason the 401 case above uses
 		// loginData: TemplateSetup renders standalone too.

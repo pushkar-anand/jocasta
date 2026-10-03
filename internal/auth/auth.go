@@ -71,6 +71,11 @@ type Auth struct {
 	// a query only until the first one is confirmed. Nothing in this package
 	// removes the last account, so a true answer never goes stale.
 	hasUsers atomic.Bool
+
+	// totpAttempts is each account's allowance of second-factor codes. It is
+	// keyed by user ID, and only after the password matched, so it holds at
+	// most one entry per account.
+	totpAttempts *attemptLimiter[int64]
 }
 
 // New builds an Auth over s. It hashes the placeholder password Verify
@@ -86,6 +91,7 @@ func New(s store, hasher hasher) (*Auth, error) {
 		hasher:          hasher,
 		now:             time.Now,
 		unknownUserHash: unknownUserHash,
+		totpAttempts:    newAttemptLimiter[int64](totpBurst, totpRefill),
 	}, nil
 }
 
@@ -149,7 +155,6 @@ func (a *Auth) Login(
 		sm.s.Update(ctx, func(d *Data) {
 			d.PendingUserID = user.ID
 			d.PendingUsername = user.Username
-			d.PendingAttempts = 0
 		})
 
 		return LoginResult{TOTPPending: true}, nil
@@ -179,7 +184,6 @@ func (a *Auth) establishSession(ctx context.Context, sm *Session, user *models.U
 		d.Role = user.Role
 		d.PendingUserID = 0
 		d.PendingUsername = ""
-		d.PendingAttempts = 0
 	})
 
 	return nil

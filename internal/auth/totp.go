@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
@@ -20,14 +21,16 @@ import (
 // visitor with more than one jocasta instance can tell their entries apart.
 const totpIssuer = "jocasta"
 
-// totpMaxAttempts caps consecutive wrong codes against one pending sign-in.
-// A 6-digit TOTP code is only ~1e6 possibilities across a ~30-90s validity
-// window, far weaker than any password is allowed to be, so this pending
-// session gets the only rate-limit-shaped check in the codebase. It bounds
-// guesswork against the second factor only:
-// the account itself stays exactly as reachable as before, by trying the
-// password again from a fresh sign-in.
-const totpMaxAttempts = 5
+// totpBurst and totpRefill set each account's allowance of second-factor
+// codes: totpBurst at once, then one more every totpRefill. A 6-digit TOTP
+// code is only ~1e6 possibilities across a ~30-90s validity window, far
+// weaker than any password is allowed to be, so guessing one has to stay
+// slow. The allowance belongs to the account, so a fresh sign-in with the
+// password starts with what the last one left.
+const (
+	totpBurst  = 5
+	totpRefill = 3 * time.Minute
+)
 
 // recoveryCodeCount is how many single-use codes one enrollment or
 // regeneration mints.
@@ -196,10 +199,22 @@ func (a *Auth) TOTPStatus(ctx context.Context, userID int64) (enabled, enrolling
 // field covers both, since reaching for a backup code means typing it into
 // the same box. Every check runs against the session's own pending user, so
 // nothing about who this verifies is client-controlled.
+//
+// Each code, right or wrong, spends one of the account's attempts (see
+// totpBurst). With none left, VerifyTOTP checks nothing and returns
+// ErrTOTPLocked. A wrong code that spends the last one ends the pending
+// sign-in with ErrTOTPLocked too.
 func (a *Auth) VerifyTOTP(ctx context.Context, sm *Session, code string) (*models.User, error) {
 	d, ok := sm.s.Current(ctx)
 	if !ok || d.PendingUserID == 0 {
 		return nil, ErrInvalidCredentials
+	}
+
+	// Spent before the check, so requests sent together cannot all be
+	// checked before any of them is counted.
+	allowed, last := a.totpAttempts.spend(d.PendingUserID, a.now())
+	if !allowed {
+		return nil, a.endPendingSignIn(ctx, sm)
 	}
 
 	user, err := a.store.GetUserByID(ctx, d.PendingUserID)
@@ -213,16 +228,9 @@ func (a *Auth) VerifyTOTP(ctx context.Context, sm *Session, code string) (*model
 	}
 
 	if !matched {
-		attempts := d.PendingAttempts + 1
-		if attempts >= totpMaxAttempts {
-			if err := sm.Logout(ctx); err != nil {
-				return nil, err
-			}
-
-			return nil, ErrInvalidCredentials
+		if last {
+			return nil, a.endPendingSignIn(ctx, sm)
 		}
-
-		sm.s.Update(ctx, func(d *Data) { d.PendingAttempts = attempts })
 
 		return nil, ErrInvalidTOTPCode
 	}
@@ -232,6 +240,17 @@ func (a *Auth) VerifyTOTP(ctx context.Context, sm *Session, code string) (*model
 	}
 
 	return user, nil
+}
+
+// endPendingSignIn discards a pending sign-in that has run out of attempts,
+// so trying again starts from the password. It returns ErrTOTPLocked, or the
+// error that stopped the session from ending.
+func (a *Auth) endPendingSignIn(ctx context.Context, sm *Session) error {
+	if err := sm.Logout(ctx); err != nil {
+		return err
+	}
+
+	return ErrTOTPLocked
 }
 
 // checkTOTPOrRecoveryCode reports whether code matches the user's authenticator

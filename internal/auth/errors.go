@@ -27,6 +27,11 @@ var ErrForbidden = errors.New("forbidden")
 // remain.
 var ErrInvalidTOTPCode = errors.New("invalid authentication code")
 
+// ErrTOTPLocked is returned when an account has used up its second-factor
+// attempts. The pending sign-in has ended by then; another attempt is
+// allowed once time has passed, after the password again.
+var ErrTOTPLocked = errors.New("too many authentication codes")
+
 // ErrInvalidEnrollmentCode is ErrInvalidTOTPCode's counterpart for
 // ConfirmTOTPEnrollment. It is a distinct value because the pipeline maps a
 // status and template per error, and this failure has to land back on the
