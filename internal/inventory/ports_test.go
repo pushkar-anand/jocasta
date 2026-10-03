@@ -6,6 +6,7 @@ import (
 
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/hosts"
+	"github.com/pushkar-anand/jocasta/internal/plugin"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -300,6 +301,51 @@ func TestPortScanTargetsCarryAdvertisedTCPPorts(t *testing.T) {
 		{Addr: netip.MustParseAddr("192.0.2.10"), Extra: []uint16{7000, 8009}},
 		{Addr: netip.MustParseAddr("192.0.2.11")},
 	}, targets)
+}
+
+// A router's ARP table can hold a neighbour on its WAN side, such as the ISP's
+// gateway. Its address lies on no recorded network, so it is never a target.
+func TestPortScanTargetsSkipAddressesOutsideRecordedNetworks(t *testing.T) {
+	t.Parallel()
+
+	s, _ := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, "host-a"))
+	report(t, s, fact("203.0.113.1", macB, "", true, ""))
+
+	targets, err := s.PortScanTargets(t.Context())
+	require.NoError(t, err)
+
+	assert.Equal(t, []scanner.PortTarget{{Addr: netip.MustParseAddr("192.0.2.10")}}, targets)
+}
+
+// A segment the router serves counts as one of the user's networks even when
+// the config does not list it for sweeping.
+func TestPortScanTargetsIncludeARouterSegment(t *testing.T) {
+	t.Parallel()
+
+	s, _ := newStore(t)
+	require.NoError(t, s.RecordNetworks(t.Context(),
+		[]plugin.Network{segment("198.51.100.0/24", "IoT", 20)}))
+	report(t, s, fact("198.51.100.5", macA, "", true, ""))
+
+	targets, err := s.PortScanTargets(t.Context())
+	require.NoError(t, err)
+
+	assert.Equal(t, []scanner.PortTarget{{Addr: netip.MustParseAddr("198.51.100.5")}}, targets)
+}
+
+// With no network recorded there is nothing known to be the user's, so the
+// scan has no targets.
+func TestPortScanTargetsEmptyWithNoRecordedNetwork(t *testing.T) {
+	t.Parallel()
+
+	s, _ := newStore(t)
+	report(t, s, fact("192.0.2.10", macA, "", true, ""))
+
+	targets, err := s.PortScanTargets(t.Context())
+	require.NoError(t, err)
+
+	assert.Empty(t, targets)
 }
 
 // An advertised port the scan found open and later finds shut closes like any

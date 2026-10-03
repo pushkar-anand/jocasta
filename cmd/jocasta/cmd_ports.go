@@ -65,7 +65,8 @@ func (p *PortsCmd) Run(ctx context.Context, cfg *config.Config, log *slog.Logger
 }
 
 // targets resolves what to scan: an explicit address or prefix, or every
-// current address in the inventory when none was given.
+// current address the inventory holds on a recorded network when none was
+// given. An explicit target is scanned as given, since the operator named it.
 func (p *PortsCmd) targets(ctx context.Context, store *inventory.Store) ([]scanner.PortTarget, error) {
 	if p.Target == "" {
 		targets, err := store.PortScanTargets(ctx)
@@ -74,7 +75,7 @@ func (p *PortsCmd) targets(ctx context.Context, store *inventory.Store) ([]scann
 		}
 
 		if len(targets) == 0 {
-			return nil, fmt.Errorf("the inventory holds no addresses to scan; run a discovery sweep first")
+			return nil, fmt.Errorf("the inventory holds no address on a recorded network; run a discovery sweep first, or name a target")
 		}
 
 		return targets, nil
