@@ -34,10 +34,10 @@ type securityData struct {
 	ErrorAction string
 }
 
-// flashRecoveryCodes is where ConfirmTOTPEnrollment's and
-// RegenerateRecoveryCodes' plaintext codes ride the redirect to the GET that
-// shows them once.
-const flashRecoveryCodes = "flash.recovery_codes"
+// flashRecoveryCodes holds the shelf id under which ConfirmTOTPEnrollment's
+// and RegenerateRecoveryCodes' plaintext codes, one per line, ride the
+// redirect to the GET that shows them once.
+const flashRecoveryCodes = "flash.recovery_codes_shelf_id"
 
 // security serves the account's two-factor settings. Recovery codes from a
 // preceding confirmation or regeneration are displayed only once.
@@ -73,8 +73,8 @@ func (h *Handler) renderSecurity(w http.ResponseWriter, r *http.Request, sm *aut
 	var codes []string
 
 	if message == "" {
-		if flash := sm.PopFlash(ctx, flashRecoveryCodes); flash != "" {
-			codes = strings.Split(flash, "\n")
+		if joined, ok := h.secrets.take(sm.PopFlash(ctx, flashRecoveryCodes)); ok {
+			codes = strings.Split(joined, "\n")
 		}
 	}
 
@@ -164,7 +164,7 @@ func (h *Handler) securityConfirm(sm *auth.Session, a *auth.Auth) response.Handl
 			return err
 		}
 
-		sm.Flash(ctx, flashRecoveryCodes, strings.Join(codes, "\n"))
+		sm.Flash(ctx, flashRecoveryCodes, h.secrets.put(strings.Join(codes, "\n")))
 		http.Redirect(w, r, "/settings/security", http.StatusSeeOther)
 
 		return nil
@@ -247,7 +247,7 @@ func (h *Handler) securityRegenerateRecoveryCodes(sm *auth.Session, a *auth.Auth
 			return err
 		}
 
-		sm.Flash(ctx, flashRecoveryCodes, strings.Join(codes, "\n"))
+		sm.Flash(ctx, flashRecoveryCodes, h.secrets.put(strings.Join(codes, "\n")))
 		http.Redirect(w, r, "/settings/security", http.StatusSeeOther)
 
 		return nil

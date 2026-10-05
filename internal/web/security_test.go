@@ -3,6 +3,7 @@ package web
 import (
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -195,4 +196,38 @@ func TestSecurityKeepsTheSecretOnceTOTPIsOn(t *testing.T) {
 	assert.Equal(t, http.StatusFound, redeem.Code)
 
 	signInWithCode(t, h, secret)
+}
+
+// Regenerated recovery codes ride the redirect to the page that shows them,
+// but never in the session, which the server keeps in its database.
+func TestRecoveryCodesStayOutOfTheSessionStore(t *testing.T) {
+	t.Parallel()
+
+	a := testAuth(t)
+	secret, _ := enrollTOTP(t, a, testUsername)
+
+	h, conn := sessionStoreHandler(t, a)
+	cookies := signInWithCode(t, h, secret)
+
+	form := url.Values{"username": {testUsername}, "password": {testPassword}}
+	rec := requestAs(t, h, cookies, http.MethodPost, "/settings/security/recovery-codes/regenerate", form.Encode())
+	stored := storedSessions(t, conn)
+
+	page := follow(t, h, cookies, rec)
+	require.Equal(t, http.StatusOK, page.Code)
+
+	shown := regexp.MustCompile(`id="recovery-codes">([^<]+)<`).FindStringSubmatch(page.Body.String())
+	require.Len(t, shown, 2, "the page the regenerate redirects to shows the codes")
+
+	codes := strings.Fields(shown[1])
+	require.Len(t, codes, 10)
+
+	for _, data := range stored {
+		for _, code := range codes {
+			assert.False(t, strings.Contains(string(data), code), "the session store holds a recovery code")
+		}
+	}
+
+	reload := requestAs(t, h, cookies, http.MethodGet, "/settings/security", "")
+	assert.NotContains(t, reload.Body.String(), codes[0], "a reload does not show the codes again")
 }

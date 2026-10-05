@@ -47,7 +47,7 @@ type tokensData struct {
 	// PlaintextToken, NewName and NewScope are the one-shot completion state for
 	// the token createToken just made. The plaintext is never stored, so the GET
 	// the create redirects to is the only load it appears on; name and scope
-	// ride the same flash so the block can label what was made.
+	// ride a flash so the block can label what was made.
 	PlaintextToken string
 	NewName        string
 	NewScope       string
@@ -58,12 +58,12 @@ type tokensData struct {
 }
 
 // One-shot flashes createToken leaves for the GET it redirects to. The
-// plaintext is the one thing never stored; name and scope label the completion
-// block beside it.
+// plaintext waits on the handler's shelf and the flash holds only its shelf
+// id; name and scope label the completion block beside it.
 const (
-	flashTokenPlaintext = "flash.token_plaintext"
-	flashTokenName      = "flash.token_name"
-	flashTokenScope     = "flash.token_scope"
+	flashTokenShelfID = "flash.token_shelf_id"
+	flashTokenName    = "flash.token_name"
+	flashTokenScope   = "flash.token_scope"
 )
 
 // tokens serves the token settings page.
@@ -76,13 +76,15 @@ func (h *Handler) tokens(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 			return err
 		}
 
+		plaintext, _ := h.secrets.take(sm.PopFlash(ctx, flashTokenShelfID))
+
 		h.htmlWriter.Success(w, r, templatePageTokens, tokensData{
 			Title:          "API tokens",
 			Section:        "API tokens",
 			Role:           sm.CurrentRole(ctx),
 			SignedInAs:     sm.CurrentUsername(ctx),
 			Tokens:         list,
-			PlaintextToken: sm.PopFlash(ctx, flashTokenPlaintext),
+			PlaintextToken: plaintext,
 			NewName:        sm.PopFlash(ctx, flashTokenName),
 			NewScope:       sm.PopFlash(ctx, flashTokenScope),
 		})
@@ -92,8 +94,8 @@ func (h *Handler) tokens(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 }
 
 // createToken issues a new token for the signed-in user, then redirects to the
-// list. The plaintext, which can be seen only this once, rides the redirect in
-// a one-shot flash, so reloading the landing page does not mint a second
+// list. The plaintext, which can be seen only this once, rides the redirect on
+// the handler's shelf, so reloading the landing page does not mint a second
 // token.
 func (h *Handler) createToken(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	type createTokenForm struct {
@@ -126,7 +128,7 @@ func (h *Handler) createToken(sm *auth.Session, a *auth.Auth) response.HandlerFu
 			return err
 		}
 
-		sm.Flash(ctx, flashTokenPlaintext, plaintext)
+		sm.Flash(ctx, flashTokenShelfID, h.secrets.put(plaintext))
 		sm.Flash(ctx, flashTokenName, input.Name)
 		sm.Flash(ctx, flashTokenScope, input.Scope)
 		http.Redirect(w, r, "/settings/tokens", http.StatusSeeOther)

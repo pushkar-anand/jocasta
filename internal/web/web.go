@@ -56,6 +56,9 @@ type Handler struct {
 	// notifier sends changes to the configured destinations; nil when none
 	// is enabled.
 	notifier *notify.Notifier
+
+	// secrets carries one-time secrets across a POST's redirect.
+	secrets *shelf
 }
 
 // ServeHTTP routes a request to the page or fragment handler that matches it.
@@ -98,6 +101,7 @@ func NewHandler(
 		htmlWriter: hw,
 		reader:     reader,
 		log:        log,
+		secrets:    newShelf(time.Now),
 	}
 
 	for _, o := range opts {

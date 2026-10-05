@@ -255,3 +255,29 @@ func TestTokensListInAFixedOrder(t *testing.T) {
 	require.GreaterOrEqual(t, len(got), len(want))
 	assert.Equal(t, want, got[:len(want)])
 }
+
+// A new token's plaintext rides the redirect to the page that shows it, but
+// never in the session, which the server keeps in its database.
+func TestCreatedTokenStaysOutOfTheSessionStore(t *testing.T) {
+	t.Parallel()
+
+	h, conn := sessionStoreHandler(t, testAuth(t))
+	cookies := signIn(t, h)
+
+	form := url.Values{"name": {"CI script"}, "scope": {"read"}}
+	rec := requestAs(t, h, cookies, http.MethodPost, "/settings/tokens", form.Encode())
+	stored := storedSessions(t, conn)
+
+	page := follow(t, h, cookies, rec)
+	require.Equal(t, http.StatusOK, page.Code)
+
+	plaintext := regexp.MustCompile(`id="token-plaintext">([^<]+)<`).FindStringSubmatch(page.Body.String())
+	require.Len(t, plaintext, 2, "the page the create redirects to shows the token")
+
+	for _, data := range stored {
+		assert.False(t, strings.Contains(string(data), plaintext[1]), "the session store holds the token")
+	}
+
+	reload := requestAs(t, h, cookies, http.MethodGet, "/settings/tokens", "")
+	assert.NotContains(t, reload.Body.String(), plaintext[1], "a reload does not show the token again")
+}
