@@ -69,7 +69,9 @@ type exporterState struct {
 
 // NewNetFlow builds the plugin for one listener. name is the instance key from
 // config, listen the UDP address to bind, and exporters the only addresses
-// whose datagrams are decoded.
+// whose datagrams are decoded. A device on the same network can forge an
+// exporter's address, so only a listen address the router alone reaches, or a
+// firewall rule, keeps forged flows out.
 //
 // It performs no I/O; the socket opens in Listen.
 func NewNetFlow(name, listen string, exporters []string, log *slog.Logger) (*NetFlow, error) {
