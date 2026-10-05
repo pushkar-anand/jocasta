@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,6 +12,49 @@ import (
 
 	"github.com/pushkar-anand/jocasta/internal/config"
 )
+
+// A router read over plain HTTP gets the password in the clear, so startup
+// warns about each one that has ssl off, of either kind.
+func TestRouterSourcesWarnAboutPlainHTTP(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Plugins.RouterOS = map[string]config.RouterOS{
+		"gateway": {Enabled: true, Host: "192.0.2.1"},
+		"rack":    {Enabled: true, Host: "198.51.100.1", SSL: true},
+		"spare":   {Enabled: false, Host: "203.0.113.1"},
+	}
+	cfg.Plugins.OpenWrt = map[string]config.OpenWrt{
+		"ap": {Enabled: true, Host: "192.0.2.2"},
+	}
+
+	var buf bytes.Buffer
+
+	_, err := routerSources(t.Context(), cfg, slog.New(slog.NewJSONHandler(&buf, nil)))
+	require.NoError(t, err)
+
+	var warned []string
+
+	for line := range strings.Lines(buf.String()) {
+		var rec struct {
+			Level string `json:"level"`
+			Msg   string `json:"msg"`
+			Src   string `json:"src"`
+		}
+
+		require.NoError(t, json.Unmarshal([]byte(line), &rec))
+
+		if rec.Level == slog.LevelWarn.String() {
+			assert.Equal(t,
+				"router is reached over plain HTTP, so its password crosses the network unencrypted. Set ssl: true",
+				rec.Msg)
+
+			warned = append(warned, rec.Src)
+		}
+	}
+
+	assert.Equal(t, []string{"ap", "gateway"}, warned)
+}
 
 func TestTrafficReportersBuildsOnlyEnabledInstances(t *testing.T) {
 	t.Parallel()

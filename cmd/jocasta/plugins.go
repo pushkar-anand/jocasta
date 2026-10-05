@@ -53,6 +53,12 @@ func routerSources(ctx context.Context, cfg *config.Config, log *slog.Logger) ([
 			continue
 		}
 
+		if !sourceSSL(cfg, name) {
+			log.WarnContext(ctx,
+				"router is reached over plain HTTP, so its password crosses the network unencrypted. Set ssl: true",
+				slog.String("src", name))
+		}
+
 		p, err := newRouterSource(cfg, name, log)
 		if err != nil {
 			return nil, err
@@ -84,6 +90,15 @@ func sourceEnabled(cfg *config.Config, name string) bool {
 	}
 
 	return cfg.Plugins.OpenWrt[name].Enabled
+}
+
+// sourceSSL reports whether the router instance called name says ssl.
+func sourceSSL(cfg *config.Config, name string) bool {
+	if rc, ok := cfg.Plugins.RouterOS[name]; ok {
+		return rc.SSL
+	}
+
+	return cfg.Plugins.OpenWrt[name].SSL
 }
 
 // newRouterSource builds the router instance called name, of whichever kind
