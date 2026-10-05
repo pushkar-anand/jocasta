@@ -22,9 +22,13 @@ type apiToken struct {
 	Scope      string
 	CreatedAt  time.Time
 	LastUsedAt time.Time // zero when the token has never been used.
+	ExpiresAt  time.Time // zero when the token never expires; in local time.
+	Expired    bool
 }
 
-func newAPIToken(t *models.ApiToken) apiToken {
+// newAPIToken builds the row for t, judging expiry against now, the clock the
+// rest of the page reads.
+func newAPIToken(t *models.ApiToken, now time.Time) apiToken {
 	v := apiToken{
 		ID:        t.ID,
 		Name:      t.Name,
@@ -36,13 +40,52 @@ func newAPIToken(t *models.ApiToken) apiToken {
 		v.LastUsedAt = t.LastUsedAt.Time.Time
 	}
 
+	if t.ExpiresAt.Valid {
+		v.ExpiresAt = t.ExpiresAt.Time.Local()
+		v.Expired = !now.Before(v.ExpiresAt)
+	}
+
 	return v
+}
+
+// tokenLifetime is one expiry choice in the create dialog.
+type tokenLifetime struct {
+	Value string // the form value.
+	Label string
+
+	// years and days are how far from now the token expires. Both zero
+	// means it never does.
+	years, days int
+}
+
+// tokenLifetimes are the create dialog's expiry choices, the default first.
+// The form's validate tag lists the same values.
+var tokenLifetimes = []tokenLifetime{
+	{Value: "never", Label: "Never"},
+	{Value: "30d", Label: "30 days", days: 30},
+	{Value: "90d", Label: "90 days", days: 90},
+	{Value: "1y", Label: "1 year", years: 1},
+}
+
+// tokenExpiry returns when a token created at now with the choice named value
+// expires, or the zero time when it never does or value names no choice.
+func tokenExpiry(value string, now time.Time) time.Time {
+	for _, l := range tokenLifetimes {
+		if l.Value == value && (l.years != 0 || l.days != 0) {
+			return now.AddDate(l.years, 0, l.days)
+		}
+	}
+
+	return time.Time{}
 }
 
 // tokensData is the settings page listing a user's API tokens.
 type tokensData struct {
 	view
 	Tokens []apiToken
+
+	// Lifetimes are the expiry choices the create dialog offers.
+	Lifetimes []tokenLifetime
 
 	// PlaintextToken, NewName and NewScope are the one-shot completion state for
 	// the token createToken just made. The plaintext is never stored, so the GET
@@ -71,7 +114,7 @@ func (h *Handler) tokens(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 
-		list, err := tokenList(ctx, sm, a, r)
+		list, err := h.tokenList(ctx, sm, a, r)
 		if err != nil {
 			return err
 		}
@@ -84,6 +127,7 @@ func (h *Handler) tokens(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 			Role:           sm.CurrentRole(ctx),
 			SignedInAs:     sm.CurrentUsername(ctx),
 			Tokens:         list,
+			Lifetimes:      tokenLifetimes,
 			PlaintextToken: plaintext,
 			NewName:        sm.PopFlash(ctx, flashTokenName),
 			NewScope:       sm.PopFlash(ctx, flashTokenScope),
@@ -101,6 +145,11 @@ func (h *Handler) createToken(sm *auth.Session, a *auth.Auth) response.HandlerFu
 	type createTokenForm struct {
 		Name  string `schema:"name" validate:"required,min=1,max=100"`
 		Scope string `schema:"scope" validate:"required,oneof=read read_write"`
+
+		// Expires names one of tokenLifetimes. A form without it, as from a
+		// page loaded before the choice existed, makes a token that never
+		// expires.
+		Expires string `schema:"expires" validate:"omitempty,oneof=never 30d 90d 1y"`
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) error {
@@ -123,7 +172,9 @@ func (h *Handler) createToken(sm *auth.Session, a *auth.Auth) response.HandlerFu
 			return auth.ErrForbidden
 		}
 
-		plaintext, _, err := a.CreateToken(ctx, userID, input.Name, dbtype.TokenScope(input.Scope))
+		expiresAt := tokenExpiry(input.Expires, h.store.Now())
+
+		plaintext, _, err := a.CreateToken(ctx, userID, input.Name, dbtype.TokenScope(input.Scope), expiresAt)
 		if err != nil {
 			return err
 		}
@@ -159,7 +210,7 @@ func (h *Handler) revokeToken(sm *auth.Session, a *auth.Auth) response.HandlerFu
 			return err
 		}
 
-		list, err := tokenList(ctx, sm, a, r)
+		list, err := h.tokenList(ctx, sm, a, r)
 		if err != nil {
 			return err
 		}
@@ -172,7 +223,7 @@ func (h *Handler) revokeToken(sm *auth.Session, a *auth.Auth) response.HandlerFu
 
 // tokenList reads the signed-in user's tokens, newest first, as the view the
 // template renders.
-func tokenList(ctx context.Context, sm *auth.Session, a *auth.Auth, r *http.Request) ([]apiToken, error) {
+func (h *Handler) tokenList(ctx context.Context, sm *auth.Session, a *auth.Auth, r *http.Request) ([]apiToken, error) {
 	userID, err := currentUserID(sm, r)
 	if err != nil {
 		return nil, err
@@ -183,9 +234,11 @@ func tokenList(ctx context.Context, sm *auth.Session, a *auth.Auth, r *http.Requ
 		return nil, err
 	}
 
+	now := h.store.Now()
+
 	list := make([]apiToken, len(rows))
 	for i, row := range rows {
-		list[i] = newAPIToken(row)
+		list[i] = newAPIToken(row, now)
 	}
 
 	return list, nil

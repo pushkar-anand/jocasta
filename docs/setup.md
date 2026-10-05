@@ -623,4 +623,6 @@ inventory:
   [Send changes to your phone](#send-changes-to-your-phone).
 - **MCP server**: lets AI agents query the inventory. See [MCP](mcp.md).
 - **JSON API**: under `/api`, for scripts and dashboards. It takes the same API
-  tokens as MCP, sent as `Authorization: Bearer <token>`.
+  tokens as MCP, sent as `Authorization: Bearer <token>`. A token can expire
+  after 30 days, 90 days or 1 year. After that it is refused like a revoked
+  one and stays listed until you revoke it.

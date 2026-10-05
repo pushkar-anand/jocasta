@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"strings"
 	"testing"
+	"time"
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/pushkar-anand/build-with-go/http/response"
@@ -113,10 +114,10 @@ func testAuth(t *testing.T) (*auth.Auth, tokens) {
 	a, err := auth.New(q, password.NewHasher())
 	require.NoError(t, err)
 
-	read, _, err := a.CreateToken(t.Context(), user.ID, "read", dbtype.TokenRead)
+	read, _, err := a.CreateToken(t.Context(), user.ID, "read", dbtype.TokenRead, time.Time{})
 	require.NoError(t, err)
 
-	readWrite, _, err := a.CreateToken(t.Context(), user.ID, "read-write", dbtype.TokenReadWrite)
+	readWrite, _, err := a.CreateToken(t.Context(), user.ID, "read-write", dbtype.TokenReadWrite, time.Time{})
 	require.NoError(t, err)
 
 	return a, tokens{read: read, readWrite: readWrite}

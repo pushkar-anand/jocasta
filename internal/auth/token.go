@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/db/models"
@@ -24,12 +25,14 @@ const tokenEntropyBytes = 32
 
 // CreateToken issues a new API token for userID and returns its plaintext.
 // Only the token's hash is kept, as with a password, so this is the one moment
-// a caller can show the plaintext to whoever is meant to use it.
+// a caller can show the plaintext to whoever is meant to use it. The token
+// stops working at expiresAt, or never when expiresAt is zero.
 func (a *Auth) CreateToken(
 	ctx context.Context,
 	userID int64,
 	name string,
 	scope dbtype.TokenScope,
+	expiresAt time.Time,
 ) (plaintext string, token *models.ApiToken, err error) {
 	if !scope.Valid() {
 		return "", nil, fmt.Errorf("token scope %q: %w", scope, ErrInvalidToken)
@@ -40,11 +43,17 @@ func (a *Auth) CreateToken(
 		return "", nil, fmt.Errorf("generate token: %w", err)
 	}
 
+	var expires dbtype.NullTime
+	if !expiresAt.IsZero() {
+		expires = dbtype.NewNullTime(expiresAt)
+	}
+
 	token, err = a.store.CreateAPIToken(ctx, models.CreateAPITokenParams{
 		UserID:    userID,
 		Name:      name,
 		TokenHash: hashToken(plaintext),
 		Scope:     scope,
+		ExpiresAt: expires,
 	})
 	if err != nil {
 		return "", nil, fmt.Errorf("create token: %w", err)
@@ -54,7 +63,8 @@ func (a *Auth) CreateToken(
 }
 
 // VerifyToken returns the stored token plaintext names and records that it was
-// used. It returns [ErrInvalidToken] when plaintext names no token.
+// used. It returns [ErrInvalidToken] when plaintext names no token or one that
+// has expired.
 func (a *Auth) VerifyToken(ctx context.Context, plaintext string) (*models.ApiToken, error) {
 	if !strings.HasPrefix(plaintext, tokenPrefix) {
 		return nil, ErrInvalidToken
@@ -63,8 +73,8 @@ func (a *Auth) VerifyToken(ctx context.Context, plaintext string) (*models.ApiTo
 	// This runs on every API request, so the lookup and the last_used_at
 	// update share one query.
 	token, err := a.store.TouchAPITokenByHash(ctx, models.TouchAPITokenByHashParams{
-		LastUsedAt: dbtype.NewNullTime(a.now()),
-		TokenHash:  hashToken(plaintext),
+		Now:       dbtype.NewNullTime(a.now()),
+		TokenHash: hashToken(plaintext),
 	})
 
 	switch {
