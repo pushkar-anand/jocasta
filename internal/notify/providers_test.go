@@ -213,6 +213,15 @@ func TestNewDestinationRejectsBadConfig(t *testing.T) {
 	}
 }
 
+// Zero is a valid priority, so the error's range starts there.
+func TestNtfyPriorityErrorNamesTheRange(t *testing.T) {
+	err := (&notify.Ntfy{URL: "https://ntfy.example.com/t", Priority: 7}).Validate()
+	require.Error(t, err)
+	assert.Equal(t, "priority 7 is outside 0 to 5. Use 0 to leave it to the server", err.Error())
+
+	require.NoError(t, (&notify.Ntfy{URL: "https://ntfy.example.com/t"}).Validate())
+}
+
 func TestHTTPShapesTheBody(t *testing.T) {
 	srv, got := server(t, http.StatusOK)
 
