@@ -91,6 +91,11 @@ type Auth struct {
 	// most one entry per account.
 	totpAttempts *attemptLimiter[int64]
 
+	// totpSteps is each account's last accepted TOTP step. Like totpAttempts
+	// it is written only after the password matched, so it holds at most one
+	// entry per account.
+	totpSteps totpSteps
+
 	// loginAttempts is each account's allowance of passwords, keyed by user
 	// ID. Every unknown username shares unknownUserKey, so the map holds at
 	// most one entry per account plus one, and a refusal for a made-up name
