@@ -360,6 +360,10 @@ WHERE last_seen < ?
 -- is_ignored compares against the argument: passing
 -- false leaves the clause admitting only unignored rows, and passing true makes
 -- the second half admit the rest.
+--
+-- The search finds q as typed, ignoring ASCII case. instr matches a plain
+-- substring, so % and _ in q are characters like any other, where LIKE would
+-- read them as wildcards.
 -- name: ListDevices :many
 SELECT sqlc.embed(d),
        CAST(COALESCE((SELECT GROUP_CONCAT(a.ip, ' ')
@@ -385,15 +389,15 @@ WHERE (d.is_ignored = 0 OR d.is_ignored = sqlc.arg(include_ignored))
                  AND a.is_current = 1
                  AND a.network_id = CAST(sqlc.narg(network_id) AS INTEGER)))
   AND (CAST(sqlc.narg(q) AS TEXT) IS NULL
-    OR d.label LIKE '%' || CAST(sqlc.narg(q) AS TEXT) || '%'
-    OR d.hostname LIKE '%' || CAST(sqlc.narg(q) AS TEXT) || '%'
-    OR d.vendor LIKE '%' || CAST(sqlc.narg(q) AS TEXT) || '%'
-    OR d.mac LIKE '%' || CAST(sqlc.narg(q) AS TEXT) || '%'
+    OR instr(lower(d.label), lower(CAST(sqlc.narg(q) AS TEXT))) > 0
+    OR instr(lower(d.hostname), lower(CAST(sqlc.narg(q) AS TEXT))) > 0
+    OR instr(lower(d.vendor), lower(CAST(sqlc.narg(q) AS TEXT))) > 0
+    OR instr(lower(d.mac), lower(CAST(sqlc.narg(q) AS TEXT))) > 0
     OR EXISTS (SELECT 1
                FROM addresses a
                WHERE a.device_id = d.id
                  AND a.is_current = 1
-                 AND a.ip LIKE '%' || CAST(sqlc.narg(q) AS TEXT) || '%'))
+                 AND instr(lower(a.ip), lower(CAST(sqlc.narg(q) AS TEXT))) > 0))
 ORDER BY d.last_seen DESC;
 
 -- name: GetDevice :one

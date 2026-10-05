@@ -2,6 +2,7 @@ package web
 
 import (
 	"crypto/rand"
+	"maps"
 	"sync"
 	"time"
 )
@@ -44,11 +45,9 @@ func (s *shelf) put(value string) string {
 
 	// Sweeping here bounds the map by what was put in the last shelfTTL,
 	// with no goroutine to stop.
-	for k, e := range s.entries {
-		if !now.Before(e.expires) {
-			delete(s.entries, k)
-		}
-	}
+	maps.DeleteFunc(s.entries, func(_ string, e shelfEntry) bool {
+		return !now.Before(e.expires)
+	})
 
 	s.entries[id] = shelfEntry{value: value, expires: now.Add(shelfTTL)}
 
