@@ -1401,15 +1401,15 @@ WHERE (d.is_ignored = 0 OR d.is_ignored = ?1)
                  AND a.is_current = 1
                  AND a.network_id = CAST(?3 AS INTEGER)))
   AND (CAST(?4 AS TEXT) IS NULL
-    OR like('%' || CAST(?4 AS TEXT) || '%', d.label, '\')
-    OR like('%' || CAST(?4 AS TEXT) || '%', d.hostname, '\')
-    OR like('%' || CAST(?4 AS TEXT) || '%', d.vendor, '\')
-    OR like('%' || CAST(?4 AS TEXT) || '%', d.mac, '\')
+    OR instr(lower(d.label), lower(CAST(?4 AS TEXT))) > 0
+    OR instr(lower(d.hostname), lower(CAST(?4 AS TEXT))) > 0
+    OR instr(lower(d.vendor), lower(CAST(?4 AS TEXT))) > 0
+    OR instr(lower(d.mac), lower(CAST(?4 AS TEXT))) > 0
     OR EXISTS (SELECT 1
                FROM addresses a
                WHERE a.device_id = d.id
                  AND a.is_current = 1
-                 AND like('%' || CAST(?4 AS TEXT) || '%', a.ip, '\')))
+                 AND instr(lower(a.ip), lower(CAST(?4 AS TEXT))) > 0))
 ORDER BY d.last_seen DESC
 `
 
@@ -1440,9 +1440,9 @@ type ListDevicesRow struct {
 // false leaves the clause admitting only unignored rows, and passing true makes
 // the second half admit the rest.
 //
-// The search matches q literally: the caller escapes its wildcards with a
-// backslash. like(pattern, text, escape) is text LIKE pattern ESCAPE escape,
-// written as the function because sqlc cannot parse the ESCAPE clause.
+// The search finds q as typed, ignoring ASCII case. instr matches a plain
+// substring, so % and _ in q are characters like any other, where LIKE would
+// read them as wildcards.
 //
 //	SELECT d.id, d.mac, d.identity_source, d.is_randomised, d.vendor, d.hostname, d.hostname_source, d.device_type, d.device_class, d.device_class_confidence, d.label, d.notes, d.group_name, d.is_ignored, d.first_seen, d.last_seen, d.present_since, d.is_watched,
 //	       CAST(COALESCE((SELECT GROUP_CONCAT(a.ip, ' ')
@@ -1468,15 +1468,15 @@ type ListDevicesRow struct {
 //	                 AND a.is_current = 1
 //	                 AND a.network_id = CAST(?3 AS INTEGER)))
 //	  AND (CAST(?4 AS TEXT) IS NULL
-//	    OR like('%' || CAST(?4 AS TEXT) || '%', d.label, '\')
-//	    OR like('%' || CAST(?4 AS TEXT) || '%', d.hostname, '\')
-//	    OR like('%' || CAST(?4 AS TEXT) || '%', d.vendor, '\')
-//	    OR like('%' || CAST(?4 AS TEXT) || '%', d.mac, '\')
+//	    OR instr(lower(d.label), lower(CAST(?4 AS TEXT))) > 0
+//	    OR instr(lower(d.hostname), lower(CAST(?4 AS TEXT))) > 0
+//	    OR instr(lower(d.vendor), lower(CAST(?4 AS TEXT))) > 0
+//	    OR instr(lower(d.mac), lower(CAST(?4 AS TEXT))) > 0
 //	    OR EXISTS (SELECT 1
 //	               FROM addresses a
 //	               WHERE a.device_id = d.id
 //	                 AND a.is_current = 1
-//	                 AND like('%' || CAST(?4 AS TEXT) || '%', a.ip, '\')))
+//	                 AND instr(lower(a.ip), lower(CAST(?4 AS TEXT))) > 0))
 //	ORDER BY d.last_seen DESC
 func (q *Queries) ListDevices(ctx context.Context, arg ListDevicesParams) ([]*ListDevicesRow, error) {
 	rows, err := q.query(ctx, q.listDevicesStmt, listDevices,
