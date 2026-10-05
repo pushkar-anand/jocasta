@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"math/bits"
 	"net"
 	"net/netip"
 	"slices"
@@ -184,7 +185,7 @@ func (n *NetFlow) Listen(ctx context.Context, emit func(context.Context, []Flow)
 }
 
 // decode turns one datagram into flows. received stands in for a flow's end
-// time when the exporter sent none.
+// time when the exporter sent none, or one more than [maxFlowEndSkew] from it.
 func (n *NetFlow) decode(sender netip.Addr, payload []byte, received time.Time) ([]Flow, error) {
 	if len(payload) < 2 {
 		return nil, errors.New("datagram too short for a version")
@@ -357,9 +358,12 @@ func toFlow(m *protoproducer.ProtoProducerMessage, received time.Time) (Flow, bo
 	// Sampling rates of 0 and 1 both mean every packet was counted.
 	scale := max(m.SamplingRate, 1)
 
-	end := received
-	if m.TimeFlowEndNs > 0 {
-		end = time.Unix(0, int64(m.TimeFlowEndNs)) //nolint:gosec // nanoseconds since 1970 fit an int64 until 2262.
+	// A router with its clock wrong would file the flow in an hour long gone
+	// or not yet come, so an end that far out is replaced with the arrival,
+	// as is a missing one.
+	end := time.Unix(0, int64(m.TimeFlowEndNs)) //nolint:gosec // nanoseconds since 1970 fit an int64 until 2262.
+	if m.TimeFlowEndNs == 0 || end.Sub(received).Abs() > maxFlowEndSkew {
+		end = received
 	}
 
 	return Flow{
@@ -370,10 +374,26 @@ func toFlow(m *protoproducer.ProtoProducerMessage, received time.Time) (Flow, bo
 		Protocol: uint8(m.Proto),    //nolint:gosec // the protocol field is 8 bits on the wire.
 		TCPFlags: uint8(m.TcpFlags), //nolint:gosec // the low byte holds the flags a flow can show.
 		ICMPType: uint8(m.IcmpType), //nolint:gosec // an ICMP type is 8 bits on the wire.
-		Bytes:    m.Bytes * scale,
-		Packets:  m.Packets * scale,
+		Bytes:    scaled(m.Bytes, scale),
+		Packets:  scaled(m.Packets, scale),
 		End:      end.UTC(),
 	}, true
+}
+
+// maxFlowEndSkew is how far a flow's end may be from when its export arrived.
+// A router exports a flow when it ends or at its active timeout, so a true end
+// is minutes before arrival.
+const maxFlowEndSkew = time.Hour
+
+// scaled returns n times rate, or the largest uint64 when that does not fit:
+// a forged or corrupt record can carry any count and any rate.
+func scaled(n, rate uint64) uint64 {
+	hi, lo := bits.Mul64(n, rate)
+	if hi != 0 {
+		return math.MaxUint64
+	}
+
+	return lo
 }
 
 // IPFIX information elements for a packet's addresses after the router's NAT.
