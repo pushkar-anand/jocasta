@@ -164,6 +164,31 @@ func TestSendErrorsNameTheHostOnly(t *testing.T) {
 	assert.Contains(t, err.Error(), "could not reach "+host)
 }
 
+// A redirect is not followed, so the headers a destination sets, such as a
+// token, never reach the address it points to. The send fails and says what
+// to change.
+func TestRedirectIsNotFollowed(t *testing.T) {
+	elsewhere := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Error("the redirect was followed")
+	}))
+	t.Cleanup(elsewhere.Close)
+
+	srv := httptest.NewServer(http.RedirectHandler(elsewhere.URL, http.StatusMovedPermanently))
+	t.Cleanup(srv.Close)
+
+	host := strings.TrimPrefix(srv.URL, "http://")
+
+	d := destination(t, "phone", notify.Config{Ntfy: &notify.Ntfy{
+		URL: srv.URL + "/jocasta", Token: "tk_placeholder",
+	}})
+
+	err := d.Send(t.Context(), msg)
+	require.Error(t, err)
+	assert.Equal(t,
+		host+" answered 301 Moved Permanently. Set the url to the address it redirects to",
+		err.Error())
+}
+
 // A destination's timeout bounds a service that stops answering.
 func TestTimeoutBoundsASlowService(t *testing.T) {
 	// The server notices the client hang up only once it has read the body.
