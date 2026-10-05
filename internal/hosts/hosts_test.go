@@ -3,6 +3,7 @@ package hosts
 import (
 	"encoding/json"
 	"net/netip"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -257,6 +258,38 @@ func TestBuildHostKeepsASuppliedHostnameWithoutResolving(t *testing.T) {
 
 	assert.Equal(t, "lease-name", h.Hostname())
 	assert.Zero(t, calls.Load(), "a supplied hostname must not trigger a lookup")
+}
+
+// A router or DHCP server passes on whatever name a client asked for, so a
+// name it reports is checked before it is kept.
+func TestBuildHostDropsAnUnusableName(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{name: "a space", in: "Living Room TV", want: "Living Room TV"},
+		{name: "surrounding whitespace", in: "  host-a\n", want: "host-a"},
+		{name: "a newline", in: "host-a\nhost-b"},
+		{name: "a right-to-left override", in: "host-a\u202egnp.exe"},
+		{name: "over 253 bytes", in: strings.Repeat("a", 300)},
+		{name: "invalid UTF-8", in: "host-a\xff"},
+		{name: "whitespace alone", in: " \t "},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			h, err := BuildHost(t.Context(), HostInput{IP: "192.0.2.10", MAC: "00:00:5e:00:53:01", Hostname: tt.in})
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.want, h.Hostname())
+			assert.Equal(t, tt.want, h.Named(tt.in).Hostname())
+		})
+	}
 }
 
 func TestBuildHostResolvesWhenNoHostnameIsSupplied(t *testing.T) {

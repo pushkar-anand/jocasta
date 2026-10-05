@@ -176,6 +176,8 @@ func TestCleanName(t *testing.T) {
 		{name: "the root dot alone", in: "."},
 		{name: "a space", in: "living room"},
 		{name: "a control character", in: "tv\x07"},
+		{name: "a format character", in: "tv\u202e"},
+		{name: "a surrounding space", in: " tv"},
 		{name: "invalid UTF-8", in: "tv\xff"},
 		{name: "over 253 bytes", in: string(make([]byte, 254))},
 	}
