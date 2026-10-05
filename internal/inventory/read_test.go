@@ -118,6 +118,40 @@ func TestListDevicesSearch(t *testing.T) {
 	}
 }
 
+// The search text is matched as typed: % and _ are characters a label can
+// hold, not wildcards.
+func TestListDevicesSearchMatchesWildcardsLiterally(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s,
+		host("192.0.2.10", macA, "printer.local"),
+		host("192.0.2.11", macB, "nas.local"),
+	)
+
+	curate(t, conn, deviceIDByMAC(t, conn, macA), "label", "rack_2 printer")
+
+	tests := []struct {
+		name  string
+		query string
+		want  []string
+	}{
+		{"underscore", "_", []string{"rack_2 printer"}},
+		{"percent", "%", nil},
+		{"backslash", `\`, nil},
+	}
+
+	for _, tc := range tests {
+		// Not parallel: the subtests share one store, whose test clock advances
+		// on every read.
+		t.Run(tc.name, func(t *testing.T) {
+			devices, err := s.ListDevices(t.Context(), DeviceFilter{Query: tc.query})
+			require.NoError(t, err)
+			assert.ElementsMatch(t, tc.want, names(devices))
+		})
+	}
+}
+
 func TestListDevicesFiltersByGroup(t *testing.T) {
 	t.Parallel()
 

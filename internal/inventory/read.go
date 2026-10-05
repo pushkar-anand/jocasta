@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/netip"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/pushkar-anand/jocasta/internal/classify"
@@ -25,6 +26,10 @@ var ErrNotFound = errors.New("not found")
 // DiscoveryWindow is how far back Stats counts a device as newly discovered.
 const DiscoveryWindow = 24 * time.Hour
 
+// likeEscaper escapes the characters LIKE treats as wildcards, and the escape
+// character itself, so the search text matches only as typed.
+var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+
 // ListDevices returns the devices matching f.
 //
 // The whole matching set is read: a homelab holds tens to low hundreds of
@@ -35,7 +40,7 @@ func (s *Store) ListDevices(ctx context.Context, f DeviceFilter) ([]*Device, err
 		IncludeIgnored: f.IncludeIgnored,
 		GroupName:      nullString(f.Group),
 		NetworkID:      sql.NullInt64{Int64: f.Network, Valid: f.Network != 0},
-		Q:              nullString(f.Query),
+		Q:              nullString(likeEscaper.Replace(f.Query)),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list devices: %w", err)
