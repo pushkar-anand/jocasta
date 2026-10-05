@@ -24,9 +24,10 @@ const PortChangeWindow = 24 * time.Hour
 type PortSummary struct {
 	ScanID int64
 
-	// Targets is how many addresses the scan reported on; Devices how many of
-	// them resolved to a device the inventory still holds, and Dropped the
-	// rest: addresses retired between the sweep that found them and this scan.
+	// Targets is how many addresses the scan reported on; Devices how many
+	// devices the inventory still holds those addresses resolved to, and
+	// Dropped how many addresses resolved to none: addresses retired between
+	// the sweep that found them and this scan.
 	Targets int
 	Devices int
 	Dropped int
@@ -136,6 +137,7 @@ func (s *Store) ingestPorts(ctx context.Context, scanID int64, scans []scanner.P
 		return nil, nil, err
 	}
 
+	sum.Devices = len(found)
 	ids := slices.Sorted(maps.Keys(found))
 
 	for _, id := range ids {
@@ -186,8 +188,6 @@ func (s *Store) gatherPorts(
 
 			continue
 		}
-
-		sum.Devices++
 
 		d, ok := found[holder.ID]
 		if !ok {

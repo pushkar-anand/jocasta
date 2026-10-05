@@ -205,6 +205,22 @@ func TestRecordPortsClosesFromTheAddressThatAnswered(t *testing.T) {
 	assert.Equal(t, "closed", queryString(t, conn, `SELECT state FROM device_ports WHERE port = 22`))
 }
 
+// A device that answered on two addresses is one device.
+func TestRecordPortsCountsADeviceOnce(t *testing.T) {
+	t.Parallel()
+
+	s, _ := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, "host-a"), host("192.0.2.20", macA, "host-a"))
+
+	sum := recordPorts(t, s,
+		portScan("192.0.2.10", []uint16{22}, []uint16{22}),
+		portScan("192.0.2.20", []uint16{22}, []uint16{22}),
+	)
+
+	assert.Equal(t, 2, sum.Targets)
+	assert.Equal(t, 1, sum.Devices)
+}
+
 func TestRecordPortsLeavesAnUnscannedPortAlone(t *testing.T) {
 	t.Parallel()
 
