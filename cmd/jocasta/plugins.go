@@ -34,18 +34,18 @@ import (
 // and a poller that reads its sources in a different order every cycle is
 // harder to read in a log than one that does not.
 func routerSources(ctx context.Context, cfg *config.Config, log *slog.Logger) ([]plugin.Plugin, error) {
-	if err := uniqueSourceNames(cfg); err != nil {
+	instances, err := routerInstances(cfg)
+	if err != nil {
 		return nil, err
 	}
 
-	names := slices.Sorted(maps.Keys(cfg.Plugins.RouterOS))
-	names = append(names, slices.Sorted(maps.Keys(cfg.Plugins.OpenWrt))...)
-	slices.Sort(names)
-
+	names := slices.Sorted(maps.Keys(instances))
 	out := make([]plugin.Plugin, 0, len(names))
 
 	for _, name := range names {
-		if !sourceEnabled(cfg, name) {
+		in := instances[name]
+
+		if !in.source.Enabled {
 			// Said out loud, because a configured entry that reads nothing is
 			// indistinguishable from a source with nothing to report.
 			log.InfoContext(ctx, "source is configured but not enabled", slog.String("src", name))
@@ -53,13 +53,13 @@ func routerSources(ctx context.Context, cfg *config.Config, log *slog.Logger) ([
 			continue
 		}
 
-		if !sourceSSL(cfg, name) {
+		if in.plainHTTP {
 			log.WarnContext(ctx,
 				"router is reached over plain HTTP, so its password crosses the network unencrypted. Set ssl: true",
 				slog.String("src", name))
 		}
 
-		p, err := newRouterSource(cfg, name, log)
+		p, err := in.build(log)
 		if err != nil {
 			return nil, err
 		}
@@ -70,49 +70,89 @@ func routerSources(ctx context.Context, cfg *config.Config, log *slog.Logger) ([
 	return out, nil
 }
 
-// uniqueSourceNames refuses an instance name used under two router kinds.
-// `jocasta plugin run` takes the bare name, which would then name two
-// sources.
-func uniqueSourceNames(cfg *config.Config) error {
-	for name := range cfg.Plugins.OpenWrt {
-		if _, ok := cfg.Plugins.RouterOS[name]; ok {
-			return fmt.Errorf("source name %q is configured under both plugins.routeros and plugins.openwrt", name)
+// routerInstance is one configured router source, of any kind.
+type routerInstance struct {
+	kind   string
+	source config.Source
+
+	// plainHTTP is false for a kind not reached over HTTP at all.
+	plainHTTP bool
+
+	build func(log *slog.Logger) (plugin.Plugin, error)
+}
+
+// routerConfig is a router kind's config: anything that embeds
+// [config.Source].
+type routerConfig interface {
+	Common() config.Source
+}
+
+// routerInstances returns every configured router source by name, of every
+// kind. A new kind needs only its line here: whether it is enabled, and
+// whether it is reached over plain HTTP, come from the blocks its config
+// embeds.
+//
+// A name used under two kinds is refused. `jocasta plugin run` takes the bare
+// name, which would then name two sources.
+func routerInstances(cfg *config.Config) (map[string]routerInstance, error) {
+	out := make(map[string]routerInstance)
+
+	if err := addRouterKind(out, "routeros", cfg.Plugins.RouterOS, newRouterOS); err != nil {
+		return nil, err
+	}
+
+	if err := addRouterKind(out, "openwrt", cfg.Plugins.OpenWrt, newOpenWrt); err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
+// addRouterKind adds the instances in configs, of the kind configured under
+// plugins.<kind>, to out.
+func addRouterKind[C routerConfig](
+	out map[string]routerInstance,
+	kind string,
+	configs map[string]C,
+	build func(name string, cfg C, log *slog.Logger) (plugin.Plugin, error),
+) error {
+	for name, c := range configs {
+		if prev, ok := out[name]; ok {
+			return fmt.Errorf("source name %q is configured under both plugins.%s and plugins.%s", name, prev.kind, kind)
+		}
+
+		var plainHTTP bool
+		if h, ok := any(c).(interface{ PlainHTTP() bool }); ok {
+			plainHTTP = h.PlainHTTP()
+		}
+
+		out[name] = routerInstance{
+			kind:      kind,
+			source:    c.Common(),
+			plainHTTP: plainHTTP,
+			build: func(log *slog.Logger) (plugin.Plugin, error) {
+				return build(name, c, log)
+			},
 		}
 	}
 
 	return nil
 }
 
-// sourceEnabled reports whether the router instance called name says enabled.
-func sourceEnabled(cfg *config.Config, name string) bool {
-	if rc, ok := cfg.Plugins.RouterOS[name]; ok {
-		return rc.Enabled
-	}
-
-	return cfg.Plugins.OpenWrt[name].Enabled
-}
-
-// sourceSSL reports whether the router instance called name says ssl.
-func sourceSSL(cfg *config.Config, name string) bool {
-	if rc, ok := cfg.Plugins.RouterOS[name]; ok {
-		return rc.SSL
-	}
-
-	return cfg.Plugins.OpenWrt[name].SSL
-}
-
 // newRouterSource builds the router instance called name, of whichever kind
 // it is configured as.
 func newRouterSource(cfg *config.Config, name string, log *slog.Logger) (plugin.Plugin, error) {
-	if rc, ok := cfg.Plugins.RouterOS[name]; ok {
-		return newRouterOS(name, rc, log)
+	instances, err := routerInstances(cfg)
+	if err != nil {
+		return nil, err
 	}
 
-	if oc, ok := cfg.Plugins.OpenWrt[name]; ok {
-		return newOpenWrt(name, oc, log)
+	in, ok := instances[name]
+	if !ok {
+		return nil, fmt.Errorf("no source named %q is configured", name)
 	}
 
-	return nil, fmt.Errorf("no source named %q is configured", name)
+	return in.build(log)
 }
 
 // hostDiscoverers returns the sources that can be asked which devices they
@@ -149,7 +189,7 @@ func topologyReaders(sources []plugin.Plugin) []plugin.TopologyReader {
 }
 
 // newRouterOS builds one configured RouterOS source.
-func newRouterOS(name string, cfg config.RouterOS, log *slog.Logger) (*plugin.RouterOS, error) {
+func newRouterOS(name string, cfg config.RouterOS, log *slog.Logger) (plugin.Plugin, error) {
 	client, err := routeros.New(&routeros.Config{
 		Host:     cfg.Host,
 		Port:     cfg.Port,
@@ -177,7 +217,7 @@ func newRouterOS(name string, cfg config.RouterOS, log *slog.Logger) (*plugin.Ro
 }
 
 // newOpenWrt builds one configured OpenWrt source.
-func newOpenWrt(name string, cfg config.OpenWrt, log *slog.Logger) (*plugin.OpenWrt, error) {
+func newOpenWrt(name string, cfg config.OpenWrt, log *slog.Logger) (plugin.Plugin, error) {
 	client, err := openwrt.New(&openwrt.Config{
 		Host:     cfg.Host,
 		Port:     cfg.Port,

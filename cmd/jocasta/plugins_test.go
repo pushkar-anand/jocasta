@@ -20,12 +20,12 @@ func TestRouterSourcesWarnAboutPlainHTTP(t *testing.T) {
 
 	cfg := &config.Config{}
 	cfg.Plugins.RouterOS = map[string]config.RouterOS{
-		"gateway": {Enabled: true, Host: "192.0.2.1"},
-		"rack":    {Enabled: true, Host: "198.51.100.1", SSL: true},
-		"spare":   {Enabled: false, Host: "203.0.113.1"},
+		"gateway": {Source: config.Source{Enabled: true}, HTTPLogin: config.HTTPLogin{Host: "192.0.2.1"}},
+		"rack":    {Source: config.Source{Enabled: true}, HTTPLogin: config.HTTPLogin{Host: "198.51.100.1", SSL: true}},
+		"spare":   {Source: config.Source{Enabled: false}, HTTPLogin: config.HTTPLogin{Host: "203.0.113.1"}},
 	}
 	cfg.Plugins.OpenWrt = map[string]config.OpenWrt{
-		"ap": {Enabled: true, Host: "192.0.2.2"},
+		"ap": {Source: config.Source{Enabled: true}, HTTPLogin: config.HTTPLogin{Host: "192.0.2.2"}},
 	}
 
 	var buf bytes.Buffer
