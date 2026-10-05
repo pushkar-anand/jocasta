@@ -40,10 +40,6 @@ func (p *PluginRunCmd) Run(
 	log *slog.Logger,
 	store *inventory.Store,
 ) error {
-	if err := uniqueSourceNames(cfg); err != nil {
-		return err
-	}
-
 	built, err := newRouterSource(cfg, p.Name, log)
 	if err != nil {
 		return err

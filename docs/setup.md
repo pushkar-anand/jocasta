@@ -248,6 +248,9 @@ plugins:
       insecure: false        # true for uhttpd's self-signed cert
 ```
 
+With `ssl: false` the password crosses the network unencrypted, so Jocasta
+logs a warning at startup for each RouterOS or OpenWrt source set that way.
+
 Check it with `jocasta plugin run gateway`. A login rpcd refuses, or one
 missing the ACL file, reads as credentials rejected.
 
