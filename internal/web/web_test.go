@@ -111,7 +111,7 @@ func testAuth(t *testing.T) *auth.Auth {
 	})
 	require.NoError(t, err)
 
-	a, err := auth.New(q, password.NewHasher())
+	a, err := auth.New(conn, q, password.NewHasher())
 	require.NoError(t, err)
 
 	return a
@@ -127,7 +127,7 @@ func unseededAuth(t *testing.T) *auth.Auth {
 
 	t.Cleanup(func() { _ = conn.Close() })
 
-	a, err := auth.New(models.New(conn), password.NewHasher())
+	a, err := auth.New(conn, models.New(conn), password.NewHasher())
 	require.NoError(t, err)
 
 	return a

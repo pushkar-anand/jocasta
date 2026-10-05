@@ -116,6 +116,7 @@ func run(args []string) error {
 	)
 
 	a, err := auth.New(
+		conn,
 		models.New(conn),
 		password.NewHasher(password.WithKeyLength(64)),
 	)

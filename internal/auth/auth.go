@@ -67,8 +67,13 @@ type (
 // checks the API tokens that stand in for one where there is no session to
 // carry.
 type Auth struct {
+	conn   *sql.DB
 	store  store
 	hasher hasher
+
+	// txStore returns the store bound to tx. It is a field so a test can make
+	// a write inside a transaction fail.
+	txStore func(tx *sql.Tx) store
 
 	// now is a field so a test can pin the timestamps it asserts on.
 	now func() time.Time
@@ -103,17 +108,20 @@ type Auth struct {
 	loginAttempts *attemptLimiter[int64]
 }
 
-// New builds an Auth over s. It hashes the placeholder password Verify
-// compares against on a username miss once, up front.
-func New(s store, hasher hasher) (*Auth, error) {
+// New builds an Auth over s, the store for conn. Writes that have to land
+// together run in a transaction on conn. New hashes the placeholder password
+// Verify compares against on a username miss once, up front.
+func New(conn *sql.DB, s store, hasher hasher) (*Auth, error) {
 	unknownUserHash, err := hasher.Hash("no-such-user")
 	if err != nil {
 		return nil, fmt.Errorf("prepare unknown-user hash: %w", err)
 	}
 
 	return &Auth{
+		conn:            conn,
 		store:           s,
 		hasher:          hasher,
+		txStore:         func(tx *sql.Tx) store { return models.New(tx) },
 		now:             time.Now,
 		unknownUserHash: unknownUserHash,
 		totpAttempts:    newAttemptLimiter[int64](totpBurst, totpRefill),
@@ -158,6 +166,27 @@ func (a *Auth) Verify(ctx context.Context, username, password string) (*models.U
 	}
 
 	return user, nil
+}
+
+// inTx runs fn against a store bound to one transaction, and commits only if
+// fn returns nil.
+func (a *Auth) inTx(ctx context.Context, fn func(q store) error) error {
+	tx, err := a.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin: %w", err)
+	}
+
+	defer func() { _ = tx.Rollback() }()
+
+	if err := fn(a.txStore(tx)); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+
+	return nil
 }
 
 // LoginResult reports how a Login attempt landed. Exactly one of User and

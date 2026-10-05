@@ -187,21 +187,34 @@ func (a *Auth) ConfirmTOTPEnrollment(ctx context.Context, userID int64, code str
 		return nil, ErrInvalidEnrollmentCode
 	}
 
-	n, err := a.store.EnableUserTOTP(ctx, models.EnableUserTOTPParams{
-		TOTPConfirmedAt: dbtype.NewNullTime(a.now()),
-		ID:              userID,
+	// 2FA goes on in the same transaction that stores the codes, so it is
+	// never on without them.
+	var codes []string
+
+	err = a.inTx(ctx, func(q store) error {
+		n, err := q.EnableUserTOTP(ctx, models.EnableUserTOTPParams{
+			TOTPConfirmedAt: dbtype.NewNullTime(a.now()),
+			ID:              userID,
+		})
+		if err != nil {
+			return fmt.Errorf("enable totp: %w", err)
+		}
+
+		// Another confirmation turned 2FA on between the read above and
+		// this write, and minted the codes.
+		if n == 0 {
+			return ErrTOTPEnabled
+		}
+
+		codes, err = a.regenerateRecoveryCodes(ctx, q, userID)
+
+		return err
 	})
 	if err != nil {
-		return nil, fmt.Errorf("enable totp: %w", err)
+		return nil, err
 	}
 
-	// Another confirmation turned 2FA on between the read above and this
-	// write, and minted the codes.
-	if n == 0 {
-		return nil, ErrTOTPEnabled
-	}
-
-	return a.regenerateRecoveryCodes(ctx, userID)
+	return codes, nil
 }
 
 // DisableTOTP requires the current password, the credential that would still
@@ -238,7 +251,17 @@ func (a *Auth) RegenerateRecoveryCodes(ctx context.Context, userID int64, passwo
 		return nil, ErrInvalidPassword
 	}
 
-	return a.regenerateRecoveryCodes(ctx, userID)
+	var codes []string
+
+	err = a.inTx(ctx, func(q store) error {
+		codes, err = a.regenerateRecoveryCodes(ctx, q, userID)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return codes, nil
 }
 
 // RemainingRecoveryCodes reports how many of userID's recovery codes are
@@ -378,11 +401,12 @@ func normaliseCode(code string) (string, bool) {
 	return "", false
 }
 
-// regenerateRecoveryCodes replaces the user's recovery codes and returns their
-// plaintext values. Only hashes are stored. A failure after deletion leaves
-// the old codes unusable and may leave only part of the replacement stored.
-func (a *Auth) regenerateRecoveryCodes(ctx context.Context, userID int64) ([]string, error) {
-	if err := a.store.DeleteRecoveryCodesByUser(ctx, userID); err != nil {
+// regenerateRecoveryCodes replaces the user's recovery codes through q and
+// returns their plaintext values. Only hashes are stored. q is bound to a
+// transaction by the caller, so the old codes go only if every new one is
+// stored.
+func (a *Auth) regenerateRecoveryCodes(ctx context.Context, q store, userID int64) ([]string, error) {
+	if err := q.DeleteRecoveryCodesByUser(ctx, userID); err != nil {
 		return nil, fmt.Errorf("clear recovery codes: %w", err)
 	}
 
@@ -393,7 +417,7 @@ func (a *Auth) regenerateRecoveryCodes(ctx context.Context, userID int64) ([]str
 			return nil, fmt.Errorf("generate recovery code: %w", err)
 		}
 
-		if _, err := a.store.CreateRecoveryCode(ctx, models.CreateRecoveryCodeParams{
+		if _, err := q.CreateRecoveryCode(ctx, models.CreateRecoveryCodeParams{
 			UserID:   userID,
 			CodeHash: hashToken(plaintext),
 		}); err != nil {

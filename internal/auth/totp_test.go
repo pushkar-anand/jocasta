@@ -1,12 +1,16 @@
 package auth
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/pquerna/otp/totp"
+	"github.com/pushkar-anand/build-with-go/security/password"
+	"github.com/pushkar-anand/jocasta/internal/db"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 	"github.com/stretchr/testify/assert"
@@ -190,7 +194,7 @@ func TestVerifyTOTPRecoveryCodeForms(t *testing.T) {
 
 			a, _ := newTOTPAuth(t)
 
-			codes, err := a.regenerateRecoveryCodes(t.Context(), 42)
+			codes, err := a.regenerateRecoveryCodes(t.Context(), a.store, 42)
 			require.NoError(t, err)
 
 			typed := form(codes[0])
@@ -235,4 +239,115 @@ func TestVerifyTOTPWrongShapeSpendsNoAttempt(t *testing.T) {
 
 	_, err = a.VerifyTOTP(ctx, sm, valid)
 	assert.NoError(t, err, "the pending sign-in still has every attempt")
+}
+
+// errInsertFailed is the error failingInserts returns.
+var errInsertFailed = errors.New("insert failed")
+
+// failingInserts is a store whose failOn-th CreateRecoveryCode fails, so a
+// test can stop a batch of codes partway through.
+type failingInserts struct {
+	store
+
+	failOn int
+	calls  int
+}
+
+func (f *failingInserts) CreateRecoveryCode(ctx context.Context, arg models.CreateRecoveryCodeParams) (*models.UserRecoveryCode, error) {
+	f.calls++
+	if f.calls == f.failOn {
+		return nil, errInsertFailed
+	}
+
+	return f.store.CreateRecoveryCode(ctx, arg)
+}
+
+// newDBAuth returns an Auth over its own migrated database, holding one
+// account, ada, with 2FA off, and that account's ID.
+func newDBAuth(t *testing.T) (*Auth, int64) {
+	t.Helper()
+
+	conn, err := db.New(&db.Config{Path: t.TempDir(), Name: "auth.db"})
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = conn.Close() })
+
+	q := models.New(conn)
+
+	user, err := q.CreateUser(t.Context(), models.CreateUserParams{
+		Username:     "ada",
+		PasswordHash: hashOf(t, "correct-password"),
+		Role:         dbtype.RoleAdmin,
+	})
+	require.NoError(t, err)
+
+	a, err := New(conn, q, password.NewHasher())
+	require.NoError(t, err)
+
+	return a, user.ID
+}
+
+// confirmCode starts enrollment for ada and returns a code that confirms it.
+func confirmCode(t *testing.T, a *Auth, userID int64) string {
+	t.Helper()
+
+	key, err := a.StartTOTPEnrollment(t.Context(), userID, "ada")
+	require.NoError(t, err)
+
+	code, err := totp.GenerateCode(key.Secret(), time.Now())
+	require.NoError(t, err)
+
+	return code
+}
+
+// failFifthInsert makes the fifth recovery code a's transactions store fail.
+func failFifthInsert(a *Auth) {
+	a.txStore = func(tx *sql.Tx) store {
+		return &failingInserts{store: models.New(tx), failOn: 5}
+	}
+}
+
+// TestRegenerateRecoveryCodesFailureKeepsTheOldCodes covers a replacement batch
+// that fails partway: nothing of it is kept, and the old codes still work.
+func TestRegenerateRecoveryCodesFailureKeepsTheOldCodes(t *testing.T) {
+	t.Parallel()
+
+	a, userID := newDBAuth(t)
+
+	old, err := a.ConfirmTOTPEnrollment(t.Context(), userID, confirmCode(t, a, userID))
+	require.NoError(t, err)
+
+	failFifthInsert(a)
+
+	_, err = a.RegenerateRecoveryCodes(t.Context(), userID, "correct-password")
+	require.ErrorIs(t, err, errInsertFailed)
+
+	remaining, err := a.RemainingRecoveryCodes(t.Context(), userID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(recoveryCodeCount), remaining)
+
+	assert.NoError(t, verifyPending(t, a, old[0]), "an old code still signs in")
+}
+
+// TestConfirmTOTPEnrollmentFailureLeavesTOTPOff covers the first batch of
+// recovery codes failing partway: 2FA stays off, with no codes stored.
+func TestConfirmTOTPEnrollmentFailureLeavesTOTPOff(t *testing.T) {
+	t.Parallel()
+
+	a, userID := newDBAuth(t)
+	code := confirmCode(t, a, userID)
+
+	failFifthInsert(a)
+
+	_, err := a.ConfirmTOTPEnrollment(t.Context(), userID, code)
+	require.ErrorIs(t, err, errInsertFailed)
+
+	enabled, enrolling, _, err := a.TOTPStatus(t.Context(), userID)
+	require.NoError(t, err)
+	assert.False(t, enabled)
+	assert.True(t, enrolling, "the enrollment can still be confirmed")
+
+	remaining, err := a.RemainingRecoveryCodes(t.Context(), userID)
+	require.NoError(t, err)
+	assert.Zero(t, remaining)
 }
