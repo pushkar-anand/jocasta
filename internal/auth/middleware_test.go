@@ -141,3 +141,21 @@ func TestSessionMiddlewareAllowsTheSecondFactorPageWithoutASession(t *testing.T)
 
 	assert.True(t, *reached)
 }
+
+// TestSessionMiddlewareAllowsTheSignInPageWithAQuery covers a signIn pattern
+// anchored at both ends: the query string is not part of the path it checks.
+func TestSessionMiddlewareAllowsTheSignInPageWithAQuery(t *testing.T) {
+	t.Parallel()
+
+	a := newTestAuth(t, map[string]*models.User{"ada": {ID: 1, Username: "ada"}})
+	sm, h, reached := testSessionMiddleware(t, a, nil, loginBypass)
+
+	ctx, err := sm.Load(t.Context(), "")
+	require.NoError(t, err)
+
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/login?next=1", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	assert.True(t, *reached, "got %d to %q", rec.Code, rec.Header().Get("Location"))
+}
