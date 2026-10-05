@@ -8,8 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/hotp"
@@ -270,11 +272,18 @@ func (a *Auth) TOTPStatus(ctx context.Context, userID int64) (enabled, enrolling
 // Each code, right or wrong, spends one of the account's attempts (see
 // totpBurst). With none left, VerifyTOTP checks nothing and returns
 // ErrTOTPLocked. A wrong code that spends the last one ends the pending
-// sign-in with ErrTOTPLocked too.
+// sign-in with ErrTOTPLocked too. Input that cannot be either kind of code
+// (see normaliseCode) cannot match, so it returns ErrInvalidTOTPCode without
+// spending an attempt.
 func (a *Auth) VerifyTOTP(ctx context.Context, sm *Session, code string) (*models.User, error) {
 	d, ok := sm.s.Current(ctx)
 	if !ok || d.PendingUserID == 0 {
 		return nil, ErrInvalidCredentials
+	}
+
+	code, ok = normaliseCode(code)
+	if !ok {
+		return nil, ErrInvalidTOTPCode
 	}
 
 	// Spent before the check, so requests sent together cannot all be
@@ -343,6 +352,30 @@ func (a *Auth) checkTOTPOrRecoveryCode(ctx context.Context, user *models.User, c
 	}
 
 	return true, nil
+}
+
+// normaliseCode returns code in the form it is checked in, and whether it has
+// the shape of either kind of code. Spaces and dashes are dropped and letters
+// uppercased. Six digits are a TOTP value. Sixteen base32 characters are a
+// recovery code, returned with a dash every four characters, as
+// generateRecoveryCode writes them.
+func normaliseCode(code string) (string, bool) {
+	code = strings.ToUpper(strings.Map(func(r rune) rune {
+		if r == '-' || unicode.IsSpace(r) {
+			return -1
+		}
+
+		return r
+	}, code))
+
+	switch {
+	case len(code) == 6 && strings.Trim(code, "0123456789") == "":
+		return code, true
+	case len(code) == 16 && strings.Trim(code, "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567") == "":
+		return code[0:4] + "-" + code[4:8] + "-" + code[8:12] + "-" + code[12:16], true
+	}
+
+	return "", false
 }
 
 // regenerateRecoveryCodes replaces the user's recovery codes and returns their
