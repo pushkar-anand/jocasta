@@ -352,6 +352,76 @@ func TestVerify(t *testing.T) {
 	})
 }
 
+// TestVerifyLimitRefills covers the password allowance over time: ten
+// attempts at once, then one more each time the refill interval passes. The
+// clock is Auth's own, moved by hand.
+func TestVerifyLimitRefills(t *testing.T) {
+	t.Parallel()
+
+	for _, username := range []string{"ada", "nobody"} {
+		t.Run(username, func(t *testing.T) {
+			t.Parallel()
+
+			a := newTestAuth(t, map[string]*models.User{
+				"ada": {ID: 1, Username: "ada", PasswordHash: hashOf(t, "correct-password")},
+			})
+
+			now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+			a.now = func() time.Time { return now }
+
+			for range loginBurst {
+				_, err := a.Verify(t.Context(), username, "wrong-password")
+				require.ErrorIs(t, err, ErrInvalidCredentials)
+			}
+
+			_, err := a.Verify(t.Context(), username, "wrong-password")
+			require.ErrorIs(t, err, ErrLoginLocked, "the eleventh attempt in a row is refused")
+
+			_, err = a.Verify(t.Context(), username, "correct-password")
+			require.ErrorIs(t, err, ErrLoginLocked, "a correct password waits for the refill too")
+
+			now = now.Add(loginRefill - time.Second)
+
+			_, err = a.Verify(t.Context(), username, "wrong-password")
+			require.ErrorIs(t, err, ErrLoginLocked)
+
+			now = now.Add(time.Second)
+
+			_, err = a.Verify(t.Context(), username, "wrong-password")
+			require.ErrorIs(t, err, ErrInvalidCredentials, "one attempt is back after the refill interval")
+
+			_, err = a.Verify(t.Context(), username, "wrong-password")
+			assert.ErrorIs(t, err, ErrLoginLocked, "and only one")
+		})
+	}
+}
+
+// TestVerifyLimitIsPerAccount covers one account running out of attempts while
+// another, and every unknown username together, keep their own.
+func TestVerifyLimitIsPerAccount(t *testing.T) {
+	t.Parallel()
+
+	a := newTestAuth(t, map[string]*models.User{
+		"ada":   {ID: 1, Username: "ada", PasswordHash: hashOf(t, "correct-password")},
+		"grace": {ID: 2, Username: "grace", PasswordHash: hashOf(t, "correct-password")},
+	})
+
+	for range loginBurst {
+		_, err := a.Verify(t.Context(), "ada", "wrong-password")
+		require.ErrorIs(t, err, ErrInvalidCredentials)
+	}
+
+	_, err := a.Verify(t.Context(), "ada", "correct-password")
+	require.ErrorIs(t, err, ErrLoginLocked)
+
+	user, err := a.Verify(t.Context(), "grace", "correct-password")
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), user.ID)
+
+	_, err = a.Verify(t.Context(), "nobody", "wrong-password")
+	assert.ErrorIs(t, err, ErrInvalidCredentials)
+}
+
 // New hashes its placeholder password once, up front, so the first
 // unknown-user login does not pay for it.
 func TestNewPrecomputesUnknownUserHash(t *testing.T) {

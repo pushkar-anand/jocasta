@@ -6,6 +6,7 @@ package web
 import (
 	"context"
 	"embed"
+	"errors"
 	"html/template"
 	"io/fs"
 	"log/slog"
@@ -240,12 +241,12 @@ func portScanConfigured(ctx context.Context, store *inventory.Store) bool {
 // is; each case supplies whatever its own template needs. sm names the
 // signed-in account for the pages drawn inside the signed-in shell.
 func ErrorPageData(sm *auth.Session) func(*http.Request, error, int) map[string]any {
-	return func(r *http.Request, _ error, status int) map[string]any {
-		return errorPageData(sm, r, status)
+	return func(r *http.Request, err error, status int) map[string]any {
+		return errorPageData(sm, r, err, status)
 	}
 }
 
-func errorPageData(sm *auth.Session, r *http.Request, status int) map[string]any {
+func errorPageData(sm *auth.Session, r *http.Request, err error, status int) map[string]any {
 	switch status {
 	case http.StatusBadRequest, http.StatusRequestEntityTooLarge, http.StatusUnprocessableEntity:
 		// A request the sender can fix and resend: it did not parse, was too
@@ -271,6 +272,17 @@ func errorPageData(sm *auth.Session, r *http.Request, status int) map[string]any
 			"Error": "That code did not work. Enter the code your authenticator app shows now, or a recovery code.",
 		}
 	case http.StatusTooManyRequests:
+		if errors.Is(err, auth.ErrLoginLocked) {
+			// Too many passwords. The visitor is still on the sign-in page,
+			// so the username stays as typed, as in the 401 case.
+			return map[string]any{
+				"Title":      "Error: Sign in",
+				"Error":      "Too many sign-in attempts. Wait a minute, then try again.",
+				"Username":   r.PostForm.Get("username"),
+				"RememberMe": r.PostForm.Get("remember_me") == "true",
+			}
+		}
+
 		// Too many second-factor codes. The pending sign-in has ended, so
 		// the sign-in page is where trying again starts.
 		return map[string]any{
