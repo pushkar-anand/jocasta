@@ -343,8 +343,10 @@ plugins:
         - "192.0.2.1"        # the router's address; anything else is dropped
 ```
 
-`exporters` is required. Flow records arrive over UDP, which anyone on the
-network can forge, so only the listed routers are read.
+`exporters` is required. Only datagrams from the listed addresses are read.
+A device on the same network can forge that address, so bind `listen` to an
+address only the router reaches, or allow the port only from the router in
+your firewall.
 
 With host networking the listener is reachable as it is. On a bridge network,
 publish the port as UDP: `-p 2055:2055/udp`.
