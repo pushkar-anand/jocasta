@@ -9,17 +9,14 @@ import (
 	"sync"
 	"time"
 	"unicode"
-	"unicode/utf8"
+
+	"github.com/pushkar-anand/jocasta/internal/hosts"
 )
 
 // askWait is how long to keep reading answers after the last query is sent. A
 // host answers a unicast name query at once, so a host silent this long is one
 // that will not answer.
 const askWait = time.Second
-
-// maxNameLength is the longest name DNS can carry, written without the root
-// dot.
-const maxNameLength = 253
 
 // nameProtocol is one way to ask a host for its name.
 type nameProtocol struct {
@@ -175,21 +172,17 @@ func readAnswers(pc net.PacketConn, proto nameProtocol, asked map[netip.AddrPort
 	}
 }
 
-// cleanName trims the root dot off name and reports whether what is left is
-// valid UTF-8 of 1 to 253 bytes with no control character or space. A host
-// writes its own answer, so the name can hold any byte.
+// cleanName trims the root dot off name and reports whether what is left has
+// no space and passes [hosts.CleanName]. A host writes its own answer, so the
+// name can hold any byte.
 func cleanName(name string) (string, bool) {
 	name = strings.TrimSuffix(name, ".")
 
-	if name == "" || len(name) > maxNameLength || !utf8.ValidString(name) {
+	// Checked before hosts.CleanName, which trims surrounding whitespace this
+	// rule refuses.
+	if strings.ContainsFunc(name, unicode.IsSpace) {
 		return "", false
 	}
 
-	for _, r := range name {
-		if unicode.IsControl(r) || unicode.IsSpace(r) {
-			return "", false
-		}
-	}
-
-	return name, true
+	return hosts.CleanName(name)
 }
