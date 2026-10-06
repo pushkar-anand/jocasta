@@ -34,7 +34,7 @@ func (n *Ntfy) Validate() error {
 	}
 
 	if n.Priority < 0 || n.Priority > 5 {
-		return fmt.Errorf("priority %d is outside 1 to 5", n.Priority)
+		return fmt.Errorf("priority %d is outside 0 to 5. Use 0 to leave it to the server", n.Priority)
 	}
 
 	return nil
