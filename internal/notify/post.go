@@ -10,6 +10,12 @@ import (
 	"net/url"
 )
 
+// client sends every notification. It never follows a redirect, which would
+// carry a destination's headers, such as its token, to another address.
+var client = &http.Client{
+	CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+}
+
 // post sends body to target, for the providers whose service takes an HTTP
 // request. It is sent as JSON unless header names another Content-Type. An
 // error names the target's host and no more, since a URL can hold a token.
@@ -32,7 +38,7 @@ func post(ctx context.Context, target string, header http.Header, body []byte) e
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		// A *url.Error spells out the whole URL; keep only what went wrong.
 		if ue, ok := errors.AsType[*url.Error](err); ok {
@@ -45,6 +51,10 @@ func post(ctx context.Context, target string, header http.Header, body []byte) e
 	defer func() { _ = resp.Body.Close() }()
 
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<16))
+
+	if resp.StatusCode >= 300 && resp.StatusCode <= 399 {
+		return fmt.Errorf("%s answered %s. Set the url to the address it redirects to", u.Host, resp.Status)
+	}
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		return fmt.Errorf("%s answered %s", u.Host, resp.Status)

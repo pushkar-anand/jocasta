@@ -26,7 +26,8 @@ type ScanChanges struct {
 	Found   int
 
 	// First reports whether this is the first scan of its source, kind and
-	// network to succeed, when every device in it is new to the inventory.
+	// network to succeed. Devices another source already recorded can be
+	// among the ones it found.
 	First bool
 
 	// Events are the changes, oldest first. Events about a device the owner

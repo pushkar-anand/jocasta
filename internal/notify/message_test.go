@@ -80,14 +80,31 @@ func TestOnlyTheKindsChosen(t *testing.T) {
 	assert.Len(t, c.Events, 2, "the scan's changes are left as they were")
 }
 
-func TestFirstScanIsACount(t *testing.T) {
-	c := sweepOf(&inventory.Event{ID: 1, Kind: discovered, DeviceName: "host-a", NewValue: "192.0.2.10"})
-	c.First, c.Found = true, 42
+// A first scan that found nothing but new devices, as one into an empty
+// inventory does, is sent as a count.
+func TestFirstScanOfNewDevicesIsACount(t *testing.T) {
+	c := sweepOf(
+		&inventory.Event{ID: 1, Kind: discovered, DeviceName: "host-a", NewValue: "192.0.2.10"},
+		&inventory.Event{ID: 2, Kind: discovered, DeviceName: "host-b", NewValue: "192.0.2.11"},
+	)
+	c.First, c.Found = true, 2
 
 	m, ok := notify.ForScan(9, c, all)
 	require.True(t, ok)
 	assert.Equal(t, "First scan on 192.0.2.0/24", m.Title)
-	assert.Equal(t, "Found 42 devices", m.Body)
+	assert.Equal(t, "Found 2 devices", m.Body)
+}
+
+// A first scan that found devices the inventory already knew, as when a
+// router joins, names the ones that are new.
+func TestFirstScanNamesTheNewDevicesAmongKnownOnes(t *testing.T) {
+	c := sweepOf(&inventory.Event{ID: 1, Kind: discovered, DeviceName: "host-a", NewValue: "192.0.2.10"})
+	c.First, c.Found = true, 3
+
+	m, ok := notify.ForScan(9, c, all)
+	require.True(t, ok)
+	assert.Equal(t, "1 new device on 192.0.2.0/24", m.Title)
+	assert.Equal(t, "host-a · 192.0.2.10", m.Body)
 }
 
 func TestARouterSourceIsNamed(t *testing.T) {

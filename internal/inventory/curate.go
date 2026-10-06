@@ -56,14 +56,62 @@ func (c Curation) clean() Curation {
 	}
 }
 
+// CurationPatch is an edit to some of a device's curation. A nil field keeps
+// its value; a field set to "" clears it.
+type CurationPatch struct {
+	Label   *string
+	Notes   *string
+	Group   *string
+	Type    *string
+	Ignored *bool
+}
+
+// onto returns c with the fields p carries replaced.
+func (p CurationPatch) onto(c Curation) Curation {
+	if p.Label != nil {
+		c.Label = *p.Label
+	}
+
+	if p.Notes != nil {
+		c.Notes = *p.Notes
+	}
+
+	if p.Group != nil {
+		c.Group = *p.Group
+	}
+
+	if p.Type != nil {
+		c.Type = *p.Type
+	}
+
+	if p.Ignored != nil {
+		c.Ignored = *p.Ignored
+	}
+
+	return c
+}
+
 // UpdateCuration applies c to a device and records what it changed.
 //
 // The row and its events are written in one transaction: a change that is not
 // in the log did not happen as far as the log is concerned, and the log is the
 // only account of how a device came to look the way it does.
 func (s *Store) UpdateCuration(ctx context.Context, id int64, c Curation) (*Device, error) {
-	c = c.clean()
+	return s.curate(ctx, id, func(Curation) Curation { return c })
+}
 
+// PatchCuration applies the fields p carries to a device, keeps the rest, and
+// records what it changed, as [Store.UpdateCuration] does.
+//
+// The current curation is read in the same transaction as the write, so two
+// patches to different fields cannot undo each other.
+func (s *Store) PatchCuration(ctx context.Context, id int64, p CurationPatch) (*Device, error) {
+	return s.curate(ctx, id, p.onto)
+}
+
+// curate writes the curation that change derives from the device's current one,
+// and an event for each field that moved.
+func (s *Store) curate(ctx context.Context, id int64, change func(Curation) Curation) (*Device, error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin curation: %w", err)
@@ -81,6 +129,14 @@ func (s *Store) UpdateCuration(ctx context.Context, id int64, c Curation) (*Devi
 	case err != nil:
 		return nil, fmt.Errorf("device %d: %w", id, err)
 	}
+
+	c := change(Curation{
+		Label:   before.Label.String,
+		Notes:   before.Notes.String,
+		Group:   before.GroupName.String,
+		Type:    before.DeviceType.String,
+		Ignored: before.IsIgnored,
+	}).clean()
 
 	after, err := q.UpdateDeviceCuration(ctx, models.UpdateDeviceCurationParams{
 		Label:      nullString(c.Label),
