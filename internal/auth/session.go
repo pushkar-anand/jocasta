@@ -27,8 +27,8 @@ type Data struct {
 	Role dbtype.UserRole
 
 	// Flash holds values a handler leaves for the GET it redirects to and
-	// that are read back exactly once, such as a message or a secret shown
-	// a single time. nil until the first Flash call.
+	// that are read back exactly once, such as a message. nil until the first
+	// Flash call.
 	Flash map[string]string
 
 	// PendingUserID is set once Verify succeeds for an account with 2FA
@@ -173,9 +173,10 @@ func (s *Session) CurrentRole(ctx context.Context) dbtype.UserRole {
 }
 
 // Flash stores a value read back exactly once. It is how a handler carries a
-// result, such as a message or a secret shown a single time, across the
-// redirect it makes after a POST, so a reload re-fetches the page without
-// resending the form.
+// result, such as a message, across the redirect it makes after a POST, so a
+// reload re-fetches the page without resending the form. The value is saved
+// with the session, in the database when [WithSessionStore] is set, so it must
+// not be a secret.
 func (s *Session) Flash(ctx context.Context, key, value string) {
 	s.s.Update(ctx, func(d *Data) {
 		if d.Flash == nil {
