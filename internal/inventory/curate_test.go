@@ -104,6 +104,81 @@ func TestUpdateCurationClearsOmittedFields(t *testing.T) {
 	assert.Empty(t, got.Group)
 }
 
+// A patch changes the fields it carries and keeps the rest.
+func TestPatchCurationKeepsWhatItLeavesOut(t *testing.T) {
+	t.Parallel()
+
+	s, id := curated(t)
+
+	_, err := s.UpdateCuration(t.Context(), id, Curation{
+		Label: "Office printer", Notes: "Second floor.", Group: "office", Type: "printer", Ignored: true,
+	})
+	require.NoError(t, err)
+
+	got, err := s.PatchCuration(t.Context(), id, CurationPatch{Label: new("Hallway printer")})
+	require.NoError(t, err)
+
+	assert.Equal(t, "Hallway printer", got.Label)
+	assert.Equal(t, "Second floor.", got.Notes)
+	assert.Equal(t, "office", got.Group)
+	assert.Equal(t, "printer", got.Type)
+	assert.True(t, got.Ignored)
+}
+
+// A field sent empty is cleared, and only that field.
+func TestPatchCurationClearsAFieldSentEmpty(t *testing.T) {
+	t.Parallel()
+
+	s, id := curated(t)
+
+	_, err := s.UpdateCuration(t.Context(), id, Curation{Label: "Office printer", Notes: "Second floor.", Group: "office"})
+	require.NoError(t, err)
+
+	got, err := s.PatchCuration(t.Context(), id, CurationPatch{Notes: new("")})
+	require.NoError(t, err)
+
+	assert.Empty(t, got.Notes)
+	assert.Equal(t, "Office printer", got.Label)
+	assert.Equal(t, "office", got.Group)
+}
+
+// A patch is cleaned as a full edit is, and records only what moved.
+func TestPatchCurationTrimsAndRecordsWhatChanged(t *testing.T) {
+	t.Parallel()
+
+	s, id := curated(t)
+
+	_, err := s.UpdateCuration(t.Context(), id, Curation{Label: "Office printer"})
+	require.NoError(t, err)
+
+	got, err := s.PatchCuration(t.Context(), id, CurationPatch{Label: new("Office printer"), Group: new(" office ")})
+	require.NoError(t, err)
+	assert.Equal(t, "office", got.Group)
+
+	events, err := s.DeviceEvents(t.Context(), id, 10)
+	require.NoError(t, err)
+
+	edits := make(map[string]int)
+
+	for _, e := range events {
+		if e.Kind == dbtype.EventDeviceEdited {
+			edits[e.Detail]++
+		}
+	}
+
+	// The label the patch sent unchanged is not an edit.
+	assert.Equal(t, map[string]int{"label": 1, "group": 1}, edits)
+}
+
+func TestPatchCurationUnknownDeviceIsNotFound(t *testing.T) {
+	t.Parallel()
+
+	s, _ := curated(t)
+
+	_, err := s.PatchCuration(t.Context(), 4040, CurationPatch{Label: new("Nothing")})
+	require.ErrorIs(t, err, ErrNotFound)
+}
+
 func TestUpdateCurationIgnores(t *testing.T) {
 	t.Parallel()
 

@@ -5,7 +5,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -36,10 +35,9 @@ type (
 		Logger *slog.Logger
 
 		// CORSAllowedOrigins lists the origins (scheme://host[:port]) a browser
-		// may read this server's responses from cross-origin. Empty defaults to
-		// this server's own address, which same-origin rules already let a
-		// browser read. CORS matters only once something at another address
-		// needs in.
+		// may read this server's responses from cross-origin. Empty sends no
+		// CORS headers, so only the server's own pages can read them. CORS
+		// matters only once something at another address needs in.
 		CORSAllowedOrigins []string
 
 		// SessionLifetime caps how long a signed-in browser stays signed in
@@ -211,19 +209,21 @@ func Handler(
 		mux.Handle("/mcp", mcpDisabled(jw))
 	}
 
-	origins := cfg.CORSAllowedOrigins
-	if len(origins) == 0 {
-		origins = []string{fmt.Sprintf("http://%s:%d", cfg.Addr, cfg.Port)}
-	}
+	h := logger.NewHTTPLogger(cfg.Logger)(mux)
 
-	corsMW := cors.New(cors.Options{
-		AllowedOrigins: origins,
-		AllowedMethods: []string{http.MethodGet, http.MethodHead, http.MethodPatch},
-		// Content-Type is covered by the library's own defaults; nothing here
-		// asks for a header beyond what those already allow.
-		ExposedHeaders: []string{"X-Request-Id"},
-		MaxAge:         300,
-	})
+	// rs/cors reads an empty AllowedOrigins as every origin, so with none
+	// configured the middleware is left out and no response carries CORS
+	// headers.
+	if len(cfg.CORSAllowedOrigins) > 0 {
+		h = cors.New(cors.Options{
+			AllowedOrigins: cfg.CORSAllowedOrigins,
+			AllowedMethods: []string{http.MethodGet, http.MethodHead, http.MethodPatch},
+			// Content-Type is covered by the library's own defaults; nothing
+			// here asks for a header beyond what those already allow.
+			ExposedHeaders: []string{"X-Request-Id"},
+			MaxAge:         300,
+		}).Handler(h)
+	}
 
 	// secureHeaders sits outside both gates so every response carries them,
 	// including the static files the renderer never sees and the redirect an
@@ -231,7 +231,7 @@ func Handler(
 	// sameOrigin: it only adds Access-Control-* headers or answers a
 	// preflight, and sameOrigin alone decides who may make a state-changing
 	// request.
-	h := secureHeaders(sameOrigin(corsMW.Handler(logger.NewHTTPLogger(cfg.Logger)(mux))))
+	h = secureHeaders(sameOrigin(h))
 	h = middleware.RequestID(h)
 
 	return sm.LoadAndSave(h)

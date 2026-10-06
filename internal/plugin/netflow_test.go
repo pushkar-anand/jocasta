@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/binary"
 	"log/slog"
+	"math"
 	"net"
 	"net/netip"
 	"sync"
 	"testing"
 	"time"
 
+	protoproducer "github.com/netsampler/goflow2/v2/producer/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -240,7 +242,7 @@ func TestNetFlowDecodesEachExportVersion(t *testing.T) {
 			var flows []Flow
 
 			for _, p := range tt.packets {
-				got, err := n.decode(nfExporter, p, time.Now())
+				got, err := n.decode(nfExporter, p, nfExported)
 				require.NoError(t, err)
 
 				flows = append(flows, got...)
@@ -340,6 +342,59 @@ func TestNetFlowScalesBySamplingRate(t *testing.T) {
 	require.Len(t, flows, 1)
 	assert.Equal(t, uint64(150_000), flows[0].Bytes)
 	assert.Equal(t, uint64(1000), flows[0].Packets)
+}
+
+// sampledMessage is a decoded record from nfSrc to nfDst carrying bytes and
+// packets at the given sampling rate.
+func sampledMessage(bytes, packets, rate uint64) *protoproducer.ProtoProducerMessage {
+	m := &protoproducer.ProtoProducerMessage{}
+	m.SrcAddr = nfSrc.AsSlice()
+	m.DstAddr = nfDst.AsSlice()
+	m.Bytes = bytes
+	m.Packets = packets
+	m.SamplingRate = rate
+
+	return m
+}
+
+// A count that scaling would carry past 64 bits is reported as the largest
+// there is, which the inventory caps from there.
+func TestNetFlowScalingThatOverflowsGivesTheMaximum(t *testing.T) {
+	t.Parallel()
+
+	f, ok := toFlow(sampledMessage(math.MaxUint64/2, 3, math.MaxUint32), nfExported)
+	require.True(t, ok)
+	assert.Equal(t, uint64(math.MaxUint64), f.Bytes)
+	assert.Equal(t, uint64(3*math.MaxUint32), f.Packets)
+}
+
+// A router whose clock is a year out would file its flows in hours long gone
+// or not yet come. They are filed in the hour they arrived.
+func TestNetFlowFilesAFlowDatedFarFromItsArrivalWhenItArrived(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		end  time.Time
+		want time.Time
+	}{
+		{name: "a year ahead", end: nfExported.AddDate(1, 0, 0), want: nfExported},
+		{name: "a year behind", end: nfExported.AddDate(-1, 0, 0), want: nfExported},
+		{name: "within the hour", end: nfExported.Add(-50 * time.Minute), want: nfExported.Add(-50 * time.Minute)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			m := sampledMessage(100, 1, 1)
+			m.TimeFlowEndNs = uint64(tt.end.UnixNano()) //nolint:gosec // a 2025 to 2027 timestamp is positive.
+
+			f, ok := toFlow(m, nfExported)
+			require.True(t, ok)
+			assert.Equal(t, tt.want, f.End)
+		})
+	}
 }
 
 // ipfixSampledPacket is ipfixPacket preceded by an options template and record

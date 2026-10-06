@@ -34,9 +34,8 @@ type (
 	CORS struct {
 		// AllowedOrigins lists the origins (scheme://host[:port]) permitted to
 		// make cross-origin requests, such as a dashboard hosted elsewhere that
-		// calls the JSON API from the browser. Blank defaults to the server's
-		// own address, which a browser already allows without CORS, so an
-		// unset list changes nothing.
+		// calls the JSON API from the browser. Empty sends no CORS headers,
+		// so only the server's own pages can read its responses.
 		AllowedOrigins []string `koanf:"allowed_origins"`
 	}
 
@@ -154,26 +153,11 @@ type (
 		} `koanf:"ports"`
 	}
 
-	// RouterOS names one MikroTik router to read devices from.
-	//
-	// The credentials stay here and never reach the store, which only ever sees
-	// the instance name and the facts.
-	RouterOS struct {
-		Enabled bool `koanf:"enabled"`
-
-		// Host is the router's address or name, without a port.
-		Host string `koanf:"host"`
-		Port int    `koanf:"port"`
-
-		User     string `koanf:"user"`
-		Password string `koanf:"password"`
-
-		// SSL selects https. Insecure skips certificate verification, which the
-		// common setup needs: RouterOS serves a self-signed certificate for
-		// www-ssl unless one is imported.
-		SSL      bool `koanf:"ssl"`
-		Insecure bool `koanf:"insecure"`
-
+	// Source is what every router source has, whatever it is reached over.
+	// Each kind's config embeds it, so a check that holds for every kind reads
+	// it the same way.
+	Source struct {
+		Enabled bool          `koanf:"enabled"`
 		Timeout time.Duration `koanf:"timeout"`
 
 		// TopologyOnly marks a switch or access point read only for what is
@@ -183,34 +167,39 @@ type (
 		TopologyOnly bool `koanf:"topology_only"`
 	}
 
-	// OpenWrt names one OpenWrt router to read devices from, over the ubus
-	// JSON-RPC endpoint uhttpd serves at /ubus.
+	// HTTPLogin is where a source reached over HTTP is and how to sign in to
+	// it. A kind reached some other way does not embed it.
 	//
 	// The credentials stay here and never reach the store, which only ever sees
 	// the instance name and the facts.
-	OpenWrt struct {
-		Enabled bool `koanf:"enabled"`
-
+	HTTPLogin struct {
 		// Host is the router's address or name, without a port.
 		Host string `koanf:"host"`
 		Port int    `koanf:"port"`
 
-		// User and Password are an rpcd login, from /etc/config/rpcd.
 		User     string `koanf:"user"`
 		Password string `koanf:"password"`
 
 		// SSL selects https. Insecure skips certificate verification, which
-		// the common setup needs: uhttpd serves a self-signed certificate
-		// unless one is installed.
+		// the common setup needs, since routers serve a self-signed
+		// certificate until one is installed.
 		SSL      bool `koanf:"ssl"`
 		Insecure bool `koanf:"insecure"`
+	}
 
-		Timeout time.Duration `koanf:"timeout"`
+	// RouterOS names one MikroTik router to read devices from, over the REST
+	// API that the www or www-ssl service serves.
+	RouterOS struct {
+		Source    `koanf:",squash"`
+		HTTPLogin `koanf:",squash"`
+	}
 
-		// TopologyOnly marks an access point or switch read only for what is
-		// plugged into it. Its devices and segments are left to the router,
-		// as for a RouterOS instance.
-		TopologyOnly bool `koanf:"topology_only"`
+	// OpenWrt names one OpenWrt router to read devices from, over the ubus
+	// JSON-RPC endpoint uhttpd serves at /ubus. User and Password are an rpcd
+	// login, from /etc/config/rpcd.
+	OpenWrt struct {
+		Source    `koanf:",squash"`
+		HTTPLogin `koanf:",squash"`
 	}
 
 	// NetFlow names one UDP listener that receives the flows a router exports
@@ -341,4 +330,16 @@ func (l Logger) FormatValue() logger.Format {
 	}
 
 	return logger.FormatJSON
+}
+
+// Common returns the settings every router source has, so code that handles
+// every kind alike can read them from any kind's config.
+func (s Source) Common() Source {
+	return s
+}
+
+// PlainHTTP reports whether the source is reached over http, which sends its
+// password across the network unencrypted.
+func (h HTTPLogin) PlainHTTP() bool {
+	return !h.SSL
 }
