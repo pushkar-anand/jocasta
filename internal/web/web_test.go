@@ -150,7 +150,13 @@ func newWebHandler(t *testing.T, store *inventory.Store) http.Handler {
 func newWebHandlerWithAuth(t *testing.T, store *inventory.Store, a *auth.Auth, opts ...Option) http.Handler {
 	t.Helper()
 
-	sm := auth.NewSession(testLogger())
+	return newWebHandlerWithSession(t, store, a, auth.NewSession(testLogger()), opts...)
+}
+
+// newWebHandlerWithSession is newWebHandlerWithAuth over a session manager the
+// test built, such as one backed by a database the test reads afterwards.
+func newWebHandlerWithSession(t *testing.T, store *inventory.Store, a *auth.Auth, sm *auth.Session, opts ...Option) http.Handler {
+	t.Helper()
 
 	hw := response.NewHTMLWriter(testLogger(), nil,
 		response.WithErrorTemplates(map[int]string{
@@ -190,6 +196,46 @@ func newWebHandlerWithAuth(t *testing.T, store *inventory.Store, a *auth.Auth, o
 	h := NewHandler(testLogger(), testReader(t), store, hw, sm, a, opts...)
 
 	return sm.LoadAndSave(h)
+}
+
+// sessionStoreHandler is newWebHandlerWithAuth with sessions kept in a
+// migrated database, the way the server keeps them, so a test can read back
+// what a request left in the session store.
+func sessionStoreHandler(t *testing.T, a *auth.Auth) (http.Handler, *sql.DB) {
+	t.Helper()
+
+	conn, err := db.New(&db.Config{Path: t.TempDir(), Name: "sessions.db"})
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = conn.Close() })
+
+	sm := auth.NewSession(testLogger(), auth.WithSessionStore(conn))
+
+	return newWebHandlerWithSession(t, testStore(t), a, sm), conn
+}
+
+// storedSessions returns the encoded data of every session in conn.
+func storedSessions(t *testing.T, conn *sql.DB) [][]byte {
+	t.Helper()
+
+	rows, err := conn.QueryContext(t.Context(), `SELECT data FROM sessions`)
+	require.NoError(t, err)
+
+	defer func() { _ = rows.Close() }()
+
+	var all [][]byte
+
+	for rows.Next() {
+		var data []byte
+		require.NoError(t, rows.Scan(&data))
+
+		all = append(all, data)
+	}
+
+	require.NoError(t, rows.Err())
+	require.NotEmpty(t, all, "the request should have saved a session")
+
+	return all
 }
 
 // empty returns a handler over an inventory nothing has swept into.

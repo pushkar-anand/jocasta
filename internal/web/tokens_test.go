@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/stretchr/testify/assert"
@@ -136,12 +137,11 @@ func TestCreateAndRevokeToken(t *testing.T) {
 
 	form := url.Values{"name": {"CI script"}, "scope": {"read_write"}}
 	rec := requestAs(t, h, cookies, http.MethodPost, "/settings/tokens", form.Encode())
-	rec = follow(t, h, cookies, rec)
 	require.Equal(t, http.StatusOK, rec.Code)
 
 	body := rec.Body.String()
 	assert.Contains(t, body, "CI script created", "the completion state names what was made")
-	assert.Contains(t, body, "jct_", "the plaintext is shown once, on the page the create redirects to")
+	assert.Contains(t, body, "jct_", "the plaintext is shown once, on the page that answers the create")
 	assert.Contains(t, body, "Editor", "read_write renders as the Editor label")
 	assert.Contains(t, body, `data-copy="#token-plaintext"`, "the completion state offers a Copy control")
 	assert.Contains(t, body, "Authorization: Bearer", "and a runnable bearer-token example")
@@ -153,8 +153,8 @@ func TestCreateAndRevokeToken(t *testing.T) {
 	assert.Contains(t, body, `data-open="revoke-dialog-`+strconv.FormatInt(id, 10)+`"`)
 	assert.Contains(t, body, ">Revoke token</button>")
 
-	// The plaintext is a one-shot: a reload of the same page re-fetches it
-	// without the secret, and without minting another token.
+	// The plaintext is a one-shot: loading the page again shows it without
+	// the secret, and without minting another token.
 	reload := requestAs(t, h, cookies, http.MethodGet, "/settings/tokens", "")
 	require.Equal(t, http.StatusOK, reload.Code)
 	assert.NotContains(t, reload.Body.String(), "jct_", "a reload does not show the token again")
@@ -242,7 +242,7 @@ func TestTokensListInAFixedOrder(t *testing.T) {
 
 	for i := range 30 {
 		name := fmt.Sprintf("token-%02d", i)
-		_, _, err := a.CreateToken(t.Context(), users[0].ID, name, dbtype.TokenRead)
+		_, _, err := a.CreateToken(t.Context(), users[0].ID, name, dbtype.TokenRead, time.Time{})
 		require.NoError(t, err)
 
 		want = append([]string{name}, want...)
@@ -254,4 +254,139 @@ func TestTokensListInAFixedOrder(t *testing.T) {
 	got := regexp.MustCompile(`token-\d\d`).FindAllString(body, -1)
 	require.GreaterOrEqual(t, len(got), len(want))
 	assert.Equal(t, want, got[:len(want)])
+}
+
+// A new token's plaintext is shown on the page that answers the create, and
+// never reaches the session, which the server keeps in its database.
+func TestCreatedTokenStaysOutOfTheSessionStore(t *testing.T) {
+	t.Parallel()
+
+	h, conn := sessionStoreHandler(t, testAuth(t))
+	cookies := signIn(t, h)
+
+	form := url.Values{"name": {"CI script"}, "scope": {"read"}}
+	page := requestAs(t, h, cookies, http.MethodPost, "/settings/tokens", form.Encode())
+	require.Equal(t, http.StatusOK, page.Code)
+
+	stored := storedSessions(t, conn)
+
+	plaintext := regexp.MustCompile(`id="token-plaintext">([^<]+)<`).FindStringSubmatch(page.Body.String())
+	require.Len(t, plaintext, 2, "the page that answers the create shows the token")
+
+	for _, data := range stored {
+		assert.False(t, strings.Contains(string(data), plaintext[1]), "the session store holds the token")
+	}
+
+	reload := requestAs(t, h, cookies, http.MethodGet, "/settings/tokens", "")
+	assert.NotContains(t, reload.Body.String(), plaintext[1], "a reload does not show the token again")
+}
+
+// The create dialog offers an expiry, with Never chosen to begin with.
+func TestTokenDialogOffersAnExpiry(t *testing.T) {
+	t.Parallel()
+
+	h := empty(t)
+	body := requestAs(t, h, signIn(t, h), http.MethodGet, "/settings/tokens", "").Body.String()
+
+	assert.Contains(t, body, `<select class="input" name="expires">`)
+	assert.Contains(t, body, `<option value="never" selected>Never</option>`)
+	assert.Contains(t, body, `<option value="30d">30 days</option>`)
+	assert.Contains(t, body, `<option value="90d">90 days</option>`)
+	assert.Contains(t, body, `<option value="1y">1 year</option>`)
+}
+
+// Each choice sets the expiry that far from now; Never, or a form with no
+// choice, leaves the token without one.
+func TestCreateTokenSetsTheChosenExpiry(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		expires string
+		years   int
+		days    int
+	}{
+		{expires: ""},
+		{expires: "never"},
+		{expires: "30d", days: 30},
+		{expires: "90d", days: 90},
+		{expires: "1y", years: 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.expires, func(t *testing.T) {
+			t.Parallel()
+
+			a := testAuth(t)
+			store := testStore(t)
+			h := newWebHandlerWithAuth(t, store, a)
+			cookies := signIn(t, h)
+
+			form := url.Values{"name": {"CI script"}, "scope": {"read"}}
+			if tt.expires != "" {
+				form.Set("expires", tt.expires)
+			}
+
+			rec := requestAs(t, h, cookies, http.MethodPost, "/settings/tokens", form.Encode())
+			require.Equal(t, http.StatusOK, rec.Code)
+
+			users, err := a.ListUsers(t.Context())
+			require.NoError(t, err)
+
+			tokens, err := a.ListTokens(t.Context(), users[0].ID)
+			require.NoError(t, err)
+			require.Len(t, tokens, 1)
+
+			got := tokens[0].ExpiresAt
+			if tt.years == 0 && tt.days == 0 {
+				assert.False(t, got.Valid, "the token never expires")
+				return
+			}
+
+			require.True(t, got.Valid)
+			assert.WithinDuration(t, store.Now().AddDate(tt.years, 0, tt.days), got.Time.Time, time.Minute)
+		})
+	}
+}
+
+func TestCreateTokenRejectsAnUnknownExpiry(t *testing.T) {
+	t.Parallel()
+
+	h := empty(t)
+	cookies := signIn(t, h)
+
+	form := url.Values{"name": {"CI script"}, "scope": {"read"}, "expires": {"7d"}}
+	rec := requestAs(t, h, cookies, http.MethodPost, "/settings/tokens", form.Encode())
+
+	require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
+}
+
+// The list says when each token expires: never, on a date, or that it
+// already has. An expired token stays listed until it is revoked.
+func TestTokensListShowsExpiry(t *testing.T) {
+	t.Parallel()
+
+	a := testAuth(t)
+	store := testStore(t)
+	h := newWebHandlerWithAuth(t, store, a)
+
+	users, err := a.ListUsers(t.Context())
+	require.NoError(t, err)
+
+	later := time.Date(2099, time.January, 1, 12, 0, 0, 0, time.UTC)
+
+	for name, expiresAt := range map[string]time.Time{
+		"grafana": {},
+		"backup":  store.Now().Add(-time.Hour),
+		"ci":      later,
+	} {
+		_, _, err := a.CreateToken(t.Context(), users[0].ID, name, dbtype.TokenRead, expiresAt)
+		require.NoError(t, err)
+	}
+
+	body := requestAs(t, h, signIn(t, h), http.MethodGet, "/settings/tokens", "").Body.String()
+
+	assert.Contains(t, body, `<th scope="col">Expires</th>`)
+	assert.Regexp(t, `>grafana</td>(?s:.*?)<td class="dim">Never</td>`, body)
+	assert.Regexp(t, `>backup</td>(?s:.*?)<span class="chip chip--warn chip--label">Expired</span>`, body)
+	assert.Regexp(t, `>ci</td>(?s:.*?)<time datetime="`+later.Local().Format(time.DateOnly)+`">`+later.Local().Format("2 Jan 2006")+`</time>`, body)
 }

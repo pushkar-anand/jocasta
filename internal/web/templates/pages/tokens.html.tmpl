@@ -49,6 +49,15 @@
                     </label>
 
                     {{ template "partial/permission-choice" (scopechoice "" .Role.CanWrite) }}
+
+                    <label class="stack">
+                        <span class="eyebrow">Expires</span>
+                        <select class="input" name="expires">
+                            {{- range $i, $l := .Lifetimes }}
+                            <option value="{{ $l.Value }}"{{ if eq $i 0 }} selected{{ end }}>{{ $l.Label }}</option>
+                            {{- end }}
+                        </select>
+                    </label>
                 </div>
 
                 <div class="modal__foot">
