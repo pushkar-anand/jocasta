@@ -46,17 +46,15 @@ func TestSecurityEnrollAndConfirmShowsRecoveryCodesOnce(t *testing.T) {
 	code, err := totp.GenerateCode(key.Secret(), time.Now())
 	require.NoError(t, err)
 
-	confirm := requestAs(t, h, cookies, http.MethodPost, "/settings/security/totp/confirm",
+	reveal := requestAs(t, h, cookies, http.MethodPost, "/settings/security/totp/confirm",
 		url.Values{"code": {code}}.Encode())
-	require.Equal(t, http.StatusSeeOther, confirm.Code)
-
-	reveal := requestAs(t, h, cookies, http.MethodGet, "/settings/security", "")
 	require.Equal(t, http.StatusOK, reveal.Code)
 	body := reveal.Body.String()
 	assert.Contains(t, body, "Two-factor authentication is on.")
 	assert.Contains(t, body, "10 recovery codes remaining")
+	assert.Contains(t, body, `id="recovery-codes"`, "the page that answers the confirm shows the codes")
 
-	// The recovery codes are a one-shot flash: gone on the next load.
+	// The recovery codes are a one-shot: gone on the next load.
 	again := requestAs(t, h, cookies, http.MethodGet, "/settings/security", "")
 	require.Equal(t, http.StatusOK, again.Code)
 	assert.NotContains(t, again.Body.String(), "Recovery codes")
@@ -198,8 +196,8 @@ func TestSecurityKeepsTheSecretOnceTOTPIsOn(t *testing.T) {
 	signInWithCode(t, h, secret)
 }
 
-// Regenerated recovery codes ride the redirect to the page that shows them,
-// but never in the session, which the server keeps in its database.
+// Regenerated recovery codes are shown on the page that answers the request,
+// and never reach the session, which the server keeps in its database.
 func TestRecoveryCodesStayOutOfTheSessionStore(t *testing.T) {
 	t.Parallel()
 
@@ -210,14 +208,13 @@ func TestRecoveryCodesStayOutOfTheSessionStore(t *testing.T) {
 	cookies := signInWithCode(t, h, secret)
 
 	form := url.Values{"username": {testUsername}, "password": {testPassword}}
-	rec := requestAs(t, h, cookies, http.MethodPost, "/settings/security/recovery-codes/regenerate", form.Encode())
-	stored := storedSessions(t, conn)
-
-	page := follow(t, h, cookies, rec)
+	page := requestAs(t, h, cookies, http.MethodPost, "/settings/security/recovery-codes/regenerate", form.Encode())
 	require.Equal(t, http.StatusOK, page.Code)
 
+	stored := storedSessions(t, conn)
+
 	shown := regexp.MustCompile(`id="recovery-codes">([^<]+)<`).FindStringSubmatch(page.Body.String())
-	require.Len(t, shown, 2, "the page the regenerate redirects to shows the codes")
+	require.Len(t, shown, 2, "the page that answers the regenerate shows the codes")
 
 	codes := strings.Fields(shown[1])
 	require.Len(t, codes, 10)

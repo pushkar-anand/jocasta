@@ -137,12 +137,11 @@ func TestCreateAndRevokeToken(t *testing.T) {
 
 	form := url.Values{"name": {"CI script"}, "scope": {"read_write"}}
 	rec := requestAs(t, h, cookies, http.MethodPost, "/settings/tokens", form.Encode())
-	rec = follow(t, h, cookies, rec)
 	require.Equal(t, http.StatusOK, rec.Code)
 
 	body := rec.Body.String()
 	assert.Contains(t, body, "CI script created", "the completion state names what was made")
-	assert.Contains(t, body, "jct_", "the plaintext is shown once, on the page the create redirects to")
+	assert.Contains(t, body, "jct_", "the plaintext is shown once, on the page that answers the create")
 	assert.Contains(t, body, "Editor", "read_write renders as the Editor label")
 	assert.Contains(t, body, `data-copy="#token-plaintext"`, "the completion state offers a Copy control")
 	assert.Contains(t, body, "Authorization: Bearer", "and a runnable bearer-token example")
@@ -154,8 +153,8 @@ func TestCreateAndRevokeToken(t *testing.T) {
 	assert.Contains(t, body, `data-open="revoke-dialog-`+strconv.FormatInt(id, 10)+`"`)
 	assert.Contains(t, body, ">Revoke token</button>")
 
-	// The plaintext is a one-shot: a reload of the same page re-fetches it
-	// without the secret, and without minting another token.
+	// The plaintext is a one-shot: loading the page again shows it without
+	// the secret, and without minting another token.
 	reload := requestAs(t, h, cookies, http.MethodGet, "/settings/tokens", "")
 	require.Equal(t, http.StatusOK, reload.Code)
 	assert.NotContains(t, reload.Body.String(), "jct_", "a reload does not show the token again")
@@ -257,8 +256,8 @@ func TestTokensListInAFixedOrder(t *testing.T) {
 	assert.Equal(t, want, got[:len(want)])
 }
 
-// A new token's plaintext rides the redirect to the page that shows it, but
-// never in the session, which the server keeps in its database.
+// A new token's plaintext is shown on the page that answers the create, and
+// never reaches the session, which the server keeps in its database.
 func TestCreatedTokenStaysOutOfTheSessionStore(t *testing.T) {
 	t.Parallel()
 
@@ -266,14 +265,13 @@ func TestCreatedTokenStaysOutOfTheSessionStore(t *testing.T) {
 	cookies := signIn(t, h)
 
 	form := url.Values{"name": {"CI script"}, "scope": {"read"}}
-	rec := requestAs(t, h, cookies, http.MethodPost, "/settings/tokens", form.Encode())
-	stored := storedSessions(t, conn)
-
-	page := follow(t, h, cookies, rec)
+	page := requestAs(t, h, cookies, http.MethodPost, "/settings/tokens", form.Encode())
 	require.Equal(t, http.StatusOK, page.Code)
 
+	stored := storedSessions(t, conn)
+
 	plaintext := regexp.MustCompile(`id="token-plaintext">([^<]+)<`).FindStringSubmatch(page.Body.String())
-	require.Len(t, plaintext, 2, "the page the create redirects to shows the token")
+	require.Len(t, plaintext, 2, "the page that answers the create shows the token")
 
 	for _, data := range stored {
 		assert.False(t, strings.Contains(string(data), plaintext[1]), "the session store holds the token")
@@ -329,7 +327,7 @@ func TestCreateTokenSetsTheChosenExpiry(t *testing.T) {
 			}
 
 			rec := requestAs(t, h, cookies, http.MethodPost, "/settings/tokens", form.Encode())
-			require.Equal(t, http.StatusSeeOther, rec.Code)
+			require.Equal(t, http.StatusOK, rec.Code)
 
 			users, err := a.ListUsers(t.Context())
 			require.NoError(t, err)

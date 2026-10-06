@@ -87,10 +87,10 @@ type tokensData struct {
 	// Lifetimes are the expiry choices the create dialog offers.
 	Lifetimes []tokenLifetime
 
-	// PlaintextToken, NewName and NewScope are the one-shot completion state for
-	// the token createToken just made. The plaintext is never stored, so the GET
-	// the create redirects to is the only load it appears on; name and scope
-	// ride a flash so the block can label what was made.
+	// PlaintextToken, NewName and NewScope are the completion state for the
+	// token createToken just made, set only on the page that answers its POST.
+	// The plaintext is never stored, so that page is the only one it appears
+	// on.
 	PlaintextToken string
 	NewName        string
 	NewScope       string
@@ -100,47 +100,42 @@ type tokensData struct {
 	Revoked bool
 }
 
-// One-shot flashes createToken leaves for the GET it redirects to. The
-// plaintext waits on the handler's shelf and the flash holds only its shelf
-// id; name and scope label the completion block beside it.
-const (
-	flashTokenShelfID = "flash.token_shelf_id"
-	flashTokenName    = "flash.token_name"
-	flashTokenScope   = "flash.token_scope"
-)
-
 // tokens serves the token settings page.
 func (h *Handler) tokens(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		ctx := r.Context()
-
-		list, err := h.tokenList(ctx, sm, a, r)
-		if err != nil {
-			return err
-		}
-
-		plaintext, _ := h.secrets.take(sm.PopFlash(ctx, flashTokenShelfID))
-
-		h.htmlWriter.Success(w, r, templatePageTokens, tokensData{
-			Title:          "API tokens",
-			Section:        "API tokens",
-			Role:           sm.CurrentRole(ctx),
-			SignedInAs:     sm.CurrentUsername(ctx),
-			Tokens:         list,
-			Lifetimes:      tokenLifetimes,
-			PlaintextToken: plaintext,
-			NewName:        sm.PopFlash(ctx, flashTokenName),
-			NewScope:       sm.PopFlash(ctx, flashTokenScope),
-		})
-
-		return nil
+		return h.renderTokens(w, r, sm, a, tokensData{})
 	}
 }
 
-// createToken issues a new token for the signed-in user, then redirects to the
-// list. The plaintext, which can be seen only this once, rides the redirect on
-// the handler's shelf, so reloading the landing page does not mint a second
-// token.
+// renderTokens shows the token settings page, with the completion state data
+// carries from a create, if any.
+func (h *Handler) renderTokens(w http.ResponseWriter, r *http.Request, sm *auth.Session, a *auth.Auth, data tokensData) error {
+	ctx := r.Context()
+
+	list, err := h.tokenList(ctx, sm, a, r)
+	if err != nil {
+		return err
+	}
+
+	data.view = view{
+		Title:      "API tokens",
+		Section:    "API tokens",
+		Role:       sm.CurrentRole(ctx),
+		SignedInAs: sm.CurrentUsername(ctx),
+	}
+	data.Tokens = list
+	data.Lifetimes = tokenLifetimes
+
+	h.htmlWriter.Success(w, r, templatePageTokens, data)
+
+	return nil
+}
+
+// createToken issues a new token for the signed-in user and answers with the
+// list showing its plaintext. The page is the POST's own response, not a
+// redirect, so the plaintext, which can be seen only this once, is never
+// stored, not even in the session. Reloading offers to resend the form, which
+// would make a second token.
 func (h *Handler) createToken(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	type createTokenForm struct {
 		Name  string `schema:"name" validate:"required,min=1,max=100"`
@@ -179,12 +174,11 @@ func (h *Handler) createToken(sm *auth.Session, a *auth.Auth) response.HandlerFu
 			return err
 		}
 
-		sm.Flash(ctx, flashTokenShelfID, h.secrets.put(plaintext))
-		sm.Flash(ctx, flashTokenName, input.Name)
-		sm.Flash(ctx, flashTokenScope, input.Scope)
-		http.Redirect(w, r, "/settings/tokens", http.StatusSeeOther)
-
-		return nil
+		return h.renderTokens(w, r, sm, a, tokensData{
+			PlaintextToken: plaintext,
+			NewName:        input.Name,
+			NewScope:       input.Scope,
+		})
 	}
 }
 
