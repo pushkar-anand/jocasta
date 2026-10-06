@@ -92,20 +92,20 @@ func (h *Handler) getDevice(store *inventory.Store) response.HandlerFunc {
 	}
 }
 
-// updateDevice replaces all owner-controlled fields, clearing omitted values,
-// and returns the updated device. Observed network facts are unchanged.
+// updateDevice changes the owner-controlled fields the body carries and
+// returns the updated device. Observed network facts are unchanged.
 func (h *Handler) updateDevice(store *inventory.Store) response.HandlerFunc {
-	// curationRequest is what a caller may change on a device. Every field is
-	// applied, so one left out of the body clears what was there.
+	// curationRequest is what a caller may change on a device. A field left
+	// out of the body keeps its value, and one sent as "" is cleared.
 	//
 	// Nothing a scan writes appears here: an address, a vendor or a hardware
 	// address is what the network reported, and stays as reported.
 	type curationRequest struct {
-		Label   string `json:"label" validate:"omitempty,max=200"`
-		Notes   string `json:"notes" validate:"omitempty,max=2000"`
-		Group   string `json:"group" validate:"omitempty,max=100"`
-		Type    string `json:"type" validate:"omitempty,deviceclass"`
-		Ignored bool   `json:"ignored"`
+		Label   *string `json:"label" validate:"omitempty,max=200"`
+		Notes   *string `json:"notes" validate:"omitempty,max=2000"`
+		Group   *string `json:"group" validate:"omitempty,max=100"`
+		Type    *string `json:"type" validate:"omitempty,deviceclass"`
+		Ignored *bool   `json:"ignored"`
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) error {
@@ -119,7 +119,7 @@ func (h *Handler) updateDevice(store *inventory.Store) response.HandlerFunc {
 			return err
 		}
 
-		device, err := store.UpdateCuration(r.Context(), id, inventory.Curation(*body))
+		device, err := store.PatchCuration(r.Context(), id, inventory.CurationPatch(*body))
 		if err != nil {
 			return err
 		}

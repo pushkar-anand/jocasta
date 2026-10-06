@@ -13,6 +13,9 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/pushkar-anand/jocasta/pkg/oui"
 )
@@ -21,6 +24,33 @@ import (
 // neighbour entry carries it, so it must not become an identity two devices
 // share.
 const zeroMAC = "00:00:00:00:00:00"
+
+// maxNameLength is the longest name DNS can carry, written without the root
+// dot.
+const maxNameLength = 253
+
+// CleanName returns name without surrounding whitespace, and reports whether
+// that is usable as a hostname: valid UTF-8 of 1 to 253 bytes with no control
+// or format character. Format characters include U+202E, which reverses how
+// the rest of the name displays. When ok is false the name is "".
+//
+// A router or DHCP server passes on whatever name a client asked for, so a
+// name from any source is checked here before it is kept.
+func CleanName(name string) (cleaned string, ok bool) {
+	name = strings.TrimSpace(name)
+
+	if name == "" || len(name) > maxNameLength || !utf8.ValidString(name) {
+		return "", false
+	}
+
+	for _, r := range name {
+		if unicode.In(r, unicode.Cc, unicode.Cf) {
+			return "", false
+		}
+	}
+
+	return name, true
+}
 
 // CanonicalMAC renders a hardware address in the lowercase colon-separated
 // form, so addresses from different sources compare equal however they were
@@ -81,10 +111,11 @@ type HostInput struct {
 	MAC string
 
 	// Hostname, when set, is the name the source already knows the host by,
-	// such as a DHCP lease name.
+	// such as a DHCP lease name. A name [CleanName] rejects counts as none.
 	Hostname string
 
-	// ResolveName asks for a reverse DNS lookup when Hostname is empty.
+	// ResolveName asks for a reverse DNS lookup when Hostname is empty or
+	// rejected.
 	//
 	// Off by default, because a resolved name belongs to whoever resolved it.
 	// A sweep asking the local resolver about an address it just probed is
@@ -107,8 +138,9 @@ func BuildHost(ctx context.Context, in HostInput) (*Host, error) {
 		MAC:       in.MAC,
 		Interface: in.Interface,
 		VLAN:      in.VLAN,
-		hostname:  in.Hostname,
 	}
+
+	h.hostname, _ = CleanName(in.Hostname)
 
 	if in.IP != "" {
 		ipAddr, err := netip.ParseAddr(in.IP)
@@ -122,7 +154,7 @@ func BuildHost(ctx context.Context, in HostInput) (*Host, error) {
 	// Gated on ResolveName as well as a missing name, because a resolved name
 	// belongs to whoever resolved it. See [HostInput.ResolveName].
 	if in.ResolveName && h.hostname == "" && h.addr.IsValid() {
-		h.hostname = resolveName(ctx, h.addr)
+		h.hostname, _ = CleanName(resolveName(ctx, h.addr))
 	}
 
 	if in.MAC != "" {
@@ -171,9 +203,10 @@ func (h Host) Hostname() string {
 }
 
 // Named returns a copy of h that carries name, for a source that learns the
-// name after the host is built.
+// name after the host is built. A name [CleanName] rejects leaves the copy
+// with no name.
 func (h Host) Named(name string) *Host {
-	h.hostname = name
+	h.hostname, _ = CleanName(name)
 
 	return &h
 }

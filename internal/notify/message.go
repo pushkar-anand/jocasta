@@ -28,8 +28,10 @@ type Message struct {
 // ForScan words what one scan changed, keeping only the events of the given
 // kinds. It reports false when nothing is left to send.
 //
-// The first scan of a source and network finds every device at once, so it
-// is sent as a count.
+// A first scan of a source and network into an empty inventory finds every
+// device at once, so one that found only new devices is sent as a count. A
+// first scan that also found devices already known is worded like any other,
+// so the new ones are named.
 func ForScan(scanID int64, c *inventory.ScanChanges, kinds []dbtype.EventKind) (Message, bool) {
 	events := slices.DeleteFunc(slices.Clone(c.Events), func(e *inventory.Event) bool {
 		return !slices.Contains(kinds, e.Kind)
@@ -41,7 +43,7 @@ func ForScan(scanID int64, c *inventory.ScanChanges, kinds []dbtype.EventKind) (
 
 	m := Message{ScanID: scanID, Events: events}
 
-	if c.First && c.Kind == dbtype.ScanDiscovery {
+	if c.First && c.Kind == dbtype.ScanDiscovery && allNew(c) {
 		m.Title = "First scan " + where(c)
 		m.Body = "Found " + count(c.Found, "device", "devices")
 
@@ -119,6 +121,21 @@ func sortByKind(events []*inventory.Event) {
 	slices.SortStableFunc(events, func(a, b *inventory.Event) int {
 		return cmp.Compare(rank[a.Kind], rank[b.Kind])
 	})
+}
+
+// allNew reports whether every device the scan found is new to the
+// inventory. It counts every discovery the scan made, whichever kinds the
+// message keeps.
+func allNew(c *inventory.ScanChanges) bool {
+	discovered := 0
+
+	for _, e := range c.Events {
+		if e.Kind == dbtype.EventDeviceDiscovered {
+			discovered++
+		}
+	}
+
+	return discovered == c.Found
 }
 
 func allOf(events []*inventory.Event, k dbtype.EventKind) bool {

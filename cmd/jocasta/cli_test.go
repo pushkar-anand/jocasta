@@ -476,9 +476,9 @@ func TestRouterOSSourcesSkipDisabledInstances(t *testing.T) {
 
 	cfg := &config.Config{}
 	cfg.Plugins.RouterOS = map[string]config.RouterOS{
-		"rack":    {Enabled: true, Host: "198.51.100.1"},
-		"gateway": {Enabled: true, Host: "192.0.2.1"},
-		"spare":   {Enabled: false, Host: "203.0.113.1"},
+		"rack":    {Source: config.Source{Enabled: true}, HTTPLogin: config.HTTPLogin{Host: "198.51.100.1"}},
+		"gateway": {Source: config.Source{Enabled: true}, HTTPLogin: config.HTTPLogin{Host: "192.0.2.1"}},
+		"spare":   {Source: config.Source{Enabled: false}, HTTPLogin: config.HTTPLogin{Host: "203.0.113.1"}},
 	}
 
 	sources, err := routerSources(t.Context(), cfg, slog.New(slog.DiscardHandler))
@@ -501,8 +501,8 @@ func TestHostDiscoverersLeavesOutTopologyOnlySources(t *testing.T) {
 
 	cfg := &config.Config{}
 	cfg.Plugins.RouterOS = map[string]config.RouterOS{
-		"gateway":  {Enabled: true, Host: "192.0.2.1"},
-		"switch_a": {Enabled: true, Host: "192.0.2.2", TopologyOnly: true},
+		"gateway":  {Source: config.Source{Enabled: true}, HTTPLogin: config.HTTPLogin{Host: "192.0.2.1"}},
+		"switch_a": {Source: config.Source{Enabled: true, TopologyOnly: true}, HTTPLogin: config.HTTPLogin{Host: "192.0.2.2"}},
 	}
 
 	sources, err := routerSources(t.Context(), cfg, slog.New(slog.DiscardHandler))
@@ -520,9 +520,9 @@ func TestTopologyReadersIncludesEverySource(t *testing.T) {
 
 	cfg := &config.Config{}
 	cfg.Plugins.RouterOS = map[string]config.RouterOS{
-		"gateway":  {Enabled: true, Host: "192.0.2.1"},
-		"switch_a": {Enabled: true, Host: "192.0.2.2", TopologyOnly: true},
-		"spare":    {Enabled: false, Host: "203.0.113.1"},
+		"gateway":  {Source: config.Source{Enabled: true}, HTTPLogin: config.HTTPLogin{Host: "192.0.2.1"}},
+		"switch_a": {Source: config.Source{Enabled: true, TopologyOnly: true}, HTTPLogin: config.HTTPLogin{Host: "192.0.2.2"}},
+		"spare":    {Source: config.Source{Enabled: false}, HTTPLogin: config.HTTPLogin{Host: "203.0.113.1"}},
 	}
 
 	sources, err := routerSources(t.Context(), cfg, slog.New(slog.DiscardHandler))
@@ -544,11 +544,11 @@ func TestHostDiscoverersIncludesOpenWrt(t *testing.T) {
 
 	cfg := &config.Config{}
 	cfg.Plugins.RouterOS = map[string]config.RouterOS{
-		"gateway": {Enabled: true, Host: "192.0.2.1"},
+		"gateway": {Source: config.Source{Enabled: true}, HTTPLogin: config.HTTPLogin{Host: "192.0.2.1"}},
 	}
 	cfg.Plugins.OpenWrt = map[string]config.OpenWrt{
-		"attic": {Enabled: true, Host: "192.0.2.3"},
-		"spare": {Enabled: false, Host: "203.0.113.1"},
+		"attic": {Source: config.Source{Enabled: true}, HTTPLogin: config.HTTPLogin{Host: "192.0.2.3"}},
+		"spare": {Source: config.Source{Enabled: false}, HTTPLogin: config.HTTPLogin{Host: "203.0.113.1"}},
 	}
 
 	sources, err := routerSources(t.Context(), cfg, slog.New(slog.DiscardHandler))
@@ -570,8 +570,8 @@ func TestRouterSourcesRefusesANameUnderTwoKinds(t *testing.T) {
 	t.Parallel()
 
 	cfg := &config.Config{}
-	cfg.Plugins.RouterOS = map[string]config.RouterOS{"gateway": {Enabled: true, Host: "192.0.2.1"}}
-	cfg.Plugins.OpenWrt = map[string]config.OpenWrt{"gateway": {Enabled: true, Host: "192.0.2.3"}}
+	cfg.Plugins.RouterOS = map[string]config.RouterOS{"gateway": {Source: config.Source{Enabled: true}, HTTPLogin: config.HTTPLogin{Host: "192.0.2.1"}}}
+	cfg.Plugins.OpenWrt = map[string]config.OpenWrt{"gateway": {Source: config.Source{Enabled: true}, HTTPLogin: config.HTTPLogin{Host: "192.0.2.3"}}}
 
 	_, err := routerSources(t.Context(), cfg, slog.New(slog.DiscardHandler))
 	require.ErrorContains(t, err, `"gateway" is configured under both`)
@@ -584,8 +584,8 @@ func TestOpenWrtTopologyOnlyIsReadForTopologyAlone(t *testing.T) {
 
 	cfg := &config.Config{}
 	cfg.Plugins.OpenWrt = map[string]config.OpenWrt{
-		"gateway": {Enabled: true, Host: "192.0.2.1"},
-		"attic":   {Enabled: true, Host: "192.0.2.3", TopologyOnly: true},
+		"gateway": {Source: config.Source{Enabled: true}, HTTPLogin: config.HTTPLogin{Host: "192.0.2.1"}},
+		"attic":   {Source: config.Source{Enabled: true, TopologyOnly: true}, HTTPLogin: config.HTTPLogin{Host: "192.0.2.3"}},
 	}
 
 	sources, err := routerSources(t.Context(), cfg, slog.New(slog.DiscardHandler))
@@ -635,7 +635,7 @@ func TestRouterOSSourcesRejectsAnInstanceWithNoHost(t *testing.T) {
 
 	cfg := &config.Config{}
 	cfg.Plugins.RouterOS = map[string]config.RouterOS{
-		"gateway": {Enabled: true},
+		"gateway": {Source: config.Source{Enabled: true}},
 	}
 
 	_, err := routerSources(t.Context(), cfg, slog.New(slog.DiscardHandler))
