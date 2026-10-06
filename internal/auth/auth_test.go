@@ -130,6 +130,7 @@ func (f *fakeQueries) CreateAPIToken(_ context.Context, arg models.CreateAPIToke
 		TokenHash: arg.TokenHash,
 		Scope:     arg.Scope,
 		CreatedAt: dbtype.NewTime(time.Now()),
+		ExpiresAt: arg.ExpiresAt,
 	}
 
 	if f.tokens == nil {
@@ -161,11 +162,11 @@ func (f *fakeQueries) TouchAPITokenByHash(_ context.Context, arg models.TouchAPI
 	defer f.mu.Unlock()
 
 	t, ok := f.tokens[arg.TokenHash]
-	if !ok {
+	if !ok || (t.ExpiresAt.Valid && !t.ExpiresAt.Time.After(arg.Now.Time.Time)) {
 		return nil, sql.ErrNoRows
 	}
 
-	t.LastUsedAt = arg.LastUsedAt
+	t.LastUsedAt = arg.Now
 
 	return t, nil
 }

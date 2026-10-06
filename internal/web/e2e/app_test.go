@@ -185,8 +185,9 @@ func notifier(conn *sql.DB, store *inventory.Store, log *slog.Logger, f fixture)
 	return notify.New(conn, store, log, dests...), nil
 }
 
-// seedAccounts gives the admin some tokens, and the weird fixture more
-// accounts and tokens than either list is laid out for.
+// seedAccounts gives the admin some tokens, one in each expiry state the list
+// shows, and the weird fixture more accounts and tokens than either list is
+// laid out for.
 func seedAccounts(ctx context.Context, a *auth.Auth, f fixture) error {
 	users, err := a.ListUsers(ctx)
 	if err != nil {
@@ -201,11 +202,21 @@ func seedAccounts(ctx context.Context, a *auth.Auth, f fixture) error {
 		}
 	}
 
-	tokens := []string{"home-assistant", "backup script"}
+	type seedToken struct {
+		name      string
+		expiresAt time.Time
+	}
+
+	// Expiry is judged against the page's clock, the anchor.
+	tokens := []seedToken{
+		{name: "home-assistant"},
+		{name: "backup script", expiresAt: anchor.AddDate(0, 0, -14)},
+		{name: "ci runner", expiresAt: anchor.AddDate(0, 3, 0)},
+	}
 	if f.name == fixtureWeird.name {
-		tokens = append(tokens, strings.Repeat("a-token-name-with-no-spaces-", 3))
+		tokens = append(tokens, seedToken{name: strings.Repeat("a-token-name-with-no-spaces-", 3)})
 		for i := range 20 {
-			tokens = append(tokens, fmt.Sprintf("token %02d for the nightly export job", i))
+			tokens = append(tokens, seedToken{name: fmt.Sprintf("token %02d for the nightly export job", i)})
 		}
 
 		for i := range 15 {
@@ -220,13 +231,13 @@ func seedAccounts(ctx context.Context, a *auth.Auth, f fixture) error {
 		}
 	}
 
-	for i, name := range tokens {
+	for i, tok := range tokens {
 		scope := dbtype.TokenRead
 		if i%2 == 1 {
 			scope = dbtype.TokenReadWrite
 		}
 
-		if _, _, err := a.CreateToken(ctx, adminID, name, scope); err != nil {
+		if _, _, err := a.CreateToken(ctx, adminID, tok.name, scope, tok.expiresAt); err != nil {
 			return err
 		}
 	}

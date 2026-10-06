@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/pushkar-anand/build-with-go/http/response"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
@@ -81,7 +82,7 @@ func TestTokenMiddlewareRejectsAWriteFromAReadOnlyToken(t *testing.T) {
 	t.Parallel()
 
 	a := newTestAuth(t, nil)
-	plaintext, _, err := a.CreateToken(t.Context(), 1, "read-only", dbtype.TokenRead)
+	plaintext, _, err := a.CreateToken(t.Context(), 1, "read-only", dbtype.TokenRead, time.Time{})
 	require.NoError(t, err)
 
 	h, reached := testTokenMiddleware(t, a)
@@ -104,7 +105,7 @@ func TestTokenMiddlewareAllowsAValidToken(t *testing.T) {
 	t.Parallel()
 
 	a := newTestAuth(t, nil)
-	plaintext, _, err := a.CreateToken(t.Context(), 1, "full access", dbtype.TokenReadWrite)
+	plaintext, _, err := a.CreateToken(t.Context(), 1, "full access", dbtype.TokenReadWrite, time.Time{})
 	require.NoError(t, err)
 
 	h, reached := testTokenMiddleware(t, a)
@@ -139,7 +140,7 @@ func TestTokenMiddlewareWithoutMethodScopeLeavesScopeToTheHandler(t *testing.T) 
 	t.Parallel()
 
 	a := newTestAuth(t, nil)
-	plaintext, _, err := a.CreateToken(t.Context(), 1, "read-only", dbtype.TokenRead)
+	plaintext, _, err := a.CreateToken(t.Context(), 1, "read-only", dbtype.TokenRead, time.Time{})
 	require.NoError(t, err)
 
 	var seen *models.ApiToken

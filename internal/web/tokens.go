@@ -22,9 +22,13 @@ type apiToken struct {
 	Scope      string
 	CreatedAt  time.Time
 	LastUsedAt time.Time // zero when the token has never been used.
+	ExpiresAt  time.Time // zero when the token never expires; in local time.
+	Expired    bool
 }
 
-func newAPIToken(t *models.ApiToken) apiToken {
+// newAPIToken builds the row for t, judging expiry against now, the clock the
+// rest of the page reads.
+func newAPIToken(t *models.ApiToken, now time.Time) apiToken {
 	v := apiToken{
 		ID:        t.ID,
 		Name:      t.Name,
@@ -36,7 +40,43 @@ func newAPIToken(t *models.ApiToken) apiToken {
 		v.LastUsedAt = t.LastUsedAt.Time.Time
 	}
 
+	if t.ExpiresAt.Valid {
+		v.ExpiresAt = t.ExpiresAt.Time.Local()
+		v.Expired = !now.Before(v.ExpiresAt)
+	}
+
 	return v
+}
+
+// tokenLifetime is one expiry choice in the create dialog.
+type tokenLifetime struct {
+	Value string // the form value.
+	Label string
+
+	// years and days are how far from now the token expires. Both zero
+	// means it never does.
+	years, days int
+}
+
+// tokenLifetimes are the create dialog's expiry choices, the default first.
+// The form's validate tag lists the same values.
+var tokenLifetimes = []tokenLifetime{
+	{Value: "never", Label: "Never"},
+	{Value: "30d", Label: "30 days", days: 30},
+	{Value: "90d", Label: "90 days", days: 90},
+	{Value: "1y", Label: "1 year", years: 1},
+}
+
+// tokenExpiry returns when a token created at now with the choice named value
+// expires, or the zero time when it never does or value names no choice.
+func tokenExpiry(value string, now time.Time) time.Time {
+	for _, l := range tokenLifetimes {
+		if l.Value == value && (l.years != 0 || l.days != 0) {
+			return now.AddDate(l.years, 0, l.days)
+		}
+	}
+
+	return time.Time{}
 }
 
 // tokensData is the settings page listing a user's API tokens.
@@ -44,10 +84,13 @@ type tokensData struct {
 	view
 	Tokens []apiToken
 
-	// PlaintextToken, NewName and NewScope are the one-shot completion state for
-	// the token createToken just made. The plaintext is never stored, so the GET
-	// the create redirects to is the only load it appears on; name and scope
-	// ride the same flash so the block can label what was made.
+	// Lifetimes are the expiry choices the create dialog offers.
+	Lifetimes []tokenLifetime
+
+	// PlaintextToken, NewName and NewScope are the completion state for the
+	// token createToken just made, set only on the page that answers its POST.
+	// The plaintext is never stored, so that page is the only one it appears
+	// on.
 	PlaintextToken string
 	NewName        string
 	NewScope       string
@@ -57,48 +100,51 @@ type tokensData struct {
 	Revoked bool
 }
 
-// One-shot flashes createToken leaves for the GET it redirects to. The
-// plaintext is the one thing never stored; name and scope label the completion
-// block beside it.
-const (
-	flashTokenPlaintext = "flash.token_plaintext"
-	flashTokenName      = "flash.token_name"
-	flashTokenScope     = "flash.token_scope"
-)
-
 // tokens serves the token settings page.
 func (h *Handler) tokens(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		ctx := r.Context()
-
-		list, err := tokenList(ctx, sm, a, r)
-		if err != nil {
-			return err
-		}
-
-		h.htmlWriter.Success(w, r, templatePageTokens, tokensData{
-			Title:          "API tokens",
-			Section:        "API tokens",
-			Role:           sm.CurrentRole(ctx),
-			SignedInAs:     sm.CurrentUsername(ctx),
-			Tokens:         list,
-			PlaintextToken: sm.PopFlash(ctx, flashTokenPlaintext),
-			NewName:        sm.PopFlash(ctx, flashTokenName),
-			NewScope:       sm.PopFlash(ctx, flashTokenScope),
-		})
-
-		return nil
+		return h.renderTokens(w, r, sm, a, tokensData{})
 	}
 }
 
-// createToken issues a new token for the signed-in user, then redirects to the
-// list. The plaintext, which can be seen only this once, rides the redirect in
-// a one-shot flash, so reloading the landing page does not mint a second
-// token.
+// renderTokens shows the token settings page, with the completion state data
+// carries from a create, if any.
+func (h *Handler) renderTokens(w http.ResponseWriter, r *http.Request, sm *auth.Session, a *auth.Auth, data tokensData) error {
+	ctx := r.Context()
+
+	list, err := h.tokenList(ctx, sm, a, r)
+	if err != nil {
+		return err
+	}
+
+	data.view = view{
+		Title:      "API tokens",
+		Section:    "API tokens",
+		Role:       sm.CurrentRole(ctx),
+		SignedInAs: sm.CurrentUsername(ctx),
+	}
+	data.Tokens = list
+	data.Lifetimes = tokenLifetimes
+
+	h.htmlWriter.Success(w, r, templatePageTokens, data)
+
+	return nil
+}
+
+// createToken issues a new token for the signed-in user and answers with the
+// list showing its plaintext. The page is the POST's own response, not a
+// redirect, so the plaintext, which can be seen only this once, is never
+// stored, not even in the session. Reloading offers to resend the form, which
+// would make a second token.
 func (h *Handler) createToken(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	type createTokenForm struct {
 		Name  string `schema:"name" validate:"required,min=1,max=100"`
 		Scope string `schema:"scope" validate:"required,oneof=read read_write"`
+
+		// Expires names one of tokenLifetimes. A form without it, as from a
+		// page loaded before the choice existed, makes a token that never
+		// expires.
+		Expires string `schema:"expires" validate:"omitempty,oneof=never 30d 90d 1y"`
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) error {
@@ -121,17 +167,18 @@ func (h *Handler) createToken(sm *auth.Session, a *auth.Auth) response.HandlerFu
 			return auth.ErrForbidden
 		}
 
-		plaintext, _, err := a.CreateToken(ctx, userID, input.Name, dbtype.TokenScope(input.Scope))
+		expiresAt := tokenExpiry(input.Expires, h.store.Now())
+
+		plaintext, _, err := a.CreateToken(ctx, userID, input.Name, dbtype.TokenScope(input.Scope), expiresAt)
 		if err != nil {
 			return err
 		}
 
-		sm.Flash(ctx, flashTokenPlaintext, plaintext)
-		sm.Flash(ctx, flashTokenName, input.Name)
-		sm.Flash(ctx, flashTokenScope, input.Scope)
-		http.Redirect(w, r, "/settings/tokens", http.StatusSeeOther)
-
-		return nil
+		return h.renderTokens(w, r, sm, a, tokensData{
+			PlaintextToken: plaintext,
+			NewName:        input.Name,
+			NewScope:       input.Scope,
+		})
 	}
 }
 
@@ -157,7 +204,7 @@ func (h *Handler) revokeToken(sm *auth.Session, a *auth.Auth) response.HandlerFu
 			return err
 		}
 
-		list, err := tokenList(ctx, sm, a, r)
+		list, err := h.tokenList(ctx, sm, a, r)
 		if err != nil {
 			return err
 		}
@@ -170,7 +217,7 @@ func (h *Handler) revokeToken(sm *auth.Session, a *auth.Auth) response.HandlerFu
 
 // tokenList reads the signed-in user's tokens, newest first, as the view the
 // template renders.
-func tokenList(ctx context.Context, sm *auth.Session, a *auth.Auth, r *http.Request) ([]apiToken, error) {
+func (h *Handler) tokenList(ctx context.Context, sm *auth.Session, a *auth.Auth, r *http.Request) ([]apiToken, error) {
 	userID, err := currentUserID(sm, r)
 	if err != nil {
 		return nil, err
@@ -181,9 +228,11 @@ func tokenList(ctx context.Context, sm *auth.Session, a *auth.Auth, r *http.Requ
 		return nil, err
 	}
 
+	now := h.store.Now()
+
 	list := make([]apiToken, len(rows))
 	for i, row := range rows {
-		list[i] = newAPIToken(row)
+		list[i] = newAPIToken(row, now)
 	}
 
 	return list, nil
