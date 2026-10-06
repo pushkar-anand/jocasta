@@ -12,9 +12,9 @@ import (
 )
 
 const createAPIToken = `-- name: CreateAPIToken :one
-INSERT INTO api_tokens (user_id, name, token_hash, scope)
-VALUES (?, ?, ?, ?)
-RETURNING id, user_id, name, token_hash, scope, created_at, last_used_at
+INSERT INTO api_tokens (user_id, name, token_hash, scope, expires_at)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, user_id, name, token_hash, scope, created_at, last_used_at, expires_at
 `
 
 type CreateAPITokenParams struct {
@@ -22,19 +22,21 @@ type CreateAPITokenParams struct {
 	Name      string            `json:"name"`
 	TokenHash string            `json:"token_hash"`
 	Scope     dbtype.TokenScope `json:"scope"`
+	ExpiresAt dbtype.NullTime   `json:"expires_at"`
 }
 
 // CreateAPIToken
 //
-//	INSERT INTO api_tokens (user_id, name, token_hash, scope)
-//	VALUES (?, ?, ?, ?)
-//	RETURNING id, user_id, name, token_hash, scope, created_at, last_used_at
+//	INSERT INTO api_tokens (user_id, name, token_hash, scope, expires_at)
+//	VALUES (?, ?, ?, ?, ?)
+//	RETURNING id, user_id, name, token_hash, scope, created_at, last_used_at, expires_at
 func (q *Queries) CreateAPIToken(ctx context.Context, arg CreateAPITokenParams) (*ApiToken, error) {
 	row := q.queryRow(ctx, q.createAPITokenStmt, createAPIToken,
 		arg.UserID,
 		arg.Name,
 		arg.TokenHash,
 		arg.Scope,
+		arg.ExpiresAt,
 	)
 	var i ApiToken
 	err := row.Scan(
@@ -45,6 +47,7 @@ func (q *Queries) CreateAPIToken(ctx context.Context, arg CreateAPITokenParams) 
 		&i.Scope,
 		&i.CreatedAt,
 		&i.LastUsedAt,
+		&i.ExpiresAt,
 	)
 	return &i, err
 }
@@ -73,7 +76,7 @@ func (q *Queries) DeleteAPIToken(ctx context.Context, arg DeleteAPITokenParams) 
 }
 
 const listAPITokensByUser = `-- name: ListAPITokensByUser :many
-SELECT id, user_id, name, token_hash, scope, created_at, last_used_at
+SELECT id, user_id, name, token_hash, scope, created_at, last_used_at, expires_at
 FROM api_tokens
 WHERE user_id = ?
 ORDER BY created_at DESC, id DESC
@@ -81,7 +84,7 @@ ORDER BY created_at DESC, id DESC
 
 // ListAPITokensByUser
 //
-//	SELECT id, user_id, name, token_hash, scope, created_at, last_used_at
+//	SELECT id, user_id, name, token_hash, scope, created_at, last_used_at, expires_at
 //	FROM api_tokens
 //	WHERE user_id = ?
 //	ORDER BY created_at DESC, id DESC
@@ -102,6 +105,7 @@ func (q *Queries) ListAPITokensByUser(ctx context.Context, userID int64) ([]*Api
 			&i.Scope,
 			&i.CreatedAt,
 			&i.LastUsedAt,
+			&i.ExpiresAt,
 		); err != nil {
 			return nil, err
 		}
@@ -118,25 +122,28 @@ func (q *Queries) ListAPITokensByUser(ctx context.Context, userID int64) ([]*Api
 
 const touchAPITokenByHash = `-- name: TouchAPITokenByHash :one
 UPDATE api_tokens
-SET last_used_at = ?
-WHERE token_hash = ?
-RETURNING id, user_id, name, token_hash, scope, created_at, last_used_at
+SET last_used_at = ?1
+WHERE token_hash = ?2
+  AND (expires_at IS NULL OR expires_at > ?1)
+RETURNING id, user_id, name, token_hash, scope, created_at, last_used_at, expires_at
 `
 
 type TouchAPITokenByHashParams struct {
-	LastUsedAt dbtype.NullTime `json:"last_used_at"`
-	TokenHash  string          `json:"token_hash"`
+	Now       dbtype.NullTime `json:"now"`
+	TokenHash string          `json:"token_hash"`
 }
 
 // Runs on every API request: finding the row and recording its use in one
-// statement keeps that cost to a single round trip.
+// statement keeps that cost to a single round trip. An expired token matches
+// no row, the same as a revoked one.
 //
 //	UPDATE api_tokens
-//	SET last_used_at = ?
-//	WHERE token_hash = ?
-//	RETURNING id, user_id, name, token_hash, scope, created_at, last_used_at
+//	SET last_used_at = ?1
+//	WHERE token_hash = ?2
+//	  AND (expires_at IS NULL OR expires_at > ?1)
+//	RETURNING id, user_id, name, token_hash, scope, created_at, last_used_at, expires_at
 func (q *Queries) TouchAPITokenByHash(ctx context.Context, arg TouchAPITokenByHashParams) (*ApiToken, error) {
-	row := q.queryRow(ctx, q.touchAPITokenByHashStmt, touchAPITokenByHash, arg.LastUsedAt, arg.TokenHash)
+	row := q.queryRow(ctx, q.touchAPITokenByHashStmt, touchAPITokenByHash, arg.Now, arg.TokenHash)
 	var i ApiToken
 	err := row.Scan(
 		&i.ID,
@@ -146,6 +153,7 @@ func (q *Queries) TouchAPITokenByHash(ctx context.Context, arg TouchAPITokenByHa
 		&i.Scope,
 		&i.CreatedAt,
 		&i.LastUsedAt,
+		&i.ExpiresAt,
 	)
 	return &i, err
 }
