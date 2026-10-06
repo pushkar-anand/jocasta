@@ -28,6 +28,7 @@ type ApiToken struct {
 	Scope      dbtype.TokenScope `json:"scope"`
 	CreatedAt  dbtype.Time       `json:"created_at"`
 	LastUsedAt dbtype.NullTime   `json:"last_used_at"`
+	ExpiresAt  dbtype.NullTime   `json:"expires_at"`
 }
 
 type AttemptsHourly struct {
