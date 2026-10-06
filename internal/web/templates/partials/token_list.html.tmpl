@@ -48,6 +48,7 @@
                         <th scope="col">Permission</th>
                         <th scope="col">Created</th>
                         <th scope="col">Last used</th>
+                        <th scope="col">Expires</th>
                         <th scope="col"></th>
                     </tr>
                     </thead>
@@ -64,6 +65,13 @@
                             </td>
                             <td class="dim">{{ stamp .CreatedAt "" }}</td>
                             <td class="dim">{{ stamp .LastUsedAt "" }}</td>
+                            {{- if .Expired }}
+                            <td><span class="chip chip--warn chip--label">Expired</span></td>
+                            {{- else if .ExpiresAt.IsZero }}
+                            <td class="dim">Never</td>
+                            {{- else }}
+                            <td class="dim"><time datetime="{{ .ExpiresAt.Format "2006-01-02" }}">{{ .ExpiresAt.Format "2 Jan 2006" }}</time></td>
+                            {{- end }}
                             <td>
                                 <button type="button" class="btn btn--quiet btn--sm btn--danger"
                                         data-open="revoke-dialog-{{ .ID }}">

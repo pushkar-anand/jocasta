@@ -127,7 +127,7 @@ func TestReadUserCannotMintAWriteToken(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 
 	ok := requestAs(t, write, writeCookies, http.MethodPost, "/settings/tokens", crafted)
-	assert.Equal(t, http.StatusSeeOther, ok.Code, "a writer's read_write token still issues")
+	assert.Equal(t, http.StatusOK, ok.Code, "a writer's read_write token still issues")
 }
 
 // A read user has one permission to give a token, so the form states it

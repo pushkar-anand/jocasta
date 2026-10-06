@@ -37,6 +37,10 @@ sql:
             go_type:
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
               type: "NullTime"
+          - column: "api_tokens.expires_at"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "NullTime"
           - column: "sources.created_at"
             go_type: *timestamp
           - column: "networks.created_at"
