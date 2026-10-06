@@ -34,9 +34,8 @@ type (
 	CORS struct {
 		// AllowedOrigins lists the origins (scheme://host[:port]) permitted to
 		// make cross-origin requests, such as a dashboard hosted elsewhere that
-		// calls the JSON API from the browser. Blank defaults to the server's
-		// own address, which a browser already allows without CORS, so an
-		// unset list changes nothing.
+		// calls the JSON API from the browser. Empty sends no CORS headers,
+		// so only the server's own pages can read its responses.
 		AllowedOrigins []string `koanf:"allowed_origins"`
 	}
 
