@@ -553,22 +553,26 @@ func TestCORSPreflight(t *testing.T) {
 	assert.Contains(t, res.Header.Get("Access-Control-Allow-Methods"), http.MethodPatch)
 }
 
-// Leaving CORSAllowedOrigins unset defaults to the server's own address, so a
-// third-party site still gets no CORS header.
-func TestCORSDefaultsToOwnAddress(t *testing.T) {
+// With CORSAllowedOrigins unset no response carries CORS headers, so only the
+// server's own pages can read it. That holds for the address the server
+// listens on too: an origin made from a bind address such as 0.0.0.0 is no
+// site a browser loads.
+func TestCORSSendsNoHeadersWithoutOrigins(t *testing.T) {
 	baseURL, _ := startServer(t)
 
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, baseURL+"/api/stats", nil)
-	require.NoError(t, err)
+	for _, origin := range []string{"https://evil.example", baseURL} {
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, baseURL+"/api/stats", nil)
+		require.NoError(t, err)
 
-	req.Header.Set("Origin", "https://evil.example")
+		req.Header.Set("Origin", origin)
 
-	res, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
+		res, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
 
-	t.Cleanup(func() { _ = res.Body.Close() })
+		_ = res.Body.Close()
 
-	assert.Empty(t, res.Header.Get("Access-Control-Allow-Origin"))
+		assert.Empty(t, res.Header.Get("Access-Control-Allow-Origin"), origin)
+	}
 }
 
 // A PATCH body past maxRequestBodyBytes is refused before it is decoded in
