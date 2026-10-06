@@ -45,10 +45,10 @@ func (m *sessionMiddleware) ServeHTTP(
 	r *http.Request,
 ) {
 	ctx := r.Context()
-	uri := r.RequestURI
+	path := r.URL.Path
 
 	for _, b := range m.always {
-		if b.MatchString(uri) {
+		if b.MatchString(path) {
 			m.next.ServeHTTP(w, r)
 			return
 		}
@@ -61,10 +61,10 @@ func (m *sessionMiddleware) ServeHTTP(
 	}
 
 	switch {
-	case r.URL.Path == setupPath && setupRequired:
+	case path == setupPath && setupRequired:
 		m.next.ServeHTTP(w, r)
 		return
-	case r.URL.Path == setupPath:
+	case path == setupPath:
 		// Setup already happened; this visitor signs in like anyone else.
 		http.Redirect(w, r, "/login", http.StatusFound)
 		return
@@ -74,7 +74,7 @@ func (m *sessionMiddleware) ServeHTTP(
 	}
 
 	for _, b := range m.signIn {
-		if b.MatchString(uri) {
+		if b.MatchString(path) {
 			m.next.ServeHTTP(w, r)
 			return
 		}

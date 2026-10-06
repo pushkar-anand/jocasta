@@ -287,17 +287,40 @@ func TestUpdateDevice(t *testing.T) {
 	assert.Equal(t, "Office printer", reread["label"])
 }
 
-// Every field is applied, so one left out of the body clears what was there.
-func TestUpdateDeviceClearsOmittedFields(t *testing.T) {
+// A field left out of the body keeps its value.
+func TestUpdateDeviceKeepsOmittedFields(t *testing.T) {
 	t.Parallel()
 
 	h := seeded(t)
 
-	patchJSON(t, h, "/devices/1", `{"label": "Office printer", "group": "office"}`)
+	patchJSON(t, h, "/devices/1", `{
+		"label": "Office printer",
+		"notes": "Second floor.",
+		"group": "office",
+		"type": "printer",
+		"ignored": true
+	}`)
 
-	_, _, body := patchJSON(t, h, "/devices/1", `{"label": "Office printer"}`)
+	_, _, body := patchJSON(t, h, "/devices/1", `{"label": "Hallway printer"}`)
+	assert.Equal(t, "Hallway printer", body["label"])
+	assert.Equal(t, "Second floor.", body["notes"])
+	assert.Equal(t, "office", body["group"])
+	assert.Equal(t, "printer", body["type"])
+	assert.Equal(t, true, body["ignored"])
+}
+
+// A field sent empty is cleared, and only that field.
+func TestUpdateDeviceClearsAFieldSentEmpty(t *testing.T) {
+	t.Parallel()
+
+	h := seeded(t)
+
+	patchJSON(t, h, "/devices/1", `{"label": "Office printer", "notes": "Second floor.", "group": "office"}`)
+
+	_, _, body := patchJSON(t, h, "/devices/1", `{"notes": ""}`)
+	assert.NotContains(t, body, "notes")
 	assert.Equal(t, "Office printer", body["label"])
-	assert.NotContains(t, body, "group")
+	assert.Equal(t, "office", body["group"])
 }
 
 func TestUpdateDeviceRecordsTheEdit(t *testing.T) {
