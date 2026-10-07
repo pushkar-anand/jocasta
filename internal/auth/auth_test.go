@@ -305,7 +305,7 @@ func testLogger() *slog.Logger {
 func newTestAuth(t *testing.T, users map[string]*models.User) *Auth {
 	t.Helper()
 
-	a, err := New(&fakeQueries{users: users}, password.NewHasher())
+	a, err := New(nil, &fakeQueries{users: users}, password.NewHasher())
 	require.NoError(t, err)
 
 	return a

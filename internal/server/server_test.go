@@ -88,7 +88,7 @@ func testAuth(t *testing.T) (*auth.Auth, string) {
 	})
 	require.NoError(t, err)
 
-	a, err := auth.New(q, password.NewHasher())
+	a, err := auth.New(conn, q, password.NewHasher())
 	require.NoError(t, err)
 
 	apiToken, _, err := a.CreateToken(t.Context(), user.ID, "test token", dbtype.TokenReadWrite, time.Time{})

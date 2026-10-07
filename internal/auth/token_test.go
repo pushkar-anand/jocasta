@@ -122,7 +122,7 @@ func dbAuth(t *testing.T) (*Auth, int64) {
 
 	t.Cleanup(func() { _ = conn.Close() })
 
-	a, err := New(models.New(conn), password.NewHasher())
+	a, err := New(conn, models.New(conn), password.NewHasher())
 	require.NoError(t, err)
 
 	user, err := a.CreateUser(t.Context(), "host-a", "placeholder-password", dbtype.RoleRead)

@@ -104,7 +104,7 @@ func startApp(ctx context.Context, dir string, f fixture) (*app, func(), error) 
 
 	store := inventory.New(conn, log, inventory.WithClock(func() time.Time { return anchor }))
 
-	a, err := auth.New(models.New(conn), password.NewHasher())
+	a, err := auth.New(conn, models.New(conn), password.NewHasher())
 	if err != nil {
 		return nil, nil, err
 	}
