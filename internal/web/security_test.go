@@ -193,7 +193,14 @@ func TestSecurityKeepsTheSecretOnceTOTPIsOn(t *testing.T) {
 		url.Values{"code": {recoveryCodes[0]}}.Encode())
 	assert.Equal(t, http.StatusFound, redeem.Code)
 
-	signInWithCode(t, h, secret)
+	// The authenticator's code still works too. The sign-in above already
+	// spent this step's code, so the next step's code stands in for it.
+	pending = loginWith(t, h, testUsername, testPassword).Result().Cookies()
+	next, err := totp.GenerateCode(secret, time.Now().Add(30*time.Second))
+	require.NoError(t, err)
+
+	verify := requestAs(t, h, pending, http.MethodPost, "/login/totp", url.Values{"code": {next}}.Encode())
+	assert.Equal(t, http.StatusFound, verify.Code)
 }
 
 // Regenerated recovery codes are shown on the page that answers the request,

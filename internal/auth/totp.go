@@ -8,9 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/pquerna/otp"
+	"github.com/pquerna/otp/hotp"
 	"github.com/pquerna/otp/totp"
 
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
@@ -31,6 +33,74 @@ const (
 	totpBurst  = 5
 	totpRefill = 3 * time.Minute
 )
+
+// totpPeriod, totpDigits and totpAlgorithm are how codes are made. They are
+// RFC 6238's defaults, and the only settings some authenticator apps support:
+// those apps ignore any others a QR code asks for. totpSkew accepts a code up
+// to that many steps either side of the current one, to allow for clock drift.
+const (
+	totpPeriod    = 30 * time.Second
+	totpDigits    = otp.DigitsSix
+	totpAlgorithm = otp.AlgorithmSHA1
+	totpSkew      = 1
+)
+
+// totpSteps records the last TOTP step accepted for each account, so a code
+// that has signed in once is refused for the rest of its validity window. It
+// lives in memory, so a restart forgets it and a code used just before one
+// works once more until its window closes. A totpSteps is safe for concurrent
+// use, and its zero value is ready to use.
+type totpSteps struct {
+	mu   sync.Mutex
+	last map[int64]uint64
+}
+
+// accept reports whether code is userID's code for the step at now or one
+// either side of it, and from a later step than any accepted before. A code
+// it accepts is recorded, so the same code is refused next time.
+func (s *totpSteps) accept(userID int64, secret, code string, now time.Time) bool {
+	current := uint64(now.Unix() / int64(totpPeriod/time.Second)) //nolint:gosec // a clock set before 1970 matches no authenticator anyway.
+
+	// Every candidate step is checked, with no early return, so the time
+	// taken does not say which step matched. Later steps overwrite earlier
+	// ones, leaving the newest match.
+	var (
+		matched bool
+		step    uint64
+	)
+
+	for c := current - totpSkew; c <= current+totpSkew; c++ {
+		ok, err := hotp.ValidateCustom(code, c, secret, hotp.ValidateOpts{
+			Digits:    totpDigits,
+			Algorithm: totpAlgorithm,
+		})
+		if err == nil && ok {
+			matched, step = true, c
+		}
+	}
+
+	if !matched {
+		return false
+	}
+
+	// The check against the last step and the record of this one happen
+	// under one lock, so two requests carrying the same code cannot both
+	// pass.
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if last, seen := s.last[userID]; seen && step <= last {
+		return false
+	}
+
+	if s.last == nil {
+		s.last = make(map[int64]uint64)
+	}
+
+	s.last[userID] = step
+
+	return true
+}
 
 // recoveryCodeCount is how many single-use codes one enrollment or
 // regeneration mints.
@@ -55,7 +125,13 @@ type totpManager interface {
 // Once ConfirmTOTPEnrollment has turned 2FA on, it returns ErrTOTPEnabled and
 // leaves the secret as it is.
 func (a *Auth) StartTOTPEnrollment(ctx context.Context, userID int64, username string) (*otp.Key, error) {
-	key, err := totp.Generate(totp.GenerateOpts{Issuer: totpIssuer, AccountName: username})
+	key, err := totp.Generate(totp.GenerateOpts{
+		Issuer:      totpIssuer,
+		AccountName: username,
+		Period:      uint(totpPeriod / time.Second),
+		Digits:      totpDigits,
+		Algorithm:   totpAlgorithm,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("generate totp key: %w", err)
 	}
@@ -254,9 +330,11 @@ func (a *Auth) endPendingSignIn(ctx context.Context, sm *Session) error {
 }
 
 // checkTOTPOrRecoveryCode reports whether code matches the user's authenticator
-// or an unused recovery code. A matching recovery code is consumed.
+// or an unused recovery code. Either is good for one sign-in: a matching TOTP
+// code's step is recorded (see totpSteps), and a matching recovery code is
+// consumed.
 func (a *Auth) checkTOTPOrRecoveryCode(ctx context.Context, user *models.User, code string) (bool, error) {
-	if user.TOTPSecret.Valid && totp.Validate(code, user.TOTPSecret.String) {
+	if user.TOTPSecret.Valid && a.totpSteps.accept(user.ID, user.TOTPSecret.String, code, a.now()) {
 		return true, nil
 	}
 
