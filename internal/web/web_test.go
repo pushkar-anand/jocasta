@@ -178,7 +178,7 @@ func newWebHandlerWithSession(t *testing.T, store *inventory.Store, a *auth.Auth
 				return http.StatusUnauthorized
 			case errors.Is(err, auth.ErrInvalidTOTPCode):
 				return http.StatusPreconditionRequired
-			case errors.Is(err, auth.ErrTOTPLocked):
+			case errors.Is(err, auth.ErrLoginLocked), errors.Is(err, auth.ErrTOTPLocked):
 				return http.StatusTooManyRequests
 			case errors.Is(err, auth.ErrInvalidEnrollmentCode), errors.Is(err, auth.ErrInvalidPassword):
 				return http.StatusUnprocessableEntity

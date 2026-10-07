@@ -143,7 +143,7 @@ func Handler(
 			// they give 401 and 407.
 			case errors.Is(err, auth.ErrInvalidTOTPCode):
 				return http.StatusPreconditionRequired
-			case errors.Is(err, auth.ErrTOTPLocked):
+			case errors.Is(err, auth.ErrLoginLocked), errors.Is(err, auth.ErrTOTPLocked):
 				return http.StatusTooManyRequests
 			// Settings handlers render these beside the failed field. Keep the
 			// status mapping for errors returned outside those handlers too.

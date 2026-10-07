@@ -6,6 +6,12 @@ import "errors"
 // wrong password, so a caller cannot tell which by branching on the error.
 var ErrInvalidCredentials = errors.New("invalid user or credentials")
 
+// ErrLoginLocked is returned when an account has used up its password
+// attempts, whether or not the password sent matched. Unknown usernames share
+// one allowance, so they lock the same way. Another attempt is allowed once
+// time has passed.
+var ErrLoginLocked = errors.New("too many sign-in attempts")
+
 // ErrInvalidToken is returned for an API token that answers for no row,
 // whether it was never issued, was mistyped, or has since been revoked.
 var ErrInvalidToken = errors.New("invalid token")

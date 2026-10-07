@@ -42,6 +42,24 @@ func TestLoginFormRejectsWrongPassword(t *testing.T) {
 	assert.NotRegexp(t, `<input[^>]*id="login-username"[^>]*autofocus`, rec.Body.String())
 }
 
+// TestLoginFormLocksAfterTooManyPasswords covers auth.ErrLoginLocked reaching
+// the sign-in page as a 429 that says to wait, with the username kept.
+func TestLoginFormLocksAfterTooManyPasswords(t *testing.T) {
+	t.Parallel()
+
+	h := empty(t)
+
+	for range 10 {
+		rec := loginWith(t, h, testUsername, "wrong-password")
+		require.Equal(t, http.StatusUnauthorized, rec.Code)
+	}
+
+	rec := loginWith(t, h, testUsername, testPassword)
+	require.Equal(t, http.StatusTooManyRequests, rec.Code)
+	assert.Contains(t, rec.Body.String(), "Too many sign-in attempts. Wait a minute, then try again.")
+	assert.Contains(t, rec.Body.String(), `value="`+testUsername+`"`)
+}
+
 // Signing out is a POST, since a link would let another site spend the
 // session cookie, and it ends the session.
 func TestLogoutIsAPostThatEndsTheSession(t *testing.T) {

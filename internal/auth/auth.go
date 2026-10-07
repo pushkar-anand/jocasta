@@ -15,6 +15,19 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 )
 
+// loginBurst and loginRefill set each account's allowance of password
+// attempts: loginBurst at once, then one more every loginRefill. That leaves
+// room for a few mistyped passwords and still holds a guesser to one try a
+// minute.
+const (
+	loginBurst  = 10
+	loginRefill = time.Minute
+)
+
+// unknownUserKey is the loginAttempts key every unknown username shares. No
+// account has ID 0, since users.id is AUTOINCREMENT and starts from 1.
+const unknownUserKey int64 = 0
+
 type (
 	// hasher is what Auth needs from the password hashing library it uses.
 	hasher interface {
@@ -77,6 +90,12 @@ type Auth struct {
 	// keyed by user ID, and only after the password matched, so it holds at
 	// most one entry per account.
 	totpAttempts *attemptLimiter[int64]
+
+	// loginAttempts is each account's allowance of passwords, keyed by user
+	// ID. Every unknown username shares unknownUserKey, so the map holds at
+	// most one entry per account plus one, and a refusal for a made-up name
+	// looks the same as one for a real account.
+	loginAttempts *attemptLimiter[int64]
 }
 
 // New builds an Auth over s. It hashes the placeholder password Verify
@@ -93,23 +112,43 @@ func New(s store, hasher hasher) (*Auth, error) {
 		now:             time.Now,
 		unknownUserHash: unknownUserHash,
 		totpAttempts:    newAttemptLimiter[int64](totpBurst, totpRefill),
+		loginAttempts:   newAttemptLimiter[int64](loginBurst, loginRefill),
 	}, nil
 }
 
 // Verify checks username and password against the stored credential and
 // returns the matching user only once both hold.
+//
+// Each password, right or wrong, spends one of the account's attempts (see
+// loginBurst). With none left, Verify returns ErrLoginLocked, even for the
+// right password.
 func (a *Auth) Verify(ctx context.Context, username, password string) (*models.User, error) {
 	user, err := a.store.GetUserByUsername(ctx, username)
 
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		_ = a.hasher.Compare(password, a.unknownUserHash)
-		return nil, ErrInvalidCredentials
+		user = nil
 	case err != nil:
 		return nil, fmt.Errorf("user %q: %w", username, err)
 	}
 
-	if err := a.hasher.Compare(password, user.PasswordHash); err != nil {
+	key, hash := unknownUserKey, a.unknownUserHash
+	if user != nil {
+		key, hash = user.ID, user.PasswordHash
+	}
+
+	// Spent before the compare, so passwords sent together cannot all be
+	// checked before any of them is counted.
+	allowed, _ := a.loginAttempts.spend(key, a.now())
+
+	// A refused attempt still pays for the compare, so its timing does not
+	// tell a locked account from an open one.
+	matched := a.hasher.Compare(password, hash) == nil
+
+	switch {
+	case !allowed:
+		return nil, ErrLoginLocked
+	case user == nil || !matched:
 		return nil, ErrInvalidCredentials
 	}
 
