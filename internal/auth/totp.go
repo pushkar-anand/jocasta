@@ -34,12 +34,15 @@ const (
 	totpRefill = 3 * time.Minute
 )
 
-// totpPeriod and totpSkew match what totp.Validate assumes and what
-// authenticator apps use: a new code every totpPeriod, accepted for totpSkew
-// steps either side of the current one to allow for clock drift.
+// totpPeriod, totpDigits and totpAlgorithm are how codes are made. They are
+// RFC 6238's defaults, and the only settings some authenticator apps support:
+// those apps ignore any others a QR code asks for. totpSkew accepts a code up
+// to that many steps either side of the current one, to allow for clock drift.
 const (
-	totpPeriod = 30 * time.Second
-	totpSkew   = 1
+	totpPeriod    = 30 * time.Second
+	totpDigits    = otp.DigitsSix
+	totpAlgorithm = otp.AlgorithmSHA1
+	totpSkew      = 1
 )
 
 // totpSteps records the last TOTP step accepted for each account, so a code
@@ -68,8 +71,8 @@ func (s *totpSteps) accept(userID int64, secret, code string, now time.Time) boo
 
 	for c := current - totpSkew; c <= current+totpSkew; c++ {
 		ok, err := hotp.ValidateCustom(code, c, secret, hotp.ValidateOpts{
-			Digits:    otp.DigitsSix,
-			Algorithm: otp.AlgorithmSHA1,
+			Digits:    totpDigits,
+			Algorithm: totpAlgorithm,
 		})
 		if err == nil && ok {
 			matched, step = true, c
@@ -122,7 +125,13 @@ type totpManager interface {
 // Once ConfirmTOTPEnrollment has turned 2FA on, it returns ErrTOTPEnabled and
 // leaves the secret as it is.
 func (a *Auth) StartTOTPEnrollment(ctx context.Context, userID int64, username string) (*otp.Key, error) {
-	key, err := totp.Generate(totp.GenerateOpts{Issuer: totpIssuer, AccountName: username})
+	key, err := totp.Generate(totp.GenerateOpts{
+		Issuer:      totpIssuer,
+		AccountName: username,
+		Period:      uint(totpPeriod / time.Second),
+		Digits:      totpDigits,
+		Algorithm:   totpAlgorithm,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("generate totp key: %w", err)
 	}
