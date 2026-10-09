@@ -423,6 +423,37 @@ func TestVerifyLimitIsPerAccount(t *testing.T) {
 	assert.ErrorIs(t, err, ErrInvalidCredentials)
 }
 
+// TestWithLoginAllowance covers a raised allowance taking the place of the
+// default, and a non-positive one leaving the default in place.
+func TestWithLoginAllowance(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name  string
+		burst int
+		want  int
+	}{
+		{name: "raised", burst: loginBurst + 5, want: loginBurst + 5},
+		{name: "zero keeps the default", burst: 0, want: loginBurst},
+		{name: "negative keeps the default", burst: -1, want: loginBurst},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			a, err := New(nil, &fakeQueries{}, password.NewHasher(), WithLoginAllowance(tc.burst))
+			require.NoError(t, err)
+
+			for range tc.want {
+				_, err := a.Verify(t.Context(), "nobody", "wrong-password")
+				require.ErrorIs(t, err, ErrInvalidCredentials)
+			}
+
+			_, err = a.Verify(t.Context(), "nobody", "wrong-password")
+			assert.ErrorIs(t, err, ErrLoginLocked)
+		})
+	}
+}
+
 // New hashes its placeholder password once, up front, so the first
 // unknown-user login does not pay for it.
 func TestNewPrecomputesUnknownUserHash(t *testing.T) {

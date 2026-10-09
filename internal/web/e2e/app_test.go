@@ -104,7 +104,9 @@ func startApp(ctx context.Context, dir string, f fixture) (*app, func(), error) 
 
 	store := inventory.New(conn, log, inventory.WithClock(func() time.Time { return anchor }))
 
-	a, err := auth.New(conn, models.New(conn), password.NewHasher())
+	// The sign-in page's failed state sends a wrong password once per
+	// viewport and theme, faster than the default allowance refills.
+	a, err := auth.New(conn, models.New(conn), password.NewHasher(), auth.WithLoginAllowance(1000))
 	if err != nil {
 		return nil, nil, err
 	}
