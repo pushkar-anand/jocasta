@@ -108,10 +108,34 @@ type Auth struct {
 	loginAttempts *attemptLimiter[int64]
 }
 
+// Option configures New.
+type Option func(*config)
+
+type config struct {
+	loginBurst int
+}
+
+// WithLoginAllowance sets how many passwords an account may try at once before
+// Verify starts refusing them; the refill stays one a minute. A non-positive
+// burst is ignored, leaving the default of 10 in place: zero would lock every
+// account out. It exists for tests that sign in more often than a person does.
+func WithLoginAllowance(burst int) Option {
+	return func(c *config) {
+		if burst > 0 {
+			c.loginBurst = burst
+		}
+	}
+}
+
 // New builds an Auth over s, the store for conn. Writes that have to land
 // together run in a transaction on conn. New hashes the placeholder password
 // Verify compares against on a username miss once, up front.
-func New(conn *sql.DB, s store, hasher hasher) (*Auth, error) {
+func New(conn *sql.DB, s store, hasher hasher, opts ...Option) (*Auth, error) {
+	cfg := config{loginBurst: loginBurst}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
 	unknownUserHash, err := hasher.Hash("no-such-user")
 	if err != nil {
 		return nil, fmt.Errorf("prepare unknown-user hash: %w", err)
@@ -125,7 +149,7 @@ func New(conn *sql.DB, s store, hasher hasher) (*Auth, error) {
 		now:             time.Now,
 		unknownUserHash: unknownUserHash,
 		totpAttempts:    newAttemptLimiter[int64](totpBurst, totpRefill),
-		loginAttempts:   newAttemptLimiter[int64](loginBurst, loginRefill),
+		loginAttempts:   newAttemptLimiter[int64](cfg.loginBurst, loginRefill),
 	}, nil
 }
 
