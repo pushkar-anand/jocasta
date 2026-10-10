@@ -76,13 +76,11 @@ func TestLoginFormLimitsEachClientAddress(t *testing.T) {
 	t.Parallel()
 
 	a := testAuth(t)
-	names := []string{testUsername}
+	names := []string{testUsername, "grace", "alan", "linus"}
 
-	for _, name := range []string{"grace", "alan", "linus"} {
+	for _, name := range names[1:] {
 		_, err := a.CreateUser(t.Context(), name, testPassword, dbtype.RoleRead)
 		require.NoError(t, err)
-
-		names = append(names, name)
 	}
 
 	h := newWebHandlerWithAuth(t, testStore(t), a)
