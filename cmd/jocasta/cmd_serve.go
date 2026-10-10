@@ -230,20 +230,17 @@ func homeCountry(code string) (string, error) {
 }
 
 // trustedProxies parses server.trusted_proxies, so a typo fails startup rather
-// than leaving a proxy untrusted. Each entry may hold several, separated by
-// commas, since that is the only way to give a list in the environment.
+// than leaving a proxy untrusted.
 func trustedProxies(entries []string) ([]netip.Prefix, error) {
-	var prefixes []netip.Prefix
+	prefixes := make([]netip.Prefix, 0, len(entries))
 
 	for _, entry := range entries {
-		for s := range strings.SplitSeq(entry, ",") {
-			p, err := clientip.ParsePrefix(strings.TrimSpace(s))
-			if err != nil {
-				return nil, fmt.Errorf("server.trusted_proxies: %q is not an address or CIDR: %w", s, err)
-			}
-
-			prefixes = append(prefixes, p)
+		p, err := clientip.ParsePrefix(entry)
+		if err != nil {
+			return nil, fmt.Errorf("server.trusted_proxies: %q is not an address or CIDR: %w", entry, err)
 		}
+
+		prefixes = append(prefixes, p)
 	}
 
 	return prefixes, nil
