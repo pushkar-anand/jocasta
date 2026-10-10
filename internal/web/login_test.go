@@ -1,14 +1,20 @@
 package web
 
 import (
+	"bytes"
+	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/pquerna/otp/totp"
 	"github.com/pushkar-anand/build-with-go/ctxval"
+	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -91,6 +97,80 @@ func TestLoginFormLimitsEachClientAddress(t *testing.T) {
 
 	rec = loginFrom(t, h, netip.MustParseAddr("198.51.100.8"), testUsername, testPassword)
 	assert.Equal(t, http.StatusFound, rec.Code)
+}
+
+// TestSignInIsLogged covers the lines a sign-in leaves: who signed in and from
+// where, and why an attempt was refused, without the username as typed.
+func TestSignInIsLogged(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+
+	a := testAuth(t)
+	h := newWebHandlerWithLog(t, testStore(t), a, auth.NewSession(testLogger()), slog.New(slog.NewJSONHandler(&buf, nil)))
+	from := netip.MustParseAddr("198.51.100.7")
+
+	loginFrom(t, h, from, "typed-by-mistake", "wrong-password")
+	loginFrom(t, h, from, testUsername, testPassword)
+
+	lines := logLines(t, &buf)
+	require.Len(t, lines, 2)
+
+	delete(lines[0], "time")
+	assert.Equal(t, map[string]any{
+		"level":     "WARN",
+		"msg":       "sign-in refused",
+		"reason":    "username and password do not match",
+		"remote_ip": "198.51.100.7",
+	}, lines[0])
+	assert.NotContains(t, buf.String(), "typed-by-mistake")
+
+	assert.Equal(t, "signed in", lines[1]["msg"])
+	assert.Equal(t, testUsername, lines[1]["user"])
+	assert.Equal(t, "198.51.100.7", lines[1]["remote_ip"])
+}
+
+// TestSecondFactorIsLogged covers the second step: a wrong code is logged
+// with its reason, and the sign-in once a code works.
+func TestSecondFactorIsLogged(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+
+	a := testAuth(t)
+	h := newWebHandlerWithLog(t, testStore(t), a, auth.NewSession(testLogger()), slog.New(slog.NewJSONHandler(&buf, nil)))
+	secret, _ := enrollTOTP(t, a, testUsername)
+
+	cookies := loginWith(t, h, testUsername, testPassword).Result().Cookies()
+	requestAs(t, h, cookies, http.MethodPost, "/login/totp", url.Values{"code": {"000000"}}.Encode())
+
+	code, err := totp.GenerateCode(secret, time.Now())
+	require.NoError(t, err)
+	requestAs(t, h, cookies, http.MethodPost, "/login/totp", url.Values{"code": {code}}.Encode())
+
+	lines := logLines(t, &buf)
+	require.Len(t, lines, 2)
+
+	assert.Equal(t, "sign-in refused", lines[0]["msg"])
+	assert.Equal(t, "code does not match", lines[0]["reason"])
+	assert.Equal(t, "signed in", lines[1]["msg"])
+	assert.Equal(t, testUsername, lines[1]["user"])
+}
+
+// logLines decodes each JSON line in buf.
+func logLines(t *testing.T, buf *bytes.Buffer) []map[string]any {
+	t.Helper()
+
+	var lines []map[string]any
+
+	for l := range strings.Lines(buf.String()) {
+		var line map[string]any
+		require.NoError(t, json.Unmarshal([]byte(l), &line))
+
+		lines = append(lines, line)
+	}
+
+	return lines
 }
 
 // loginFrom posts the sign-in form as loginWith does, from the client address
