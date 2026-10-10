@@ -290,8 +290,8 @@ type (
 	}
 )
 
-// listKeys are the list settings an environment variable can give, its items
-// separated by commas.
+// listKeys are the settings an environment variable can set as a list, with
+// items separated by commas.
 var listKeys = []string{"networks", "server.cors.allowed_origins", "server.trusted_proxies"}
 
 // New assembles configuration from defaults, the YAML file at cfgFile, and the
