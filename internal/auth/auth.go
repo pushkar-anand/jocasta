@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/netip"
 	"sync/atomic"
 	"time"
 
@@ -23,6 +24,12 @@ const (
 	loginBurst  = 10
 	loginRefill = time.Minute
 )
+
+// loginAddrBurst is each client address's allowance of password attempts at
+// once, across every account; it refills at loginRefill too. It is larger
+// than loginBurst because the people behind one NAT share an address, and it
+// still holds one address trying many accounts to one password a minute.
+const loginAddrBurst = 30
 
 // unknownUserKey is the loginAttempts key every unknown username shares. No
 // account has ID 0, since users.id is AUTOINCREMENT and starts from 1.
@@ -106,23 +113,31 @@ type Auth struct {
 	// most one entry per account plus one, and a refusal for a made-up name
 	// looks the same as one for a real account.
 	loginAttempts *attemptLimiter[int64]
+
+	// loginAddrAttempts is each client address's allowance of passwords,
+	// across every account. It is keyed by addrKey, so the many addresses of
+	// one IPv6 network share an allowance.
+	loginAddrAttempts *attemptLimiter[netip.Prefix]
 }
 
 // Option configures New.
 type Option func(*config)
 
 type config struct {
-	loginBurst int
+	loginBurst     int
+	loginAddrBurst int
 }
 
-// WithLoginAllowance sets how many passwords an account may try at once before
-// Verify starts refusing them; the refill stays one a minute. A non-positive
-// burst is ignored, leaving the default of 10 in place: zero would lock every
-// account out. It exists for tests that sign in more often than a person does.
+// WithLoginAllowance sets how many passwords an account, and a client address,
+// may try at once before Verify starts refusing them; the refill stays one a
+// minute. A non-positive burst is ignored, leaving the defaults of 10 and 30
+// in place: zero would lock every account out. It exists for tests that sign
+// in more often than a person does.
 func WithLoginAllowance(burst int) Option {
 	return func(c *config) {
 		if burst > 0 {
 			c.loginBurst = burst
+			c.loginAddrBurst = burst
 		}
 	}
 }
@@ -131,7 +146,7 @@ func WithLoginAllowance(burst int) Option {
 // together run in a transaction on conn. New hashes the placeholder password
 // Verify compares against on a username miss once, up front.
 func New(conn *sql.DB, s store, hasher hasher, opts ...Option) (*Auth, error) {
-	cfg := config{loginBurst: loginBurst}
+	cfg := config{loginBurst: loginBurst, loginAddrBurst: loginAddrBurst}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
@@ -150,16 +165,20 @@ func New(conn *sql.DB, s store, hasher hasher, opts ...Option) (*Auth, error) {
 		unknownUserHash: unknownUserHash,
 		totpAttempts:    newAttemptLimiter[int64](totpBurst, totpRefill),
 		loginAttempts:   newAttemptLimiter[int64](cfg.loginBurst, loginRefill),
+
+		loginAddrAttempts: newAttemptLimiter[netip.Prefix](cfg.loginAddrBurst, loginRefill),
 	}, nil
 }
 
-// Verify checks username and password against the stored credential and
-// returns the matching user only once both hold.
+// Verify checks username and password, sent from the client at addr, against
+// the stored credential and returns the matching user only once both hold.
 //
-// Each password, right or wrong, spends one of the account's attempts (see
-// loginBurst). With none left, Verify returns ErrLoginLocked, even for the
-// right password.
-func (a *Auth) Verify(ctx context.Context, username, password string) (*models.User, error) {
+// Each password, right or wrong, spends one of addr's attempts (see
+// loginAddrBurst) and one of the account's (see loginBurst). With none left in
+// either, Verify returns ErrLoginLocked, even for the right password. An addr
+// that is not valid, as from a connection with no IP address, spends only the
+// account's.
+func (a *Auth) Verify(ctx context.Context, addr netip.Addr, username, password string) (*models.User, error) {
 	user, err := a.store.GetUserByUsername(ctx, username)
 
 	switch {
@@ -175,8 +194,17 @@ func (a *Auth) Verify(ctx context.Context, username, password string) (*models.U
 	}
 
 	// Spent before the compare, so passwords sent together cannot all be
-	// checked before any of them is counted.
-	allowed, _ := a.loginAttempts.spend(key, a.now())
+	// checked before any of them is counted. The address goes first, and one
+	// with nothing left spends nothing from the account, so a refused address
+	// cannot keep draining an account its owner is about to sign in to.
+	now, allowed := a.now(), true
+	if addr.IsValid() {
+		allowed, _ = a.loginAddrAttempts.spend(addrKey(addr), now)
+	}
+
+	if allowed {
+		allowed, _ = a.loginAttempts.spend(key, now)
+	}
 
 	// A refused attempt still pays for the compare, so its timing does not
 	// tell a locked account from an open one.
@@ -190,6 +218,20 @@ func (a *Auth) Verify(ctx context.Context, username, password string) (*models.U
 	}
 
 	return user, nil
+}
+
+// addrKey returns the prefix addr's attempts are counted under: the address
+// itself for IPv4, and its /64 for IPv6, since one host is routinely handed a
+// whole /64 and can send from any address in it.
+func addrKey(addr netip.Addr) netip.Prefix {
+	bits := 64
+	if addr.Is4() {
+		bits = 32
+	}
+
+	p, _ := addr.WithZone("").Prefix(bits)
+
+	return p
 }
 
 // inTx runs fn against a store bound to one transaction, and commits only if
@@ -225,16 +267,18 @@ type LoginResult struct {
 	TOTPPending bool
 }
 
-// Login checks the credentials with [Auth.Verify] and signs the visitor in,
-// renewing the session token. For an account with 2FA enabled it leaves the
-// visitor signed out and pending on [Auth.VerifyTOTP].
+// Login checks the credentials, sent from the client at addr, with
+// [Auth.Verify] and signs the visitor in, renewing the session token. For an
+// account with 2FA enabled it leaves the visitor signed out and pending on
+// [Auth.VerifyTOTP].
 func (a *Auth) Login(
 	ctx context.Context,
 	sm *Session,
+	addr netip.Addr,
 	username, password string,
 	rememberMe bool,
 ) (LoginResult, error) {
-	user, err := a.Verify(ctx, username, password)
+	user, err := a.Verify(ctx, addr, username, password)
 	if err != nil {
 		return LoginResult{}, err
 	}

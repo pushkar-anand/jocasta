@@ -3,6 +3,7 @@ package web
 import (
 	"net/http"
 
+	"github.com/pushkar-anand/build-with-go/ctxval"
 	"github.com/pushkar-anand/build-with-go/http/response"
 	"github.com/pushkar-anand/jocasta/internal/auth"
 )
@@ -58,7 +59,10 @@ func (h *Handler) loginForm(
 		// auth.ErrInvalidCredentials reaches the client the same way any other
 		// handler error does: the status mapper and error-page data configured
 		// on htmlWriter turn it into the sign-in page with its message.
-		result, err := a.Login(ctx, sm, input.Username, input.Password, input.RememberMe)
+		// No address, as over a Unix socket, leaves only the account's limit.
+		addr, _ := ctxval.ClientAddrFromContext(ctx)
+
+		result, err := a.Login(ctx, sm, addr, input.Username, input.Password, input.RememberMe)
 		if err != nil {
 			return err
 		}

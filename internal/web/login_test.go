@@ -3,10 +3,13 @@ package web
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"net/url"
 	"strings"
 	"testing"
 
+	"github.com/pushkar-anand/build-with-go/ctxval"
+	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -58,6 +61,55 @@ func TestLoginFormLocksAfterTooManyPasswords(t *testing.T) {
 	require.Equal(t, http.StatusTooManyRequests, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Too many sign-in attempts. Wait a minute, then try again.")
 	assert.Contains(t, rec.Body.String(), `value="`+testUsername+`"`)
+}
+
+// TestLoginFormLimitsEachClientAddress covers the sign-in page counting
+// attempts by the client address in the request's context: one address that
+// has tried too many accounts is refused, and another still signs in.
+func TestLoginFormLimitsEachClientAddress(t *testing.T) {
+	t.Parallel()
+
+	a := testAuth(t)
+	names := []string{testUsername}
+
+	for _, name := range []string{"grace", "alan", "linus"} {
+		_, err := a.CreateUser(t.Context(), name, testPassword, dbtype.RoleRead)
+		require.NoError(t, err)
+
+		names = append(names, name)
+	}
+
+	h := newWebHandlerWithAuth(t, testStore(t), a)
+	from := netip.MustParseAddr("198.51.100.7")
+
+	// 30 spread over four accounts stays inside each account's 10.
+	for i := range 30 {
+		rec := loginFrom(t, h, from, names[i%len(names)], "wrong-password")
+		require.Equal(t, http.StatusUnauthorized, rec.Code)
+	}
+
+	rec := loginFrom(t, h, from, testUsername, testPassword)
+	require.Equal(t, http.StatusTooManyRequests, rec.Code)
+
+	rec = loginFrom(t, h, netip.MustParseAddr("198.51.100.8"), testUsername, testPassword)
+	assert.Equal(t, http.StatusFound, rec.Code)
+}
+
+// loginFrom posts the sign-in form as loginWith does, from the client address
+// the server's resolver would have placed in the request's context.
+func loginFrom(t *testing.T, h http.Handler, addr netip.Addr, username, password string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	form := url.Values{"username": {username}, "password": {password}}
+
+	ctx := ctxval.WithClientAddr(t.Context(), addr)
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	return rec
 }
 
 // Signing out is a POST, since a link would let another site spend the
