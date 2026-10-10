@@ -27,8 +27,8 @@ const (
 
 // loginAddrBurst is each client address's allowance of password attempts at
 // once, across every account; it refills at loginRefill too. It is larger
-// than loginBurst because the people behind one NAT share an address, and it
-// still holds one address trying many accounts to one password a minute.
+// than loginBurst because the people behind one NAT share an address. Once it
+// is spent, one address trying many accounts gets one password a minute.
 const loginAddrBurst = 30
 
 // unknownUserKey is the loginAttempts key every unknown username shares. No
@@ -115,8 +115,8 @@ type Auth struct {
 	loginAttempts *attemptLimiter[int64]
 
 	// loginAddrAttempts is each client address's allowance of passwords,
-	// across every account. It is keyed by addrKey, so the many addresses of
-	// one IPv6 network share an allowance.
+	// across every account. It is keyed by addrKey, so every address in one
+	// IPv6 /64 shares an allowance.
 	loginAddrAttempts *attemptLimiter[netip.Prefix]
 }
 
@@ -130,9 +130,9 @@ type config struct {
 
 // WithLoginAllowance sets how many passwords an account, and a client address,
 // may try at once before Verify starts refusing them; the refill stays one a
-// minute. A non-positive burst is ignored, leaving the defaults of 10 and 30
-// in place: zero would lock every account out. It exists for tests that sign
-// in more often than a person does.
+// minute. A non-positive burst is ignored, leaving loginBurst and
+// loginAddrBurst in place: zero would lock every account out. It exists for
+// tests that sign in more often than a person does.
 func WithLoginAllowance(burst int) Option {
 	return func(c *config) {
 		if burst > 0 {
