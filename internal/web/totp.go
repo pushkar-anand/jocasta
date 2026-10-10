@@ -76,8 +76,8 @@ func (h *Handler) loginTOTPForm(sm *auth.Session, a *auth.Auth) response.Handler
 
 		user, err := a.VerifyTOTP(ctx, sm, input.Code)
 		if err != nil {
-			// ErrInvalidCredentials here means no sign-in was pending, which
-			// guesses nothing and is not worth a line.
+			// ErrInvalidCredentials here means no sign-in was pending: nothing
+			// was guessed, so it is not logged.
 			if !errors.Is(err, auth.ErrInvalidCredentials) {
 				h.logRefused(ctx, addr, err)
 			}

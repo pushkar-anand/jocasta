@@ -162,7 +162,7 @@ func newWebHandlerWithSession(t *testing.T, store *inventory.Store, a *auth.Auth
 }
 
 // newWebHandlerWithLog is newWebHandlerWithSession with the handler logging to
-// log, for a test that reads what a request logged.
+// log, so a test can read the lines a request wrote.
 func newWebHandlerWithLog(t *testing.T, store *inventory.Store, a *auth.Auth, sm *auth.Session, log *slog.Logger, opts ...Option) http.Handler {
 	t.Helper()
 

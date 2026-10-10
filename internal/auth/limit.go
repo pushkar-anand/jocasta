@@ -22,9 +22,7 @@ type attemptLimiter[K comparable] struct {
 	mu   sync.Mutex
 	keys map[K]*rate.Limiter
 
-	// pruneAt is the number of entries at which the next new key first drops
-	// every entry back at a full allowance. It doubles past what a sweep
-	// leaves, so sweeps stay rare however many keys are live.
+	// pruneAt is the entry count at which the next new key sets off a prune.
 	pruneAt int
 }
 
@@ -41,10 +39,8 @@ func newAttemptLimiter[K comparable](burst int, refill time.Duration) *attemptLi
 // was left to take, and last whether that was the final one, so the caller
 // can stop asking before the next attempt is refused.
 //
-// A key whose allowance has refilled to full is dropped once enough keys
-// accumulate, which a later attempt cannot tell from a key never seen. That
-// keeps keys a caller cannot bound, such as client addresses, from growing
-// the limiter without end.
+// Memory stays bounded however many keys arrive, so a key may be one a caller
+// cannot bound, such as a client address.
 func (l *attemptLimiter[K]) spend(key K, now time.Time) (ok, last bool) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -66,7 +62,8 @@ func (l *attemptLimiter[K]) spend(key K, now time.Time) (ok, last bool) {
 	return true, lim.TokensAt(now) < 1
 }
 
-// prune drops every entry back at a full allowance at now. l.mu must be held.
+// prune drops every entry back at a full allowance at now, which a later
+// attempt cannot tell from a key never seen. l.mu must be held.
 func (l *attemptLimiter[K]) prune(now time.Time) {
 	for key, lim := range l.keys {
 		if lim.TokensAt(now) >= float64(l.burst) {
@@ -74,5 +71,6 @@ func (l *attemptLimiter[K]) prune(now time.Time) {
 		}
 	}
 
+	// Twice what is left, so prunes stay rare however many keys are live.
 	l.pruneAt = max(minPrune, 2*len(l.keys))
 }

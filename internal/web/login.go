@@ -95,10 +95,9 @@ func (h *Handler) logSignedIn(ctx context.Context, addr netip.Addr, user *models
 	)
 }
 
-// logRefused records a sign-in step err refused, with the reason and the
-// client's address. The username as typed stays out of the log, since people
-// type a password into that field often enough. Any other error is left to
-// the HTML writer, which logs it as a failure.
+// logRefused logs why err refused a sign-in step, and the client's address.
+// The username as typed stays out of the log, since people type a password
+// into that field often enough. Other errors are not logged here.
 func (h *Handler) logRefused(ctx context.Context, addr netip.Addr, err error) {
 	var reason string
 
