@@ -174,7 +174,7 @@ func logLines(t *testing.T, buf *bytes.Buffer) []map[string]any {
 	return lines
 }
 
-// without returns line less the named keys, for comparing the rest whole.
+// without deletes keys from line and returns it.
 func without(line map[string]any, keys ...string) map[string]any {
 	for _, k := range keys {
 		delete(line, k)
