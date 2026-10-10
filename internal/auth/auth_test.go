@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log/slog"
+	"net/netip"
 	"sync"
 	"testing"
 	"time"
@@ -298,6 +299,10 @@ func (f *fakeQueries) CountUnusedRecoveryCodesByUser(_ context.Context, userID i
 	return n, nil
 }
 
+// testAddr is the client address the tests sign in from, unless a test is
+// about addresses.
+var testAddr = netip.MustParseAddr("192.0.2.1")
+
 func testLogger() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
 }
@@ -330,7 +335,7 @@ func TestVerify(t *testing.T) {
 	t.Run("matching username and password", func(t *testing.T) {
 		t.Parallel()
 
-		user, err := a.Verify(t.Context(), "ada", "correct-password")
+		user, err := a.Verify(t.Context(), testAddr, "ada", "correct-password")
 
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), user.ID)
@@ -339,7 +344,7 @@ func TestVerify(t *testing.T) {
 	t.Run("known username, wrong password", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := a.Verify(t.Context(), "ada", "wrong-password")
+		_, err := a.Verify(t.Context(), testAddr, "ada", "wrong-password")
 
 		assert.ErrorIs(t, err, ErrInvalidCredentials)
 	})
@@ -347,7 +352,7 @@ func TestVerify(t *testing.T) {
 	t.Run("unknown username", func(t *testing.T) {
 		t.Parallel()
 
-		_, err := a.Verify(t.Context(), "nobody", "whatever")
+		_, err := a.Verify(t.Context(), testAddr, "nobody", "whatever")
 
 		assert.ErrorIs(t, err, ErrInvalidCredentials)
 	})
@@ -371,27 +376,27 @@ func TestVerifyLimitRefills(t *testing.T) {
 			a.now = func() time.Time { return now }
 
 			for range loginBurst {
-				_, err := a.Verify(t.Context(), username, "wrong-password")
+				_, err := a.Verify(t.Context(), testAddr, username, "wrong-password")
 				require.ErrorIs(t, err, ErrInvalidCredentials)
 			}
 
-			_, err := a.Verify(t.Context(), username, "wrong-password")
+			_, err := a.Verify(t.Context(), testAddr, username, "wrong-password")
 			require.ErrorIs(t, err, ErrLoginLocked, "the eleventh attempt in a row is refused")
 
-			_, err = a.Verify(t.Context(), username, "correct-password")
+			_, err = a.Verify(t.Context(), testAddr, username, "correct-password")
 			require.ErrorIs(t, err, ErrLoginLocked, "a correct password waits for the refill too")
 
 			now = now.Add(loginRefill - time.Second)
 
-			_, err = a.Verify(t.Context(), username, "wrong-password")
+			_, err = a.Verify(t.Context(), testAddr, username, "wrong-password")
 			require.ErrorIs(t, err, ErrLoginLocked)
 
 			now = now.Add(time.Second)
 
-			_, err = a.Verify(t.Context(), username, "wrong-password")
+			_, err = a.Verify(t.Context(), testAddr, username, "wrong-password")
 			require.ErrorIs(t, err, ErrInvalidCredentials, "one attempt is back after the refill interval")
 
-			_, err = a.Verify(t.Context(), username, "wrong-password")
+			_, err = a.Verify(t.Context(), testAddr, username, "wrong-password")
 			assert.ErrorIs(t, err, ErrLoginLocked, "and only one")
 		})
 	}
@@ -408,19 +413,99 @@ func TestVerifyLimitIsPerAccount(t *testing.T) {
 	})
 
 	for range loginBurst {
-		_, err := a.Verify(t.Context(), "ada", "wrong-password")
+		_, err := a.Verify(t.Context(), testAddr, "ada", "wrong-password")
 		require.ErrorIs(t, err, ErrInvalidCredentials)
 	}
 
-	_, err := a.Verify(t.Context(), "ada", "correct-password")
+	_, err := a.Verify(t.Context(), testAddr, "ada", "correct-password")
 	require.ErrorIs(t, err, ErrLoginLocked)
 
-	user, err := a.Verify(t.Context(), "grace", "correct-password")
+	user, err := a.Verify(t.Context(), testAddr, "grace", "correct-password")
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), user.ID)
 
-	_, err = a.Verify(t.Context(), "nobody", "wrong-password")
+	_, err = a.Verify(t.Context(), testAddr, "nobody", "wrong-password")
 	assert.ErrorIs(t, err, ErrInvalidCredentials)
+}
+
+// TestVerifyLimitIsPerAddress covers one address running out of attempts
+// across several accounts, each still inside its own allowance, while another
+// address keeps its own. The attempts an address is refused spend nothing
+// from the accounts it names.
+func TestVerifyLimitIsPerAddress(t *testing.T) {
+	t.Parallel()
+
+	users := map[string]*models.User{}
+	names := []string{"ada", "grace", "alan", "linus"}
+
+	for i, name := range append(names, "edsger") {
+		users[name] = &models.User{ID: int64(i + 1), Username: name, PasswordHash: hashOf(t, "correct-password")}
+	}
+
+	a := newTestAuth(t, users)
+	from := netip.MustParseAddr("198.51.100.7")
+	other := netip.MustParseAddr("198.51.100.8")
+
+	// 30 spread over four accounts is 8, 8, 7 and 7: each under loginBurst.
+	for i := range loginAddrBurst {
+		_, err := a.Verify(t.Context(), from, names[i%len(names)], "wrong-password")
+		require.ErrorIs(t, err, ErrInvalidCredentials)
+	}
+
+	_, err := a.Verify(t.Context(), from, "edsger", "correct-password")
+	require.ErrorIs(t, err, ErrLoginLocked, "the address has none left, whichever account it names")
+
+	for range loginBurst {
+		_, err = a.Verify(t.Context(), from, "ada", "wrong-password")
+		require.ErrorIs(t, err, ErrLoginLocked)
+	}
+
+	user, err := a.Verify(t.Context(), other, "ada", "correct-password")
+	require.NoError(t, err, "ada still has the attempts the refused address could not spend")
+	assert.Equal(t, int64(1), user.ID)
+}
+
+// TestVerifyLimitGroupsIPv6ByNetwork covers the addresses of one IPv6 /64
+// sharing an allowance, and a neighbouring /64 keeping its own. Without the
+// grouping, one host could take a fresh allowance from every address in its
+// network.
+func TestVerifyLimitGroupsIPv6ByNetwork(t *testing.T) {
+	t.Parallel()
+
+	a := newTestAuth(t, map[string]*models.User{
+		"ada": {ID: 1, Username: "ada", PasswordHash: hashOf(t, "correct-password")},
+	})
+
+	// Unknown usernames share one account allowance, which would run out
+	// before the address's. Raising it keeps this test about addresses.
+	a.loginAttempts = newAttemptLimiter[int64](loginAddrBurst+1, loginRefill)
+
+	for i := range loginAddrBurst {
+		from := netip.AddrFrom16([16]byte{0x20, 0x01, 0x0d, 0xb8, 15: byte(i + 1)})
+		_, err := a.Verify(t.Context(), from, "nobody", "wrong-password")
+		require.ErrorIs(t, err, ErrInvalidCredentials)
+	}
+
+	_, err := a.Verify(t.Context(), netip.MustParseAddr("2001:db8::ffff"), "ada", "correct-password")
+	require.ErrorIs(t, err, ErrLoginLocked, "another address in the same /64")
+
+	_, err = a.Verify(t.Context(), netip.MustParseAddr("2001:db8:0:1::1"), "ada", "correct-password")
+	assert.NoError(t, err, "an address in the next /64")
+}
+
+// TestVerifyWithoutAddress covers a connection with no IP address: only the
+// account's allowance applies.
+func TestVerifyWithoutAddress(t *testing.T) {
+	t.Parallel()
+
+	a := newTestAuth(t, map[string]*models.User{
+		"ada": {ID: 1, Username: "ada", PasswordHash: hashOf(t, "correct-password")},
+	})
+
+	user, err := a.Verify(t.Context(), netip.Addr{}, "ada", "correct-password")
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), user.ID)
+	assert.Empty(t, a.loginAddrAttempts.keys)
 }
 
 // TestWithLoginAllowance covers a raised allowance taking the place of the
@@ -444,11 +529,11 @@ func TestWithLoginAllowance(t *testing.T) {
 			require.NoError(t, err)
 
 			for range tc.want {
-				_, err := a.Verify(t.Context(), "nobody", "wrong-password")
+				_, err := a.Verify(t.Context(), testAddr, "nobody", "wrong-password")
 				require.ErrorIs(t, err, ErrInvalidCredentials)
 			}
 
-			_, err = a.Verify(t.Context(), "nobody", "wrong-password")
+			_, err = a.Verify(t.Context(), testAddr, "nobody", "wrong-password")
 			assert.ErrorIs(t, err, ErrLoginLocked)
 		})
 	}
@@ -479,7 +564,7 @@ func TestLogin(t *testing.T) {
 		ctx, err := sm.Load(t.Context(), "")
 		require.NoError(t, err)
 
-		result, err := a.Login(ctx, sm, "ada", "correct-password", false)
+		result, err := a.Login(ctx, sm, testAddr, "ada", "correct-password", false)
 		require.NoError(t, err)
 		require.False(t, result.TOTPPending)
 		assert.Equal(t, int64(42), result.User.ID)
@@ -499,7 +584,7 @@ func TestLogin(t *testing.T) {
 		ctx, err := sm.Load(t.Context(), "")
 		require.NoError(t, err)
 
-		_, err = a.Login(ctx, sm, "ada", "wrong-password", false)
+		_, err = a.Login(ctx, sm, testAddr, "ada", "wrong-password", false)
 		require.ErrorIs(t, err, ErrInvalidCredentials)
 
 		_, ok := sm.CurrentUserID(ctx)

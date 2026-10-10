@@ -51,7 +51,7 @@ func TestVerifyTOTPLimitRefills(t *testing.T) {
 		ctx, err := sm.Load(t.Context(), "")
 		require.NoError(t, err)
 
-		result, err := a.Login(ctx, sm, "ada", "correct-password", false)
+		result, err := a.Login(ctx, sm, testAddr, "ada", "correct-password", false)
 		require.NoError(t, err)
 		require.True(t, result.TOTPPending)
 
@@ -119,7 +119,7 @@ func TestVerifyTOTPAcceptsEachStepOnce(t *testing.T) {
 		ctx, err := sm.Load(t.Context(), "")
 		require.NoError(t, err)
 
-		result, err := a.Login(ctx, sm, "ada", "correct-password", false)
+		result, err := a.Login(ctx, sm, testAddr, "ada", "correct-password", false)
 		require.NoError(t, err)
 		require.True(t, result.TOTPPending)
 
@@ -167,7 +167,7 @@ func verifyPending(t *testing.T, a *Auth, code string) error {
 	ctx, err := sm.Load(t.Context(), "")
 	require.NoError(t, err)
 
-	result, err := a.Login(ctx, sm, "ada", "correct-password", false)
+	result, err := a.Login(ctx, sm, testAddr, "ada", "correct-password", false)
 	require.NoError(t, err)
 	require.True(t, result.TOTPPending)
 
@@ -223,7 +223,7 @@ func TestVerifyTOTPWrongShapeSpendsNoAttempt(t *testing.T) {
 	ctx, err := sm.Load(t.Context(), "")
 	require.NoError(t, err)
 
-	result, err := a.Login(ctx, sm, "ada", "correct-password", false)
+	result, err := a.Login(ctx, sm, testAddr, "ada", "correct-password", false)
 	require.NoError(t, err)
 	require.True(t, result.TOTPPending)
 
