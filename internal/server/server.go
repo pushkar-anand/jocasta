@@ -199,6 +199,11 @@ func Handler(
 			regexp.MustCompile(`^/login/totp$`),
 		},
 	)
+	clientAddrMiddleware := clientip.New(
+		clientip.WithTrustedProxies(cfg.TrustedProxies...),
+		clientip.WithLogger(cfg.Logger),
+		clientip.WithHeader(cmp.Or(cfg.ProxyHeader, clientip.XForwardedFor)),
+	).Middleware
 
 	mux := http.NewServeMux()
 
@@ -222,7 +227,7 @@ func Handler(
 
 	// The client address is resolved outside the logger, so the address each
 	// request is logged under is the client's and not its proxy's.
-	h = clientResolver(cfg).Middleware(h)
+	h = clientAddrMiddleware(h)
 
 	// rs/cors reads an empty AllowedOrigins as every origin, so with none
 	// configured the middleware is left out and no response carries CORS
@@ -248,16 +253,6 @@ func Handler(
 	h = middleware.RequestID(h)
 
 	return sm.LoadAndSave(h)
-}
-
-// clientResolver returns a resolver for cfg's trusted proxies, reading
-// X-Forwarded-For unless cfg names another header.
-func clientResolver(cfg *Config) *clientip.Resolver {
-	return clientip.New(
-		clientip.WithTrustedProxies(cfg.TrustedProxies...),
-		clientip.WithLogger(cfg.Logger),
-		clientip.WithHeader(cmp.Or(cfg.ProxyHeader, clientip.XForwardedFor)),
-	)
 }
 
 // maxRequestBodyBytes caps a PATCH body the reader will decode.
