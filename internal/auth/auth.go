@@ -229,7 +229,7 @@ func addrKey(addr netip.Addr) netip.Prefix {
 		bits = 32
 	}
 
-	p, _ := addr.WithZone("").Prefix(bits)
+	p, _ := addr.Prefix(bits)
 
 	return p
 }

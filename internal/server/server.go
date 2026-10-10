@@ -2,6 +2,7 @@
 package server
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
@@ -252,16 +253,11 @@ func Handler(
 // clientResolver returns a resolver for cfg's trusted proxies, reading
 // X-Forwarded-For unless cfg names another header.
 func clientResolver(cfg *Config) *clientip.Resolver {
-	opts := []clientip.Option{
+	return clientip.New(
 		clientip.WithTrustedProxies(cfg.TrustedProxies...),
 		clientip.WithLogger(cfg.Logger),
-	}
-
-	if cfg.ProxyHeader != "" {
-		opts = append(opts, clientip.WithHeader(cfg.ProxyHeader))
-	}
-
-	return clientip.New(opts...)
+		clientip.WithHeader(cmp.Or(cfg.ProxyHeader, clientip.XForwardedFor)),
+	)
 }
 
 // maxRequestBodyBytes caps a PATCH body the reader will decode.
