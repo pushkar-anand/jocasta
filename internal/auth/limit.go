@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"maps"
 	"sync"
 	"time"
 
@@ -65,11 +66,9 @@ func (l *attemptLimiter[K]) spend(key K, now time.Time) (ok, last bool) {
 // prune drops every entry back at a full allowance at now, which a later
 // attempt cannot tell from a key never seen. l.mu must be held.
 func (l *attemptLimiter[K]) prune(now time.Time) {
-	for key, lim := range l.keys {
-		if lim.TokensAt(now) >= float64(l.burst) {
-			delete(l.keys, key)
-		}
-	}
+	maps.DeleteFunc(l.keys, func(_ K, lim *rate.Limiter) bool {
+		return lim.TokensAt(now) >= float64(l.burst)
+	})
 
 	// Twice what is left, so prunes stay rare however many keys are live.
 	l.pruneAt = max(minPrune, 2*len(l.keys))
