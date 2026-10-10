@@ -16,6 +16,8 @@ server:
     cookie_secure: true       # HTTPS-only session cookie; false to sign in over plain HTTP
   mcp:
     enabled: false        # serve the MCP endpoint at /mcp; see docs/mcp.md
+  trusted_proxies: []     # reverse proxies, as addresses or CIDRs, whose proxy_header is read
+  proxy_header: "x-forwarded-for"  # x-forwarded-for | x-real-ip | forwarded; see docs/setup.md
 
 db:
   path: "."               # directory the SQLite file lives in

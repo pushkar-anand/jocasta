@@ -11,6 +11,8 @@ var defaults = map[string]any{
 	"server.host": "localhost",
 	"server.port": 8080,
 
+	"server.proxy_header": "x-forwarded-for",
+
 	"server.auth.session_lifetime": "168h",
 	"server.auth.idle_timeout":     "24h",
 	"server.auth.cookie_secure":    true,

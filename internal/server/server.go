@@ -2,15 +2,18 @@
 package server
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"regexp"
 	"time"
 
+	"github.com/pushkar-anand/build-with-go/http/clientip"
 	"github.com/pushkar-anand/build-with-go/http/middleware"
 	"github.com/pushkar-anand/build-with-go/http/request"
 	"github.com/pushkar-anand/build-with-go/http/response"
@@ -63,6 +66,12 @@ type (
 		// Notifier sends changes to the configured destinations, for the
 		// notifications page. Nil when none is enabled.
 		Notifier *notify.Notifier
+
+		// TrustedProxies are the reverse proxies whose ProxyHeader gives the
+		// client's address. Empty takes it from the connection. An empty
+		// ProxyHeader means X-Forwarded-For.
+		TrustedProxies []netip.Prefix
+		ProxyHeader    clientip.Header
 	}
 )
 
@@ -190,6 +199,11 @@ func Handler(
 			regexp.MustCompile(`^/login/totp$`),
 		},
 	)
+	clientAddrMiddleware := clientip.New(
+		clientip.WithTrustedProxies(cfg.TrustedProxies...),
+		clientip.WithLogger(cfg.Logger),
+		clientip.WithHeader(cmp.Or(cfg.ProxyHeader, clientip.XForwardedFor)),
+	).Middleware
 
 	mux := http.NewServeMux()
 
@@ -210,6 +224,10 @@ func Handler(
 	}
 
 	h := logger.NewHTTPLogger(cfg.Logger)(mux)
+
+	// The client address is resolved outside the logger, so the address each
+	// request is logged under is the client's and not its proxy's.
+	h = clientAddrMiddleware(h)
 
 	// rs/cors reads an empty AllowedOrigins as every origin, so with none
 	// configured the middleware is left out and no response carries CORS

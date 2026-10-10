@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"io"
@@ -8,6 +9,8 @@ import (
 	"net"
 	"net/http"
 	"net/http/cookiejar"
+	"net/http/httptest"
+	"net/netip"
 	"net/url"
 	"strconv"
 	"strings"
@@ -652,5 +655,49 @@ func TestSafeMethod(t *testing.T) {
 
 	for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete} {
 		assert.False(t, safeMethod(method), method)
+	}
+}
+
+// The access log records the client a trusted proxy forwarded for, and the
+// connection's own address when anyone else sends the header.
+func TestAccessLogRecordsTheClientBehindATrustedProxy(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		remote string
+		want   string
+	}{
+		{name: "trusted proxy", remote: "192.0.2.1:4711", want: "203.0.113.7"},
+		{name: "untrusted sender", remote: "198.51.100.9:4711", want: "198.51.100.9"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+
+			a, _ := testAuth(t)
+			h := Handler(&Config{
+				Logger:         slog.New(slog.NewJSONHandler(&buf, nil)),
+				TrustedProxies: []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")},
+			}, testConn(t), testStore(t), testValidator(t), a)
+
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/login", nil)
+			req.RemoteAddr = tc.remote
+			req.Header.Set("X-Forwarded-For", "203.0.113.7")
+			h.ServeHTTP(httptest.NewRecorder(), req)
+
+			var line struct {
+				Msg      string `json:"msg"`
+				RemoteIP string `json:"remote_ip"`
+			}
+
+			for l := range strings.Lines(buf.String()) {
+				require.NoError(t, json.Unmarshal([]byte(l), &line))
+
+				if line.Msg == "HTTP Request" {
+					break
+				}
+			}
+
+			assert.Equal(t, "HTTP Request", line.Msg)
+			assert.Equal(t, tc.want, line.RemoteIP)
+		})
 	}
 }

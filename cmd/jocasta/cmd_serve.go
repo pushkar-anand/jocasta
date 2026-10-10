@@ -6,8 +6,10 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"strings"
 
+	"github.com/pushkar-anand/build-with-go/http/clientip"
 	"github.com/pushkar-anand/build-with-go/validator"
 	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/config"
@@ -44,6 +46,16 @@ func (s *ServeCmd) Run(
 	host := cmp.Or(s.Host, cfg.Server.Host)
 	port := cmp.Or(s.Port, cfg.Server.Port)
 
+	proxies, err := trustedProxies(cfg.Server.TrustedProxies)
+	if err != nil {
+		return err
+	}
+
+	proxyHeader, err := clientip.ParseHeader(cfg.Server.ProxyHeader)
+	if err != nil {
+		return fmt.Errorf("server.proxy_header: %w", err)
+	}
+
 	sCfg := &server.Config{
 		Addr:                host,
 		Port:                port,
@@ -53,6 +65,8 @@ func (s *ServeCmd) Run(
 		SessionIdleTimeout:  cfg.Server.Auth.IdleTimeout,
 		SessionCookieSecure: cfg.Server.Auth.CookieSecure,
 		MCPEnabled:          cfg.Server.MCP.Enabled,
+		TrustedProxies:      proxies,
+		ProxyHeader:         proxyHeader,
 	}
 
 	p := poller.New(log)
@@ -213,6 +227,26 @@ func homeCountry(code string) (string, error) {
 	}
 
 	return code, nil
+}
+
+// trustedProxies parses server.trusted_proxies, so a typo fails startup rather
+// than leaving a proxy untrusted. Each entry may hold several, separated by
+// commas, since that is the only way to give a list in the environment.
+func trustedProxies(entries []string) ([]netip.Prefix, error) {
+	var prefixes []netip.Prefix
+
+	for _, entry := range entries {
+		for s := range strings.SplitSeq(entry, ",") {
+			p, err := clientip.ParsePrefix(strings.TrimSpace(s))
+			if err != nil {
+				return nil, fmt.Errorf("server.trusted_proxies: %q is not an address or CIDR: %w", s, err)
+			}
+
+			prefixes = append(prefixes, p)
+		}
+	}
+
+	return prefixes, nil
 }
 
 // startTraffic runs every traffic source's listener and the recorder they feed,
