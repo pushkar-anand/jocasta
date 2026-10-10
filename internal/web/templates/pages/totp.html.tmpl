@@ -62,6 +62,18 @@
             {{- end }}
 
             <form method="post" action="/login/totp" class="authform">
+                {{- if .Recovery }}
+                <input type="hidden" name="method" value="recovery">
+                <label class="stack" for="login-code">
+                    <span class="eyebrow">Recovery code</span>
+                    <input class="input" id="login-code" type="text" name="code" autocomplete="off"
+                           autocapitalize="characters" spellcheck="false"
+                           {{ if .Error }}aria-invalid="true" aria-describedby="totp-error"{{ end }}
+                           autofocus minlength="6" maxlength="64" required>
+                </label>
+
+                <p class="note">One of the recovery codes you saved when you turned on two-factor authentication. Each code works once. <a href="/login/totp">Use your authenticator app</a></p>
+                {{- else }}
                 <label class="stack" for="login-code">
                     <span class="eyebrow">Authentication code</span>
                     <input class="input" id="login-code" type="text" name="code" inputmode="numeric" autocomplete="one-time-code"
@@ -69,7 +81,8 @@
                            autofocus minlength="6" maxlength="64" required>
                 </label>
 
-                <p class="note">From your authenticator app, or one of your recovery codes.</p>
+                <p class="note">From your authenticator app. <a href="/login/totp?method=recovery">Use a recovery code</a></p>
+                {{- end }}
 
                 <button type="submit" class="btn authform__submit">Sign in</button>
             </form>
