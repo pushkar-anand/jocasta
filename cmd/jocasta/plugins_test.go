@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"log/slog"
+	"net/netip"
 	"strings"
 	"testing"
 
@@ -101,6 +102,28 @@ func TestHomeCountryIsCheckedAgainstTheMap(t *testing.T) {
 	_, err = homeCountry("XX")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "location.country")
+}
+
+// Trusted proxies mix addresses and CIDRs, and an entry may list several
+// separated by commas, as the environment gives them. A typo fails startup.
+func TestTrustedProxiesAreParsed(t *testing.T) {
+	t.Parallel()
+
+	got, err := trustedProxies([]string{"192.0.2.1", "198.51.100.0/24, 2001:db8::/32"})
+	require.NoError(t, err)
+	assert.Equal(t, []netip.Prefix{
+		netip.MustParsePrefix("192.0.2.1/32"),
+		netip.MustParsePrefix("198.51.100.0/24"),
+		netip.MustParsePrefix("2001:db8::/32"),
+	}, got)
+
+	got, err = trustedProxies(nil)
+	require.NoError(t, err)
+	assert.Empty(t, got)
+
+	_, err = trustedProxies([]string{"proxy.example"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "server.trusted_proxies")
 }
 
 // A time zone is looked up by its IANA name, so a typo fails startup.

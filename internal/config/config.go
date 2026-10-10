@@ -27,6 +27,19 @@ type (
 		CORS CORS   `koanf:"cors"`
 		Auth Auth   `koanf:"auth"`
 		MCP  MCP    `koanf:"mcp"`
+
+		// TrustedProxies lists the reverse proxies, as addresses or CIDRs,
+		// whose ProxyHeader is read for the client's address. Any other
+		// sender's header is ignored, since a client can write one too. Empty
+		// takes every client's address from its connection. An entry may hold
+		// several separated by commas, which is how the environment gives a
+		// list.
+		TrustedProxies []string `koanf:"trusted_proxies"`
+
+		// ProxyHeader names the header the trusted proxies write the client's
+		// address into: x-forwarded-for, x-real-ip or forwarded. Only that one
+		// is read, so a client cannot supply another its proxy leaves alone.
+		ProxyHeader string `koanf:"proxy_header"`
 	}
 
 	// CORS says which origins outside the server's own may read its responses

@@ -135,6 +135,9 @@ func TestLoadConfig(t *testing.T) {
 	assert.Equal(t, 24*time.Hour, cfg.Server.Auth.IdleTimeout)
 	assert.True(t, cfg.Server.Auth.CookieSecure)
 
+	// The header has a default, so listing a proxy is enough to read it.
+	assert.Equal(t, "x-forwarded-for", cfg.Server.ProxyHeader)
+
 	// MCP is off by default (see TestMCPIsOffByDefault); the environment turns
 	// it on.
 	assert.True(t, cfg.Server.MCP.Enabled)

@@ -104,6 +104,36 @@ retention:
 Do not commit a `jocasta.yaml` that holds real addresses or credentials.
 `jocasta.yaml` and `*.db` are already in `.gitignore`.
 
+## Run behind a reverse proxy
+
+Behind a reverse proxy, every request reaches Jocasta from the proxy, and the
+log shows the proxy's address for all of them. List the proxy and name the
+header it writes the client's address into:
+
+```yaml
+server:
+  trusted_proxies: ["192.0.2.10"]   # addresses or CIDRs
+  proxy_header: "x-forwarded-for"   # x-forwarded-for | x-real-ip | forwarded
+```
+
+In the environment, separate several with commas:
+`JOCASTA_SERVER__TRUSTED_PROXIES=192.0.2.10,198.51.100.0/24`.
+
+Jocasta reads that header only on requests from a listed address, and reads
+no other. A client can send any of these headers itself, so name the one your
+proxy sets:
+
+| Proxy | Header |
+|---|---|
+| Traefik | `x-forwarded-for`, set by default |
+| Caddy | `x-forwarded-for`, set by default |
+| nginx | none by default; add `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;` |
+
+When a header arrives from an address that is not listed, Jocasta logs one
+warning, `forwarding header from an untrusted address ignored`, with the
+address it came from. In a container, the proxy's address is on the container
+network, so list that network's CIDR.
+
 ## Name devices
 
 A device can be named by more than one source. The name shown is the one from
