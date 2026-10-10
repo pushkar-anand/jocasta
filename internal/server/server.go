@@ -249,8 +249,8 @@ func Handler(
 	return sm.LoadAndSave(h)
 }
 
-// clientResolver finds each request's client address through the configured
-// trusted proxies.
+// clientResolver returns a resolver for cfg's trusted proxies, reading
+// X-Forwarded-For unless cfg names another header.
 func clientResolver(cfg *Config) *clientip.Resolver {
 	opts := []clientip.Option{
 		clientip.WithTrustedProxies(cfg.TrustedProxies...),

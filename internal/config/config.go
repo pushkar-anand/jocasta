@@ -38,7 +38,8 @@ type (
 
 		// ProxyHeader names the header the trusted proxies write the client's
 		// address into: x-forwarded-for, x-real-ip or forwarded. Only that one
-		// is read, so a client cannot supply another its proxy leaves alone.
+		// is read: a client could send any of the others, and only this one
+		// comes from the proxy.
 		ProxyHeader string `koanf:"proxy_header"`
 	}
 
