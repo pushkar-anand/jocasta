@@ -15,12 +15,20 @@ import (
 type totpData struct {
 	Title string
 	Error string
+	// Recovery sets the code field up for a recovery code: a full keyboard
+	// in place of the numeric keypad an authenticator code gets.
+	Recovery bool
 }
+
+// totpMethodRecovery is the method value, as a query parameter on GET and a
+// form field on POST, that asks for the recovery-code form of the page.
+const totpMethodRecovery = "recovery"
 
 // loginTOTP serves the second-factor page. Reaching it with no pending
 // sign-in (never started, or the session that started it is gone)
 // answers the same way a bad /login attempt does, since there's no more to
-// say about it than that.
+// say about it than that. ?method=recovery serves the recovery-code form of
+// the page, which works without JavaScript.
 func (h *Handler) loginTOTP(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
@@ -34,7 +42,10 @@ func (h *Handler) loginTOTP(sm *auth.Session) response.HandlerFunc {
 			return auth.ErrInvalidCredentials
 		}
 
-		h.htmlWriter.Success(w, r, TemplateTOTP, totpData{Title: "Enter your code"})
+		h.htmlWriter.Success(w, r, TemplateTOTP, totpData{
+			Title:    "Enter your code",
+			Recovery: r.URL.Query().Get("method") == totpMethodRecovery,
+		})
 
 		return nil
 	}
@@ -47,6 +58,10 @@ func (h *Handler) loginTOTPForm(sm *auth.Session, a *auth.Auth) response.Handler
 		// max=64 fits a recovery code (xxxx-xxxx-xxxx-xxxx, 19 chars) as well
 		// as a 6-digit TOTP value: one field covers both.
 		Code string `schema:"code" validate:"required,min=6,max=64"`
+		// Method is the page form the code came from. Verification ignores
+		// it, since either kind of code is accepted either way; an error
+		// page reads it to return the visitor to the same form.
+		Method string `schema:"method" validate:"omitempty,oneof=recovery"`
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) error {

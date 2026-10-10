@@ -266,10 +266,12 @@ func errorPageData(sm *auth.Session, r *http.Request, err error, status int) map
 		}
 	case http.StatusPreconditionRequired:
 		// The second-factor page's own fields (see totpData), since
-		// TemplateTOTP renders standalone too.
+		// TemplateTOTP renders standalone too. The form posts its method, so
+		// a recovery code that did not work comes back to the recovery form.
 		return map[string]any{
-			"Title": "Error: Enter your code",
-			"Error": "That code did not work. Enter the code your authenticator app shows now, or a recovery code.",
+			"Title":    "Error: Enter your code",
+			"Error":    "That code did not work. Enter the code your authenticator app shows now, or a recovery code.",
+			"Recovery": r.PostForm.Get("method") == totpMethodRecovery,
 		}
 	case http.StatusTooManyRequests:
 		if errors.Is(err, auth.ErrLoginLocked) {

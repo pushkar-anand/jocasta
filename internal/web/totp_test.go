@@ -171,6 +171,74 @@ func TestLoginTOTPAcceptsRecoveryCodeOnce(t *testing.T) {
 	assert.Equal(t, http.StatusPreconditionRequired, replay.Code)
 }
 
+// TestLoginTOTPPageOffersBothCodeKinds covers the two forms of the
+// second-factor page: the default asks phones for a numeric keypad, and the
+// recovery form drops it so a code with letters and dashes is typeable.
+func TestLoginTOTPPageOffersBothCodeKinds(t *testing.T) {
+	t.Parallel()
+
+	a := testAuth(t)
+	h := newWebHandlerWithAuth(t, testStore(t), a)
+	enrollTOTP(t, a, testUsername)
+
+	cookies := loginWith(t, h, testUsername, testPassword).Result().Cookies()
+
+	code := requestAs(t, h, cookies, http.MethodGet, "/login/totp", "")
+	require.Equal(t, http.StatusOK, code.Code)
+	assert.Contains(t, code.Body.String(), `inputmode="numeric"`)
+	assert.Contains(t, code.Body.String(), `autocomplete="one-time-code"`)
+	assert.Contains(t, code.Body.String(), `href="/login/totp?method=recovery"`)
+	assert.NotContains(t, code.Body.String(), `name="method"`)
+
+	recovery := requestAs(t, h, cookies, http.MethodGet, "/login/totp?method=recovery", "")
+	require.Equal(t, http.StatusOK, recovery.Code)
+	assert.Contains(t, recovery.Body.String(), "Recovery code")
+	assert.NotContains(t, recovery.Body.String(), `inputmode="numeric"`)
+	assert.NotContains(t, recovery.Body.String(), `autocomplete="one-time-code"`)
+	assert.Contains(t, recovery.Body.String(), `name="method" value="recovery"`)
+	assert.Contains(t, recovery.Body.String(), `href="/login/totp"`)
+}
+
+// TestLoginTOTPRecoveryFormKeepsItsModeOnError covers a recovery code that
+// did not work: the page comes back in its recovery form, so the visitor
+// keeps the full keyboard for the next try.
+func TestLoginTOTPRecoveryFormKeepsItsModeOnError(t *testing.T) {
+	t.Parallel()
+
+	a := testAuth(t)
+	h := newWebHandlerWithAuth(t, testStore(t), a)
+	enrollTOTP(t, a, testUsername)
+
+	cookies := loginWith(t, h, testUsername, testPassword).Result().Cookies()
+
+	form := url.Values{"code": {"ZZZZ-ZZZZ-ZZZZ-ZZZZ"}, "method": {"recovery"}}
+	rec := requestAs(t, h, cookies, http.MethodPost, "/login/totp", form.Encode())
+
+	require.Equal(t, http.StatusPreconditionRequired, rec.Code)
+	assert.Contains(t, rec.Body.String(), "That code did not work.")
+	assert.Contains(t, rec.Body.String(), `name="method" value="recovery"`)
+	assert.NotContains(t, rec.Body.String(), `inputmode="numeric"`)
+}
+
+// TestLoginTOTPRecoveryFormAcceptsRecoveryCode covers a recovery code posted
+// from the recovery form, method field and all.
+func TestLoginTOTPRecoveryFormAcceptsRecoveryCode(t *testing.T) {
+	t.Parallel()
+
+	a := testAuth(t)
+	h := newWebHandlerWithAuth(t, testStore(t), a)
+	_, codes := enrollTOTP(t, a, testUsername)
+	require.NotEmpty(t, codes)
+
+	cookies := loginWith(t, h, testUsername, testPassword).Result().Cookies()
+
+	form := url.Values{"code": {codes[0]}, "method": {"recovery"}}
+	rec := requestAs(t, h, cookies, http.MethodPost, "/login/totp", form.Encode())
+
+	require.Equal(t, http.StatusFound, rec.Code)
+	assert.Equal(t, "/", rec.Header().Get("Location"))
+}
+
 // TestLoginTOTPExhaustedAttemptsEndsTheSession covers the narrow rate limit
 // VerifyTOTP applies to a pending sign-in: repeated wrong codes destroy the
 // session, so it cannot be guessed at indefinitely.
