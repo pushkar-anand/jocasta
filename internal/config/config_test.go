@@ -76,6 +76,7 @@ func TestLoadConfig(t *testing.T) {
 		config.WithDefaults(defaults),
 		config.WithYAML("testdata/plugins.yaml"),
 		config.WithEnvPrefix("JOCASTA_"),
+		config.WithSplitKeyFor(",", listKeys...),
 		config.WithEnviron(func() []string {
 			return []string{
 				"JOCASTA_SERVER__PORT=9999",
@@ -84,6 +85,7 @@ func TestLoadConfig(t *testing.T) {
 				"JOCASTA_SCAN__PORTS__ENABLED=true",
 				"JOCASTA_SCAN__PORTS__CUSTOM=22,80,8000-8100",
 				"JOCASTA_SERVER__MCP__ENABLED=true",
+				"JOCASTA_SERVER__TRUSTED_PROXIES=192.0.2.1, 198.51.100.0/24",
 				"JOCASTA_PLUGINS__NETFLOW__GATEWAY__LISTEN=:9995",
 				"JOCASTA_LOCATION__COUNTRY=au",
 				"JOCASTA_LOCATION__TIMEZONE=Australia/Sydney",
@@ -134,6 +136,9 @@ func TestLoadConfig(t *testing.T) {
 	assert.Equal(t, 168*time.Hour, cfg.Server.Auth.SessionLifetime)
 	assert.Equal(t, 24*time.Hour, cfg.Server.Auth.IdleTimeout)
 	assert.True(t, cfg.Server.Auth.CookieSecure)
+
+	// A list setting takes its items from one variable, separated by commas.
+	assert.Equal(t, []string{"192.0.2.1", "198.51.100.0/24"}, cfg.Server.TrustedProxies)
 
 	// The header has a default, so listing a proxy is enough to read it.
 	assert.Equal(t, "x-forwarded-for", cfg.Server.ProxyHeader)

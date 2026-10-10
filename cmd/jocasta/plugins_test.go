@@ -104,12 +104,11 @@ func TestHomeCountryIsCheckedAgainstTheMap(t *testing.T) {
 	assert.Contains(t, err.Error(), "location.country")
 }
 
-// Trusted proxies mix addresses and CIDRs, and an entry may list several
-// separated by commas, as the environment gives them. A typo fails startup.
+// Trusted proxies mix addresses and CIDRs. A typo fails startup.
 func TestTrustedProxiesAreParsed(t *testing.T) {
 	t.Parallel()
 
-	got, err := trustedProxies([]string{"192.0.2.1", "198.51.100.0/24, 2001:db8::/32"})
+	got, err := trustedProxies([]string{"192.0.2.1", "198.51.100.0/24", "2001:db8::/32"})
 	require.NoError(t, err)
 	assert.Equal(t, []netip.Prefix{
 		netip.MustParsePrefix("192.0.2.1/32"),

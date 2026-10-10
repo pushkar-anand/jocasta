@@ -80,7 +80,11 @@ underscore stays part of the key:
 ```bash
 JOCASTA_SCAN__DEVICES__INTERVAL=10m      # scan.devices.interval
 JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD=change-me
+JOCASTA_NETWORKS=192.0.2.0/24,198.51.100.0/24   # a list, separated by commas
 ```
+
+`networks`, `server.cors.allowed_origins` and `server.trusted_proxies` take a
+list this way.
 
 Times are shown in the server's time zone, which in a container is UTC. Name
 yours to see them in local time. This changes only how times are shown; they are

@@ -31,9 +31,7 @@ type (
 		// TrustedProxies lists the reverse proxies, as addresses or CIDRs,
 		// whose ProxyHeader is read for the client's address. Any other
 		// sender's header is ignored, since a client can write one too. Empty
-		// takes every client's address from its connection. An entry may hold
-		// several separated by commas, which is how the environment gives a
-		// list.
+		// takes every client's address from its connection.
 		TrustedProxies []string `koanf:"trusted_proxies"`
 
 		// ProxyHeader names the header the trusted proxies write the client's
@@ -292,6 +290,10 @@ type (
 	}
 )
 
+// listKeys are the settings an environment variable can set as a list, with
+// items separated by commas.
+var listKeys = []string{"networks", "server.cors.allowed_origins", "server.trusted_proxies"}
+
 // New assembles configuration from defaults, the YAML file at cfgFile, and the
 // environment.
 //
@@ -311,6 +313,7 @@ func New(
 		config.WithDefaults(defaults),
 		config.WithYAML(cfgFile),
 		config.WithEnvPrefix("JOCASTA_"),
+		config.WithSplitKeyFor(",", listKeys...),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("load config: %w", err)
