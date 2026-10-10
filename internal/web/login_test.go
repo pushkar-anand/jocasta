@@ -116,12 +116,13 @@ func TestSignInIsLogged(t *testing.T) {
 	lines := logLines(t, &buf)
 	require.Len(t, lines, 2)
 
+	delete(lines[0], "time")
 	assert.Equal(t, map[string]any{
 		"level":     "WARN",
 		"msg":       "sign-in refused",
 		"reason":    "username and password do not match",
 		"remote_ip": "198.51.100.7",
-	}, without(lines[0], "time"))
+	}, lines[0])
 	assert.NotContains(t, buf.String(), "typed-by-mistake")
 
 	assert.Equal(t, "signed in", lines[1]["msg"])
@@ -170,15 +171,6 @@ func logLines(t *testing.T, buf *bytes.Buffer) []map[string]any {
 	}
 
 	return lines
-}
-
-// without deletes keys from line and returns it.
-func without(line map[string]any, keys ...string) map[string]any {
-	for _, k := range keys {
-		delete(line, k)
-	}
-
-	return line
 }
 
 // loginFrom posts the sign-in form as loginWith does, from the client address
