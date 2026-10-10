@@ -158,6 +158,14 @@ func newWebHandlerWithAuth(t *testing.T, store *inventory.Store, a *auth.Auth, o
 func newWebHandlerWithSession(t *testing.T, store *inventory.Store, a *auth.Auth, sm *auth.Session, opts ...Option) http.Handler {
 	t.Helper()
 
+	return newWebHandlerWithLog(t, store, a, sm, testLogger(), opts...)
+}
+
+// newWebHandlerWithLog is newWebHandlerWithSession with the handler logging to
+// log, for a test that reads what a request logged.
+func newWebHandlerWithLog(t *testing.T, store *inventory.Store, a *auth.Auth, sm *auth.Session, log *slog.Logger, opts ...Option) http.Handler {
+	t.Helper()
+
 	hw := response.NewHTMLWriter(testLogger(), nil,
 		response.WithErrorTemplates(map[int]string{
 			http.StatusBadRequest:            TemplateBadRequest,
@@ -193,7 +201,7 @@ func newWebHandlerWithSession(t *testing.T, store *inventory.Store, a *auth.Auth
 		response.WithErrorDataFunc(ErrorPageData(sm)),
 	)
 
-	h := NewHandler(testLogger(), testReader(t), store, hw, sm, a, opts...)
+	h := NewHandler(log, testReader(t), store, hw, sm, a, opts...)
 
 	return sm.LoadAndSave(h)
 }

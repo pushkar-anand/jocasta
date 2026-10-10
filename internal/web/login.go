@@ -1,11 +1,16 @@
 package web
 
 import (
+	"context"
+	"errors"
+	"log/slog"
 	"net/http"
+	"net/netip"
 
 	"github.com/pushkar-anand/build-with-go/ctxval"
 	"github.com/pushkar-anand/build-with-go/http/response"
 	"github.com/pushkar-anand/jocasta/internal/auth"
+	"github.com/pushkar-anand/jocasta/internal/db/models"
 )
 
 // loginData is what the login page needs to render standalone. It carries no
@@ -64,6 +69,7 @@ func (h *Handler) loginForm(
 
 		result, err := a.Login(ctx, sm, addr, input.Username, input.Password, input.RememberMe)
 		if err != nil {
+			h.logRefused(ctx, addr, err)
 			return err
 		}
 
@@ -72,10 +78,54 @@ func (h *Handler) loginForm(
 			return nil
 		}
 
+		h.logSignedIn(ctx, addr, result.User)
 		http.Redirect(w, r, "/", http.StatusFound)
 
 		return nil
 	}
+}
+
+// logSignedIn records a completed sign-in: the account, and the client's
+// address under the access log's own key, so the two lines can be joined.
+func (h *Handler) logSignedIn(ctx context.Context, addr netip.Addr, user *models.User) {
+	h.log.InfoContext(ctx, "signed in",
+		slog.String("user", user.Username),
+		slog.Int64("user_id", user.ID),
+		remoteIP(addr),
+	)
+}
+
+// logRefused records a sign-in step err refused, with the reason and the
+// client's address. The username as typed stays out of the log, since people
+// type a password into that field often enough. Any other error is left to
+// the HTML writer, which logs it as a failure.
+func (h *Handler) logRefused(ctx context.Context, addr netip.Addr, err error) {
+	var reason string
+
+	switch {
+	case errors.Is(err, auth.ErrInvalidCredentials):
+		reason = "username and password do not match"
+	case errors.Is(err, auth.ErrLoginLocked):
+		reason = "too many passwords"
+	case errors.Is(err, auth.ErrInvalidTOTPCode):
+		reason = "code does not match"
+	case errors.Is(err, auth.ErrTOTPLocked):
+		reason = "too many codes"
+	default:
+		return
+	}
+
+	h.log.WarnContext(ctx, "sign-in refused", slog.String("reason", reason), remoteIP(addr))
+}
+
+// remoteIP returns addr as the access log's remote_ip attribute, or an empty
+// attribute, which slog drops, when the connection had no IP address.
+func remoteIP(addr netip.Addr) slog.Attr {
+	if !addr.IsValid() {
+		return slog.Attr{}
+	}
+
+	return slog.String("remote_ip", addr.String())
 }
 
 func (h *Handler) logout(sm *auth.Session) response.HandlerFunc {
