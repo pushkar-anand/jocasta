@@ -32,6 +32,25 @@ func (q *Queries) AnyDNSRead(ctx context.Context) (int64, error) {
 	return read, err
 }
 
+const deleteDNSAnswersBefore = `-- name: DeleteDNSAnswersBefore :execrows
+DELETE
+FROM dns_answers
+WHERE last_hour < ?
+`
+
+// DeleteDNSAnswersBefore
+//
+//	DELETE
+//	FROM dns_answers
+//	WHERE last_hour < ?
+func (q *Queries) DeleteDNSAnswersBefore(ctx context.Context, lastHour dbtype.Time) (int64, error) {
+	result, err := q.exec(ctx, q.deleteDNSAnswersBeforeStmt, deleteDNSAnswersBefore, lastHour)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteDNSBefore = `-- name: DeleteDNSBefore :execrows
 DELETE
 FROM dns_hourly
@@ -199,6 +218,36 @@ func (q *Queries) MoveDNS(ctx context.Context, arg MoveDNSParams) error {
 	return err
 }
 
+const moveDNSAnswers = `-- name: MoveDNSAnswers :exec
+INSERT INTO dns_answers (device_id, addr, name, lookups, last_hour)
+SELECT ?1, ghost.addr, ghost.name, ghost.lookups, ghost.last_hour
+FROM dns_answers ghost
+WHERE ghost.device_id = ?2
+ON CONFLICT (device_id, addr, name) DO UPDATE
+    SET lookups   = lookups + excluded.lookups,
+        last_hour = MAX(last_hour, excluded.last_hour)
+`
+
+type MoveDNSAnswersParams struct {
+	IntoID int64 `json:"into_id"`
+	FromID int64 `json:"from_id"`
+}
+
+// A folded device's answers follow it, adding up with the answers it shares
+// with the device it was folded into.
+//
+//	INSERT INTO dns_answers (device_id, addr, name, lookups, last_hour)
+//	SELECT ?1, ghost.addr, ghost.name, ghost.lookups, ghost.last_hour
+//	FROM dns_answers ghost
+//	WHERE ghost.device_id = ?2
+//	ON CONFLICT (device_id, addr, name) DO UPDATE
+//	    SET lookups   = lookups + excluded.lookups,
+//	        last_hour = MAX(last_hour, excluded.last_hour)
+func (q *Queries) MoveDNSAnswers(ctx context.Context, arg MoveDNSAnswersParams) error {
+	_, err := q.exec(ctx, q.moveDNSAnswersStmt, moveDNSAnswers, arg.IntoID, arg.FromID)
+	return err
+}
+
 const setSourceCursor = `-- name: SetSourceCursor :exec
 INSERT INTO source_cursors (source_id, position)
 VALUES (?, ?)
@@ -276,6 +325,40 @@ func (q *Queries) UpsertDNS(ctx context.Context, arg UpsertDNSParams) error {
 		arg.Lookups,
 		arg.Blocked,
 		arg.Failed,
+	)
+	return err
+}
+
+const upsertDNSAnswer = `-- name: UpsertDNSAnswer :exec
+INSERT INTO dns_answers (device_id, addr, name, lookups, last_hour)
+VALUES (?, ?, ?, ?, ?)
+ON CONFLICT (device_id, addr, name) DO UPDATE
+    SET lookups   = lookups + excluded.lookups,
+        last_hour = MAX(last_hour, excluded.last_hour)
+`
+
+type UpsertDNSAnswerParams struct {
+	DeviceID int64       `json:"device_id"`
+	Addr     dbtype.Addr `json:"addr"`
+	Name     string      `json:"name"`
+	Lookups  int64       `json:"lookups"`
+	LastHour dbtype.Time `json:"last_hour"`
+}
+
+// One read adds to how often a name was answered with an address.
+//
+//	INSERT INTO dns_answers (device_id, addr, name, lookups, last_hour)
+//	VALUES (?, ?, ?, ?, ?)
+//	ON CONFLICT (device_id, addr, name) DO UPDATE
+//	    SET lookups   = lookups + excluded.lookups,
+//	        last_hour = MAX(last_hour, excluded.last_hour)
+func (q *Queries) UpsertDNSAnswer(ctx context.Context, arg UpsertDNSAnswerParams) error {
+	_, err := q.exec(ctx, q.upsertDNSAnswerStmt, upsertDNSAnswer,
+		arg.DeviceID,
+		arg.Addr,
+		arg.Name,
+		arg.Lookups,
+		arg.LastHour,
 	)
 	return err
 }

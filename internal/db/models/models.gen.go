@@ -109,6 +109,14 @@ type DeviceSource struct {
 	LastSeen       dbtype.Time           `json:"last_seen"`
 }
 
+type DnsAnswer struct {
+	DeviceID int64       `json:"device_id"`
+	Addr     dbtype.Addr `json:"addr"`
+	Name     string      `json:"name"`
+	Lookups  int64       `json:"lookups"`
+	LastHour dbtype.Time `json:"last_hour"`
+}
+
 type DnsHourly struct {
 	SourceID int64       `json:"source_id"`
 	DeviceID int64       `json:"device_id"`

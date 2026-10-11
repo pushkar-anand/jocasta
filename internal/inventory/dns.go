@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"time"
 
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
@@ -43,6 +44,10 @@ func (s *Store) QueryCursor(ctx context.Context, source string) (string, error) 
 // A lookup is counted against the device holding its client address now. A
 // lookup from an address no device holds says nothing about the inventory
 // and is dropped.
+//
+// The addresses a lookup was answered with are kept against the device too,
+// unless the resolver blocked it or found nothing: a blocked name's answer is
+// whatever the resolver blocks with, which names no peer.
 func (s *Store) RecordQueries(
 	ctx context.Context,
 	source string,
@@ -61,7 +66,14 @@ func (s *Store) RecordQueries(
 		name   string
 	}
 
+	type answerKey struct {
+		device int64
+		addr   netip.Addr
+		name   string
+	}
+
 	counts := make(map[key]*models.UpsertDNSParams)
+	answers := make(map[answerKey]*models.UpsertDNSAnswerParams)
 
 	var res QueryResult
 
@@ -92,6 +104,30 @@ func (s *Store) RecordQueries(
 		if lookup.Failed {
 			c.Failed++
 		}
+
+		if lookup.Blocked || lookup.Failed {
+			continue
+		}
+
+		for _, addr := range lookup.Answers {
+			if addr.IsUnspecified() || addr.IsLoopback() {
+				continue
+			}
+
+			ak := answerKey{device: device, addr: addr, name: lookup.Name}
+
+			a, ok := answers[ak]
+			if !ok {
+				a = &models.UpsertDNSAnswerParams{DeviceID: device, Addr: dbtype.NewAddr(addr), Name: lookup.Name}
+				answers[ak] = a
+			}
+
+			a.Lookups++
+
+			if k.hour.After(a.LastHour.Time) {
+				a.LastHour = dbtype.NewTime(k.hour)
+			}
+		}
 	}
 
 	tx, err := s.conn.BeginTx(ctx, nil)
@@ -113,6 +149,12 @@ func (s *Store) RecordQueries(
 
 		if err := q.UpsertDNS(ctx, *c); err != nil {
 			return nil, fmt.Errorf("lookups for device %d: %w", c.DeviceID, err)
+		}
+	}
+
+	for _, a := range answers {
+		if err := q.UpsertDNSAnswer(ctx, *a); err != nil {
+			return nil, fmt.Errorf("answers for device %d: %w", a.DeviceID, err)
 		}
 	}
 

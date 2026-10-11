@@ -24,6 +24,30 @@ ON CONFLICT (device_id, hour, source_id, name) DO UPDATE
         blocked = blocked + excluded.blocked,
         failed  = failed + excluded.failed;
 
+-- name: UpsertDNSAnswer :exec
+-- One read adds to how often a name was answered with an address.
+INSERT INTO dns_answers (device_id, addr, name, lookups, last_hour)
+VALUES (?, ?, ?, ?, ?)
+ON CONFLICT (device_id, addr, name) DO UPDATE
+    SET lookups   = lookups + excluded.lookups,
+        last_hour = MAX(last_hour, excluded.last_hour);
+
+-- name: DeleteDNSAnswersBefore :execrows
+DELETE
+FROM dns_answers
+WHERE last_hour < ?;
+
+-- name: MoveDNSAnswers :exec
+-- A folded device's answers follow it, adding up with the answers it shares
+-- with the device it was folded into.
+INSERT INTO dns_answers (device_id, addr, name, lookups, last_hour)
+SELECT sqlc.arg(into_id), ghost.addr, ghost.name, ghost.lookups, ghost.last_hour
+FROM dns_answers ghost
+WHERE ghost.device_id = sqlc.arg(from_id)
+ON CONFLICT (device_id, addr, name) DO UPDATE
+    SET lookups   = lookups + excluded.lookups,
+        last_hour = MAX(last_hour, excluded.last_hour);
+
 -- name: SourceCursor :one
 SELECT c.position
 FROM source_cursors c
