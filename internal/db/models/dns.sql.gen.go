@@ -11,6 +11,27 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
 
+const anyDNSRead = `-- name: AnyDNSRead :one
+SELECT CAST(EXISTS (SELECT 1
+                    FROM source_cursors c
+                             JOIN sources s ON s.id = c.source_id
+                    WHERE s.kind = 'DNS') AS INTEGER) AS read
+`
+
+// Whether any resolver's log has been read, which is how a view tells "this
+// device looked nothing up" from "nothing reads a resolver".
+//
+//	SELECT CAST(EXISTS (SELECT 1
+//	                    FROM source_cursors c
+//	                             JOIN sources s ON s.id = c.source_id
+//	                    WHERE s.kind = 'DNS') AS INTEGER) AS read
+func (q *Queries) AnyDNSRead(ctx context.Context) (int64, error) {
+	row := q.queryRow(ctx, q.anyDNSReadStmt, anyDNSRead)
+	var read int64
+	err := row.Scan(&read)
+	return read, err
+}
+
 const deleteDNSBefore = `-- name: DeleteDNSBefore :execrows
 DELETE
 FROM dns_hourly
@@ -28,6 +49,122 @@ func (q *Queries) DeleteDNSBefore(ctx context.Context, hour dbtype.Time) (int64,
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const deviceDNS = `-- name: DeviceDNS :many
+SELECT name,
+       CAST(SUM(lookups) AS INTEGER) AS lookups,
+       CAST(SUM(blocked) AS INTEGER) AS blocked,
+       CAST(SUM(failed) AS INTEGER)  AS failed,
+       CAST(MAX(hour) AS TEXT)       AS last_hour
+FROM dns_hourly
+WHERE device_id = ?
+  AND hour >= ?
+GROUP BY name
+ORDER BY SUM(lookups) DESC, name
+LIMIT ?
+`
+
+type DeviceDNSParams struct {
+	DeviceID int64       `json:"device_id"`
+	Hour     dbtype.Time `json:"hour"`
+	Limit    int64       `json:"limit"`
+}
+
+type DeviceDNSRow struct {
+	Name     string `json:"name"`
+	Lookups  int64  `json:"lookups"`
+	Blocked  int64  `json:"blocked"`
+	Failed   int64  `json:"failed"`
+	LastHour string `json:"last_hour"`
+}
+
+// The names one device looked up since a given hour, busiest first, summed
+// across sources: each node of a resolver cluster answers its own share of a
+// device's lookups.
+//
+//	SELECT name,
+//	       CAST(SUM(lookups) AS INTEGER) AS lookups,
+//	       CAST(SUM(blocked) AS INTEGER) AS blocked,
+//	       CAST(SUM(failed) AS INTEGER)  AS failed,
+//	       CAST(MAX(hour) AS TEXT)       AS last_hour
+//	FROM dns_hourly
+//	WHERE device_id = ?
+//	  AND hour >= ?
+//	GROUP BY name
+//	ORDER BY SUM(lookups) DESC, name
+//	LIMIT ?
+func (q *Queries) DeviceDNS(ctx context.Context, arg DeviceDNSParams) ([]*DeviceDNSRow, error) {
+	rows, err := q.query(ctx, q.deviceDNSStmt, deviceDNS, arg.DeviceID, arg.Hour, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*DeviceDNSRow
+	for rows.Next() {
+		var i DeviceDNSRow
+		if err := rows.Scan(
+			&i.Name,
+			&i.Lookups,
+			&i.Blocked,
+			&i.Failed,
+			&i.LastHour,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const deviceDNSTotals = `-- name: DeviceDNSTotals :one
+SELECT CAST(COALESCE(SUM(lookups), 0) AS INTEGER) AS lookups,
+       CAST(COUNT(DISTINCT name) AS INTEGER)      AS names,
+       CAST(COALESCE(SUM(blocked), 0) AS INTEGER) AS blocked,
+       CAST(COALESCE(SUM(failed), 0) AS INTEGER)  AS failed
+FROM dns_hourly
+WHERE device_id = ?
+  AND hour >= ?
+`
+
+type DeviceDNSTotalsParams struct {
+	DeviceID int64       `json:"device_id"`
+	Hour     dbtype.Time `json:"hour"`
+}
+
+type DeviceDNSTotalsRow struct {
+	Lookups int64 `json:"lookups"`
+	Names   int64 `json:"names"`
+	Blocked int64 `json:"blocked"`
+	Failed  int64 `json:"failed"`
+}
+
+// What one device looked up since a given hour, added up over every name,
+// including those past DeviceDNS's limit.
+//
+//	SELECT CAST(COALESCE(SUM(lookups), 0) AS INTEGER) AS lookups,
+//	       CAST(COUNT(DISTINCT name) AS INTEGER)      AS names,
+//	       CAST(COALESCE(SUM(blocked), 0) AS INTEGER) AS blocked,
+//	       CAST(COALESCE(SUM(failed), 0) AS INTEGER)  AS failed
+//	FROM dns_hourly
+//	WHERE device_id = ?
+//	  AND hour >= ?
+func (q *Queries) DeviceDNSTotals(ctx context.Context, arg DeviceDNSTotalsParams) (*DeviceDNSTotalsRow, error) {
+	row := q.queryRow(ctx, q.deviceDNSTotalsStmt, deviceDNSTotals, arg.DeviceID, arg.Hour)
+	var i DeviceDNSTotalsRow
+	err := row.Scan(
+		&i.Lookups,
+		&i.Names,
+		&i.Blocked,
+		&i.Failed,
+	)
+	return &i, err
 }
 
 const moveDNS = `-- name: MoveDNS :exec

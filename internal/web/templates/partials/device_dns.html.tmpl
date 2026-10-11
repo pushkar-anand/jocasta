@@ -1,0 +1,90 @@
+{{- /*
+    Takes a dnsSection. The names one device looked up over a period, from the
+    hourly counts a resolver's query log adds up to.
+
+    The period switch fetches this fragment and swaps it whole. Without htmx
+    it is a form submitting to the device page, which renders the same
+    section. Each row is a registrable domain that opens to its busiest names.
+*/ -}}
+{{ define "partial/device-dns" }}
+<div id="device-dns" class="traffic">
+    <form id="dns-filters" class="filters" action="/devices/{{ .DeviceID }}#dns" method="get"
+          hx-get="/devices/{{ .DeviceID }}/dns"
+          hx-target="#device-dns"
+          hx-swap="outerHTML"
+          hx-sync="this:replace"
+          hx-trigger="filter, submit" data-live>
+        <label class="field">
+            <span class="visually-hidden">Period</span>
+            <select id="dns-window" name="dns">
+                {{- range .Windows }}
+                <option value="{{ .Key }}"{{ if eq .Key $.Window.Key }} selected{{ end }}>Last {{ .Label }}</option>
+                {{- end }}
+            </select>
+        </label>
+
+        <noscript><button type="submit" class="btn">Apply</button></noscript>
+    </form>
+
+    {{- if not .Domains }}
+    <p class="dim">No lookups from this device in the last {{ .Window.Label }}. They appear here once it sends its lookups to the resolver Jocasta reads.</p>
+    {{- else }}
+
+    {{- with .Summary }}
+    <div class="card traffic__summary">
+        <dl class="stats">
+            <div><dd>{{ count .Lookups }}</dd><dt>{{ if eq .Lookups 1 }}Lookup{{ else }}Lookups{{ end }}</dt></div>
+            <div><dd>{{ count .Names }}</dd><dt>{{ if eq .Names 1 }}Name{{ else }}Names{{ end }}</dt></div>
+            <div{{ if not .Blocked }} class="stat--quiet"{{ end }}><dd>{{ count .Blocked }}</dd><dt>Blocked</dt></div>
+            <div{{ if not .Failed }} class="stat--quiet"{{ end }}><dd>{{ count .Failed }}</dd><dt>Failed</dt></div>
+        </dl>
+    </div>
+    {{- end }}
+
+    <div class="card card--table">
+        <div class="scroller">
+            <table class="stacks">
+                <thead>
+                <tr>
+                    <th scope="col">Domain</th>
+                    <th scope="col" class="num">Lookups</th>
+                    <th scope="col" class="num">Blocked</th>
+                    <th scope="col">Last seen</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{- range .Domains }}
+                <tr>
+                    <td>
+                        <details class="peers">
+                            <summary>
+                                <span class="strong">{{ .Domain }}</span>
+                                <span class="dim">{{ count .NameCount }} {{ if eq .NameCount 1 }}name{{ else }}names{{ end }}</span>
+                                {{- if .Blocked }} <span class="chip chip--warn">{{ count .Blocked }} blocked</span>{{ end }}
+                            </summary>
+                            <ul class="peers__list">
+                                {{- range .Names }}
+                                <li><span class="mono">{{ .Name }}</span>
+                                    <span class="dim">{{ count .Lookups }} {{ if eq .Lookups 1 }}lookup{{ else }}lookups{{ end }}{{ if .Blocked }}, {{ count .Blocked }} blocked{{ end }}{{ if .Failed }}, {{ count .Failed }} failed{{ end }}</span></li>
+                                {{- end }}
+                                {{- with .Hidden }}
+                                <li class="dim">and {{ count . }} more {{ if eq . 1 }}name{{ else }}names{{ end }} with fewer lookups.</li>
+                                {{- end }}
+                            </ul>
+                        </details>
+                    </td>
+                    <td data-label="Lookups" class="num">{{ count .Lookups }}</td>
+                    <td data-label="Blocked" class="num{{ if not .Blocked }} dim{{ end }}">{{ count .Blocked }}</td>
+                    <td data-label="Last seen" class="dim">{{ stamp .LastHour "" }}</td>
+                </tr>
+                {{- end }}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {{- with .Hidden }}
+    <p class="note">and {{ count . }} more {{ if eq . 1 }}domain{{ else }}domains{{ end }} with fewer lookups.</p>
+    {{- end }}
+    {{- end }}
+</div>
+{{ end }}

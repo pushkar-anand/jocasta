@@ -48,6 +48,10 @@ type curationForm struct {
 	// Only the full page fills it.
 	Traffic *trafficSection
 
+	// DNS is what the device looked up over the period the page asked for.
+	// Only the full page fills it.
+	DNS *dnsSection
+
 	// Connection is where the device sits in the network's tree. Only the
 	// full page fills it, and only once a source has been read.
 	Connection *connection

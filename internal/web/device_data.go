@@ -362,6 +362,11 @@ func buildDevicePageData(
 		return nil, err
 	}
 
+	lookups, err := buildDNSSection(ctx, store, device.ID, query.Get("dns"), store.Now())
+	if err != nil {
+		return nil, err
+	}
+
 	conn, err := deviceConnection(ctx, store, device.ID)
 	if err != nil {
 		return nil, err
@@ -379,6 +384,7 @@ func buildDevicePageData(
 		Ports:              portRows(device.Ports, device.Services),
 		PortScanConfigured: portScanConfigured(ctx, store),
 		Traffic:            traffic,
+		DNS:                lookups,
 		Connection:         conn,
 	}
 

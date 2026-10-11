@@ -133,3 +133,76 @@ func (s *Store) RecordQueries(
 
 	return &res, nil
 }
+
+// deviceDNSLimit caps the names one device's view reads. A device that looked
+// up more distinct names than this in a month is a crawler, and its busiest
+// names are the ones worth showing.
+const deviceDNSLimit = 2000
+
+// DNSName is how often one device looked up one name over a period.
+type DNSName struct {
+	Name string `json:"name"`
+
+	// Lookups counts every lookup of the name, Blocked those the resolver
+	// blocked, and Failed those that found nothing or failed upstream.
+	Lookups int64 `json:"lookups"`
+	Blocked int64 `json:"blocked"`
+	Failed  int64 `json:"failed"`
+
+	// LastHour is the start of the latest hour the name was looked up in.
+	LastHour time.Time `json:"last_hour"`
+}
+
+// DeviceDNS returns the names device id looked up from the hour since falls
+// in, busiest first. A device that looked nothing up has an empty list.
+func (s *Store) DeviceDNS(ctx context.Context, id int64, since time.Time) ([]*DNSName, error) {
+	rows, err := s.q.DeviceDNS(ctx, models.DeviceDNSParams{
+		DeviceID: id,
+		Hour:     hourOf(since),
+		Limit:    deviceDNSLimit,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("lookups of device %d: %w", id, err)
+	}
+
+	out := make([]*DNSName, 0, len(rows))
+
+	for _, r := range rows {
+		last, err := parseHour("lookup", r.LastHour)
+		if err != nil {
+			return nil, err
+		}
+
+		out = append(out, &DNSName{Name: r.Name, Lookups: r.Lookups, Blocked: r.Blocked, Failed: r.Failed, LastHour: last})
+	}
+
+	return out, nil
+}
+
+// DNSTotals is what one device looked up over a period, added up over every
+// name.
+type DNSTotals struct {
+	Lookups, Names, Blocked, Failed int64
+}
+
+// DeviceDNSTotals adds up what device id looked up from the hour since falls
+// in. It counts every name, so it stays exact for a device that looked up
+// more names than [Store.DeviceDNS] returns.
+func (s *Store) DeviceDNSTotals(ctx context.Context, id int64, since time.Time) (*DNSTotals, error) {
+	row, err := s.q.DeviceDNSTotals(ctx, models.DeviceDNSTotalsParams{DeviceID: id, Hour: hourOf(since)})
+	if err != nil {
+		return nil, fmt.Errorf("lookup totals of device %d: %w", id, err)
+	}
+
+	return &DNSTotals{Lookups: row.Lookups, Names: row.Names, Blocked: row.Blocked, Failed: row.Failed}, nil
+}
+
+// DNSRead reports whether any resolver's query log has been read.
+func (s *Store) DNSRead(ctx context.Context) (bool, error) {
+	n, err := s.q.AnyDNSRead(ctx)
+	if err != nil {
+		return false, fmt.Errorf("any lookups read: %w", err)
+	}
+
+	return n == 1, nil
+}

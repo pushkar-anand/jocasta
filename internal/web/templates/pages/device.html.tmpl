@@ -107,6 +107,13 @@
     {{- template "partial/device-traffic" .Traffic }}
 </section>
 
+{{- if .DNS.Read }}
+<section class="block" id="dns">
+    <h2 class="section">Looks up</h2>
+    {{- template "partial/device-dns" .DNS }}
+</section>
+{{- end }}
+
 {{- if .Claims }}
 <section class="block">
     <h2 class="section">Sources</h2>

@@ -39,6 +39,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.answerProbesStmt, err = db.PrepareContext(ctx, answerProbes); err != nil {
 		return nil, fmt.Errorf("error preparing query AnswerProbes: %w", err)
 	}
+	if q.anyDNSReadStmt, err = db.PrepareContext(ctx, anyDNSRead); err != nil {
+		return nil, fmt.Errorf("error preparing query AnyDNSRead: %w", err)
+	}
 	if q.anyTrafficStmt, err = db.PrepareContext(ctx, anyTraffic); err != nil {
 		return nil, fmt.Errorf("error preparing query AnyTraffic: %w", err)
 	}
@@ -143,6 +146,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.deviceBroadcastsStmt, err = db.PrepareContext(ctx, deviceBroadcasts); err != nil {
 		return nil, fmt.Errorf("error preparing query DeviceBroadcasts: %w", err)
+	}
+	if q.deviceDNSStmt, err = db.PrepareContext(ctx, deviceDNS); err != nil {
+		return nil, fmt.Errorf("error preparing query DeviceDNS: %w", err)
+	}
+	if q.deviceDNSTotalsStmt, err = db.PrepareContext(ctx, deviceDNSTotals); err != nil {
+		return nil, fmt.Errorf("error preparing query DeviceDNSTotals: %w", err)
 	}
 	if q.deviceNetworkNamesStmt, err = db.PrepareContext(ctx, deviceNetworkNames); err != nil {
 		return nil, fmt.Errorf("error preparing query DeviceNetworkNames: %w", err)
@@ -456,6 +465,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing answerProbesStmt: %w", cerr)
 		}
 	}
+	if q.anyDNSReadStmt != nil {
+		if cerr := q.anyDNSReadStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing anyDNSReadStmt: %w", cerr)
+		}
+	}
 	if q.anyTrafficStmt != nil {
 		if cerr := q.anyTrafficStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing anyTrafficStmt: %w", cerr)
@@ -629,6 +643,16 @@ func (q *Queries) Close() error {
 	if q.deviceBroadcastsStmt != nil {
 		if cerr := q.deviceBroadcastsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deviceBroadcastsStmt: %w", cerr)
+		}
+	}
+	if q.deviceDNSStmt != nil {
+		if cerr := q.deviceDNSStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deviceDNSStmt: %w", cerr)
+		}
+	}
+	if q.deviceDNSTotalsStmt != nil {
+		if cerr := q.deviceDNSTotalsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deviceDNSTotalsStmt: %w", cerr)
 		}
 	}
 	if q.deviceNetworkNamesStmt != nil {
@@ -1145,6 +1169,7 @@ type Queries struct {
 	allNetworksStmt                    *sql.Stmt
 	answerAttemptsStmt                 *sql.Stmt
 	answerProbesStmt                   *sql.Stmt
+	anyDNSReadStmt                     *sql.Stmt
 	anyTrafficStmt                     *sql.Stmt
 	attemptPortsStmt                   *sql.Stmt
 	busiestDevicesStmt                 *sql.Stmt
@@ -1180,6 +1205,8 @@ type Queries struct {
 	deleteUncuratedDevicesBeforeStmt   *sql.Stmt
 	deviceAttemptsStmt                 *sql.Stmt
 	deviceBroadcastsStmt               *sql.Stmt
+	deviceDNSStmt                      *sql.Stmt
+	deviceDNSTotalsStmt                *sql.Stmt
 	deviceNetworkNamesStmt             *sql.Stmt
 	deviceStatsStmt                    *sql.Stmt
 	deviceTrafficStmt                  *sql.Stmt
@@ -1285,6 +1312,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		allNetworksStmt:                    q.allNetworksStmt,
 		answerAttemptsStmt:                 q.answerAttemptsStmt,
 		answerProbesStmt:                   q.answerProbesStmt,
+		anyDNSReadStmt:                     q.anyDNSReadStmt,
 		anyTrafficStmt:                     q.anyTrafficStmt,
 		attemptPortsStmt:                   q.attemptPortsStmt,
 		busiestDevicesStmt:                 q.busiestDevicesStmt,
@@ -1320,6 +1348,8 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deleteUncuratedDevicesBeforeStmt:   q.deleteUncuratedDevicesBeforeStmt,
 		deviceAttemptsStmt:                 q.deviceAttemptsStmt,
 		deviceBroadcastsStmt:               q.deviceBroadcastsStmt,
+		deviceDNSStmt:                      q.deviceDNSStmt,
+		deviceDNSTotalsStmt:                q.deviceDNSTotalsStmt,
 		deviceNetworkNamesStmt:             q.deviceNetworkNamesStmt,
 		deviceStatsStmt:                    q.deviceStatsStmt,
 		deviceTrafficStmt:                  q.deviceTrafficStmt,

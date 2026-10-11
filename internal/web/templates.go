@@ -35,6 +35,7 @@ const (
 	templatePartialDeviceRowForm = "partial/device-row-form"
 	templatePartialDevicePanel   = "partial/device-panel"
 	templatePartialDeviceTraffic = "partial/device-traffic"
+	templatePartialDeviceDNS     = "partial/device-dns"
 	templatePartialMapBody       = "partial/map-body"
 	templatePartialMapWorldBody  = "partial/map-world-body" //nolint:gosec // G101: a template name
 	templatePartialTopologyBody  = "partial/topology-body"
