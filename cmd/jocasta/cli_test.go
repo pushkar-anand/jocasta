@@ -710,6 +710,40 @@ func TestRouterSourcesRefusesANameUnderRouterAndTechnitium(t *testing.T) {
 	require.ErrorContains(t, err, `"gateway" is configured under both plugins.routeros and plugins.technitium`)
 }
 
+// Resolvers of every kind share the bare-name space too.
+func TestQueryReadersRefusesANameUnderTwoResolverKinds(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Plugins.Technitium = map[string]config.Technitium{"resolver": {Enabled: true, Host: "192.0.2.53"}}
+	cfg.Plugins.PiHole = map[string]config.PiHole{"resolver": {Enabled: true, Host: "192.0.2.54"}}
+
+	_, err := queryReaders(t.Context(), cfg, slog.New(slog.DiscardHandler))
+	require.ErrorContains(t, err, `"resolver" is configured under both plugins.technitium and plugins.pihole`)
+}
+
+// Every enabled resolver is read, of every kind, in name order.
+func TestQueryReadersBuildsEveryKind(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Plugins.Technitium = map[string]config.Technitium{"b": {Enabled: true, Host: "192.0.2.53"}}
+	cfg.Plugins.PiHole = map[string]config.PiHole{
+		"a": {Enabled: true, Host: "192.0.2.54"},
+		"c": {Host: "192.0.2.55"},
+	}
+
+	readers, err := queryReaders(t.Context(), cfg, slog.New(slog.DiscardHandler))
+	require.NoError(t, err)
+
+	var names []string
+	for _, r := range readers {
+		names = append(names, r.Name())
+	}
+
+	assert.Equal(t, []string{"pihole:a", "technitium:b"}, names)
+}
+
 // The lookups table has one row per client and name, clients in address
 // order and each client's busiest names first.
 func TestOutputQueriesTable(t *testing.T) {

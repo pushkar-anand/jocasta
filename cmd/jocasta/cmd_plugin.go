@@ -43,8 +43,13 @@ func (p *PluginRunCmd) Run(
 	log *slog.Logger,
 	store *inventory.Store,
 ) error {
-	if _, ok := cfg.Plugins.Technitium[p.Name]; ok {
-		return p.runQueries(ctx, cfg, log, store)
+	resolvers, err := resolverInstances(cfg)
+	if err != nil {
+		return err
+	}
+
+	if in, ok := resolvers[p.Name]; ok {
+		return p.runQueries(ctx, cfg, log, store, in)
 	}
 
 	built, err := newRouterSource(cfg, p.Name, log)
@@ -134,6 +139,7 @@ func (p *PluginRunCmd) runQueries(
 	cfg *config.Config,
 	log *slog.Logger,
 	store *inventory.Store,
+	in resolverInstance,
 ) error {
 	// The names of every kind are checked against each other, as the server
 	// does at boot.
@@ -141,7 +147,7 @@ func (p *PluginRunCmd) runQueries(
 		return err
 	}
 
-	src, err := newTechnitium(p.Name, cfg.Plugins.Technitium[p.Name], log)
+	src, err := in.build(log)
 	if err != nil {
 		return err
 	}

@@ -247,6 +247,27 @@ type (
 		LogApp string `koanf:"log_app"`
 	}
 
+	// PiHole names one Pi-hole v6 to read the query log of, over the API its
+	// web server serves.
+	PiHole struct {
+		Enabled bool          `koanf:"enabled"`
+		Timeout time.Duration `koanf:"timeout"`
+
+		// Host is the server's address or name, without a port.
+		Host string `koanf:"host"`
+		Port int    `koanf:"port"`
+
+		// Password is an app password, made in Pi-hole's web interface. It
+		// can do anything the web interface can: Pi-hole has no read-only
+		// login. Empty reads a Pi-hole that has no password set.
+		Password string `koanf:"password"`
+
+		// SSL selects https. Insecure skips certificate verification, for the
+		// self-signed certificate Pi-hole serves until one is installed.
+		SSL      bool `koanf:"ssl"`
+		Insecure bool `koanf:"insecure"`
+	}
+
 	// Auth controls how long a signed-in browser stays signed in and whether
 	// its cookie is confined to HTTPS. jocasta sets the cookie's name, path and
 	// other flags itself.
@@ -286,6 +307,7 @@ type (
 		NetFlow  map[string]NetFlow  `koanf:"netflow"`
 
 		Technitium map[string]Technitium `koanf:"technitium"`
+		PiHole     map[string]PiHole     `koanf:"pihole"`
 	}
 
 	// Config is the whole set of named, nested settings.
