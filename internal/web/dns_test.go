@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"net/http"
 	"net/netip"
 	"testing"
@@ -113,4 +114,38 @@ func TestRegistrableDomain(t *testing.T) {
 	} {
 		assert.Equal(t, want, registrableDomain(name), name)
 	}
+}
+
+func TestDevicePageCutsLongListsAndCountsTheRest(t *testing.T) {
+	t.Parallel()
+
+	store := sweptPair(t)
+
+	// 52 domains, the busiest holding 25 names: two domains and five names
+	// past what the section lists.
+	var queries []plugin.Query
+
+	for i := range 25 {
+		for range 3 {
+			queries = append(queries, lookupOf("192.0.2.10", fmt.Sprintf("edge-%02d.example.net", i)))
+		}
+	}
+
+	for i := range 51 {
+		queries = append(queries, lookupOf("192.0.2.10", fmt.Sprintf("site-%02d.test", i)))
+	}
+
+	recordLookups(t, store, queries...)
+
+	rec := get(t, newWebHandler(t, store), "/devices/1")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+	assert.Contains(t, body, "<div><dd>126</dd><dt>Lookups</dt></div>")
+	assert.Contains(t, body, "<div><dd>76</dd><dt>Names</dt></div>")
+	assert.Contains(t, body, `<span class="dim">25 names</span>`)
+	assert.Contains(t, body, `<span class="mono">edge-19.example.net</span>`)
+	assert.NotContains(t, body, `<span class="mono">edge-20.example.net</span>`)
+	assert.Contains(t, body, `<li class="dim">and 5 more names with fewer lookups.</li>`)
+	assert.Contains(t, body, `<p class="note">and 2 more domains with fewer lookups.</p>`)
 }

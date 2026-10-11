@@ -168,4 +168,12 @@ func TestDeviceDNSSumsSourcesBusiestFirst(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, none)
 	assert.Empty(t, none)
+
+	totals, err := s.DeviceDNSTotals(t.Context(), a, trafficHour.Add(-time.Hour))
+	require.NoError(t, err)
+	assert.Equal(t, &DNSTotals{Lookups: 3, Names: 2, Blocked: 1}, totals)
+
+	totals, err = s.DeviceDNSTotals(t.Context(), a+100, trafficHour)
+	require.NoError(t, err)
+	assert.Equal(t, &DNSTotals{}, totals)
 }

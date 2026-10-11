@@ -4,8 +4,7 @@
 
     The period switch fetches this fragment and swaps it whole. Without htmx
     it is a form submitting to the device page, which renders the same
-    section. Each row is a registrable domain that opens to the names under
-    it, busiest first.
+    section. Each row is a registrable domain that opens to its busiest names.
 */ -}}
 {{ define "partial/device-dns" }}
 <div id="device-dns" class="traffic">
@@ -60,13 +59,16 @@
                         <details class="peers">
                             <summary>
                                 <span class="strong">{{ .Domain }}</span>
-                                <span class="dim">{{ len .Names }} {{ if eq (len .Names) 1 }}name{{ else }}names{{ end }}</span>
+                                <span class="dim">{{ count .NameCount }} {{ if eq .NameCount 1 }}name{{ else }}names{{ end }}</span>
                                 {{- if .Blocked }} <span class="chip chip--warn">{{ count .Blocked }} blocked</span>{{ end }}
                             </summary>
                             <ul class="peers__list">
                                 {{- range .Names }}
                                 <li><span class="mono">{{ .Name }}</span>
                                     <span class="dim">{{ count .Lookups }} {{ if eq .Lookups 1 }}lookup{{ else }}lookups{{ end }}{{ if .Blocked }}, {{ count .Blocked }} blocked{{ end }}{{ if .Failed }}, {{ count .Failed }} failed{{ end }}</span></li>
+                                {{- end }}
+                                {{- with .Hidden }}
+                                <li class="dim">and {{ count . }} more {{ if eq . 1 }}name{{ else }}names{{ end }} with fewer lookups.</li>
                                 {{- end }}
                             </ul>
                         </details>

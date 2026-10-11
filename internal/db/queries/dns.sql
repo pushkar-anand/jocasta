@@ -51,6 +51,17 @@ GROUP BY name
 ORDER BY SUM(lookups) DESC, name
 LIMIT ?;
 
+-- name: DeviceDNSTotals :one
+-- What one device looked up since a given hour, added up over every name,
+-- including those past DeviceDNS's limit.
+SELECT CAST(COALESCE(SUM(lookups), 0) AS INTEGER) AS lookups,
+       CAST(COUNT(DISTINCT name) AS INTEGER)      AS names,
+       CAST(COALESCE(SUM(blocked), 0) AS INTEGER) AS blocked,
+       CAST(COALESCE(SUM(failed), 0) AS INTEGER)  AS failed
+FROM dns_hourly
+WHERE device_id = ?
+  AND hour >= ?;
+
 -- name: AnyDNSRead :one
 -- Whether any resolver's log has been read, which is how a view tells "this
 -- device looked nothing up" from "nothing reads a resolver".

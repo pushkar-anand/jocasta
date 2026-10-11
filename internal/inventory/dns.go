@@ -179,6 +179,24 @@ func (s *Store) DeviceDNS(ctx context.Context, id int64, since time.Time) ([]*DN
 	return out, nil
 }
 
+// DNSTotals is what one device looked up over a period, added up over every
+// name.
+type DNSTotals struct {
+	Lookups, Names, Blocked, Failed int64
+}
+
+// DeviceDNSTotals adds up what device id looked up from the hour since falls
+// in. It counts every name, so it stays exact for a device that looked up
+// more names than [Store.DeviceDNS] returns.
+func (s *Store) DeviceDNSTotals(ctx context.Context, id int64, since time.Time) (*DNSTotals, error) {
+	row, err := s.q.DeviceDNSTotals(ctx, models.DeviceDNSTotalsParams{DeviceID: id, Hour: hourOf(since)})
+	if err != nil {
+		return nil, fmt.Errorf("lookup totals of device %d: %w", id, err)
+	}
+
+	return &DNSTotals{Lookups: row.Lookups, Names: row.Names, Blocked: row.Blocked, Failed: row.Failed}, nil
+}
+
 // DNSRead reports whether any resolver's query log has been read.
 func (s *Store) DNSRead(ctx context.Context) (bool, error) {
 	n, err := s.q.AnyDNSRead(ctx)

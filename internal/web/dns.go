@@ -15,9 +15,15 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// dnsDomainRows is how many domains the section lists. The rest are counted
-// in the summary and in a line under the table.
-const dnsDomainRows = 50
+const (
+	// dnsDomainRows is how many domains the section lists. The rest are
+	// counted in the summary and in a line under the table.
+	dnsDomainRows = 50
+
+	// dnsDomainNames is how many names an opened domain lists. A CDN's domain
+	// can hold hundreds, and the rest are counted in a line under them.
+	dnsDomainNames = 20
+)
 
 // dnsSection is a device's "Looks up" section, on the page and as the
 // fragment its period switch fetches.
@@ -30,17 +36,13 @@ type dnsSection struct {
 	// section is left off the page.
 	Read bool
 
-	Summary dnsSummary
+	// Summary adds up every name in the period, not only those listed.
+	Summary *inventory.DNSTotals
 
 	// Domains are the busiest registrable domains, each with the names under
 	// it; Hidden counts the domains past them.
 	Domains []*dnsDomain
-	Hidden  int
-}
-
-// dnsSummary is the whole period at a glance.
-type dnsSummary struct {
-	Lookups, Names, Blocked, Failed int64
+	Hidden  int64
 }
 
 // dnsDomain is the names under one registrable domain, such as example.com
@@ -49,7 +51,12 @@ type dnsDomain struct {
 	Domain                   string
 	Lookups, Blocked, Failed int64
 	LastHour                 time.Time
-	Names                    []*inventory.DNSName
+
+	// Names are the busiest names under the domain; Hidden counts the names
+	// past them, and NameCount all of them.
+	Names     []*inventory.DNSName
+	Hidden    int64
+	NameCount int64
 }
 
 // buildDNSSection reads what device id looked up over the period windowKey
@@ -66,7 +73,13 @@ func buildDNSSection(
 
 	sec.Read = true
 
-	names, err := store.DeviceDNS(ctx, id, now.Add(-sec.Window.span))
+	since := now.Add(-sec.Window.span)
+
+	if sec.Summary, err = store.DeviceDNSTotals(ctx, id, since); err != nil {
+		return nil, err
+	}
+
+	names, err := store.DeviceDNS(ctx, id, since)
 	if err != nil {
 		return nil, err
 	}
@@ -74,10 +87,6 @@ func buildDNSSection(
 	domains := make(map[string]*dnsDomain)
 
 	for _, n := range names {
-		sec.Summary.Lookups += n.Lookups
-		sec.Summary.Blocked += n.Blocked
-		sec.Summary.Failed += n.Failed
-
 		key := registrableDomain(n.Name)
 
 		d, ok := domains[key]
@@ -97,14 +106,18 @@ func buildDNSSection(
 		d.Names = append(d.Names, n)
 	}
 
-	sec.Summary.Names = int64(len(names))
-
 	all := slices.SortedFunc(maps.Values(domains), func(a, b *dnsDomain) int {
 		return cmp.Or(cmp.Compare(b.Lookups, a.Lookups), cmp.Compare(a.Domain, b.Domain))
 	})
 
 	sec.Domains = all[:min(len(all), dnsDomainRows)]
-	sec.Hidden = len(all) - len(sec.Domains)
+	sec.Hidden = int64(len(all) - len(sec.Domains))
+
+	for _, d := range sec.Domains {
+		d.NameCount = int64(len(d.Names))
+		d.Names = d.Names[:min(len(d.Names), dnsDomainNames)]
+		d.Hidden = d.NameCount - int64(len(d.Names))
+	}
 
 	return sec, nil
 }

@@ -123,6 +123,50 @@ func (q *Queries) DeviceDNS(ctx context.Context, arg DeviceDNSParams) ([]*Device
 	return items, nil
 }
 
+const deviceDNSTotals = `-- name: DeviceDNSTotals :one
+SELECT CAST(COALESCE(SUM(lookups), 0) AS INTEGER) AS lookups,
+       CAST(COUNT(DISTINCT name) AS INTEGER)      AS names,
+       CAST(COALESCE(SUM(blocked), 0) AS INTEGER) AS blocked,
+       CAST(COALESCE(SUM(failed), 0) AS INTEGER)  AS failed
+FROM dns_hourly
+WHERE device_id = ?
+  AND hour >= ?
+`
+
+type DeviceDNSTotalsParams struct {
+	DeviceID int64       `json:"device_id"`
+	Hour     dbtype.Time `json:"hour"`
+}
+
+type DeviceDNSTotalsRow struct {
+	Lookups int64 `json:"lookups"`
+	Names   int64 `json:"names"`
+	Blocked int64 `json:"blocked"`
+	Failed  int64 `json:"failed"`
+}
+
+// What one device looked up since a given hour, added up over every name,
+// including those past DeviceDNS's limit.
+//
+//	SELECT CAST(COALESCE(SUM(lookups), 0) AS INTEGER) AS lookups,
+//	       CAST(COUNT(DISTINCT name) AS INTEGER)      AS names,
+//	       CAST(COALESCE(SUM(blocked), 0) AS INTEGER) AS blocked,
+//	       CAST(COALESCE(SUM(failed), 0) AS INTEGER)  AS failed
+//	FROM dns_hourly
+//	WHERE device_id = ?
+//	  AND hour >= ?
+func (q *Queries) DeviceDNSTotals(ctx context.Context, arg DeviceDNSTotalsParams) (*DeviceDNSTotalsRow, error) {
+	row := q.queryRow(ctx, q.deviceDNSTotalsStmt, deviceDNSTotals, arg.DeviceID, arg.Hour)
+	var i DeviceDNSTotalsRow
+	err := row.Scan(
+		&i.Lookups,
+		&i.Names,
+		&i.Blocked,
+		&i.Failed,
+	)
+	return &i, err
+}
+
 const moveDNS = `-- name: MoveDNS :exec
 INSERT INTO dns_hourly (source_id, device_id, hour, name, lookups, blocked, failed)
 SELECT ghost.source_id, ?1, ghost.hour, ghost.name, ghost.lookups, ghost.blocked, ghost.failed
