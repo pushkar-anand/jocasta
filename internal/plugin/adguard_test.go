@@ -211,6 +211,7 @@ func TestAdGuardFirstRead(t *testing.T) {
 	assert.Empty(t, cursor)
 
 	f.log("old.example.com", "new.example.com")
+
 	p.now = func() time.Time { return pinned.Add(time.Hour + 1500*time.Millisecond) }
 
 	qs, _, err = p.Queries(t.Context(), "")
