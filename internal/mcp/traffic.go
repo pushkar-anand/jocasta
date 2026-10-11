@@ -85,7 +85,9 @@ func listTraffic(store *inventory.Store, now func() time.Time) func(*mcpsdk.Serv
 			"incoming: per device and service, the connections internet peers opened, which shows the services the network exposes that were used; " +
 			"and probed: devices the internet tried without the connections carrying data, with outside true when the router's " +
 			"outside address was tried and the device is the router. " +
-			"In a device view, a peer's connections_in counts the connections that peer opened on the device. " +
+			"In a device view, a peer's connections_in counts the connections that peer opened on the device, " +
+			"and looked_up lists the names that device looked up and was answered with the peer's address within the period, most looked up first; " +
+			"it needs a resolver whose query log Jocasta reads, so a peer without it may still be a named service. " +
 			"A device view also lists attempts: connections the device started that never carried data (a refused or unanswered port, a ping), " +
 			"per peer with how many were answered and the lowest ports tried; no attempts field means there were none. " +
 			"Totals are per hour and cover only what the router exported. Individual connections are not kept. " +
