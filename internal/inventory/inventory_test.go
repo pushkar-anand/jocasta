@@ -463,7 +463,12 @@ func TestRecordSweepFoldMovesWhatWasRecordedAgainstTheWeakerRow(t *testing.T) {
 		INSERT INTO dns_hourly (source_id, device_id, hour, name, lookups, blocked, failed)
 		VALUES (:source, :ghost, :hour, 'example.com', 4, 1, 0),
 		       (:source, :twin, :hour, 'example.com', 2, 0, 1),
-		       (:source, :ghost, :hour, 'example.org', 3, 0, 0);`,
+		       (:source, :ghost, :hour, 'example.org', 3, 0, 0);
+
+		INSERT INTO dns_answers (device_id, addr, name, lookups, last_hour)
+		VALUES (:ghost, '203.0.113.1', 'example.com', 4, :late),
+		       (:twin, '203.0.113.1', 'example.com', 2, :early),
+		       (:ghost, '203.0.113.2', 'example.org', 3, :mid);`,
 		sql.Named("ghost", ghost), sql.Named("twin", twin), sql.Named("other", other),
 		sql.Named("source", source), sql.Named("hour", hour),
 		sql.Named("early", early), sql.Named("mid", mid), sql.Named("late", late))
@@ -523,6 +528,15 @@ func TestRecordSweepFoldMovesWhatWasRecordedAgainstTheWeakerRow(t *testing.T) {
 		assert.Equal(t, []string{"example.com 6 1 1", "example.org 3 0 0"}, queryStrings(t, conn, `
 			SELECT name || ' ' || lookups || ' ' || blocked || ' ' || failed
 			FROM dns_hourly WHERE device_id = ? ORDER BY name`, twin))
+	})
+
+	t.Run("answers", func(t *testing.T) {
+		assert.Equal(t, []string{
+			"203.0.113.1 example.com 6 " + late,
+			"203.0.113.2 example.org 3 " + mid,
+		}, queryStrings(t, conn, `
+			SELECT addr || ' ' || name || ' ' || lookups || ' ' || last_hour
+			FROM dns_answers WHERE device_id = ? ORDER BY addr`, twin))
 	})
 
 	t.Run("peers", func(t *testing.T) {

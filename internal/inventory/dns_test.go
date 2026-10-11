@@ -74,6 +74,71 @@ func TestRecordQueriesCountsPerDeviceHourAndName(t *testing.T) {
 	assert.Equal(t, "cursor-2", cursor)
 }
 
+func answerRows(t *testing.T, s *Store) []string {
+	t.Helper()
+
+	return queryStrings(t, s.conn, `
+		SELECT device_id || ' ' || addr || ' ' || name || ' ' || lookups || ' ' || last_hour
+		FROM dns_answers ORDER BY device_id, addr, name`)
+}
+
+// answered is a lookup of name from client, answered with addrs.
+func answered(client, name string, at time.Time, addrs ...string) plugin.Query {
+	q := lookup(client, name, at)
+
+	for _, a := range addrs {
+		q.Answers = append(q.Answers, netip.MustParseAddr(a))
+	}
+
+	return q
+}
+
+// TestRecordQueriesKeepsAnswers checks that each answered address is kept per
+// device and name with the latest hour it was seen, that blocked and failed
+// lookups and unspecified or loopback answers are left out, and that a second
+// read adds to the first.
+func TestRecordQueriesKeepsAnswers(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, ""), host("192.0.2.11", macB, ""))
+
+	a, b := deviceIDByMAC(t, conn, macA), deviceIDByMAC(t, conn, macB)
+
+	blocked := answered("192.0.2.10", "ads.example.net", trafficHour, "198.51.100.9")
+	blocked.Blocked = true
+
+	failed := answered("192.0.2.10", "missing.example.com", trafficHour, "198.51.100.8")
+	failed.Failed = true
+
+	_, err := s.RecordQueries(t.Context(), "technitium:resolver", dbtype.SourceDNS, []plugin.Query{
+		answered("192.0.2.10", "example.com", trafficHour, "203.0.113.1", "2001:db8::1"),
+		answered("192.0.2.10", "example.com", trafficHour.Add(time.Hour), "203.0.113.1"),
+		answered("192.0.2.10", "cdn.example.net", trafficHour, "203.0.113.1"),
+		answered("192.0.2.11", "example.com", trafficHour, "203.0.113.1"),
+		answered("192.0.2.10", "sink.example.org", trafficHour, "0.0.0.0", "127.0.0.1", "::"),
+		blocked,
+		failed,
+	}, "cursor-1")
+	require.NoError(t, err)
+
+	_, err = s.RecordQueries(t.Context(), "technitium:resolver", dbtype.SourceDNS, []plugin.Query{
+		answered("192.0.2.10", "example.com", trafficHour, "203.0.113.1"),
+	}, "cursor-2")
+	require.NoError(t, err)
+
+	first := trafficHour.Format(dbtype.Layout)
+	second := trafficHour.Add(time.Hour).Format(dbtype.Layout)
+	ida, idb := strconv.FormatInt(a, 10), strconv.FormatInt(b, 10)
+
+	assert.Equal(t, []string{
+		ida + " 2001:db8::1 example.com 1 " + first,
+		ida + " 203.0.113.1 cdn.example.net 1 " + first,
+		ida + " 203.0.113.1 example.com 3 " + second,
+		idb + " 203.0.113.1 example.com 1 " + first,
+	}, answerRows(t, s))
+}
+
 // TestQueryCursorIsEmptyBeforeAnyRead checks that a source never recorded
 // starts with no cursor, and that a read with no lookups still moves it.
 func TestQueryCursorIsEmptyBeforeAnyRead(t *testing.T) {
@@ -94,8 +159,8 @@ func TestQueryCursorIsEmptyBeforeAnyRead(t *testing.T) {
 	assert.Empty(t, dnsRows(t, s))
 }
 
-// TestPruneDeletesLookupsPastTheirWindow checks that lookups follow their own
-// window, and that the traffic window leaves them alone.
+// TestPruneDeletesLookupsPastTheirWindow checks that lookups and their answers
+// follow their own window, and that the traffic window leaves them alone.
 func TestPruneDeletesLookupsPastTheirWindow(t *testing.T) {
 	t.Parallel()
 
@@ -105,8 +170,8 @@ func TestPruneDeletesLookupsPastTheirWindow(t *testing.T) {
 	start := s.now().UTC().Truncate(time.Hour)
 
 	_, err := s.RecordQueries(t.Context(), "technitium:resolver", dbtype.SourceDNS, []plugin.Query{
-		lookup("192.0.2.10", "example.com", start),
-		lookup("192.0.2.10", "example.com", start.Add(48*time.Hour)),
+		answered("192.0.2.10", "example.com", start, "203.0.113.1"),
+		answered("192.0.2.10", "example.com", start.Add(48*time.Hour), "203.0.113.2"),
 	}, "cursor-1")
 	require.NoError(t, err)
 
@@ -115,12 +180,16 @@ func TestPruneDeletesLookupsPastTheirWindow(t *testing.T) {
 	res, err := s.Prune(t.Context(), Retention{Traffic: 24 * time.Hour})
 	require.NoError(t, err)
 	assert.Zero(t, res.Lookups)
+	assert.Zero(t, res.Answers)
 	assert.Len(t, dnsRows(t, s), 2)
+	assert.Len(t, answerRows(t, s), 2)
 
 	res, err = s.Prune(t.Context(), Retention{DNS: 24 * time.Hour})
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), res.Lookups)
+	assert.Equal(t, int64(1), res.Answers)
 	assert.Len(t, dnsRows(t, s), 1)
+	assert.Len(t, answerRows(t, s), 1)
 }
 
 // TestDeviceDNSSumsSourcesBusiestFirst checks that two nodes' counts for one

@@ -102,6 +102,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deleteBroadcastsBeforeStmt, err = db.PrepareContext(ctx, deleteBroadcastsBefore); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteBroadcastsBefore: %w", err)
 	}
+	if q.deleteDNSAnswersBeforeStmt, err = db.PrepareContext(ctx, deleteDNSAnswersBefore); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteDNSAnswersBefore: %w", err)
+	}
 	if q.deleteDNSBeforeStmt, err = db.PrepareContext(ctx, deleteDNSBefore); err != nil {
 		return nil, fmt.Errorf("error preparing query DeleteDNSBefore: %w", err)
 	}
@@ -285,6 +288,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.moveDNSStmt, err = db.PrepareContext(ctx, moveDNS); err != nil {
 		return nil, fmt.Errorf("error preparing query MoveDNS: %w", err)
 	}
+	if q.moveDNSAnswersStmt, err = db.PrepareContext(ctx, moveDNSAnswers); err != nil {
+		return nil, fmt.Errorf("error preparing query MoveDNSAnswers: %w", err)
+	}
 	if q.moveDevicePortsStmt, err = db.PrepareContext(ctx, moveDevicePorts); err != nil {
 		return nil, fmt.Errorf("error preparing query MoveDevicePorts: %w", err)
 	}
@@ -401,6 +407,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.upsertDNSStmt, err = db.PrepareContext(ctx, upsertDNS); err != nil {
 		return nil, fmt.Errorf("error preparing query UpsertDNS: %w", err)
+	}
+	if q.upsertDNSAnswerStmt, err = db.PrepareContext(ctx, upsertDNSAnswer); err != nil {
+		return nil, fmt.Errorf("error preparing query UpsertDNSAnswer: %w", err)
 	}
 	if q.upsertDeviceServiceStmt, err = db.PrepareContext(ctx, upsertDeviceService); err != nil {
 		return nil, fmt.Errorf("error preparing query UpsertDeviceService: %w", err)
@@ -568,6 +577,11 @@ func (q *Queries) Close() error {
 	if q.deleteBroadcastsBeforeStmt != nil {
 		if cerr := q.deleteBroadcastsBeforeStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deleteBroadcastsBeforeStmt: %w", cerr)
+		}
+	}
+	if q.deleteDNSAnswersBeforeStmt != nil {
+		if cerr := q.deleteDNSAnswersBeforeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteDNSAnswersBeforeStmt: %w", cerr)
 		}
 	}
 	if q.deleteDNSBeforeStmt != nil {
@@ -875,6 +889,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing moveDNSStmt: %w", cerr)
 		}
 	}
+	if q.moveDNSAnswersStmt != nil {
+		if cerr := q.moveDNSAnswersStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing moveDNSAnswersStmt: %w", cerr)
+		}
+	}
 	if q.moveDevicePortsStmt != nil {
 		if cerr := q.moveDevicePortsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing moveDevicePortsStmt: %w", cerr)
@@ -1070,6 +1089,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing upsertDNSStmt: %w", cerr)
 		}
 	}
+	if q.upsertDNSAnswerStmt != nil {
+		if cerr := q.upsertDNSAnswerStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing upsertDNSAnswerStmt: %w", cerr)
+		}
+	}
 	if q.upsertDeviceServiceStmt != nil {
 		if cerr := q.upsertDeviceServiceStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing upsertDeviceServiceStmt: %w", cerr)
@@ -1190,6 +1214,7 @@ type Queries struct {
 	deleteAPITokenStmt                 *sql.Stmt
 	deleteAttemptsBeforeStmt           *sql.Stmt
 	deleteBroadcastsBeforeStmt         *sql.Stmt
+	deleteDNSAnswersBeforeStmt         *sql.Stmt
 	deleteDNSBeforeStmt                *sql.Stmt
 	deleteDeviceStmt                   *sql.Stmt
 	deleteDeviceServicesBeforeStmt     *sql.Stmt
@@ -1251,6 +1276,7 @@ type Queries struct {
 	moveAttemptsStmt                   *sql.Stmt
 	moveBroadcastsStmt                 *sql.Stmt
 	moveDNSStmt                        *sql.Stmt
+	moveDNSAnswersStmt                 *sql.Stmt
 	moveDevicePortsStmt                *sql.Stmt
 	moveDeviceServicesStmt             *sql.Stmt
 	moveDeviceSourcesStmt              *sql.Stmt
@@ -1290,6 +1316,7 @@ type Queries struct {
 	upsertAttemptsStmt                 *sql.Stmt
 	upsertBroadcastStmt                *sql.Stmt
 	upsertDNSStmt                      *sql.Stmt
+	upsertDNSAnswerStmt                *sql.Stmt
 	upsertDeviceServiceStmt            *sql.Stmt
 	upsertDeviceSourceStmt             *sql.Stmt
 	upsertNetworkStmt                  *sql.Stmt
@@ -1333,6 +1360,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deleteAPITokenStmt:                 q.deleteAPITokenStmt,
 		deleteAttemptsBeforeStmt:           q.deleteAttemptsBeforeStmt,
 		deleteBroadcastsBeforeStmt:         q.deleteBroadcastsBeforeStmt,
+		deleteDNSAnswersBeforeStmt:         q.deleteDNSAnswersBeforeStmt,
 		deleteDNSBeforeStmt:                q.deleteDNSBeforeStmt,
 		deleteDeviceStmt:                   q.deleteDeviceStmt,
 		deleteDeviceServicesBeforeStmt:     q.deleteDeviceServicesBeforeStmt,
@@ -1394,6 +1422,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		moveAttemptsStmt:                   q.moveAttemptsStmt,
 		moveBroadcastsStmt:                 q.moveBroadcastsStmt,
 		moveDNSStmt:                        q.moveDNSStmt,
+		moveDNSAnswersStmt:                 q.moveDNSAnswersStmt,
 		moveDevicePortsStmt:                q.moveDevicePortsStmt,
 		moveDeviceServicesStmt:             q.moveDeviceServicesStmt,
 		moveDeviceSourcesStmt:              q.moveDeviceSourcesStmt,
@@ -1433,6 +1462,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		upsertAttemptsStmt:                 q.upsertAttemptsStmt,
 		upsertBroadcastStmt:                q.upsertBroadcastStmt,
 		upsertDNSStmt:                      q.upsertDNSStmt,
+		upsertDNSAnswerStmt:                q.upsertDNSAnswerStmt,
 		upsertDeviceServiceStmt:            q.upsertDeviceServiceStmt,
 		upsertDeviceSourceStmt:             q.upsertDeviceSourceStmt,
 		upsertNetworkStmt:                  q.upsertNetworkStmt,

@@ -19,7 +19,8 @@ type Retention struct {
 	// counts.
 	Traffic time.Duration
 
-	// DNS bounds hourly lookup counts.
+	// DNS bounds hourly lookup counts and the addresses lookups were
+	// answered with.
 	DNS time.Duration
 
 	// Devices bounds how long a device its owner never curated is kept after
@@ -36,6 +37,7 @@ type Pruned struct {
 	Broadcasts int64
 	Probes     int64
 	Lookups    int64
+	Answers    int64
 	Sightings  int64
 	Services   int64
 	Devices    int64
@@ -113,8 +115,14 @@ func (s *Store) Prune(ctx context.Context, r Retention) (*Pruned, error) {
 
 	if r.DNS > 0 {
 		// Whole hours only, as for traffic.
-		if res.Lookups, err = q.DeleteDNSBefore(ctx, hourOf(now.Add(-r.DNS))); err != nil {
+		cutoff := hourOf(now.Add(-r.DNS))
+
+		if res.Lookups, err = q.DeleteDNSBefore(ctx, cutoff); err != nil {
 			return nil, fmt.Errorf("prune lookups: %w", err)
+		}
+
+		if res.Answers, err = q.DeleteDNSAnswersBefore(ctx, cutoff); err != nil {
+			return nil, fmt.Errorf("prune answers: %w", err)
 		}
 	}
 

@@ -63,6 +63,8 @@ sql:
             go_type: *timestamp
           - column: "dns_hourly.hour"
             go_type: *timestamp
+          - column: "dns_answers.last_hour"
+            go_type: *timestamp
           - column: "probes_hourly.hour"
             go_type: *timestamp
           - column: "outside_addresses.first_seen"
@@ -129,6 +131,10 @@ sql:
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
               type: "Addr"
           - column: "probes_hourly.peer_ip"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "Addr"
+          - column: "dns_answers.addr"
             go_type:
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
               type: "Addr"
