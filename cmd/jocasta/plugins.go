@@ -12,6 +12,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/plugin"
 	"github.com/pushkar-anand/jocasta/pkg/openwrt"
 	"github.com/pushkar-anand/jocasta/pkg/routeros"
+	"github.com/pushkar-anand/jocasta/pkg/technitium"
 )
 
 // routerSources builds every enabled router, switch and access point, of every
@@ -92,8 +93,8 @@ type routerConfig interface {
 // whether it is reached over plain HTTP, come from the blocks its config
 // embeds.
 //
-// A name used under two kinds is refused. `jocasta plugin run` takes the bare
-// name, which would then name two sources.
+// A name used under two kinds is refused, plugins.technitium included.
+// `jocasta plugin run` takes the bare name, which would then name two sources.
 func routerInstances(cfg *config.Config) (map[string]routerInstance, error) {
 	out := make(map[string]routerInstance)
 
@@ -103,6 +104,12 @@ func routerInstances(cfg *config.Config) (map[string]routerInstance, error) {
 
 	if err := addRouterKind(out, "openwrt", cfg.Plugins.OpenWrt, newOpenWrt); err != nil {
 		return nil, err
+	}
+
+	for name := range cfg.Plugins.Technitium {
+		if prev, ok := out[name]; ok {
+			return nil, fmt.Errorf("source name %q is configured under both plugins.%s and plugins.technitium", name, prev.kind)
+		}
 	}
 
 	return out, nil
@@ -239,6 +246,28 @@ func newOpenWrt(name string, cfg config.OpenWrt, log *slog.Logger) (plugin.Plugi
 	p, err := plugin.NewOpenWrt(name, client, log, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("plugin openwrt %q: %w", name, err)
+	}
+
+	return p, nil
+}
+
+// newTechnitium builds one configured Technitium source.
+func newTechnitium(name string, cfg config.Technitium, log *slog.Logger) (*plugin.Technitium, error) {
+	client, err := technitium.New(&technitium.Config{
+		Host:     cfg.Host,
+		Port:     cfg.Port,
+		Token:    cfg.Token,
+		SSL:      cfg.SSL,
+		Insecure: cfg.Insecure,
+		Timeout:  cfg.Timeout,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("plugin technitium %q: %w", name, err)
+	}
+
+	p, err := plugin.NewTechnitium(name, client, cfg.LogApp, log)
+	if err != nil {
+		return nil, fmt.Errorf("plugin technitium %q: %w", name, err)
 	}
 
 	return p, nil
