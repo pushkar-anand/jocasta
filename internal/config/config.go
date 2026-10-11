@@ -268,6 +268,28 @@ type (
 		Insecure bool `koanf:"insecure"`
 	}
 
+	// AdGuard names one AdGuard Home to read the query log of, over the API
+	// its web interface serves.
+	AdGuard struct {
+		Enabled bool          `koanf:"enabled"`
+		Timeout time.Duration `koanf:"timeout"`
+
+		// Host is the server's address or name, without a port.
+		Host string `koanf:"host"`
+		Port int    `koanf:"port"`
+
+		// User and Password are the web interface login. It can do anything
+		// the web interface can: AdGuard Home has no read-only users. An
+		// empty User reads a server with no login set.
+		User     string `koanf:"user"`
+		Password string `koanf:"password"`
+
+		// SSL selects https. Insecure skips certificate verification, for a
+		// self-signed certificate.
+		SSL      bool `koanf:"ssl"`
+		Insecure bool `koanf:"insecure"`
+	}
+
 	// Auth controls how long a signed-in browser stays signed in and whether
 	// its cookie is confined to HTTPS. jocasta sets the cookie's name, path and
 	// other flags itself.
@@ -308,6 +330,7 @@ type (
 
 		Technitium map[string]Technitium `koanf:"technitium"`
 		PiHole     map[string]PiHole     `koanf:"pihole"`
+		AdGuard    map[string]AdGuard    `koanf:"adguard"`
 	}
 
 	// Config is the whole set of named, nested settings.

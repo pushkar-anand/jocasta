@@ -127,6 +127,16 @@ plugins:
       ssl: false
       insecure: false         # true for Pi-hole's self-signed cert
       timeout: "10s"
+  adguard:
+    filter:                   # an AdGuard Home; names are shared with every kind above, so pick another
+      enabled: false
+      host: "192.0.2.55"
+      port: 80                # 443 with ssl: true
+      user: "jocasta"         # the web interface login; AdGuard Home has no read-only users
+      password: "change-me"
+      ssl: false
+      insecure: false         # true for a self-signed cert
+      timeout: "10s"
 
 # Where changes are sent. None are configured by default; the entries below
 # are examples. Each is keyed by a name and holds one service block. Each

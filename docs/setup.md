@@ -421,8 +421,9 @@ is asked for or stored.
 
 Jocasta can record which names each device looks up, and which of those
 lookups were blocked, from the query log of a
-[Technitium DNS Server](https://technitium.com/dns/) or a
-[Pi-hole](https://pi-hole.net) v6. It keeps hourly counts per device and
+[Technitium DNS Server](https://technitium.com/dns/), a
+[Pi-hole](https://pi-hole.net) v6 or an
+[AdGuard Home](https://adguard.com/adguard-home/overview.html). It keeps hourly counts per device and
 name, never individual lookups, and the addresses each name was answered
 with, for `retention.dns` (30 days by default). With traffic collection on as
 well, a device's traffic names each address by the names that device looked
@@ -500,6 +501,32 @@ leave `password` empty.
 
 Keep Pi-hole's privacy level at the one that shows everything. A level that
 hides domains or clients hides them from Jocasta too.
+
+Each read takes at most 20,000 lookups. If more pile up while Jocasta is
+stopped, it keeps the newest and logs that it skipped the rest.
+
+### AdGuard Home
+
+```yaml
+plugins:
+  adguard:
+    resolver:
+      enabled: true
+      host: "192.0.2.53"
+      port: 443
+      ssl: true
+      user: "jocasta"
+      password: "change-me"
+```
+
+Put the web interface login in `user` and `password`, or the password in
+`JOCASTA_PLUGINS__ADGUARD__RESOLVER__PASSWORD`. AdGuard Home has no read-only
+users, so the login can change settings too. On a server with no login set,
+leave `user` empty.
+
+In AdGuard Home's settings, keep the query log on and client address
+anonymisation off. An anonymised address names no device, so its lookups
+count against none.
 
 Each read takes at most 20,000 lookups. If more pile up while Jocasta is
 stopped, it keeps the newest and logs that it skipped the rest.

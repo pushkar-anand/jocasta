@@ -10,6 +10,7 @@ import (
 
 	"github.com/pushkar-anand/jocasta/internal/config"
 	"github.com/pushkar-anand/jocasta/internal/plugin"
+	"github.com/pushkar-anand/jocasta/pkg/adguard"
 	"github.com/pushkar-anand/jocasta/pkg/openwrt"
 	"github.com/pushkar-anand/jocasta/pkg/pihole"
 	"github.com/pushkar-anand/jocasta/pkg/routeros"
@@ -331,6 +332,17 @@ func resolverInstances(cfg *config.Config) (map[string]resolverInstance, error) 
 		return nil, err
 	}
 
+	err = addResolverKind(out, "adguard", cfg.Plugins.AdGuard, func(name string, c config.AdGuard) resolverInstance {
+		return resolverInstance{
+			enabled:   c.Enabled,
+			plainHTTP: !c.SSL,
+			build:     func(log *slog.Logger) (plugin.QueryReader, error) { return newAdGuard(name, c, log) },
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	return out, nil
 }
 
@@ -394,6 +406,29 @@ func newPiHole(name string, cfg config.PiHole, log *slog.Logger) (*plugin.PiHole
 	p, err := plugin.NewPiHole(name, client, log)
 	if err != nil {
 		return nil, fmt.Errorf("plugin pihole %q: %w", name, err)
+	}
+
+	return p, nil
+}
+
+// newAdGuard builds one configured AdGuard Home source.
+func newAdGuard(name string, cfg config.AdGuard, log *slog.Logger) (*plugin.AdGuard, error) {
+	client, err := adguard.New(&adguard.Config{
+		Host:     cfg.Host,
+		Port:     cfg.Port,
+		User:     cfg.User,
+		Password: cfg.Password,
+		SSL:      cfg.SSL,
+		Insecure: cfg.Insecure,
+		Timeout:  cfg.Timeout,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("plugin adguard %q: %w", name, err)
+	}
+
+	p, err := plugin.NewAdGuard(name, client, log)
+	if err != nil {
+		return nil, fmt.Errorf("plugin adguard %q: %w", name, err)
 	}
 
 	return p, nil

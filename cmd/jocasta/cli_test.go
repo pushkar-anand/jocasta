@@ -732,6 +732,7 @@ func TestQueryReadersBuildsEveryKind(t *testing.T) {
 		"a": {Enabled: true, Host: "192.0.2.54"},
 		"c": {Host: "192.0.2.55"},
 	}
+	cfg.Plugins.AdGuard = map[string]config.AdGuard{"d": {Enabled: true, Host: "192.0.2.56"}}
 
 	readers, err := queryReaders(t.Context(), cfg, slog.New(slog.DiscardHandler))
 	require.NoError(t, err)
@@ -741,7 +742,7 @@ func TestQueryReadersBuildsEveryKind(t *testing.T) {
 		names = append(names, r.Name())
 	}
 
-	assert.Equal(t, []string{"pihole:a", "technitium:b"}, names)
+	assert.Equal(t, []string{"pihole:a", "technitium:b", "adguard:d"}, names)
 }
 
 // The lookups table has one row per client and name, clients in address
