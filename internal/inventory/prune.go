@@ -19,6 +19,9 @@ type Retention struct {
 	// counts.
 	Traffic time.Duration
 
+	// DNS bounds hourly lookup counts.
+	DNS time.Duration
+
 	// Devices bounds how long a device its owner never curated is kept after
 	// it was last seen. A curated device is kept forever.
 	Devices time.Duration
@@ -32,6 +35,7 @@ type Pruned struct {
 	Attempts   int64
 	Broadcasts int64
 	Probes     int64
+	Lookups    int64
 	Sightings  int64
 	Services   int64
 	Devices    int64
@@ -104,6 +108,13 @@ func (s *Store) Prune(ctx context.Context, r Retention) (*Pruned, error) {
 
 		if res.Probes, err = q.DeleteProbesBefore(ctx, cutoff); err != nil {
 			return nil, fmt.Errorf("prune probes: %w", err)
+		}
+	}
+
+	if r.DNS > 0 {
+		// Whole hours only, as for traffic.
+		if res.Lookups, err = q.DeleteDNSBefore(ctx, hourOf(now.Add(-r.DNS))); err != nil {
+			return nil, fmt.Errorf("prune lookups: %w", err)
 		}
 	}
 

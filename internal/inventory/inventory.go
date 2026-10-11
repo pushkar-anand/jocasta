@@ -45,6 +45,11 @@ const DefaultRetention = 90 * 24 * time.Hour
 // with how busy the network is.
 const DefaultTrafficRetention = 30 * 24 * time.Hour
 
+// DefaultDNSRetention is how long hourly lookup counts are kept when no
+// retention is configured. Like traffic, they grow with how busy the network
+// is.
+const DefaultDNSRetention = 30 * 24 * time.Hour
+
 // DefaultDeviceRetention is how long a device its owner never curated is kept
 // after it was last seen, when no retention is configured.
 const DefaultDeviceRetention = 90 * 24 * time.Hour
@@ -908,6 +913,9 @@ func (s *Store) fold(ctx context.Context, p *pass, ghost, into *models.Device) e
 		}},
 		{"broadcasts of", func() error {
 			return p.q.MoveBroadcasts(ctx, models.MoveBroadcastsParams{IntoID: into.ID, FromID: ghost.ID})
+		}},
+		{"lookups of", func() error {
+			return p.q.MoveDNS(ctx, models.MoveDNSParams{IntoID: into.ID, FromID: ghost.ID})
 		}},
 		{"traffic with", func() error {
 			return p.q.RepointTrafficPeer(ctx, models.RepointTrafficPeerParams{IntoID: intoID, FromID: fromID})

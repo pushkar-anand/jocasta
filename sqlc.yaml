@@ -61,6 +61,8 @@ sql:
             go_type: *timestamp
           - column: "broadcasts_hourly.hour"
             go_type: *timestamp
+          - column: "dns_hourly.hour"
+            go_type: *timestamp
           - column: "probes_hourly.hour"
             go_type: *timestamp
           - column: "outside_addresses.first_seen"

@@ -96,6 +96,17 @@ func (s *ServeCmd) Run(
 		}
 	}
 
+	resolvers, err := queryReaders(ctx, cfg, log)
+	if err != nil {
+		return err
+	}
+
+	if len(resolvers) > 0 {
+		if err := p.Register(poller.NewDNS(log, store, resolvers...)); err != nil {
+			return fmt.Errorf("register dns reader: %w", err)
+		}
+	}
+
 	if cfg.Scan.Ports.Enabled {
 		pp, err := portsPoller(cfg, log, store)
 		if err != nil {
@@ -112,10 +123,11 @@ func (s *ServeCmd) Run(
 	r := inventory.Retention{
 		History: cfg.Retention.History,
 		Traffic: cfg.Retention.Traffic,
+		DNS:     cfg.Retention.DNS,
 		Devices: cfg.Retention.Devices,
 	}
 
-	if r.History > 0 || r.Traffic > 0 || r.Devices > 0 {
+	if r.History > 0 || r.Traffic > 0 || r.DNS > 0 || r.Devices > 0 {
 		err := p.Register(poller.NewPrune(log, store, r))
 		if err != nil {
 			return fmt.Errorf("register pruner: %w", err)

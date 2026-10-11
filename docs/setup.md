@@ -417,6 +417,57 @@ location:
 Only the country is used, to start the lines from its middle; nothing finer
 is asked for or stored.
 
+## Record what devices look up
+
+Jocasta can record which names each device looks up, and which of those
+lookups were blocked, from the query log of a
+[Technitium DNS Server](https://technitium.com/dns/). It keeps hourly counts
+per device and name, never individual lookups, for `retention.dns`
+(30 days by default).
+
+```yaml
+plugins:
+  technitium:
+    resolver:
+      enabled: true
+      host: "192.0.2.53"
+      port: 53443
+      ssl: true
+      insecure: true         # for the server's self-signed certificate
+      token: "change-me"
+```
+
+To prepare the server:
+
+1. In Apps, App Store, install Query Logs (Sqlite). Technitium keeps a query
+   log only through an app like this one.
+2. In Administration, Users, add a user for Jocasta. In Administration,
+   Permissions, give that user View on the Logs section and nothing else.
+3. Sign in as that user, and in the user menu select Create API Token. Put the
+   token in `token`, or in `JOCASTA_PLUGINS__TECHNITIUM__RESOLVER__TOKEN`.
+
+With more than one app logging queries, name the one to read in `log_app`,
+as the Apps page lists it.
+
+Lookups count against the device whose address asked. When the router
+forwards its clients' lookups to Technitium, every lookup comes from the
+router. Hand out Technitium's address as the DNS server in the router's DHCP
+settings so each device asks it directly.
+
+In a cluster, each node logs the lookups it answered to its own disk. Add one
+entry per node, each at that node's own address. A virtual address shared
+between nodes, such as one VRRP keeps, reaches one node at a time, and the
+other node's lookups would go unread. The token and the log app reach every
+node from the primary.
+
+To check the setup, read the log once without starting the server:
+
+```sh
+jocasta plugin run resolver
+```
+
+It prints the last hour's lookups per device address and name.
+
 ## Send changes to your phone
 
 Jocasta can send what each scan changed to an [ntfy](https://ntfy.sh) topic,

@@ -75,6 +75,9 @@ type (
 		// Traffic is how long hourly traffic totals are kept.
 		Traffic time.Duration `koanf:"traffic"`
 
+		// DNS is how long hourly lookup counts are kept.
+		DNS time.Duration `koanf:"dns"`
+
 		// Devices is how long a device nobody labelled, grouped, typed,
 		// noted or ignored is kept after a scan last saw it.
 		Devices time.Duration `koanf:"devices"`

@@ -710,19 +710,6 @@ func TestRouterSourcesRefusesANameUnderRouterAndTechnitium(t *testing.T) {
 	require.ErrorContains(t, err, `"gateway" is configured under both plugins.routeros and plugins.technitium`)
 }
 
-// jocasta cannot record lookups, so --save on a DNS source is refused before
-// the server is contacted.
-func TestPluginRunRefusesSaveForTechnitium(t *testing.T) {
-	t.Parallel()
-
-	cfg := &config.Config{}
-	cfg.Plugins.Technitium = map[string]config.Technitium{"resolver": {Host: "192.0.2.53"}}
-
-	cmd := &PluginRunCmd{Name: "resolver", Save: true}
-	err := cmd.Run(t.Context(), cfg, slog.New(slog.DiscardHandler), nil)
-	require.ErrorContains(t, err, "run it without --save")
-}
-
 // The lookups table has one row per client and name, clients in address
 // order and each client's busiest names first.
 func TestOutputQueriesTable(t *testing.T) {

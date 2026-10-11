@@ -109,6 +109,16 @@ type DeviceSource struct {
 	LastSeen       dbtype.Time           `json:"last_seen"`
 }
 
+type DnsHourly struct {
+	SourceID int64       `json:"source_id"`
+	DeviceID int64       `json:"device_id"`
+	Hour     dbtype.Time `json:"hour"`
+	Name     string      `json:"name"`
+	Lookups  int64       `json:"lookups"`
+	Blocked  int64       `json:"blocked"`
+	Failed   int64       `json:"failed"`
+}
+
 type Event struct {
 	ID         int64            `json:"id"`
 	DeviceID   sql.NullInt64    `json:"device_id"`
@@ -177,6 +187,11 @@ type Source struct {
 	Kind      dbtype.SourceKind `json:"kind"`
 	Name      string            `json:"name"`
 	CreatedAt dbtype.Time       `json:"created_at"`
+}
+
+type SourceCursor struct {
+	SourceID int64  `json:"source_id"`
+	Position string `json:"position"`
 }
 
 type TopologyNeighbour struct {
