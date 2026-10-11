@@ -29,7 +29,8 @@ func tcp(src, dst string, dstPort uint16, bytes uint64) plugin.Flow {
 
 // trafficStore is seededStore with traffic recorded: the printer (1) reaches
 // the NAS (2) and two public resolvers of one organisation, the NAS reaches
-// another. The public addresses are the ones the asn tests use.
+// another. The public addresses are the ones the asn tests use. The printer
+// looked up one name, answered with the first resolver.
 func trafficStore(t *testing.T) *inventory.Store {
 	t.Helper()
 
@@ -43,6 +44,12 @@ func trafficStore(t *testing.T) *inventory.Store {
 		tcp("192.0.2.11", "8.8.8.8", 53, 9_000),
 	})
 	require.NoError(t, rec.Flush(t.Context()))
+
+	_, err := store.RecordQueries(t.Context(), "technitium:resolver", dbtype.SourceDNS, []plugin.Query{{
+		Client: netip.MustParseAddr("192.0.2.10"), Name: "one.example.com", Type: "A", At: time.Now(),
+		Answers: []netip.Addr{netip.MustParseAddr("1.1.1.1")},
+	}}, "cursor-1")
+	require.NoError(t, err)
 
 	return store
 }
@@ -66,7 +73,9 @@ func TestListTraffic(t *testing.T) {
 		require.Len(t, out.Device.Internet, 1)
 		assert.Equal(t, "Cloudflare", out.Device.Internet[0].Short)
 		assert.Equal(t, int64(1_000), out.Device.Internet[0].Sent)
-		assert.Len(t, out.Device.Internet[0].Peers, 2)
+		require.Len(t, out.Device.Internet[0].Peers, 2)
+		assert.Equal(t, []string{"one.example.com"}, out.Device.Internet[0].Peers[0].LookedUp)
+		assert.Empty(t, out.Device.Internet[0].Peers[1].LookedUp)
 
 		assert.Nil(t, out.BusiestDevices, "only the view asked for")
 	})
