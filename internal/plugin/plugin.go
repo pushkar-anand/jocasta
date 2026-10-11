@@ -82,7 +82,52 @@ type (
 
 		Listen(ctx context.Context, emit func(context.Context, []Flow)) error
 	}
+
+	// QueryReader answers "what did each client look up".
+	//
+	// A resolver keeps its query log and serves it on request, so the log is
+	// read on a schedule, each read taking up where the last left off.
+	QueryReader interface {
+		Plugin
+
+		// Queries reads what the resolver logged after cursor, oldest first,
+		// and returns the cursor to resume from. An empty cursor starts an
+		// hour back. What a cursor holds is the source's own business; the
+		// caller stores it and hands it back.
+		//
+		// One read takes a bounded share of a long log and returns a cursor
+		// partway through it, so a backlog drains over several reads.
+		// Queries and an error can both be non-empty, with the cursor
+		// covering the queries returned.
+		Queries(ctx context.Context, cursor string) ([]Query, string, error)
+	}
 )
+
+// Query is one lookup a resolver logged.
+type Query struct {
+	// Client is the address that asked. A router forwarding its clients'
+	// lookups is the client of every one of them.
+	Client netip.Addr
+
+	// Name is lowercase, without the trailing dot.
+	Name string
+
+	// Type is the record type asked for, such as A, AAAA or HTTPS.
+	Type string
+
+	// Blocked marks a lookup the resolver refused to answer for a blocklist.
+	// Failed marks one that found nothing or failed upstream (NXDOMAIN or
+	// SERVFAIL), and is false on a blocked lookup, whose answer is the
+	// resolver's choice.
+	Blocked bool
+	Failed  bool
+
+	// Answers is the addresses the resolver answered with, in order.
+	Answers []netip.Addr
+
+	// At is when the resolver logged the lookup.
+	At time.Time
+}
 
 // Flow is one conversation a source saw, in either direction it was recorded.
 // The source says which side sent; which side is the device is for the reader

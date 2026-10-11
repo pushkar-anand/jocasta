@@ -217,6 +217,33 @@ type (
 		Exporters []string `koanf:"exporters"`
 	}
 
+	// Technitium names one Technitium DNS Server to read the query log of,
+	// over the HTTP API its web service serves.
+	//
+	// A cluster is one entry per node, each at the node's own address: each
+	// node logs the lookups it answered to its own disk, and a virtual
+	// address shared between nodes reaches one of them at a time.
+	Technitium struct {
+		Enabled bool          `koanf:"enabled"`
+		Timeout time.Duration `koanf:"timeout"`
+
+		// Host is the server's address or name, without a port.
+		Host string `koanf:"host"`
+		Port int    `koanf:"port"`
+
+		// Token is an API token. A user granted Logs: View alone is enough.
+		Token string `koanf:"token"`
+
+		// SSL selects https. Insecure skips certificate verification, for a
+		// server with a self-signed certificate.
+		SSL      bool `koanf:"ssl"`
+		Insecure bool `koanf:"insecure"`
+
+		// LogApp names the installed app whose log is read, as the Apps page
+		// lists it. Empty reads the only app that logs queries.
+		LogApp string `koanf:"log_app"`
+	}
+
 	// Auth controls how long a signed-in browser stays signed in and whether
 	// its cookie is confined to HTTPS. jocasta sets the cookie's name, path and
 	// other flags itself.
@@ -254,6 +281,8 @@ type (
 		RouterOS map[string]RouterOS `koanf:"routeros"`
 		OpenWrt  map[string]OpenWrt  `koanf:"openwrt"`
 		NetFlow  map[string]NetFlow  `koanf:"netflow"`
+
+		Technitium map[string]Technitium `koanf:"technitium"`
 	}
 
 	// Config is the whole set of named, nested settings.

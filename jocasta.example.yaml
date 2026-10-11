@@ -107,6 +107,16 @@ plugins:
       listen: ":2055"         # UDP address the router exports flows to
       exporters:              # only these may send; UDP is trivially spoofed
         - "192.0.2.1"
+  technitium:
+    resolver:                 # one entry per node in a cluster, each at the node's own address
+      enabled: false
+      host: "192.0.2.53"
+      port: 5380              # 53443 is the usual port with ssl: true
+      token: "change-me"      # an API token for a user granted Logs: View
+      ssl: false
+      insecure: false         # true for a self-signed cert
+      log_app: ""             # only when more than one installed app logs queries
+      timeout: "10s"
 
 # Where changes are sent. None are configured by default; the entries below
 # are examples. Each is keyed by a name and holds one service block. Each

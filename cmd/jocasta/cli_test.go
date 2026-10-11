@@ -696,3 +696,61 @@ func TestOutputTopologyTable(t *testing.T) {
 	assert.Contains(t, out, "192.0.2.1")
 	assert.Contains(t, out, "ether3")
 }
+
+// A Technitium source shares the bare-name space with the routers, so one
+// name under both is refused.
+func TestRouterSourcesRefusesANameUnderRouterAndTechnitium(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Plugins.RouterOS = map[string]config.RouterOS{"gateway": {Source: config.Source{Enabled: true}, HTTPLogin: config.HTTPLogin{Host: "192.0.2.1"}}}
+	cfg.Plugins.Technitium = map[string]config.Technitium{"gateway": {Enabled: true, Host: "192.0.2.53"}}
+
+	_, err := routerSources(t.Context(), cfg, slog.New(slog.DiscardHandler))
+	require.ErrorContains(t, err, `"gateway" is configured under both plugins.routeros and plugins.technitium`)
+}
+
+// jocasta cannot record lookups, so --save on a DNS source is refused before
+// the server is contacted.
+func TestPluginRunRefusesSaveForTechnitium(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Plugins.Technitium = map[string]config.Technitium{"resolver": {Host: "192.0.2.53"}}
+
+	cmd := &PluginRunCmd{Name: "resolver", Save: true}
+	err := cmd.Run(t.Context(), cfg, slog.New(slog.DiscardHandler), nil)
+	require.ErrorContains(t, err, "run it without --save")
+}
+
+// The lookups table has one row per client and name, clients in address
+// order and each client's busiest names first.
+func TestOutputQueriesTable(t *testing.T) {
+	t.Parallel()
+
+	a := netip.MustParseAddr("192.0.2.10")
+	b := netip.MustParseAddr("192.0.2.9")
+
+	var buf bytes.Buffer
+	require.NoError(t, outputQueries(&buf, []plugin.Query{
+		{Client: a, Name: "quiet.example.com"},
+		{Client: a, Name: "busy.example.com"},
+		{Client: a, Name: "busy.example.com", Blocked: true},
+		{Client: b, Name: "missing.example.com", Failed: true},
+	}, false))
+
+	assert.Equal(t, `CLIENT      NAME                 LOOKUPS  BLOCKED  FAILED
+192.0.2.9   missing.example.com  1        0        1
+192.0.2.10  busy.example.com     2        1        0
+192.0.2.10  quiet.example.com    1        0        0
+`, buf.String())
+}
+
+func TestOutputQueriesEmpty(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	require.NoError(t, outputQueries(&buf, nil, false))
+
+	assert.Contains(t, buf.String(), "no lookups")
+}

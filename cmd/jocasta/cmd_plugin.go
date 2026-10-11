@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
+	"net/netip"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -40,6 +43,10 @@ func (p *PluginRunCmd) Run(
 	log *slog.Logger,
 	store *inventory.Store,
 ) error {
+	if _, ok := cfg.Plugins.Technitium[p.Name]; ok {
+		return p.runQueries(ctx, cfg, log)
+	}
+
 	built, err := newRouterSource(cfg, p.Name, log)
 	if err != nil {
 		return err
@@ -116,6 +123,46 @@ func (p *PluginRunCmd) Run(
 	}
 
 	return poller.SaveTopology(ctx, store, log, reader, *topo)
+}
+
+// runQueries reads a resolver's query log from an hour back and prints who
+// looked up what. It reads one batch, the share of the log one poll takes.
+func (p *PluginRunCmd) runQueries(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
+	// The names of every kind are checked against each other, as the server
+	// does at boot.
+	if _, err := routerInstances(cfg); err != nil {
+		return err
+	}
+
+	if p.Save {
+		return fmt.Errorf("source %q reads DNS lookups, which jocasta cannot record; run it without --save", p.Name)
+	}
+
+	src, err := newTechnitium(p.Name, cfg.Plugins.Technitium[p.Name], log)
+	if err != nil {
+		return err
+	}
+
+	queries, cursor, err := src.Queries(ctx, "")
+	if err != nil && len(queries) == 0 {
+		return fmt.Errorf("read query log from %s: %w", src.Name(), err)
+	}
+
+	if err != nil {
+		log.WarnContext(ctx, "source answered in part", slog.String("src", src.Name()), logger.Err(err))
+	}
+
+	if err := outputQueries(os.Stdout, queries, p.JSON); err != nil {
+		return err
+	}
+
+	log.InfoContext(ctx, "read query log",
+		slog.String("src", src.Name()),
+		slog.Int("lookups", len(queries)),
+		slog.String("cursor", cursor),
+	)
+
+	return nil
 }
 
 // routerReader is a source that lists the devices it knows and the segments
@@ -286,6 +333,68 @@ func outputFacts(w io.Writer, facts []plugin.Fact, asJSON bool) error {
 			cmp.Or(string(f.HostnameSource), "-"),
 			f.Present,
 		)
+	}
+
+	return tw.Flush()
+}
+
+// outputQueries prints the lookups a resolver logged. Under --json it writes
+// each lookup; otherwise one row per client and name, saying how often it was
+// looked up, blocked and failed, with each client's busiest names first.
+func outputQueries(w io.Writer, queries []plugin.Query, asJSON bool) error {
+	if asJSON {
+		return writeJSON(w, queries)
+	}
+
+	if len(queries) == 0 {
+		_, err := fmt.Fprintln(w, "Source logged no lookups in the last hour.")
+
+		return err
+	}
+
+	type key struct {
+		client netip.Addr
+		name   string
+	}
+
+	type counts struct{ lookups, blocked, failed int }
+
+	rows := make(map[key]*counts)
+
+	for _, q := range queries {
+		k := key{client: q.Client, name: q.Name}
+
+		c, ok := rows[k]
+		if !ok {
+			c = &counts{}
+			rows[k] = c
+		}
+
+		c.lookups++
+
+		if q.Blocked {
+			c.blocked++
+		}
+
+		if q.Failed {
+			c.failed++
+		}
+	}
+
+	keys := slices.SortedFunc(maps.Keys(rows), func(a, b key) int {
+		return cmp.Or(
+			a.client.Compare(b.client),
+			cmp.Compare(rows[b].lookups, rows[a].lookups),
+			strings.Compare(a.name, b.name),
+		)
+	})
+
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(tw, "CLIENT\tNAME\tLOOKUPS\tBLOCKED\tFAILED")
+
+	for _, k := range keys {
+		c := rows[k]
+		_, _ = fmt.Fprintf(tw, "%s\t%s\t%d\t%d\t%d\n", k.client, k.name, c.lookups, c.blocked, c.failed)
 	}
 
 	return tw.Flush()
