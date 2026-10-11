@@ -122,3 +122,50 @@ func TestPruneDeletesLookupsPastTheirWindow(t *testing.T) {
 	assert.Equal(t, int64(1), res.Lookups)
 	assert.Len(t, dnsRows(t, s), 1)
 }
+
+// TestDeviceDNSSumsSourcesBusiestFirst checks that two nodes' counts for one
+// name add up, names come busiest first, and the period drops older hours.
+func TestDeviceDNSSumsSourcesBusiestFirst(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, ""))
+
+	a := deviceIDByMAC(t, conn, macA)
+
+	read, err := s.DNSRead(t.Context())
+	require.NoError(t, err)
+	assert.False(t, read)
+
+	blocked := lookup("192.0.2.10", "ads.example.net", trafficHour)
+	blocked.Blocked = true
+
+	_, err = s.RecordQueries(t.Context(), "technitium:node-a", dbtype.SourceDNS, []plugin.Query{
+		lookup("192.0.2.10", "example.com", trafficHour),
+		lookup("192.0.2.10", "old.example.org", trafficHour.Add(-48*time.Hour)),
+		blocked,
+	}, "a")
+	require.NoError(t, err)
+
+	_, err = s.RecordQueries(t.Context(), "technitium:node-b", dbtype.SourceDNS, []plugin.Query{
+		lookup("192.0.2.10", "example.com", trafficHour.Add(time.Hour)),
+	}, "b")
+	require.NoError(t, err)
+
+	names, err := s.DeviceDNS(t.Context(), a, trafficHour.Add(-time.Hour))
+	require.NoError(t, err)
+
+	assert.Equal(t, []*DNSName{
+		{Name: "example.com", Lookups: 2, LastHour: trafficHour.Add(time.Hour)},
+		{Name: "ads.example.net", Lookups: 1, Blocked: 1, LastHour: trafficHour},
+	}, names)
+
+	read, err = s.DNSRead(t.Context())
+	require.NoError(t, err)
+	assert.True(t, read)
+
+	none, err := s.DeviceDNS(t.Context(), a+100, trafficHour)
+	require.NoError(t, err)
+	assert.NotNil(t, none)
+	assert.Empty(t, none)
+}

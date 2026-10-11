@@ -167,6 +167,7 @@ func NewHandler(
 	h.mux.Handle("POST /devices/{id}/watch", allow(dbtype.RoleReadWrite)(hw.Handle(h.watchDevice(sm))))
 	h.mux.HandleFunc("GET /devices/{id}/row", hw.Handle(h.deviceRow(sm)))
 	h.mux.HandleFunc("GET /devices/{id}/traffic", hw.Handle(h.deviceTraffic()))
+	h.mux.HandleFunc("GET /devices/{id}/dns", hw.Handle(h.deviceDNS()))
 	h.mux.Handle("GET /devices/{id}/edit", allow(dbtype.RoleReadWrite)(hw.Handle(h.deviceRowForm())))
 	h.mux.Handle("PATCH /devices/{id}/row", allow(dbtype.RoleReadWrite)(hw.Handle(h.updateDeviceRow(sm))))
 

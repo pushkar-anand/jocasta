@@ -34,3 +34,27 @@ WHERE s.name = ?;
 INSERT INTO source_cursors (source_id, position)
 VALUES (?, ?)
 ON CONFLICT (source_id) DO UPDATE SET position = excluded.position;
+
+-- name: DeviceDNS :many
+-- The names one device looked up since a given hour, busiest first, summed
+-- across sources: each node of a resolver cluster answers its own share of a
+-- device's lookups.
+SELECT name,
+       CAST(SUM(lookups) AS INTEGER) AS lookups,
+       CAST(SUM(blocked) AS INTEGER) AS blocked,
+       CAST(SUM(failed) AS INTEGER)  AS failed,
+       CAST(MAX(hour) AS TEXT)       AS last_hour
+FROM dns_hourly
+WHERE device_id = ?
+  AND hour >= ?
+GROUP BY name
+ORDER BY SUM(lookups) DESC, name
+LIMIT ?;
+
+-- name: AnyDNSRead :one
+-- Whether any resolver's log has been read, which is how a view tells "this
+-- device looked nothing up" from "nothing reads a resolver".
+SELECT CAST(EXISTS (SELECT 1
+                    FROM source_cursors c
+                             JOIN sources s ON s.id = c.source_id
+                    WHERE s.kind = 'DNS') AS INTEGER) AS read;
