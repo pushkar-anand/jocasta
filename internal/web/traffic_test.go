@@ -162,6 +162,55 @@ func TestDevicePageShowsWhoTheDeviceTalksTo(t *testing.T) {
 	assert.NotContains(t, body, "ZgotmplZ")
 }
 
+// TestDeviceTrafficNamesPeersByWhatTheDeviceLookedUp checks that a peer
+// carries the names the device looked up for its address in the period, most
+// looked up first, that the organisation row lists them, that an older lookup
+// is left out, and that the search finds a peer by them.
+func TestDeviceTrafficNamesPeersByWhatTheDeviceLookedUp(t *testing.T) {
+	t.Parallel()
+
+	store := sweptPair(t)
+
+	recordTraffic(t, store,
+		tcp("192.0.2.10", "1.1.1.1", 443, 1_200),
+		tcp("192.0.2.10", "1.0.0.1", 443, 800),
+	)
+
+	answered := func(name string, at time.Time, addr string) plugin.Query {
+		return plugin.Query{
+			Client: netip.MustParseAddr("192.0.2.10"), Name: name, Type: "A", At: at,
+			Answers: []netip.Addr{netip.MustParseAddr(addr)},
+		}
+	}
+
+	now := time.Now()
+
+	_, err := store.RecordQueries(t.Context(), "technitium:resolver", dbtype.SourceDNS, []plugin.Query{
+		answered("one.example.com", now, "1.1.1.1"),
+		answered("one.example.com", now, "1.1.1.1"),
+		answered("two.example.com", now, "1.1.1.1"),
+		answered("old.example.org", now.Add(-48*time.Hour), "1.0.0.1"),
+	}, "cursor-1")
+	require.NoError(t, err)
+
+	h := newWebHandler(t, store)
+
+	rec := get(t, h, "/devices/1/traffic?tab=internet")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+	assert.Contains(t, body, "2 addresses &middot; one.example.com, two.example.com</span>")
+	assert.Contains(t, body, `<span class="dim" title="one.example.com, two.example.com">one.example.com &#43;1 more</span>`)
+	assert.NotContains(t, body, "old.example.org", "a lookup before the period names nothing")
+
+	rec = get(t, h, "/devices/1/traffic?tab=internet&q=two.example")
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	body = rec.Body.String()
+	assert.Contains(t, body, "1.1.1.1")
+	assert.NotContains(t, body, "1.0.0.1")
+}
+
 func TestDeviceTrafficFragmentSwitchesPeriod(t *testing.T) {
 	t.Parallel()
 

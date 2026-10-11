@@ -93,3 +93,12 @@ SELECT CAST(EXISTS (SELECT 1
                     FROM source_cursors c
                              JOIN sources s ON s.id = c.source_id
                     WHERE s.kind = 'DNS') AS INTEGER) AS read;
+
+-- name: DeviceDNSAnswers :many
+-- The addresses one device's lookups were answered with since a given hour,
+-- each address's names most looked up first.
+SELECT addr, name
+FROM dns_answers
+WHERE device_id = ?
+  AND last_hour >= ?
+ORDER BY addr, lookups DESC, name;

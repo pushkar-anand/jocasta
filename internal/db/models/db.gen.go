@@ -153,6 +153,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.deviceDNSStmt, err = db.PrepareContext(ctx, deviceDNS); err != nil {
 		return nil, fmt.Errorf("error preparing query DeviceDNS: %w", err)
 	}
+	if q.deviceDNSAnswersStmt, err = db.PrepareContext(ctx, deviceDNSAnswers); err != nil {
+		return nil, fmt.Errorf("error preparing query DeviceDNSAnswers: %w", err)
+	}
 	if q.deviceDNSTotalsStmt, err = db.PrepareContext(ctx, deviceDNSTotals); err != nil {
 		return nil, fmt.Errorf("error preparing query DeviceDNSTotals: %w", err)
 	}
@@ -662,6 +665,11 @@ func (q *Queries) Close() error {
 	if q.deviceDNSStmt != nil {
 		if cerr := q.deviceDNSStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing deviceDNSStmt: %w", cerr)
+		}
+	}
+	if q.deviceDNSAnswersStmt != nil {
+		if cerr := q.deviceDNSAnswersStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deviceDNSAnswersStmt: %w", cerr)
 		}
 	}
 	if q.deviceDNSTotalsStmt != nil {
@@ -1231,6 +1239,7 @@ type Queries struct {
 	deviceAttemptsStmt                 *sql.Stmt
 	deviceBroadcastsStmt               *sql.Stmt
 	deviceDNSStmt                      *sql.Stmt
+	deviceDNSAnswersStmt               *sql.Stmt
 	deviceDNSTotalsStmt                *sql.Stmt
 	deviceNetworkNamesStmt             *sql.Stmt
 	deviceStatsStmt                    *sql.Stmt
@@ -1377,6 +1386,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deviceAttemptsStmt:                 q.deviceAttemptsStmt,
 		deviceBroadcastsStmt:               q.deviceBroadcastsStmt,
 		deviceDNSStmt:                      q.deviceDNSStmt,
+		deviceDNSAnswersStmt:               q.deviceDNSAnswersStmt,
 		deviceDNSTotalsStmt:                q.deviceDNSTotalsStmt,
 		deviceNetworkNamesStmt:             q.deviceNetworkNamesStmt,
 		deviceStatsStmt:                    q.deviceStatsStmt,

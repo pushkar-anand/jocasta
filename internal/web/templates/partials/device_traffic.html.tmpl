@@ -201,7 +201,7 @@
                         <details class="peers">
                             <summary>
                                 <span class="strong" title="{{ .Name }}">{{ .Short }}</span>
-                                <span class="dim">{{ len .Peers }} {{ if eq (len .Peers) 1 }}address{{ else }}addresses{{ end }}</span>
+                                <span class="dim">{{ len .Peers }} {{ if eq (len .Peers) 1 }}address{{ else }}addresses{{ end }}{{ with .LookedUp }} &middot; {{ . }}{{ end }}</span>
                                 {{- if .Tries }} <span class="chip chip--warn">{{ count .Tries }} tried, {{ count .Answered }} answered</span>{{ end }}
                             </summary>
                             <ul class="peers__list">
@@ -275,7 +275,7 @@
                         <a href="/devices/{{ .DeviceID }}">{{ .DeviceName }}</a>
                         {{- else }}
                         <span class="mono">{{ .IP }}</span>
-                        {{- with .Name }} <span class="dim">{{ . }}</span>{{ end }}
+                        {{- template "partial/traffic-peer-name" . }}
                         {{- end }}
                     </td>
                     <td data-label="Services">
@@ -309,11 +309,17 @@
 {{- /* A byte count, or a dash when nothing moved: a peer that was only tried. */ -}}
 {{ define "partial/traffic-bytes" }}{{ if . }}{{ bytes . }}{{ else }}<span class="dim">&ndash;</span>{{ end }}{{ end }}
 
+{{- /* The name beside a peer's address: what the device looked up for it, with
+       every such name on hover, or else its reverse DNS name. */ -}}
+{{ define "partial/traffic-peer-name" }}
+{{- with .ShownName }} <span class="dim"{{ with $.AllLookedUp }} title="{{ . }}"{{ end }}>{{ . }}</span>{{ end }}
+{{- end }}
+
 {{- /* One address inside a collapsed group: the address, its DNS name, what it
        was reached on and how much moved, and what was tried there. */ -}}
 {{ define "partial/traffic-peer" }}
 <span class="mono">{{ .IP }}</span>
-{{- with .Name }} <span class="dim">{{ . }}</span>{{ end }}
+{{- template "partial/traffic-peer-name" . }}
 <span class="peers__detail">
     {{- if .Services }}
     {{ .ServiceSummary }} &middot; {{ bytes .Sent }} sent &middot; {{ bytes .Received }} received

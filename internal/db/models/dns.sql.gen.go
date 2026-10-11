@@ -142,6 +142,55 @@ func (q *Queries) DeviceDNS(ctx context.Context, arg DeviceDNSParams) ([]*Device
 	return items, nil
 }
 
+const deviceDNSAnswers = `-- name: DeviceDNSAnswers :many
+SELECT addr, name
+FROM dns_answers
+WHERE device_id = ?
+  AND last_hour >= ?
+ORDER BY addr, lookups DESC, name
+`
+
+type DeviceDNSAnswersParams struct {
+	DeviceID int64       `json:"device_id"`
+	LastHour dbtype.Time `json:"last_hour"`
+}
+
+type DeviceDNSAnswersRow struct {
+	Addr dbtype.Addr `json:"addr"`
+	Name string      `json:"name"`
+}
+
+// The addresses one device's lookups were answered with since a given hour,
+// each address's names most looked up first.
+//
+//	SELECT addr, name
+//	FROM dns_answers
+//	WHERE device_id = ?
+//	  AND last_hour >= ?
+//	ORDER BY addr, lookups DESC, name
+func (q *Queries) DeviceDNSAnswers(ctx context.Context, arg DeviceDNSAnswersParams) ([]*DeviceDNSAnswersRow, error) {
+	rows, err := q.query(ctx, q.deviceDNSAnswersStmt, deviceDNSAnswers, arg.DeviceID, arg.LastHour)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*DeviceDNSAnswersRow
+	for rows.Next() {
+		var i DeviceDNSAnswersRow
+		if err := rows.Scan(&i.Addr, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deviceDNSTotals = `-- name: DeviceDNSTotals :one
 SELECT CAST(COALESCE(SUM(lookups), 0) AS INTEGER) AS lookups,
        CAST(COUNT(DISTINCT name) AS INTEGER)      AS names,

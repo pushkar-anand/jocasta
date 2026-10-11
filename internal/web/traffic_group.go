@@ -168,6 +168,10 @@ type peerRow struct {
 	IP         netip.Addr
 	Name       string
 
+	// LookedUp is the names the device looked up for the peer's address,
+	// most looked up first.
+	LookedUp []string
+
 	// Services are the per-service rows behind this one, busiest first.
 	Services []*inventory.TrafficPeer
 
@@ -177,6 +181,23 @@ type peerRow struct {
 
 	peerTally
 }
+
+// ShownName is what names the peer beside its address: the name the device
+// looked up most for it and how many more, or its reverse DNS name when the
+// device looked up none.
+func (r *peerRow) ShownName() string {
+	switch len(r.LookedUp) {
+	case 0:
+		return r.Name
+	case 1:
+		return r.LookedUp[0]
+	}
+
+	return fmt.Sprintf("%s +%d more", r.LookedUp[0], len(r.LookedUp)-1)
+}
+
+// AllLookedUp is every name the device looked up for the peer's address.
+func (r *peerRow) AllLookedUp() string { return strings.Join(r.LookedUp, ", ") }
 
 // ServiceSummary names the peer's two busiest services and how many more.
 func (r *peerRow) ServiceSummary() string { return headAndMore(r.Services, serviceLabel, ", ") }
@@ -304,6 +325,27 @@ type orgEntry struct {
 	Peers       peerList
 }
 
+// LookedUp names two of the names the device looked up for the
+// organisation's addresses, from the busiest address down, and counts the
+// rest.
+func (e *orgEntry) LookedUp() string {
+	var names []string
+
+	for _, r := range e.Peers {
+		for _, n := range r.LookedUp {
+			if !slices.Contains(names, n) {
+				names = append(names, n)
+			}
+		}
+	}
+
+	if len(names) == 0 {
+		return ""
+	}
+
+	return headAndMore(names, func(s string) string { return s }, ", ")
+}
+
 // filterPeers keeps the peers on f's service, connected the way f's direction
 // asks, whose names contain its query. org is the lowercased organisation the
 // peers belong to, which matches all of them.
@@ -331,7 +373,7 @@ func filterPeers(peers []*inventory.TrafficPeer, f trafficFilter, org string) []
 }
 
 func peerMatches(p *inventory.TrafficPeer, query string) bool {
-	return anyContains(query, p.DeviceName, p.IP.String(), p.Name, serviceLabel(p))
+	return anyContains(query, append([]string{p.DeviceName, p.IP.String(), p.Name, serviceLabel(p)}, p.LookedUp...)...)
 }
 
 // mergePeers folds per-service rows and tries into one row per peer, busiest
@@ -366,6 +408,11 @@ func mergePeers(peers []*inventory.TrafficPeer, tried []*inventory.Attempt) []*p
 	for _, p := range peers {
 		r := row(p.DeviceID, p.DeviceName, p.IP)
 		r.Name = cmp.Or(r.Name, p.Name)
+
+		if r.LookedUp == nil {
+			r.LookedUp = p.LookedUp
+		}
+
 		r.add(p)
 	}
 
