@@ -490,7 +490,7 @@ plugins:
 
 To prepare the server:
 
-1. In Settings, Web interface / API, create an app password.
+1. In Pi-hole's web interface, create an app password.
 2. Put it in `password`, or in `JOCASTA_PLUGINS__PIHOLE__RESOLVER__PASSWORD`.
 
 Pi-hole has no read-only login, so the app password can change settings too.
@@ -498,8 +498,8 @@ Making a new app password signs out every session, Jocasta's included, and
 Jocasta signs in again on its next read. On a Pi-hole with no password set,
 leave `password` empty.
 
-Keep Settings, Privacy at the level that shows everything. A level that hides
-domains or clients hides them from Jocasta too.
+Keep Pi-hole's privacy level at the one that shows everything. A level that
+hides domains or clients hides them from Jocasta too.
 
 Each read takes at most 20,000 lookups. If more pile up while Jocasta is
 stopped, it keeps the newest and logs that it skipped the rest.

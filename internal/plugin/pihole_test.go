@@ -29,8 +29,8 @@ type fakePiHoleLog struct {
 	queries  []pihole.Query
 	requests []url.Values
 
-	// failPage answers that page with an error, and refuse every request with
-	// a 401, when set.
+	// failPage answers the page with that number with an error, and refuse
+	// answers every request with a 401, each when set.
 	failPage int
 	refuse   bool
 }
