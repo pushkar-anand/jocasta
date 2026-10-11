@@ -454,6 +454,26 @@ func TestDeviceTraffic(t *testing.T) {
 	assert.Equal(t, http.StatusUnprocessableEntity, status)
 }
 
+func TestDeviceDNS(t *testing.T) {
+	t.Parallel()
+
+	h := seeded(t)
+
+	status, _, body := get(t, h, "/devices/1/dns?days=7")
+	require.Equal(t, http.StatusOK, status)
+
+	// Nothing reads a resolver in this test, and the answer says so, which
+	// tells it apart from a device that looked nothing up.
+	assert.Equal(t, false, body["recorded"])
+	assert.Empty(t, list(t, body, "names"))
+
+	status, _, _ = get(t, h, "/devices/4040/dns")
+	assert.Equal(t, http.StatusNotFound, status)
+
+	status, _, _ = get(t, h, "/devices/1/dns?days=91")
+	assert.Equal(t, http.StatusUnprocessableEntity, status)
+}
+
 func TestWatchDevice(t *testing.T) {
 	t.Parallel()
 
