@@ -75,9 +75,11 @@ func TestDNSReportsAFailedRead(t *testing.T) {
 	require.NoError(t, d.Run(t.Context()))
 
 	r.err = errors.New("server down")
+
 	require.ErrorContains(t, d.Run(t.Context()), "server down")
 
 	r.err = nil
+
 	require.NoError(t, d.Run(t.Context()))
 
 	assert.Equal(t, []string{"", "+", "+"}, r.cursors)
