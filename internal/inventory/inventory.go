@@ -909,6 +909,9 @@ func (s *Store) fold(ctx context.Context, p *pass, ghost, into *models.Device) e
 		{"broadcasts of", func() error {
 			return p.q.MoveBroadcasts(ctx, models.MoveBroadcastsParams{IntoID: into.ID, FromID: ghost.ID})
 		}},
+		{"lookups of", func() error {
+			return p.q.MoveDNS(ctx, models.MoveDNSParams{IntoID: into.ID, FromID: ghost.ID})
+		}},
 		{"traffic with", func() error {
 			return p.q.RepointTrafficPeer(ctx, models.RepointTrafficPeerParams{IntoID: intoID, FromID: fromID})
 		}},

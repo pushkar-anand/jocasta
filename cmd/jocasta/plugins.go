@@ -251,6 +251,38 @@ func newOpenWrt(name string, cfg config.OpenWrt, log *slog.Logger) (plugin.Plugi
 	return p, nil
 }
 
+// queryReaders builds every enabled source whose query log is read, under the
+// same rules as routerSources: off unless enabled, name order, and an entry
+// that cannot be built is a config error.
+func queryReaders(ctx context.Context, cfg *config.Config, log *slog.Logger) ([]plugin.QueryReader, error) {
+	names := slices.Sorted(maps.Keys(cfg.Plugins.Technitium))
+	out := make([]plugin.QueryReader, 0, len(names))
+
+	for _, name := range names {
+		tc := cfg.Plugins.Technitium[name]
+		if !tc.Enabled {
+			log.InfoContext(ctx, "source is configured but not enabled", slog.String("src", name))
+
+			continue
+		}
+
+		if !tc.SSL {
+			log.WarnContext(ctx,
+				"resolver is reached over plain HTTP, so its API token crosses the network unencrypted. Set ssl: true",
+				slog.String("src", name))
+		}
+
+		p, err := newTechnitium(name, tc, log)
+		if err != nil {
+			return nil, err
+		}
+
+		out = append(out, p)
+	}
+
+	return out, nil
+}
+
 // newTechnitium builds one configured Technitium source.
 func newTechnitium(name string, cfg config.Technitium, log *slog.Logger) (*plugin.Technitium, error) {
 	client, err := technitium.New(&technitium.Config{

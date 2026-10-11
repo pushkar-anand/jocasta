@@ -44,7 +44,7 @@ func (p *PluginRunCmd) Run(
 	store *inventory.Store,
 ) error {
 	if _, ok := cfg.Plugins.Technitium[p.Name]; ok {
-		return p.runQueries(ctx, cfg, log)
+		return p.runQueries(ctx, cfg, log, store)
 	}
 
 	built, err := newRouterSource(cfg, p.Name, log)
@@ -125,17 +125,20 @@ func (p *PluginRunCmd) Run(
 	return poller.SaveTopology(ctx, store, log, reader, *topo)
 }
 
-// runQueries reads a resolver's query log from an hour back and prints who
-// looked up what. It reads one batch, the share of the log one poll takes.
-func (p *PluginRunCmd) runQueries(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
+// runQueries reads one batch of a resolver's query log, the share one poll
+// takes, and prints who looked up what. It reads from an hour back. With
+// --save it reads from where the last recorded read left off instead, and
+// records the batch, so nothing is counted twice.
+func (p *PluginRunCmd) runQueries(
+	ctx context.Context,
+	cfg *config.Config,
+	log *slog.Logger,
+	store *inventory.Store,
+) error {
 	// The names of every kind are checked against each other, as the server
 	// does at boot.
 	if _, err := routerInstances(cfg); err != nil {
 		return err
-	}
-
-	if p.Save {
-		return fmt.Errorf("source %q reads DNS lookups, which jocasta cannot record; run it without --save", p.Name)
 	}
 
 	src, err := newTechnitium(p.Name, cfg.Plugins.Technitium[p.Name], log)
@@ -143,7 +146,15 @@ func (p *PluginRunCmd) runQueries(ctx context.Context, cfg *config.Config, log *
 		return err
 	}
 
-	queries, cursor, err := src.Queries(ctx, "")
+	var cursor string
+
+	if p.Save {
+		if cursor, err = store.QueryCursor(ctx, src.Name()); err != nil {
+			return err
+		}
+	}
+
+	queries, next, err := src.Queries(ctx, cursor)
 	if err != nil && len(queries) == 0 {
 		return fmt.Errorf("read query log from %s: %w", src.Name(), err)
 	}
@@ -156,10 +167,19 @@ func (p *PluginRunCmd) runQueries(ctx context.Context, cfg *config.Config, log *
 		return err
 	}
 
-	log.InfoContext(ctx, "read query log",
+	if !p.Save {
+		return nil
+	}
+
+	res, err := store.RecordQueries(ctx, src.Name(), src.Kind(), queries, next)
+	if err != nil {
+		return fmt.Errorf("record lookups: %w", err)
+	}
+
+	log.InfoContext(ctx, "recorded lookups",
 		slog.String("src", src.Name()),
-		slog.Int("lookups", len(queries)),
-		slog.String("cursor", cursor),
+		slog.Int("recorded", res.Recorded),
+		slog.Int("dropped", res.Dropped),
 	)
 
 	return nil
@@ -347,7 +367,7 @@ func outputQueries(w io.Writer, queries []plugin.Query, asJSON bool) error {
 	}
 
 	if len(queries) == 0 {
-		_, err := fmt.Fprintln(w, "Source logged no lookups in the last hour.")
+		_, err := fmt.Fprintln(w, "Source logged no lookups. They appear once devices send their lookups to it.")
 
 		return err
 	}

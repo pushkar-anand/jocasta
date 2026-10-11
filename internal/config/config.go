@@ -72,7 +72,8 @@ type (
 		// History is how long the event log and the scan log are kept.
 		History time.Duration `koanf:"history"`
 
-		// Traffic is how long hourly traffic totals are kept.
+		// Traffic is how long hourly traffic totals and lookup counts are
+		// kept.
 		Traffic time.Duration `koanf:"traffic"`
 
 		// Devices is how long a device nobody labelled, grouped, typed,
