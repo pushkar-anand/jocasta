@@ -423,7 +423,9 @@ Jocasta can record which names each device looks up, and which of those
 lookups were blocked, from the query log of a
 [Technitium DNS Server](https://technitium.com/dns/). It keeps hourly counts
 per device and name, never individual lookups, and the addresses each name
-was answered with, for `retention.dns` (30 days by default).
+was answered with, for `retention.dns` (30 days by default). With traffic
+collection on as well, a device's traffic names each address by the names
+that device looked up for it.
 
 ```yaml
 plugins:

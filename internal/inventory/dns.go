@@ -239,6 +239,24 @@ func (s *Store) DeviceDNSTotals(ctx context.Context, id int64, since time.Time) 
 	return &DNSTotals{Lookups: row.Lookups, Names: row.Names, Blocked: row.Blocked, Failed: row.Failed}, nil
 }
 
+// deviceAnswers returns, for each address device id's lookups were answered
+// with from the hour since falls in, the names it looked up, most looked up
+// first.
+func (s *Store) deviceAnswers(ctx context.Context, id int64, since time.Time) (map[netip.Addr][]string, error) {
+	rows, err := s.q.DeviceDNSAnswers(ctx, models.DeviceDNSAnswersParams{DeviceID: id, LastHour: hourOf(since)})
+	if err != nil {
+		return nil, fmt.Errorf("answers of device %d: %w", id, err)
+	}
+
+	out := make(map[netip.Addr][]string)
+
+	for _, r := range rows {
+		out[r.Addr.Addr] = append(out[r.Addr.Addr], r.Name)
+	}
+
+	return out, nil
+}
+
 // DNSRead reports whether any resolver's query log has been read.
 func (s *Store) DNSRead(ctx context.Context) (bool, error) {
 	n, err := s.q.AnyDNSRead(ctx)

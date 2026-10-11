@@ -33,6 +33,11 @@ type TrafficPeer struct {
 	// peer's DNS chooses it.
 	Name string `json:"name,omitempty"`
 
+	// LookedUp is the names the device looked up that were answered with the
+	// peer's address over the same window, most looked up first. Empty for a
+	// known device.
+	LookedUp []string `json:"looked_up,omitempty"`
+
 	Protocol    uint8  `json:"protocol"`
 	ServicePort uint16 `json:"service_port"`
 
@@ -97,6 +102,11 @@ func (s *Store) DeviceTraffic(ctx context.Context, id int64, since time.Time) (*
 		return nil, fmt.Errorf("traffic for device %d: %w", id, err)
 	}
 
+	answers, err := s.deviceAnswers(ctx, id, since)
+	if err != nil {
+		return nil, err
+	}
+
 	out := &DeviceTraffic{Since: since, Local: []*TrafficPeer{}, Internet: []*TrafficOrg{}}
 	orgs := make(map[uint32]*TrafficOrg)
 
@@ -104,6 +114,10 @@ func (s *Store) DeviceTraffic(ctx context.Context, id int64, since time.Time) (*
 		p, err := trafficPeer(row)
 		if err != nil {
 			return nil, err
+		}
+
+		if p.DeviceID == 0 {
+			p.LookedUp = answers[p.IP]
 		}
 
 		if p.DeviceID != 0 || !asn.IsPublic(p.IP) {
@@ -161,6 +175,9 @@ func (s *Store) TrafficRecorded(ctx context.Context) (bool, error) {
 func newTrafficOrg(number uint32, p *TrafficPeer) *TrafficOrg {
 	if number == 0 {
 		label := cmp.Or(p.Name, p.IP.String())
+		if len(p.LookedUp) > 0 {
+			label = p.LookedUp[0]
+		}
 
 		return &TrafficOrg{Name: label, Short: label}
 	}
