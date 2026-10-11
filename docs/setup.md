@@ -421,11 +421,28 @@ is asked for or stored.
 
 Jocasta can record which names each device looks up, and which of those
 lookups were blocked, from the query log of a
-[Technitium DNS Server](https://technitium.com/dns/). It keeps hourly counts
-per device and name, never individual lookups, and the addresses each name
-was answered with, for `retention.dns` (30 days by default). With traffic
-collection on as well, a device's traffic names each address by the names
-that device looked up for it.
+[Technitium DNS Server](https://technitium.com/dns/) or a
+[Pi-hole](https://pi-hole.net) v6. It keeps hourly counts per device and
+name, never individual lookups, and the addresses each name was answered
+with, for `retention.dns` (30 days by default). With traffic collection on as
+well, a device's traffic names each address by the names that device looked
+up for it. Pi-hole logs no answer addresses, so its lookups name no traffic.
+
+Lookups count against the device whose address asked. When the router
+forwards its clients' lookups to the resolver, every lookup comes from the
+router. Hand out the resolver's address as the DNS server in the router's DHCP
+settings so each device asks it directly.
+
+To check the setup, read the log once without starting the server, by the
+instance name under `plugins`:
+
+```sh
+jocasta plugin run resolver
+```
+
+It prints the last hour's lookups per device address and name.
+
+### Technitium
 
 ```yaml
 plugins:
@@ -451,24 +468,41 @@ To prepare the server:
 With more than one app logging queries, name the one to read in `log_app`,
 as the Apps page lists it.
 
-Lookups count against the device whose address asked. When the router
-forwards its clients' lookups to Technitium, every lookup comes from the
-router. Hand out Technitium's address as the DNS server in the router's DHCP
-settings so each device asks it directly.
-
 In a cluster, each node logs the lookups it answered to its own disk. Add one
 entry per node, each at that node's own address. A virtual address shared
 between nodes, such as one VRRP keeps, reaches one node at a time, and the
 other node's lookups would go unread. The token and the log app reach every
 node from the primary.
 
-To check the setup, read the log once without starting the server:
+### Pi-hole
 
-```sh
-jocasta plugin run resolver
+```yaml
+plugins:
+  pihole:
+    resolver:
+      enabled: true
+      host: "192.0.2.53"
+      port: 443
+      ssl: true
+      insecure: true         # for Pi-hole's self-signed certificate
+      password: "change-me"
 ```
 
-It prints the last hour's lookups per device address and name.
+To prepare the server:
+
+1. In Settings, Web interface / API, create an app password.
+2. Put it in `password`, or in `JOCASTA_PLUGINS__PIHOLE__RESOLVER__PASSWORD`.
+
+Pi-hole has no read-only login, so the app password can change settings too.
+Making a new app password signs out every session, Jocasta's included, and
+Jocasta signs in again on its next read. On a Pi-hole with no password set,
+leave `password` empty.
+
+Keep Settings, Privacy at the level that shows everything. A level that hides
+domains or clients hides them from Jocasta too.
+
+Each read takes at most 20,000 lookups. If more pile up while Jocasta is
+stopped, it keeps the newest and logs that it skipped the rest.
 
 ## Send changes to your phone
 

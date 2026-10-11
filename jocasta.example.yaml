@@ -118,6 +118,15 @@ plugins:
       insecure: false         # true for a self-signed cert
       log_app: ""             # only when more than one installed app logs queries
       timeout: "10s"
+  pihole:
+    blocker:                  # a Pi-hole v6; names are shared with technitium, so pick another
+      enabled: false
+      host: "192.0.2.54"
+      port: 80                # 443 with ssl: true
+      password: "change-me"   # an app password; Pi-hole has no read-only login
+      ssl: false
+      insecure: false         # true for Pi-hole's self-signed cert
+      timeout: "10s"
 
 # Where changes are sent. None are configured by default; the entries below
 # are examples. Each is keyed by a name and holds one service block. Each

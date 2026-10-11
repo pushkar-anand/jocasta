@@ -11,6 +11,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/config"
 	"github.com/pushkar-anand/jocasta/internal/plugin"
 	"github.com/pushkar-anand/jocasta/pkg/openwrt"
+	"github.com/pushkar-anand/jocasta/pkg/pihole"
 	"github.com/pushkar-anand/jocasta/pkg/routeros"
 	"github.com/pushkar-anand/jocasta/pkg/technitium"
 )
@@ -93,7 +94,7 @@ type routerConfig interface {
 // whether it is reached over plain HTTP, come from the blocks its config
 // embeds.
 //
-// A name used under two kinds is refused, plugins.technitium included.
+// A name used under two kinds is refused, resolver kinds included.
 // `jocasta plugin run` takes the bare name, which would then name two sources.
 func routerInstances(cfg *config.Config) (map[string]routerInstance, error) {
 	out := make(map[string]routerInstance)
@@ -106,9 +107,14 @@ func routerInstances(cfg *config.Config) (map[string]routerInstance, error) {
 		return nil, err
 	}
 
-	for name := range cfg.Plugins.Technitium {
+	resolvers, err := resolverInstances(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	for name, in := range resolvers {
 		if prev, ok := out[name]; ok {
-			return nil, fmt.Errorf("source name %q is configured under both plugins.%s and plugins.technitium", name, prev.kind)
+			return nil, fmt.Errorf("source name %q is configured under both plugins.%s and plugins.%s", name, prev.kind, in.kind)
 		}
 	}
 
@@ -251,28 +257,33 @@ func newOpenWrt(name string, cfg config.OpenWrt, log *slog.Logger) (plugin.Plugi
 	return p, nil
 }
 
-// queryReaders builds every enabled source whose query log is read, under the
-// same rules as routerSources: off unless enabled, name order, and an entry
-// that cannot be built is a config error.
+// queryReaders builds every enabled source whose query log is read, of every
+// kind, under the same rules as routerSources: off unless enabled, name order,
+// and an entry that cannot be built is a config error.
 func queryReaders(ctx context.Context, cfg *config.Config, log *slog.Logger) ([]plugin.QueryReader, error) {
-	names := slices.Sorted(maps.Keys(cfg.Plugins.Technitium))
+	instances, err := resolverInstances(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	names := slices.Sorted(maps.Keys(instances))
 	out := make([]plugin.QueryReader, 0, len(names))
 
 	for _, name := range names {
-		tc := cfg.Plugins.Technitium[name]
-		if !tc.Enabled {
+		in := instances[name]
+		if !in.enabled {
 			log.InfoContext(ctx, "source is configured but not enabled", slog.String("src", name))
 
 			continue
 		}
 
-		if !tc.SSL {
+		if in.plainHTTP {
 			log.WarnContext(ctx,
-				"resolver is reached over plain HTTP, so its API token crosses the network unencrypted. Set ssl: true",
+				"resolver is reached over plain HTTP, so its credentials cross the network unencrypted. Set ssl: true",
 				slog.String("src", name))
 		}
 
-		p, err := newTechnitium(name, tc, log)
+		p, err := in.build(log)
 		if err != nil {
 			return nil, err
 		}
@@ -281,6 +292,67 @@ func queryReaders(ctx context.Context, cfg *config.Config, log *slog.Logger) ([]
 	}
 
 	return out, nil
+}
+
+// resolverInstance is one configured source whose query log is read, of any
+// kind.
+type resolverInstance struct {
+	kind      string
+	enabled   bool
+	plainHTTP bool
+
+	build func(log *slog.Logger) (plugin.QueryReader, error)
+}
+
+// resolverInstances returns every configured resolver source by name, of
+// every kind. A name used under two kinds is refused.
+func resolverInstances(cfg *config.Config) (map[string]resolverInstance, error) {
+	out := make(map[string]resolverInstance)
+
+	err := addResolverKind(out, "technitium", cfg.Plugins.Technitium, func(name string, c config.Technitium) resolverInstance {
+		return resolverInstance{
+			enabled:   c.Enabled,
+			plainHTTP: !c.SSL,
+			build:     func(log *slog.Logger) (plugin.QueryReader, error) { return newTechnitium(name, c, log) },
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	err = addResolverKind(out, "pihole", cfg.Plugins.PiHole, func(name string, c config.PiHole) resolverInstance {
+		return resolverInstance{
+			enabled:   c.Enabled,
+			plainHTTP: !c.SSL,
+			build:     func(log *slog.Logger) (plugin.QueryReader, error) { return newPiHole(name, c, log) },
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
+// addResolverKind adds the instances in configs, of the kind configured under
+// plugins.<kind>, to out.
+func addResolverKind[C any](
+	out map[string]resolverInstance,
+	kind string,
+	configs map[string]C,
+	instance func(name string, c C) resolverInstance,
+) error {
+	for name, c := range configs {
+		if prev, ok := out[name]; ok {
+			return fmt.Errorf("source name %q is configured under both plugins.%s and plugins.%s", name, prev.kind, kind)
+		}
+
+		in := instance(name, c)
+		in.kind = kind
+		out[name] = in
+	}
+
+	return nil
 }
 
 // newTechnitium builds one configured Technitium source.
@@ -300,6 +372,28 @@ func newTechnitium(name string, cfg config.Technitium, log *slog.Logger) (*plugi
 	p, err := plugin.NewTechnitium(name, client, cfg.LogApp, log)
 	if err != nil {
 		return nil, fmt.Errorf("plugin technitium %q: %w", name, err)
+	}
+
+	return p, nil
+}
+
+// newPiHole builds one configured Pi-hole source.
+func newPiHole(name string, cfg config.PiHole, log *slog.Logger) (*plugin.PiHole, error) {
+	client, err := pihole.New(&pihole.Config{
+		Host:     cfg.Host,
+		Port:     cfg.Port,
+		Password: cfg.Password,
+		SSL:      cfg.SSL,
+		Insecure: cfg.Insecure,
+		Timeout:  cfg.Timeout,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("plugin pihole %q: %w", name, err)
+	}
+
+	p, err := plugin.NewPiHole(name, client, log)
+	if err != nil {
+		return nil, fmt.Errorf("plugin pihole %q: %w", name, err)
 	}
 
 	return p, nil

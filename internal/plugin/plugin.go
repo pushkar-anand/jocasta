@@ -95,8 +95,10 @@ type (
 		// hour back. What a cursor holds is the source's own business; the
 		// caller stores it and hands it back.
 		//
-		// One read takes a bounded share of a long log and returns a cursor
-		// partway through it, so a backlog drains over several reads.
+		// One read takes a bounded share of a long log. A source that pages
+		// oldest first returns a cursor partway through it, so a backlog
+		// drains over several reads. One that pages newest first keeps the
+		// newest share and skips the rest.
 		// Queries and an error can both be non-empty, with the cursor
 		// covering the queries returned.
 		Queries(ctx context.Context, cursor string) ([]Query, string, error)
