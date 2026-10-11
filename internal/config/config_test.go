@@ -176,6 +176,7 @@ func TestLoadConfig(t *testing.T) {
 	// still their defaults.
 	assert.Equal(t, 48*time.Hour, cfg.Retention.History)
 	assert.Equal(t, inventory.DefaultTrafficRetention, cfg.Retention.Traffic)
+	assert.Equal(t, inventory.DefaultDNSRetention, cfg.Retention.DNS)
 	assert.Equal(t, inventory.DefaultDeviceRetention, cfg.Retention.Devices)
 
 	assert.Equal(t, "au", cfg.Location.Country, "as written; serve checks it")

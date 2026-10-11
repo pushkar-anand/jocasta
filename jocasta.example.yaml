@@ -34,6 +34,7 @@ inventory:
 retention:
   history: "2160h"        # events and scans
   traffic: "720h"         # hourly traffic totals
+  dns: "720h"             # hourly lookup counts per device and name
   devices: "2160h"        # devices never labelled, grouped, typed, noted or ignored,
                           # after they were last seen
 

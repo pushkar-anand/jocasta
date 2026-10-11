@@ -55,6 +55,7 @@ func (p *Prune) Run(ctx context.Context) error {
 	p.logger.InfoContext(ctx, "pruned records past retention",
 		slog.Duration("retention", p.retention.History),
 		slog.Duration("traffic_retention", p.retention.Traffic),
+		slog.Duration("dns_retention", p.retention.DNS),
 		slog.Duration("device_retention", p.retention.Devices),
 		slog.Int64("events", res.Events),
 		slog.Int64("scans", res.Scans),

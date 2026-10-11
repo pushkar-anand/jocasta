@@ -45,6 +45,11 @@ const DefaultRetention = 90 * 24 * time.Hour
 // with how busy the network is.
 const DefaultTrafficRetention = 30 * 24 * time.Hour
 
+// DefaultDNSRetention is how long hourly lookup counts are kept when no
+// retention is configured. Like traffic, they grow with how busy the network
+// is.
+const DefaultDNSRetention = 30 * 24 * time.Hour
+
 // DefaultDeviceRetention is how long a device its owner never curated is kept
 // after it was last seen, when no retention is configured.
 const DefaultDeviceRetention = 90 * 24 * time.Hour

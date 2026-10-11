@@ -422,7 +422,7 @@ is asked for or stored.
 Jocasta can record which names each device looks up, and which of those
 lookups were blocked, from the query log of a
 [Technitium DNS Server](https://technitium.com/dns/). It keeps hourly counts
-per device and name, never individual lookups, for `retention.traffic`
+per device and name, never individual lookups, for `retention.dns`
 (30 days by default).
 
 ```yaml

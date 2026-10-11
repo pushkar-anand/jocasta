@@ -15,9 +15,12 @@ type Retention struct {
 	// services a device has stopped advertising.
 	History time.Duration
 
-	// Traffic bounds hourly traffic totals, attempt, broadcast and probe
-	// counts, and lookup counts.
+	// Traffic bounds hourly traffic totals and attempt, broadcast and probe
+	// counts.
 	Traffic time.Duration
+
+	// DNS bounds hourly lookup counts.
+	DNS time.Duration
 
 	// Devices bounds how long a device its owner never curated is kept after
 	// it was last seen. A curated device is kept forever.
@@ -106,8 +109,11 @@ func (s *Store) Prune(ctx context.Context, r Retention) (*Pruned, error) {
 		if res.Probes, err = q.DeleteProbesBefore(ctx, cutoff); err != nil {
 			return nil, fmt.Errorf("prune probes: %w", err)
 		}
+	}
 
-		if res.Lookups, err = q.DeleteDNSBefore(ctx, cutoff); err != nil {
+	if r.DNS > 0 {
+		// Whole hours only, as for traffic.
+		if res.Lookups, err = q.DeleteDNSBefore(ctx, hourOf(now.Add(-r.DNS))); err != nil {
 			return nil, fmt.Errorf("prune lookups: %w", err)
 		}
 	}

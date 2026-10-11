@@ -94,7 +94,9 @@ func TestQueryCursorIsEmptyBeforeAnyRead(t *testing.T) {
 	assert.Empty(t, dnsRows(t, s))
 }
 
-func TestPruneDeletesLookupsWithTraffic(t *testing.T) {
+// TestPruneDeletesLookupsPastTheirWindow checks that lookups follow their own
+// window, and that the traffic window leaves them alone.
+func TestPruneDeletesLookupsPastTheirWindow(t *testing.T) {
 	t.Parallel()
 
 	s, _, advance := clockStore(t)
@@ -111,6 +113,11 @@ func TestPruneDeletesLookupsWithTraffic(t *testing.T) {
 	advance(49 * time.Hour)
 
 	res, err := s.Prune(t.Context(), Retention{Traffic: 24 * time.Hour})
+	require.NoError(t, err)
+	assert.Zero(t, res.Lookups)
+	assert.Len(t, dnsRows(t, s), 2)
+
+	res, err = s.Prune(t.Context(), Retention{DNS: 24 * time.Hour})
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), res.Lookups)
 	assert.Len(t, dnsRows(t, s), 1)
