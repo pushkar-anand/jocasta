@@ -257,7 +257,7 @@ type (
 		Host string `koanf:"host"`
 		Port int    `koanf:"port"`
 
-		// Password is an app password, from Settings, Web interface / API. It
+		// Password is an app password, made in Pi-hole's web interface. It
 		// can do anything the web interface can: Pi-hole has no read-only
 		// login. Empty reads a Pi-hole that has no password set.
 		Password string `koanf:"password"`

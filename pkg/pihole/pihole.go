@@ -3,11 +3,11 @@
 //
 // The API signs a client in with a password and hands back a session id,
 // which the client sends with each call until the session lapses after its
-// idle timeout. An app password, from Settings, Web interface / API, signs in
+// idle timeout. An app password, made in Pi-hole's web interface, signs in
 // without a second factor. Pi-hole has no read-only login: any password that
 // signs in can change settings too.
 //
-// Everything here reads; nothing writes.
+// Nothing here changes the Pi-hole's settings.
 package pihole
 
 import (
@@ -85,9 +85,9 @@ type (
 		// the server holds in memory.
 		From time.Time
 
-		// Cursor drops queries with a higher id. A later page that passes the
-		// first page's newest id counts its offset from the same query,
-		// whatever was logged in between. Zero starts at the newest.
+		// Cursor drops queries with a higher id. Passing the first page's
+		// newest id on later pages keeps their offsets counting from the same
+		// query, whatever is logged in between. Zero starts at the newest.
 		Cursor int64
 
 		// Start skips that many queries. Length is the server's default of
