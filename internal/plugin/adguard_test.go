@@ -28,9 +28,9 @@ type fakeAdGuardLog struct {
 	entries  []adguard.LogEntry
 	requests []url.Values
 
-	// pageCap pages by fewer entries than asked for, failPage answers that
-	// page with an error, and refuse refuses every request with a 401, each
-	// when set.
+	// pageCap pages by fewer entries than asked for, failPage answers the
+	// request with that number, counting from 1 across reads, with an error,
+	// and refuse answers every request with a 401, each when set.
 	pageCap  int
 	failPage int
 	refuse   bool

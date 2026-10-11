@@ -92,8 +92,8 @@ type (
 		// Time is when the query arrived, in RFC 3339 with nanoseconds.
 		Time string `json:"time"`
 
-		// Client is the address that asked, with its last part zeroed when
-		// the server anonymises client addresses.
+		// Client is the address that asked, anonymised when the server is set
+		// to anonymise client addresses.
 		Client string `json:"client"`
 
 		Question Question `json:"question"`
@@ -238,8 +238,7 @@ func get[T any](ctx context.Context, a *AdGuard, path string, query url.Values) 
 	case http.StatusNotFound:
 		return nil, fmt.Errorf("%w: %s: status %d", ErrUnexpected, path, resp.StatusCode)
 	default:
-		// The server words its refusals as plain text, such as the wait after
-		// too many failed sign-ins.
+		// A refusal's body is kept as its message, whatever its format.
 		reason, _ := io.ReadAll(io.LimitReader(resp.Body, maxReason))
 
 		return nil, &APIError{Path: path, Status: resp.StatusCode, Message: strings.TrimSpace(string(reason))}

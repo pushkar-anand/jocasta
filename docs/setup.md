@@ -524,9 +524,9 @@ Put the web interface login in `user` and `password`, or the password in
 users, so the login can change settings too. On a server with no login set,
 leave `user` empty.
 
-In Settings, General settings, keep the query log on and Anonymize client IP
-off. An anonymised address names no device, so its lookups count against
-none.
+In AdGuard Home's settings, keep the query log on and client address
+anonymisation off. An anonymised address names no device, so its lookups
+count against none.
 
 Each read takes at most 20,000 lookups. If more pile up while Jocasta is
 stopped, it keeps the newest and logs that it skipped the rest.

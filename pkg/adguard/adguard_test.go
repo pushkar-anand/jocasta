@@ -139,19 +139,19 @@ func TestQueryLogRefusedLogin(t *testing.T) {
 }
 
 // A refusal the server words itself keeps its wording.
-func TestQueryLogLockedOut(t *testing.T) {
+func TestQueryLogRefused(t *testing.T) {
 	t.Parallel()
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		http.Error(w, "auth: blocked for 15m0s", http.StatusForbidden)
+		http.Error(w, "reading query log", http.StatusInternalServerError)
 	}))
 
 	_, err := clientFor(t, srv, "jocasta", "secret").QueryLog(t.Context(), LogRequest{})
 
 	apiErr, ok := errors.AsType[*APIError](err)
 	require.True(t, ok, "got %v", err)
-	assert.Equal(t, http.StatusForbidden, apiErr.Status)
-	assert.Equal(t, "auth: blocked for 15m0s", apiErr.Message)
+	assert.Equal(t, http.StatusInternalServerError, apiErr.Status)
+	assert.Equal(t, "reading query log", apiErr.Message)
 }
 
 // Something else on the port is unexpected.

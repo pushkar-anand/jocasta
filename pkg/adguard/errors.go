@@ -29,9 +29,8 @@ var (
 	ErrUnexpected = errors.New("adguard: unexpected answer")
 )
 
-// APIError is a call the server refused for a reason of its own, such as an
-// address it locked out after too many failed sign-ins. Message is the
-// server's wording, empty when it gave none.
+// APIError is a call the server refused for a reason of its own. Message is
+// the server's wording, empty when it gave none.
 type APIError struct {
 	Path    string
 	Status  int
