@@ -52,3 +52,6 @@ tmp/
 # Screenshot data generator, kept local
 docs/screenshots/
 /cmd/classdump/
+
+# Docs site build output
+/site/

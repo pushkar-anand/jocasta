@@ -1,0 +1,98 @@
+name: Docs
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "Makefile"
+      - ".github/workflows/docs.yaml"
+  # No path filter here: GitHub applies one to tag pushes as well, and a
+  # release tag must always publish its docs.
+  push:
+    branches: [ main ]
+    tags: [ "v*" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Every deploy commits to gh-pages, so two must never run at once. A queued
+# deploy waits rather than cancelling the one in flight.
+concurrency:
+  group: docs-gh-pages
+  cancel-in-progress: false
+
+jobs:
+  check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: Build the docs and check every link
+        run: make docs
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+
+      - name: Check the docs build
+        run: make docs
+
+      - name: Pick the version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            # One docs version per minor release: v0.12.3 deploys as 0.12.
+            version="${GITHUB_REF_NAME#v}"
+            version="${version%.*}"
+            echo "name=$version" >> "$GITHUB_OUTPUT"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=dev" >> "$GITHUB_OUTPUT"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin gh-pages --depth=1 || true
+
+      - name: Deploy dev
+        if: steps.version.outputs.release == 'false'
+        env:
+          DOCS_BASE_URL: https://pushkar-anand.github.io/jocasta/dev/
+        run: uvx $(make -s docs-mike) deploy --push dev
+
+      - name: Deploy the release
+        if: steps.version.outputs.release == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.name }}
+          DOCS_BASE_URL: https://pushkar-anand.github.io/jocasta/${{ steps.version.outputs.name }}/
+        run: |
+          mike="uvx $(make -s docs-mike)"
+          $mike deploy --push --update-aliases "$VERSION" latest
+          $mike set-default --push latest
+
+      # The site root redirects to the latest release, but llms.txt has to be
+      # a real file there for agents that fetch it by its well-known path.
+      - name: Publish the latest release's llms.txt at the site root
+        if: steps.version.outputs.release == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.name }}
+        run: |
+          git checkout gh-pages
+          cp "$VERSION/llms.txt" "$VERSION/llms-full.txt" .
+          git add llms.txt llms-full.txt
+          git diff --cached --quiet || git commit -m "Publish llms.txt for $VERSION"
+          git push origin gh-pages

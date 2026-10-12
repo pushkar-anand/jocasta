@@ -1,4 +1,4 @@
-.PHONY: tidy fmt build run gen new_migration docker oui asn geo world htmx test lint dev e2e e2e-full
+.PHONY: tidy fmt build run gen new_migration docker oui asn geo world htmx test lint dev e2e e2e-full docs docs-serve docs-mike
 
 .DEFAULT_GOAL := build
 
@@ -64,3 +64,18 @@ lint: ## Run golangci-lint
 
 dev: gen build ## Start the server with hot-reload
 	go tool air
+# The docs site is built with Zensical, and each release's docs are published
+# with the Zensical fork of mike. uvx fetches both pinned versions on first use;
+# the docs workflow reads these two variables too.
+ZENSICAL_VERSION ?= 0.0.69
+MIKE_REF ?= 2d4ad799442f4592db8ad53b179bfb33db8c69ac
+
+docs: ## Build the docs site into site/ and check every link and anchor.
+	uvx zensical@$(ZENSICAL_VERSION) build --clean --strict
+
+docs-serve: ## Preview the docs site at http://localhost:8000 while editing.
+	uvx zensical@$(ZENSICAL_VERSION) serve
+
+# Prints the uvx arguments that run mike, for the docs workflow.
+docs-mike:
+	@echo --from git+https://github.com/squidfunk/mike@$(MIKE_REF) --with zensical==$(ZENSICAL_VERSION) mike

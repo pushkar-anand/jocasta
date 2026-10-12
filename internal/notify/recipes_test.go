@@ -22,7 +22,7 @@ var recipeBody = regexp.MustCompile(`(?m)^\s*body: '((?:[^']|'')*)'`)
 func TestRecipesInTheDocsRender(t *testing.T) {
 	repo := os.DirFS("../..")
 
-	for _, path := range []string{"docs/setup.md", "jocasta.example.yaml"} {
+	for _, path := range []string{"docs/notifications/other-services.md", "jocasta.example.yaml"} {
 		raw, err := fs.ReadFile(repo, path)
 		require.NoError(t, err)
 
