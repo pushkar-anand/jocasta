@@ -18,9 +18,8 @@ import (
 // configuration reference.
 var referenceRow = regexp.MustCompile("(?m)^\\| `([a-z_.<>]+)` \\|")
 
-// The configuration reference lists every setting, so a setting added to
-// Config without a row there, or a row left behind after a setting is removed,
-// fails here instead of going unnoticed.
+// TestReferenceDocumentsEveryKey fails when a setting in Config has no row in
+// the configuration reference, or a row names a setting Config no longer has.
 func TestReferenceDocumentsEveryKey(t *testing.T) {
 	raw, err := os.ReadFile("../../docs/reference/configuration.md")
 	require.NoError(t, err)

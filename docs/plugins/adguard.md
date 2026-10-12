@@ -3,7 +3,7 @@
 Jocasta reads the query log of an
 [AdGuard Home](https://adguard.com/adguard-home/overview.html) over its API.
 What is recorded, and how to route lookups so each device asks AdGuard Home
-directly, is in [DNS resolvers](index.md#dns-resolvers).
+directly, is in [Record what devices look up](dns.md).
 
 ```yaml
 plugins:
@@ -28,7 +28,6 @@ count against none.
 
 Each read takes at most 20,000 lookups. If more pile up while Jocasta is
 stopped, it keeps the newest and logs that it skipped the rest.
-
 
 ## All settings
 

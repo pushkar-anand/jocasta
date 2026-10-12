@@ -1,7 +1,7 @@
-# The web UI
+# Tour the web UI
 
-The pages `jocasta serve` shows. They read the same data as the JSON API, and
-the Overview, Map and Topology refresh themselves.
+This page walks through each page of the web UI. They read the same data as
+the JSON API, and the Overview, Map and Topology refresh themselves.
 
 The screenshots below use synthetic data: addresses from RFC 5737, hardware
 addresses from RFC 7042, invented names. The internet peers are well-known
@@ -46,7 +46,7 @@ Everything Jocasta knows about one device:
 ### Talks to
 
 When traffic collection is set up (see
-[Record who devices talk to](plugins/netflow.md)), this
+[NetFlow](plugins/netflow.md)), this
 section shows who the device exchanged data with over the last 24 hours, 7
 days or 30 days.
 
@@ -61,8 +61,8 @@ into one row per subnet. The Internet tab groups addresses by the organisation
 that announces them. The search box and the filters narrow the section to one
 service, or by name, address or organisation.
 
-Each row shows who opened its connections: "→ 12" means the device opened
-twelve, "← 3" means the peer opened three. A row can show both. The direction
+Each row shows who opened its connections: "→ 12" means the device opened 12,
+"← 3" means the peer opened 3. A row can show both. The direction
 filter keeps one side only.
 
 When something on the internet tried the device without exchanging any data,
@@ -150,7 +150,7 @@ The World tab puts the same hour's internet traffic on a map of the world.
 
 Your network's country comes from the router's outside address, or from
 `location.country` when that address is private (see
-[Record who devices talk to](plugins/netflow.md)).
+[NetFlow](plugins/netflow.md)).
 
 A country is where an address is registered. For a big provider that is often
 its home country, and the server itself may be elsewhere.
@@ -158,7 +158,7 @@ its home country, and the server itself may be elsewhere.
 ## Topology
 
 The Topology page draws the network from the internet down (see
-[Show what is plugged in where](plugins/index.md#topology)). It
+[Show what is plugged in where](plugins/topology.md)). It
 redraws every minute.
 
 - The internet sits at the top, the router below it, and each switch and
@@ -173,9 +173,9 @@ redraws every minute.
   rest are its virtual machines. To mark a host Jocasta has not recognised,
   set its type to Hypervisor on its page. A dotted box whose devices mostly
   have a virtual machine's hardware address is labelled Hypervisor.
-- A device that has gone quiet stays where it was last seen, dimmed. Online
-  devices no router, switch or access point has seen on a port are listed
-  under the tree.
+- A device that has gone quiet stays where it was last seen, dimmed. Devices
+  seen recently that no router, switch or access point has seen on a port are
+  listed under the tree.
 - The legend in the top right names each VLAN's colour with its device count.
   Point at one to pick out its devices.
 

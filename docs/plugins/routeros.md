@@ -19,7 +19,7 @@ Check it with `jocasta plugin run gateway` before starting the server. See
 
 ## Topology
 
-What each RouterOS table adds to the [Topology page](index.md#topology):
+What each RouterOS table adds to the [Topology page](topology.md):
 
 - The bridge host table says which port each hardware address is behind, and
   in which VLAN when the bridge has VLAN filtering on.
@@ -34,7 +34,8 @@ What each RouterOS table adds to the [Topology page](index.md#topology):
   at, and the fastest rate both ends offer.
 
 To read a MikroTik switch or access point for its ports, add it as another
-instance with `topology_only: true`. See [Topology](index.md#topology).
+instance with `topology_only: true`. See
+[Show what is plugged in where](topology.md).
 
 ## Export traffic flows
 

@@ -6,7 +6,7 @@ HTTP request, such as Discord, Slack or Telegram. See
 [Send to another service](other-services.md).
 
 1. Under `notify` in the config file, add each destination by name, with one
-   service block, then restart Jocasta:
+   service block:
 
    ```yaml
    notify:
@@ -21,17 +21,19 @@ HTTP request, such as Discord, Slack or Telegram. See
    ```
 
    A destination is on unless it says `enabled: false`.
-2. In **Settings → Notifications**, tick the kinds of change each destination
-   is sent, then select **Save**.
-3. Optional: select **Send test**. A message titled "Jocasta test" arrives at
+2. Restart Jocasta so it reads the change.
+3. Open the account menu at the top right, and select **Notifications**.
+4. For each destination, tick the kinds of change it is sent, then select
+   **Save**.
+5. Optional: select **Send test**. A message titled "Jocasta test" arrives at
    the destination.
 
 Each scan that changes something is sent as one message, such as
 "2 new devices on 192.0.2.0/24". The first scan of a network, when every
 device it finds is new, is sent as a count ("Found 42 devices"). Changes to
-devices you ignore, and your own edits, are left out. A message that cannot be delivered is logged and shown on the
-settings page, and is not sent again.
-
+devices you ignore, and your own edits, are left out. A message that cannot
+be delivered is logged and shown on the Notifications page, and is not sent
+again.
 
 Every `notify` setting, with its default and allowed values, is in the
 [configuration reference](../reference/configuration.md#notify).

@@ -69,11 +69,11 @@ Sources supported today:
 
 - **Router tables:** MikroTik RouterOS, read over its REST API, and OpenWrt,
   read over ubus. See [Plugins](docs/plugins/index.md) and
-  [Topology](docs/plugins/index.md#topology).
+  [Topology](docs/plugins/topology.md).
 - **Router flow exports:** any router that sends NetFlow v5, v9 or IPFIX. See
   [NetFlow](docs/plugins/netflow.md).
 - **DNS query logs:** Technitium DNS Server, Pi-hole v6 and AdGuard Home. See
-  [DNS resolvers](docs/plugins/index.md#dns-resolvers).
+  [DNS resolvers](docs/plugins/dns.md).
 
 More screenshots: [docs/ui.md](docs/ui.md).
 
@@ -103,10 +103,11 @@ More screenshots: [docs/ui.md](docs/ui.md).
 4. Create the admin account. The first sweep runs straight away and then
    every five minutes.
 
-Every other setting, with its default, is in
-[`jocasta.example.yaml`](jocasta.example.yaml). For binaries, building from
-source and reading your router, see [Install](docs/install.md) and
-[Plugins](docs/plugins/index.md).
+For the same steps with what to expect after each, see
+[Your first inventory](docs/tutorial.md). Every other setting, with its
+default, is in [`jocasta.example.yaml`](jocasta.example.yaml). For binaries,
+Compose, building from source and reading your router, see
+[Install](docs/install.md) and [Plugins](docs/plugins/index.md).
 
 ## Documentation
 
@@ -116,15 +117,21 @@ with a version for each release. They are also published for language
 models, as [`llms.txt`](https://pushkar-anand.github.io/jocasta/llms.txt).
 The same pages are in [`docs/`](docs/):
 
-- Get started: [Install](docs/install.md) and
-  [Configuration](docs/configuration.md).
+- Get started: [Your first inventory](docs/tutorial.md),
+  [How Jocasta works](docs/concepts.md), [Install](docs/install.md) and
+  [Configure](docs/configuration.md).
+- Devices: [label, group and ignore them](docs/devices.md), and how
+  [names](docs/naming.md) and [types](docs/classification.md) are chosen.
 - [Plugins](docs/plugins/index.md): routers, flow exports and DNS resolvers.
 - [Notifications](docs/notifications/index.md): changes sent to your phone,
   a webhook or a chat service.
 - Integrations: the [MCP server](docs/integrations/mcp.md) for AI agents, and
   the [JSON API](docs/integrations/api.md).
-- Reference: [every setting](docs/reference/configuration.md),
-  [the web UI](docs/ui.md) and [the CLI](docs/cli.md).
+- Operate: [users and sign-in](docs/operate/users.md),
+  [HTTPS](docs/operate/https.md), [back up and upgrade](docs/operate/backup.md)
+  and [common problems](docs/operate/troubleshooting.md).
+- Reference: [every setting](docs/reference/configuration.md) and
+  [the CLI](docs/cli.md). [Tour the web UI](docs/ui.md) shows every page.
 - [Development](docs/development.md): building and working on jocasta.
 
 ## Help and feedback

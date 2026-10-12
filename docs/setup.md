@@ -46,7 +46,7 @@ See [OpenWrt](plugins/openwrt.md).
 
 ## Show what is plugged in where
 
-See [Topology](plugins/index.md#topology).
+See [Show what is plugged in where](plugins/topology.md).
 
 ## Record who devices talk to
 
@@ -54,7 +54,7 @@ See [NetFlow](plugins/netflow.md).
 
 ## Record what devices look up
 
-See [DNS resolvers](plugins/index.md#dns-resolvers).
+See [Record what devices look up](plugins/dns.md).
 
 ### Technitium
 

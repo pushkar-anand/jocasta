@@ -81,7 +81,8 @@ When you change the docs:
 - Add a new page to `nav` in `mkdocs.yml`, and to the `llmstxt` sections
   there, or the site leaves it out of the sidebar and `llms.txt`.
 - A new plugin gets a page under `docs/plugins/` and a line in the table on
-  the plugins overview.
+  the plugins overview. A DNS resolver also gets a column on
+  [Record what devices look up](plugins/dns.md).
 - A new setting gets a row in the
   [configuration reference](reference/configuration.md).
   `TestReferenceDocumentsEveryKey` fails until it has one, and fails on a row
@@ -107,7 +108,8 @@ and pushes it to trigger the release workflow. It does not wait for the build.
 - `cmd/jocasta`: CLI entry point.
 - `internal/scanner`: the ICMP sweep, and the reverse DNS, mDNS, NetBIOS,
   DNS-SD and SSDP lookups that name what answers.
-- `internal/plugin`: sources beyond the sweep (RouterOS, OpenWrt, NetFlow).
+- `internal/plugin`: sources beyond the sweep (RouterOS, OpenWrt, NetFlow,
+  Technitium, Pi-hole, AdGuard Home).
 - `internal/inventory`: the store, covering identity resolution, address
   handling, device classification and the change log.
 - `internal/classify`: the rules that guess a device's type from its vendor,
