@@ -46,7 +46,7 @@ Everything Jocasta knows about one device:
 ### Talks to
 
 When traffic collection is set up (see
-[Record who devices talk to](setup.md#record-who-devices-talk-to)), this
+[Record who devices talk to](plugins/netflow.md)), this
 section shows who the device exchanged data with over the last 24 hours, 7
 days or 30 days.
 
@@ -150,7 +150,7 @@ The World tab puts the same hour's internet traffic on a map of the world.
 
 Your network's country comes from the router's outside address, or from
 `location.country` when that address is private (see
-[Record who devices talk to](setup.md#record-who-devices-talk-to)).
+[Record who devices talk to](plugins/netflow.md)).
 
 A country is where an address is registered. For a big provider that is often
 its home country, and the server itself may be elsewhere.
@@ -158,7 +158,7 @@ its home country, and the server itself may be elsewhere.
 ## Topology
 
 The Topology page draws the network from the internet down (see
-[Show what is plugged in where](setup.md#show-what-is-plugged-in-where)). It
+[Show what is plugged in where](plugins/index.md#topology)). It
 redraws every minute.
 
 - The internet sits at the top, the router below it, and each switch and

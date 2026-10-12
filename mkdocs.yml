@@ -1,0 +1,130 @@
+site_name: Jocasta
+site_description: A network inventory that keys each device by its hardware address.
+site_url: https://pushkar-anand.github.io/jocasta/
+repo_url: https://github.com/pushkar-anand/jocasta
+repo_name: pushkar-anand/jocasta
+edit_uri: edit/main/docs/
+docs_dir: docs
+site_dir: site
+strict: true
+
+nav:
+  - Home: index.md
+  - Get started:
+      - Install: install.md
+      - Configuration: configuration.md
+  - Inventory:
+      - Name devices: naming.md
+  - Plugins:
+      - Overview: plugins/index.md
+      - MikroTik RouterOS: plugins/routeros.md
+      - OpenWrt: plugins/openwrt.md
+      - NetFlow: plugins/netflow.md
+      - Technitium: plugins/technitium.md
+      - Pi-hole: plugins/pihole.md
+      - AdGuard Home: plugins/adguard.md
+  - Notifications:
+      - Overview: notifications/index.md
+      - Webhook signatures: notifications/webhook.md
+      - Other services: notifications/other-services.md
+      - Watched devices: notifications/watch.md
+  - Integrations:
+      - MCP server: integrations/mcp.md
+      - JSON API: integrations/api.md
+  - Reference:
+      - Configuration: reference/configuration.md
+      - Web UI: ui.md
+      - CLI: cli.md
+  - Development: development.md
+
+theme:
+  name: material
+  features:
+    - content.action.copy
+    - content.action.edit
+    - content.code.copy
+    - navigation.footer
+    - navigation.indexes
+    - navigation.sections
+    - search.highlight
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+
+extra:
+  version:
+    provider: mike
+    default: latest
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+plugins:
+  - search
+  # setup.md and mcp.md stay in the repository so links from older releases
+  # resolve on GitHub; on the site, the redirects below stand in for them.
+  # screenshots/ is a local, gitignored working directory.
+  - exclude:
+      glob:
+        - setup.md
+        - mcp.md
+        - screenshots/*
+  - redirects:
+      redirect_maps:
+        setup.md: install.md
+        mcp.md: integrations/mcp.md
+  - llmstxt:
+      # The docs workflow sets DOCS_BASE_URL to the version being deployed,
+      # so each version's llms.txt links to its own pages.
+      base_url: !ENV [DOCS_BASE_URL, "https://pushkar-anand.github.io/jocasta/"]
+      full_output: llms-full.txt
+      markdown_description: >-
+        Jocasta is a single-binary network inventory with a web UI, a JSON API
+        and an MCP server. Configuration is a YAML file or JOCASTA_ environment
+        variables; the configuration reference lists every setting.
+      sections:
+        Get started:
+          - index.md
+          - install.md
+          - configuration.md
+          - naming.md
+        Plugins:
+          - plugins/index.md
+          - plugins/routeros.md
+          - plugins/openwrt.md
+          - plugins/netflow.md
+          - plugins/technitium.md
+          - plugins/pihole.md
+          - plugins/adguard.md
+        Notifications:
+          - notifications/index.md
+          - notifications/webhook.md
+          - notifications/other-services.md
+          - notifications/watch.md
+        Integrations:
+          - integrations/mcp.md
+          - integrations/api.md
+        Reference:
+          - reference/configuration.md
+          - ui.md
+          - cli.md
+        Development:
+          - development.md

@@ -13,6 +13,8 @@ make gen            # regenerate sqlc models
 make new_migration name=<name>
 make oui            # rebuild the embedded MAC-vendor table
 make htmx           # refresh the vendored htmx
+make docs           # build the docs site and check every link (needs uv)
+make docs-serve     # preview the docs site at http://localhost:8000
 ```
 
 ## Browser tests
@@ -64,6 +66,29 @@ E2E_AUDIT=$PWD/tmp/audit TMPDIR=$PWD/tmp go test -tags e2e -run TestAudit -timeo
 `E2E_FIXTURES`, `E2E_ROLES`, `E2E_VIEWPORTS`, `E2E_THEMES` and `E2E_PAGES`
 narrow either run to a comma-separated list.
 
+## Docs
+
+The pages in `docs/` are published with [Zensical](https://zensical.org) to
+GitHub Pages, one version for each minor release and one for `main`. The
+`Docs` workflow builds every pull request that touches them with `make docs`,
+which fails on a broken link or anchor. A merge to `main` publishes the `dev`
+version, and a `v*` tag publishes that minor version as `latest`. Both are
+pushed to the `gh-pages` branch with the Zensical fork of
+[mike](https://github.com/squidfunk/mike).
+
+When you change the docs:
+
+- Add a new page to `nav` in `mkdocs.yml`, and to the `llmstxt` sections
+  there, or the site leaves it out of the sidebar and `llms.txt`.
+- A new plugin gets a page under `docs/plugins/` and a line in the table on
+  the plugins overview.
+- A new setting gets a row in the
+  [configuration reference](reference/configuration.md).
+  `TestReferenceDocumentsEveryKey` fails until it has one, and fails on a row
+  for a setting that no longer exists.
+- Keep `docs/setup.md` and `docs/mcp.md`. Earlier releases link to their
+  sections on GitHub, and each section there points to where it moved.
+
 ## Release
 
 After CI passes on `main`, run the following. It runs `make e2e-full` first,
@@ -99,7 +124,7 @@ Queries are SQLC-generated from `internal/db/queries/`. The schema is in
 
 Most services take an HTTP request, and the `http` provider reaches them
 with a body template and no new code. For one of those, add a recipe to
-[Send to another service](setup.md#send-to-another-service).
+[Send to another service](notifications/other-services.md).
 `TestRecipesInTheDocsRender` renders every recipe there, so a broken one
 fails the tests.
 
@@ -112,7 +137,8 @@ file of its own, as `ntfy.go` and `webhook.go` are:
    `Host` and `Send`. `Send` must not put a credential in its error. `post`
    covers a service that takes an HTTP request.
 2. Add a field for it to `notify.Config`, and a line to `Config.provider`.
-3. Add an example to `jocasta.example.yaml`.
+3. Add an example to `jocasta.example.yaml`, and a row for each setting to
+   the [configuration reference](reference/configuration.md).
 
 The notifier, the settings page, the store and `cmd` need no change.
 
@@ -126,7 +152,7 @@ learned. When sources disagree, the name with the higher standing is shown.
 2. Give it a place in `HostnameSource.Rank`, and say why in the comment
    there. A name that resolves ranks above one a device only claims.
 3. Word it for the device page in `standing`, in `internal/web/funcs.go`.
-4. List it in [Name devices](setup.md#name-devices).
+4. List it in [Name devices](naming.md).
 
 A sweep that asks devices for their names takes two more steps:
 

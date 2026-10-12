@@ -68,11 +68,12 @@ Some features need a source connected first. The **Needs** column says which.
 Sources supported today:
 
 - **Router tables:** MikroTik RouterOS, read over its REST API, and OpenWrt,
-  read over ubus. See
-  [Read devices from your router](docs/setup.md#read-devices-from-your-router)
-  and [Show what is plugged in where](docs/setup.md#show-what-is-plugged-in-where).
+  read over ubus. See [Plugins](docs/plugins/index.md) and
+  [Topology](docs/plugins/index.md#topology).
 - **Router flow exports:** any router that sends NetFlow v5, v9 or IPFIX. See
-  [Record who devices talk to](docs/setup.md#record-who-devices-talk-to).
+  [NetFlow](docs/plugins/netflow.md).
+- **DNS query logs:** Technitium DNS Server, Pi-hole v6 and AdGuard Home. See
+  [DNS resolvers](docs/plugins/index.md#dns-resolvers).
 
 More screenshots: [docs/ui.md](docs/ui.md).
 
@@ -104,16 +105,26 @@ More screenshots: [docs/ui.md](docs/ui.md).
 
 Every other setting, with its default, is in
 [`jocasta.example.yaml`](jocasta.example.yaml). For binaries, building from
-source and reading your router, see [setup](docs/setup.md).
+source and reading your router, see [Install](docs/install.md) and
+[Plugins](docs/plugins/index.md).
 
 ## Documentation
 
-- [Setup](docs/setup.md): other ways to install, configuration, reading
-  devices from your router, and recording traffic from its flow exports.
-- [CLI](docs/cli.md): one-off sweeps, port scans and source reads from the
-  command line.
-- [MCP server](docs/mcp.md): connecting AI agents to the inventory.
-- [The web UI](docs/ui.md): a tour of the interface.
+The docs are published at
+[pushkar-anand.github.io/jocasta](https://pushkar-anand.github.io/jocasta/),
+with a version for each release. They are also published for language
+models, as [`llms.txt`](https://pushkar-anand.github.io/jocasta/llms.txt).
+The same pages are in [`docs/`](docs/):
+
+- Get started: [Install](docs/install.md) and
+  [Configuration](docs/configuration.md).
+- [Plugins](docs/plugins/index.md): routers, flow exports and DNS resolvers.
+- [Notifications](docs/notifications/index.md): changes sent to your phone,
+  a webhook or a chat service.
+- Integrations: the [MCP server](docs/integrations/mcp.md) for AI agents, and
+  the [JSON API](docs/integrations/api.md).
+- Reference: [every setting](docs/reference/configuration.md),
+  [the web UI](docs/ui.md) and [the CLI](docs/cli.md).
 - [Development](docs/development.md): building and working on jocasta.
 
 ## Help and feedback

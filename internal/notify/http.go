@@ -91,7 +91,7 @@ func (h *HTTP) Validate() error {
 	}
 
 	if strings.TrimSpace(h.Body) == "" {
-		return errors.New("a body is required; see the recipes in docs/setup.md")
+		return errors.New("a body is required; see the recipes in docs/notifications/other-services.md")
 	}
 
 	t, err := template.New("body").
