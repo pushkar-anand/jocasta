@@ -1,0 +1,44 @@
+# Jocasta
+
+> A network inventory that keys each device by its hardware address.
+
+Jocasta is a single-binary network inventory with a web UI, a JSON API and an MCP server. Configuration is a YAML file or JOCASTA_ environment variables; the configuration reference lists every setting.
+
+## Get started
+
+- [Home](<https://pushkar-anand.github.io/jocasta/0.11/index.md>)
+- [Install](<https://pushkar-anand.github.io/jocasta/0.11/install/index.md>)
+- [Configuration](<https://pushkar-anand.github.io/jocasta/0.11/configuration/index.md>)
+- [Name devices](<https://pushkar-anand.github.io/jocasta/0.11/naming/index.md>)
+
+## Plugins
+
+- [Overview](<https://pushkar-anand.github.io/jocasta/0.11/plugins/index.md>)
+- [MikroTik RouterOS](<https://pushkar-anand.github.io/jocasta/0.11/plugins/routeros/index.md>)
+- [OpenWrt](<https://pushkar-anand.github.io/jocasta/0.11/plugins/openwrt/index.md>)
+- [NetFlow](<https://pushkar-anand.github.io/jocasta/0.11/plugins/netflow/index.md>)
+- [Technitium](<https://pushkar-anand.github.io/jocasta/0.11/plugins/technitium/index.md>)
+- [Pi-hole](<https://pushkar-anand.github.io/jocasta/0.11/plugins/pihole/index.md>)
+- [AdGuard Home](<https://pushkar-anand.github.io/jocasta/0.11/plugins/adguard/index.md>)
+
+## Notifications
+
+- [Overview](<https://pushkar-anand.github.io/jocasta/0.11/notifications/index.md>)
+- [Webhook signatures](<https://pushkar-anand.github.io/jocasta/0.11/notifications/webhook/index.md>)
+- [Other services](<https://pushkar-anand.github.io/jocasta/0.11/notifications/other-services/index.md>)
+- [Watched devices](<https://pushkar-anand.github.io/jocasta/0.11/notifications/watch/index.md>)
+
+## Integrations
+
+- [MCP server](<https://pushkar-anand.github.io/jocasta/0.11/integrations/mcp/index.md>)
+- [JSON API](<https://pushkar-anand.github.io/jocasta/0.11/integrations/api/index.md>)
+
+## Reference
+
+- [Configuration](<https://pushkar-anand.github.io/jocasta/0.11/reference/configuration/index.md>)
+- [Web UI](<https://pushkar-anand.github.io/jocasta/0.11/ui/index.md>)
+- [CLI](<https://pushkar-anand.github.io/jocasta/0.11/cli/index.md>)
+
+## Development
+
+- [Development](<https://pushkar-anand.github.io/jocasta/0.11/development/index.md>)
