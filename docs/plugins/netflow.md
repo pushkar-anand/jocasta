@@ -2,8 +2,8 @@
 
 Jocasta can record which devices talk to which, and to where on the internet,
 from the flow records your router exports (NetFlow v5, v9 or IPFIX). It keeps
-hourly totals per device, never individual connections, for
-`retention.traffic` (30 days by default).
+hourly totals per device for `retention.traffic` (30 days by default).
+Individual connections are not stored.
 
 ```yaml
 plugins:

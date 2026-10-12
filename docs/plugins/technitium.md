@@ -3,7 +3,7 @@
 Jocasta reads the query log of a
 [Technitium DNS Server](https://technitium.com/dns/) over its HTTP API. What
 is recorded, and how to route lookups so each device asks the server
-directly, is in [DNS resolvers](index.md#dns-resolvers).
+directly, is in [Record what devices look up](dns.md).
 
 ```yaml
 plugins:
@@ -34,7 +34,6 @@ entry per node, each at that node's own address. A virtual address shared
 between nodes, such as one VRRP keeps, reaches one node at a time, and the
 other node's lookups would go unread. The token and the log app reach every
 node from the primary.
-
 
 ## All settings
 

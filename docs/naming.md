@@ -1,7 +1,8 @@
-# Name devices
+# How names are chosen
 
 A device can be named by more than one source. The name shown is the one from
-the source ranked highest here:
+the source ranked highest here. A label you give a device is shown in place of
+all of them; see [Label, group and ignore devices](devices.md).
 
 1. Reverse DNS, looked up for each address a sweep finds.
 2. A static DHCP lease on your router.
@@ -19,6 +20,8 @@ device page lists the name each source gives. Once a sweep has a name for a
 device, a lower-ranked lookup does not replace it. The device keeps that name
 until the lookup that gave it, or a higher-ranked one, answers with another.
 
+## mDNS
+
 mDNS gives a name to phones, TVs, printers and computers that reverse DNS
 does not know, such as `living-room-tv.local`. Jocasta sends one query to each
 such device, on UDP port 5353, and needs no host networking or multicast for
@@ -29,12 +32,16 @@ To turn it off, set `scan.devices.resolve_mdns: false`. It does not depend on
 `scan.devices.resolve_names`: with reverse DNS off, no device has a reverse DNS
 name, so every device that answers the sweep is asked over mDNS.
 
+## NetBIOS
+
 NetBIOS gives a name to Windows computers and to devices running Samba, such
 as a NAS. A NetBIOS name, such as `DESKTOP-4F2K`, is 15 characters at most.
 Jocasta sends one query to each device still without a name, on UDP port 137.
 Windows answers only with file and printer sharing turned on, and by default
 only a query from its own segment. To turn it off, set
 `scan.devices.resolve_netbios: false`.
+
+## DNS-SD
 
 DNS-SD names TVs, speakers, printers and other devices that advertise their
 services over mDNS but do not answer an mDNS query for their own name. After
@@ -55,6 +62,8 @@ probes every port recorded open, so when a service moves to a new port, its
 old port closes. The classifier reads the services: a print service marks a
 printer, and the Android TV remote service a TV. A service no sweep has heard
 within `retention.history` drops off.
+
+## SSDP
 
 SSDP names TVs, speakers, media players, printers and routers that nothing
 else names. The name is the label the device shows its owner, such as

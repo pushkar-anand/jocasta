@@ -52,7 +52,7 @@ func TestTopologySaysWhenNothingIsRead(t *testing.T) {
 
 	body := rec.Body.String()
 	assert.Contains(t, body, "No topology recorded yet.")
-	assert.Contains(t, body, "plugins/index.md#topology")
+	assert.Contains(t, body, "plugins/topology.md")
 	assert.NotContains(t, body, `hx-get="/topology/live"`, "nothing to refresh")
 }
 

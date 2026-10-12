@@ -5,15 +5,17 @@ dashboards. It takes the same API tokens as the [MCP server](mcp.md).
 
 ## Authenticate
 
-Create an API token under Settings, API tokens, and send it with each request:
+Create an [API token](../operate/users.md#api-tokens) and send it with each
+request:
 
 ```sh
 curl -H "Authorization: Bearer <token>" http://<host>:8080/api/devices
 ```
 
 A `read` token can make `GET` requests only. A `read_write` token can also
-change devices. A token can expire after 30 days, 90 days or 1 year. After
-that it is refused like a revoked one and stays listed until you revoke it.
+change devices. A token never expires unless you chose 30 days, 90 days or 1
+year when you created it. An expired token is refused like a revoked one, and
+stays listed until you revoke it.
 
 `GET /api/livez` answers without a token, for health checks.
 
@@ -30,7 +32,7 @@ that it is refused like a revoked one and stays listed until you revoke it.
 | `PATCH /api/devices/{id}/watch` | Starts or stops watching a device. Needs a `read_write` token. |
 | `GET /api/devices/{id}/events` | A device's change log. |
 | `GET /api/devices/{id}/traffic` | Who a device talked to. Needs [traffic recorded](../plugins/netflow.md). |
-| `GET /api/devices/{id}/dns` | What a device looked up. Needs [lookups recorded](../plugins/index.md#dns-resolvers). |
+| `GET /api/devices/{id}/dns` | What a device looked up. Needs [lookups recorded](../plugins/dns.md). |
 | `GET /api/events` | The change log across all devices. |
 | `GET /api/scans` | Past scans. |
 

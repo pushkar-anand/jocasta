@@ -48,9 +48,6 @@ plugins:
       insecure: false        # true for uhttpd's self-signed cert
 ```
 
-With `ssl: false` the password crosses the network unencrypted, so Jocasta
-logs a warning at startup for each RouterOS or OpenWrt source set that way.
-
 Check it with `jocasta plugin run gateway`. A login rpcd refuses, or one
 missing the ACL file, reads as credentials rejected.
 
@@ -61,7 +58,7 @@ device carries its tag.
 
 ## Topology
 
-What each OpenWrt table adds to the [Topology page](index.md#topology):
+What each OpenWrt table adds to the [Topology page](topology.md):
 
 - The kernel's bridge table says which port each hardware address is behind.
   On a router with a DSA switch, as most current ones have, each switch port
@@ -80,7 +77,8 @@ neighbours. The router still finds an OpenWrt access point among the
 addresses on its ports when the access point is read too.
 
 To read an OpenWrt access point for its ports, add it as another instance
-with `topology_only: true`. See [Topology](index.md#topology).
+with `topology_only: true`. See
+[Show what is plugged in where](topology.md).
 
 ## Export traffic flows
 

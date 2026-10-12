@@ -1,10 +1,8 @@
 # Plugins
 
-A sweep from one machine only sees hardware addresses on its own segment. On a
-network split into VLANs, reading the router's ARP and DHCP tables identifies
-the rest. Plugins read these and other sources a sweep cannot reach: routers
-for devices and what is plugged in where, flow exports for who devices talk
-to, and DNS resolvers for what devices look up.
+Plugins read what a sweep cannot reach: routers for devices on every segment
+and what is plugged in where, flow exports for who talks to whom, and DNS
+resolvers for what devices look up.
 
 | Plugin | Devices and networks | Topology | Traffic | DNS lookups |
 |---|---|---|---|---|
@@ -17,8 +15,8 @@ to, and DNS resolvers for what devices look up.
 
 ## Configure a plugin
 
-Each plugin is a block under `plugins`, keyed by its kind and then by an
-instance name of your choosing:
+Each plugin is a block under `plugins`, keyed by kind, then by an instance
+name you choose:
 
 ```yaml
 plugins:
@@ -29,100 +27,35 @@ plugins:
       # ...
 ```
 
-The instance name becomes the source its facts are filed under, so two
-routers stay separate. Router and DNS resolver names are shared across their
-kinds, so a `routeros` instance and a `technitium` instance cannot both be
-called `gateway`. A `netflow` listener can share its router's name.
+The instance name is the [source](../concepts.md#sources) its facts are filed
+under. Router and DNS resolver names share one namespace: a `routeros` and a
+`technitium` instance cannot both be `gateway`. A `netflow` listener can share
+its router's name.
 
-Any setting can come from the environment instead, which keeps passwords and
-tokens out of the file. The variable is the setting's path in capitals, with a
-double underscore between levels:
-
-```bash
-JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD=change-me
-```
-
-Every setting for every plugin, with its default, is listed in the
+Put passwords in the environment, such as
+`JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD`; see
+[Configure](../configuration.md). Every setting is in the
 [configuration reference](../reference/configuration.md#plugins).
 
-With `ssl: false` a password or token crosses the network unencrypted, so
-Jocasta logs a warning at startup for each RouterOS, OpenWrt, Technitium,
-Pi-hole or AdGuard Home source set that way.
+A source with `ssl: false` sends its password in the clear, and Jocasta warns
+at startup.
 
-Check a plugin before starting the server by reading it once, by its instance
-name:
+## Check a plugin
 
 ```sh
 jocasta plugin run gateway
 ```
 
-It prints what the source claims and changes nothing. See
+reads the source once and prints what it claims. It changes nothing. See
 [CLI](../cli.md#plugin-run).
 
 ## Topology
 
-The Topology page draws the network from the internet down: the router, each
-switch and access point on the port it hangs from, and each device on its port
-or Wi-Fi network. It is built from the bridge and Wi-Fi tables of every
-[MikroTik](routeros.md) and [OpenWrt](openwrt.md) router Jocasta reads, so the
-router alone already gives a first picture. A switch or access point that
-announces itself to the router appears there with the devices behind it.
-
-To see which port of a switch or access point each device is on, add it as
-another instance with `topology_only: true`, under `routeros` or `openwrt`:
-
-```yaml
-plugins:
-  routeros:
-    gateway:
-      enabled: true
-      host: "192.0.2.1"
-      # ...
-    switch_core:
-      enabled: true
-      host: "192.0.2.2"
-      user: "jocasta"
-      password: "change-me"
-      topology_only: true    # read what is plugged into it; the router lists the devices
-```
-
-A `topology_only` source is left out of device discovery, so its management
-address cannot rename a network. Every RouterOS and OpenWrt source is read
-for its topology on `scan.devices.interval`.
-
-What each router's tables add is on its page:
-[RouterOS](routeros.md#topology) and [OpenWrt](openwrt.md#topology).
-
-Check a source with `jocasta plugin run switch_core`, which prints its ports,
-the addresses learned on each, and its neighbours.
+A MikroTik or OpenWrt router draws the Topology page. Read its switches and
+access points too for each device's port. See
+[Show what is plugged in where](topology.md).
 
 ## DNS resolvers
 
-Jocasta can record which names each device looks up, and which of those
-lookups were blocked, from the query log of a
-[Technitium DNS Server](technitium.md), a [Pi-hole](pihole.md) v6 or an
-[AdGuard Home](adguard.md). It keeps hourly counts per device and
-name, never individual lookups, and the addresses each name was answered
-with, for `retention.dns` (30 days by default). With traffic collection on as
-well, a device's traffic names each address by the names that device looked
-up for it. Pi-hole logs no answer addresses, so its lookups name no traffic.
-
-| | Technitium | Pi-hole | AdGuard Home |
-|---|---|---|---|
-| Answer addresses, to name traffic | Yes | No | Yes |
-| Login that can only read | Yes | No | No |
-| Lookups taken per read | 20,000 | 20,000 | 20,000 |
-
-Lookups count against the device whose address asked. When the router
-forwards its clients' lookups to the resolver, every lookup comes from the
-router. Hand out the resolver's address as the DNS server in the router's DHCP
-settings so each device asks it directly.
-
-To check the setup, read the log once without starting the server, by the
-instance name under `plugins`:
-
-```sh
-jocasta plugin run resolver
-```
-
-It prints the last hour's lookups per device address and name.
+Technitium, Pi-hole and AdGuard Home give each device's lookups. See
+[Record what devices look up](dns.md).

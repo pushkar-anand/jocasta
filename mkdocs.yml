@@ -9,33 +9,46 @@ site_dir: site
 strict: true
 
 nav:
-  - Home: index.md
+  - index.md
   - Get started:
-      - Install: install.md
-      - Configuration: configuration.md
-  - Inventory:
-      - Name devices: naming.md
+      - tutorial.md
+      - concepts.md
+      - ui.md
+      - install.md
+      - configuration.md
+  - Devices:
+      - devices.md
+      - naming.md
+      - classification.md
   - Plugins:
-      - Overview: plugins/index.md
-      - MikroTik RouterOS: plugins/routeros.md
-      - OpenWrt: plugins/openwrt.md
-      - NetFlow: plugins/netflow.md
-      - Technitium: plugins/technitium.md
-      - Pi-hole: plugins/pihole.md
-      - AdGuard Home: plugins/adguard.md
+      - plugins/index.md
+      - Routers:
+          - plugins/routeros.md
+          - plugins/openwrt.md
+          - plugins/topology.md
+      - plugins/netflow.md
+      - DNS resolvers:
+          - plugins/dns.md
+          - plugins/technitium.md
+          - plugins/pihole.md
+          - plugins/adguard.md
   - Notifications:
-      - Overview: notifications/index.md
-      - Webhook signatures: notifications/webhook.md
-      - Other services: notifications/other-services.md
-      - Watched devices: notifications/watch.md
+      - notifications/index.md
+      - notifications/watch.md
+      - notifications/webhook.md
+      - notifications/other-services.md
   - Integrations:
-      - MCP server: integrations/mcp.md
-      - JSON API: integrations/api.md
+      - integrations/mcp.md
+      - integrations/api.md
+  - Operate:
+      - operate/users.md
+      - operate/https.md
+      - operate/backup.md
+      - operate/troubleshooting.md
   - Reference:
-      - Configuration: reference/configuration.md
-      - Web UI: ui.md
-      - CLI: cli.md
-  - Development: development.md
+      - reference/configuration.md
+      - cli.md
+  - development.md
 
 theme:
   name: material
@@ -43,10 +56,15 @@ theme:
     - content.action.copy
     - content.action.edit
     - content.code.copy
+    - content.tabs.link
     - navigation.footer
     - navigation.indexes
+    - navigation.instant
+    - navigation.path
     - navigation.sections
+    - navigation.top
     - search.highlight
+    - toc.follow
   palette:
     - media: "(prefers-color-scheme)"
       toggle:
@@ -71,11 +89,14 @@ extra:
 markdown_extensions:
   - admonition
   - attr_list
+  - md_in_html
   - tables
   - toc:
       permalink: true
   - pymdownx.highlight
   - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
 
 plugins:
   - search
@@ -103,28 +124,40 @@ plugins:
       sections:
         Get started:
           - index.md
+          - tutorial.md
+          - concepts.md
+          - ui.md
           - install.md
           - configuration.md
+        Devices:
+          - devices.md
           - naming.md
+          - classification.md
         Plugins:
           - plugins/index.md
           - plugins/routeros.md
           - plugins/openwrt.md
+          - plugins/topology.md
           - plugins/netflow.md
+          - plugins/dns.md
           - plugins/technitium.md
           - plugins/pihole.md
           - plugins/adguard.md
         Notifications:
           - notifications/index.md
+          - notifications/watch.md
           - notifications/webhook.md
           - notifications/other-services.md
-          - notifications/watch.md
         Integrations:
           - integrations/mcp.md
           - integrations/api.md
+        Operate:
+          - operate/users.md
+          - operate/https.md
+          - operate/backup.md
+          - operate/troubleshooting.md
         Reference:
           - reference/configuration.md
-          - ui.md
           - cli.md
         Development:
           - development.md

@@ -2,7 +2,7 @@
 
 Jocasta reads the query log of a [Pi-hole](https://pi-hole.net) v6 over its
 API. What is recorded, and how to route lookups so each device asks Pi-hole
-directly, is in [DNS resolvers](index.md#dns-resolvers). Pi-hole logs no
+directly, is in [Record what devices look up](dns.md). Pi-hole logs no
 answer addresses, so its lookups name no traffic.
 
 ```yaml
@@ -32,7 +32,6 @@ hides domains or clients hides them from Jocasta too.
 
 Each read takes at most 20,000 lookups. If more pile up while Jocasta is
 stopped, it keeps the newest and logs that it skipped the rest.
-
 
 ## All settings
 

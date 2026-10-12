@@ -8,21 +8,20 @@ on:
       - "mkdocs.yml"
       - "Makefile"
       - ".github/workflows/docs.yaml"
-  # No path filter here: GitHub applies one to tag pushes as well, and a
-  # release tag must always publish its docs.
+  # GitHub skips path filters for tag pushes, so a release tag always
+  # publishes its docs.
   push:
     branches: [ main ]
     tags: [ "v*" ]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "Makefile"
+      - ".github/workflows/docs.yaml"
   workflow_dispatch:
 
 permissions:
   contents: read
-
-# Every deploy commits to gh-pages, so two must never run at once. A queued
-# deploy waits rather than cancelling the one in flight.
-concurrency:
-  group: docs-gh-pages
-  cancel-in-progress: false
 
 jobs:
   check:
@@ -39,6 +38,13 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    # Every deploy commits to gh-pages, so two must never run at once. Each
+    # waits its turn: by default GitHub cancels a pending run when another
+    # queues, which could drop a release's deploy.
+    concurrency:
+      group: docs-gh-pages
+      cancel-in-progress: false
+      queue: max
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
