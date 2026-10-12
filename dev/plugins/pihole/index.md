@@ -1,6 +1,6 @@
 # Pi-hole
 
-Jocasta reads the query log of a [Pi-hole](<https://pi-hole.net>) v6 over its API. What is recorded, and how to route lookups so each device asks Pi-hole directly, is in [DNS resolvers](<https://pushkar-anand.github.io/jocasta/dev/plugins/#dns-resolvers>). Pi-hole logs no answer addresses, so its lookups name no traffic.
+Jocasta reads the query log of a [Pi-hole](<https://pi-hole.net>) v6 over its API. What is recorded, and how to route lookups so each device asks Pi-hole directly, is in [Record what devices look up](<https://pushkar-anand.github.io/jocasta/dev/plugins/dns/index.md>). Pi-hole logs no answer addresses, so its lookups name no traffic.
 
 ```
 plugins:

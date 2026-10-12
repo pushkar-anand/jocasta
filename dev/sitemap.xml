@@ -4,13 +4,22 @@
         <loc>https://pushkar-anand.github.io/jocasta/dev/</loc>
       </url>
       <url>
+        <loc>https://pushkar-anand.github.io/jocasta/dev/classification/</loc>
+      </url>
+      <url>
         <loc>https://pushkar-anand.github.io/jocasta/dev/cli/</loc>
+      </url>
+      <url>
+        <loc>https://pushkar-anand.github.io/jocasta/dev/concepts/</loc>
       </url>
       <url>
         <loc>https://pushkar-anand.github.io/jocasta/dev/configuration/</loc>
       </url>
       <url>
         <loc>https://pushkar-anand.github.io/jocasta/dev/development/</loc>
+      </url>
+      <url>
+        <loc>https://pushkar-anand.github.io/jocasta/dev/devices/</loc>
       </url>
       <url>
         <loc>https://pushkar-anand.github.io/jocasta/dev/install/</loc>
@@ -37,10 +46,25 @@
         <loc>https://pushkar-anand.github.io/jocasta/dev/notifications/webhook/</loc>
       </url>
       <url>
+        <loc>https://pushkar-anand.github.io/jocasta/dev/operate/backup/</loc>
+      </url>
+      <url>
+        <loc>https://pushkar-anand.github.io/jocasta/dev/operate/https/</loc>
+      </url>
+      <url>
+        <loc>https://pushkar-anand.github.io/jocasta/dev/operate/troubleshooting/</loc>
+      </url>
+      <url>
+        <loc>https://pushkar-anand.github.io/jocasta/dev/operate/users/</loc>
+      </url>
+      <url>
         <loc>https://pushkar-anand.github.io/jocasta/dev/plugins/</loc>
       </url>
       <url>
         <loc>https://pushkar-anand.github.io/jocasta/dev/plugins/adguard/</loc>
+      </url>
+      <url>
+        <loc>https://pushkar-anand.github.io/jocasta/dev/plugins/dns/</loc>
       </url>
       <url>
         <loc>https://pushkar-anand.github.io/jocasta/dev/plugins/netflow/</loc>
@@ -58,7 +82,13 @@
         <loc>https://pushkar-anand.github.io/jocasta/dev/plugins/technitium/</loc>
       </url>
       <url>
+        <loc>https://pushkar-anand.github.io/jocasta/dev/plugins/topology/</loc>
+      </url>
+      <url>
         <loc>https://pushkar-anand.github.io/jocasta/dev/reference/configuration/</loc>
+      </url>
+      <url>
+        <loc>https://pushkar-anand.github.io/jocasta/dev/tutorial/</loc>
       </url>
       <url>
         <loc>https://pushkar-anand.github.io/jocasta/dev/ui/</loc>

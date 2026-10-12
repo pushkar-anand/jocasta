@@ -18,14 +18,14 @@ Check it with `jocasta plugin run gateway` before starting the server. See [CLI]
 
 ## Topology
 
-What each RouterOS table adds to the [Topology page](<https://pushkar-anand.github.io/jocasta/dev/plugins/#topology>):
+What each RouterOS table adds to the [Topology page](<https://pushkar-anand.github.io/jocasta/dev/plugins/topology/index.md>):
 
 - The bridge host table says which port each hardware address is behind, and in which VLAN when the bridge has VLAN filtering on.
 - Neighbour discovery (MNDP or LLDP) names the switch or access point on each port. RouterOS runs it on the `LAN` interface list by default; see `/ip neighbor discovery-settings`.
 - The Wi-Fi registration table marks Wi-Fi clients and names their network and band, from the wifi or the wireless package, with the rate each way and the signal. A router managing access points with CAPsMAN lists their clients too.
 - The Ethernet monitor gives the rate each Ethernet and SFP port's link runs at, and the fastest rate both ends offer.
 
-To read a MikroTik switch or access point for its ports, add it as another instance with `topology_only: true`. See [Topology](<https://pushkar-anand.github.io/jocasta/dev/plugins/#topology>).
+To read a MikroTik switch or access point for its ports, add it as another instance with `topology_only: true`. See [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/dev/plugins/topology/index.md>).
 
 ## Export traffic flows
 

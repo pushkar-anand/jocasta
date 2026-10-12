@@ -1,6 +1,6 @@
 # Technitium
 
-Jocasta reads the query log of a [Technitium DNS Server](<https://technitium.com/dns/>) over its HTTP API. What is recorded, and how to route lookups so each device asks the server directly, is in [DNS resolvers](<https://pushkar-anand.github.io/jocasta/dev/plugins/#dns-resolvers>).
+Jocasta reads the query log of a [Technitium DNS Server](<https://technitium.com/dns/>) over its HTTP API. What is recorded, and how to route lookups so each device asks the server directly, is in [Record what devices look up](<https://pushkar-anand.github.io/jocasta/dev/plugins/dns/index.md>).
 
 ```
 plugins:

@@ -56,7 +56,7 @@ The pages in `docs/` are published with [Zensical](<https://zensical.org>) to Gi
 When you change the docs:
 
 - Add a new page to `nav` in `mkdocs.yml`, and to the `llmstxt` sections there, or the site leaves it out of the sidebar and `llms.txt`.
-- A new plugin gets a page under `docs/plugins/` and a line in the table on the plugins overview.
+- A new plugin gets a page under `docs/plugins/` and a line in the table on the plugins overview. A DNS resolver also gets a column on [Record what devices look up](<https://pushkar-anand.github.io/jocasta/dev/plugins/dns/index.md>).
 - A new setting gets a row in the [configuration reference](<https://pushkar-anand.github.io/jocasta/dev/reference/configuration/index.md>). `TestReferenceDocumentsEveryKey` fails until it has one, and fails on a row for a setting that no longer exists.
 - Keep `docs/setup.md` and `docs/mcp.md`. Earlier releases link to their sections on GitHub, and each section there points to where it moved.
 
@@ -74,7 +74,7 @@ The script requires a clean working tree and a local `main` that matches `origin
 
 - `cmd/jocasta`: CLI entry point.
 - `internal/scanner`: the ICMP sweep, and the reverse DNS, mDNS, NetBIOS, DNS-SD and SSDP lookups that name what answers.
-- `internal/plugin`: sources beyond the sweep (RouterOS, OpenWrt, NetFlow).
+- `internal/plugin`: sources beyond the sweep (RouterOS, OpenWrt, NetFlow, Technitium, Pi-hole, AdGuard Home).
 - `internal/inventory`: the store, covering identity resolution, address handling, device classification and the change log.
 - `internal/classify`: the rules that guess a device's type from its vendor, name and open ports.
 - `internal/notify`: sends each finished scan's changes to ntfy, a webhook or a templated HTTP request.

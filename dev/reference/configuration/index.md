@@ -1,6 +1,6 @@
 # Configuration reference
 
-Every setting Jocasta reads, with its type, default and the values it takes. [Configuration](<https://pushkar-anand.github.io/jocasta/dev/configuration/index.md>) explains how settings are read and overridden. [`jocasta.example.yaml`](<https://github.com/pushkar-anand/jocasta/blob/main/jocasta.example.yaml>) holds the same settings as a file to copy from.
+Every setting Jocasta reads, with its type, default and the values it takes. [Configure](<https://pushkar-anand.github.io/jocasta/dev/configuration/index.md>) explains how settings are read and overridden. [`jocasta.example.yaml`](<https://github.com/pushkar-anand/jocasta/blob/main/jocasta.example.yaml>) holds the same settings as a file to copy from.
 
 Each setting can also come from an environment variable: `JOCASTA_`, then the setting's path in capitals with a double underscore between levels. A single underscore stays part of the key, so `scan.devices.resolve_mdns` is `JOCASTA_SCAN__DEVICES__RESOLVE_MDNS`. For a plugin or notification setting, the instance or destination name is one level of the path: `plugins.routeros.gateway.password` is `JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD`.
 
@@ -106,7 +106,7 @@ A [MikroTik RouterOS](<https://pushkar-anand.github.io/jocasta/dev/plugins/route
 | `plugins.routeros.<instance>.ssl` | bool | `false` | `true`, `false` | Uses HTTPS. Without it, the password crosses the network unencrypted and Jocasta logs a warning. |
 | `plugins.routeros.<instance>.insecure` | bool | `false` | `true`, `false` | Skips certificate checks, for RouterOS's self-signed certificate. |
 | `plugins.routeros.<instance>.timeout` | duration | `10s` | A duration | The longest one read may take. |
-| `plugins.routeros.<instance>.topology_only` | bool | `false` | `true`, `false` | Reads only what is plugged into this switch or access point, and leaves its devices to the router. See [Topology](<https://pushkar-anand.github.io/jocasta/dev/plugins/#topology>). |
+| `plugins.routeros.<instance>.topology_only` | bool | `false` | `true`, `false` | Reads only what is plugged into this switch or access point, and leaves its devices to the router. See [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/dev/plugins/topology/index.md>). |
 
 ### plugins.openwrt
 
@@ -122,7 +122,7 @@ An [OpenWrt](<https://pushkar-anand.github.io/jocasta/dev/plugins/openwrt/index.
 | `plugins.openwrt.<instance>.ssl` | bool | `false` | `true`, `false` | Uses HTTPS, once `luci-ssl` is installed. Without it, the password crosses the network unencrypted and Jocasta logs a warning. |
 | `plugins.openwrt.<instance>.insecure` | bool | `false` | `true`, `false` | Skips certificate checks, for uhttpd's self-signed certificate. |
 | `plugins.openwrt.<instance>.timeout` | duration | `10s` | A duration | The longest one read may take. |
-| `plugins.openwrt.<instance>.topology_only` | bool | `false` | `true`, `false` | Reads only what is plugged into this access point, and leaves its devices to the router. See [Topology](<https://pushkar-anand.github.io/jocasta/dev/plugins/#topology>). |
+| `plugins.openwrt.<instance>.topology_only` | bool | `false` | `true`, `false` | Reads only what is plugged into this access point, and leaves its devices to the router. See [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/dev/plugins/topology/index.md>). |
 
 ### plugins.netflow
 
@@ -141,7 +141,7 @@ A [Technitium DNS Server](<https://pushkar-anand.github.io/jocasta/dev/plugins/t
 | Key | Type | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
 | `plugins.technitium.<instance>.enabled` | bool | `false` | `true`, `false` | Reads this server's query log. |
-| `plugins.technitium.<instance>.host` | string | none, required | An address or host name, without a port | The node's own address, not one shared between nodes. |
+| `plugins.technitium.<instance>.host` | string | none, required | An address or host name, without a port | The node's own address. A virtual address shared between nodes reaches one node at a time. |
 | `plugins.technitium.<instance>.port` | int | `5380`, or `53443` with `ssl` | 1 to 65535 | The web service's port. |
 | `plugins.technitium.<instance>.token` | string | empty | An API token | A token for a user granted Logs: View. |
 | `plugins.technitium.<instance>.ssl` | bool | `false` | `true`, `false` | Uses HTTPS. Without it, the token crosses the network unencrypted and Jocasta logs a warning. |
@@ -180,7 +180,7 @@ An [AdGuard Home](<https://pushkar-anand.github.io/jocasta/dev/plugins/adguard/i
 
 ## notify
 
-Each destination sits under `notify`, keyed by a name you choose, and holds exactly one service block: `ntfy`, `webhook` or `http`. Which changes it is sent is picked in Settings, Notifications. See [Notifications](<https://pushkar-anand.github.io/jocasta/dev/notifications/index.md>).
+Each destination sits under `notify`, keyed by a name you choose, and holds exactly one service block: `ntfy`, `webhook` or `http`. Which changes it is sent is picked on the account menu's Notifications page. See [Notifications](<https://pushkar-anand.github.io/jocasta/dev/notifications/index.md>).
 
 | Key | Type | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |

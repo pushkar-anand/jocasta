@@ -40,15 +40,13 @@ plugins:
       insecure: false        # true for uhttpd's self-signed cert
 ```
 
-With `ssl: false` the password crosses the network unencrypted, so Jocasta logs a warning at startup for each RouterOS or OpenWrt source set that way.
-
 Check it with `jocasta plugin run gateway`. A login rpcd refuses, or one missing the ACL file, reads as credentials rejected.
 
 A name you set under Network → DHCP and DNS → Static Leases ranks above the name a device asks for, as a static lease does on RouterOS. A network is named after its OpenWrt interface, such as `lan` or `iot`, and an interface on a VLAN device carries its tag.
 
 ## Topology
 
-What each OpenWrt table adds to the [Topology page](<https://pushkar-anand.github.io/jocasta/dev/plugins/#topology>):
+What each OpenWrt table adds to the [Topology page](<https://pushkar-anand.github.io/jocasta/dev/plugins/topology/index.md>):
 
 - The kernel's bridge table says which port each hardware address is behind. On a router with a DSA switch, as most current ones have, each switch port is a device of its own, so the table names the port. On an older router with a swconfig switch, every switch port is one device, so the table names only that device. rpcd reads at most 256 entries of the table. A bridge that holds more shows the first 256, and the read logs a warning saying so.
 - The bridge-vlan sections of the network configuration say which VLANs each port carries.
@@ -57,7 +55,7 @@ What each OpenWrt table adds to the [Topology page](<https://pushkar-anand.githu
 
 OpenWrt runs no neighbour discovery by default, so an OpenWrt source names no neighbours. The router still finds an OpenWrt access point among the addresses on its ports when the access point is read too.
 
-To read an OpenWrt access point for its ports, add it as another instance with `topology_only: true`. See [Topology](<https://pushkar-anand.github.io/jocasta/dev/plugins/#topology>).
+To read an OpenWrt access point for its ports, add it as another instance with `topology_only: true`. See [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/dev/plugins/topology/index.md>).
 
 ## Export traffic flows
 
