@@ -1,6 +1,6 @@
 # AdGuard Home
 
-Jocasta reads the query log of an [AdGuard Home](<https://adguard.com/adguard-home/overview.html>) over its API. What is recorded, and how to route lookups so each device asks AdGuard Home directly, is in [DNS resolvers](<https://pushkar-anand.github.io/jocasta/0.11/plugins/#dns-resolvers>).
+Jocasta reads the query log of an [AdGuard Home](<https://adguard.com/adguard-home/overview.html>) over its API. What is recorded, and how to route lookups so each device asks AdGuard Home directly, is in [Record what devices look up](<https://pushkar-anand.github.io/jocasta/0.11/plugins/dns/index.md>).
 
 ```
 plugins:

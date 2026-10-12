@@ -4,13 +4,22 @@
         <loc>https://pushkar-anand.github.io/jocasta/0.11/</loc>
       </url>
       <url>
+        <loc>https://pushkar-anand.github.io/jocasta/0.11/classification/</loc>
+      </url>
+      <url>
         <loc>https://pushkar-anand.github.io/jocasta/0.11/cli/</loc>
+      </url>
+      <url>
+        <loc>https://pushkar-anand.github.io/jocasta/0.11/concepts/</loc>
       </url>
       <url>
         <loc>https://pushkar-anand.github.io/jocasta/0.11/configuration/</loc>
       </url>
       <url>
         <loc>https://pushkar-anand.github.io/jocasta/0.11/development/</loc>
+      </url>
+      <url>
+        <loc>https://pushkar-anand.github.io/jocasta/0.11/devices/</loc>
       </url>
       <url>
         <loc>https://pushkar-anand.github.io/jocasta/0.11/install/</loc>
@@ -37,10 +46,25 @@
         <loc>https://pushkar-anand.github.io/jocasta/0.11/notifications/webhook/</loc>
       </url>
       <url>
+        <loc>https://pushkar-anand.github.io/jocasta/0.11/operate/backup/</loc>
+      </url>
+      <url>
+        <loc>https://pushkar-anand.github.io/jocasta/0.11/operate/https/</loc>
+      </url>
+      <url>
+        <loc>https://pushkar-anand.github.io/jocasta/0.11/operate/troubleshooting/</loc>
+      </url>
+      <url>
+        <loc>https://pushkar-anand.github.io/jocasta/0.11/operate/users/</loc>
+      </url>
+      <url>
         <loc>https://pushkar-anand.github.io/jocasta/0.11/plugins/</loc>
       </url>
       <url>
         <loc>https://pushkar-anand.github.io/jocasta/0.11/plugins/adguard/</loc>
+      </url>
+      <url>
+        <loc>https://pushkar-anand.github.io/jocasta/0.11/plugins/dns/</loc>
       </url>
       <url>
         <loc>https://pushkar-anand.github.io/jocasta/0.11/plugins/netflow/</loc>
@@ -58,7 +82,13 @@
         <loc>https://pushkar-anand.github.io/jocasta/0.11/plugins/technitium/</loc>
       </url>
       <url>
+        <loc>https://pushkar-anand.github.io/jocasta/0.11/plugins/topology/</loc>
+      </url>
+      <url>
         <loc>https://pushkar-anand.github.io/jocasta/0.11/reference/configuration/</loc>
+      </url>
+      <url>
+        <loc>https://pushkar-anand.github.io/jocasta/0.11/tutorial/</loc>
       </url>
       <url>
         <loc>https://pushkar-anand.github.io/jocasta/0.11/ui/</loc>

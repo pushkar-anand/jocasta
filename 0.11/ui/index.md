@@ -1,6 +1,6 @@
-# The web UI
+# Tour the web UI
 
-The pages `jocasta serve` shows. They read the same data as the JSON API, and the Overview, Map and Topology refresh themselves.
+This page walks through each page of the web UI. They read the same data as the JSON API, and the Overview, Map and Topology refresh themselves.
 
 The screenshots below use synthetic data: addresses from RFC 5737, hardware addresses from RFC 7042, invented names. The internet peers are well-known public services, so their organisations resolve.
 
@@ -26,13 +26,13 @@ Everything Jocasta knows about one device:
 
 ### Talks to
 
-When traffic collection is set up (see [Record who devices talk to](<https://pushkar-anand.github.io/jocasta/0.11/plugins/netflow/index.md>)), this section shows who the device exchanged data with over the last 24 hours, 7 days or 30 days.
+When traffic collection is set up (see [NetFlow](<https://pushkar-anand.github.io/jocasta/0.11/plugins/netflow/index.md>)), this section shows who the device exchanged data with over the last 24 hours, 7 days or 30 days.
 
 The top of the section shows data received and sent, how many peers on your network, and how many organisations on the internet. Below that is one tab per network segment and one for the internet, each with a count. The busiest tab opens first.
 
 On a segment's tab, each peer is one row, whatever services it was reached on, and links to its page when it is a device. Addresses no device holds collapse into one row per subnet. The Internet tab groups addresses by the organisation that announces them. The search box and the filters narrow the section to one service, or by name, address or organisation.
 
-Each row shows who opened its connections: "→ 12" means the device opened twelve, "← 3" means the peer opened three. A row can show both. The direction filter keeps one side only.
+Each row shows who opened its connections: "→ 12" means the device opened 12, "← 3" means the peer opened 3. A row can show both. The direction filter keeps one side only.
 
 When something on the internet tried the device without exchanging any data, such as a knock on a forwarded port, a note says how many addresses tried, from how many organisations, and on which ports. Tries on the router's outside address are counted under the router. Jocasta learns that address from the flows themselves.
 
@@ -76,18 +76,18 @@ The World tab puts the same hour's internet traffic on a map of the world.
 - A line runs from your network's country to each of the others, thicker the more it carried and moving while active.
 - Click a country for the devices and organisations behind its traffic. The search finds countries by name.
 
-Your network's country comes from the router's outside address, or from `location.country` when that address is private (see [Record who devices talk to](<https://pushkar-anand.github.io/jocasta/0.11/plugins/netflow/index.md>)).
+Your network's country comes from the router's outside address, or from `location.country` when that address is private (see [NetFlow](<https://pushkar-anand.github.io/jocasta/0.11/plugins/netflow/index.md>)).
 
 A country is where an address is registered. For a big provider that is often its home country, and the server itself may be elsewhere.
 
 ## Topology
 
-The Topology page draws the network from the internet down (see [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/0.11/plugins/#topology>)). It redraws every minute.
+The Topology page draws the network from the internet down (see [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/0.11/plugins/topology/index.md>)). It redraws every minute.
 
 - The internet sits at the top, the router below it, and each switch and access point hangs from the port it is plugged into. A thick line is a trunk, a thin one carries one VLAN, and a dashed one is Wi-Fi.
 - Under each box, its wired devices are grouped by VLAN, with each device's port on the right. Its Wi-Fi devices are grouped by network, with each device's band.
 - A solid box is a device Jocasta reads. A dashed box only announced itself to one it reads. A dotted box is inferred from several devices sharing one port behind it. When one of them is a hypervisor, the box is that device and the rest are its virtual machines. To mark a host Jocasta has not recognised, set its type to Hypervisor on its page. A dotted box whose devices mostly have a virtual machine's hardware address is labelled Hypervisor.
-- A device that has gone quiet stays where it was last seen, dimmed. Online devices no router, switch or access point has seen on a port are listed under the tree.
+- A device that has gone quiet stays where it was last seen, dimmed. Devices seen recently that no router, switch or access point has seen on a port are listed under the tree.
 - The legend in the top right names each VLAN's colour with its device count. Point at one to pick out its devices.
 
 Click a device to light the path from the internet down to it, and click it again to open its page. Search, zoom and pan work as on the Map.
