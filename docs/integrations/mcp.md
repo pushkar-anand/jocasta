@@ -20,7 +20,7 @@ past scans recorded and never starts a scan.
    `JOCASTA_SERVER__MCP__ENABLED=true`.
    While it is off, `/mcp` answers 404.
 2. Create an API token; see
-   [Create an API token](../operate/users.md#create-an-api-token). A `read`
+   [API tokens](../operate/users.md#api-tokens). A `read`
    token is offered only the tools that read the inventory. A `read_write`
    token is also offered the tools that change it.
 

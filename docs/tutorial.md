@@ -1,21 +1,14 @@
 # Your first inventory
 
-This tutorial takes about 10 minutes. You run Jocasta in a container, let it
-sweep your network, give a device a name of your own, and get told when that
-device goes quiet. It needs no router access. To install another way, see
-[Install](install.md).
+Run Jocasta in a container, sweep your network, name a device, and get a
+message on your phone when it goes quiet. About 10 minutes.
 
-You need:
+You need a Linux machine on the network with Docker, and the network's
+prefix. `ip -4 addr` shows it: `inet 192.0.2.20/24` means `192.0.2.0/24`.
 
-- A Linux machine on the network you want to inventory, with Docker
-  installed.
-- The network's prefix. On that machine, `ip -4 addr` lists each interface's
-  address with its prefix length, such as `inet 192.0.2.20/24`. The network is
-  then `192.0.2.0/24`.
+## 1. Write the config
 
-## 1. Write the config file
-
-In an empty directory, create `jocasta.yaml` with your network's prefix:
+Create `jocasta.yaml` in an empty directory:
 
 ```yaml
 networks:
@@ -23,13 +16,10 @@ networks:
 
 server:
   auth:
-    cookie_secure: false   # lets you sign in over plain HTTP; see Serve over HTTPS
+    cookie_secure: false   # sign in over plain HTTP
 ```
 
 ## 2. Start Jocasta
-
-From the same directory, run the container on the host network, so it can
-read the hardware address of each device that answers:
 
 ```bash
 docker run -d --name jocasta --network host \
@@ -38,58 +28,46 @@ docker run -d --name jocasta --network host \
   ghcr.io/pushkar-anand/jocasta:latest
 ```
 
-Jocasta keeps its database in the `jocasta-data` volume, so it survives a new
-container.
+Host networking lets the sweep read hardware addresses.
 
 ## 3. Create the admin account
 
-Open `http://<host>:8080`, with the machine's address in place of `<host>`.
-The page asks you to set up the admin account. Enter a username and a password
-of at least 8 characters, then select **Create admin account**.
+Open `http://<host>:8080`. Enter a username and a password of 8 or more
+characters, and select **Create admin account**.
 
-Do this straight away: until the admin account exists, anyone who opens the
-page first can create it.
+Until this account exists, anyone who reaches the page can create it.
 
-## 4. See what the first sweep found
+## 4. Look at the first sweep
 
-The first sweep runs as Jocasta starts and takes a few seconds. The Overview
-shows your network with how many devices were seen recently, and the latest
-changes.
+The first sweep runs at startup. Open **Devices**: one row per device, with
+its addresses, vendor and name.
 
-Open **Devices**. Each row is one device, with its addresses, vendor and name.
-Some rows have no vendor: phones and laptops make up a hardware address for
-each Wi-Fi network, and a made-up address names no vendor. Some rows have no
-name, because the device gave none when asked. The sweep repeats every 5
-minutes.
+Rows with no vendor are usually phones and laptops, which make up their
+hardware address. Rows with no name belong to devices that did not answer a
+name lookup.
 
 ## 5. Name a device
 
-1. In **Devices**, select a device you recognise, such as your printer or
-   NAS.
-2. On its page, select **Edit details**.
-3. In **Label**, enter a name, such as `Office printer`. In **Group**, enter
-   `Office`.
+1. Select a device you recognise.
+2. Select **Edit details**.
+3. Set **Label** to `Office printer` and **Group** to `Office`.
 4. Select **Save**.
 
-The page shows **Details saved.**, and the device list now shows your label.
-Scans never change a label, and it stays with the device when its address
-changes.
+The device list shows the new label.
 
-## 6. Watch the device
+## 6. Watch it
 
-On the same page, select **Watch**. The page shows **Watching Office
-printer.**
+On the device's page, select **Watch**.
 
-Once no scan has seen a watched device for 15 minutes, it goes quiet, and the
-change log records it. When a scan sees it again, it comes back. To see this
-happen, turn the device off for 20 minutes, then open **Events**.
+A watched device goes quiet 15 minutes after the last scan that saw it. To
+try it, turn the device off for 20 minutes and open **Events**.
 
-## 7. Get told on your phone
+## 7. Get a message on your phone
 
-1. Install the [ntfy](https://ntfy.sh) app on your phone and subscribe to a
-   topic with a name nobody could guess, such as `jocasta-k3v9q2`. Anyone who
-   knows the name can read the topic.
-2. Add the topic to `jocasta.yaml`:
+1. Install [ntfy](https://ntfy.sh) on your phone and subscribe to a topic.
+   Topics are public, so pick a name nobody would guess, such as
+   `jocasta-k3v9q2`.
+2. Add it to `jocasta.yaml`:
 
     ```yaml
     notify:
@@ -98,27 +76,14 @@ happen, turn the device off for 20 minutes, then open **Events**.
           url: "https://ntfy.sh/jocasta-k3v9q2"
     ```
 
-3. Restart Jocasta so it reads the change:
+3. Restart: `docker restart jocasta`.
+4. Open the account menu, top right, and select **Notifications**.
+5. Under `phone`, tick **Watched device went quiet** and **Watched device
+   came back**. Select **Save**.
+6. Select **Send test**. "Jocasta test" arrives on your phone.
 
-    ```bash
-    docker restart jocasta
-    ```
+## Next
 
-4. Open the account menu at the top right, and select **Notifications**.
-5. Under **phone**, tick **Watched device went quiet** and **Watched device
-   came back**, then select **Save**.
-6. Select **Send test**. A message titled "Jocasta test" arrives on your
-   phone.
-
-From now on, your phone hears when the watched device goes quiet or comes
-back.
-
-## Next steps
-
-- [How Jocasta works](concepts.md) explains sweeps, sources and presence.
-- [Connect your router](plugins/index.md) to identify devices on other VLANs
-  and see what is plugged in where.
-- Turn on port scanning with `scan.ports.enabled: true`. See
-  [Configure](configuration.md#what-to-turn-on-next).
-- [Serve over HTTPS](operate/https.md) before you reach Jocasta from outside
-  your network.
+- [How Jocasta works](concepts.md)
+- [Connect your router](plugins/index.md) for devices on other VLANs
+- [Serve over HTTPS](operate/https.md)

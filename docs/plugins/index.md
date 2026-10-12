@@ -1,9 +1,8 @@
 # Plugins
 
-A sweep from one machine sees hardware addresses only on its own segment.
-Plugins read the sources a sweep cannot reach: routers for the devices on
-every segment and what is plugged in where, flow exports for who devices talk
-to, and DNS resolvers for what devices look up.
+Plugins read what a sweep cannot reach: routers for devices on every segment
+and what is plugged in where, flow exports for who talks to whom, and DNS
+resolvers for what devices look up.
 
 | Plugin | Devices and networks | Topology | Traffic | DNS lookups |
 |---|---|---|---|---|
@@ -16,8 +15,8 @@ to, and DNS resolvers for what devices look up.
 
 ## Configure a plugin
 
-Each plugin is a block under `plugins`, keyed by its kind and then by an
-instance name of your choosing:
+Each plugin is a block under `plugins`, keyed by kind, then by an instance
+name you choose:
 
 ```yaml
 plugins:
@@ -28,38 +27,33 @@ plugins:
       # ...
 ```
 
-The instance name becomes the [source](../concepts.md#sources) its facts are
-filed under, so two routers stay separate. Router and DNS resolver names are
-shared across their kinds, so a `routeros` instance and a `technitium`
-instance cannot both be called `gateway`. A `netflow` listener can share its
-router's name.
+The instance name is the [source](../concepts.md#sources) its facts are filed
+under. Router and DNS resolver names share one namespace: a `routeros` and a
+`technitium` instance cannot both be `gateway`. A `netflow` listener can share
+its router's name.
 
-Keep passwords and tokens out of the file by setting them in the environment,
-as in `JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD`. See
-[Configure](../configuration.md). Every setting for every plugin, with its
-default, is in the
+Put passwords in the environment, such as
+`JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD`; see
+[Configure](../configuration.md). Every setting is in the
 [configuration reference](../reference/configuration.md#plugins).
 
-With `ssl: false` a password or token crosses the network unencrypted, so
-Jocasta logs a warning at startup for each RouterOS, OpenWrt, Technitium,
-Pi-hole or AdGuard Home source set that way.
+A source with `ssl: false` sends its password in the clear, and Jocasta warns
+at startup.
 
 ## Check a plugin
-
-Read a source once, by its instance name, before starting the server:
 
 ```sh
 jocasta plugin run gateway
 ```
 
-It prints what the source claims and changes nothing. See
+reads the source once and prints what it claims. It changes nothing. See
 [CLI](../cli.md#plugin-run).
 
 ## Topology
 
-A MikroTik or OpenWrt router gives the Topology page its first picture. To
-see which port of each switch and access point a device is on, read those as
-well. See [Show what is plugged in where](topology.md).
+A MikroTik or OpenWrt router draws the Topology page. Read its switches and
+access points too for each device's port. See
+[Show what is plugged in where](topology.md).
 
 ## DNS resolvers
 

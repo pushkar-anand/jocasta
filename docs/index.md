@@ -1,28 +1,22 @@
 # Jocasta
 
-Jocasta keeps an inventory of the devices on your network. It recognises each
-device by its hardware address, so a device keeps its label and notes when its
-IP changes, and it logs every change it sees. It runs as a single binary with
-a web interface, a JSON API and an MCP server.
+Jocasta keeps an inventory of the devices on your network and logs every
+change. One binary, with a web UI, a JSON API and an MCP server.
 
-!!! warning "Pre-1.0 and under active development"
+!!! warning "Pre-1.0"
 
-    A release can change the configuration format, the database schema or the
-    HTTP API with no upgrade path. Pin to a version and check the release notes
-    before moving to the next. The version menu at the top of the page shows
-    the docs for each release.
+    A release can change the config format, the database schema or the API
+    with no upgrade path. Pin a version and read the release notes before
+    moving on. The version menu at the top picks the docs for your release.
 
 ![The overview page](img/overview.png)
 
 ## How it works
 
-1. Jocasta sweeps the networks you list, every 5 minutes by default, and asks
-   each device that answers for its name.
-2. It files each device under its hardware address, and treats an IP address
-   as a lease the device holds for now.
-3. It logs what changed: new devices, new addresses, new names, opened ports.
-   Connect your router, flow exports and DNS resolver for devices on every
-   VLAN, who each device talks to and what it looks up.
+1. Sweep the networks you list, every 5 minutes.
+2. File each device under its hardware address. Its IP is a lease.
+3. Log what changed. Add your router, flow exports and DNS resolver for other
+   VLANs, traffic and lookups.
 
 ## Start here
 
@@ -30,38 +24,35 @@ a web interface, a JSON API and an MCP server.
 
 -   **[Your first inventory](tutorial.md)**
 
-    Run Jocasta, sweep your network, name a device and get told when it goes
-    quiet. About 10 minutes.
+    Run it, sweep, name a device, get a message when it goes quiet. 10
+    minutes.
 
 -   **[How Jocasta works](concepts.md)**
 
-    Devices, sweeps, sources and presence: the ideas the rest of the docs use.
+    Devices, scans, sources and presence.
 
 -   **[Plugins](plugins/index.md)**
 
-    Read your router, its flow exports and your DNS resolver.
+    Routers, flow exports, DNS resolvers.
 
 -   **[Notifications](notifications/index.md)**
 
-    Send changes to ntfy, a signed webhook, or a chat service.
+    ntfy, signed webhooks, chat services.
 
 -   **[MCP server](integrations/mcp.md) and [JSON API](integrations/api.md)**
 
-    Let AI agents and scripts read and label the inventory.
+    For agents and scripts.
 
 -   **[Configuration reference](reference/configuration.md)**
 
-    Every setting, with its type, default and allowed values.
+    Every setting, its type and default.
 
 </div>
 
 ## Get help
 
-Report bugs and ask questions in
-[GitHub issues](https://github.com/pushkar-anand/jocasta/issues). For
-common problems and their fixes, see
+[GitHub issues](https://github.com/pushkar-anand/jocasta/issues), or
 [Fix common problems](operate/troubleshooting.md).
 
-These docs are also published for language models: [`llms.txt`](llms.txt)
-lists every page as Markdown, and [`llms-full.txt`](llms-full.txt) holds every
-page in one file.
+For language models: [`llms.txt`](llms.txt) lists every page as Markdown, and
+[`llms-full.txt`](llms-full.txt) holds them all in one file.

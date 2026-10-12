@@ -1,15 +1,13 @@
 # Install
 
-To try Jocasta with the fewest choices, follow
-[Your first inventory](tutorial.md). This page covers every way to install.
+For a guided first run, see [Your first inventory](tutorial.md).
 
 ## Container image
 
-Multi-arch images (amd64 and arm64) are on the GitHub Container Registry,
-tagged `latest` and with each release version, such as `:v0.11.1`. The image
-is distroless and runs as a non-root user. It listens on `0.0.0.0:8080`, keeps
-its SQLite file on the `/data` volume, and reads `/data/jocasta.yaml` if one
-is mounted.
+Images for amd64 and arm64 are on the GitHub Container Registry, tagged
+`latest` and per release, such as `:v0.11.1`. The image is distroless and runs
+as non-root. It listens on `0.0.0.0:8080`, keeps its database in `/data`, and
+reads `/data/jocasta.yaml`.
 
 === "docker run"
 
@@ -36,23 +34,22 @@ is mounted.
       jocasta-data:
     ```
 
-Use host networking if you can. On a bridge network (`-p 8080:8080`) the sweep
-still finds hosts, but it reads only the container's own neighbour table, so
-no device gets a hardware address. A [router plugin](plugins/index.md) fills
-this gap. Host networking also lets the mDNS, DNS-SD and SSDP lookups reach
-your devices. No added capability or sysctl is needed either way.
+Use host networking. On a bridge network (`-p 8080:8080`) the sweep finds
+hosts but no hardware addresses, and mDNS, DNS-SD and SSDP names never arrive.
+A [router plugin](plugins/index.md) fills the first gap. Neither mode needs
+extra capabilities.
 
 ## Prebuilt binaries
 
-Every release publishes archives for Linux, macOS and Windows, on amd64 and
-arm64, with a `checksums.txt`, on the [releases page][releases].
+Archives for Linux, macOS and Windows, on amd64 and arm64, are on the
+[releases page][releases], with a `checksums.txt`.
 
 1. Extract `jocasta` from the archive for your system.
 2. Put a `jocasta.yaml` next to it.
-3. From that directory, run `jocasta serve`. It runs without root.
+3. From that directory, run `jocasta serve`. No root needed.
 
-The binary listens on `localhost:8080` by default. Set `server.host: 0.0.0.0`
-to reach it from other machines.
+It listens on `localhost:8080`. Set `server.host: 0.0.0.0` to reach it from
+other machines.
 
 [releases]: https://github.com/pushkar-anand/jocasta/releases
 
@@ -69,15 +66,12 @@ make docker           # -> jocasta:latest
 
 ## First run
 
-On first visit the web UI asks you to create the admin account. Until it
-exists, whoever opens the page first creates it, so finish setup straight
-after the first start. To add more users, see
+The first visit asks for the admin account. Until it exists, anyone who
+reaches the page can create it, so do it straight away. More users:
 [Manage users and sign-in](operate/users.md).
 
-The session cookie is sent over HTTPS only by default. If you reach Jocasta
-over plain HTTP from anywhere but `localhost`, sign-in does not stick until
-you set `server.auth.cookie_secure: false`. A reverse proxy with a
-certificate is better; see [Serve over HTTPS](operate/https.md).
+Over plain HTTP, sign-in needs `server.auth.cookie_secure: false`; see
+[Serve over HTTPS](operate/https.md).
 
-The database schema is embedded, and migrations run when the binary opens the
-database. Before upgrading, see [Back up and upgrade](operate/backup.md).
+Migrations run at startup. Before upgrading, see
+[Back up and upgrade](operate/backup.md).

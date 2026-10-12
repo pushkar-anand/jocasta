@@ -5,9 +5,8 @@ dashboards. It takes the same API tokens as the [MCP server](mcp.md).
 
 ## Authenticate
 
-Create an API token from the account menu's **API tokens** page (see
-[Create an API token](../operate/users.md#create-an-api-token)), and send it
-with each request:
+Create an [API token](../operate/users.md#api-tokens) and send it with each
+request:
 
 ```sh
 curl -H "Authorization: Bearer <token>" http://<host>:8080/api/devices

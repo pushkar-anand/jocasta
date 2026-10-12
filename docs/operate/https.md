@@ -1,15 +1,16 @@
 # Serve over HTTPS
 
-Jocasta serves plain HTTP. To reach it over HTTPS, put a reverse proxy that
-holds a certificate in front of it. The session cookie is sent over HTTPS
-only by default. If you set `server.auth.cookie_secure: false` to sign in over
-plain HTTP, remove it once the proxy is in place.
+Jocasta speaks plain HTTP. Put a reverse proxy with a certificate in front of
+it.
 
-## Use Caddy
+The session cookie is HTTPS-only by default, so plain HTTP sign-in from any
+address but `localhost` needs `server.auth.cookie_secure: false`. Remove it
+once the proxy is up.
 
-[Caddy](https://caddyserver.com) gets and renews a certificate by itself. On
-the same machine as Jocasta, this `Caddyfile` serves it at
-`https://jocasta.example.com`:
+## Caddy
+
+[Caddy](https://caddyserver.com) fetches and renews the certificate. On the
+same machine:
 
 ```
 jocasta.example.com {
@@ -17,28 +18,23 @@ jocasta.example.com {
 }
 ```
 
-For a name only your own network resolves, Caddy cannot get a public
-certificate. Add `tls internal` inside the block, and Caddy signs one with its
-own authority, which each browser has to trust once.
+For a name only your network resolves, add `tls internal`. Caddy then signs
+the certificate itself, and each browser has to trust it once.
 
-## Use another proxy
+## Other proxies
 
-Any reverse proxy works. Pass the request's `Host` header through unchanged.
-To refuse form posts from other sites, Jocasta compares it with the `Origin`
-header of browsers that send no `Sec-Fetch-Site` header. Caddy passes `Host`
-by default, and nginx needs `proxy_set_header Host $host;`.
+Pass the `Host` header through unchanged. Jocasta checks it against `Origin`
+to refuse cross-site form posts from browsers that send no `Sec-Fetch-Site`.
+In nginx: `proxy_set_header Host $host;`.
 
-## Keep the plain port private
+## Close the plain port
 
-Once the proxy is in place, only the proxy needs to reach port 8080. With the
-proxy on the same machine, set Jocasta to listen on the loopback address
-alone:
+With the proxy on the same machine, listen on loopback only:
 
 ```yaml
 server:
   host: "127.0.0.1"
 ```
 
-The container image sets `JOCASTA_SERVER__HOST=0.0.0.0`, which overrides the
-file. With the container, pass `-e JOCASTA_SERVER__HOST=127.0.0.1` to
-`docker run` instead.
+The container image sets `JOCASTA_SERVER__HOST=0.0.0.0`, which wins over the
+file. Pass `-e JOCASTA_SERVER__HOST=127.0.0.1` to `docker run` instead.

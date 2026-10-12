@@ -1,71 +1,55 @@
 # Manage users and sign-in
 
-Everyone who opens the web UI signs in with an account. Scripts and agents use
-API tokens instead.
-
 ## Roles
 
 | Role | Can |
 |---|---|
 | Viewer | Read the inventory. Create read tokens. |
-| Editor | Also edit devices: label, group, type, notes, ignore and watch. Create read and read/write tokens. |
-| Admin | Also add users and choose which changes each notification destination is sent. |
+| Editor | Also edit devices. Create read/write tokens. |
+| Admin | Also add users and set what each notification destination gets. |
 
-An instance has one admin, the account created on first run. Every account
-added later is a Viewer or an Editor.
+The account created on first run is the only admin.
 
 ## Add a user
 
-1. Open the account menu at the top right, and select **Users**.
+1. Open the account menu, top right, and select **Users**.
 2. Select **Add user**.
-3. Enter a username of 3 to 100 characters and a first password of at least 8.
-   Choose **Viewer** or **Editor**.
-4. Select **Create user**, then share the password with the person.
+3. Enter a username (3 to 100 characters), a first password (8 or more), and
+   a role.
+4. Select **Create user**, and give the person the password.
 
-The web UI has no page yet to change a password or a role, or to remove an
-account, and no way to reset a forgotten password. Keep the admin password in
-a password manager.
+The web UI cannot change a password or role, remove an account, or reset a
+forgotten password yet.
 
-## Sign-in sessions
+## Sessions
 
-With **Remember me** ticked, a sign-in lasts until it reaches
-`server.auth.session_lifetime` (7 days by default) or goes unused for
-`server.auth.idle_timeout` (24 hours by default). Without it, the sign-in also
-ends when you close the browser.
+A sign-in lasts up to 7 days, or 24 hours without use. Without
+**Remember me**, it also ends when the browser closes. Set the limits with
+`server.auth.session_lifetime` and `server.auth.idle_timeout`.
 
-After 10 wrong passwords, an account is allowed one more try a minute.
+After 10 wrong passwords, an account gets one try a minute.
 
-The session cookie is sent over HTTPS only. To sign in over plain HTTP, set
-`server.auth.cookie_secure: false`, or better, [serve Jocasta over
-HTTPS](https.md).
+## Two-factor authentication
 
-## Turn on two-factor authentication
-
-1. Open the account menu, and select **Security**.
+1. Open the account menu and select **Security**.
 2. Select **Turn on two-factor authentication**.
-3. Scan the QR code with an authenticator app, or enter the key shown under it.
-4. Enter the 6-digit code the app shows, then select **Turn on**.
-5. Save the 10 recovery codes the page now shows: select **Copy all** or
-   **Download as text**. They are not shown again. Each code signs you in
-   once in place of an app code.
+3. Scan the QR code with an authenticator app.
+4. Enter its 6-digit code and select **Turn on**.
+5. Save the 10 recovery codes. They are shown once. Each one signs you in
+   once without the app.
 
-From then on, signing in asks for a code after the password. On the same page,
-**Regenerate recovery codes** replaces the codes, and **Turn off two-factor
-authentication** goes back to the password alone. Both ask for your password.
+The same page regenerates the recovery codes or turns two-factor off. Both ask
+for your password.
 
-## Create an API token
+## API tokens
 
-The [JSON API](../integrations/api.md) and the
-[MCP server](../integrations/mcp.md) take a token in place of a sign-in.
+Scripts and agents use a token to reach the
+[JSON API](../integrations/api.md) and the [MCP server](../integrations/mcp.md).
 
-1. Open the account menu, and select **API tokens**.
+1. Open the account menu and select **API tokens**.
 2. Select **Create a token**.
-3. Name the token after what will use it, such as `Grafana dashboard`. Choose
-   its permission: **Viewer** (`read`) reads the inventory, and **Editor**
-   (`read_write`) also edits devices. Choose when it expires: never, or after
-   30 days, 90 days or 1 year.
-4. Select **Create token**, and copy the token. It is shown only once.
+3. Name it, and pick **Viewer** (`read`) or **Editor** (`read_write`) and an
+   expiry. The default never expires.
+4. Select **Create token** and copy it. It is shown once.
 
-A token can do no more than the account that created it. Revoke a token from
-the same page when nothing uses it any more. A script that still sends it is
-refused straight away.
+A token can do no more than its account. Revoking it takes effect at once.
