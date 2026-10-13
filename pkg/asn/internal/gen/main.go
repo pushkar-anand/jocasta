@@ -269,6 +269,8 @@ var legalSuffixes = []string{
 	"inc.", "inc", "llc", "l.l.c.", "ltd.", "ltd", "limited", "corporation",
 	"corp.", "corp", "co.", "gmbh", "ag", "s.a.", "sa", "b.v.", "bv", "plc",
 	"pty", "s.r.l.", "srl", "ab", "oy", "as", "a/s", "holdings", "company",
+	"pvt.", "pvt", "pte.", "pte", "private", "co", "sdn", "bhd.", "bhd",
+	"ltda.", "ltda",
 }
 
 // shorten derives the name worth showing in a table cell: "Amazon.com, Inc."
