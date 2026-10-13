@@ -381,6 +381,7 @@ func New(
 		config.WithYAML(cfgFile),
 		config.WithEnvPrefix("JOCASTA_"),
 		config.WithSplitKeyFor(",",
+			"server.trusted_proxies",
 			"server.cors.allowed_origins",
 			"networks",
 		),
