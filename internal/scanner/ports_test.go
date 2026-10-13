@@ -214,7 +214,9 @@ func TestPortScannerProbesATargetsExtraPorts(t *testing.T) {
 	require.Len(t, got, 2)
 	assert.Equal(t, []uint16{extra}, got[0].Open)
 	assert.ElementsMatch(t, []uint16{preset, extra}, got[0].Scanned)
+	assert.Equal(t, []uint16{extra}, got[0].Extra, "a preset port asked for again is not extra")
 	assert.Equal(t, []uint16{preset}, got[1].Scanned)
+	assert.Empty(t, got[1].Extra)
 }
 
 func TestPortScannerHandlesNoTargets(t *testing.T) {

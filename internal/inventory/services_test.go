@@ -73,6 +73,30 @@ func TestASweepUpdatesAndKeepsServices(t *testing.T) {
 	assert.Equal(t, first, queryString(t, conn, `SELECT first_seen FROM device_services WHERE device_id = ? AND type = ?`, id, tvRemote.Type))
 }
 
+// The device page lists only what the latest sweep heard. A phone advertises
+// under a new name and port each time, and the rows it leaves behind stay in
+// the table until the prune.
+func TestADeviceListsTheLatestSweepsServices(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	before := hosts.Service{Type: "_nearbypresence._tcp", Instance: "phone-a", Port: 41000}
+	after := hosts.Service{Type: "_nearbypresence._tcp", Instance: "phone-b", Port: 42000}
+
+	sweep(t, s, advertising("192.0.2.10", macA, before))
+	sweep(t, s, advertising("192.0.2.10", macA, after))
+
+	id := deviceIDByMAC(t, conn, macA)
+
+	d, err := s.Device(t.Context(), id)
+	require.NoError(t, err)
+	require.Len(t, d.Services, 1)
+	assert.Equal(t, "phone-b", d.Services[0].Instance)
+
+	assert.Equal(t, 2, queryInt(t, conn, `SELECT COUNT(*) FROM device_services WHERE device_id = ?`, id))
+}
+
 // A service no sweep has heard within the history window goes with the prune.
 func TestPruneDeletesServicesPastRetention(t *testing.T) {
 	t.Parallel()

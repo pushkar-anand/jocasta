@@ -90,8 +90,8 @@ type Device struct {
 	// be more than a row can hold; the device page reads Ports.
 	OpenPorts []uint16 `json:"open_ports,omitempty"`
 
-	// Services is every service the device advertised over DNS-SD within the
-	// history window, by type and instance. Only Device fills it, as it does
+	// Services is what the device advertised over DNS-SD in the latest sweep
+	// that heard it, by type and instance. Only Device fills it, as it does
 	// Ports.
 	Services []*Service `json:"services,omitempty"`
 
