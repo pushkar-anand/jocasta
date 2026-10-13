@@ -281,6 +281,29 @@ func TestDevicePageShowsAReleasedAddress(t *testing.T) {
 	assert.NotContains(t, body, ">now<", "it holds nothing any more")
 }
 
+// A source that reported a device at two addresses has a Sources row for each,
+// its name shown on the first only.
+func TestDevicePageListsAClaimPerAddress(t *testing.T) {
+	t.Parallel()
+
+	store := testStore(t)
+
+	for _, h := range []scanner.Host{host("192.0.2.10", macA, "host-a.example.com"), host("192.0.2.11", macA, "gw.example.com")} {
+		_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix), []scanner.Host{h})
+		require.NoError(t, err)
+	}
+
+	body := get(t, newWebHandler(t, store), "/devices/1").Body.String()
+
+	_, sources, found := strings.Cut(body, ">Sources<")
+	require.True(t, found, "the page has a Sources section")
+	assert.Contains(t, sources, ">192.0.2.10<")
+	assert.Contains(t, sources, ">192.0.2.11<")
+	assert.Contains(t, sources, "gw.example.com")
+	assert.Equal(t, 1, strings.Count(sources, `<span class="mono strong">test-sweep</span>`))
+	assert.Contains(t, sources, `<span class="visually-hidden">test-sweep</span>`)
+}
+
 func TestDevicePageUnknownIDIsNotFound(t *testing.T) {
 	t.Parallel()
 

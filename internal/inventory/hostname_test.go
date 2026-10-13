@@ -18,9 +18,10 @@ func TestResolveHostname(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name   string
-		claims []nameClaim
-		want   nameClaim
+		name    string
+		claims  []nameClaim
+		current string
+		want    nameClaim
 	}{
 		{
 			name: "no claims name the device",
@@ -78,6 +79,33 @@ func TestResolveHostname(t *testing.T) {
 			want: nameClaim{name: "new", standing: dbtype.HostnameFromDNS, at: at(2)},
 		},
 		{
+			name: "equal standing keeps the current name over a later sighting",
+			claims: []nameClaim{
+				{name: "host-a.example", standing: dbtype.HostnameFromDNS, at: at(1)},
+				{name: "gw.example", standing: dbtype.HostnameFromDNS, at: at(2)},
+			},
+			current: "host-a.example",
+			want:    nameClaim{name: "host-a.example", standing: dbtype.HostnameFromDNS, at: at(1)},
+		},
+		{
+			name: "equal standing goes to the later sighting once no claim gives the current name",
+			claims: []nameClaim{
+				{name: "old", standing: dbtype.HostnameFromDNS, at: at(1)},
+				{name: "new", standing: dbtype.HostnameFromDNS, at: at(2)},
+			},
+			current: "gone",
+			want:    nameClaim{name: "new", standing: dbtype.HostnameFromDNS, at: at(2)},
+		},
+		{
+			name: "a higher standing replaces the current name",
+			claims: []nameClaim{
+				{name: "leased", standing: dbtype.HostnameFromDHCPStatic, at: at(2)},
+				{name: "resolved", standing: dbtype.HostnameFromDNS, at: at(1)},
+			},
+			current: "leased",
+			want:    nameClaim{name: "resolved", standing: dbtype.HostnameFromDNS, at: at(1)},
+		},
+		{
 			name: "an unknown standing loses to a known one",
 			claims: []nameClaim{
 				{name: "unknown", standing: dbtype.HostnameSource("SSDP"), at: at(2)},
@@ -104,7 +132,7 @@ func TestResolveHostname(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			assert.Equal(t, tt.want, resolveHostname(tt.claims))
+			assert.Equal(t, tt.want, resolveHostname(tt.claims, tt.current))
 		})
 	}
 }

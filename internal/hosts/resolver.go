@@ -31,7 +31,8 @@ var lookups singleflight.Group
 // nameLookupTimeout, and returns every name the resolver gave, sorted, with the
 // trailing root dot trimmed. An address can carry several PTR records, such as
 // a server's own name beside the name of a role it serves, and the resolver
-// returns them in no fixed order.
+// returns them in no fixed order. The names systemd-resolved makes up are left
+// out (see synthesized).
 //
 // Callers that arrive while a lookup for the same address is already running
 // share its result, and so also share the deadline of whoever started it. A
@@ -49,9 +50,11 @@ func resolveNames(ctx context.Context, addr netip.Addr) []string {
 			return []string(nil), nil
 		}
 
-		out := make([]string, len(names))
-		for i, n := range names {
-			out[i] = strings.TrimSuffix(n, ".")
+		out := make([]string, 0, len(names))
+		for _, n := range names {
+			if n = strings.TrimSuffix(n, "."); !synthesized[n] {
+				out = append(out, n)
+			}
 		}
 
 		slices.Sort(out)
@@ -62,6 +65,16 @@ func resolveNames(ctx context.Context, addr netip.Addr) []string {
 	names, _ := result.([]string)
 
 	return names
+}
+
+// synthesized are the names systemd-resolved answers with for addresses in its
+// own host's setup, such as _gateway for the default gateway. They say what the
+// address is to that host, not what anyone named the device.
+var synthesized = map[string]bool{
+	"_gateway":       true,
+	"_outbound":      true,
+	"_localdnsstub":  true,
+	"_localdnsproxy": true,
 }
 
 // resolveName returns the first of addr's reverse DNS names in sorted order, so

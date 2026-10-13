@@ -213,8 +213,8 @@ func (s *Store) DeviceEvents(ctx context.Context, id int64, limit int) ([]*Event
 	return events, nil
 }
 
-// DeviceSources returns what every source claims about one device, the most
-// recently heard from first.
+// DeviceSources returns what every source claims about one device, by source
+// and then address, so each source's claims sit together.
 func (s *Store) DeviceSources(ctx context.Context, id int64) ([]*Claim, error) {
 	rows, err := s.q.ListDeviceSources(ctx, id)
 	if err != nil {

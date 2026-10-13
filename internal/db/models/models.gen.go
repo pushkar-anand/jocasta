@@ -103,6 +103,7 @@ type DeviceService struct {
 type DeviceSource struct {
 	DeviceID       int64                 `json:"device_id"`
 	SourceID       int64                 `json:"source_id"`
+	Address        dbtype.Addr           `json:"address"`
 	Hostname       sql.NullString        `json:"hostname"`
 	HostnameSource dbtype.HostnameSource `json:"hostname_source"`
 	Detail         sql.NullString        `json:"detail"`

@@ -210,6 +210,10 @@ type Claim struct {
 	Source string            `json:"source"`
 	Kind   dbtype.SourceKind `json:"kind"`
 
+	// Address is the address the source said this about. A source files one
+	// claim per address it reports the device at.
+	Address netip.Addr `json:"address"`
+
 	Hostname       string                `json:"hostname,omitempty"`
 	HostnameSource dbtype.HostnameSource `json:"hostname_source,omitempty"`
 
@@ -468,6 +472,7 @@ func newClaim(r *models.ListDeviceSourcesRow) *Claim {
 	return &Claim{
 		Source:         r.SourceName,
 		Kind:           r.SourceKind,
+		Address:        r.DeviceSource.Address.Addr,
 		Hostname:       r.DeviceSource.Hostname.String,
 		HostnameSource: r.DeviceSource.HostnameSource,
 		Detail:         claimFields(r.DeviceSource.Detail.String),

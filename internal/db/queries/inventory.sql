@@ -125,7 +125,7 @@ ORDER BY d.id;
 -- The present devices a source that reads every network could have seen are
 -- those it holds a claim for.
 -- name: PresentOfSource :many
-SELECT d.id, d.last_seen, d.is_watched
+SELECT DISTINCT d.id, d.last_seen, d.is_watched
 FROM devices d
          JOIN device_sources ds ON ds.device_id = d.id
 WHERE ds.source_id = ?
@@ -176,9 +176,9 @@ WHERE device_id = sqlc.arg(from_id);
 -- how stale the kept name is stays visible. A different non-empty name, from
 -- this source or a higher one, still replaces it.
 -- name: UpsertDeviceSource :exec
-INSERT INTO device_sources (device_id, source_id, hostname, hostname_source, detail, first_seen, last_seen)
-VALUES (?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT (device_id, source_id)
+INSERT INTO device_sources (device_id, source_id, address, hostname, hostname_source, detail, first_seen, last_seen)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (device_id, source_id, address)
     DO UPDATE SET hostname        = CASE
                                         WHEN excluded.hostname IS NOT NULL THEN excluded.hostname
                                         ELSE device_sources.hostname END,
@@ -188,13 +188,14 @@ ON CONFLICT (device_id, source_id)
                   detail          = excluded.detail,
                   last_seen       = excluded.last_seen;
 
--- The name one source last gave a device, which decides whether a sweep's
--- lower-ranked name may replace it (see yieldsToHeldName).
+-- The name one source last gave a device at one address, which decides
+-- whether a sweep's lower-ranked name may replace it (see yieldsToHeldName).
 -- name: GetDeviceSourceName :one
 SELECT hostname, hostname_source
 FROM device_sources
 WHERE device_id = ?
-  AND source_id = ?;
+  AND source_id = ?
+  AND address = ?;
 
 -- Election reads this to pick the name the device list shows and searches on;
 -- the device page reads it to show the claims that lost.
@@ -203,23 +204,31 @@ SELECT sqlc.embed(ds), s.name AS source_name, s.kind AS source_kind
 FROM device_sources ds
          JOIN sources s ON s.id = ds.source_id
 WHERE ds.device_id = ?
-ORDER BY ds.last_seen DESC, s.name;
+ORDER BY s.name, ds.address;
 
--- Claims follow the device on a fold. A source that filed against both rows
--- collides on the primary key, and the claim that survives takes the newer
--- reading's name with the outer bounds of both sightings.
+-- Claims follow the device on a fold. A source that filed against both rows at
+-- one address collides on the primary key. The claim that survives takes the
+-- newer reading's name when it has one and the other's when only that one
+-- does, with the name's standing and detail, and the outer bounds of both
+-- sightings: a reading with no name never clears one.
 -- name: MoveDeviceSources :exec
-INSERT INTO device_sources (device_id, source_id, hostname, hostname_source, detail, first_seen, last_seen)
-SELECT sqlc.arg(into_id), ghost.source_id, ghost.hostname, ghost.hostname_source, ghost.detail,
+INSERT INTO device_sources (device_id, source_id, address, hostname, hostname_source, detail, first_seen, last_seen)
+SELECT sqlc.arg(into_id), ghost.source_id, ghost.address, ghost.hostname, ghost.hostname_source, ghost.detail,
        ghost.first_seen, ghost.last_seen
 FROM device_sources ghost
 WHERE ghost.device_id = sqlc.arg(from_id)
-ON CONFLICT (device_id, source_id)
-    DO UPDATE SET hostname        = IIF(excluded.last_seen > device_sources.last_seen,
+ON CONFLICT (device_id, source_id, address)
+    DO UPDATE SET hostname        = IIF((excluded.hostname IS NOT NULL) > (device_sources.hostname IS NOT NULL)
+                                            OR ((excluded.hostname IS NOT NULL) = (device_sources.hostname IS NOT NULL)
+                                            AND excluded.last_seen > device_sources.last_seen),
                                         excluded.hostname, device_sources.hostname),
-                  hostname_source = IIF(excluded.last_seen > device_sources.last_seen,
+                  hostname_source = IIF((excluded.hostname IS NOT NULL) > (device_sources.hostname IS NOT NULL)
+                                            OR ((excluded.hostname IS NOT NULL) = (device_sources.hostname IS NOT NULL)
+                                            AND excluded.last_seen > device_sources.last_seen),
                                         excluded.hostname_source, device_sources.hostname_source),
-                  detail          = IIF(excluded.last_seen > device_sources.last_seen,
+                  detail          = IIF((excluded.hostname IS NOT NULL) > (device_sources.hostname IS NOT NULL)
+                                            OR ((excluded.hostname IS NOT NULL) = (device_sources.hostname IS NOT NULL)
+                                            AND excluded.last_seen > device_sources.last_seen),
                                         excluded.detail, device_sources.detail),
                   first_seen      = MIN(device_sources.first_seen, excluded.first_seen),
                   last_seen       = MAX(device_sources.last_seen, excluded.last_seen);

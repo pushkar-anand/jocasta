@@ -4,6 +4,9 @@
     claimed, and the disagreements are the point: a router holding a bound lease
     for something the sweep has not reached in days is two sources telling the
     truth about different things.
+
+    A source claims per address, so a device holding several has a row for
+    each. A source's rows sit together, and its name is shown once.
 */ -}}
 {{ define "partial/device-sources" }}
 <div class="card card--table">
@@ -12,6 +15,7 @@
             <thead>
             <tr>
                 <th scope="col">Source</th>
+                <th scope="col">Address</th>
                 <th scope="col">Calls it</th>
                 <th scope="col">Details</th>
                 <th scope="col">First heard</th>
@@ -19,14 +23,20 @@
             </tr>
             </thead>
             <tbody>
+            {{- $source := "" }}
             {{- range . }}
             <tr>
                 <td>
+                    {{- if ne .Source $source }}
                     <span class="cell">
                         {{ dot .LastSeen }}
                         <span class="mono strong">{{ .Source }}</span>
                     </span>
+                    {{- else }}
+                    <span class="visually-hidden">{{ .Source }}</span>
+                    {{- end }}
                 </td>
+                <td data-label="Address" class="mono">{{ .Address }}</td>
                 <td data-label="Calls it">
                     {{- if .Hostname }}
                     {{ .Hostname }}
@@ -49,6 +59,7 @@
                 <td data-label="First heard" class="dim">{{ stamp .FirstSeen "" }}</td>
                 <td data-label="Last heard" class="dim">{{ stamp .LastSeen "" }}</td>
             </tr>
+            {{- $source = .Source }}
             {{- end }}
             </tbody>
         </table>
