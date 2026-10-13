@@ -7,6 +7,13 @@
 -- existing claim takes the device's lowest current address, or its most
 -- recently seen one when none is current. A claim about a device with no
 -- address at all is left out; the source's next reading files it again.
+--
+-- Which address an old claim's name and detail were about is known only for a
+-- device that has ever held one address. Any other device's claims keep no
+-- name or detail, and the source's next reading of each address files its own.
+-- The names systemd-resolved makes up for its host's gateway and stub
+-- resolvers are no device's name, so they are dropped from every claim and
+-- device.
 
 CREATE TABLE device_sources_new
 (
@@ -45,13 +52,21 @@ SELECT ds.device_id,
                  WHERE a.device_id = ds.device_id
                  ORDER BY a.last_seen DESC, a.ip
                  LIMIT 1)),
-       ds.hostname,
-       ds.hostname_source,
-       ds.detail,
+       IIF(known AND NOT made_up, ds.hostname, NULL),
+       IIF(known AND NOT made_up, ds.hostname_source, NULL),
+       IIF(known, ds.detail, NULL),
        ds.first_seen,
        ds.last_seen
-FROM device_sources ds
+FROM (SELECT ds.*,
+             (SELECT COUNT(*) FROM addresses a WHERE a.device_id = ds.device_id) = 1   AS known,
+             COALESCE(ds.hostname IN ('_gateway', '_outbound', '_localdnsstub', '_localdnsproxy'), 0) AS made_up
+      FROM device_sources ds) ds
 WHERE EXISTS (SELECT 1 FROM addresses a WHERE a.device_id = ds.device_id);
+
+UPDATE devices
+SET hostname        = NULL,
+    hostname_source = NULL
+WHERE hostname IN ('_gateway', '_outbound', '_localdnsstub', '_localdnsproxy');
 
 DROP TABLE device_sources;
 ALTER TABLE device_sources_new RENAME TO device_sources;

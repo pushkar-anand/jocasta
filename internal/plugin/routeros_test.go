@@ -48,7 +48,6 @@ func facts(t *testing.T, arp []routeros.ARPEntry, leases []routeros.DHCPLease) [
 
 	r.collectARP(t.Context(), c, arp)
 	r.collectLeases(t.Context(), c, leases)
-	shareByDevice(c)
 
 	out, err := buildFacts(t.Context(), r.logger, r.now(), c)
 	require.NoError(t, err)
@@ -584,92 +583,34 @@ func TestDiscoverAcceptsEmptyTables(t *testing.T) {
 	assert.Empty(t, out)
 }
 
-// A device holding two addresses is two facts but one claim. Without sharing
-// the name across them, the nameless address clears the name the other found.
-// Router tables do produce this: a device named on its lease, and the same MAC
-// on a second address with no lease at all.
-func TestOneDeviceOnTwoAddressesKeepsItsName(t *testing.T) {
+// Each address of a device files its own claim, so each fact keeps the name
+// and detail of its own rows: a lease on one address says nothing about the
+// other.
+func TestEachAddressKeepsItsOwnNameAndDetail(t *testing.T) {
 	t.Parallel()
 
 	arp := []routeros.ARPEntry{
-		{Address: "192.0.2.14", MACAddress: "00:00:5E:00:53:0B", Complete: true},
-		{Address: "192.0.2.106", MACAddress: "00:00:5E:00:53:0B", Complete: true},
-	}
-	leases := []routeros.DHCPLease{
-		{Address: "192.0.2.14", MACAddress: "00:00:5E:00:53:0B", HostName: "host-d", Status: "bound"},
-	}
-
-	out := facts(t, arp, leases)
-
-	require.Len(t, out, 2)
-
-	for _, f := range out {
-		assert.Equal(t, "host-d", f.Host.Hostname(), "both addresses are the same device")
-		assert.Equal(t, dbtype.HostnameFromDHCPStatic, f.HostnameSource)
-	}
-}
-
-// The better-standing name wins across a device's addresses, whichever the map
-// yields first.
-func TestSharedNameTakesTheBetterStanding(t *testing.T) {
-	t.Parallel()
-
-	leases := []routeros.DHCPLease{
-		{
-			Address: "192.0.2.60", MACAddress: "00:00:5E:00:53:0A",
-			HostName: "dynamic-name", Status: "bound", Dynamic: true,
-		},
-		{
-			Address: "192.0.2.61", MACAddress: "00:00:5E:00:53:0A",
-			HostName: "static-name", Status: "bound",
-		},
-	}
-
-	out := facts(t, nil, leases)
-
-	require.Len(t, out, 2)
-
-	for _, f := range out {
-		assert.Equal(t, "static-name", f.Host.Hostname())
-		assert.Equal(t, dbtype.HostnameFromDHCPStatic, f.HostnameSource)
-	}
-}
-
-// The claim a device's facts write is keyed on the device, so the detail has to
-// be the union of what its addresses carry. Without it the lease comment is
-// overwritten by the thinner ARP-only detail of an address the device gave up.
-func TestDetailIsSharedAcrossADevicesAddresses(t *testing.T) {
-	t.Parallel()
-
-	arp := []routeros.ARPEntry{
-		{
-			Address: "192.0.2.14", MACAddress: "00:00:5E:00:53:0B",
-			Interface: "vlan10", Complete: true, Status: "stale",
-		},
-		{
-			Address: "192.0.2.106", MACAddress: "00:00:5E:00:53:0B",
-			Interface: "vlan10", Complete: true, Status: "stale",
-		},
+		{Address: "192.0.2.14", MACAddress: "00:00:5E:00:53:0B", Interface: "vlan10", Complete: true},
+		{Address: "198.51.100.14", MACAddress: "00:00:5E:00:53:0B", Interface: "vlan30", Complete: true},
 	}
 	leases := []routeros.DHCPLease{{
 		Address: "192.0.2.14", MACAddress: "00:00:5E:00:53:0B",
-		HostName: "host-d", Status: "bound", Server: "dhcp1", Comment: "Host D, virtual",
+		HostName: "host-d", Status: "bound", Server: "dhcp1", Comment: "Host D",
 	}}
 
 	out := facts(t, arp, leases)
 
 	require.Len(t, out, 2)
 
-	for _, f := range out {
-		assert.Equal(t, "Host D, virtual", f.Detail["dhcp_comment"], "the lease detail reaches both addresses")
-		assert.Equal(t, "dhcp1", f.Detail["dhcp_server"])
-		assert.Equal(t, "bound", f.Detail["dhcp_status"])
-		assert.Equal(t, "vlan10", f.Detail["interface"])
-	}
+	assert.Equal(t, "192.0.2.14", out[0].Host.IP)
+	assert.Equal(t, "host-d", out[0].Host.Hostname())
+	assert.Equal(t, "Host D", out[0].Detail["dhcp_comment"])
+	assert.Equal(t, "vlan10", out[0].Detail["interface"])
 
-	// Cloned, so one fact cannot mutate another's.
-	out[0].Detail["injected"] = "x"
-	assert.NotContains(t, out[1].Detail, "injected")
+	assert.Equal(t, "198.51.100.14", out[1].Host.IP)
+	assert.Empty(t, out[1].Host.Hostname(), "no lease names this address")
+	assert.NotContains(t, out[1].Detail, "dhcp_comment")
+	assert.Equal(t, "vlan30", out[1].Detail["interface"])
 }
 
 // own runs the own-address mapping the way Discover does, without a router to
@@ -681,7 +622,6 @@ func own(t *testing.T, addrs []routeros.IPAddress, ifaces []routeros.Interface) 
 	c := make(claims)
 
 	r.collectOwn(t.Context(), c, addrs, ifaces)
-	shareByDevice(c)
 
 	out, err := buildFacts(t.Context(), r.logger, r.now(), c)
 	require.NoError(t, err)
@@ -716,6 +656,8 @@ func TestOwnAddressesCarryTheirInterfacesHardwareAddress(t *testing.T) {
 	}
 
 	assert.Equal(t, "192.0.2.1", out[0].Host.IP, "the prefix length is dropped")
+	assert.Equal(t, "vlan10", out[0].Detail["interface"], "each address keeps its own interface")
+	assert.Equal(t, "vlan20", out[1].Detail["interface"])
 }
 
 // The WAN lease is dynamic and on a link the router does not serve. Disabled,

@@ -1165,6 +1165,31 @@ func TestTwoNetworksNamingOneDeviceDoNotRenameIt(t *testing.T) {
 		id, dbtype.EventHostnameChanged))
 }
 
+// After the claims backfill, a device with several addresses has claims with no
+// name. A sweep cycle names it from the address that has a PTR, not from a
+// name no claim gives any more.
+func TestABackfilledDeviceTakesItsNameFromTheAddressThatHasOne(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweepPrefix(t, s, "192.0.2.0/24", host("192.0.2.1", macA, ""))
+	sweepPrefix(t, s, "198.51.100.0/24", host("198.51.100.1", macA, ""))
+
+	id := deviceIDByMAC(t, conn, macA)
+
+	_, err := conn.ExecContext(t.Context(),
+		`UPDATE devices SET hostname = 'guess.example', hostname_source = 'DNS' WHERE id = ?`, id)
+	require.NoError(t, err)
+
+	sweepPrefix(t, s, "192.0.2.0/24", host("192.0.2.1", macA, ""))
+	sweepPrefix(t, s, "198.51.100.0/24", host("198.51.100.1", macA, "gw.example"))
+
+	assert.Equal(t, "gw.example", queryString(t, conn, `SELECT hostname FROM devices WHERE id = ?`, id))
+	assert.Equal(t, 1, queryInt(t, conn, `SELECT count(*) FROM events WHERE device_id = ? AND kind = ?`,
+		id, dbtype.EventHostnameChanged), "one rename, with no step through no name")
+}
+
 // Detail is stored verbatim for the device page and never merged into devices.
 func TestAClaimStoresWhatOnlyItsSourceKnows(t *testing.T) {
 	t.Parallel()
