@@ -21,7 +21,7 @@ Everything Jocasta knows about one device:
 - Connected: the path from the internet to the device, through each router, switch and access point, with the port or Wi-Fi network, band and VLAN at each step. A device plugged straight into a read port shows the link's rate, and a Wi-Fi client its rate each way and its signal. When a wired link runs below what both ends can, the page says so. Show on topology opens the Topology page on the device.
 - Addresses: every address the device has held, and the network each is on.
 - Ports: once a port scan has reached the device (see [CLI](<https://pushkar-anand.github.io/jocasta/dev/cli/#ports>)), the TCP ports it listens on, and the ones it has since closed.
-- Sources: what each source, such as the sweep or the router, calls the device, and when it last heard from it.
+- Sources: what each source, such as the sweep or the router, calls the device at each address it reported, and when it last heard from it.
 - History: the device's entries in the change log.
 
 ### Talks to
