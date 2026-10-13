@@ -295,7 +295,8 @@ func TestDevicePageListsAClaimPerAddress(t *testing.T) {
 
 	body := get(t, newWebHandler(t, store), "/devices/1").Body.String()
 
-	sources := body[strings.Index(body, ">Sources<"):]
+	_, sources, found := strings.Cut(body, ">Sources<")
+	require.True(t, found, "the page has a Sources section")
 	assert.Contains(t, sources, ">192.0.2.10<")
 	assert.Contains(t, sources, ">192.0.2.11<")
 	assert.Contains(t, sources, "gw.example.com")
