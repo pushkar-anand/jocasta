@@ -6,8 +6,10 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"strings"
 
+	"github.com/pushkar-anand/build-with-go/http/clientip"
 	"github.com/pushkar-anand/build-with-go/validator"
 	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/config"
@@ -44,6 +46,11 @@ func (s *ServeCmd) Run(
 	host := cmp.Or(s.Host, cfg.Server.Host)
 	port := cmp.Or(s.Port, cfg.Server.Port)
 
+	trustedProxies, err := parseTrustedProxies(cfg.Server.TrustedProxies)
+	if err != nil {
+		return fmt.Errorf("parse trusted proxies: %w", err)
+	}
+
 	sCfg := &server.Config{
 		Addr:                host,
 		Port:                port,
@@ -53,6 +60,7 @@ func (s *ServeCmd) Run(
 		SessionIdleTimeout:  cfg.Server.Auth.IdleTimeout,
 		SessionCookieSecure: cfg.Server.Auth.CookieSecure,
 		MCPEnabled:          cfg.Server.MCP.Enabled,
+		TrustedProxies:      trustedProxies,
 	}
 
 	p := poller.New(log)
@@ -250,4 +258,22 @@ func startTraffic(
 	}
 
 	return rec
+}
+
+// parseTrustedProxies converts a list of proxy addresses or CIDR prefixes from
+// config to parsed netip.Prefix values. A bare address becomes a prefix covering
+// that single address.
+func parseTrustedProxies(raw []string) ([]netip.Prefix, error) {
+	var prefixes []netip.Prefix
+
+	for _, s := range raw {
+		p, err := clientip.ParsePrefix(s)
+		if err != nil {
+			return nil, fmt.Errorf("server.trusted_proxies %q: %w", s, err)
+		}
+
+		prefixes = append(prefixes, p)
+	}
+
+	return prefixes, nil
 }

@@ -27,6 +27,12 @@ type (
 		CORS CORS   `koanf:"cors"`
 		Auth Auth   `koanf:"auth"`
 		MCP  MCP    `koanf:"mcp"`
+
+		// TrustedProxies lists the reverse proxy addresses or CIDR prefixes
+		// whose forwarding headers the server trusts to identify the client.
+		// Empty means the server reads the client address from the connection
+		// directly, ignoring any forwarding headers.
+		TrustedProxies []string `koanf:"trusted_proxies"`
 	}
 
 	// CORS says which origins outside the server's own may read its responses
@@ -374,6 +380,11 @@ func New(
 		config.WithDefaults(defaults),
 		config.WithYAML(cfgFile),
 		config.WithEnvPrefix("JOCASTA_"),
+		config.WithSplitKeyFor(",",
+			"server.trusted_proxies",
+			"server.cors.allowed_origins",
+			"networks",
+		),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("load config: %w", err)
