@@ -94,9 +94,9 @@ type Sighting struct {
 	// Radio is a Wi-Fi client's connection.
 	Radio Radio
 
-	// LastSeen is the last read that listed the address. A sighting from the
-	// source's latest read is current; an older one is where the address was
-	// last seen.
+	// LastSeen is the last read that listed the address. A sighting within the
+	// window [Build] is given of the source's latest read is current; an older
+	// one is where the address was last seen.
 	LastSeen time.Time
 }
 
@@ -236,8 +236,9 @@ type Leaf struct {
 	Port  string
 	Owner *Node
 
-	// Current reports whether the latest read of Owner's source saw the
-	// device. A device placed from an older read is where it was last seen.
+	// Current reports whether Owner's source saw the device within the window
+	// of its latest read. A device placed from an older read is where it was
+	// last seen.
 	Current bool
 
 	// Speed is the link of Port, set when the device is on a read source's

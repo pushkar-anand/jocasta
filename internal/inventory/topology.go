@@ -260,7 +260,7 @@ func (s *Store) Topology(ctx context.Context) (*topology.Tree, error) {
 		}
 	}
 
-	return topology.Build(sources, placeable(devices)), nil
+	return topology.Build(sources, placeable(devices), s.onlineWindow), nil
 }
 
 // placeable turns the devices with a hardware address into what the tree

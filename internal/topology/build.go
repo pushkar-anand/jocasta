@@ -6,6 +6,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/pushkar-anand/jocasta/internal/classify"
 )
@@ -13,12 +14,15 @@ import (
 // Build assembles the tree from what sources say and places devices in it.
 //
 // A device goes to the deepest node that saw it on a port leading to no other
-// node, from the latest reads where there are any and the last sighting
-// otherwise. Devices no source has seen are left out, except online ones,
-// which are listed in [Tree.Unplaced]. A device whose hardware address no
-// source reported, or that is itself a node, is not a leaf.
-func Build(sources []Source, devices []Device) *Tree {
-	b := newBuilder(sources, devices)
+// node, from current sightings where there are any and the last sighting
+// otherwise. A sighting is current when its source listed it within window of
+// the source's latest read: a bridge forgets a quiet device's address between
+// reads, so the latest read alone would move it back and forth. Devices no
+// source has seen are left out, except online ones, which are listed in
+// [Tree.Unplaced]. A device whose hardware address no source reported, or that
+// is itself a node, is not a leaf.
+func Build(sources []Source, devices []Device, window time.Duration) *Tree {
+	b := newBuilder(sources, devices, window)
 
 	if root := b.pickRoot(); root != nil {
 		b.tree.Root = root.node
@@ -40,6 +44,10 @@ type reader struct {
 	src  *Source
 	node *Node
 
+	// window is how long before the latest read a sighting still counts as
+	// current.
+	window time.Duration
+
 	ports map[string]Port
 
 	// toward[b] is the port of this source that b is behind, as its tables
@@ -57,9 +65,10 @@ type reader struct {
 	onPort map[string]*Node
 }
 
-// current reports whether s came from the source's latest read.
+// current reports whether the source listed s within the window of its latest
+// read.
 func (r *reader) current(s Sighting) bool {
-	return !s.LastSeen.Before(r.src.ReadAt)
+	return !s.LastSeen.Before(r.src.ReadAt.Add(-r.window))
 }
 
 type builder struct {
@@ -81,7 +90,7 @@ type builder struct {
 
 // newBuilder prepares source and device identities for tree construction.
 // Sources sharing a hardware address are resolved in source-name order.
-func newBuilder(sources []Source, devices []Device) *builder {
+func newBuilder(sources []Source, devices []Device, window time.Duration) *builder {
 	b := &builder{
 		tree: &Tree{
 			nodeByDevice: map[int64]*Node{},
@@ -109,6 +118,7 @@ func newBuilder(sources []Source, devices []Device) *builder {
 
 		r := &reader{
 			src:    src,
+			window: window,
 			node:   &Node{Kind: NodeRead, Key: fmt.Sprintf("s%d", src.ID), Name: cmp.Or(src.Identity, src.Name), Online: true},
 			ports:  map[string]Port{},
 			toward: map[*reader]string{},
@@ -454,8 +464,8 @@ func portsWithStrangers(x *reader) []string {
 	return slices.Compact(out)
 }
 
-// othersOnPort reports whether x's latest read learned any address on port p
-// besides mac and the sources' own.
+// othersOnPort reports whether x currently sees any address on port p besides
+// mac and the sources' own.
 func (b *builder) othersOnPort(x *reader, p, mac string) bool {
 	for _, s := range x.src.Seen {
 		if s.Port == p && s.MAC != mac && x.current(s) && b.byOwn[s.MAC] == nil {
