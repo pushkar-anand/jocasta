@@ -5,13 +5,16 @@ package config
 import (
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/pushkar-anand/build-with-go/config"
+	"github.com/pushkar-anand/build-with-go/http/clientip"
 	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/jocasta/internal/notify"
+	"gopkg.in/yaml.v3"
 )
 
 // DefaultConfigFile is the path used when --config is not given. A missing file
@@ -32,7 +35,7 @@ type (
 		// whose forwarding headers the server trusts to identify the client.
 		// Empty means the server reads the client address from the connection
 		// directly, ignoring any forwarding headers.
-		TrustedProxies []string `koanf:"trusted_proxies"`
+		TrustedProxies PrefixList `koanf:"trusted_proxies"`
 	}
 
 	// CORS says which origins outside the server's own may read its responses
@@ -381,7 +384,6 @@ func New(
 		config.WithYAML(cfgFile),
 		config.WithEnvPrefix("JOCASTA_"),
 		config.WithSplitKeyFor(",",
-			"server.trusted_proxies",
 			"server.cors.allowed_origins",
 			"networks",
 		),
@@ -430,4 +432,28 @@ func (s Source) Common() Source {
 // password across the network unencrypted.
 func (h HTTPLogin) PlainHTTP() bool {
 	return !h.SSL
+}
+
+// PrefixList is a list of IP addresses or CIDR prefixes parsed from config.
+// It unmarshals from a YAML list of strings, parsing each string via
+// clientip.ParsePrefix so bare addresses become single-address prefixes.
+type PrefixList []netip.Prefix
+
+// UnmarshalYAML parses a YAML node as a list of address or CIDR strings.
+func (pl *PrefixList) UnmarshalYAML(node *yaml.Node) error {
+	var raw []string
+	if err := node.Decode(&raw); err != nil {
+		return fmt.Errorf("server.trusted_proxies: %w", err)
+	}
+
+	for _, s := range raw {
+		p, err := clientip.ParsePrefix(s)
+		if err != nil {
+			return fmt.Errorf("server.trusted_proxies %q: %w", s, err)
+		}
+
+		*pl = append(*pl, p)
+	}
+
+	return nil
 }
