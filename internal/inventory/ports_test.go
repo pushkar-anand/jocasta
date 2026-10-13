@@ -456,6 +456,38 @@ func TestAMovedServicesOldPortCloses(t *testing.T) {
 	assert.Equal(t, "open", queryString(t, conn, `SELECT state FROM device_ports WHERE port = 42000`))
 }
 
+// A port probed only because the device advertised it opens and closes in
+// device_ports but logs no event, so a phone's rotating ports stay out of the
+// change log.
+func TestAnAdvertisedPortChangesWithoutAnEvent(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, "host-a"))
+	id := deviceIDByMAC(t, conn, macA)
+
+	scan := portScan("192.0.2.10", []uint16{22, 41000}, []uint16{22, 41000})
+	scan.Extra = []uint16{41000}
+	recordPorts(t, s, scan)
+
+	opened, ok := devicePort(t, s, id, 41000)
+	require.True(t, ok)
+	assert.Equal(t, "open", opened.state)
+
+	scan.Open = []uint16{22}
+	recordPorts(t, s, scan)
+
+	closed, ok := devicePort(t, s, id, 41000)
+	require.True(t, ok)
+	assert.Equal(t, "closed", closed.state)
+
+	assert.Equal(t, []dbtype.EventKind{
+		dbtype.EventDeviceDiscovered,
+		dbtype.EventAddressAdded,
+		dbtype.EventPortOpened,
+	}, eventKinds(t, conn, id), "only port 22, in the scanner's set, is logged")
+}
+
 // A device with two addresses whose service listens on one of them keeps the
 // port open across scans, with the one event that opened it, and counts it
 // once. A port closes only once no address of the device answers on it.

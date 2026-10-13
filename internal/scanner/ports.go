@@ -60,6 +60,10 @@ type PortScan struct {
 	// plus the target's Extra.
 	Scanned []uint16
 
+	// Extra lists the ports in Scanned beyond the scanner's set, ascending:
+	// those probed only because the target asked for them.
+	Extra []uint16
+
 	// Answered reports whether the address replied on any port, by accepting
 	// the connection or refusing it. An address that let every probe time out
 	// may be asleep, gone or filtering, so its Scanned says nothing about which
@@ -186,8 +190,15 @@ func (ps *PortScanner) Ports() []uint16 {
 // still a true account of what answered before it stopped.
 func (ps *PortScanner) Scan(ctx context.Context, targets []PortTarget, at time.Time) []PortScan {
 	scanned := make([][]uint16, len(targets))
+	extra := make([][]uint16, len(targets))
+
 	for i, t := range targets {
 		scanned[i] = normalisePorts(append(slices.Clone(ps.ports), t.Extra...))
+		extra[i] = slices.DeleteFunc(normalisePorts(t.Extra), func(port uint16) bool {
+			_, inSet := slices.BinarySearch(ps.ports, port)
+
+			return inSet
+		})
 	}
 
 	found := newPortResults(len(targets))
@@ -227,6 +238,7 @@ feed:
 			Addr:     t.Addr,
 			Open:     found.sorted(i),
 			Scanned:  scanned[i],
+			Extra:    extra[i],
 			Answered: found.answered[i],
 			SeenAt:   at,
 		}

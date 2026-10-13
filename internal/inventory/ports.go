@@ -154,11 +154,23 @@ func (s *Store) ingestPorts(ctx context.Context, scanID int64, scans []scanner.P
 }
 
 // devicePorts is what a scan found across every address of one device: the
-// ports that answered on any of them, and the ports probed on any of them that
-// answered the scan.
+// ports that answered on any of them, the ports probed on any of them that
+// answered the scan, and the ports probed only because the device asked for
+// them beyond the scanner's set.
 type devicePorts struct {
 	open    map[uint16]struct{}
 	scanned map[uint16]struct{}
+	extra   map[uint16]struct{}
+}
+
+// logged reports whether a change on port goes in the event log. A port
+// outside the scanner's set is left out: the scan probes it only because the
+// device advertised a service there, and a phone advertises on a new random
+// port each time, so logging each one would bury the changes worth reading.
+func (d *devicePorts) logged(port uint16) bool {
+	_, extra := d.extra[port]
+
+	return !extra
 }
 
 // gatherPorts files each result under the device that holds its address now,
@@ -191,12 +203,16 @@ func (s *Store) gatherPorts(
 
 		d, ok := found[holder.ID]
 		if !ok {
-			d = &devicePorts{open: map[uint16]struct{}{}, scanned: map[uint16]struct{}{}}
+			d = &devicePorts{open: map[uint16]struct{}{}, scanned: map[uint16]struct{}{}, extra: map[uint16]struct{}{}}
 			found[holder.ID] = d
 		}
 
 		for _, port := range scan.Open {
 			d.open[port] = struct{}{}
+		}
+
+		for _, port := range scan.Extra {
+			d.extra[port] = struct{}{}
 		}
 
 		if !scan.Answered {
@@ -233,7 +249,7 @@ func (s *Store) recordPorts(
 	sum.Open += len(found.open)
 
 	for _, port := range slices.Sorted(maps.Keys(found.open)) {
-		if err := s.openPort(ctx, q, scanID, at, deviceID, port, wasOpen); err != nil {
+		if err := s.openPort(ctx, q, scanID, at, deviceID, port, wasOpen, found.logged(port)); err != nil {
 			return err
 		}
 
@@ -250,7 +266,7 @@ func (s *Store) recordPorts(
 			continue
 		}
 
-		if err := s.closePort(ctx, q, scanID, at, deviceID, port); err != nil {
+		if err := s.closePort(ctx, q, scanID, at, deviceID, port, found.logged(port)); err != nil {
 			return err
 		}
 
@@ -260,7 +276,8 @@ func (s *Store) recordPorts(
 	return nil
 }
 
-// openPort records a port as answering and, when it was not already, logs it.
+// openPort records a port as answering and, when it was not already and
+// logged is set, logs it.
 func (s *Store) openPort(
 	ctx context.Context,
 	q *models.Queries,
@@ -269,6 +286,7 @@ func (s *Store) openPort(
 	deviceID int64,
 	port uint16,
 	wasOpen map[uint16]struct{},
+	logged bool,
 ) error {
 	err := q.UpsertOpenPort(ctx, models.UpsertOpenPortParams{
 		DeviceID: deviceID,
@@ -280,7 +298,7 @@ func (s *Store) openPort(
 		return fmt.Errorf("record port %d open on device %d: %w", port, deviceID, err)
 	}
 
-	if _, already := wasOpen[port]; already {
+	if _, already := wasOpen[port]; already || !logged {
 		return nil
 	}
 
@@ -288,7 +306,8 @@ func (s *Store) openPort(
 		dbtype.EventPortOpened, "", strconv.Itoa(int(port)), scanner.ServiceName(port))
 }
 
-// closePort flips a port that has stopped answering and logs it.
+// closePort flips a port that has stopped answering and, when logged is set,
+// logs it.
 func (s *Store) closePort(
 	ctx context.Context,
 	q *models.Queries,
@@ -296,10 +315,15 @@ func (s *Store) closePort(
 	at dbtype.Time,
 	deviceID int64,
 	port uint16,
+	logged bool,
 ) error {
 	err := q.ClosePort(ctx, models.ClosePortParams{DeviceID: deviceID, Port: int64(port), SeenAt: at})
 	if err != nil {
 		return fmt.Errorf("record port %d closed on device %d: %w", port, deviceID, err)
+	}
+
+	if !logged {
+		return nil
 	}
 
 	return s.writeEvent(ctx, q, scanID, at, deviceID,
