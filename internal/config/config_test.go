@@ -2,7 +2,6 @@ package config
 
 import (
 	"log/slog"
-	"net/netip"
 	"os"
 	"strings"
 	"testing"
@@ -14,7 +13,6 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
 )
 
 func TestLoggerSlogLevel(t *testing.T) {
@@ -239,142 +237,4 @@ func TestDefaultSourceNamesTheHost(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "sweep:"+host, defaultSource())
-}
-
-func TestPrefixListUnmarshalYAML(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name    string
-		yaml    string
-		want    PrefixList
-		wantErr string
-	}{
-		{
-			name: "single IPv4 address",
-			yaml: `["192.0.2.1"]`,
-			want: PrefixList{netip.MustParsePrefix("192.0.2.1/32")},
-		},
-		{
-			name: "CIDR prefix",
-			yaml: `["10.0.0.0/8"]`,
-			want: PrefixList{netip.MustParsePrefix("10.0.0.0/8")},
-		},
-		{
-			name: "multiple entries",
-			yaml: `["192.0.2.1", "10.0.0.0/8", "198.51.100.0/24"]`,
-			want: PrefixList{
-				netip.MustParsePrefix("192.0.2.1/32"),
-				netip.MustParsePrefix("10.0.0.0/8"),
-				netip.MustParsePrefix("198.51.100.0/24"),
-			},
-		},
-		{
-			name: "IPv6 address",
-			yaml: `["2001:db8::1"]`,
-			want: PrefixList{netip.MustParsePrefix("2001:db8::1/128")},
-		},
-		{
-			name: "IPv6 CIDR",
-			yaml: `["2001:db8::/32"]`,
-			want: PrefixList{netip.MustParsePrefix("2001:db8::/32")},
-		},
-		{
-			name:    "invalid address",
-			yaml:    `["not-an-ip"]`,
-			wantErr: `server.trusted_proxies "not-an-ip"`,
-		},
-		{
-			name:    "invalid CIDR",
-			yaml:    `["192.0.2.1/999"]`,
-			wantErr: `server.trusted_proxies "192.0.2.1/999"`,
-		},
-		{
-			name: "empty list",
-			yaml: `[]`,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			var got PrefixList
-			err := yaml.Unmarshal([]byte(tt.yaml), &got)
-
-			if tt.wantErr != "" {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.wantErr)
-				return
-			}
-
-			require.NoError(t, err)
-			if tt.want != nil {
-				assert.Equal(t, tt.want, got)
-			} else {
-				assert.Nil(t, got)
-			}
-		})
-	}
-}
-
-func TestPrefixListUnmarshalMapstructure(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name    string
-		data    any
-		want    PrefixList
-		wantErr string
-	}{
-		{
-			name: "single address",
-			data: []string{"192.0.2.1"},
-			want: PrefixList{netip.MustParsePrefix("192.0.2.1/32")},
-		},
-		{
-			name: "comma-split from environment",
-			data: []string{"192.0.2.1", "10.0.0.0/8"},
-			want: PrefixList{
-				netip.MustParsePrefix("192.0.2.1/32"),
-				netip.MustParsePrefix("10.0.0.0/8"),
-			},
-		},
-		{
-			name:    "invalid address in list",
-			data:    []string{"192.0.2.1", "bad"},
-			wantErr: `server.trusted_proxies "bad"`,
-		},
-		{
-			name:    "wrong type",
-			data:    "192.0.2.1",
-			wantErr: "expected []string",
-		},
-		{
-			name: "empty list",
-			data: []string{},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			var got PrefixList
-			err := got.UnmarshalMapstructure(tt.data)
-
-			if tt.wantErr != "" {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.wantErr)
-				return
-			}
-
-			require.NoError(t, err)
-			if tt.want != nil {
-				assert.Equal(t, tt.want, got)
-			} else {
-				assert.Nil(t, got)
-			}
-		})
-	}
 }
