@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"maps"
 	"net/netip"
 	"slices"
 	"strings"
@@ -113,65 +112,6 @@ func buildFacts(ctx context.Context, log *slog.Logger, seenAt time.Time, c claim
 	}
 
 	return facts, errors.Join(errs...)
-}
-
-// shareByDevice gives every draft for one device the name and detail that all
-// of its addresses carry between them.
-//
-// A device holding two addresses is two facts, but the claim they write is
-// keyed on the device alone, so the last one to land decides what the claim
-// says. Without this a nameless address clears the name another found, and a
-// thinner detail map overwrites a richer one: a device keeps a stale ARP entry
-// for an address it has given up, and that address has no lease behind it.
-func shareByDevice(c claims) {
-	// Sorted, so a key two addresses disagree on resolves the same way every
-	// run.
-	keys := slices.SortedFunc(maps.Keys(c), func(a, b claimKey) int {
-		return cmp.Or(strings.Compare(a.addr, b.addr), strings.Compare(a.mac, b.mac))
-	})
-
-	names := make(map[string]*draft, len(c))
-	details := make(map[string]map[string]string, len(c))
-
-	for _, k := range keys {
-		d := c[k]
-		if d.mac == "" {
-			continue
-		}
-
-		if d.hostname != "" {
-			if best, ok := names[d.mac]; !ok || d.nameFrom.Rank() > best.nameFrom.Rank() {
-				names[d.mac] = d
-			}
-		}
-
-		merged, ok := details[d.mac]
-		if !ok {
-			merged = make(map[string]string, len(d.detail))
-			details[d.mac] = merged
-		}
-
-		// Union: detail is per address and the claim is per device, so only
-		// the union loses nothing. Where two addresses
-		// disagree the lower one wins, which is arbitrary but stable.
-		for key, value := range d.detail {
-			if _, seen := merged[key]; !seen {
-				merged[key] = value
-			}
-		}
-	}
-
-	for _, d := range c {
-		if best, ok := names[d.mac]; ok {
-			d.hostname = best.hostname
-			d.nameFrom = best.nameFrom
-		}
-
-		// Cloned, so two facts sharing a device do not share a mutable map.
-		if merged, ok := details[d.mac]; ok {
-			d.detail = maps.Clone(merged)
-		}
-	}
 }
 
 // segment reads the prefix an address sits on, masked to its base.

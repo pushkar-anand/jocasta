@@ -464,17 +464,23 @@ func TestClaimsPerAddressBackfillsTheAddress(t *testing.T) {
 
 	for _, q := range []string{
 		`INSERT INTO sources (id, kind, name) VALUES (1, 'SWEEP', 'sweep:test')`,
-		`INSERT INTO devices (id, mac) VALUES (1, '00:00:5e:00:53:01'), (2, '00:00:5e:00:53:02'),
-		                                       (3, '00:00:5e:00:53:03')`,
+		`INSERT INTO devices (id, mac, hostname, hostname_source)
+		 VALUES (1, '00:00:5e:00:53:01', 'host-a.example.com', 'DNS'), (2, '00:00:5e:00:53:02', NULL, NULL),
+		        (3, '00:00:5e:00:53:03', NULL, NULL), (4, '00:00:5e:00:53:04', 'host-b.example.com', 'DNS'),
+		        (5, '00:00:5e:00:53:05', '_gateway', 'DNS')`,
 		`INSERT INTO addresses (device_id, ip, is_current, last_seen)
 		 VALUES (1, '192.0.2.20', 1, '2026-01-01T00:00:00.000Z'),
 		        (1, '192.0.2.10', 1, '2026-01-01T00:00:00.000Z'),
 		        (2, '192.0.2.30', 0, '2026-01-01T00:00:00.000Z'),
-		        (2, '192.0.2.31', 0, '2026-01-02T00:00:00.000Z')`,
-		`INSERT INTO device_sources (device_id, source_id, hostname, hostname_source, first_seen, last_seen)
-		 VALUES (1, 1, 'host-a.example.com', 'DNS', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
-		        (2, 1, NULL, NULL, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
-		        (3, 1, NULL, NULL, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`,
+		        (2, '192.0.2.31', 0, '2026-01-02T00:00:00.000Z'),
+		        (4, '192.0.2.40', 1, '2026-01-01T00:00:00.000Z'),
+		        (5, '192.0.2.1', 1, '2026-01-01T00:00:00.000Z')`,
+		`INSERT INTO device_sources (device_id, source_id, hostname, hostname_source, detail, first_seen, last_seen)
+		 VALUES (1, 1, 'host-a.example.com', 'DNS', '{"interface":"vlan10"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
+		        (2, 1, NULL, NULL, NULL, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
+		        (3, 1, NULL, NULL, NULL, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
+		        (4, 1, 'host-b.example.com', 'DNS', '{"interface":"vlan10"}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
+		        (5, 1, '_gateway', 'DNS', NULL, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`,
 	} {
 		_, err := conn.ExecContext(ctx, q)
 		require.NoError(t, err, q)
@@ -482,16 +488,30 @@ func TestClaimsPerAddressBackfillsTheAddress(t *testing.T) {
 
 	require.NoError(t, migrateTo(conn, 22))
 
+	// Only a device that has held one address says which address its claim was
+	// about; the others keep no name or detail until each is read again.
 	assert.Equal(t, [][]any{
-		{int64(1), "192.0.2.10", "host-a.example.com"},
-		{int64(2), "192.0.2.31", nil},
-	}, queryRows(t, conn, `SELECT device_id, address, hostname FROM device_sources ORDER BY device_id`))
-
-	require.NoError(t, migrateTo(conn, 21))
+		{int64(1), "192.0.2.10", nil, nil, nil},
+		{int64(2), "192.0.2.31", nil, nil, nil},
+		{int64(4), "192.0.2.40", "host-b.example.com", "DNS", `{"interface":"vlan10"}`},
+		{int64(5), "192.0.2.1", nil, nil, nil},
+	}, queryRows(t, conn, `SELECT device_id, address, hostname, hostname_source, detail FROM device_sources ORDER BY device_id`))
 
 	assert.Equal(t, [][]any{
 		{int64(1), "host-a.example.com"},
 		{int64(2), nil},
+		{int64(3), nil},
+		{int64(4), "host-b.example.com"},
+		{int64(5), nil},
+	}, queryRows(t, conn, `SELECT id, hostname FROM devices ORDER BY id`), "systemd-resolved's _gateway names no device")
+
+	require.NoError(t, migrateTo(conn, 21))
+
+	assert.Equal(t, [][]any{
+		{int64(1), nil},
+		{int64(2), nil},
+		{int64(4), "host-b.example.com"},
+		{int64(5), nil},
 	}, queryRows(t, conn, `SELECT device_id, hostname FROM device_sources ORDER BY device_id`))
 }
 

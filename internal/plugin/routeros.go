@@ -124,8 +124,6 @@ func (r *RouterOS) Discover(ctx context.Context) ([]Fact, error) {
 		errs = append(errs, err)
 	}
 
-	shareByDevice(c)
-
 	facts, err := buildFacts(ctx, r.logger, r.now(), c)
 	if err != nil {
 		errs = append(errs, err)

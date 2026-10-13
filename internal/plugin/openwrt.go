@@ -141,7 +141,6 @@ func (o *OpenWrt) facts(
 	o.collectStatic(ctx, c, static)
 
 	nameStatic(c, named)
-	shareByDevice(c)
 
 	return buildFacts(ctx, o.logger, o.now(), c)
 }
