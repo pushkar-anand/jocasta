@@ -661,7 +661,13 @@ func (s *Store) record(ctx context.Context, p *pass, f plugin.Fact) error {
 			return err
 		}
 
-		if err := p.q.TouchDevice(ctx, models.TouchDeviceParams{LastSeen: p.at, ID: target.ID}); err != nil {
+		err := p.q.TouchDevice(ctx, models.TouchDeviceParams{
+			LastSeen:    p.at,
+			Vendor:      nullString(f.Host.Vendor()),
+			VendorShort: nullString(f.Host.ShortName()),
+			ID:          target.ID,
+		})
+		if err != nil {
 			return fmt.Errorf("touch device %d: %w", target.ID, err)
 		}
 
@@ -793,7 +799,8 @@ func (s *Store) resolve(
 		params := models.IdentifyDeviceParams{
 			MAC:          mac,
 			IsRandomised: f.Host.Randomised(),
-			Vendor:       nullString(f.Host.ShortName()),
+			Vendor:       nullString(f.Host.Vendor()),
+			VendorShort:  nullString(f.Host.ShortName()),
 			ID:           holder.ID,
 		}
 
@@ -809,6 +816,7 @@ func (s *Store) resolve(
 		holder.IdentitySource = dbtype.IdentityMAC
 		holder.IsRandomised = params.IsRandomised
 		holder.Vendor = params.Vendor
+		holder.VendorShort = params.VendorShort
 		p.res.Identified++
 
 		return holder, nil
@@ -833,7 +841,8 @@ func (s *Store) create(ctx context.Context, p *pass, mac dbtype.MAC, f plugin.Fa
 		MAC:            mac,
 		IdentitySource: source,
 		IsRandomised:   f.Host.Randomised(),
-		Vendor:         nullString(f.Host.ShortName()),
+		Vendor:         nullString(f.Host.Vendor()),
+		VendorShort:    nullString(f.Host.ShortName()),
 		Hostname:       nullString(f.Host.Hostname()),
 		HostnameSource: f.HostnameSource,
 		FirstSeen:      p.at,

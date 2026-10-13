@@ -62,7 +62,7 @@ type Device struct {
 	MAC                   dbtype.MAC            `json:"mac"`
 	IdentitySource        dbtype.IdentitySource `json:"identity_source"`
 	IsRandomised          bool                  `json:"is_randomised"`
-	Vendor                sql.NullString        `json:"vendor"`
+	VendorShort           sql.NullString        `json:"vendor_short"`
 	Hostname              sql.NullString        `json:"hostname"`
 	HostnameSource        dbtype.HostnameSource `json:"hostname_source"`
 	DeviceType            sql.NullString        `json:"device_type"`
@@ -76,6 +76,7 @@ type Device struct {
 	LastSeen              dbtype.Time           `json:"last_seen"`
 	PresentSince          dbtype.NullTime       `json:"present_since"`
 	IsWatched             bool                  `json:"is_watched"`
+	Vendor                sql.NullString        `json:"vendor"`
 }
 
 type DevicePort struct {

@@ -890,6 +890,18 @@ func TestDeviceListShowsTheNetwork(t *testing.T) {
 	assert.Contains(t, body, "192.0.2.0/24")
 }
 
+// The row shows the OUI table's short vendor name, which fits the cell. A
+// pointer reads the registered name on hover, and a screen reader is given
+// the registered name in place of the short one.
+func TestDeviceListGivesTheRegisteredVendorName(t *testing.T) {
+	t.Parallel()
+
+	body := get(t, seeded(t), "/devices").Body.String()
+
+	assert.Contains(t, body, `<span title="ICANN, IANA Department" aria-hidden="true">ICANNIANADep</span>`+
+		`<span class="visually-hidden">ICANN, IANA Department</span>`)
+}
+
 // The list keeps every scanned fact in fewer columns: ports fold into the
 // address cell, vendor into the hardware cell, so the table fits without a
 // sideways scroll. Each body cell carries a data-label for the stacked mobile

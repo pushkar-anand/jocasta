@@ -21,7 +21,7 @@ func explainDevice(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 		Title: "Explain a device's class",
 		Description: "Explain why a device has the class it has. Returns the class, the type its owner set and whether " +
 			"that overrides the classifier's guess, then the guess and its confidence (low, medium or high). " +
-			"Facts are what the classifier was given: vendor, hostname and where the hostname came from, whether the " +
+			"Facts are what the classifier was given: the vendor's short name, hostname and where the hostname came from, whether the " +
 			"hardware address is randomised, the name of a network the device is on, its current addresses, the TCP " +
 			"ports open now, the service types it advertises and the models those services give. Rule is the rule that decided the guess, with its reason; other_rules are every other rule " +
 			"that matched and lost, the most specific first. The rule that tests the most facts wins, a rule for the " +

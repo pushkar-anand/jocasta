@@ -160,7 +160,7 @@ func classifyInput(ctx context.Context, q *models.Queries, d *models.Device) (cl
 	}
 
 	return classify.Input{
-		Vendor:      d.Vendor.String,
+		Vendor:      d.VendorShort.String,
 		Hostname:    d.Hostname.String,
 		Randomised:  d.IsRandomised,
 		OpenPorts:   open,
