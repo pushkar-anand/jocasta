@@ -15,7 +15,7 @@ import (
 // delayedResolver answers PTR queries from ptr as stubResolver does, but holds
 // every dial for delay and counts them, so a test can watch concurrent lookups
 // for one address collapse into a single query.
-func delayedResolver(t *testing.T, ptr map[string]string, delay time.Duration) (*net.Resolver, *atomic.Int64) {
+func delayedResolver(t *testing.T, ptr map[string][]string, delay time.Duration) (*net.Resolver, *atomic.Int64) {
 	t.Helper()
 
 	var lc net.ListenConfig
@@ -54,8 +54,8 @@ func delayedResolver(t *testing.T, ptr map[string]string, delay time.Duration) (
 // The ARP and DHCP tables both hold the same address, so a merged sweep asks
 // about it more than once. Those lookups run together and share one query.
 func TestBulkBuildLooksUpARepeatedAddressOnce(t *testing.T) {
-	r, calls := delayedResolver(t, map[string]string{
-		"10.2.0.192.in-addr.arpa.": "printer.lan.",
+	r, calls := delayedResolver(t, map[string][]string{
+		"10.2.0.192.in-addr.arpa.": {"printer.lan."},
 	}, 150*time.Millisecond)
 	useResolver(t, r)
 

@@ -64,10 +64,10 @@ func countingResolver() (*net.Resolver, *atomic.Int64) {
 }
 
 // stubResolver answers PTR queries from ptr, keyed by the fully qualified
-// in-addr.arpa name, over a UDP socket on the loopback. An address the map does
-// not hold answers NXDOMAIN, which is what a LAN resolver says about one it has
-// no record for.
-func stubResolver(t *testing.T, ptr map[string]string) *net.Resolver {
+// in-addr.arpa name, over a UDP socket on the loopback, with one PTR record per
+// name in the order given. An address the map does not hold answers NXDOMAIN,
+// which is what a LAN resolver says about one it has no record for.
+func stubResolver(t *testing.T, ptr map[string][]string) *net.Resolver {
 	t.Helper()
 
 	var lc net.ListenConfig
@@ -91,7 +91,7 @@ func stubResolver(t *testing.T, ptr map[string]string) *net.Resolver {
 	}
 }
 
-func serveDNS(pc net.PacketConn, ptr map[string]string) {
+func serveDNS(pc net.PacketConn, ptr map[string][]string) {
 	buf := make([]byte, 512)
 
 	for {
@@ -112,7 +112,7 @@ func serveDNS(pc net.PacketConn, ptr map[string]string) {
 // answerPTR builds the response to one query. The reply is assembled with
 // dnsmessage, so the encoder cross-checks the parser the resolver runs and
 // there is no golden binary to keep in step.
-func answerPTR(query []byte, ptr map[string]string) ([]byte, error) {
+func answerPTR(query []byte, ptr map[string][]string) ([]byte, error) {
 	var p dnsmessage.Parser
 
 	header, err := p.Start(query)
@@ -125,7 +125,7 @@ func answerPTR(query []byte, ptr map[string]string) ([]byte, error) {
 		return nil, err
 	}
 
-	name, found := ptr[question.Name.String()]
+	names, found := ptr[question.Name.String()]
 
 	reply := dnsmessage.Header{
 		ID:            header.ID,
@@ -153,7 +153,11 @@ func answerPTR(query []byte, ptr map[string]string) ([]byte, error) {
 		return nil, err
 	}
 
-	if reply.RCode == dnsmessage.RCodeSuccess {
+	for _, name := range names {
+		if reply.RCode != dnsmessage.RCodeSuccess {
+			break
+		}
+
 		target, err := dnsmessage.NewName(name)
 		if err != nil {
 			return nil, err
@@ -175,16 +179,32 @@ func answerPTR(query []byte, ptr map[string]string) ([]byte, error) {
 }
 
 func TestResolveNameTrimsTheTrailingDot(t *testing.T) {
-	useResolver(t, stubResolver(t, map[string]string{
-		"10.2.0.192.in-addr.arpa.": "printer.lan.",
+	useResolver(t, stubResolver(t, map[string][]string{
+		"10.2.0.192.in-addr.arpa.": {"printer.lan."},
 	}))
 
 	assert.Equal(t, "printer.lan", resolveName(t.Context(), netip.MustParseAddr("192.0.2.10")))
 }
 
+// An address with several PTR records resolves to the same name whichever order
+// the resolver lists them in, or a device's name would change with the order.
+func TestResolveNameIsTheSameForEitherOrderOfSeveralRecords(t *testing.T) {
+	for _, order := range [][]string{
+		{"host-a.example.com.", "dns2.example.com."},
+		{"dns2.example.com.", "host-a.example.com."},
+	} {
+		useResolver(t, stubResolver(t, map[string][]string{"10.2.0.192.in-addr.arpa.": order}))
+
+		addr := netip.MustParseAddr("192.0.2.10")
+
+		assert.Equal(t, "dns2.example.com", resolveName(t.Context(), addr))
+		assert.Equal(t, []string{"dns2.example.com", "host-a.example.com"}, resolveNames(t.Context(), addr))
+	}
+}
+
 func TestResolveNameIsEmptyForAnAddressWithNoRecord(t *testing.T) {
-	useResolver(t, stubResolver(t, map[string]string{
-		"10.2.0.192.in-addr.arpa.": "printer.lan.",
+	useResolver(t, stubResolver(t, map[string][]string{
+		"10.2.0.192.in-addr.arpa.": {"printer.lan."},
 	}))
 
 	assert.Empty(t, resolveName(t.Context(), netip.MustParseAddr("192.0.2.11")))

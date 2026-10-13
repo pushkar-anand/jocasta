@@ -181,6 +181,7 @@ var sourceKeys = map[string]string{
 	"dhcp_status":  "Lease status",
 	"dhcp_dynamic": "Dynamic lease",
 	"dhcp_comment": "Lease note",
+	"reverse_dns":  "Reverse DNS names",
 }
 
 // sourceKey words one detail key. A key with no wording here still has to

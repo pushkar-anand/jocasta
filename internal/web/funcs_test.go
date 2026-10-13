@@ -183,6 +183,7 @@ func TestSourceKey(t *testing.T) {
 
 	assert.Equal(t, "Lease status", sourceKey("dhcp_status"))
 	assert.Equal(t, "Dynamic ARP", sourceKey("arp_dynamic"))
+	assert.Equal(t, "Reverse DNS names", sourceKey("reverse_dns"))
 
 	// A key with no wording falls back to its own name, de-underscored.
 	assert.Equal(t, "Vlan pool", sourceKey("vlan_pool"))
