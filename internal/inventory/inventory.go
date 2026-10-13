@@ -18,6 +18,7 @@ import (
 	"maps"
 	"net/netip"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/pushkar-anand/build-with-go/logger"
@@ -210,6 +211,12 @@ type pass struct {
 	// touched is every device a fact resolved to, present or not: the classify
 	// pass that runs after the ingest commits re-reads each of these.
 	touched map[int64]struct{}
+
+	// named is every device this reading has filed a name for. Once it has,
+	// later facts about the device leave the claim as it is. Sources hand their
+	// facts over in address order, so a device holding two addresses whose
+	// names differ keeps the name of the lower one on every reading.
+	named map[int64]struct{}
 }
 
 // networks matches an address to the recorded network containing it. A sweep
@@ -320,6 +327,13 @@ func sweptFacts(hosts []scanner.Host) []plugin.Fact {
 		// [hosts.BuildHost] performs for a sweep.
 		if h.Hostname() != "" {
 			f.HostnameSource = cmp.Or(h.NameSource, dbtype.HostnameFromDNS)
+		}
+
+		// An address with several reverse names keeps the first as its name,
+		// and the claim lists them all, so the device page shows the ones
+		// that were passed over.
+		if names := h.ReverseNames(); len(names) > 1 && f.HostnameSource == dbtype.HostnameFromDNS {
+			f.Detail = map[string]string{"reverse_dns": strings.Join(names, ", ")}
 		}
 
 		facts[i] = f
@@ -538,6 +552,7 @@ func (s *Store) ingest(ctx context.Context, scanID, sourceID int64, r reading) (
 		seen:     map[int64]struct{}{},
 		answered: map[netip.Addr]struct{}{},
 		touched:  map[int64]struct{}{},
+		named:    map[int64]struct{}{},
 	}
 
 	for _, f := range r.facts {
@@ -1062,6 +1077,10 @@ func (s *Store) applyClaim(ctx context.Context, p *pass, d *models.Device, f plu
 // not: a router still holds a static lease with nothing plugged in. Whether
 // anything answered is devices.last_seen's question.
 func (s *Store) recordClaim(ctx context.Context, p *pass, deviceID int64, f plugin.Fact) error {
+	if _, named := p.named[deviceID]; named {
+		return nil
+	}
+
 	detail, err := claimDetail(f.Detail)
 	if err != nil {
 		return fmt.Errorf("detail of %s: %w", f.Host.Address(), err)
@@ -1089,6 +1108,10 @@ func (s *Store) recordClaim(ctx context.Context, p *pass, deviceID int64, f plug
 	})
 	if err != nil {
 		return fmt.Errorf("record claim about device %d: %w", deviceID, err)
+	}
+
+	if name != "" {
+		p.named[deviceID] = struct{}{}
 	}
 
 	return nil

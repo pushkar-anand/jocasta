@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"slices"
 	"strings"
 	"time"
 
@@ -26,31 +27,51 @@ var resolver = net.DefaultResolver
 // sweep resolves again and sees current DNS.
 var lookups singleflight.Group
 
-// resolveName does the reverse lookup for one address, bounded by
-// nameLookupTimeout, and trims the trailing root dot off any answer.
+// resolveNames does the reverse lookup for one address, bounded by
+// nameLookupTimeout, and returns every name the resolver gave, sorted, with the
+// trailing root dot trimmed. An address can carry several PTR records, such as
+// a server's own name beside the name of a role it serves, and the resolver
+// returns them in no fixed order.
 //
 // Callers that arrive while a lookup for the same address is already running
 // share its result, and so also share the deadline of whoever started it. A
-// shared lookup cut short yields no name, which is how every other lookup
+// shared lookup cut short yields no names, which is how every other lookup
 // failure reads here.
-func resolveName(ctx context.Context, addr netip.Addr) string {
+func resolveNames(ctx context.Context, addr netip.Addr) []string {
 	key := addr.String()
 
-	name, _, _ := lookups.Do(key, func() (any, error) {
+	result, _, _ := lookups.Do(key, func() (any, error) {
 		lookupCtx, cancel := context.WithTimeout(ctx, nameLookupTimeout)
 		defer cancel()
 
 		names, err := resolver.LookupAddr(lookupCtx, key)
-		if err != nil || len(names) == 0 {
-			return "", nil
+		if err != nil {
+			return []string(nil), nil
 		}
 
-		return strings.TrimSuffix(names[0], "."), nil
+		out := make([]string, len(names))
+		for i, n := range names {
+			out[i] = strings.TrimSuffix(n, ".")
+		}
+
+		slices.Sort(out)
+
+		return slices.Compact(out), nil
 	})
 
-	resolved, _ := name.(string)
+	names, _ := result.([]string)
 
-	return resolved
+	return names
+}
+
+// resolveName returns the first of addr's reverse DNS names in sorted order, so
+// an address with several resolves to the same one on every lookup.
+func resolveName(ctx context.Context, addr netip.Addr) string {
+	if names := resolveNames(ctx, addr); len(names) > 0 {
+		return names[0]
+	}
+
+	return ""
 }
 
 // ResolveName returns the reverse DNS name for addr, or the empty string when

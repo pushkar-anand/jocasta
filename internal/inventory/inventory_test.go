@@ -591,6 +591,26 @@ func TestRecordSweepRecordsHostnameChange(t *testing.T) {
 	assert.Equal(t, "two.example", to)
 }
 
+// A device answering on two addresses whose reverse names differ is named after
+// the lower address on every sweep, and logs no rename. Taking each address's
+// name in turn renamed it twice in every sweep.
+func TestRecordSweepKeepsOneNameForADeviceOnTwoAddresses(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	for range 3 {
+		sweep(t, s,
+			host("192.0.2.10", macA, "host-b.example"),
+			host("192.0.2.20", macA, "host-a.example"),
+		)
+	}
+
+	id := deviceIDByMAC(t, conn, macA)
+	assert.Equal(t, []string{"host-b.example"}, queryStrings(t, conn, `SELECT hostname FROM devices`))
+	assert.NotContains(t, eventKinds(t, conn, id), dbtype.EventHostnameChanged)
+}
+
 func TestRecordSweepMarksRandomisedAddress(t *testing.T) {
 	t.Parallel()
 

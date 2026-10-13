@@ -91,6 +91,10 @@ type Host struct {
 	mac      net.HardwareAddr
 	hostname string
 
+	// reverseNames is every name the reverse lookup gave, sorted; hostname is
+	// the first. Empty when no lookup was made or it gave no usable name.
+	reverseNames []string
+
 	// vendor and shortName come from the OUI: the full registered name and a
 	// shorter display form. A locally administered address can carry them too,
 	// since some vendors use a prefix they never registered.
@@ -154,7 +158,15 @@ func BuildHost(ctx context.Context, in HostInput) (*Host, error) {
 	// Gated on ResolveName as well as a missing name, because a resolved name
 	// belongs to whoever resolved it. See [HostInput.ResolveName].
 	if in.ResolveName && h.hostname == "" && h.addr.IsValid() {
-		h.hostname, _ = CleanName(resolveName(ctx, h.addr))
+		for _, n := range resolveNames(ctx, h.addr) {
+			if name, ok := CleanName(n); ok {
+				h.reverseNames = append(h.reverseNames, name)
+			}
+		}
+
+		if len(h.reverseNames) > 0 {
+			h.hostname = h.reverseNames[0]
+		}
 	}
 
 	if in.MAC != "" {
@@ -200,6 +212,13 @@ func (h Host) Vendor() string {
 // when neither produced one.
 func (h Host) Hostname() string {
 	return h.hostname
+}
+
+// ReverseNames returns every name the reverse lookup gave, sorted. Hostname is
+// the first when the name came from that lookup. An address can carry several,
+// such as a server's own name beside the name of a role it serves.
+func (h Host) ReverseNames() []string {
+	return h.reverseNames
 }
 
 // Named returns a copy of h that carries name, for a source that learns the

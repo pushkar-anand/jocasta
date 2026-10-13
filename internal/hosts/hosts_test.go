@@ -293,8 +293,8 @@ func TestBuildHostDropsAnUnusableName(t *testing.T) {
 }
 
 func TestBuildHostResolvesWhenNoHostnameIsSupplied(t *testing.T) {
-	useResolver(t, stubResolver(t, map[string]string{
-		"10.2.0.192.in-addr.arpa.": "printer.lan.",
+	useResolver(t, stubResolver(t, map[string][]string{
+		"10.2.0.192.in-addr.arpa.": {"printer.lan."},
 	}))
 
 	in := HostInput{IP: "192.0.2.10", MAC: "00:00:0c:11:22:33", ResolveName: true}
@@ -303,6 +303,21 @@ func TestBuildHostResolvesWhenNoHostnameIsSupplied(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "printer.lan", h.Hostname())
+	assert.Equal(t, []string{"printer.lan"}, h.ReverseNames())
+}
+
+// A host whose address has several PTR records is named after the first in
+// sorted order and keeps them all, so the device page can list the others.
+func TestBuildHostKeepsEveryReverseName(t *testing.T) {
+	useResolver(t, stubResolver(t, map[string][]string{
+		"10.2.0.192.in-addr.arpa.": {"host-a.example.com.", "dns2.example.com."},
+	}))
+
+	h, err := BuildHost(t.Context(), HostInput{IP: "192.0.2.10", ResolveName: true})
+	require.NoError(t, err)
+
+	assert.Equal(t, "dns2.example.com", h.Hostname())
+	assert.Equal(t, []string{"dns2.example.com", "host-a.example.com"}, h.ReverseNames())
 }
 
 // A resolved name belongs to whoever resolved it, so a caller that has not said
