@@ -25,7 +25,7 @@ import (
 )
 
 // Regenerate the sqlc models and query code from sqlc.yaml.
-//go:generate go tool sqlc generate -f ./../../sqlc.yaml
+//go:generate go tool -modfile=../../tools/go.mod sqlc generate -f ./../../sqlc.yaml
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {

@@ -3,7 +3,7 @@
 .DEFAULT_GOAL := build
 
 fmt:
-	go fmt ./... && go tool goimports -w .
+	go fmt ./... && go tool -modfile=tools/go.mod goimports -w .
 
 gen:
 	go generate ./...
@@ -19,7 +19,7 @@ docker: ## Build the container image. Usage: make docker [tag=<image tag>]
 
 
 new_migration: ## Create a new migration file. Usage: make new_migration name=<migration_name>
-	go tool migrate create -dir=internal/db/migrations/ -seq -ext sql $(name)
+	go tool -modfile=tools/go.mod migrate create -dir=internal/db/migrations/ -seq -ext sql $(name)
 
 oui: ## Rebuild the embedded MAC vendor table from IEEE and Wireshark.
 	cd pkg/oui && go run ./internal/gen
@@ -63,7 +63,7 @@ lint: ## Run golangci-lint
 	./bin/golangci-lint run ./...
 
 dev: gen build ## Start the server with hot-reload
-	go tool air
+	go tool -modfile=tools/go.mod air
 # The docs site is built with Zensical, and each release's docs are published
 # with the Zensical fork of mike. uvx fetches both pinned versions on first use;
 # the docs workflow reads these two variables too.
