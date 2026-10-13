@@ -295,6 +295,35 @@ func TestBuildKeepsAQuietDeviceCurrentWithinTheWindow(t *testing.T) {
 	assert.False(t, printer.Current)
 }
 
+// A device that moved is placed where the latest read saw it, even when an
+// earlier read within the window saw it deeper in the tree.
+func TestBuildPlacesAMovedDeviceByTheLatestRead(t *testing.T) {
+	t.Parallel()
+
+	before := wifi("wifi1", 1, 10, "home")
+	before.LastSeen = now.Add(-window / 2)
+
+	router := Source{
+		ID: 1, Name: "a", Identity: "router", Gateway: true, ReadAt: now, Own: []string{routerMAC},
+		Ports: []Port{{Name: "ether2", Kind: PortWired}, {Name: "ether3", Kind: PortWired}},
+		Seen:  []Sighting{seen("ether2", 0xc0, 0), seen("ether3", 1, 10)},
+	}
+
+	ap := Source{
+		ID: 2, Name: "b", Identity: "ap", ReadAt: now, Own: []string{apMAC},
+		Ports: []Port{{Name: "ether1", Kind: PortWired}, {Name: "wifi1", Kind: PortWiFi}},
+		Seen:  []Sighting{seen("ether1", 0xa0, 0), before},
+	}
+
+	tree := Build([]Source{router, ap}, []Device{dev(1, "laptop", true)}, window)
+
+	laptop, ok := tree.Leaf(1)
+	require.True(t, ok)
+	assert.Equal(t, "router", laptop.Owner.Name)
+	assert.Equal(t, "ether3", laptop.Port)
+	assert.True(t, laptop.Current)
+}
+
 // Several devices on one wired port of a source, with nothing announcing
 // itself there, are behind something the tree does not read.
 func TestBuildInfersAnUnnamedSwitch(t *testing.T) {

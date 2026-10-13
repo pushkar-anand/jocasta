@@ -94,9 +94,9 @@ type Sighting struct {
 	// Radio is a Wi-Fi client's connection.
 	Radio Radio
 
-	// LastSeen is the last read that listed the address. A sighting within the
-	// window [Build] is given of the source's latest read is current; an older
-	// one is where the address was last seen.
+	// LastSeen is the last read that listed the address. A sighting from the
+	// source's latest read is current; an older one is where the address was
+	// last seen.
 	LastSeen time.Time
 }
 
