@@ -37,8 +37,8 @@ func listScans(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 		Title: "List scans",
 		Description: "Read the scan history, most recent first: what ran, from which source, on which network, " +
 			"when it started and finished, whether it succeeded, and what it found. " +
-			"Kinds: DISCOVERY is a sweep for devices and found counts hosts; PORTS is a port scan and found counts open ports; " +
-			"IMPORT is a read of a source such as a router and found counts the records it returned. " +
+			"Kinds: DISCOVERY is a sweep or a router read, which source tells apart, and found counts devices; " +
+			"PORTS is a port scan and found counts open ports. " +
 			"A scan still RUNNING long after it started is one whose process died before it could finish. " +
 			"Use it to tell how current the inventory is, or why a device was not seen. This tool does not start a scan. " +
 			"To read further back, pass next_cursor as cursor with kind unchanged, until next_cursor is absent.",

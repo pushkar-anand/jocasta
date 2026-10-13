@@ -63,10 +63,9 @@ type ScanKind string
 const (
 	ScanDiscovery ScanKind = "DISCOVERY"
 	ScanPorts     ScanKind = "PORTS"
-	ScanImport    ScanKind = "IMPORT"
 )
 
-var scanKinds = []ScanKind{ScanDiscovery, ScanPorts, ScanImport}
+var scanKinds = []ScanKind{ScanDiscovery, ScanPorts}
 
 // ScanKinds returns every known scan kind. It is a copy, so a caller cannot
 // change what Valid admits.

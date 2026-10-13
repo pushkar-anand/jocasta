@@ -175,7 +175,6 @@ func TestScanFound(t *testing.T) {
 
 	assert.Equal(t, "12 hosts", scanFound(&inventory.Scan{Kind: dbtype.ScanDiscovery, Found: 12}))
 	assert.Equal(t, "8 ports", scanFound(&inventory.Scan{Kind: dbtype.ScanPorts, Found: 8}))
-	assert.Equal(t, "40 records", scanFound(&inventory.Scan{Kind: dbtype.ScanImport, Found: 40}))
 }
 
 func TestSourceKey(t *testing.T) {

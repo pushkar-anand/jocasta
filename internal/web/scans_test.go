@@ -76,7 +76,6 @@ func TestScansPageEmptyKindReadsRight(t *testing.T) {
 	h := seeded(t)
 
 	assert.Contains(t, get(t, h, "/scans?kind=ports").Body.String(), "No port scans recorded yet.")
-	assert.Contains(t, get(t, h, "/scans?kind=import").Body.String(), "No imports recorded yet.")
 
 	// A log with nothing in it at all says how scans come to be.
 	assert.Contains(t, get(t, empty(t), "/scans").Body.String(), "No scans recorded yet.")

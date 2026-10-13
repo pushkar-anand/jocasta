@@ -12,7 +12,6 @@
         <a href="/scans"{{ if not .Kind }} aria-current="page"{{ end }}>All</a>
         <a href="/scans?kind=discovery"{{ if eq .Kind "discovery" }} aria-current="page"{{ end }}>Discovery</a>
         <a href="/scans?kind=ports"{{ if eq .Kind "ports" }} aria-current="page"{{ end }}>Ports</a>
-        <a href="/scans?kind=import"{{ if eq .Kind "import" }} aria-current="page"{{ end }}>Import</a>
     </nav>
 
     {{- if .Scans }}
@@ -53,7 +52,7 @@
     </div>
     {{- else if .Kind }}
     <div class="card empty">
-        <p>No {{ if eq .Kind "discovery" }}discovery sweeps{{ else if eq .Kind "ports" }}port scans{{ else }}imports{{ end }} recorded yet.</p>
+        <p>No {{ if eq .Kind "discovery" }}discovery sweeps{{ else }}port scans{{ end }} recorded yet.</p>
     </div>
     {{- else }}
     <div class="card empty">

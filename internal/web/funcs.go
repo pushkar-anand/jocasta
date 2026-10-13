@@ -387,8 +387,6 @@ func scanFound(s *inventory.Scan) string {
 	switch s.Kind {
 	case dbtype.ScanPorts:
 		return n + " ports"
-	case dbtype.ScanImport:
-		return n + " records"
 	}
 
 	return n + " hosts"
