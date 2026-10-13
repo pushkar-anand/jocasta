@@ -45,7 +45,7 @@ The Broadcasts tab lists packets the device sent to a whole subnet or multicast 
 When traffic collection is set up, this page summarises the whole network over the last 24 hours, 7 days or 30 days. Its cards:
 
 - **Probing your network**: devices that, within an hour, tried 20 or more addresses, or 20 or more ports on one address, without exchanging any data. A device you run scans from shows up here too.
-- **Reached from the internet**: each device and service that someone on the internet connected to.
+- **Reached from the internet**: each device and service that someone on the internet connected to. A service on the same port at both ends, such as a VPN server on IKE, is left out, since its clients look like replies.
 - **Probed from the internet**: connections from the internet that carried no data, per device and on the router's outside address.
 - **Busiest devices** and **Top internet destinations**. Each organisation opens to the devices behind it.
 - **New this week**: organisations a device first exchanged data with in the last 7 days.
