@@ -91,7 +91,8 @@ the last 24 hours, 7 days or 30 days. Its cards:
   addresses, or 20 or more ports on one address, without exchanging any data.
   A device you run scans from shows up here too.
 - **Reached from the internet**: each device and service that someone on the
-  internet connected to.
+  internet connected to. A service on the same port at both ends, such as a
+  VPN server on IKE, is left out, since its clients look like replies.
 - **Probed from the internet**: connections from the internet that carried no
   data, per device and on the router's outside address.
 - **Busiest devices** and **Top internet destinations**. Each organisation

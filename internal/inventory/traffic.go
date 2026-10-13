@@ -99,6 +99,10 @@ type trafficTotals struct {
 	flags     uint8
 	toService bool
 
+	// mirrored is how many of connections came from flows with the same port
+	// on both ends, whose reply is addressed to the service as well.
+	mirrored uint64
+
 	// echoRequests and echoReplies count pings and their answers.
 	echoRequests, echoReplies uint64
 }
@@ -187,6 +191,12 @@ func (r *TrafficRecorder) Add(src plugin.Plugin, flows []plugin.Flow) {
 			}
 		case key.service == 0 || f.DstPort == key.service:
 			t.connections++
+
+			// An NTP client sends from 123 to 123, so its server's reply
+			// counts here too. trafficRow sorts out which side started it.
+			if key.service != 0 && f.SrcPort == f.DstPort {
+				t.mirrored++
+			}
 		}
 
 		if key.service != 0 && f.DstPort == key.service {
@@ -482,6 +492,14 @@ func (s *Store) trafficRow(
 	} else {
 		p.BytesIn, p.PacketsIn = bytes, packets
 		p.ConnectionsIn = clampInt64(t.connections)
+
+		// With the same port on both ends, the ports cannot tell the opener
+		// from the replier. An internet peer is taken to be replying, since a
+		// device here is far likelier the client of an NTP or IKE server than
+		// one itself.
+		if p.PeerASN.Valid {
+			p.ConnectionsIn = clampInt64(t.connections - t.mirrored)
+		}
 	}
 
 	return p
