@@ -10,7 +10,7 @@ A device can be named by more than one source. The name shown is the one from th
 6. DNS-SD, the name each address still without a name gives the services it advertises.
 7. SSDP, the label in the UPnP description of each address still without a name.
 
-When two sources of the same rank disagree, the one heard from last wins. The device page lists the name each source gives. Once a sweep has a name for a device, a lower-ranked lookup does not replace it. The device keeps that name until the lookup that gave it, or a higher-ranked one, answers with another.
+When two names of the same rank disagree, the device keeps the one it has while any source still gives it, and otherwise takes the one heard from last. A device holding several addresses, such as a router with an address on each VLAN, gets a name from each, and keeps one rather than taking whichever address was read last. The device page lists the name each source gives for each address. Reverse DNS names that systemd-resolved makes up, such as `_gateway`, are not used. Once a sweep has a name for a device, a lower-ranked lookup does not replace it. The device keeps that name until the lookup that gave it, or a higher-ranked one, answers with another.
 
 ## mDNS
 
