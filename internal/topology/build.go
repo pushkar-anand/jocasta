@@ -6,6 +6,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/pushkar-anand/jocasta/internal/classify"
 )
@@ -14,11 +15,14 @@ import (
 //
 // A device goes to the deepest node that saw it on a port leading to no other
 // node, from the latest reads where there are any and the last sighting
-// otherwise. Devices no source has seen are left out, except online ones,
-// which are listed in [Tree.Unplaced]. A device whose hardware address no
-// source reported, or that is itself a node, is not a leaf.
-func Build(sources []Source, devices []Device) *Tree {
-	b := newBuilder(sources, devices)
+// otherwise. A leaf is [Leaf.Current] when its source listed it within window
+// of the source's latest read: a bridge forgets a quiet device's address
+// between reads, so the latest read alone would mark it as gone every other
+// read. Devices no source has seen are left out, except online ones, which are
+// listed in [Tree.Unplaced]. A device whose hardware address no source
+// reported, or that is itself a node, is not a leaf.
+func Build(sources []Source, devices []Device, window time.Duration) *Tree {
+	b := newBuilder(sources, devices, window)
 
 	if root := b.pickRoot(); root != nil {
 		b.tree.Root = root.node
@@ -39,6 +43,9 @@ func Build(sources []Source, devices []Device) *Tree {
 type reader struct {
 	src  *Source
 	node *Node
+
+	// window is how long before the latest read a sighting is still recent.
+	window time.Duration
 
 	ports map[string]Port
 
@@ -62,6 +69,12 @@ func (r *reader) current(s Sighting) bool {
 	return !s.LastSeen.Before(r.src.ReadAt)
 }
 
+// recent reports whether the source listed s within the window of its latest
+// read.
+func (r *reader) recent(s Sighting) bool {
+	return !s.LastSeen.Before(r.src.ReadAt.Add(-r.window))
+}
+
 type builder struct {
 	tree *Tree
 
@@ -81,7 +94,7 @@ type builder struct {
 
 // newBuilder prepares source and device identities for tree construction.
 // Sources sharing a hardware address are resolved in source-name order.
-func newBuilder(sources []Source, devices []Device) *builder {
+func newBuilder(sources []Source, devices []Device, window time.Duration) *builder {
 	b := &builder{
 		tree: &Tree{
 			nodeByDevice: map[int64]*Node{},
@@ -109,6 +122,7 @@ func newBuilder(sources []Source, devices []Device) *builder {
 
 		r := &reader{
 			src:    src,
+			window: window,
 			node:   &Node{Kind: NodeRead, Key: fmt.Sprintf("s%d", src.ID), Name: cmp.Or(src.Identity, src.Name), Online: true},
 			ports:  map[string]Port{},
 			toward: map[*reader]string{},
@@ -468,10 +482,11 @@ func (b *builder) othersOnPort(x *reader, p, mac string) bool {
 
 // spot is one place a device was seen.
 type spot struct {
-	r    *reader
-	s    Sighting
-	cur  bool
-	link bool
+	r      *reader
+	s      Sighting
+	cur    bool
+	recent bool
+	link   bool
 }
 
 // better reports whether a is a better place for a device than c: from a
@@ -519,7 +534,7 @@ func (b *builder) attach() {
 				continue
 			}
 
-			sp := spot{r: r, s: s, cur: r.current(s), link: r.links[s.Port]}
+			sp := spot{r: r, s: s, cur: r.current(s), recent: r.recent(s), link: r.links[s.Port]}
 
 			if have, ok := best[s.MAC]; !ok || b.better(sp, have) {
 				best[s.MAC] = sp
@@ -549,16 +564,16 @@ func (b *builder) attach() {
 
 		l := &Leaf{
 			DeviceID: d.ID, MAC: mac, Name: d.Name, Class: d.Class, Online: d.Online,
-			Port: sp.s.Port, Owner: sp.r.node, Current: sp.cur,
+			Port: sp.s.Port, Owner: sp.r.node, Current: sp.recent,
 		}
 
 		if w, ok := wifi[mac]; ok {
 			l.WiFi, l.SSID, l.Band = true, w.s.SSID, w.s.Band
 
-			if w.cur {
+			if w.recent {
 				l.Radio = w.s.Radio
 			}
-		} else if sp.cur {
+		} else if sp.recent {
 			l.Speed = sp.r.ports[sp.s.Port].Speed
 		}
 

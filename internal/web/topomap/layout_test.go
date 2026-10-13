@@ -55,14 +55,14 @@ func network(t *testing.T, perSwitch int) *topology.Tree {
 	add(81, "ether2", 20, "iot")
 	add(82, "ether2", 20, "iot")
 
-	return topology.Build([]topology.Source{router}, devices)
+	return topology.Build([]topology.Source{router}, devices, 0)
 }
 
 func TestPlaceWithNothingRead(t *testing.T) {
 	t.Parallel()
 
 	assert.Nil(t, Place(nil))
-	assert.Nil(t, Place(topology.Build(nil, nil)))
+	assert.Nil(t, Place(topology.Build(nil, nil, 0)))
 }
 
 func TestPlaceIsStable(t *testing.T) {

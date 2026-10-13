@@ -82,7 +82,7 @@ func likely(n *topology.Node) string {
 // and how the device hangs from the end of it.
 type connection struct {
 	Placed  bool  `json:"placed" jsonschema:"Whether any router, switch or access point Jocasta reads has seen the device on a port. Every other field is absent when not."`
-	Current bool  `json:"current,omitempty" jsonschema:"Whether the latest reads saw the device there. False means this is where it was last seen."`
+	Current bool  `json:"current,omitempty" jsonschema:"Whether a read within the online window saw the device there. False means this is where it was last seen."`
 	Path    []hop `json:"path,omitempty" jsonschema:"The nodes from the router down to the one the device hangs from, in that order."`
 
 	Port  string `json:"port,omitempty" jsonschema:"The last hop's port the device is on. Absent when unknown."`
@@ -175,7 +175,7 @@ type placedDevice struct {
 	Online   bool   `json:"online"`
 
 	Node    string `json:"node" jsonschema:"The key of the node the device hangs from."`
-	Current bool   `json:"current" jsonschema:"Whether the latest read of that node saw the device there. False means this is where it was last seen."`
+	Current bool   `json:"current" jsonschema:"Whether a read of that node within the online window saw the device there. False means this is where it was last seen."`
 	Port    string `json:"port,omitempty" jsonschema:"The node's port the device is on. Absent when unknown."`
 	VLANs   []int  `json:"vlans,omitempty"`
 

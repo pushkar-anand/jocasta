@@ -18,6 +18,10 @@ var (
 	earlier = now.Add(-time.Hour)
 )
 
+// window is how long before a read a sighting still counts as current. An old
+// sighting is outside it.
+const window = 15 * time.Minute
+
 // Infrastructure addresses.
 var (
 	routerMAC = mac(0xa0)
@@ -128,7 +132,7 @@ func TestBuildFromTheRouterAlone(t *testing.T) {
 		dev(4, "desktop", true), dev(5, "nas", false),
 		dev(0xa0, "router-device", true), dev(0xb0, "switch-device", true), dev(0xc0, "ap-device", true),
 		dev(9, "laptop", true),
-	})
+	}, window)
 
 	assert.Equal(t, `read router
   [wired vlan 10] pi@ether7
@@ -209,7 +213,7 @@ func TestBuildFromEveryDevice(t *testing.T) {
 
 	tree := Build([]Source{sw, ap, router}, []Device{
 		dev(1, "phone", true), dev(2, "plug", true), dev(4, "desktop", true),
-	})
+	}, window)
 
 	assert.Equal(t, `read router
   read switch-a via "sfp1" trunk
@@ -250,7 +254,7 @@ func TestBuildPrefersTheLatestRead(t *testing.T) {
 		},
 	}
 
-	tree := Build([]Source{router}, []Device{dev(1, "laptop", true), dev(2, "printer", false)})
+	tree := Build([]Source{router}, []Device{dev(1, "laptop", true), dev(2, "printer", false)}, window)
 
 	laptop, ok := tree.Leaf(1)
 	require.True(t, ok)
@@ -262,6 +266,62 @@ func TestBuildPrefersTheLatestRead(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "ether3", printer.Port)
 	assert.False(t, printer.Current)
+}
+
+// A bridge forgets a quiet device's address between reads, so a device the
+// latest read missed is still current while an earlier read within the window
+// listed it.
+func TestBuildKeepsAQuietDeviceCurrentWithinTheWindow(t *testing.T) {
+	t.Parallel()
+
+	quiet := seen("ether2", 1, 10)
+	quiet.LastSeen = now.Add(-window / 2)
+
+	router := Source{
+		ID: 1, Name: "a", Identity: "router", Gateway: true, ReadAt: now, Own: []string{routerMAC},
+		Ports: []Port{{Name: "ether2", Kind: PortWired}, {Name: "ether3", Kind: PortWired}},
+		Seen:  []Sighting{quiet, old(seen("ether3", 2, 10))},
+	}
+
+	tree := Build([]Source{router}, []Device{dev(1, "vm", true), dev(2, "printer", false)}, window)
+
+	vm, ok := tree.Leaf(1)
+	require.True(t, ok)
+	assert.Equal(t, "ether2", vm.Port)
+	assert.True(t, vm.Current)
+
+	printer, ok := tree.Leaf(2)
+	require.True(t, ok)
+	assert.False(t, printer.Current)
+}
+
+// A device that moved is placed where the latest read saw it, even when an
+// earlier read within the window saw it deeper in the tree.
+func TestBuildPlacesAMovedDeviceByTheLatestRead(t *testing.T) {
+	t.Parallel()
+
+	before := wifi("wifi1", 1, 10, "home")
+	before.LastSeen = now.Add(-window / 2)
+
+	router := Source{
+		ID: 1, Name: "a", Identity: "router", Gateway: true, ReadAt: now, Own: []string{routerMAC},
+		Ports: []Port{{Name: "ether2", Kind: PortWired}, {Name: "ether3", Kind: PortWired}},
+		Seen:  []Sighting{seen("ether2", 0xc0, 0), seen("ether3", 1, 10)},
+	}
+
+	ap := Source{
+		ID: 2, Name: "b", Identity: "ap", ReadAt: now, Own: []string{apMAC},
+		Ports: []Port{{Name: "ether1", Kind: PortWired}, {Name: "wifi1", Kind: PortWiFi}},
+		Seen:  []Sighting{seen("ether1", 0xa0, 0), before},
+	}
+
+	tree := Build([]Source{router, ap}, []Device{dev(1, "laptop", true)}, window)
+
+	laptop, ok := tree.Leaf(1)
+	require.True(t, ok)
+	assert.Equal(t, "router", laptop.Owner.Name)
+	assert.Equal(t, "ether3", laptop.Port)
+	assert.True(t, laptop.Current)
 }
 
 // Several devices on one wired port of a source, with nothing announcing
@@ -278,7 +338,7 @@ func TestBuildInfersAnUnnamedSwitch(t *testing.T) {
 		},
 	}
 
-	tree := Build([]Source{router}, []Device{dev(1, "tv", true), dev(2, "console", true), dev(3, "desk", true)})
+	tree := Build([]Source{router}, []Device{dev(1, "tv", true), dev(2, "console", true), dev(3, "desk", true)}, window)
 
 	assert.Equal(t, `read router
   [wired vlan 10] desk@ether6
@@ -298,7 +358,7 @@ func TestBuildMarksAnUnnamedAccessPoint(t *testing.T) {
 		Seen:  []Sighting{wifi("ether2", 1, 10, "home"), wifi("ether2", 2, 10, "home")},
 	}
 
-	tree := Build([]Source{router}, []Device{dev(1, "phone", true), dev(2, "tablet", true)})
+	tree := Build([]Source{router}, []Device{dev(1, "phone", true), dev(2, "tablet", true)}, window)
 
 	require.Len(t, tree.Root.Children, 1)
 	ap := tree.Root.Children[0]
@@ -327,7 +387,7 @@ func TestBuildHangsSiblingsFromWhatIsBetween(t *testing.T) {
 		Seen: []Sighting{seen("ether1", 0xa0, 0), seen("ether1", 0xb0, 0)},
 	}
 
-	tree := Build([]Source{router, left, right}, nil)
+	tree := Build([]Source{router, left, right}, nil, window)
 
 	assert.Equal(t, `read router
   unnamed  via "ether2"
@@ -339,7 +399,7 @@ func TestBuildHangsSiblingsFromWhatIsBetween(t *testing.T) {
 func TestBuildWithNothingRead(t *testing.T) {
 	t.Parallel()
 
-	tree := Build(nil, []Device{dev(1, "phone", true), dev(2, "old", false)})
+	tree := Build(nil, []Device{dev(1, "phone", true), dev(2, "old", false)}, window)
 
 	assert.Nil(t, tree.Root)
 	require.Len(t, tree.Unplaced, 1)
@@ -358,10 +418,10 @@ func TestBuildIsStable(t *testing.T) {
 	}
 	devices := []Device{dev(1, "b", true), dev(2, "a", true)}
 
-	first := render(Build([]Source{src}, devices))
+	first := render(Build([]Source{src}, devices, window))
 
 	for range 20 {
-		assert.Equal(t, first, render(Build([]Source{src}, devices)))
+		assert.Equal(t, first, render(Build([]Source{src}, devices, window)))
 	}
 
 	assert.Equal(t, `read router
@@ -427,7 +487,7 @@ func TestBuildIgnoresWhatAnUplinkLearns(t *testing.T) {
 
 	tree := Build([]Source{router, sw, ap}, []Device{
 		dev(1, "phone", true), dev(2, "plug", true), dev(3, "server", true), dev(4, "nas", true),
-	})
+	}, window)
 
 	assert.Equal(t, `read router
   read ap-hall via "ether2" trunk
@@ -452,7 +512,7 @@ func TestBuildHangsVirtualMachinesFromTheirHost(t *testing.T) {
 	host := dev(1, "vm-host", true)
 	host.Class = "hypervisor"
 
-	tree := Build([]Source{router}, []Device{host, dev(2, "web", true), dev(3, "db", true)})
+	tree := Build([]Source{router}, []Device{host, dev(2, "web", true), dev(3, "db", true)}, window)
 
 	assert.Equal(t, `read router
   host vm-host via "ether7"
@@ -481,7 +541,7 @@ func TestBuildLeavesTwoHypervisorsBehindASwitch(t *testing.T) {
 	a, c := dev(1, "host-a", true), dev(2, "host-b", true)
 	a.Class, c.Class = "hypervisor", "hypervisor"
 
-	tree := Build([]Source{router}, []Device{a, c})
+	tree := Build([]Source{router}, []Device{a, c}, window)
 
 	require.Len(t, tree.Root.Children, 1)
 	assert.Equal(t, NodeUnnamed, tree.Root.Children[0].Kind)
@@ -511,7 +571,7 @@ func TestBuildMarksAVirtualMachineHost(t *testing.T) {
 		{ID: 1, MAC: vbox, Name: "vm-a", Online: true},
 		{ID: 2, MAC: qemu, Name: "vm-b", Online: true},
 		{ID: 3, MAC: plain, Name: "desktop", Online: true},
-	})
+	}, window)
 
 	require.Len(t, tree.Root.Children, 1)
 	n := tree.Root.Children[0]
@@ -547,7 +607,7 @@ func TestBuildGivesTheLinkToWhatIsPluggedIn(t *testing.T) {
 
 	tree := Build([]Source{router}, []Device{
 		dev(1, "desktop", true), dev(2, "tv", true), dev(3, "console", true), host, dev(5, "web", true),
-	})
+	}, window)
 
 	desktop, ok := tree.Leaf(1)
 	require.True(t, ok)
@@ -589,7 +649,7 @@ func TestBuildGivesAWiFiClientItsRates(t *testing.T) {
 		Seen: []Sighting{phone, old(gone), old(seen("ether2", 3, 10))},
 	}
 
-	tree := Build([]Source{router}, []Device{dev(1, "phone", true), dev(2, "tablet", false), dev(3, "nas", false)})
+	tree := Build([]Source{router}, []Device{dev(1, "phone", true), dev(2, "tablet", false), dev(3, "nas", false)}, window)
 
 	l, ok := tree.Leaf(1)
 	require.True(t, ok)
