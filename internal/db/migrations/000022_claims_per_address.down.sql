@@ -1,5 +1,6 @@
 -- One claim per device and source again: of a source's claims about a device,
--- the most recently heard is kept.
+-- the most recently heard one with a name is kept, or the most recently heard
+-- when none has a name.
 
 CREATE TABLE device_sources_old
 (
@@ -16,7 +17,7 @@ CREATE TABLE device_sources_old
 INSERT INTO device_sources_old (device_id, source_id, hostname, hostname_source, detail, first_seen, last_seen)
 SELECT device_id, source_id, hostname, hostname_source, detail, first_seen, last_seen
 FROM (SELECT ds.*,
-             ROW_NUMBER() OVER (PARTITION BY device_id, source_id ORDER BY last_seen DESC, address) AS n
+             ROW_NUMBER() OVER (PARTITION BY device_id, source_id ORDER BY hostname IS NULL, last_seen DESC, address) AS n
       FROM device_sources ds)
 WHERE n = 1;
 

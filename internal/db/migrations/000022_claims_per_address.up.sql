@@ -16,8 +16,8 @@ CREATE TABLE device_sources_new
     -- The address the source said this about.
     address         TEXT    NOT NULL,
 
-    -- An empty claim overwrites its predecessor, so a source with nothing left
-    -- to say about a name can retract it.
+    -- The last name this source gave for this address. A reading with no name
+    -- leaves it in place.
     hostname        TEXT,
 
     -- Per claim, since sources.kind cannot say it: one router offers both a
