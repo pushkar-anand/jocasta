@@ -217,7 +217,7 @@ Everything Jocasta knows about one device:
 - Connected: the path from the internet to the device, through each router, switch and access point, with the port or Wi-Fi network, band and VLAN at each step. A device plugged straight into a read port shows the link's rate, and a Wi-Fi client its rate each way and its signal. When a wired link runs below what both ends can, the page says so. Show on topology opens the Topology page on the device.
 - Addresses: every address the device has held, and the network each is on.
 - Ports: once a port scan has reached the device (see [CLI](<https://pushkar-anand.github.io/jocasta/0.12/cli/#ports>)), the TCP ports it listens on, and the ones it has since closed.
-- Sources: what each source, such as the sweep or the router, calls the device, and when it last heard from it.
+- Sources: what each source, such as the sweep or the router, calls the device at each address it reported, and when it last heard from it.
 - History: the device's entries in the change log.
 
 ### Talks to
@@ -447,7 +447,7 @@ A device can be named by more than one source. The name shown is the one from th
 6. DNS-SD, the name each address still without a name gives the services it advertises.
 7. SSDP, the label in the UPnP description of each address still without a name.
 
-When two sources of the same rank disagree, the one heard from last wins. The device page lists the name each source gives. Once a sweep has a name for a device, a lower-ranked lookup does not replace it. The device keeps that name until the lookup that gave it, or a higher-ranked one, answers with another.
+When two names of the same rank disagree, the device keeps the one it has while any source still gives it, and otherwise takes the one heard from last. A device holding several addresses, such as a router with an address on each VLAN, gets a name from each, and keeps one rather than taking whichever address was read last. The device page lists the name each source gives for each address. Reverse DNS names that systemd-resolved makes up, such as `_gateway`, are not used. Once a sweep has a name for a device, a lower-ranked lookup does not replace it. The device keeps that name until the lookup that gave it, or a higher-ranked one, answers with another.
 
 ## mDNS
 
