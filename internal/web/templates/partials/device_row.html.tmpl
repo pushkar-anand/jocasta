@@ -56,7 +56,12 @@
     <td data-label="Hardware">
         <span class="cell cell--lines">
             <span class="mono dim">{{ dash .MAC }}{{ if .Randomised }} <span class="chip chip--warn">randomised</span>{{ end }}</span>
-            {{- with .Vendor }}<span class="dim">{{ . }}</span>{{ end }}
+            {{- /* The short name fits the cell; the registered name is on hover and
+                   is what a screen reader reads. */}}
+            {{- with .VendorShort }}<span class="dim">
+                {{- if eq . $.Vendor }}{{ . }}
+                {{- else }}<span title="{{ $.Vendor }}" aria-hidden="true">{{ . }}</span><span class="visually-hidden">{{ $.Vendor }}</span>
+                {{- end }}</span>{{ end }}
         </span>
     </td>
     <td class="dim" data-label="Group">{{ dash .Group }}</td>

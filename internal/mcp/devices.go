@@ -37,7 +37,8 @@ func listDevices(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 		Title: "List devices",
 		Description: "List the devices in the network inventory, optionally filtered by a search term, group, network, " +
 			"device class, presence (seen recently or quiet) or whether the owner watches it. " +
-			"Each device carries its id, hardware address, current IP addresses, vendor, hostname, class, open port numbers, " +
+			"Each device carries its id, hardware address, current IP addresses, vendor (the organisation that registered " +
+			"the hardware address) and vendor_short (the OUI table's short form of it), hostname, class, open port numbers, " +
 			"when it was first and last seen, and the label, group and notes its owner gave it. " +
 			"Devices the owner marked as ignored are left out unless include_ignored is set. " +
 			"Use it to find a device and its id; use get_device for one device's address history, ports and sources.",

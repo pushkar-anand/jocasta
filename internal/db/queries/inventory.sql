@@ -70,9 +70,9 @@ WHERE a.ip = ?
   AND a.is_current = 1;
 
 -- name: CreateDevice :one
-INSERT INTO devices (mac, identity_source, is_randomised, vendor, hostname, hostname_source,
+INSERT INTO devices (mac, identity_source, is_randomised, vendor, vendor_short, hostname, hostname_source,
                      first_seen, last_seen)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: IdentifyDevice :exec
@@ -80,7 +80,8 @@ UPDATE devices
 SET mac             = sqlc.arg(mac),
     identity_source = 'MAC',
     is_randomised   = sqlc.arg(is_randomised),
-    vendor          = sqlc.arg(vendor)
+    vendor          = sqlc.arg(vendor),
+    vendor_short    = sqlc.arg(vendor_short)
 WHERE id = sqlc.arg(id);
 
 -- name: SetDeviceHostname :exec
@@ -90,8 +91,12 @@ SET hostname        = sqlc.arg(hostname),
 WHERE id = sqlc.arg(id);
 
 -- name: TouchDevice :exec
+-- A sighting refreshes the vendor, so a newer OUI table reaches every device.
+-- A sighting without one, such as a sweep across a router, keeps what is held.
 UPDATE devices
-SET last_seen = sqlc.arg(last_seen)
+SET last_seen    = sqlc.arg(last_seen),
+    vendor       = COALESCE(sqlc.narg(vendor), vendor),
+    vendor_short = COALESCE(sqlc.narg(vendor_short), vendor_short)
 WHERE id = sqlc.arg(id);
 
 -- Presence. present_since is set from the sighting that ended a quiet spell
@@ -392,6 +397,7 @@ WHERE (d.is_ignored = 0 OR d.is_ignored = sqlc.arg(include_ignored))
     OR instr(lower(d.label), lower(CAST(sqlc.narg(q) AS TEXT))) > 0
     OR instr(lower(d.hostname), lower(CAST(sqlc.narg(q) AS TEXT))) > 0
     OR instr(lower(d.vendor), lower(CAST(sqlc.narg(q) AS TEXT))) > 0
+    OR instr(lower(d.vendor_short), lower(CAST(sqlc.narg(q) AS TEXT))) > 0
     OR instr(lower(d.mac), lower(CAST(sqlc.narg(q) AS TEXT))) > 0
     OR EXISTS (SELECT 1
                FROM addresses a
@@ -672,7 +678,8 @@ SELECT sqlc.embed(e),
        d.label,
        d.hostname,
        d.mac,
-       d.vendor
+       d.vendor,
+       d.vendor_short
 FROM events e
          LEFT JOIN devices d ON d.id = e.device_id
 WHERE e.scan_id = ?

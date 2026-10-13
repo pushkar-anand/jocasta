@@ -47,6 +47,27 @@ func TestExplainClassGivesTheFactsAndTheRules(t *testing.T) {
 	assert.Equal(t, "port 515 (LPD print service)", got.OtherRules[0].Reason)
 }
 
+// Vendor rules match the start of the OUI table's short name. The registered
+// name often leads with a city, so the classifier is given the short one.
+func TestExplainClassMatchesTheShortVendorName(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, ""))
+	id := deviceIDByMAC(t, conn, macA)
+
+	_, err := conn.ExecContext(t.Context(),
+		`UPDATE devices SET vendor = 'Beijing Xiaomi Mobile Software Co., Ltd', vendor_short = 'XiaomiMobile'`)
+	require.NoError(t, err)
+
+	got, err := s.ExplainClass(t.Context(), id)
+	require.NoError(t, err)
+
+	assert.Equal(t, "XiaomiMobile", got.Facts.VendorShort)
+	require.NotNil(t, got.Rule)
+	assert.Equal(t, "vendor Xiaomi", got.Rule.Reason)
+}
+
 func TestExplainClassKeepsTheGuessUnderTheOwnersType(t *testing.T) {
 	t.Parallel()
 

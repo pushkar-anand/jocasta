@@ -295,6 +295,29 @@ func TestRecordSweepIdentifiesLateMAC(t *testing.T) {
 	assert.Contains(t, eventKinds(t, conn, before), dbtype.EventDeviceIdentified)
 }
 
+// A sighting records the vendor the OUI table gives now, so a device recorded
+// before a table refresh, or before the registered name was kept, catches up.
+// A sighting with no hardware address has no vendor to give and leaves both.
+func TestRecordSweepRefreshesTheVendor(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, host("192.0.2.10", macA, ""))
+
+	_, err := conn.ExecContext(t.Context(), `UPDATE devices SET vendor = NULL, vendor_short = 'Stale'`)
+	require.NoError(t, err)
+
+	sweep(t, s, host("192.0.2.10", macA, ""))
+
+	vendor := `SELECT vendor || '|' || vendor_short FROM devices`
+	assert.Equal(t, "ICANN, IANA Department|ICANNIANADep", queryString(t, conn, vendor))
+
+	sweep(t, s, host("192.0.2.10", "", ""))
+
+	assert.Equal(t, "ICANN, IANA Department|ICANNIANADep", queryString(t, conn, vendor))
+}
+
 // A device already known by its hardware address on one address, met again on
 // a second where a weaker row had been standing in for it, absorbs that row.
 func TestRecordSweepFoldsDuplicate(t *testing.T) {

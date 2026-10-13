@@ -1,6 +1,7 @@
 package inventory
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
@@ -64,7 +65,7 @@ func (s *Store) ScanChanges(ctx context.Context, scanID int64) (*ScanChanges, er
 	for _, r := range rows {
 		e := newEvent(&r.Event)
 		if e.DeviceID != 0 {
-			e.DeviceName = spokenName(r.Label.String, r.Hostname.String, r.Vendor.String, macString(r.MAC), e.DeviceID)
+			e.DeviceName = spokenName(r.Label.String, r.Hostname.String, cmp.Or(r.Vendor.String, r.VendorShort.String), macString(r.MAC), e.DeviceID)
 		}
 
 		c.Events = append(c.Events, e)

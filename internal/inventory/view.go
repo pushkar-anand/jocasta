@@ -29,7 +29,14 @@ type Device struct {
 	MAC            string                `json:"mac,omitempty"`
 	IdentitySource dbtype.IdentitySource `json:"identity_source"`
 	Randomised     bool                  `json:"randomised"`
-	Vendor         string                `json:"vendor,omitempty"`
+
+	// Vendor is the organisation that registered the hardware address, and
+	// VendorShort the OUI table's short form of it, such as "ProxmoxServe".
+	// Vendor falls back to VendorShort until the device's next sighting
+	// records the registered name.
+	Vendor      string `json:"vendor,omitempty"`
+	VendorShort string `json:"vendor_short,omitempty"`
+
 	Hostname       string                `json:"hostname,omitempty"`
 	HostnameSource dbtype.HostnameSource `json:"hostname_source,omitempty"`
 	Type           string                `json:"type,omitempty"`
@@ -404,7 +411,8 @@ func newDevice(d *models.Device, cutoff time.Time) *Device {
 		MAC:             macString(d.MAC),
 		IdentitySource:  d.IdentitySource,
 		Randomised:      d.IsRandomised,
-		Vendor:          d.Vendor.String,
+		Vendor:          cmp.Or(d.Vendor.String, d.VendorShort.String),
+		VendorShort:     d.VendorShort.String,
 		Hostname:        d.Hostname.String,
 		HostnameSource:  d.HostnameSource,
 		Type:            d.DeviceType.String,

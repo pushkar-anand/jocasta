@@ -41,7 +41,7 @@ type ClassExplanation struct {
 // ClassFacts are the facts the classifier reasons over, as the inventory
 // records them. An empty field is a fact the inventory does not have.
 type ClassFacts struct {
-	Vendor         string                `json:"vendor,omitempty"`
+	VendorShort    string                `json:"vendor_short,omitempty"`
 	Hostname       string                `json:"hostname,omitempty"`
 	HostnameSource dbtype.HostnameSource `json:"hostname_source,omitempty"`
 	Randomised     bool                  `json:"randomised"`
@@ -98,7 +98,7 @@ func (s *Store) ExplainClass(ctx context.Context, id int64) (*ClassExplanation, 
 		Guess:      got.Result.Class,
 		Confidence: got.Result.Confidence,
 		Facts: ClassFacts{
-			Vendor:         in.Vendor,
+			VendorShort:    in.Vendor,
 			Hostname:       in.Hostname,
 			HostnameSource: row.HostnameSource,
 			Randomised:     in.Randomised,
