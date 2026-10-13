@@ -28,7 +28,7 @@ type logData struct {
 	// full log. Only the event log is ever narrowed.
 	Device *inventory.Device
 
-	// Kind narrows the scan log to one kind ("discovery", "ports", "import"),
+	// Kind narrows the scan log to one kind ("discovery", "ports"),
 	// and is empty for every kind. Only the scan log is ever narrowed this way.
 	Kind string
 
@@ -83,7 +83,7 @@ type logQuery struct {
 // narrows to when there is one.
 type scansQuery struct {
 	logQuery
-	Kind string `schema:"kind" validate:"omitempty,oneof=discovery ports import"`
+	Kind string `schema:"kind" validate:"omitempty,oneof=discovery ports"`
 }
 
 // scanKind maps the query-string spelling to the stored value; an empty or
@@ -94,8 +94,6 @@ func scanKind(s string) dbtype.ScanKind {
 		return dbtype.ScanDiscovery
 	case "ports":
 		return dbtype.ScanPorts
-	case "import":
-		return dbtype.ScanImport
 	}
 
 	return ""

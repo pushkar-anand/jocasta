@@ -120,7 +120,7 @@ func TestEnumValid(t *testing.T) {
 	assert.False(t, SourceKind("BOGUS").Valid())
 	assert.True(t, IdentityMAC.Valid())
 	assert.False(t, IdentitySource("HOSTNAME").Valid())
-	assert.True(t, ScanImport.Valid())
+	assert.False(t, ScanKind("IMPORT").Valid())
 	assert.True(t, StatusRunning.Valid())
 	assert.True(t, EventAddressAdded.Valid())
 	assert.True(t, EventAddressReleased.Valid())

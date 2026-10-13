@@ -385,11 +385,8 @@ func took(s *inventory.Scan) string {
 func scanFound(s *inventory.Scan) string {
 	n := strconv.Itoa(s.Found)
 
-	switch s.Kind {
-	case dbtype.ScanPorts:
+	if s.Kind == dbtype.ScanPorts {
 		return n + " ports"
-	case dbtype.ScanImport:
-		return n + " records"
 	}
 
 	return n + " hosts"
