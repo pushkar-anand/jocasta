@@ -82,7 +82,8 @@ func listTraffic(store *inventory.Store, now func() time.Time) func(*mcpsdk.Serv
 			"With neither: the busiest devices, the organisations the whole network exchanged the most with, " +
 			"and probing: devices that within one hour tried 20 or more local addresses, or 20 or more ports on one, " +
 			"without the connections carrying data, which is what a scan looks like, so a host the owner runs scans from shows there too; " +
-			"incoming: per device and service, the connections internet peers opened, which shows the services the network exposes that were used; " +
+			"incoming: per device and service, the connections internet peers opened, which shows the services the network exposes that were used, " +
+			"except one on the same port at both ends, such as a VPN on IKE, whose clients look like replies; " +
 			"and probed: devices the internet tried without the connections carrying data, with outside true when the router's " +
 			"outside address was tried and the device is the router. " +
 			"In a device view, a peer's connections_in counts the connections that peer opened on the device, " +

@@ -534,6 +534,44 @@ func TestConnectionsAreCountedByWhoStartedThem(t *testing.T) {
 	assert.Equal(t, int64(9_000), incoming[0].Sent)
 }
 
+// An NTP client sends from 123 to 123, so the server's reply is addressed to
+// the service as well. From the internet it counts as no connection: the
+// device asked, and nothing it serves was reached.
+func TestAnInternetReplyOnTheSamePortIsNotIncoming(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, ""))
+
+	at := s.now()
+	udp := func(src, dst string, srcPort, dstPort uint16) plugin.Flow {
+		f := flow(src, dst, srcPort, dstPort, 76, at)
+		f.Protocol, f.TCPFlags = 17, 0
+
+		return f
+	}
+
+	rec := newRecorder(s, nil)
+	rec.Add(trafficSource{}, []plugin.Flow{
+		udp("192.0.2.10", "1.1.1.1", 123, 123),
+		udp("1.1.1.1", "192.0.2.10", 123, 123),
+	})
+	require.NoError(t, rec.Flush(t.Context()))
+
+	var out, in int64
+
+	err := conn.QueryRowContext(t.Context(),
+		`SELECT connections, connections_in FROM traffic_hourly WHERE device_id = 1 AND peer_ip = '1.1.1.1'`,
+	).Scan(&out, &in)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), out, "the device opened it")
+	assert.Zero(t, in, "the reply opened nothing")
+
+	incoming, err := s.IncomingFromInternet(t.Context(), at.Add(-time.Hour), "", 10)
+	require.NoError(t, err)
+	assert.Empty(t, incoming)
+}
+
 // An ICMP message that answers something, here an unreachable sent back to a
 // device that swept a subnet, counts as no connection by the replier. A ping
 // still counts as one by the pinger.
