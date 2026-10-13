@@ -58,7 +58,7 @@ e2e-full: ## Run the browser tests on every screen and account, as a release doe
 
 lint: ## Run golangci-lint
 	@if [ ! -f ./bin/golangci-lint ]; then \
-		curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b ./bin v2.13.2; \
+		curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b ./bin v2.14.0; \
 	fi
 	./bin/golangci-lint run ./...
 

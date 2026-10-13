@@ -15,4 +15,4 @@ jobs:
     with:
       # Kept in step with the version the `lint` target in the Makefile
       # installs, so a local run and CI see the same set of checks.
-      version: v2.13.2
+      version: v2.14.0
