@@ -66,9 +66,11 @@ port scan probes each advertised TCP port, so the table says whether it
 answers. The scan also probes every port recorded open, so when a service
 moves to a new port, its old port closes. A port probed only because a device
 advertised it opens and closes without an event, since a phone advertises on
-a new random port each time. The classifier reads the services: a print
-service marks a printer, and the Android TV remote service a TV. A service no
-sweep has heard within `retention.history` is deleted.
+a new random port each time. The classifier reads every service heard
+within `retention.history`, so one sweep missing an answer does not change a
+device's type: a print service marks a printer, and the Android TV remote
+service a TV. A service no sweep has heard within `retention.history` is
+deleted.
 
 ## SSDP
 

@@ -246,6 +246,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.listDeviceServicesStmt, err = db.PrepareContext(ctx, listDeviceServices); err != nil {
 		return nil, fmt.Errorf("error preparing query ListDeviceServices: %w", err)
 	}
+	if q.listDeviceServicesInWindowStmt, err = db.PrepareContext(ctx, listDeviceServicesInWindow); err != nil {
+		return nil, fmt.Errorf("error preparing query ListDeviceServicesInWindow: %w", err)
+	}
 	if q.listDeviceSourcesStmt, err = db.PrepareContext(ctx, listDeviceSources); err != nil {
 		return nil, fmt.Errorf("error preparing query ListDeviceSources: %w", err)
 	}
@@ -822,6 +825,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing listDeviceServicesStmt: %w", cerr)
 		}
 	}
+	if q.listDeviceServicesInWindowStmt != nil {
+		if cerr := q.listDeviceServicesInWindowStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listDeviceServicesInWindowStmt: %w", cerr)
+		}
+	}
 	if q.listDeviceSourcesStmt != nil {
 		if cerr := q.listDeviceSourcesStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listDeviceSourcesStmt: %w", cerr)
@@ -1270,6 +1278,7 @@ type Queries struct {
 	listDeviceOpenPortsStmt            *sql.Stmt
 	listDevicePortsStmt                *sql.Stmt
 	listDeviceServicesStmt             *sql.Stmt
+	listDeviceServicesInWindowStmt     *sql.Stmt
 	listDeviceSourcesStmt              *sql.Stmt
 	listDevicesStmt                    *sql.Stmt
 	listGroupsStmt                     *sql.Stmt
@@ -1417,6 +1426,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		listDeviceOpenPortsStmt:            q.listDeviceOpenPortsStmt,
 		listDevicePortsStmt:                q.listDevicePortsStmt,
 		listDeviceServicesStmt:             q.listDeviceServicesStmt,
+		listDeviceServicesInWindowStmt:     q.listDeviceServicesInWindowStmt,
 		listDeviceSourcesStmt:              q.listDeviceSourcesStmt,
 		listDevicesStmt:                    q.listDevicesStmt,
 		listGroupsStmt:                     q.listGroupsStmt,

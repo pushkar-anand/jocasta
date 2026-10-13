@@ -122,7 +122,7 @@ func classifyInput(ctx context.Context, q *models.Queries, d *models.Device) (cl
 		open = append(open, uint16(p.Port)) //nolint:gosec // range enforced by the column CHECK.
 	}
 
-	advertised, err := q.ListDeviceServices(ctx, d.ID)
+	advertised, err := q.ListDeviceServicesInWindow(ctx, d.ID)
 	if err != nil {
 		return classify.Input{}, fmt.Errorf("services of device %d: %w", d.ID, err)
 	}

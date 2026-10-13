@@ -637,7 +637,7 @@ WHERE device_id = sqlc.arg(device_id)
   AND state = 'open';
 
 -- The services a device advertised in the latest sweep that heard it, for the
--- device page and the classifier. Older rows stay until the history window
+-- device page and get_device. Older rows stay until the history window
 -- prunes them, but a phone advertises under a new name and port each time, so
 -- listing them would bury the current few under hundreds of stale ones. Every
 -- row one sweep writes shares its last_seen.
@@ -647,6 +647,14 @@ FROM device_services s
 WHERE s.device_id = sqlc.arg(device_id)
   AND s.last_seen = (SELECT MAX(l.last_seen) FROM device_services l WHERE l.device_id = sqlc.arg(device_id))
 ORDER BY s.type, s.instance;
+
+-- Every service a device has advertised within the history window, for the
+-- classifier, so a sweep that misses one answer cannot move the device's class.
+-- name: ListDeviceServicesInWindow :many
+SELECT *
+FROM device_services
+WHERE device_id = ?
+ORDER BY type, instance;
 
 -- name: DeleteDeviceServicesBefore :execrows
 DELETE

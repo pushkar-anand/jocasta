@@ -97,6 +97,24 @@ func TestADeviceListsTheLatestSweepsServices(t *testing.T) {
 	assert.Equal(t, 2, queryInt(t, conn, `SELECT COUNT(*) FROM device_services WHERE device_id = ?`, id))
 }
 
+// The classifier reads every service within the history window, so a sweep
+// that misses the TV remote service leaves the device a TV.
+func TestAServiceMissingFromTheLatestSweepStillClassifies(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, advertising("192.0.2.10", macA, tvRemote, tvCast))
+	sweep(t, s, advertising("192.0.2.10", macA, tvCast))
+
+	id := deviceIDByMAC(t, conn, macA)
+	assert.Equal(t, string(classify.TV), queryString(t, conn, `SELECT device_class FROM devices WHERE id = ?`, id))
+
+	why, err := s.ExplainClass(t.Context(), id)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"_androidtvremote2._tcp", "_googlecast._tcp"}, why.Facts.Services)
+}
+
 // A service no sweep has heard within the history window goes with the prune.
 func TestPruneDeletesServicesPastRetention(t *testing.T) {
 	t.Parallel()

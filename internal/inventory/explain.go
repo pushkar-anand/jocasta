@@ -52,9 +52,8 @@ type ClassFacts struct {
 	Addresses []netip.Addr `json:"addresses"`  // held now
 	OpenPorts []uint16     `json:"open_ports"` // open now, in number order
 
-	// Services are the DNS-SD service types the device advertised in the
-	// latest sweep that heard it, lowercased and sorted, and Models the models
-	// they give.
+	// Services are the DNS-SD service types the device advertised within the
+	// history window, lowercased and sorted, and Models the models they give.
 	Services []string `json:"services"`
 	Models   []string `json:"models,omitempty"`
 }

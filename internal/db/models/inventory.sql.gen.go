@@ -1297,7 +1297,7 @@ ORDER BY s.type, s.instance
 `
 
 // The services a device advertised in the latest sweep that heard it, for the
-// device page and the classifier. Older rows stay until the history window
+// device page and get_device. Older rows stay until the history window
 // prunes them, but a phone advertises under a new name and port each time, so
 // listing them would bury the current few under hundreds of stale ones. Every
 // row one sweep writes shares its last_seen.
@@ -1309,6 +1309,52 @@ ORDER BY s.type, s.instance
 //	ORDER BY s.type, s.instance
 func (q *Queries) ListDeviceServices(ctx context.Context, deviceID int64) ([]*DeviceService, error) {
 	rows, err := q.query(ctx, q.listDeviceServicesStmt, listDeviceServices, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*DeviceService
+	for rows.Next() {
+		var i DeviceService
+		if err := rows.Scan(
+			&i.DeviceID,
+			&i.Type,
+			&i.Instance,
+			&i.Port,
+			&i.Label,
+			&i.Model,
+			&i.FirstSeen,
+			&i.LastSeen,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDeviceServicesInWindow = `-- name: ListDeviceServicesInWindow :many
+SELECT device_id, type, instance, port, label, model, first_seen, last_seen
+FROM device_services
+WHERE device_id = ?
+ORDER BY type, instance
+`
+
+// Every service a device has advertised within the history window, for the
+// classifier, so a sweep that misses one answer cannot move the device's class.
+//
+//	SELECT device_id, type, instance, port, label, model, first_seen, last_seen
+//	FROM device_services
+//	WHERE device_id = ?
+//	ORDER BY type, instance
+func (q *Queries) ListDeviceServicesInWindow(ctx context.Context, deviceID int64) ([]*DeviceService, error) {
+	rows, err := q.query(ctx, q.listDeviceServicesInWindowStmt, listDeviceServicesInWindow, deviceID)
 	if err != nil {
 		return nil, err
 	}
