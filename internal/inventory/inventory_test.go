@@ -1019,6 +1019,27 @@ func TestFoldCarriesClaimsToTheSurvivingDevice(t *testing.T) {
 	assert.Equal(t, "printer", queryString(t, conn, `SELECT hostname FROM devices`))
 }
 
+// A router reporting its own address folds the row a sweep across the router
+// left for that address, and the name the row carried names the router.
+func TestRouterOwnAddressFoldsTheAddressOnlyRow(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	// A sweep of the router's own segment, where its hardware address shows,
+	// then a later sweep that reaches it from another segment.
+	sweep(t, s, host("192.0.2.1", macA, ""))
+	sweep(t, s, host("192.0.2.20", "", "gateway.example.test"))
+
+	res := report(t, s, fact("192.0.2.20", macA, "", true, ""))
+	require.Equal(t, 1, res.Merged)
+
+	id := deviceIDByMAC(t, conn, macA)
+	assert.Equal(t, 1, queryInt(t, conn, `SELECT count(*) FROM devices`))
+	assert.Equal(t, []string{"192.0.2.1", "192.0.2.20"}, currentIPs(t, conn, id))
+	assert.Equal(t, "gateway.example.test", queryString(t, conn, `SELECT hostname FROM devices`))
+}
+
 // A source that had filed against both rows collides on the primary key, so the
 // claims merge and neither is dropped. The fold is driven by a
 // different source here, or this source's own upsert would mask the merge.

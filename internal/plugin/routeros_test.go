@@ -472,21 +472,27 @@ func TestClassifyRouterOSLeavesAMissingEndpointAlone(t *testing.T) {
 	assert.NotErrorIs(t, got, ErrAuth)
 }
 
-// routerFor stands up a router answering the two tables this plugin reads.
-// A handler left nil answers 500, which is how a table that fails while its
-// sibling succeeds is arranged.
+// routerFor stands up a router answering the ARP and lease tables, with no
+// addresses of its own.
 func routerFor(t *testing.T, arpBody, leaseBody string) *RouterOS {
 	t.Helper()
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		body := ""
+	return routerAnswering(t, map[string]string{
+		"/rest/ip/arp":               arpBody,
+		"/rest/ip/dhcp-server/lease": leaseBody,
+		"/rest/ip/address":           "[]",
+		"/rest/interface":            "[]",
+	})
+}
 
-		switch req.URL.Path {
-		case "/rest/ip/arp":
-			body = arpBody
-		case "/rest/ip/dhcp-server/lease":
-			body = leaseBody
-		}
+// routerAnswering stands up a router answering each path with its body. An
+// empty or missing body answers 500, which is how a table that fails while its
+// siblings succeed is arranged.
+func routerAnswering(t *testing.T, bodies map[string]string) *RouterOS {
+	t.Helper()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		body := bodies[req.URL.Path]
 
 		if body == "" {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -664,4 +670,106 @@ func TestDetailIsSharedAcrossADevicesAddresses(t *testing.T) {
 	// Cloned, so one fact cannot mutate another's.
 	out[0].Detail["injected"] = "x"
 	assert.NotContains(t, out[1].Detail, "injected")
+}
+
+// own runs the own-address mapping the way Discover does, without a router to
+// read the tables from.
+func own(t *testing.T, addrs []routeros.IPAddress, ifaces []routeros.Interface) []Fact {
+	t.Helper()
+
+	r := testRouterOS(t)
+	c := make(claims)
+
+	r.collectOwn(t.Context(), c, addrs, ifaces)
+	shareByDevice(c)
+
+	out, err := buildFacts(t.Context(), r.logger, r.now(), c)
+	require.NoError(t, err)
+
+	return out
+}
+
+// A router serving several segments shares one hardware address across them,
+// so each of its addresses comes back as the same device, present.
+func TestOwnAddressesCarryTheirInterfacesHardwareAddress(t *testing.T) {
+	t.Parallel()
+
+	addrs := []routeros.IPAddress{
+		{Address: "192.0.2.1/24", Interface: "vlan10"},
+		{Address: "198.51.100.1/24", Interface: "vlan20"},
+		{Address: "203.0.113.1/24", Interface: "port1", ActualInterface: "bridge"},
+	}
+	ifaces := []routeros.Interface{
+		{Name: "vlan10", MACAddress: "00:00:5E:00:53:01"},
+		{Name: "vlan20", MACAddress: "00:00:5E:00:53:01"},
+		{Name: "bridge", MACAddress: "00:00:5E:00:53:01"},
+	}
+
+	out := own(t, addrs, ifaces)
+
+	require.Len(t, out, 3)
+
+	for _, f := range out {
+		assert.Equal(t, "00:00:5e:00:53:01", f.Host.MAC)
+		assert.True(t, f.Present, "the router answered the read")
+		assert.Empty(t, f.Host.Hostname(), "the router gives itself no name here")
+	}
+
+	assert.Equal(t, "192.0.2.1", out[0].Host.IP, "the prefix length is dropped")
+}
+
+// The WAN lease is dynamic and on a link the router does not serve. Disabled,
+// invalid and hardware-less rows say nothing about a device either.
+func TestOwnAddressesSkipWhatIsNotASegmentTheRouterServes(t *testing.T) {
+	t.Parallel()
+
+	addrs := []routeros.IPAddress{
+		{Address: "203.0.113.7/24", Interface: "ether1", Dynamic: true},
+		{Address: "192.0.2.1/24", Interface: "vlan10", Disabled: true},
+		{Address: "198.51.100.1/24", Interface: "vlan20", Invalid: true},
+		{Address: "192.0.2.129/25", Interface: "wg0"},
+		{Address: "not-an-address", Interface: "vlan10"},
+	}
+	ifaces := []routeros.Interface{
+		{Name: "ether1", MACAddress: "00:00:5E:00:53:02"},
+		{Name: "vlan10", MACAddress: "00:00:5E:00:53:01"},
+		{Name: "vlan20", MACAddress: "00:00:5E:00:53:01"},
+		{Name: "wg0"},
+	}
+
+	assert.Empty(t, own(t, addrs, ifaces))
+}
+
+// The address table failing costs only the router's own addresses.
+func TestDiscoverKeepsTheTablesWhenTheOwnAddressesFail(t *testing.T) {
+	t.Parallel()
+
+	out, err := routerAnswering(t, map[string]string{
+		"/rest/ip/arp":               liveARP,
+		"/rest/ip/dhcp-server/lease": liveLeases,
+		"/rest/interface":            "[]",
+	}).Discover(t.Context())
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "read addresses")
+
+	require.Len(t, out, 1)
+	assert.Equal(t, "host-a", out[0].Host.Hostname())
+}
+
+func TestDiscoverReportsTheRoutersOwnAddresses(t *testing.T) {
+	t.Parallel()
+
+	out, err := routerAnswering(t, map[string]string{
+		"/rest/ip/arp":               "[]",
+		"/rest/ip/dhcp-server/lease": "[]",
+		"/rest/ip/address":           `[{".id":"*1","address":"192.0.2.1/24","interface":"vlan10","dynamic":"false"}]`,
+		"/rest/interface":            `[{".id":"*1","name":"vlan10","mac-address":"00:00:5E:00:53:01"}]`,
+	}).Discover(t.Context())
+	require.NoError(t, err)
+
+	require.Len(t, out, 1)
+	assert.Equal(t, "192.0.2.1", out[0].Host.IP)
+	assert.Equal(t, "00:00:5e:00:53:01", out[0].Host.MAC)
+	assert.Equal(t, "vlan10", out[0].Detail["interface"])
 }

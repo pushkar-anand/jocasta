@@ -98,8 +98,8 @@ func (r *RouterOS) Name() string { return r.name }
 // Kind identifies this plugin as a RouterOS source.
 func (r *RouterOS) Kind() dbtype.SourceKind { return dbtype.SourceRouter }
 
-// Discover merges both tables into one fact per device per address. One table
-// failing does not cost the other, so a partial read returns its facts
+// Discover merges the tables into one fact per device per address. One table
+// failing does not cost the others, so a partial read returns its facts
 // alongside the error.
 func (r *RouterOS) Discover(ctx context.Context) ([]Fact, error) {
 	var errs []error
@@ -118,6 +118,10 @@ func (r *RouterOS) Discover(ctx context.Context) ([]Fact, error) {
 		errs = append(errs, fmt.Errorf("read dhcp leases: %w", classifyRouterOS(err)))
 	} else {
 		r.collectLeases(ctx, c, leases)
+	}
+
+	if err := r.readOwn(ctx, c); err != nil {
+		errs = append(errs, err)
 	}
 
 	shareByDevice(c)
@@ -227,6 +231,66 @@ func (r *RouterOS) collectLeases(ctx context.Context, c claims, leases []routero
 		// A note, which is never used as a name: tables read
 		// "Workstation - wired" beside a host-name of "workstation".
 		d.set("dhcp_comment", l.Comment)
+	}
+}
+
+// readOwn reads the router's own addresses and the interfaces behind them into
+// c. Neither the ARP table nor the leases list them, and a sweep that reaches
+// the router through another segment sees an address with no hardware behind
+// it, so without these the router is one device per segment it serves.
+func (r *RouterOS) readOwn(ctx context.Context, c claims) error {
+	addrs, err := r.client.Addresses(ctx)
+	if err != nil {
+		return fmt.Errorf("read addresses: %w", classifyRouterOS(err))
+	}
+
+	ifaces, err := r.client.Interfaces(ctx)
+	if err != nil {
+		return fmt.Errorf("read interfaces: %w", classifyRouterOS(err))
+	}
+
+	r.collectOwn(ctx, c, addrs, ifaces)
+
+	return nil
+}
+
+// collectOwn pairs each address the router serves a segment on with the
+// hardware address of its interface. The router answered this read, so each
+// is present. A dynamic address, such as the WAN lease, sits on a link the
+// router does not serve and is left out.
+func (r *RouterOS) collectOwn(ctx context.Context, c claims, addrs []routeros.IPAddress, ifaces []routeros.Interface) {
+	macs := make(map[string]string, len(ifaces))
+
+	for _, i := range ifaces {
+		if mac, ok := hosts.CanonicalMAC(i.MACAddress); ok && mac != "" {
+			macs[i.Name] = mac
+		}
+	}
+
+	for _, a := range addrs {
+		if !a.Usable() {
+			continue
+		}
+
+		// The configured name first, as in lookupVLAN; the resolved one covers
+		// an address set on a bridge port.
+		mac := cmp.Or(macs[a.Interface], macs[a.ActualInterface])
+		if mac == "" {
+			continue
+		}
+
+		p, err := netip.ParsePrefix(a.Address)
+		if err != nil {
+			r.logger.DebugContext(ctx, "ignoring an own address that does not parse",
+				slog.String("address", a.Address),
+			)
+
+			continue
+		}
+
+		d := draftFor(c, claimKey{mac: mac, addr: p.Addr().String()})
+		d.present = true
+		d.set("interface", a.Interface)
 	}
 }
 
