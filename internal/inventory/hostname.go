@@ -14,16 +14,20 @@ type nameClaim struct {
 	at       dbtype.Time
 }
 
-// resolveHostname elects the name a device row carries from every source's
-// claim, and reports the zero claim when no source offers one.
+// resolveHostname elects the name a device row carries from every claim, and
+// reports the zero claim when none offers one. current is the name the row
+// carries now.
 //
-// Ties go to the later sighting: two sources of equal standing disagreeing is a
-// device that was renamed. Equal standing at equal times keeps input order,
+// A tie in standing keeps current while any claim still gives it: a device
+// holding two addresses whose names differ, such as a router with a PTR per
+// VLAN, would otherwise be renamed by whichever was read last. Among the
+// others, the later sighting wins: two claims of equal standing disagreeing is
+// a device that was renamed. Equal standing at equal times keeps input order,
 // which ListDeviceSources fixes.
 //
 // The ranking is in Go because a CASE in SQL would be a second place to keep in
 // step with the constants, and the device page needs this read anyway.
-func resolveHostname(claims []nameClaim) nameClaim {
+func resolveHostname(claims []nameClaim, current string) nameClaim {
 	var (
 		won  nameClaim
 		rank = -1
@@ -39,12 +43,18 @@ func resolveHostname(claims []nameClaim) nameClaim {
 			continue
 		}
 
-		if r > rank || won.at.Before(c.at.Time) {
+		if r > rank || keeps(c.name, won.name, current) ||
+			!keeps(won.name, c.name, current) && won.at.Before(c.at.Time) {
 			won, rank = c, r
 		}
 	}
 
 	return won
+}
+
+// keeps reports whether name, and not other, is the current name.
+func keeps(name, other, current string) bool {
+	return sameName(name, current) && !sameName(other, current)
 }
 
 // label reduces a name to its first label, case-folded, which is as much as two

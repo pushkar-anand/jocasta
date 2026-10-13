@@ -138,6 +138,10 @@ sql:
             go_type:
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
               type: "Addr"
+          - column: "device_sources.address"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "Addr"
           - column: "outside_addresses.address"
             go_type:
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"

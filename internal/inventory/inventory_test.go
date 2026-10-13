@@ -1083,10 +1083,10 @@ func TestRouterOwnAddressFoldsTheAddressOnlyRow(t *testing.T) {
 	assert.Equal(t, "gateway.example.test", queryString(t, conn, `SELECT hostname FROM devices`))
 }
 
-// A source that had filed against both rows collides on the primary key, so the
-// claims merge and neither is dropped. The fold is driven by a
+// A source that filed against both rows at different addresses keeps a claim
+// for each, and the device keeps the name it had. The fold is driven by a
 // different source here, or this source's own upsert would mask the merge.
-func TestFoldMergesTwoClaimsFromOneSource(t *testing.T) {
+func TestFoldKeepsEachAddressesClaimFromOneSource(t *testing.T) {
 	t.Parallel()
 
 	s, conn := newStore(t)
@@ -1097,25 +1097,72 @@ func TestFoldMergesTwoClaimsFromOneSource(t *testing.T) {
 	var ghost int64
 	require.NoError(t, conn.QueryRowContext(t.Context(), `SELECT id FROM devices WHERE mac IS NULL`).Scan(&ghost))
 
-	firstSeen := queryString(t, conn,
-		`SELECT first_seen FROM device_sources WHERE device_id = ?`, deviceIDByMAC(t, conn, macA))
-
 	res := report(t, s, fact("192.0.2.20", macA, "printer", true, dbtype.HostnameFromDHCPStatic))
 	require.Equal(t, 1, res.Merged)
 
 	id := deviceIDByMAC(t, conn, macA)
 
 	assert.Zero(t, queryInt(t, conn, `SELECT count(*) FROM device_sources WHERE device_id = ?`, ghost))
-	assert.Equal(t, 2, queryInt(t, conn, `SELECT count(*) FROM device_sources WHERE device_id = ?`, id))
+	assert.Equal(t, []string{"192.0.2.10 first.example.com", "192.0.2.20 second.example.com"},
+		queryStrings(t, conn, `SELECT ds.address || ' ' || ds.hostname FROM device_sources ds
+		                       JOIN sources s ON s.id = ds.source_id
+		                       WHERE ds.device_id = ? AND s.name = 'test-sweep' ORDER BY ds.address`, id))
 
-	// The newer of the two readings names the merged claim.
-	name, _ := claimOf(t, conn, id, "test-sweep")
-	assert.Equal(t, "second.example.com", name)
+	// Both names are reverse DNS; the one the device already carried stays.
+	assert.Equal(t, "first.example.com", queryString(t, conn, `SELECT hostname FROM devices WHERE id = ?`, id))
+}
 
-	// And the earlier of the two sightings still bounds it.
-	assert.Equal(t, firstSeen,
-		queryString(t, conn, `SELECT first_seen FROM device_sources ds JOIN sources s ON s.id = ds.source_id
-		                      WHERE ds.device_id = ? AND s.name = 'test-sweep'`, id))
+// A source that filed against both rows at one address collides on the primary
+// key. The merged claim keeps a name when the newer reading had none, or the
+// fold would clear the device's name.
+func TestFoldKeepsANameTheNewerClaimLacks(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, host("192.0.2.20", "", "named.example.com"))
+	sweep(t, s, host("192.0.2.10", macA, ""))
+
+	ghost := queryInt(t, conn, `SELECT id FROM devices WHERE mac IS NULL`)
+	id := deviceIDByMAC(t, conn, macA)
+
+	// Both claims about one address, the unnamed one heard later.
+	_, err := conn.ExecContext(t.Context(),
+		`UPDATE device_sources SET address = '192.0.2.10' WHERE device_id = ?`, ghost)
+	require.NoError(t, err)
+
+	err = models.New(conn).MoveDeviceSources(t.Context(),
+		models.MoveDeviceSourcesParams{IntoID: id, FromID: int64(ghost)})
+	require.NoError(t, err)
+
+	name, standing := claimOf(t, conn, id, "test-sweep")
+	assert.Equal(t, "named.example.com", name)
+	assert.Equal(t, string(dbtype.HostnameFromDNS), standing)
+}
+
+// A device on two swept networks is two readings from one source, each with a
+// different reverse DNS name. The name it was first given stays across cycles.
+func TestTwoNetworksNamingOneDeviceDoNotRenameIt(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	for range 3 {
+		sweepPrefix(t, s, "192.0.2.0/24", host("192.0.2.1", macA, "host-a.example"))
+		sweepPrefix(t, s, "198.51.100.0/24", host("198.51.100.1", macA, "gw.example"))
+	}
+
+	id := deviceIDByMAC(t, conn, macA)
+	assert.Equal(t, "host-a.example", queryString(t, conn, `SELECT hostname FROM devices WHERE id = ?`, id))
+	assert.NotContains(t, eventKinds(t, conn, id), dbtype.EventHostnameChanged)
+
+	// Renaming the address that gives the name is one rename.
+	sweepPrefix(t, s, "192.0.2.0/24", host("192.0.2.1", macA, "host-c.example"))
+	sweepPrefix(t, s, "198.51.100.0/24", host("198.51.100.1", macA, "gw.example"))
+
+	assert.Equal(t, "host-c.example", queryString(t, conn, `SELECT hostname FROM devices WHERE id = ?`, id))
+	assert.Equal(t, 1, queryInt(t, conn, `SELECT count(*) FROM events WHERE device_id = ? AND kind = ?`,
+		id, dbtype.EventHostnameChanged))
 }
 
 // Detail is stored verbatim for the device page and never merged into devices.

@@ -211,12 +211,6 @@ type pass struct {
 	// touched is every device a fact resolved to, present or not: the classify
 	// pass that runs after the ingest commits re-reads each of these.
 	touched map[int64]struct{}
-
-	// named is every device this reading has filed a name for. Once it has,
-	// later facts about the device leave the claim as it is. Sources hand their
-	// facts over in address order, so a device holding two addresses whose
-	// names differ keeps the name of the lower one on every reading.
-	named map[int64]struct{}
 }
 
 // networks matches an address to the recorded network containing it. A sweep
@@ -552,7 +546,6 @@ func (s *Store) ingest(ctx context.Context, scanID, sourceID int64, r reading) (
 		seen:     map[int64]struct{}{},
 		answered: map[netip.Addr]struct{}{},
 		touched:  map[int64]struct{}{},
-		named:    map[int64]struct{}{},
 	}
 
 	for _, f := range r.facts {
@@ -1049,7 +1042,7 @@ func (s *Store) applyClaim(ctx context.Context, p *pass, d *models.Device, f plu
 		})
 	}
 
-	won := resolveHostname(claims)
+	won := resolveHostname(claims, d.Hostname.String)
 	if won.name == d.Hostname.String && won.standing == d.HostnameSource {
 		return nil
 	}
@@ -1078,18 +1071,14 @@ func (s *Store) applyClaim(ctx context.Context, p *pass, d *models.Device, f plu
 }
 
 // recordClaim files this source's reading over what the same source said
-// before, except that a reading with no name leaves the last name in place
-// (see UpsertDeviceSource). A swept name that ranks below the one the claim
-// holds leaves that name in place too (see yieldsToHeldName).
+// before about the same address, except that a reading with no name leaves the
+// last name in place (see UpsertDeviceSource). A swept name that ranks below
+// the one the claim holds leaves that name in place too (see yieldsToHeldName).
 //
 // last_seen advances whenever the source still reports the device, presence or
 // not: a router still holds a static lease with nothing plugged in. Whether
 // anything answered is devices.last_seen's question.
 func (s *Store) recordClaim(ctx context.Context, p *pass, deviceID int64, f plugin.Fact) error {
-	if _, named := p.named[deviceID]; named {
-		return nil
-	}
-
 	detail, err := claimDetail(f.Detail)
 	if err != nil {
 		return fmt.Errorf("detail of %s: %w", f.Host.Address(), err)
@@ -1109,6 +1098,7 @@ func (s *Store) recordClaim(ctx context.Context, p *pass, deviceID int64, f plug
 	err = p.q.UpsertDeviceSource(ctx, models.UpsertDeviceSourceParams{
 		DeviceID:       deviceID,
 		SourceID:       p.sourceID,
+		Address:        dbtype.NewAddr(f.Host.Address()),
 		Hostname:       nullString(name),
 		HostnameSource: f.HostnameSource,
 		Detail:         detail,
@@ -1119,16 +1109,12 @@ func (s *Store) recordClaim(ctx context.Context, p *pass, deviceID int64, f plug
 		return fmt.Errorf("record claim about device %d: %w", deviceID, err)
 	}
 
-	if name != "" {
-		p.named[deviceID] = struct{}{}
-	}
-
 	return nil
 }
 
 // yieldsToHeldName reports whether the name f carries must leave this source's
-// claim alone: both names were learned by a sweep, and the one the claim holds
-// ranks higher.
+// claim at f's address alone: both names were learned by a sweep, and the one
+// the claim holds ranks higher.
 //
 // A sweep asks each lookup in turn, from the highest standing down, and asks
 // the next only when the one before gave no name. A lookup that runs past its
@@ -1150,6 +1136,7 @@ func yieldsToHeldName(ctx context.Context, p *pass, deviceID int64, f plugin.Fac
 	held, err := p.q.GetDeviceSourceName(ctx, models.GetDeviceSourceNameParams{
 		DeviceID: deviceID,
 		SourceID: p.sourceID,
+		Address:  dbtype.NewAddr(f.Host.Address()),
 	})
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil

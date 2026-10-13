@@ -957,11 +957,13 @@ SELECT hostname, hostname_source
 FROM device_sources
 WHERE device_id = ?
   AND source_id = ?
+  AND address = ?
 `
 
 type GetDeviceSourceNameParams struct {
-	DeviceID int64 `json:"device_id"`
-	SourceID int64 `json:"source_id"`
+	DeviceID int64       `json:"device_id"`
+	SourceID int64       `json:"source_id"`
+	Address  dbtype.Addr `json:"address"`
 }
 
 type GetDeviceSourceNameRow struct {
@@ -969,15 +971,16 @@ type GetDeviceSourceNameRow struct {
 	HostnameSource dbtype.HostnameSource `json:"hostname_source"`
 }
 
-// The name one source last gave a device, which decides whether a sweep's
-// lower-ranked name may replace it (see yieldsToHeldName).
+// The name one source last gave a device at one address, which decides
+// whether a sweep's lower-ranked name may replace it (see yieldsToHeldName).
 //
 //	SELECT hostname, hostname_source
 //	FROM device_sources
 //	WHERE device_id = ?
 //	  AND source_id = ?
+//	  AND address = ?
 func (q *Queries) GetDeviceSourceName(ctx context.Context, arg GetDeviceSourceNameParams) (*GetDeviceSourceNameRow, error) {
-	row := q.queryRow(ctx, q.getDeviceSourceNameStmt, getDeviceSourceName, arg.DeviceID, arg.SourceID)
+	row := q.queryRow(ctx, q.getDeviceSourceNameStmt, getDeviceSourceName, arg.DeviceID, arg.SourceID, arg.Address)
 	var i GetDeviceSourceNameRow
 	err := row.Scan(&i.Hostname, &i.HostnameSource)
 	return &i, err
@@ -1332,11 +1335,11 @@ func (q *Queries) ListDeviceServices(ctx context.Context, deviceID int64) ([]*De
 }
 
 const listDeviceSources = `-- name: ListDeviceSources :many
-SELECT ds.device_id, ds.source_id, ds.hostname, ds.hostname_source, ds.detail, ds.first_seen, ds.last_seen, s.name AS source_name, s.kind AS source_kind
+SELECT ds.device_id, ds.source_id, ds.address, ds.hostname, ds.hostname_source, ds.detail, ds.first_seen, ds.last_seen, s.name AS source_name, s.kind AS source_kind
 FROM device_sources ds
          JOIN sources s ON s.id = ds.source_id
 WHERE ds.device_id = ?
-ORDER BY ds.last_seen DESC, s.name
+ORDER BY s.name, ds.address
 `
 
 type ListDeviceSourcesRow struct {
@@ -1348,11 +1351,11 @@ type ListDeviceSourcesRow struct {
 // Election reads this to pick the name the device list shows and searches on;
 // the device page reads it to show the claims that lost.
 //
-//	SELECT ds.device_id, ds.source_id, ds.hostname, ds.hostname_source, ds.detail, ds.first_seen, ds.last_seen, s.name AS source_name, s.kind AS source_kind
+//	SELECT ds.device_id, ds.source_id, ds.address, ds.hostname, ds.hostname_source, ds.detail, ds.first_seen, ds.last_seen, s.name AS source_name, s.kind AS source_kind
 //	FROM device_sources ds
 //	         JOIN sources s ON s.id = ds.source_id
 //	WHERE ds.device_id = ?
-//	ORDER BY ds.last_seen DESC, s.name
+//	ORDER BY s.name, ds.address
 func (q *Queries) ListDeviceSources(ctx context.Context, deviceID int64) ([]*ListDeviceSourcesRow, error) {
 	rows, err := q.query(ctx, q.listDeviceSourcesStmt, listDeviceSources, deviceID)
 	if err != nil {
@@ -1365,6 +1368,7 @@ func (q *Queries) ListDeviceSources(ctx context.Context, deviceID int64) ([]*Lis
 		if err := rows.Scan(
 			&i.DeviceSource.DeviceID,
 			&i.DeviceSource.SourceID,
+			&i.DeviceSource.Address,
 			&i.DeviceSource.Hostname,
 			&i.DeviceSource.HostnameSource,
 			&i.DeviceSource.Detail,
@@ -1808,17 +1812,23 @@ func (q *Queries) MoveDeviceServices(ctx context.Context, arg MoveDeviceServices
 }
 
 const moveDeviceSources = `-- name: MoveDeviceSources :exec
-INSERT INTO device_sources (device_id, source_id, hostname, hostname_source, detail, first_seen, last_seen)
-SELECT ?1, ghost.source_id, ghost.hostname, ghost.hostname_source, ghost.detail,
+INSERT INTO device_sources (device_id, source_id, address, hostname, hostname_source, detail, first_seen, last_seen)
+SELECT ?1, ghost.source_id, ghost.address, ghost.hostname, ghost.hostname_source, ghost.detail,
        ghost.first_seen, ghost.last_seen
 FROM device_sources ghost
 WHERE ghost.device_id = ?2
-ON CONFLICT (device_id, source_id)
-    DO UPDATE SET hostname        = IIF(excluded.last_seen > device_sources.last_seen,
+ON CONFLICT (device_id, source_id, address)
+    DO UPDATE SET hostname        = IIF((excluded.hostname IS NOT NULL) > (device_sources.hostname IS NOT NULL)
+                                            OR ((excluded.hostname IS NOT NULL) = (device_sources.hostname IS NOT NULL)
+                                            AND excluded.last_seen > device_sources.last_seen),
                                         excluded.hostname, device_sources.hostname),
-                  hostname_source = IIF(excluded.last_seen > device_sources.last_seen,
+                  hostname_source = IIF((excluded.hostname IS NOT NULL) > (device_sources.hostname IS NOT NULL)
+                                            OR ((excluded.hostname IS NOT NULL) = (device_sources.hostname IS NOT NULL)
+                                            AND excluded.last_seen > device_sources.last_seen),
                                         excluded.hostname_source, device_sources.hostname_source),
-                  detail          = IIF(excluded.last_seen > device_sources.last_seen,
+                  detail          = IIF((excluded.hostname IS NOT NULL) > (device_sources.hostname IS NOT NULL)
+                                            OR ((excluded.hostname IS NOT NULL) = (device_sources.hostname IS NOT NULL)
+                                            AND excluded.last_seen > device_sources.last_seen),
                                         excluded.detail, device_sources.detail),
                   first_seen      = MIN(device_sources.first_seen, excluded.first_seen),
                   last_seen       = MAX(device_sources.last_seen, excluded.last_seen)
@@ -1829,21 +1839,29 @@ type MoveDeviceSourcesParams struct {
 	FromID int64 `json:"from_id"`
 }
 
-// Claims follow the device on a fold. A source that filed against both rows
-// collides on the primary key, and the claim that survives takes the newer
-// reading's name with the outer bounds of both sightings.
+// Claims follow the device on a fold. A source that filed against both rows at
+// one address collides on the primary key. The claim that survives takes the
+// newer reading's name when it has one and the other's when only that one
+// does, with the name's standing and detail, and the outer bounds of both
+// sightings: a reading with no name never clears one.
 //
-//	INSERT INTO device_sources (device_id, source_id, hostname, hostname_source, detail, first_seen, last_seen)
-//	SELECT ?1, ghost.source_id, ghost.hostname, ghost.hostname_source, ghost.detail,
+//	INSERT INTO device_sources (device_id, source_id, address, hostname, hostname_source, detail, first_seen, last_seen)
+//	SELECT ?1, ghost.source_id, ghost.address, ghost.hostname, ghost.hostname_source, ghost.detail,
 //	       ghost.first_seen, ghost.last_seen
 //	FROM device_sources ghost
 //	WHERE ghost.device_id = ?2
-//	ON CONFLICT (device_id, source_id)
-//	    DO UPDATE SET hostname        = IIF(excluded.last_seen > device_sources.last_seen,
+//	ON CONFLICT (device_id, source_id, address)
+//	    DO UPDATE SET hostname        = IIF((excluded.hostname IS NOT NULL) > (device_sources.hostname IS NOT NULL)
+//	                                            OR ((excluded.hostname IS NOT NULL) = (device_sources.hostname IS NOT NULL)
+//	                                            AND excluded.last_seen > device_sources.last_seen),
 //	                                        excluded.hostname, device_sources.hostname),
-//	                  hostname_source = IIF(excluded.last_seen > device_sources.last_seen,
+//	                  hostname_source = IIF((excluded.hostname IS NOT NULL) > (device_sources.hostname IS NOT NULL)
+//	                                            OR ((excluded.hostname IS NOT NULL) = (device_sources.hostname IS NOT NULL)
+//	                                            AND excluded.last_seen > device_sources.last_seen),
 //	                                        excluded.hostname_source, device_sources.hostname_source),
-//	                  detail          = IIF(excluded.last_seen > device_sources.last_seen,
+//	                  detail          = IIF((excluded.hostname IS NOT NULL) > (device_sources.hostname IS NOT NULL)
+//	                                            OR ((excluded.hostname IS NOT NULL) = (device_sources.hostname IS NOT NULL)
+//	                                            AND excluded.last_seen > device_sources.last_seen),
 //	                                        excluded.detail, device_sources.detail),
 //	                  first_seen      = MIN(device_sources.first_seen, excluded.first_seen),
 //	                  last_seen       = MAX(device_sources.last_seen, excluded.last_seen)
@@ -1929,7 +1947,7 @@ func (q *Queries) PortStats(ctx context.Context, changedSince dbtype.Time) (*Por
 }
 
 const presentOfSource = `-- name: PresentOfSource :many
-SELECT d.id, d.last_seen, d.is_watched
+SELECT DISTINCT d.id, d.last_seen, d.is_watched
 FROM devices d
          JOIN device_sources ds ON ds.device_id = d.id
 WHERE ds.source_id = ?
@@ -1946,7 +1964,7 @@ type PresentOfSourceRow struct {
 // The present devices a source that reads every network could have seen are
 // those it holds a claim for.
 //
-//	SELECT d.id, d.last_seen, d.is_watched
+//	SELECT DISTINCT d.id, d.last_seen, d.is_watched
 //	FROM devices d
 //	         JOIN device_sources ds ON ds.device_id = d.id
 //	WHERE ds.source_id = ?
@@ -2472,9 +2490,9 @@ func (q *Queries) UpsertDeviceService(ctx context.Context, arg UpsertDeviceServi
 }
 
 const upsertDeviceSource = `-- name: UpsertDeviceSource :exec
-INSERT INTO device_sources (device_id, source_id, hostname, hostname_source, detail, first_seen, last_seen)
-VALUES (?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT (device_id, source_id)
+INSERT INTO device_sources (device_id, source_id, address, hostname, hostname_source, detail, first_seen, last_seen)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (device_id, source_id, address)
     DO UPDATE SET hostname        = CASE
                                         WHEN excluded.hostname IS NOT NULL THEN excluded.hostname
                                         ELSE device_sources.hostname END,
@@ -2488,6 +2506,7 @@ ON CONFLICT (device_id, source_id)
 type UpsertDeviceSourceParams struct {
 	DeviceID       int64                 `json:"device_id"`
 	SourceID       int64                 `json:"source_id"`
+	Address        dbtype.Addr           `json:"address"`
 	Hostname       sql.NullString        `json:"hostname"`
 	HostnameSource dbtype.HostnameSource `json:"hostname_source"`
 	Detail         sql.NullString        `json:"detail"`
@@ -2505,9 +2524,9 @@ type UpsertDeviceSourceParams struct {
 // how stale the kept name is stays visible. A different non-empty name, from
 // this source or a higher one, still replaces it.
 //
-//	INSERT INTO device_sources (device_id, source_id, hostname, hostname_source, detail, first_seen, last_seen)
-//	VALUES (?, ?, ?, ?, ?, ?, ?)
-//	ON CONFLICT (device_id, source_id)
+//	INSERT INTO device_sources (device_id, source_id, address, hostname, hostname_source, detail, first_seen, last_seen)
+//	VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+//	ON CONFLICT (device_id, source_id, address)
 //	    DO UPDATE SET hostname        = CASE
 //	                                        WHEN excluded.hostname IS NOT NULL THEN excluded.hostname
 //	                                        ELSE device_sources.hostname END,
@@ -2520,6 +2539,7 @@ func (q *Queries) UpsertDeviceSource(ctx context.Context, arg UpsertDeviceSource
 	_, err := q.exec(ctx, q.upsertDeviceSourceStmt, upsertDeviceSource,
 		arg.DeviceID,
 		arg.SourceID,
+		arg.Address,
 		arg.Hostname,
 		arg.HostnameSource,
 		arg.Detail,

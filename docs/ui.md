@@ -38,7 +38,7 @@ Everything Jocasta knows about one device:
 - Ports: once a port scan has reached the device (see [CLI](cli.md#ports)),
   the TCP ports it listens on, and the ones it has since closed.
 - Sources: what each source, such as the sweep or the router, calls the
-  device, and when it last heard from it.
+  device at each address it reported, and when it last heard from it.
 - History: the device's entries in the change log.
 
 ![Device page](img/device.png)

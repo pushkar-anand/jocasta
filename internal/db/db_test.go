@@ -446,6 +446,55 @@ func TestPeerSetNullRebuildKeepsEveryColumn(t *testing.T) {
 	assert.Equal(t, "CASCADE", peerOnDelete(t, conn, "attempts_hourly"))
 }
 
+// TestClaimsPerAddressBackfillsTheAddress covers migration 22, which keys
+// device_sources by address. An existing claim takes the device's lowest
+// current address, or its latest when none is current, and a claim about a
+// device with no address is dropped. Going back down keeps one claim per
+// device and source.
+func TestClaimsPerAddressBackfillsTheAddress(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+
+	conn, err := sql.Open("sqlite", dsn(filepath.Join(t.TempDir(), "test.db")))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = conn.Close() })
+
+	require.NoError(t, migrateTo(conn, 21))
+
+	for _, q := range []string{
+		`INSERT INTO sources (id, kind, name) VALUES (1, 'SWEEP', 'sweep:test')`,
+		`INSERT INTO devices (id, mac) VALUES (1, '00:00:5e:00:53:01'), (2, '00:00:5e:00:53:02'),
+		                                       (3, '00:00:5e:00:53:03')`,
+		`INSERT INTO addresses (device_id, ip, is_current, last_seen)
+		 VALUES (1, '192.0.2.20', 1, '2026-01-01T00:00:00.000Z'),
+		        (1, '192.0.2.10', 1, '2026-01-01T00:00:00.000Z'),
+		        (2, '192.0.2.30', 0, '2026-01-01T00:00:00.000Z'),
+		        (2, '192.0.2.31', 0, '2026-01-02T00:00:00.000Z')`,
+		`INSERT INTO device_sources (device_id, source_id, hostname, hostname_source, first_seen, last_seen)
+		 VALUES (1, 1, 'host-a.example.com', 'DNS', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
+		        (2, 1, NULL, NULL, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
+		        (3, 1, NULL, NULL, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`,
+	} {
+		_, err := conn.ExecContext(ctx, q)
+		require.NoError(t, err, q)
+	}
+
+	require.NoError(t, migrateTo(conn, 22))
+
+	assert.Equal(t, [][]any{
+		{int64(1), "192.0.2.10", "host-a.example.com"},
+		{int64(2), "192.0.2.31", nil},
+	}, queryRows(t, conn, `SELECT device_id, address, hostname FROM device_sources ORDER BY device_id`))
+
+	require.NoError(t, migrateTo(conn, 21))
+
+	assert.Equal(t, [][]any{
+		{int64(1), "host-a.example.com"},
+		{int64(2), nil},
+	}, queryRows(t, conn, `SELECT device_id, hostname FROM device_sources ORDER BY device_id`))
+}
+
 // TestTimestampWritersAgreeOnOrdering covers the two writers of a timestamp
 // column: SQLite's own default and a Go value through dbtype. They are
 // compared as TEXT, so a disagreement over separator or width would order rows

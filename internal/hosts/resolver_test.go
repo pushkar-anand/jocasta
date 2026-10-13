@@ -202,6 +202,18 @@ func TestResolveNameIsTheSameForEitherOrderOfSeveralRecords(t *testing.T) {
 	}
 }
 
+// systemd-resolved answers for its host's default gateway with _gateway, which
+// names no device.
+func TestResolveNameLeavesOutTheNamesSystemdResolvedMakesUp(t *testing.T) {
+	useResolver(t, stubResolver(t, map[string][]string{
+		"1.2.0.192.in-addr.arpa.": {"_gateway."},
+		"2.2.0.192.in-addr.arpa.": {"_gateway.", "gw.example.com."},
+	}))
+
+	assert.Empty(t, resolveName(t.Context(), netip.MustParseAddr("192.0.2.1")))
+	assert.Equal(t, []string{"gw.example.com"}, resolveNames(t.Context(), netip.MustParseAddr("192.0.2.2")))
+}
+
 func TestResolveNameIsEmptyForAnAddressWithNoRecord(t *testing.T) {
 	useResolver(t, stubResolver(t, map[string][]string{
 		"10.2.0.192.in-addr.arpa.": {"printer.lan."},
