@@ -384,6 +384,7 @@ func New(
 		config.WithYAML(cfgFile),
 		config.WithEnvPrefix("JOCASTA_"),
 		config.WithSplitKeyFor(",",
+			"server.trusted_proxies",
 			"server.cors.allowed_origins",
 			"networks",
 		),
@@ -446,6 +447,22 @@ func (pl *PrefixList) UnmarshalYAML(node *yaml.Node) error {
 		return fmt.Errorf("server.trusted_proxies: %w", err)
 	}
 
+	return pl.parseStrings(raw)
+}
+
+// UnmarshalMapstructure parses the input data as a list of address or CIDR
+// strings. It is called by koanf when unmarshaling from environment variables.
+func (pl *PrefixList) UnmarshalMapstructure(data any) error {
+	raw, ok := data.([]string)
+	if !ok {
+		return fmt.Errorf("server.trusted_proxies: expected []string, got %T", data)
+	}
+
+	return pl.parseStrings(raw)
+}
+
+// parseStrings converts a list of address or CIDR strings to PrefixList.
+func (pl *PrefixList) parseStrings(raw []string) error {
 	for _, s := range raw {
 		p, err := clientip.ParsePrefix(s)
 		if err != nil {
