@@ -63,7 +63,8 @@
     </div>
     {{- else }}
     <div class="card empty">
-        <p>No devices yet. They appear here after the first sweep of your networks.</p>
+        <p>No devices yet. They appear here after the first sweep of your networks. To sweep one now:</p>
+        <p><code>jocasta scan 192.0.2.0/24 --save</code></p>
     </div>
     {{- end }}
 
