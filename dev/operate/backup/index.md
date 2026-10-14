@@ -21,7 +21,7 @@ To restore, stop Jocasta, put the files back, and start it.
 
 Jocasta is pre-1.0. A release can change the config format or the schema with no upgrade path.
 
-1. Read the [release notes](<https://github.com/pushkar-anand/jocasta/releases>) since your version.
+1. Read the [upgrade notes](<https://pushkar-anand.github.io/jocasta/dev/operate/upgrading/index.md>) for every release after yours.
 2. Back up.
 3. Pull the new tag, such as `:v0.11.1`, and recreate the container.
 

@@ -14,7 +14,7 @@ Jocasta keeps an inventory of the devices on your network and logs every change.
 >
 > **Pre-1.0**
 >
-> A release can change the config format, the database schema or the API with no upgrade path. Pin a version and read the release notes before moving on. The version menu at the top picks the docs for your release.
+> A release can change the config format, the database schema or the API with no upgrade path. Pin a version and read the [upgrade notes](<https://pushkar-anand.github.io/jocasta/dev/operate/upgrading/index.md>) before moving on. The version menu at the top picks the docs for your release.
 
 ## How it works
 
@@ -1244,7 +1244,7 @@ To restore, stop Jocasta, put the files back, and start it.
 
 Jocasta is pre-1.0. A release can change the config format or the schema with no upgrade path.
 
-1. Read the [release notes](<https://github.com/pushkar-anand/jocasta/releases>) since your version.
+1. Read the [upgrade notes](<https://pushkar-anand.github.io/jocasta/dev/operate/upgrading/index.md>) for every release after yours.
 2. Back up.
 3. Pull the new tag, such as `:v0.11.1`, and recreate the container.
 
@@ -1253,6 +1253,20 @@ The schema updates at startup.
 ## Downgrade
 
 Restore the backup from before the upgrade. An older release started on a newer database migrates the schema down and drops the newer data.
+
+# Upgrade notes
+
+What to change or expect when moving to a release, newest first. Read every section after the release you run, and [back up](<https://pushkar-anand.github.io/jocasta/dev/operate/backup/#back-up>) first. A release not listed here needs only the [usual steps](<https://pushkar-anand.github.io/jocasta/dev/operate/backup/#upgrade>).
+
+## 0.4.0
+
+Released 2026-09-25.
+
+### Breaking changes
+
+- config: Group retention, location, server settings ([\#205](<https://github.com/pushkar-anand/jocasta/pull/205>))
+
+  a config that sets inventory.retention, auth.\* or mcp.enabled, or the matching JOCASTA\_ variables, now has those settings ignored. Move them to the new paths.
 
 # Fix common problems
 

@@ -48,6 +48,7 @@ Jocasta is a single-binary network inventory with a web UI, a JSON API and an MC
 - [Manage users and sign-in](<https://pushkar-anand.github.io/jocasta/dev/operate/users/index.md>)
 - [Serve over HTTPS](<https://pushkar-anand.github.io/jocasta/dev/operate/https/index.md>)
 - [Back up and upgrade](<https://pushkar-anand.github.io/jocasta/dev/operate/backup/index.md>)
+- [Upgrade notes](<https://pushkar-anand.github.io/jocasta/dev/operate/upgrading/index.md>)
 - [Fix common problems](<https://pushkar-anand.github.io/jocasta/dev/operate/troubleshooting/index.md>)
 
 ## Reference

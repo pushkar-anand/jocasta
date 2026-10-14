@@ -6,7 +6,7 @@ Jocasta keeps an inventory of the devices on your network and logs every change.
 >
 > **Pre-1.0**
 >
-> A release can change the config format, the database schema or the API with no upgrade path. Pin a version and read the release notes before moving on. The version menu at the top picks the docs for your release.
+> A release can change the config format, the database schema or the API with no upgrade path. Pin a version and read the [upgrade notes](<https://pushkar-anand.github.io/jocasta/dev/operate/upgrading/index.md>) before moving on. The version menu at the top picks the docs for your release.
 
 ## How it works
 
