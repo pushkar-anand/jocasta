@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Smoke-test the OpenWrt, Pi-hole, AdGuard Home, Technitium and NetFlow
-# plugins against the real services in containers.
+# Smoke-test the OpenWrt, RouterOS, Pi-hole, AdGuard Home, Technitium and
+# NetFlow plugins against the real services in containers.
 #
 #   scripts/smoke/smoke.sh up      start the services and seed them with data
 #   scripts/smoke/smoke.sh check   read each one with jocasta and check what it says
@@ -10,8 +10,9 @@
 # documentation value. The containers sit on SMOKE_PREFIX.0/24, and each web
 # interface is published on 127.0.0.1, which jocasta reads.
 #
-# SMOKE_SKIP leaves out "technitium", whose setup needs internet from the
-# container, or "netflow", which needs Docker on Linux, or both.
+# SMOKE_SKIP leaves out any of "routeros", which runs RouterOS in QEMU,
+# "technitium", whose setup needs internet from the container, and
+# "netflow", which needs Docker on Linux.
 set -euo pipefail
 
 REGISTRY="${SMOKE_REGISTRY:-docker.io}"
@@ -21,20 +22,28 @@ OPENWRT_IMAGE="${SMOKE_OPENWRT_IMAGE:-$REGISTRY/openwrt/rootfs:x86-64-23.05.5}"
 TECHNITIUM_IMAGE="${SMOKE_TECHNITIUM_IMAGE:-$REGISTRY/technitium/dns-server:15.6.1}"
 PMACCT_IMAGE="${SMOKE_PMACCT_IMAGE:-$REGISTRY/pmacct/pmacctd:v1.7.9}"
 
+# MikroTik publishes no container image. This one carries RouterOS CHR and
+# QEMU; routeros.sh boots it.
+ROUTEROS_IMAGE="${SMOKE_ROUTEROS_IMAGE:-$REGISTRY/evilfreelancer/docker-routeros:7.23.8}"
+
 NET=jocasta-smoke
+WAN_NET=jocasta-smoke-wan
 PREFIX="${SMOKE_PREFIX:-198.51.100}"
 GATEWAY_IP="$PREFIX.1"
 PIHOLE_IP="$PREFIX.10"
 ADGUARD_IP="$PREFIX.11"
 OPENWRT_IP="$PREFIX.12"
 TECHNITIUM_IP="$PREFIX.13"
+ROUTEROS_IP="$PREFIX.14"
 
 PIHOLE_PORT="${SMOKE_PIHOLE_PORT:-18081}"
 ADGUARD_PORT="${SMOKE_ADGUARD_PORT:-18082}"
 ADGUARD_SETUP_PORT="${SMOKE_ADGUARD_SETUP_PORT:-18083}"
 OPENWRT_PORT="${SMOKE_OPENWRT_PORT:-18084}"
 TECHNITIUM_PORT="${SMOKE_TECHNITIUM_PORT:-18085}"
+ROUTEROS_PORT="${SMOKE_ROUTEROS_PORT:-18086}"
 FLOW_PORT="${SMOKE_FLOW_PORT:-2055}"
+ROUTEROS_FLOW_PORT="${SMOKE_ROUTEROS_FLOW_PORT:-2056}"
 
 PIHOLE_PASSWORD=smoke-pihole
 ADGUARD_USER=smoke
@@ -44,10 +53,12 @@ OPENWRT_PASSWORD=smoke-openwrt
 TECHNITIUM_ADMIN_PASSWORD=smoke-technitium-admin
 TECHNITIUM_USER=jocasta
 TECHNITIUM_PASSWORD=smoke-technitium
+ROUTEROS_USER=jocasta
+ROUTEROS_PASSWORD=smoke-routeros
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 WORK="${SMOKE_DIR:-${TMPDIR:-/tmp}/jocasta-smoke}"
-CONTAINERS=(jocasta-smoke-flows jocasta-smoke-pihole jocasta-smoke-adguard jocasta-smoke-technitium jocasta-smoke-openwrt)
+CONTAINERS=(jocasta-smoke-flows jocasta-smoke-pihole jocasta-smoke-adguard jocasta-smoke-technitium jocasta-smoke-routeros jocasta-smoke-openwrt)
 
 log() { printf '==> %s\n' "$*" >&2; }
 fail() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
@@ -62,12 +73,13 @@ hcurl() { curl -sS -m 5 --noproxy '*' "$@"; }
 # json_field prints the first string value of a key in a flat JSON object.
 json_field() { sed -n "s/.*\"$1\":\"\([^\"]*\)\".*/\1/p" | head -n 1; }
 
-# wait_for runs its arguments until they succeed, for up to a minute.
+# wait_for runs its arguments until they succeed, for up to WAIT_SECONDS,
+# a minute unless set.
 wait_for() {
 	local what=$1
 	shift
 
-	for _ in $(seq 60); do
+	for _ in $(seq "${WAIT_SECONDS:-60}"); do
 		if "$@" >/dev/null 2>&1; then
 			return 0
 		fi
@@ -75,7 +87,7 @@ wait_for() {
 		sleep 1
 	done
 
-	fail "$what did not come up within a minute"
+	fail "$what did not come up within ${WAIT_SECONDS:-60} seconds"
 }
 
 up() {
@@ -118,10 +130,28 @@ up() {
 			"$TECHNITIUM_IMAGE" >/dev/null
 	fi
 
+	if ! skipped routeros; then
+		# The published port has to reach QEMU's forward on the WAN network,
+		# so that network carries the default route: Docker publishes on it.
+		# The smoke network's address moves to the router once it boots.
+		docker network create "$WAN_NET" >/dev/null
+		docker create --name jocasta-smoke-routeros \
+			--network "name=$WAN_NET,gw-priority=1" \
+			-p "127.0.0.1:$ROUTEROS_PORT:80" \
+			--cap-add NET_ADMIN --device /dev/net/tun \
+			-e ROUTEROS_IP="$ROUTEROS_IP" -e ROUTEROS_MAC=00:00:5e:00:53:20 \
+			-v "$ROOT/scripts/smoke/routeros.sh:/routeros.sh:ro" \
+			--entrypoint sh \
+			"$ROUTEROS_IMAGE" /routeros.sh >/dev/null
+		docker network connect --ip "$ROUTEROS_IP" "$NET" jocasta-smoke-routeros
+		docker start jocasta-smoke-routeros >/dev/null
+	fi
+
 	seed_openwrt
 	seed_pihole
 	seed_adguard
 	skipped technitium || seed_technitium
+	skipped routeros || seed_routeros
 	skipped netflow || start_exporter
 	lookups
 
@@ -239,6 +269,48 @@ seed_technitium() {
 		json_field token > "$WORK/technitium.token"
 }
 
+seed_routeros() {
+	log "setting up RouterOS"
+
+	local api="http://127.0.0.1:$ROUTEROS_PORT/rest"
+
+	# CHR starts with an admin login and no password.
+	ros() {
+		local method=$1 path=$2
+		shift 2
+		hcurl -f -u admin: -X "$method" -H 'Content-Type: application/json' "$api$path" "$@" >/dev/null
+	}
+
+	WAIT_SECONDS=300 wait_for "RouterOS's REST API" hcurl -f -u admin: "$api/system/resource"
+
+	ros PUT /ip/address -d "{\"address\":\"$ROUTEROS_IP/24\",\"interface\":\"ether2\"}"
+	ros PUT /user -d "{\"name\":\"$ROUTEROS_USER\",\"group\":\"read\",\"password\":\"$ROUTEROS_PASSWORD\"}"
+
+	# ether1 takes its address over DHCP, which is not a segment the router
+	# serves; ether2 is one. So is the bridge, with a DHCP server holding a
+	# static lease, and a static ARP entry.
+	ros PUT /interface/bridge -d '{"name":"bridge-lan"}'
+	ros PUT /ip/address -d '{"address":"203.0.113.1/24","interface":"bridge-lan"}'
+	ros PUT /ip/pool -d '{"name":"lan","ranges":"203.0.113.100-203.0.113.200"}'
+	ros PUT /ip/dhcp-server -d '{"name":"lan","interface":"bridge-lan","address-pool":"lan"}'
+	ros PUT /ip/dhcp-server/lease -d '{"address":"203.0.113.50","mac-address":"00:00:5E:00:53:01","server":"lan","comment":"laptop - wired"}'
+	ros PUT /ip/arp -d '{"address":"203.0.113.60","mac-address":"00:00:5E:00:53:04","interface":"bridge-lan"}'
+
+	# A ping puts the OpenWrt container in the ARP table. The first can go
+	# unanswered while ether2's address settles, so it is retried.
+	wait_for "RouterOS's ping to OpenWrt" sh -c "curl -sS -m 10 --noproxy '*' -u admin: -H 'Content-Type: application/json' \
+		-d '{\"address\":\"$OPENWRT_IP\",\"count\":\"1\"}' '$api/ping' | grep -q '\"received\":\"1\"'"
+
+	if ! skipped netflow; then
+		# As docs/plugins/routeros.md sets it up, with short timeouts so a
+		# flow is exported seconds after it ends. RouterOS sends its template
+		# every 20 packets by default, and the first went out before anything
+		# listened, so it is sent with every packet here.
+		ros POST /ip/traffic-flow/set -d '{"enabled":"yes","interfaces":"all","active-flow-timeout":"10s","inactive-flow-timeout":"5s"}'
+		ros PUT /ip/traffic-flow/target -d "{\"dst-address\":\"$GATEWAY_IP\",\"port\":\"$ROUTEROS_FLOW_PORT\",\"version\":\"ipfix\",\"v9-template-refresh\":\"1\"}"
+	fi
+}
+
 # start_exporter runs pmacct in the OpenWrt container's network namespace,
 # exporting NetFlow v9 to this host as the router would. The timeouts are
 # short so a flow is exported seconds after it ends.
@@ -307,6 +379,16 @@ EOF
 
 	# A skipped service is left out: its instance would fail validation, and
 	# with it every read.
+	skipped routeros || cat >> "$WORK/jocasta.yaml" <<EOF
+  routeros:
+    core:
+      enabled: true
+      host: "127.0.0.1"
+      port: $ROUTEROS_PORT
+      user: "$ROUTEROS_USER"
+      password: "$ROUTEROS_PASSWORD"
+EOF
+
 	skipped technitium || cat >> "$WORK/jocasta.yaml" <<EOF
   technitium:
     recursor:
@@ -383,6 +465,10 @@ check() {
 			"^$ip\.12 +nosuchname\.invalid +2 +0 +2"
 	fi
 
+	if ! skipped routeros; then
+		check_routeros
+	fi
+
 	if ! skipped netflow; then
 		check_netflow
 	fi
@@ -398,6 +484,41 @@ check() {
 	log "every check passed"
 }
 
+check_routeros() {
+	local out ip="${PREFIX//./\\.}"
+
+	out=$("$WORK/jocasta" -c "$WORK/jocasta.yaml" --log-level error plugin run core)
+	expect "routeros: the router's own address on the bridge is present" "$out" \
+		"^203\.0\.113\.1 +([0-9a-f]{2}:){5}[0-9a-f]{2} .* true$"
+	expect "routeros: the router's own address on ether2 is present" "$out" \
+		"^$ip\.14 +00:00:5e:00:53:20 .* true$"
+	expect "routeros: a static lease names its hardware address" "$out" \
+		"^203\.0\.113\.50 +00:00:5e:00:53:01 .* false$"
+	expect "routeros: a static ARP entry names its hardware address" "$out" \
+		"^203\.0\.113\.60 +00:00:5e:00:53:04 .* false$"
+	expect "routeros: a neighbour is learned from the ARP table" "$out" \
+		"^$ip\.12 +([0-9a-f]{2}:){5}[0-9a-f]{2} "
+	expect "routeros: the bridge is a segment" "$out" \
+		"^203\.0\.113\.0/24 +- +bridge-lan"
+	expect "routeros: ether2 is a segment" "$out" \
+		"^$ip\.0/24 +- +ether2"
+
+	if grep -Eq "^10\.0\.2\.0/24 " <<<"$out"; then
+		printf '%s\n' "$out" >&2
+		fail "routeros: the DHCP uplink's segment is listed"
+	fi
+
+	printf 'ok    %s\n' "routeros: the DHCP uplink is not a segment"
+
+	log "reading RouterOS with the live tests in pkg/routeros and internal/plugin"
+	(cd "$ROOT" && \
+		JOCASTA_PLUGINS__ROUTEROS__HOST=127.0.0.1 \
+		JOCASTA_PLUGINS__ROUTEROS__PORT="$ROUTEROS_PORT" \
+		JOCASTA_PLUGINS__ROUTEROS__USER="$ROUTEROS_USER" \
+		JOCASTA_PLUGINS__ROUTEROS__PASSWORD="$ROUTEROS_PASSWORD" \
+		go test ./pkg/routeros ./internal/plugin -run 'TestReadLive|TestDiscoverLive' -count=1)
+}
+
 # check_netflow listens with the live test in internal/plugin while the
 # OpenWrt container makes a lookup, which pmacct exports as two flows.
 check_netflow() {
@@ -407,7 +528,12 @@ check_netflow() {
 
 	local server="$PIHOLE_IP"
 
+	# pmacct resends its template only every so many packets, and data it
+	# sends before the listener has one cannot be decoded. Restarting it once
+	# the listener is up makes its first packet carry the template.
 	(
+		sleep 2
+		docker restart jocasta-smoke-flows >/dev/null
 		sleep 2
 		docker exec jocasta-smoke-openwrt nslookup flow.example.com "$server" >/dev/null 2>&1 || true
 	) &
@@ -427,11 +553,35 @@ check_netflow() {
 		"flow $ip\.12:[0-9]+ -> $server_re:53 proto=17 .* exporter=$ip\.12"
 	expect "netflow: its answer is decoded as a flow back" "$out" \
 		"flow $server_re:53 -> $ip\.12:[0-9]+ proto=17 .* exporter=$ip\.12"
+
+	if skipped routeros; then
+		return
+	fi
+
+	log "listening for IPFIX from RouterOS"
+
+	# A request from this host to the router is a flow RouterOS sees on
+	# ether1, so Traffic Flow exports it.
+	(
+		sleep 2
+		hcurl -o /dev/null "http://$ROUTEROS_IP/" || true
+	) &
+
+	out=$(JOCASTA_PLUGINS__NETFLOW__GATEWAY__LISTEN="$GATEWAY_IP:$ROUTEROS_FLOW_PORT" \
+		JOCASTA_PLUGINS__NETFLOW__GATEWAY__EXPORTERS="$ROUTEROS_IP" \
+		JOCASTA_NETFLOW_LIVE_WAIT=60s \
+		"$WORK/plugin.test" -test.run TestNetFlowLive -test.v 2>&1) || {
+		printf '%s\n' "$out" >&2
+		fail "routeros: no IPFIX flow arrived from Traffic Flow"
+	}
+
+	expect "routeros: traffic to the router is decoded from IPFIX" "$out" \
+		"flow $ip\.1:[0-9]+ -> $ip\.14:[0-9]+ proto=[0-9]+ .* exporter=$ip\.14"
 }
 
 down() {
 	docker rm -f "${CONTAINERS[@]}" >/dev/null 2>&1 || true
-	docker network rm "$NET" >/dev/null 2>&1 || true
+	docker network rm "$NET" "$WAN_NET" >/dev/null 2>&1 || true
 }
 
 case "${1:-}" in
