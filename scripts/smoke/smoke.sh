@@ -407,7 +407,12 @@ check_netflow() {
 
 	local server="$PIHOLE_IP"
 
+	# pmacct resends its template only every so many packets, and data it
+	# sends before the listener has one cannot be decoded. Restarting it once
+	# the listener is up makes its first packet carry the template.
 	(
+		sleep 2
+		docker restart jocasta-smoke-flows >/dev/null
 		sleep 2
 		docker exec jocasta-smoke-openwrt nslookup flow.example.com "$server" >/dev/null 2>&1 || true
 	) &
