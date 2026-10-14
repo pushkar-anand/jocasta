@@ -1,0 +1,109 @@
+# git-cliff turns the commit log into release notes. With no environment set,
+# the template writes the GitHub release body for the release workflow. With
+# CHANGELOG_TARGET=docs, as `make changelog` runs it, it writes the docs
+# site's changelog page: every release, with its date and any highlights from
+# docs/releases/<major.minor>.md.
+#
+# A breaking change or upgrade note is any paragraph of a commit message that
+# starts with "BREAKING CHANGE:" or "Upgrade-note:". The templates read each
+# paragraph of the whole squash message, so a note from any squashed commit
+# is found. git-cliff's own footer parser reads a footer in a squash message
+# as running on through the squashed commits after it.
+
+[changelog]
+header = """
+{% if get_env(name="CHANGELOG_TARGET", default="") == "docs" -%}
+# Changelog
+
+What each release changed, newest first. Before upgrading, read
+[Back up and upgrade](operate/backup.md).
+{% endif -%}
+"""
+body = """
+{% macro entry(commit) -%}
+- {% if commit.scope %}{{ commit.scope }}: {% endif %}{{ commit.message | split(pat="\n") | first | upper_first }}
+{% endmacro entry -%}
+
+{% macro notes(commit, token) -%}
+{% for paragraph in commit.raw_message | split(pat="\n\n") -%}
+{% set text = paragraph | trim -%}
+{% if text is starting_with(token) %}
+    {{ text | trim_start_matches(pat=token) | trim | replace(from="\n", to=" ") }}
+{% endif -%}
+{% endfor -%}
+{% endmacro notes -%}
+
+{% set docs = get_env(name="CHANGELOG_TARGET", default="") == "docs" -%}
+{% if version -%}
+{% set minor = version | trim_start_matches(pat="v") | split(pat=".") | slice(end=2) | join(sep=".") -%}
+{% endif -%}
+{% if docs %}
+{% if version -%}
+## {{ version | trim_start_matches(pat="v") }}
+
+Released {{ timestamp | date(format="%Y-%m-%d") }}.
+{% if version is ending_with(".0") %}
+--8<-- "docs/releases/{{ minor }}.md"
+{% endif -%}
+{% else -%}
+## Unreleased
+{% endif -%}
+{% endif -%}
+
+{% set breaking = commits | filter(attribute="breaking", value=true) -%}
+{% if breaking %}
+### Breaking changes
+{% for commit in breaking %}
+{{ self::entry(commit=commit) }}{{ self::notes(commit=commit, token="BREAKING CHANGE:") }}
+{%- endfor %}
+{% endif -%}
+
+{% for commit in commits -%}
+{% if commit.raw_message is containing("\n\nUpgrade-note:") -%}
+{% if not upgrade_heading %}{% set_global upgrade_heading = true %}
+### Upgrade notes
+{% endif %}
+{{ self::entry(commit=commit) }}{{ self::notes(commit=commit, token="Upgrade-note:") }}
+{%- endif %}
+{%- endfor %}
+
+{% for group, commits in commits | filter(attribute="breaking", value=false) | group_by(attribute="group") -%}
+{% if group != "Other" %}
+### {{ group | striptags | trim }}
+{% for commit in commits %}
+{{ self::entry(commit=commit) | trim }}
+{%- endfor %}
+{% endif -%}
+{% endfor %}
+{% if version and not docs %}
+[Changelog and upgrade notes](https://pushkar-anand.github.io/jocasta/{{ minor }}/changelog/)
+{% endif -%}
+"""
+# trim would strip the indent that keeps a note inside its list item, so the
+# blank lines the template leaves are collapsed here instead.
+trim = false
+postprocessors = [
+  { pattern = '\n{3,}', replace = "\n\n" },
+  { pattern = '^\n+', replace = "" },
+]
+
+[git]
+conventional_commits = true
+filter_unconventional = false
+tag_pattern = "v[0-9]+\\.[0-9]+\\.[0-9]+"
+sort_commits = "oldest"
+commit_preprocessors = [
+  # A BREAKING CHANGE: paragraph anywhere marks the commit breaking, as a "!"
+  # in its subject does. git-cliff misses one that a squashed commit's
+  # Co-authored-by line comes before.
+  { pattern = '(?s)^(\w+)(\([^)]*\))?:(.*\n\nBREAKING CHANGE:)', replace = "${1}${2}!:${3}" },
+  # Squash merges end the subject with the PR number; link it.
+  { pattern = '^([^\n]*) \(#(\d+)\)', replace = "${1} ([#${2}](https://github.com/pushkar-anand/jocasta/pull/${2}))" },
+]
+# Only features and fixes are listed. Every other commit lands in Other, which
+# the templates leave out, so its breaking change or upgrade note still shows.
+commit_parsers = [
+  { message = "^feat", group = "<!-- 0 -->Features" },
+  { message = "^fix", group = "<!-- 1 -->Fixes" },
+  { message = ".*", group = "Other" },
+]

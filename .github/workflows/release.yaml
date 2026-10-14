@@ -19,3 +19,4 @@ jobs:
     uses: pushkar-anand/.github/.github/workflows/go-release.yml@main
     with:
       image-name: jocasta
+      release-notes-config: cliff.toml

@@ -53,6 +53,7 @@ go fmt ./internal/... && goimports -w ./internal/
 | **Hot Reload Server** | `make dev` | Starts server with live reload via `air` |
 | **E2E Browser Tests** | `make e2e` | Runs visual regression & WCAG AA checks (requires Chrome) |
 | **Update E2E Goldens** | `E2E_UPDATE=1 make e2e` | Updates stored golden images in `internal/web/e2e/testdata/golden/` |
+| **Changelog Page** | `make changelog` | Writes `docs/changelog.md` from the commit log; `make docs` runs it first |
 
 ---
 
@@ -133,7 +134,19 @@ The repository enforces strict `golangci-lint` rules (`.golangci.yml`). Any viol
 
 ---
 
-## 7. Safety, Boundaries & Definition of Done
+## 7. Commit Messages & Release Notes
+
+git-cliff (`cliff.toml`) writes the changelog page and each GitHub release from commit messages, so a commit message is published text.
+
+- **Conventional Commits**: A PR title becomes the squash commit's subject, `type(scope): summary`. Release notes list `feat` and `fix` commits; a commit of another type appears only for its breaking change or upgrade note.
+- **Breaking Changes**: A change that makes an operator act on upgrade (a config key renamed or removed, an API field changed, a migration with no way back) marks the PR title with `!` (`feat(config)!: ...`) and carries a `BREAKING CHANGE:` paragraph. The paragraph says what changed and the steps to take: the old key and the new one, the command to run.
+- **Upgrade Notes**: A change an operator should know about before upgrading, with nothing to change, carries an `Upgrade-note:` paragraph, such as "The first start after upgrading runs every task at once."
+- **One Paragraph per Note**: Each note is a single paragraph with no blank line inside. It can sit anywhere in the squash message, in any squashed commit. Release notes print it word for word, so it follows the house style in section 5.
+- **Release Highlights**: For prose a commit list cannot carry, add `docs/releases/<major.minor>.md` before tagging the `.0` release. The changelog shows it under that release's heading.
+
+---
+
+## 8. Safety, Boundaries & Definition of Done
 
 ### Operational Boundaries
 - **Always Allowed**: Read repository files, run targeted unit tests, run linters/formatters, modify package code and add unit tests.
@@ -160,4 +173,5 @@ Before declaring any task or PR complete, verify all items:
 - [ ] Linter reports zero warnings: `make lint`
 - [ ] Code is formatted: `make fmt`
 - [ ] Generated sqlc models are up to date: `make gen` (no uncommitted diff in `internal/db/models/`)
+- [ ] A change an operator must act on has a `!` title and a `BREAKING CHANGE:` paragraph; one they should know about has an `Upgrade-note:` paragraph
 - [ ] No real environment data, secrets, or non-documentation IPs/MACs/hostnames committed in code, fixtures, comments, commit logs, or PR text

@@ -48,6 +48,7 @@ nav:
   - Reference:
       - reference/configuration.md
       - cli.md
+      - changelog.md
   - development.md
 
 theme:
@@ -97,6 +98,10 @@ markdown_extensions:
   - pymdownx.superfences
   - pymdownx.tabbed:
       alternate_style: true
+  # The changelog includes docs/releases/<major.minor>.md under each minor
+  # release; a release with no such file has no highlights.
+  - pymdownx.snippets:
+      check_paths: false
 
 plugins:
   - search
@@ -108,6 +113,7 @@ plugins:
         - setup.md
         - mcp.md
         - screenshots/*
+        - releases/*
   - redirects:
       redirect_maps:
         setup.md: install.md
