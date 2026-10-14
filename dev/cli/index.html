@@ -1939,7 +1939,8 @@ jocasta<span class="w"> </span>serve<span class="w"> </span>-p<span class="w"> <
 <p>Starts the HTTP server. When <code>scan.devices.enabled</code> is set, it also starts a
 poller that sweeps every network in <code>networks</code> on <code>scan.devices.interval</code>. When
 <code>scan.ports.enabled</code> is set, a second poller port-scans every address the
-inventory holds on your networks, on <code>scan.ports.interval</code>. Each enabled <code>routeros</code> and
+inventory holds on your networks, on <code>scan.ports.interval</code>, and port-scans each
+new device as soon as a sweep or router read discovers it. Each enabled <code>routeros</code> and
 <code>openwrt</code> instance is also read for what is plugged into it, on
 <code>scan.devices.interval</code>. Each
 enabled <code>netflow</code> instance

@@ -19,7 +19,7 @@ A network is an IP prefix, such as `192.0.2.0/24`. Jocasta sweeps the prefixes u
 A scan is one recorded reading:
 
 - **Sweep.** An ICMP echo to every address in `networks`, then a name lookup for each one that answers. Every 5 minutes.
-- **Port scan.** A TCP connection to a list of ports on every known address. Off until `scan.ports.enabled: true`, then every 6 hours.
+- **Port scan.** A TCP connection to a list of ports on every known address. Off until `scan.ports.enabled: true`, then every 6 hours. A new device is also scanned as soon as a sweep or router read discovers it.
 - **Plugin read.** A router's ARP and DHCP tables, read with each sweep. A DNS resolver's query log, read every minute.
 
 The Scans page lists them. To run one by hand, use [`jocasta scan`](<https://pushkar-anand.github.io/jocasta/dev/cli/#scan>), [`jocasta ports`](<https://pushkar-anand.github.io/jocasta/dev/cli/#ports>) or [`jocasta plugin run`](<https://pushkar-anand.github.io/jocasta/dev/cli/#plugin-run>).

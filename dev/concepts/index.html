@@ -2057,7 +2057,8 @@ segments the router serves, with names and VLAN tags.</p>
 <li><strong>Sweep.</strong> An ICMP echo to every address in <code>networks</code>, then a name lookup
   for each one that answers. Every 5 minutes.</li>
 <li><strong>Port scan.</strong> A TCP connection to a list of ports on every known address.
-  Off until <code>scan.ports.enabled: true</code>, then every 6 hours.</li>
+  Off until <code>scan.ports.enabled: true</code>, then every 6 hours. A new device is
+  also scanned as soon as a sweep or router read discovers it.</li>
 <li><strong>Plugin read.</strong> A router's ARP and DHCP tables, read with each sweep. A DNS
   resolver's query log, read every minute.</li>
 </ul>
