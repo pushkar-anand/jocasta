@@ -8,6 +8,7 @@
 server:
   host: "localhost"       # 0.0.0.0 to listen on every interface
   port: 8080
+  trusted_proxies: []     # reverse proxy addresses or CIDRs, e.g. "192.0.2.1" or "10.0.0.0/8"
   cors:
     allowed_origins: []   # browser origins besides the server's own that may read /api
   auth:

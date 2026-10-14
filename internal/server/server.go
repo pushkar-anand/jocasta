@@ -7,10 +7,12 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"regexp"
 	"time"
 
+	"github.com/pushkar-anand/build-with-go/http/clientip"
 	"github.com/pushkar-anand/build-with-go/http/middleware"
 	"github.com/pushkar-anand/build-with-go/http/request"
 	"github.com/pushkar-anand/build-with-go/http/response"
@@ -63,6 +65,11 @@ type (
 		// Notifier sends changes to the configured destinations, for the
 		// notifications page. Nil when none is enabled.
 		Notifier *notify.Notifier
+
+		// TrustedProxies lists the reverse proxy addresses or CIDR prefixes
+		// whose forwarding headers are trusted. When empty, the client address
+		// is always the connection address.
+		TrustedProxies []netip.Prefix
 	}
 )
 
@@ -210,6 +217,16 @@ func Handler(
 	}
 
 	h := logger.NewHTTPLogger(cfg.Logger)(mux)
+
+	// The clientip middleware resolves the real client address from forwarding
+	// headers when the request arrives from a trusted proxy. It runs outside
+	// the access logger so the log line shows the resolved address.
+	if len(cfg.TrustedProxies) > 0 {
+		h = clientip.New(
+			clientip.WithTrustedProxies(cfg.TrustedProxies...),
+			clientip.WithLogger(cfg.Logger),
+		).Middleware(h)
+	}
 
 	// rs/cors reads an empty AllowedOrigins as every origin, so with none
 	// configured the middleware is left out and no response carries CORS
