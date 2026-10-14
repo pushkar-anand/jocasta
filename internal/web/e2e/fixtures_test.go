@@ -30,8 +30,9 @@ var anchor = time.Date(2026, time.June, 15, 14, 30, 0, 0, time.UTC)
 // resolve, so they are public DNS resolvers and root servers, which anyone can
 // look up.
 const (
-	router  = "gateway"
-	sweeper = "sweep:jocasta"
+	router   = "gateway"
+	sweeper  = "sweep:jocasta"
+	resolver = "resolver"
 )
 
 var (
@@ -96,10 +97,26 @@ type device struct {
 	movedTo  string
 	movedDay int
 
+	// own is a router's addresses on segments other than ip's, each with
+	// the interface it sits on.
+	own []ownAddr
+
 	watched bool
 	curated bool
 
 	talks []talk
+	looks []look
+}
+
+type ownAddr struct{ ip, iface string }
+
+// look is a name a device asks the resolver for, perHr times an hour. It
+// answers with peer, or with nothing when the lookup is blocked or fails.
+type look struct {
+	name            string
+	peer            string
+	perHr           int
+	blocked, failed bool
 }
 
 type talk struct {
@@ -158,18 +175,27 @@ func seedNormal(ctx context.Context, store *inventory.Store, conn *sql.DB, log *
 		return nil, err
 	}
 
+	if err := newDeviceScan(ctx, store, "198.51.100.19", 80); err != nil {
+		return nil, err
+	}
+
 	return rec, failedScan(ctx, conn, router, "dial 192.0.2.1:8728: connection refused", 2*time.Hour)
 }
 
 func normalDevices() []*device {
 	return []*device{
-		{ip: "192.0.2.1", mac: "00:00:5e:00:53:01", name: "gateway", label: "Gateway", group: "Network", kind: "router", ports: []uint16{22, 53, 80, 443, 8291}},
+		{ip: "192.0.2.1", mac: "00:00:5e:00:53:01", name: "gateway", label: "Gateway", group: "Network", kind: "router", ports: []uint16{22, 53, 80, 443, 8291},
+			own: []ownAddr{{"192.0.2.129", "vlan10"}, {"198.51.100.1", "vlan20"}}},
 		{ip: "192.0.2.2", mac: "00:00:5e:00:53:02", name: "switch-core", label: "Core switch", group: "Network", kind: "switch", ports: []uint16{22, 80}},
 		{ip: "192.0.2.3", mac: "00:00:5e:00:53:03", name: "ap-hallway", label: "Hallway AP", group: "Network", kind: "access_point", ports: []uint16{22, 443}},
 		{ip: "192.0.2.10", mac: "00:00:5e:00:53:10", name: "workstation", label: "Workstation", group: "Office", kind: "desktop", ports: []uint16{22}, watched: true,
-			talks: []talk{tcp(cloudflare, 443, 2400), tcp(google, 443, 5200), tcp(quad9, 443, 1400), udp(cloudflare, 53, 40), tcp("192.0.2.130", 445, 8000), tcp("192.0.2.132", 8123, 150)}},
+			talks: []talk{tcp(cloudflare, 443, 2400), tcp(google, 443, 5200), tcp(quad9, 443, 1400), udp(cloudflare, 53, 40), tcp("192.0.2.130", 445, 8000), tcp("192.0.2.132", 8123, 150)},
+			looks: []look{{name: "api.example.com", peer: cloudflare, perHr: 6}, {name: "mail.example.com", peer: google, perHr: 4},
+				{name: "updates.example.net", peer: quad9, perHr: 1}, {name: "ads.example.net", perHr: 3, blocked: true}}},
 		{ip: "192.0.2.11", mac: "00:00:5e:00:53:11", name: "laptop", label: "Laptop", group: "Office", kind: "laptop",
-			talks: []talk{tcp(google, 443, 2600), tcp(opendns, 443, 900), tcp(adguard, 443, 700), udp(cloudflare, 53, 20), tcp("192.0.2.131", 8096, 4000)}},
+			talks: []talk{tcp(google, 443, 2600), tcp(opendns, 443, 900), tcp(adguard, 443, 700), udp(cloudflare, 53, 20), tcp("192.0.2.131", 8096, 4000)},
+			looks: []look{{name: "video.example.com", peer: google, perHr: 8}, {name: "docs.example.org", peer: opendns, perHr: 3},
+				{name: "ads.example.net", perHr: 2, blocked: true}}},
 		{ip: "192.0.2.20", mac: "00:00:5e:00:53:20", name: "phone-a", movedTo: "192.0.2.24", movedDay: 1, label: "Phone A", group: "Personal", kind: "phone",
 			talks: []talk{tcp(google, 443, 1200), tcp(rootK, 443, 1600), tcp(cloudflare2, 443, 500)}},
 		{ip: "192.0.2.21", mac: "00:00:5e:00:53:21", name: "phone-b", label: "Phone B", group: "Personal", kind: "phone",
@@ -178,7 +204,9 @@ func normalDevices() []*device {
 			talks: []talk{tcp(rootJ, 443, 700)}},
 		{ip: "192.0.2.30", mac: "00:00:5e:00:53:30", name: "tv-living-room", label: "Living room TV", group: "Media", kind: "tv",
 			services: []hosts.Service{{Type: "_googlecast._tcp", Instance: "Living Room TV", Port: 8009}, {Type: "_airplay._tcp", Instance: "Living Room", Port: 7000}},
-			talks:    []talk{tcp(rootL, 443, 38000), tcp(google, 443, 4000), tcp("192.0.2.131", 8096, 9000)}},
+			talks:    []talk{tcp(rootL, 443, 38000), tcp(google, 443, 4000), tcp("192.0.2.131", 8096, 9000)},
+			looks: []look{{name: "stream.example.com", peer: rootL, perHr: 12}, {name: "cast.example.com", peer: google, perHr: 4},
+				{name: "telemetry.example.net", perHr: 20, blocked: true}}},
 		{ip: "192.0.2.31", mac: "00:00:5e:00:53:31", name: "console", label: "Game console", group: "Media", kind: "game_console", firstDay: 5,
 			talks: []talk{tcp(rootD, 443, 9000), udp(rootA, 3074, 600)}},
 		{ip: "192.0.2.40", mac: "00:00:5e:00:53:40", name: "printer", label: "Printer", group: "Office", kind: "printer", ports: []uint16{80, 443, 631, 9100},
@@ -192,7 +220,8 @@ func normalDevices() []*device {
 		{ip: "192.0.2.131", mac: "00:00:5e:00:53:81", name: "media-server", label: "Media server", group: "Servers", kind: "server", ports: []uint16{22, 8096},
 			talks: []talk{tcp(google, 443, 400), tcp(rootF, 443, 2000), udp(cloudflare, 123, 2)}},
 		{ip: "192.0.2.132", mac: "00:00:5e:00:53:82", name: "home-assistant", label: "Home Assistant", group: "Servers", kind: "iot_hub", ports: []uint16{22, 1883, 8123}, watched: true,
-			talks: []talk{tcp(quad9, 443, 150), tcp("198.51.100.10", 80, 40), tcp("198.51.100.14", 80, 20)}},
+			talks: []talk{tcp(quad9, 443, 150), tcp("198.51.100.10", 80, 40), tcp("198.51.100.14", 80, 20)},
+			looks: []look{{name: "weather.example.com", peer: quad9, perHr: 1}, {name: "printer.home.test", perHr: 2, failed: true}}},
 		{ip: "192.0.2.133", mac: "00:00:5e:00:53:83", name: "dns", label: "DNS resolver", group: "Servers", kind: "server", ports: []uint16{22, 53, 80},
 			talks: []talk{udp(cloudflare, 53, 300), udp(google, 53, 200), udp(quad9, 53, 100)}},
 		{ip: "192.0.2.134", mac: "00:00:5e:00:53:84", name: "backup", label: "Backup box", group: "Servers", kind: "server", ports: []uint16{22}, firstDay: 12,
@@ -266,6 +295,7 @@ var (
 	markup      = `<img src=x onerror=alert(1)> & "quoted" 'single' </td>`
 	longHost    = "a-very-long-hostname-label-that-reaches-the-sixty-three-limit-x"
 	longFQDN    = longHost + "." + longHost + ".example.com"
+	longName    = longHost + "." + longHost + "." + longHost + "." + strings.Repeat("y", 53) + ".example" // 253, a name's limit
 	longGroup   = "Devices in the garden office that the neighbour also uses on weekends"
 	longService = "Living Room Television (Second Floor) with the Soundbar and the Projector"
 	longNotes   = strings.TrimSpace(strings.Repeat("Replaced the power supply after it browned out during the storm. ", 20)) +
@@ -293,6 +323,13 @@ func weirdDevices() []*device {
 		}
 	}
 
+	// More names than a page holds, one at a name's length limit and one in
+	// punycode, all answered by the one peer.
+	manyLooks := []look{{name: longName, peer: cloudflare, perHr: 1}, {name: "xn--bcher-kva.example", peer: cloudflare, perHr: 2}}
+	for i := range 300 {
+		manyLooks = append(manyLooks, look{name: fmt.Sprintf("edge-%03d.cdn.example.com", i), peer: cloudflare, perHr: 1})
+	}
+
 	devs := []*device{
 		{ip: "192.0.2.1", mac: "00:00:5e:00:53:01", name: router, label: "Gateway", group: "Network", kind: "router", ports: []uint16{22, 53, 80, 443}},
 		{ip: "192.0.2.2", mac: "00:00:5e:00:53:02", name: longHost, label: longLabel, group: longGroup, kind: "desktop", notes: longNotes, watched: true,
@@ -308,7 +345,8 @@ func weirdDevices() []*device {
 		{ip: "192.0.2.10", mac: "00:00:5e:00:53:0a", name: "ancient", label: "Seen once, long ago", firstDay: 10, lastDay: 9},
 		{ip: "192.0.2.11", mac: "00:00:5e:00:53:0b", name: "mover", label: "Moves every day", movedTo: "192.0.2.250", movedDay: 2},
 		{ip: "192.0.2.12", mac: "00:00:5e:00:53:0c", name: "huge", label: "Huge transfer", kind: "server",
-			talks: []talk{tcp(cloudflare, 443, 9e11), {peer: quad9, port: 22, proto: 6, kbPerHr: 3e9, upRatio: 40, inbound: true}}},
+			talks: []talk{tcp(cloudflare, 443, 9e11), {peer: quad9, port: 22, proto: 6, kbPerHr: 3e9, upRatio: 40, inbound: true}},
+			looks: manyLooks},
 	}
 
 	// Enough of the rest to page the device list, spread over more groups
@@ -396,6 +434,10 @@ func simulate(ctx context.Context, store *inventory.Store, log *slog.Logger, n *
 		}
 
 		if dayBack < 14 {
+			if err := lookups(ctx, store, n.devs, present, t); err != nil {
+				return nil, err
+			}
+
 			rec.Add(netflow{}, hourOfTraffic(rng, n, local, present, t, anchor.Sub(t)))
 			setClock(t.Add(time.Hour - time.Minute))
 
@@ -422,6 +464,10 @@ func simulate(ctx context.Context, store *inventory.Store, log *slog.Logger, n *
 	}
 
 	if err := sweep(ctx, store, n, present, at); err != nil {
+		return nil, err
+	}
+
+	if err := lookups(ctx, store, n.devs, present, at); err != nil {
 		return nil, err
 	}
 
@@ -470,6 +516,15 @@ func readRouter(ctx context.Context, store *inventory.Store, devs []*device, pre
 		}
 
 		facts = append(facts, f)
+
+		for _, o := range d.own {
+			h, err := host(ctx, o.ip, d.mac, "")
+			if err != nil {
+				return fmt.Errorf("host %s: %w", o.ip, err)
+			}
+
+			facts = append(facts, plugin.Fact{Host: h, Present: true, SeenAt: at, Detail: map[string]string{"interface": o.iface}})
+		}
 	}
 
 	_, err := store.RecordFacts(ctx, router, dbtype.SourceRouter, facts)
@@ -494,6 +549,57 @@ func sweep(ctx context.Context, store *inventory.Store, n *sim, present func(*de
 	}
 
 	_, err := store.RecordSweep(ctx, sweeper, n.swept, found)
+
+	return err
+}
+
+// lookups records an hour of the resolver's query log, starting at at.
+func lookups(ctx context.Context, store *inventory.Store, devs []*device, present func(*device) bool, at time.Time) error {
+	var qs []plugin.Query
+
+	for _, d := range devs {
+		if !present(d) {
+			continue
+		}
+
+		for _, l := range d.looks {
+			q := plugin.Query{Client: netip.MustParseAddr(d.ip), Name: l.name, Type: "A", Blocked: l.blocked, Failed: l.failed}
+			if l.peer != "" {
+				q.Answers = []netip.Addr{netip.MustParseAddr(l.peer)}
+			}
+
+			for i := range l.perHr {
+				q.At = at.Add(time.Duration(i) * time.Hour / time.Duration(l.perHr))
+				qs = append(qs, q)
+			}
+		}
+	}
+
+	if len(qs) == 0 {
+		return nil
+	}
+
+	_, err := store.RecordQueries(ctx, resolver, dbtype.SourceDNS, qs, at.Format(time.RFC3339))
+
+	return err
+}
+
+// newDeviceScan records the port scan run on ip just after the router first
+// listed it, 20 hours back, and puts the clock back where simulate left it.
+func newDeviceScan(ctx context.Context, store *inventory.Store, ip string, open ...uint16) error {
+	at := anchor.Add(-20*time.Hour + 2*time.Minute)
+	setClock(at)
+
+	defer setClock(anchor.Add(-time.Minute))
+
+	scanned := make([]uint16, 0, 1024)
+	for p := uint16(1); p <= 1024; p++ {
+		scanned = append(scanned, p)
+	}
+
+	_, err := store.RecordNewDevicePorts(ctx, sweeper, []scanner.PortScan{
+		{Addr: netip.MustParseAddr(ip), Open: open, Scanned: scanned, Answered: true, SeenAt: at},
+	})
 
 	return err
 }
