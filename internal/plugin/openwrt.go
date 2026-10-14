@@ -1,11 +1,13 @@
 package plugin
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -24,7 +26,8 @@ const openWrtPrefix = "openwrt:"
 // It reads three tables because no one of them is enough. The neighbour table
 // resolves hardware across every segment but carries no names. A lease carries
 // a name but outlives the device it names. A static host is the name an
-// operator chose, and is the only one of the three that says so.
+// operator chose, and is the only one of the three that says so. None of them
+// lists the router itself, so its interfaces are read as well.
 type OpenWrt struct {
 	name   string
 	client *openwrt.OpenWrt
@@ -94,9 +97,9 @@ func (o *OpenWrt) Name() string { return o.name }
 // Kind identifies this plugin as a router source.
 func (o *OpenWrt) Kind() dbtype.SourceKind { return dbtype.SourceRouter }
 
-// Discover merges the three tables into one fact per device per address. One
-// table failing does not cost the others, so a partial read returns its facts
-// alongside the error.
+// Discover merges the three tables and the router's own addresses into one
+// fact per device per address. One table failing does not cost the others, so
+// a partial read returns its facts alongside the error.
 func (o *OpenWrt) Discover(ctx context.Context) ([]Fact, error) {
 	var errs []error
 
@@ -117,7 +120,21 @@ func (o *OpenWrt) Discover(ctx context.Context) ([]Fact, error) {
 		errs = append(errs, fmt.Errorf("read dhcp leases: %w", classifyOpenWrt(err)))
 	}
 
-	facts, err := o.facts(ctx, static, neigh, leases)
+	// The router's own addresses: its interfaces and the devices under them.
+	// Either read failing costs only those.
+	var (
+		ifaces  []openwrt.Interface
+		devices map[string]openwrt.NetDevice
+	)
+
+	ifaces, err = o.client.Interfaces(ctx)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("read interfaces: %w", classifyOpenWrt(err)))
+	} else if devices, err = o.client.NetworkDevices(ctx); err != nil {
+		errs = append(errs, fmt.Errorf("read network devices: %w", classifyOpenWrt(err)))
+	}
+
+	facts, err := o.facts(ctx, static, neigh, leases, ifaces, devices)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -125,13 +142,15 @@ func (o *OpenWrt) Discover(ctx context.Context) ([]Fact, error) {
 	return facts, errors.Join(errs...)
 }
 
-// facts merges what the three tables said into one fact per device per
-// address.
+// facts merges what the three tables said, and the router's own addresses,
+// into one fact per device per address.
 func (o *OpenWrt) facts(
 	ctx context.Context,
 	static []openwrt.StaticHost,
 	neigh []openwrt.Neighbour,
 	leases []openwrt.Lease,
+	ifaces []openwrt.Interface,
+	devices map[string]openwrt.NetDevice,
 ) ([]Fact, error) {
 	c := make(claims)
 	named := staticNames(static)
@@ -139,6 +158,7 @@ func (o *OpenWrt) facts(
 	o.collectNeighbours(ctx, c, neigh)
 	o.collectLeases(ctx, c, leases, named)
 	o.collectStatic(ctx, c, static)
+	o.collectOwn(c, ifaces, devices)
 
 	nameStatic(c, named)
 
@@ -246,6 +266,44 @@ func (o *OpenWrt) collectStatic(ctx context.Context, c claims, static []openwrt.
 
 			d := draftFor(c, claimKey{mac: mac, addr: addr})
 			d.set("dhcp_dynamic", "false")
+		}
+	}
+}
+
+// collectOwn pairs each address the router serves a segment on with the
+// hardware address of the device it sits on. None of the three tables lists
+// the router itself, and a sweep that reaches it through another segment sees
+// an address with no hardware behind it, so without these the router is one
+// device per segment it serves. The router answered this read,
+// so each is present. An interface that is down holds no address, and one
+// that is not static, such as a dhcp or pppoe uplink, sits on a link the
+// router does not serve; both are left out, as in buildOpenWrtNetworks.
+func (o *OpenWrt) collectOwn(c claims, ifaces []openwrt.Interface, devices map[string]openwrt.NetDevice) {
+	for _, i := range ifaces {
+		if !i.Up || i.Proto != openwrt.ProtoStatic {
+			continue
+		}
+
+		// The device the addresses sit on first; the configured one covers a
+		// router that reports no l3_device.
+		dev := cmp.Or(i.L3Device, i.Device)
+
+		mac, ok := hosts.CanonicalMAC(devices[dev].MAC)
+		if !ok || mac == "" {
+			continue
+		}
+
+		for _, a := range slices.Concat(i.IPv4, i.IPv6) {
+			addr, ok := deviceAddr(a.Address)
+			if !ok {
+				continue
+			}
+
+			d := draftFor(c, claimKey{mac: mac, addr: addr})
+			d.present = true
+
+			// The device, as a neighbour entry names it.
+			d.set("interface", dev)
 		}
 	}
 }

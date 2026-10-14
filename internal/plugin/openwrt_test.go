@@ -42,7 +42,7 @@ func openWrtFacts(
 ) []Fact {
 	t.Helper()
 
-	out, err := testOpenWrt(t).facts(t.Context(), static, neigh, leases)
+	out, err := testOpenWrt(t).facts(t.Context(), static, neigh, leases, nil, nil)
 	require.NoError(t, err)
 
 	return out
@@ -335,6 +335,8 @@ var openWrtAnswers = map[string]string{
 		`"device":"br-lan.10","l3_device":"br-lan.10","ipv4-address":[{"address":"192.0.2.1","mask":24}]}]}]`,
 	"uci network device":      `[0,{"values":{}}]`,
 	"uci network bridge-vlan": `[0,{"values":{"cfg2":{"device":"br-lan","vlan":"10"}}}]`,
+	"luci-rpc getNetworkDevices": `[0,{"br-lan.10":{"name":"br-lan.10","type":1,"up":true,"mac":"00:00:5E:00:53:01"},` +
+		`"lo":{"name":"lo","type":772,"up":true,"mac":"00:00:00:00:00:00"}}]`,
 }
 
 func TestOpenWrtDiscoverReadsEveryTable(t *testing.T) {
@@ -342,7 +344,7 @@ func TestOpenWrtDiscoverReadsEveryTable(t *testing.T) {
 
 	facts, err := testOpenWrtWith(t, openWrtAnswers).Discover(t.Context())
 	require.NoError(t, err)
-	require.Len(t, facts, 2)
+	require.Len(t, facts, 3)
 
 	tv := factAt(t, facts, "192.0.2.50")
 	assert.Equal(t, "living-room-tv", tv.Host.Hostname())
@@ -352,6 +354,108 @@ func TestOpenWrtDiscoverReadsEveryTable(t *testing.T) {
 	phone := factAt(t, facts, "192.0.2.119")
 	assert.Equal(t, "phone-a", phone.Host.Hostname())
 	assert.Equal(t, dbtype.HostnameFromDHCPLease, phone.HostnameSource)
+
+	router := factAt(t, facts, "192.0.2.1")
+	assert.Equal(t, "00:00:5e:00:53:01", router.Host.MAC)
+	assert.True(t, router.Present)
+	assert.Equal(t, "br-lan.10", router.Detail["interface"])
+}
+
+// ownFacts runs the own-address mapping the way Discover does, without a
+// router to read the tables from.
+func ownFacts(t *testing.T, ifaces []openwrt.Interface, devices map[string]openwrt.NetDevice) []Fact {
+	t.Helper()
+
+	o := testOpenWrt(t)
+	c := make(claims)
+
+	o.collectOwn(c, ifaces, devices)
+
+	out, err := buildFacts(t.Context(), o.logger, o.now(), c)
+	require.NoError(t, err)
+
+	return out
+}
+
+// A router serving several segments shares one hardware address across them,
+// so each of its addresses comes back as the same device, present.
+func TestOpenWrtOwnAddressesCarryTheirDevicesHardwareAddress(t *testing.T) {
+	t.Parallel()
+
+	ifaces := []openwrt.Interface{
+		{
+			Name: "lan", Up: true, Proto: openwrt.ProtoStatic, Device: "br-lan", L3Device: "br-lan",
+			IPv4: []openwrt.IfaceAddr{{Address: "192.0.2.1", Mask: 24}},
+			IPv6: []openwrt.IfaceAddr{{Address: "2001:db8:0:1::1", Mask: 64}},
+		},
+		{
+			Name: "iot", Up: true, Proto: openwrt.ProtoStatic, Device: "br-lan.20",
+			IPv4: []openwrt.IfaceAddr{{Address: "198.51.100.1", Mask: 24}},
+		},
+	}
+	devices := map[string]openwrt.NetDevice{
+		"br-lan":    {MAC: "00:00:5E:00:53:01"},
+		"br-lan.20": {MAC: "00:00:5E:00:53:01"},
+	}
+
+	out := ownFacts(t, ifaces, devices)
+	require.Len(t, out, 3)
+
+	for _, f := range out {
+		assert.Equal(t, "00:00:5e:00:53:01", f.Host.MAC)
+		assert.True(t, f.Present, "the router answered the read")
+		assert.Empty(t, f.Host.Hostname(), "the router gives itself no name here")
+	}
+
+	assert.Equal(t, "br-lan", factAt(t, out, "2001:db8:0:1::1").Detail["interface"])
+	assert.Equal(t, "br-lan.20", factAt(t, out, "198.51.100.1").Detail["interface"],
+		"an interface with no l3_device falls back to its configured device")
+}
+
+// An uplink sits on a link the router does not serve, an interface that is
+// down holds nothing, and a device with no hardware address names no device.
+func TestOpenWrtOwnAddressesSkipWhatIsNotASegmentTheRouterServes(t *testing.T) {
+	t.Parallel()
+
+	ifaces := []openwrt.Interface{
+		{
+			Name: "wan", Up: true, Proto: "dhcp", L3Device: "eth1",
+			IPv4: []openwrt.IfaceAddr{{Address: "203.0.113.7", Mask: 24}},
+		},
+		{
+			Name: "guest", Up: false, Proto: openwrt.ProtoStatic, L3Device: "br-guest",
+			IPv4: []openwrt.IfaceAddr{{Address: "192.0.2.129", Mask: 25}},
+		},
+		{
+			Name: "vpn", Up: true, Proto: openwrt.ProtoStatic, L3Device: "wg0",
+			IPv4: []openwrt.IfaceAddr{{Address: "198.51.100.129", Mask: 25}},
+		},
+		{
+			Name: "loopback", Up: true, Proto: openwrt.ProtoStatic, L3Device: "lo",
+			IPv4: []openwrt.IfaceAddr{{Address: "127.0.0.1", Mask: 8}},
+		},
+	}
+	devices := map[string]openwrt.NetDevice{
+		"eth1":     {MAC: "00:00:5E:00:53:02"},
+		"br-guest": {MAC: "00:00:5E:00:53:01"},
+		"wg0":      {},
+		"lo":       {MAC: "00:00:00:00:00:00"},
+	}
+
+	assert.Empty(t, ownFacts(t, ifaces, devices))
+}
+
+// The device list failing costs only the router's own addresses.
+func TestOpenWrtDiscoverKeepsTheTablesWhenTheOwnAddressesFail(t *testing.T) {
+	t.Parallel()
+
+	answers := maps.Clone(openWrtAnswers)
+	delete(answers, "luci-rpc getNetworkDevices")
+
+	facts, err := testOpenWrtWith(t, answers).Discover(t.Context())
+	require.ErrorIs(t, err, ErrAuth)
+	assert.Contains(t, err.Error(), "read network devices")
+	assert.Len(t, facts, 2)
 }
 
 // One table refused costs that table alone: the facts the others gave come
@@ -365,7 +469,7 @@ func TestOpenWrtDiscoverKeepsWhatAPartialReadGave(t *testing.T) {
 
 	facts, err := testOpenWrtWith(t, answers).Discover(t.Context())
 	require.ErrorIs(t, err, ErrAuth)
-	assert.Len(t, facts, 2)
+	assert.Len(t, facts, 3, "the two leases and the router")
 }
 
 func TestOpenWrtNetworksReadsVLANs(t *testing.T) {
