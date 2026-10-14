@@ -14,7 +14,7 @@ Jocasta keeps an inventory of the devices on your network and logs every change.
 >
 > **Pre-1.0**
 >
-> A release can change the config format, the database schema or the API with no upgrade path. Pin a version and read the release notes before moving on. The version menu at the top picks the docs for your release.
+> A release can change the config format, the database schema or the API with no upgrade path. Pin a version and read the [upgrade notes](<https://pushkar-anand.github.io/jocasta/0.14/operate/upgrading/index.md>) before moving on. The version menu at the top picks the docs for your release.
 
 ## How it works
 
@@ -24,30 +24,30 @@ Jocasta keeps an inventory of the devices on your network and logs every change.
 
 ## Start here
 
-- **[Your first inventory](<https://pushkar-anand.github.io/jocasta/0.13/tutorial/index.md>)**
+- **[Your first inventory](<https://pushkar-anand.github.io/jocasta/0.14/tutorial/index.md>)**
 
   Run it, sweep, name a device, get a message when it goes quiet. 10 minutes.
-- **[How Jocasta works](<https://pushkar-anand.github.io/jocasta/0.13/concepts/index.md>)**
+- **[How Jocasta works](<https://pushkar-anand.github.io/jocasta/0.14/concepts/index.md>)**
 
   Devices, scans, sources and presence.
-- **[Plugins](<https://pushkar-anand.github.io/jocasta/0.13/plugins/index.md>)**
+- **[Plugins](<https://pushkar-anand.github.io/jocasta/0.14/plugins/index.md>)**
 
   Routers, flow exports, DNS resolvers.
-- **[Notifications](<https://pushkar-anand.github.io/jocasta/0.13/notifications/index.md>)**
+- **[Notifications](<https://pushkar-anand.github.io/jocasta/0.14/notifications/index.md>)**
 
   ntfy, signed webhooks, chat services.
-- **[MCP server](<https://pushkar-anand.github.io/jocasta/0.13/integrations/mcp/index.md>) and [JSON API](<https://pushkar-anand.github.io/jocasta/0.13/integrations/api/index.md>)**
+- **[MCP server](<https://pushkar-anand.github.io/jocasta/0.14/integrations/mcp/index.md>) and [JSON API](<https://pushkar-anand.github.io/jocasta/0.14/integrations/api/index.md>)**
 
   For agents and scripts.
-- **[Configuration reference](<https://pushkar-anand.github.io/jocasta/0.13/reference/configuration/index.md>)**
+- **[Configuration reference](<https://pushkar-anand.github.io/jocasta/0.14/reference/configuration/index.md>)**
 
   Every setting, its type and default.
 
 ## Get help
 
-[GitHub issues](<https://github.com/pushkar-anand/jocasta/issues>), or [Fix common problems](<https://pushkar-anand.github.io/jocasta/0.13/operate/troubleshooting/index.md>).
+[GitHub issues](<https://github.com/pushkar-anand/jocasta/issues>), or [Fix common problems](<https://pushkar-anand.github.io/jocasta/0.14/operate/troubleshooting/index.md>).
 
-For language models: [`llms.txt`](<https://pushkar-anand.github.io/jocasta/0.13/llms.txt>) lists every page as Markdown, and [`llms-full.txt`](<https://pushkar-anand.github.io/jocasta/0.13/llms-full.txt>) holds them all in one file.
+For language models: [`llms.txt`](<https://pushkar-anand.github.io/jocasta/0.14/llms.txt>) lists every page as Markdown, and [`llms-full.txt`](<https://pushkar-anand.github.io/jocasta/0.14/llms-full.txt>) holds them all in one file.
 
 # Your first inventory
 
@@ -124,9 +124,9 @@ A watched device goes quiet 15 minutes after the last scan that saw it. To try i
 
 ## Next
 
-- [How Jocasta works](<https://pushkar-anand.github.io/jocasta/0.13/concepts/index.md>)
-- [Connect your router](<https://pushkar-anand.github.io/jocasta/0.13/plugins/index.md>) for devices on other VLANs
-- [Serve over HTTPS](<https://pushkar-anand.github.io/jocasta/0.13/operate/https/index.md>)
+- [How Jocasta works](<https://pushkar-anand.github.io/jocasta/0.14/concepts/index.md>)
+- [Connect your router](<https://pushkar-anand.github.io/jocasta/0.14/plugins/index.md>) for devices on other VLANs
+- [Serve over HTTPS](<https://pushkar-anand.github.io/jocasta/0.14/operate/https/index.md>)
 
 # How Jocasta works
 
@@ -142,7 +142,7 @@ An address the device stops answering on is dropped once the device has answered
 
 ## Networks
 
-A network is an IP prefix, such as `192.0.2.0/24`. Jocasta sweeps the prefixes under `networks`. A [router plugin](<https://pushkar-anand.github.io/jocasta/0.13/plugins/index.md>) adds the segments the router serves, with names and VLAN tags.
+A network is an IP prefix, such as `192.0.2.0/24`. Jocasta sweeps the prefixes under `networks`. A [router plugin](<https://pushkar-anand.github.io/jocasta/0.14/plugins/index.md>) adds the segments the router serves, with names and VLAN tags.
 
 ## Scans
 
@@ -152,29 +152,29 @@ A scan is one recorded reading:
 - **Port scan.** A TCP connection to a list of ports on every known address. Off until `scan.ports.enabled: true`, then every 6 hours. A new device is also scanned as soon as a sweep or router read discovers it.
 - **Plugin read.** A router's ARP and DHCP tables, read with each sweep. A DNS resolver's query log, read every minute.
 
-The Scans page lists them. To run one by hand, use [`jocasta scan`](<https://pushkar-anand.github.io/jocasta/0.13/cli/#scan>), [`jocasta ports`](<https://pushkar-anand.github.io/jocasta/0.13/cli/#ports>) or [`jocasta plugin run`](<https://pushkar-anand.github.io/jocasta/0.13/cli/#plugin-run>).
+The Scans page lists them. To run one by hand, use [`jocasta scan`](<https://pushkar-anand.github.io/jocasta/0.14/cli/#scan>), [`jocasta ports`](<https://pushkar-anand.github.io/jocasta/0.14/cli/#ports>) or [`jocasta plugin run`](<https://pushkar-anand.github.io/jocasta/0.14/cli/#plugin-run>).
 
 ## Sources
 
 Each scan files its facts under a source: `sweep:<host>` for the sweep, or the plugin's instance name, such as `gateway`. The device page lists what each source calls the device.
 
-When sources disagree on a name, the higher standing wins. A static DHCP lease beats a name the device announces. See [How names are chosen](<https://pushkar-anand.github.io/jocasta/0.13/naming/index.md>).
+When sources disagree on a name, the higher standing wins. A static DHCP lease beats a name the device announces. See [How names are chosen](<https://pushkar-anand.github.io/jocasta/0.14/naming/index.md>).
 
 ## Presence
 
 A device is seen recently if a scan saw it in the last 15 minutes, and quiet otherwise. Both come from past scans. Opening a page starts none.
 
-Watched devices log when they go quiet and come back. Others do not: phones and laptops would fill the log. See [Get told when a device goes quiet](<https://pushkar-anand.github.io/jocasta/0.13/notifications/watch/index.md>).
+Watched devices log when they go quiet and come back. Others do not: phones and laptops would fill the log. See [Get told when a device goes quiet](<https://pushkar-anand.github.io/jocasta/0.14/notifications/watch/index.md>).
 
 ## The change log
 
-The Events page lists every change: new devices, addresses gained and dropped, renames, ports opened and closed, type changes, and your own edits. [Notifications](<https://pushkar-anand.github.io/jocasta/0.13/notifications/index.md>) send them on.
+The Events page lists every change: new devices, addresses gained and dropped, renames, ports opened and closed, type changes, and your own edits. [Notifications](<https://pushkar-anand.github.io/jocasta/0.14/notifications/index.md>) send them on.
 
 ## What you own
 
-Label, group, type, notes, ignored and watched are yours. Scans never write them. See [Label, group and ignore devices](<https://pushkar-anand.github.io/jocasta/0.13/devices/index.md>).
+Label, group, type, notes, ignored and watched are yours. Scans never write them. See [Label, group and ignore devices](<https://pushkar-anand.github.io/jocasta/0.14/devices/index.md>).
 
-Without a type from you, Jocasta guesses one. See [How a device gets its type](<https://pushkar-anand.github.io/jocasta/0.13/classification/index.md>).
+Without a type from you, Jocasta guesses one. See [How a device gets its type](<https://pushkar-anand.github.io/jocasta/0.14/classification/index.md>).
 
 ## Retention
 
@@ -216,13 +216,13 @@ Everything Jocasta knows about one device:
 - What you call it: label, group, type and notes. No scan or plugin writes these.
 - Connected: the path from the internet to the device, through each router, switch and access point, with the port or Wi-Fi network, band and VLAN at each step. A device plugged straight into a read port shows the link's rate, and a Wi-Fi client its rate each way and its signal. When a wired link runs below what both ends can, the page says so. Show on topology opens the Topology page on the device.
 - Addresses: every address the device has held, and the network each is on.
-- Ports: once a port scan has reached the device (see [CLI](<https://pushkar-anand.github.io/jocasta/0.13/cli/#ports>)), the TCP ports it listens on, and the ones it has since closed.
+- Ports: once a port scan has reached the device (see [CLI](<https://pushkar-anand.github.io/jocasta/0.14/cli/#ports>)), the TCP ports it listens on, and the ones it has since closed.
 - Sources: what each source, such as the sweep or the router, calls the device at each address it reported, and when it last heard from it.
 - History: the device's entries in the change log.
 
 ### Talks to
 
-When traffic collection is set up (see [NetFlow](<https://pushkar-anand.github.io/jocasta/0.13/plugins/netflow/index.md>)), this section shows who the device exchanged data with over the last 24 hours, 7 days or 30 days.
+When traffic collection is set up (see [NetFlow](<https://pushkar-anand.github.io/jocasta/0.14/plugins/netflow/index.md>)), this section shows who the device exchanged data with over the last 24 hours, 7 days or 30 days.
 
 The top of the section shows data received and sent, how many peers on your network, and how many organisations on the internet. Below that is one tab per network segment and one for the internet, each with a count. The busiest tab opens first.
 
@@ -272,13 +272,13 @@ The World tab puts the same hour's internet traffic on a map of the world.
 - A line runs from your network's country to each of the others, thicker the more it carried and moving while active.
 - Click a country for the devices and organisations behind its traffic. The search finds countries by name.
 
-Your network's country comes from the router's outside address, or from `location.country` when that address is private (see [NetFlow](<https://pushkar-anand.github.io/jocasta/0.13/plugins/netflow/index.md>)).
+Your network's country comes from the router's outside address, or from `location.country` when that address is private (see [NetFlow](<https://pushkar-anand.github.io/jocasta/0.14/plugins/netflow/index.md>)).
 
 A country is where an address is registered. For a big provider that is often its home country, and the server itself may be elsewhere.
 
 ## Topology
 
-The Topology page draws the network from the internet down (see [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/0.13/plugins/topology/index.md>)). It redraws every minute.
+The Topology page draws the network from the internet down (see [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/0.14/plugins/topology/index.md>)). It redraws every minute.
 
 - The internet sits at the top, the router below it, and each switch and access point hangs from the port it is plugged into. A thick line is a trunk, a thin one carries one VLAN, and a dashed one is Wi-Fi.
 - Under each box, its wired devices are grouped by VLAN, with each device's port on the right. Its Wi-Fi devices are grouped by network, with each device's band.
@@ -302,7 +302,7 @@ A toggle in the header switches themes; the choice is stored per browser.
 
 # Install
 
-For a guided first run, see [Your first inventory](<https://pushkar-anand.github.io/jocasta/0.13/tutorial/index.md>).
+For a guided first run, see [Your first inventory](<https://pushkar-anand.github.io/jocasta/0.14/tutorial/index.md>).
 
 ## Container image
 
@@ -329,7 +329,7 @@ volumes:
   jocasta-data:
 ```
 
-Use host networking. On a bridge network (`-p 8080:8080`) the sweep finds hosts but no hardware addresses, and mDNS, DNS-SD and SSDP names never arrive. A [router plugin](<https://pushkar-anand.github.io/jocasta/0.13/plugins/index.md>) fills the first gap. Neither mode needs extra capabilities.
+Use host networking. On a bridge network (`-p 8080:8080`) the sweep finds hosts but no hardware addresses, and mDNS, DNS-SD and SSDP names never arrive. A [router plugin](<https://pushkar-anand.github.io/jocasta/0.14/plugins/index.md>) fills the first gap. Neither mode needs extra capabilities.
 
 ## Prebuilt binaries
 
@@ -354,15 +354,15 @@ make docker           # -> jocasta:latest
 
 ## First run
 
-The first visit asks for the admin account. Until it exists, anyone who reaches the page can create it, so do it straight away. More users: [Manage users and sign-in](<https://pushkar-anand.github.io/jocasta/0.13/operate/users/index.md>).
+The first visit asks for the admin account. Until it exists, anyone who reaches the page can create it, so do it straight away. More users: [Manage users and sign-in](<https://pushkar-anand.github.io/jocasta/0.14/operate/users/index.md>).
 
-Over plain HTTP, sign-in needs `server.auth.cookie_secure: false`; see [Serve over HTTPS](<https://pushkar-anand.github.io/jocasta/0.13/operate/https/index.md>).
+Over plain HTTP, sign-in needs `server.auth.cookie_secure: false`; see [Serve over HTTPS](<https://pushkar-anand.github.io/jocasta/0.14/operate/https/index.md>).
 
-Migrations run at startup. Before upgrading, see [Back up and upgrade](<https://pushkar-anand.github.io/jocasta/0.13/operate/backup/index.md>).
+Migrations run at startup. Before upgrading, see [Back up and upgrade](<https://pushkar-anand.github.io/jocasta/0.14/operate/backup/index.md>).
 
 # Configure
 
-The only setting you need is `networks`, the prefixes to sweep. Everything else has a default. [`jocasta.example.yaml`](<https://github.com/pushkar-anand/jocasta/blob/main/jocasta.example.yaml>) lists every setting with its default and a line on what it does, and the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.13/reference/configuration/index.md>) gives each one's type, allowed values and environment variable.
+The only setting you need is `networks`, the prefixes to sweep. Everything else has a default. [`jocasta.example.yaml`](<https://github.com/pushkar-anand/jocasta/blob/main/jocasta.example.yaml>) lists every setting with its default and a line on what it does, and the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.14/reference/configuration/index.md>) gives each one's type, allowed values and environment variable.
 
 Settings are read in this order, each overriding the last:
 
@@ -395,13 +395,13 @@ Do not commit a `jocasta.yaml` that holds real addresses or credentials to a rep
 
 ## What to turn on next
 
-- **Port scanning**: set `scan.ports.enabled: true` to probe every known address on your networks for open TCP ports on a timer. Each address is also probed on the TCP ports its device advertises a service on. See [CLI](<https://pushkar-anand.github.io/jocasta/0.13/cli/#ports>) for one-off scans.
-- **Routers**: devices on every VLAN, and what is plugged in where. See [Plugins](<https://pushkar-anand.github.io/jocasta/0.13/plugins/index.md>).
-- **Traffic**: who each device talks to, from your router's flow exports, with a Traffic page and a live Map. See [NetFlow](<https://pushkar-anand.github.io/jocasta/0.13/plugins/netflow/index.md>) and [Tour the web UI](<https://pushkar-anand.github.io/jocasta/0.13/ui/#traffic-page>).
-- **DNS lookups**: what each device looks up, from your resolver's query log. See [Record what devices look up](<https://pushkar-anand.github.io/jocasta/0.13/plugins/dns/index.md>).
-- **Notifications**: new devices, opened ports and other changes, sent to ntfy, a signed webhook, or any service that takes an HTTP request. See [Notifications](<https://pushkar-anand.github.io/jocasta/0.13/notifications/index.md>).
-- **MCP server**: lets AI agents query the inventory. See [MCP server](<https://pushkar-anand.github.io/jocasta/0.13/integrations/mcp/index.md>).
-- **JSON API**: under `/api`, for scripts and dashboards. See [JSON API](<https://pushkar-anand.github.io/jocasta/0.13/integrations/api/index.md>).
+- **Port scanning**: set `scan.ports.enabled: true` to probe every known address on your networks for open TCP ports on a timer. Each address is also probed on the TCP ports its device advertises a service on. See [CLI](<https://pushkar-anand.github.io/jocasta/0.14/cli/#ports>) for one-off scans.
+- **Routers**: devices on every VLAN, and what is plugged in where. See [Plugins](<https://pushkar-anand.github.io/jocasta/0.14/plugins/index.md>).
+- **Traffic**: who each device talks to, from your router's flow exports, with a Traffic page and a live Map. See [NetFlow](<https://pushkar-anand.github.io/jocasta/0.14/plugins/netflow/index.md>) and [Tour the web UI](<https://pushkar-anand.github.io/jocasta/0.14/ui/#traffic-page>).
+- **DNS lookups**: what each device looks up, from your resolver's query log. See [Record what devices look up](<https://pushkar-anand.github.io/jocasta/0.14/plugins/dns/index.md>).
+- **Notifications**: new devices, opened ports and other changes, sent to ntfy, a signed webhook, or any service that takes an HTTP request. See [Notifications](<https://pushkar-anand.github.io/jocasta/0.14/notifications/index.md>).
+- **MCP server**: lets AI agents query the inventory. See [MCP server](<https://pushkar-anand.github.io/jocasta/0.14/integrations/mcp/index.md>).
+- **JSON API**: under `/api`, for scripts and dashboards. See [JSON API](<https://pushkar-anand.github.io/jocasta/0.14/integrations/api/index.md>).
 
 # Devices
 
@@ -411,10 +411,10 @@ These fields are yours. Scans never write them, and they stay with the device wh
 
 - **Label**: the name shown everywhere. Up to 200 characters.
 - **Group**: files devices together, such as `Office`. The device list filters by it. Up to 100 characters.
-- **Type**: sets the icon. **Auto** keeps Jocasta's guess; see [How a device gets its type](<https://pushkar-anand.github.io/jocasta/0.13/classification/index.md>).
+- **Type**: sets the icon. **Auto** keeps Jocasta's guess; see [How a device gets its type](<https://pushkar-anand.github.io/jocasta/0.14/classification/index.md>).
 - **Notes**: free text. Up to 2,000 characters.
 - **Ignored**: hides the device from lists and counts.
-- **Watched**: logs when it goes quiet or comes back; see [Get told when a device goes quiet](<https://pushkar-anand.github.io/jocasta/0.13/notifications/watch/index.md>).
+- **Watched**: logs when it goes quiet or comes back; see [Get told when a device goes quiet](<https://pushkar-anand.github.io/jocasta/0.14/notifications/watch/index.md>).
 
 ## Edit a device
 
@@ -433,11 +433,11 @@ The sweep still records it. The port scan skips it, and notifications leave it o
 
 ## From a script or an agent
 
-`PATCH /api/devices/{id}` in the [JSON API](<https://pushkar-anand.github.io/jocasta/0.13/integrations/api/index.md>), or the `update_device_curation` tool in the [MCP server](<https://pushkar-anand.github.io/jocasta/0.13/integrations/mcp/index.md>). Both need a `read_write` token. The MCP prompt `triage_devices` proposes a label, group and type for each device that has none.
+`PATCH /api/devices/{id}` in the [JSON API](<https://pushkar-anand.github.io/jocasta/0.14/integrations/api/index.md>), or the `update_device_curation` tool in the [MCP server](<https://pushkar-anand.github.io/jocasta/0.14/integrations/mcp/index.md>). Both need a `read_write` token. The MCP prompt `triage_devices` proposes a label, group and type for each device that has none.
 
 # How names are chosen
 
-A device can be named by more than one source. The name shown is the one from the source ranked highest here. A label you give a device is shown in place of all of them; see [Label, group and ignore devices](<https://pushkar-anand.github.io/jocasta/0.13/devices/index.md>).
+A device can be named by more than one source. The name shown is the one from the source ranked highest here. A label you give a device is shown in place of all of them; see [Label, group and ignore devices](<https://pushkar-anand.github.io/jocasta/0.14/devices/index.md>).
 
 1. Reverse DNS, looked up for each address a sweep finds.
 2. A static DHCP lease on your router.
@@ -495,7 +495,7 @@ Open the device, select **Edit details**, pick a type, and select **Save**. Scan
 
 ## Ask why
 
-The [MCP server](<https://pushkar-anand.github.io/jocasta/0.13/integrations/mcp/index.md>)'s `explain_device` tool returns the facts, the winning rule, and every other rule that matched.
+The [MCP server](<https://pushkar-anand.github.io/jocasta/0.14/integrations/mcp/index.md>)'s `explain_device` tool returns the facts, the winning rule, and every other rule that matched.
 
 ## Types
 
@@ -509,12 +509,12 @@ Plugins read what a sweep cannot reach: routers for devices on every segment and
 
 | Plugin | Devices and networks | Topology | Traffic | DNS lookups |
 | --- | --- | --- | --- | --- |
-| [MikroTik RouterOS](<https://pushkar-anand.github.io/jocasta/0.13/plugins/routeros/index.md>) | Yes | Yes | Through [NetFlow](<https://pushkar-anand.github.io/jocasta/0.13/plugins/netflow/index.md>) |  |
-| [OpenWrt](<https://pushkar-anand.github.io/jocasta/0.13/plugins/openwrt/index.md>) | Yes | Yes | Through [NetFlow](<https://pushkar-anand.github.io/jocasta/0.13/plugins/netflow/index.md>) |  |
-| [NetFlow](<https://pushkar-anand.github.io/jocasta/0.13/plugins/netflow/index.md>) |  |  | Yes |  |
-| [Technitium](<https://pushkar-anand.github.io/jocasta/0.13/plugins/technitium/index.md>) |  |  |  | Yes |
-| [Pi-hole](<https://pushkar-anand.github.io/jocasta/0.13/plugins/pihole/index.md>) |  |  |  | Yes |
-| [AdGuard Home](<https://pushkar-anand.github.io/jocasta/0.13/plugins/adguard/index.md>) |  |  |  | Yes |
+| [MikroTik RouterOS](<https://pushkar-anand.github.io/jocasta/0.14/plugins/routeros/index.md>) | Yes | Yes | Through [NetFlow](<https://pushkar-anand.github.io/jocasta/0.14/plugins/netflow/index.md>) |  |
+| [OpenWrt](<https://pushkar-anand.github.io/jocasta/0.14/plugins/openwrt/index.md>) | Yes | Yes | Through [NetFlow](<https://pushkar-anand.github.io/jocasta/0.14/plugins/netflow/index.md>) |  |
+| [NetFlow](<https://pushkar-anand.github.io/jocasta/0.14/plugins/netflow/index.md>) |  |  | Yes |  |
+| [Technitium](<https://pushkar-anand.github.io/jocasta/0.14/plugins/technitium/index.md>) |  |  |  | Yes |
+| [Pi-hole](<https://pushkar-anand.github.io/jocasta/0.14/plugins/pihole/index.md>) |  |  |  | Yes |
+| [AdGuard Home](<https://pushkar-anand.github.io/jocasta/0.14/plugins/adguard/index.md>) |  |  |  | Yes |
 
 ## Configure a plugin
 
@@ -529,9 +529,9 @@ plugins:
       # ...
 ```
 
-The instance name is the [source](<https://pushkar-anand.github.io/jocasta/0.13/concepts/#sources>) its facts are filed under. Router and DNS resolver names share one namespace: a `routeros` and a `technitium` instance cannot both be `gateway`. A `netflow` listener can share its router's name.
+The instance name is the [source](<https://pushkar-anand.github.io/jocasta/0.14/concepts/#sources>) its facts are filed under. Router and DNS resolver names share one namespace: a `routeros` and a `technitium` instance cannot both be `gateway`. A `netflow` listener can share its router's name.
 
-Put passwords in the environment, such as `JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD`; see [Configure](<https://pushkar-anand.github.io/jocasta/0.13/configuration/index.md>). Every setting is in the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.13/reference/configuration/#plugins>).
+Put passwords in the environment, such as `JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD`; see [Configure](<https://pushkar-anand.github.io/jocasta/0.14/configuration/index.md>). Every setting is in the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.14/reference/configuration/#plugins>).
 
 A source with `ssl: false` sends its password in the clear, and Jocasta warns at startup.
 
@@ -541,15 +541,15 @@ A source with `ssl: false` sends its password in the clear, and Jocasta warns at
 jocasta plugin run gateway
 ```
 
-reads the source once and prints what it claims. It changes nothing. See [CLI](<https://pushkar-anand.github.io/jocasta/0.13/cli/#plugin-run>).
+reads the source once and prints what it claims. It changes nothing. See [CLI](<https://pushkar-anand.github.io/jocasta/0.14/cli/#plugin-run>).
 
 ## Topology
 
-A MikroTik or OpenWrt router draws the Topology page. Read its switches and access points too for each device's port. See [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/0.13/plugins/topology/index.md>).
+A MikroTik or OpenWrt router draws the Topology page. Read its switches and access points too for each device's port. See [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/0.14/plugins/topology/index.md>).
 
 ## DNS resolvers
 
-Technitium, Pi-hole and AdGuard Home give each device's lookups. See [Record what devices look up](<https://pushkar-anand.github.io/jocasta/0.13/plugins/dns/index.md>).
+Technitium, Pi-hole and AdGuard Home give each device's lookups. See [Record what devices look up](<https://pushkar-anand.github.io/jocasta/0.14/plugins/dns/index.md>).
 
 # MikroTik RouterOS
 
@@ -567,22 +567,22 @@ plugins:
       insecure: true         # RouterOS serves a self-signed cert unless you import one
 ```
 
-Check it with `jocasta plugin run gateway` before starting the server. See [CLI](<https://pushkar-anand.github.io/jocasta/0.13/cli/#plugin-run>).
+Check it with `jocasta plugin run gateway` before starting the server. See [CLI](<https://pushkar-anand.github.io/jocasta/0.14/cli/#plugin-run>).
 
 ## Topology
 
-What each RouterOS table adds to the [Topology page](<https://pushkar-anand.github.io/jocasta/0.13/plugins/topology/index.md>):
+What each RouterOS table adds to the [Topology page](<https://pushkar-anand.github.io/jocasta/0.14/plugins/topology/index.md>):
 
 - The bridge host table says which port each hardware address is behind, and in which VLAN when the bridge has VLAN filtering on.
 - Neighbour discovery (MNDP or LLDP) names the switch or access point on each port. RouterOS runs it on the `LAN` interface list by default; see `/ip neighbor discovery-settings`.
 - The Wi-Fi registration table marks Wi-Fi clients and names their network and band, from the wifi or the wireless package, with the rate each way and the signal. A router managing access points with CAPsMAN lists their clients too.
 - The Ethernet monitor gives the rate each Ethernet and SFP port's link runs at, and the fastest rate both ends offer.
 
-To read a MikroTik switch or access point for its ports, add it as another instance with `topology_only: true`. See [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/0.13/plugins/topology/index.md>).
+To read a MikroTik switch or access point for its ports, add it as another instance with `topology_only: true`. See [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/0.14/plugins/topology/index.md>).
 
 ## Export traffic flows
 
-To record who devices talk to, point Traffic Flow at the Jocasta host (here `192.0.2.10`) and set up the [NetFlow listener](<https://pushkar-anand.github.io/jocasta/0.13/plugins/netflow/index.md>):
+To record who devices talk to, point Traffic Flow at the Jocasta host (here `192.0.2.10`) and set up the [NetFlow listener](<https://pushkar-anand.github.io/jocasta/0.14/plugins/netflow/index.md>):
 
 ```
 /ip traffic-flow set enabled=yes interfaces=all
@@ -591,7 +591,7 @@ To record who devices talk to, point Traffic Flow at the Jocasta host (here `192
 
 ## All settings
 
-Every `plugins.routeros` setting, with its default and allowed values, is in the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.13/reference/configuration/#pluginsrouteros>).
+Every `plugins.routeros` setting, with its default and allowed values, is in the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.14/reference/configuration/#pluginsrouteros>).
 
 # OpenWrt
 
@@ -599,7 +599,7 @@ Jocasta reads OpenWrt over ubus, the JSON-RPC endpoint LuCI uses, at `http://<ro
 
 Give Jocasta a login of its own that can only read. On the router:
 
-1. Copy [`openwrt/jocasta.json`](<https://pushkar-anand.github.io/jocasta/0.13/openwrt/jocasta.json>) to `/usr/share/rpcd/acl.d/jocasta.json`. It grants the reads Jocasta makes and nothing else. LuCI's own groups do not grant the bridge table, so root cannot read it without this file either.
+1. Copy [`openwrt/jocasta.json`](<https://pushkar-anand.github.io/jocasta/0.14/openwrt/jocasta.json>) to `/usr/share/rpcd/acl.d/jocasta.json`. It grants the reads Jocasta makes and nothing else. LuCI's own groups do not grant the bridge table, so root cannot read it without this file either.
 2. Hash a password for the login:
 
 ```
@@ -641,7 +641,7 @@ A name you set under Network → DHCP and DNS → Static Leases ranks above the 
 
 ## Topology
 
-What each OpenWrt table adds to the [Topology page](<https://pushkar-anand.github.io/jocasta/0.13/plugins/topology/index.md>):
+What each OpenWrt table adds to the [Topology page](<https://pushkar-anand.github.io/jocasta/0.14/plugins/topology/index.md>):
 
 - The kernel's bridge table says which port each hardware address is behind. On a router with a DSA switch, as most current ones have, each switch port is a device of its own, so the table names the port. On an older router with a swconfig switch, every switch port is one device, so the table names only that device. rpcd reads at most 256 entries of the table. A bridge that holds more shows the first 256, and the read logs a warning saying so.
 - The bridge-vlan sections of the network configuration say which VLANs each port carries.
@@ -650,11 +650,11 @@ What each OpenWrt table adds to the [Topology page](<https://pushkar-anand.githu
 
 OpenWrt runs no neighbour discovery by default, so an OpenWrt source names no neighbours. The router still finds an OpenWrt access point among the addresses on its ports when the access point is read too.
 
-To read an OpenWrt access point for its ports, add it as another instance with `topology_only: true`. See [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/0.13/plugins/topology/index.md>).
+To read an OpenWrt access point for its ports, add it as another instance with `topology_only: true`. See [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/0.14/plugins/topology/index.md>).
 
 ## Export traffic flows
 
-To record who devices talk to, install softflowd and point it at the Jocasta host (here `192.0.2.10`), then set up the [NetFlow listener](<https://pushkar-anand.github.io/jocasta/0.13/plugins/netflow/index.md>):
+To record who devices talk to, install softflowd and point it at the Jocasta host (here `192.0.2.10`), then set up the [NetFlow listener](<https://pushkar-anand.github.io/jocasta/0.14/plugins/netflow/index.md>):
 
 ```
 opkg update && opkg install softflowd    # OpenWrt 24.10 and older
@@ -681,11 +681,11 @@ softflowd watches `br-lan`, the default LAN bridge. To record another segment, s
 
 ## All settings
 
-Every `plugins.openwrt` setting, with its default and allowed values, is in the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.13/reference/configuration/#pluginsopenwrt>).
+Every `plugins.openwrt` setting, with its default and allowed values, is in the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.14/reference/configuration/#pluginsopenwrt>).
 
 # Show what is plugged in where
 
-The Topology page draws the network from the internet down: router, switches, access points, and each device on its port or Wi-Fi network. It comes from the bridge and Wi-Fi tables of each [MikroTik](<https://pushkar-anand.github.io/jocasta/0.13/plugins/routeros/index.md>) and [OpenWrt](<https://pushkar-anand.github.io/jocasta/0.13/plugins/openwrt/index.md>) router Jocasta reads. A switch or access point that announces itself to the router shows up with the devices behind it.
+The Topology page draws the network from the internet down: router, switches, access points, and each device on its port or Wi-Fi network. It comes from the bridge and Wi-Fi tables of each [MikroTik](<https://pushkar-anand.github.io/jocasta/0.14/plugins/routeros/index.md>) and [OpenWrt](<https://pushkar-anand.github.io/jocasta/0.14/plugins/openwrt/index.md>) router Jocasta reads. A switch or access point that announces itself to the router shows up with the devices behind it.
 
 To see which switch port each device is on, read the switch too, with `topology_only: true`:
 
@@ -708,7 +708,7 @@ A `topology_only` source finds no devices, so its management address cannot rena
 
 `jocasta plugin run switch_core` prints its ports, the addresses on each, and its neighbours.
 
-What each router's tables add: [RouterOS](<https://pushkar-anand.github.io/jocasta/0.13/plugins/routeros/#topology>), [OpenWrt](<https://pushkar-anand.github.io/jocasta/0.13/plugins/openwrt/#topology>). How to read the page: [Tour the web UI](<https://pushkar-anand.github.io/jocasta/0.13/ui/#topology>).
+What each router's tables add: [RouterOS](<https://pushkar-anand.github.io/jocasta/0.14/plugins/routeros/#topology>), [OpenWrt](<https://pushkar-anand.github.io/jocasta/0.14/plugins/openwrt/#topology>). How to read the page: [Tour the web UI](<https://pushkar-anand.github.io/jocasta/0.14/ui/#topology>).
 
 # NetFlow
 
@@ -732,8 +732,8 @@ With host networking the listener is reachable as it is. On a bridge network, pu
 
 Point the router's flow export at the Jocasta host and port:
 
-- [MikroTik RouterOS](<https://pushkar-anand.github.io/jocasta/0.13/plugins/routeros/#export-traffic-flows>): Traffic Flow, as IPFIX.
-- [OpenWrt](<https://pushkar-anand.github.io/jocasta/0.13/plugins/openwrt/#export-traffic-flows>): softflowd, as NetFlow v9.
+- [MikroTik RouterOS](<https://pushkar-anand.github.io/jocasta/0.14/plugins/routeros/#export-traffic-flows>): Traffic Flow, as IPFIX.
+- [OpenWrt](<https://pushkar-anand.github.io/jocasta/0.14/plugins/openwrt/#export-traffic-flows>): softflowd, as NetFlow v9.
 
 Export from one router only. Two routers that both see a conversation both report it, and it is counted twice.
 
@@ -750,11 +750,11 @@ Only the country is used, to start the lines from its middle; nothing finer is a
 
 ## All settings
 
-Every `plugins.netflow` setting, with its default and allowed values, is in the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.13/reference/configuration/#pluginsnetflow>).
+Every `plugins.netflow` setting, with its default and allowed values, is in the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.14/reference/configuration/#pluginsnetflow>).
 
 # Record what devices look up
 
-Jocasta reads the query log of [Technitium](<https://pushkar-anand.github.io/jocasta/0.13/plugins/technitium/index.md>), [Pi-hole](<https://pushkar-anand.github.io/jocasta/0.13/plugins/pihole/index.md>) v6 or [AdGuard Home](<https://pushkar-anand.github.io/jocasta/0.13/plugins/adguard/index.md>), and keeps hourly counts of each name each device looked up, blocked or not. With traffic collection on, a device's traffic names each address after the names it looked up.
+Jocasta reads the query log of [Technitium](<https://pushkar-anand.github.io/jocasta/0.14/plugins/technitium/index.md>), [Pi-hole](<https://pushkar-anand.github.io/jocasta/0.14/plugins/pihole/index.md>) v6 or [AdGuard Home](<https://pushkar-anand.github.io/jocasta/0.14/plugins/adguard/index.md>), and keeps hourly counts of each name each device looked up, blocked or not. With traffic collection on, a device's traffic names each address after the names it looked up.
 
 |  | Technitium | Pi-hole | AdGuard Home |
 | --- | --- | --- | --- |
@@ -777,7 +777,7 @@ prints the last hour's lookups per device and name.
 
 # Technitium
 
-Jocasta reads the query log of a [Technitium DNS Server](<https://technitium.com/dns/>) over its HTTP API. What is recorded, and how to route lookups so each device asks the server directly, is in [Record what devices look up](<https://pushkar-anand.github.io/jocasta/0.13/plugins/dns/index.md>).
+Jocasta reads the query log of a [Technitium DNS Server](<https://technitium.com/dns/>) over its HTTP API. What is recorded, and how to route lookups so each device asks the server directly, is in [Record what devices look up](<https://pushkar-anand.github.io/jocasta/0.14/plugins/dns/index.md>).
 
 ```
 plugins:
@@ -803,11 +803,11 @@ In a cluster, each node logs the lookups it answered to its own disk. Add one en
 
 ## All settings
 
-Every `plugins.technitium` setting, with its default and allowed values, is in the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.13/reference/configuration/#pluginstechnitium>).
+Every `plugins.technitium` setting, with its default and allowed values, is in the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.14/reference/configuration/#pluginstechnitium>).
 
 # Pi-hole
 
-Jocasta reads the query log of a [Pi-hole](<https://pi-hole.net>) v6 over its API. What is recorded, and how to route lookups so each device asks Pi-hole directly, is in [Record what devices look up](<https://pushkar-anand.github.io/jocasta/0.13/plugins/dns/index.md>). Pi-hole logs no answer addresses, so its lookups name no traffic.
+Jocasta reads the query log of a [Pi-hole](<https://pi-hole.net>) v6 over its API. What is recorded, and how to route lookups so each device asks Pi-hole directly, is in [Record what devices look up](<https://pushkar-anand.github.io/jocasta/0.14/plugins/dns/index.md>). Pi-hole logs no answer addresses, so its lookups name no traffic.
 
 ```
 plugins:
@@ -834,11 +834,11 @@ Each read takes at most 20,000 lookups. If more pile up while Jocasta is stopped
 
 ## All settings
 
-Every `plugins.pihole` setting, with its default and allowed values, is in the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.13/reference/configuration/#pluginspihole>).
+Every `plugins.pihole` setting, with its default and allowed values, is in the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.14/reference/configuration/#pluginspihole>).
 
 # AdGuard Home
 
-Jocasta reads the query log of an [AdGuard Home](<https://adguard.com/adguard-home/overview.html>) over its API. What is recorded, and how to route lookups so each device asks AdGuard Home directly, is in [Record what devices look up](<https://pushkar-anand.github.io/jocasta/0.13/plugins/dns/index.md>).
+Jocasta reads the query log of an [AdGuard Home](<https://adguard.com/adguard-home/overview.html>) over its API. What is recorded, and how to route lookups so each device asks AdGuard Home directly, is in [Record what devices look up](<https://pushkar-anand.github.io/jocasta/0.14/plugins/dns/index.md>).
 
 ```
 plugins:
@@ -860,13 +860,13 @@ Each read takes at most 20,000 lookups. If more pile up while Jocasta is stopped
 
 ## All settings
 
-Every `plugins.adguard` setting, with its default and allowed values, is in the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.13/reference/configuration/#pluginsadguard>).
+Every `plugins.adguard` setting, with its default and allowed values, is in the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.14/reference/configuration/#pluginsadguard>).
 
 # Notifications
 
 # Notifications
 
-Jocasta can send what each scan changed to an [ntfy](<https://ntfy.sh>) topic, as a signed JSON POST to a URL of your own, or to any service that takes an HTTP request, such as Discord, Slack or Telegram. See [Send to another service](<https://pushkar-anand.github.io/jocasta/0.13/notifications/other-services/index.md>).
+Jocasta can send what each scan changed to an [ntfy](<https://ntfy.sh>) topic, as a signed JSON POST to a URL of your own, or to any service that takes an HTTP request, such as Discord, Slack or Telegram. See [Send to another service](<https://pushkar-anand.github.io/jocasta/0.14/notifications/other-services/index.md>).
 
 1. Under `notify` in the config file, add each destination by name, with one service block:
 
@@ -886,7 +886,7 @@ A destination is on unless it says `enabled: false`. 2. Restart Jocasta so it re
 
 Each scan that changes something is sent as one message, such as "2 new devices on 192.0.2.0/24". The first scan of a network, when every device it finds is new, is sent as a count ("Found 42 devices"). Changes to devices you ignore, and your own edits, are left out. A message that cannot be delivered is logged and shown on the Notifications page, and is not sent again.
 
-Every `notify` setting, with its default and allowed values, is in the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.13/reference/configuration/#notify>).
+Every `notify` setting, with its default and allowed values, is in the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.14/reference/configuration/#notify>).
 
 # Get told when a device goes quiet
 
@@ -1024,7 +1024,7 @@ With a `read_write` token it can also label and group devices. It reads what pas
 ## Turn it on
 
 1. Set `server.mcp.enabled: true` in the config file, or `JOCASTA_SERVER__MCP__ENABLED=true`. While it is off, `/mcp` answers 404.
-2. Create an API token; see [API tokens](<https://pushkar-anand.github.io/jocasta/0.13/operate/users/#api-tokens>). A `read` token is offered only the tools that read the inventory. A `read_write` token is also offered the tools that change it.
+2. Create an API token; see [API tokens](<https://pushkar-anand.github.io/jocasta/0.14/operate/users/#api-tokens>). A `read` token is offered only the tools that read the inventory. A `read_write` token is also offered the tools that change it.
 
 The endpoint is `/mcp`, using the Streamable HTTP transport, with the token sent as `Authorization: Bearer <token>`. Clients discover the available tools and [prompts](<#prompts>) when they connect.
 
@@ -1081,8 +1081,8 @@ Any client that supports Streamable HTTP and lets you set a request header works
 | `get_port_overview` | Open ports across the network, and the commonest services. |
 | `list_scans` | When scans ran, and what they found. |
 | `list_traffic` | Who devices exchanged data with. Needs traffic collection. |
-| `list_dns` | The names a device looked up, and which were blocked. Needs [lookups recorded](<https://pushkar-anand.github.io/jocasta/0.13/plugins/dns/index.md>). |
-| `get_topology` | What is plugged in where, and how fast each link runs. Needs [topology set up](<https://pushkar-anand.github.io/jocasta/0.13/plugins/topology/index.md>). |
+| `list_dns` | The names a device looked up, and which were blocked. Needs [lookups recorded](<https://pushkar-anand.github.io/jocasta/0.14/plugins/dns/index.md>). |
+| `get_topology` | What is plugged in where, and how fast each link runs. Needs [topology set up](<https://pushkar-anand.github.io/jocasta/0.14/plugins/topology/index.md>). |
 | `update_device_curation` | Sets a device's label, group, type, notes and ignored flag. `read_write` tokens only. |
 | `watch_device` | Watches a device, or stops, so you are told when it goes quiet or comes back. `read_write` tokens only. |
 
@@ -1101,11 +1101,11 @@ Errors are [RFC 9457](<https://www.rfc-editor.org/rfc/rfc9457>) problem document
 
 # JSON API
 
-Jocasta serves its inventory as JSON under `/api`, for scripts and dashboards. It takes the same API tokens as the [MCP server](<https://pushkar-anand.github.io/jocasta/0.13/integrations/mcp/index.md>).
+Jocasta serves its inventory as JSON under `/api`, for scripts and dashboards. It takes the same API tokens as the [MCP server](<https://pushkar-anand.github.io/jocasta/0.14/integrations/mcp/index.md>).
 
 ## Authenticate
 
-Create an [API token](<https://pushkar-anand.github.io/jocasta/0.13/operate/users/#api-tokens>) and send it with each request:
+Create an [API token](<https://pushkar-anand.github.io/jocasta/0.14/operate/users/#api-tokens>) and send it with each request:
 
 ```
 curl -H "Authorization: Bearer <token>" http://<host>:8080/api/devices
@@ -1127,8 +1127,8 @@ A `read` token can make `GET` requests only. A `read_write` token can also chang
 | `PATCH /api/devices/{id}` | Changes a device's label, group, type, notes or ignored flag. Needs a `read_write` token. |
 | `PATCH /api/devices/{id}/watch` | Starts or stops watching a device. Needs a `read_write` token. |
 | `GET /api/devices/{id}/events` | A device's change log. |
-| `GET /api/devices/{id}/traffic` | Who a device talked to. Needs [traffic recorded](<https://pushkar-anand.github.io/jocasta/0.13/plugins/netflow/index.md>). |
-| `GET /api/devices/{id}/dns` | What a device looked up. Needs [lookups recorded](<https://pushkar-anand.github.io/jocasta/0.13/plugins/dns/index.md>). |
+| `GET /api/devices/{id}/traffic` | Who a device talked to. Needs [traffic recorded](<https://pushkar-anand.github.io/jocasta/0.14/plugins/netflow/index.md>). |
+| `GET /api/devices/{id}/dns` | What a device looked up. Needs [lookups recorded](<https://pushkar-anand.github.io/jocasta/0.14/plugins/dns/index.md>). |
 | `GET /api/events` | The change log across all devices. |
 | `GET /api/scans` | Past scans. |
 
@@ -1136,7 +1136,7 @@ An error comes back as an [RFC 9457](<https://www.rfc-editor.org/rfc/rfc9457>) p
 
 ## Browser access
 
-A page on another origin can read `/api` only when its origin is listed in `server.cors.allowed_origins`. See the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.13/reference/configuration/#server>).
+A page on another origin can read `/api` only when its origin is listed in `server.cors.allowed_origins`. See the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.14/reference/configuration/#server>).
 
 # Operate
 
@@ -1179,7 +1179,7 @@ The same page regenerates the recovery codes or turns two-factor off. Both ask f
 
 ## API tokens
 
-Scripts and agents use a token to reach the [JSON API](<https://pushkar-anand.github.io/jocasta/0.13/integrations/api/index.md>) and the [MCP server](<https://pushkar-anand.github.io/jocasta/0.13/integrations/mcp/index.md>).
+Scripts and agents use a token to reach the [JSON API](<https://pushkar-anand.github.io/jocasta/0.14/integrations/api/index.md>) and the [MCP server](<https://pushkar-anand.github.io/jocasta/0.14/integrations/mcp/index.md>).
 
 1. Open the account menu and select **API tokens**.
 2. Select **Create a token**.
@@ -1244,7 +1244,7 @@ To restore, stop Jocasta, put the files back, and start it.
 
 Jocasta is pre-1.0. A release can change the config format or the schema with no upgrade path.
 
-1. Read the [release notes](<https://github.com/pushkar-anand/jocasta/releases>) since your version.
+1. Read the [upgrade notes](<https://pushkar-anand.github.io/jocasta/0.14/operate/upgrading/index.md>) for every release after yours.
 2. Back up.
 3. Pull the new tag, such as `:v0.11.1`, and recreate the container.
 
@@ -1254,6 +1254,20 @@ The schema updates at startup.
 
 Restore the backup from before the upgrade. An older release started on a newer database migrates the schema down and drops the newer data.
 
+# Upgrade notes
+
+What to change or expect when moving to a release, newest first. Read every section after the release you run, and [back up](<https://pushkar-anand.github.io/jocasta/0.14/operate/backup/#back-up>) first. A release not listed here needs only the [usual steps](<https://pushkar-anand.github.io/jocasta/0.14/operate/backup/#upgrade>).
+
+## 0.4.0
+
+Released 2026-09-25.
+
+### Breaking changes
+
+- config: Group retention, location, server settings ([\#205](<https://github.com/pushkar-anand/jocasta/pull/205>))
+
+  a config that sets inventory.retention, auth.\* or mcp.enabled, or the matching JOCASTA\_ variables, now has those settings ignored. Move them to the new paths.
+
 # Fix common problems
 
 Not listed here? Ask in [GitHub issues](<https://github.com/pushkar-anand/jocasta/issues>) with the log lines around the problem.
@@ -1262,7 +1276,7 @@ Not listed here? Ask in [GitHub issues](<https://github.com/pushkar-anand/jocast
 
 On a bridge network, the container reads its own neighbour table, which holds none of your devices. Use `--network host`.
 
-Devices on other segments need a [router plugin](<https://pushkar-anand.github.io/jocasta/0.13/plugins/index.md>).
+Devices on other segments need a [router plugin](<https://pushkar-anand.github.io/jocasta/0.14/plugins/index.md>).
 
 ## One phone shows up as several devices
 
@@ -1270,7 +1284,7 @@ It makes up a new hardware address now and then, and each one is a new device. U
 
 ## A device is missing
 
-The sweep finds devices that answer ping. Windows drops ping by default. A [router plugin](<https://pushkar-anand.github.io/jocasta/0.13/plugins/index.md>) lists such devices from the router's tables.
+The sweep finds devices that answer ping. Windows drops ping by default. A [router plugin](<https://pushkar-anand.github.io/jocasta/0.14/plugins/index.md>) lists such devices from the router's tables.
 
 ## "no usable ICMP socket"
 
@@ -1284,22 +1298,22 @@ Widen the range to cover Jocasta's group, or use the container image.
 
 ## No mDNS, DNS-SD or SSDP names
 
-These reach Jocasta's own segment only, and DNS-SD and SSDP need multicast. Use `--network host`. See [How names are chosen](<https://pushkar-anand.github.io/jocasta/0.13/naming/index.md>).
+These reach Jocasta's own segment only, and DNS-SD and SSDP need multicast. Use `--network host`. See [How names are chosen](<https://pushkar-anand.github.io/jocasta/0.14/naming/index.md>).
 
 ## The sign-in page keeps coming back
 
-The session cookie is HTTPS-only. See [Serve over HTTPS](<https://pushkar-anand.github.io/jocasta/0.13/operate/https/index.md>).
+The session cookie is HTTPS-only. See [Serve over HTTPS](<https://pushkar-anand.github.io/jocasta/0.14/operate/https/index.md>).
 
 ## A form shows "Cross-origin request refused"
 
-Your reverse proxy changes the `Host` header. See [Serve over HTTPS](<https://pushkar-anand.github.io/jocasta/0.13/operate/https/#other-proxies>).
+Your reverse proxy changes the `Host` header. See [Serve over HTTPS](<https://pushkar-anand.github.io/jocasta/0.14/operate/https/#other-proxies>).
 
 ## A plugin reads as "source rejected credentials"
 
 Test it alone: `jocasta plugin run gateway`.
 
 - RouterOS: the user needs read access, and the `www-ssl` service on, or `www` with `ssl: false`.
-- OpenWrt: the login needs the [ACL file](<https://pushkar-anand.github.io/jocasta/0.13/plugins/openwrt/index.md>).
+- OpenWrt: the login needs the [ACL file](<https://pushkar-anand.github.io/jocasta/0.14/plugins/openwrt/index.md>).
 - Technitium: the token's user needs View on Logs.
 - An environment variable beats the file. Check both.
 
@@ -1311,7 +1325,7 @@ Test it alone: `jocasta plugin run gateway`.
 
 ## Every DNS lookup is counted against the router
 
-The router forwards its clients' lookups. Hand out the resolver's address in the router's DHCP settings. See [Record what devices look up](<https://pushkar-anand.github.io/jocasta/0.13/plugins/dns/index.md>).
+The router forwards its clients' lookups. Hand out the resolver's address in the router's DHCP settings. See [Record what devices look up](<https://pushkar-anand.github.io/jocasta/0.14/plugins/dns/index.md>).
 
 ## Times are hours off
 
@@ -1329,7 +1343,7 @@ Set `server.mcp.enabled: true` and restart.
 
 # Configuration reference
 
-Every setting Jocasta reads, with its type, default and the values it takes. [Configure](<https://pushkar-anand.github.io/jocasta/0.13/configuration/index.md>) explains how settings are read and overridden. [`jocasta.example.yaml`](<https://github.com/pushkar-anand/jocasta/blob/main/jocasta.example.yaml>) holds the same settings as a file to copy from.
+Every setting Jocasta reads, with its type, default and the values it takes. [Configure](<https://pushkar-anand.github.io/jocasta/0.14/configuration/index.md>) explains how settings are read and overridden. [`jocasta.example.yaml`](<https://github.com/pushkar-anand/jocasta/blob/main/jocasta.example.yaml>) holds the same settings as a file to copy from.
 
 Each setting can also come from an environment variable: `JOCASTA_`, then the setting's path in capitals with a double underscore between levels. A single underscore stays part of the key, so `scan.devices.resolve_mdns` is `JOCASTA_SCAN__DEVICES__RESOLVE_MDNS`. For a plugin or notification setting, the instance or destination name is one level of the path: `plugins.routeros.gateway.password` is `JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD`.
 
@@ -1350,7 +1364,7 @@ Types:
 | `server.auth.session_lifetime` | duration | `168h` | A duration | The longest a sign-in lasts, whatever the activity. |
 | `server.auth.idle_timeout` | duration | `24h` | A duration | How long a session survives with no requests. |
 | `server.auth.cookie_secure` | bool | `true` | `true`, `false` | Sends the session cookie over HTTPS only. Set `false` to sign in over plain HTTP from anywhere but `localhost`. |
-| `server.mcp.enabled` | bool | `false` | `true`, `false` | Serves the [MCP endpoint](<https://pushkar-anand.github.io/jocasta/0.13/integrations/mcp/index.md>) at `/mcp`. While off, `/mcp` answers 404. |
+| `server.mcp.enabled` | bool | `false` | `true`, `false` | Serves the [MCP endpoint](<https://pushkar-anand.github.io/jocasta/0.14/integrations/mcp/index.md>) at `/mcp`. While off, `/mcp` answers 404. |
 
 ## db
 
@@ -1370,7 +1384,7 @@ Types:
 
 | Key | Type | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
-| `inventory.online_window` | duration | `15m` | A duration | How long after its last sighting a device counts as online. Past it, a [watched device](<https://pushkar-anand.github.io/jocasta/0.13/notifications/watch/index.md>) goes quiet. |
+| `inventory.online_window` | duration | `15m` | A duration | How long after its last sighting a device counts as online. Past it, a [watched device](<https://pushkar-anand.github.io/jocasta/0.14/notifications/watch/index.md>) goes quiet. |
 | `inventory.address_grace` | duration | `6h` | A duration | How long an address can go unseen before a later sweep that finds the device elsewhere retires it. Raise it on a network with long DHCP leases. |
 
 ## retention
@@ -1388,7 +1402,7 @@ Records older than their window are deleted once an hour. `0s` keeps that kind o
 
 | Key | Type | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
-| `location.country` | string | empty | A two-letter country code, such as `AU` | The country the world map draws its lines from. Empty uses the router's outside address, which cannot place a network behind carrier-grade NAT. See [NetFlow](<https://pushkar-anand.github.io/jocasta/0.13/plugins/netflow/index.md>). |
+| `location.country` | string | empty | A two-letter country code, such as `AU` | The country the world map draws its lines from. Empty uses the router's outside address, which cannot place a network behind carrier-grade NAT. See [NetFlow](<https://pushkar-anand.github.io/jocasta/0.14/plugins/netflow/index.md>). |
 | `location.timezone` | string | empty | An IANA zone name, such as `Australia/Sydney` | The zone times are shown in. Empty uses `TZ` or the system's zone, which is UTC in a container. Times are stored in UTC either way. |
 
 ## networks
@@ -1407,7 +1421,7 @@ Records older than their window are deleted once an hour. `0s` keeps that kind o
 | `scan.devices.rate` | int | `1000` | A whole number | The most ICMP probes sent per second. |
 | `scan.devices.rounds` | int | `2` | A whole number | Probes sent to each address before it counts as down. |
 | `scan.devices.wait` | duration | `2s` | A duration | How long to wait for replies after the last probe. |
-| `scan.devices.resolve_names` | bool | `true` | `true`, `false` | Looks up reverse DNS for each address that answered. See [Name devices](<https://pushkar-anand.github.io/jocasta/0.13/naming/index.md>). |
+| `scan.devices.resolve_names` | bool | `true` | `true`, `false` | Looks up reverse DNS for each address that answered. See [Name devices](<https://pushkar-anand.github.io/jocasta/0.14/naming/index.md>). |
 | `scan.devices.resolve_macs` | bool | `true` | `true`, `false` | Reads the neighbour table for hardware addresses. |
 | `scan.devices.resolve_mdns` | bool | `true` | `true`, `false` | Asks each device without a reverse DNS name for its name over mDNS. |
 | `scan.devices.resolve_netbios` | bool | `true` | `true`, `false` | Asks each device still without a name over NetBIOS. |
@@ -1420,11 +1434,11 @@ Records older than their window are deleted once an hour. `0s` keeps that kind o
 
 ## plugins
 
-Plugins are off by default. Each instance sits under its kind, keyed by a name you choose, and is off unless it says `enabled: true`. See [Plugins](<https://pushkar-anand.github.io/jocasta/0.13/plugins/index.md>).
+Plugins are off by default. Each instance sits under its kind, keyed by a name you choose, and is off unless it says `enabled: true`. See [Plugins](<https://pushkar-anand.github.io/jocasta/0.14/plugins/index.md>).
 
 ### plugins.routeros
 
-A [MikroTik RouterOS](<https://pushkar-anand.github.io/jocasta/0.13/plugins/routeros/index.md>) router, switch or access point.
+A [MikroTik RouterOS](<https://pushkar-anand.github.io/jocasta/0.14/plugins/routeros/index.md>) router, switch or access point.
 
 | Key | Type | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
@@ -1436,11 +1450,11 @@ A [MikroTik RouterOS](<https://pushkar-anand.github.io/jocasta/0.13/plugins/rout
 | `plugins.routeros.<instance>.ssl` | bool | `false` | `true`, `false` | Uses HTTPS. Without it, the password crosses the network unencrypted and Jocasta logs a warning. |
 | `plugins.routeros.<instance>.insecure` | bool | `false` | `true`, `false` | Skips certificate checks, for RouterOS's self-signed certificate. |
 | `plugins.routeros.<instance>.timeout` | duration | `10s` | A duration | The longest one read may take. |
-| `plugins.routeros.<instance>.topology_only` | bool | `false` | `true`, `false` | Reads only what is plugged into this switch or access point, and leaves its devices to the router. See [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/0.13/plugins/topology/index.md>). |
+| `plugins.routeros.<instance>.topology_only` | bool | `false` | `true`, `false` | Reads only what is plugged into this switch or access point, and leaves its devices to the router. See [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/0.14/plugins/topology/index.md>). |
 
 ### plugins.openwrt
 
-An [OpenWrt](<https://pushkar-anand.github.io/jocasta/0.13/plugins/openwrt/index.md>) router or access point.
+An [OpenWrt](<https://pushkar-anand.github.io/jocasta/0.14/plugins/openwrt/index.md>) router or access point.
 
 | Key | Type | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
@@ -1452,11 +1466,11 @@ An [OpenWrt](<https://pushkar-anand.github.io/jocasta/0.13/plugins/openwrt/index
 | `plugins.openwrt.<instance>.ssl` | bool | `false` | `true`, `false` | Uses HTTPS, once `luci-ssl` is installed. Without it, the password crosses the network unencrypted and Jocasta logs a warning. |
 | `plugins.openwrt.<instance>.insecure` | bool | `false` | `true`, `false` | Skips certificate checks, for uhttpd's self-signed certificate. |
 | `plugins.openwrt.<instance>.timeout` | duration | `10s` | A duration | The longest one read may take. |
-| `plugins.openwrt.<instance>.topology_only` | bool | `false` | `true`, `false` | Reads only what is plugged into this access point, and leaves its devices to the router. See [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/0.13/plugins/topology/index.md>). |
+| `plugins.openwrt.<instance>.topology_only` | bool | `false` | `true`, `false` | Reads only what is plugged into this access point, and leaves its devices to the router. See [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/0.14/plugins/topology/index.md>). |
 
 ### plugins.netflow
 
-A [NetFlow](<https://pushkar-anand.github.io/jocasta/0.13/plugins/netflow/index.md>) listener for a router's flow exports.
+A [NetFlow](<https://pushkar-anand.github.io/jocasta/0.14/plugins/netflow/index.md>) listener for a router's flow exports.
 
 | Key | Type | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
@@ -1466,7 +1480,7 @@ A [NetFlow](<https://pushkar-anand.github.io/jocasta/0.13/plugins/netflow/index.
 
 ### plugins.technitium
 
-A [Technitium DNS Server](<https://pushkar-anand.github.io/jocasta/0.13/plugins/technitium/index.md>) node.
+A [Technitium DNS Server](<https://pushkar-anand.github.io/jocasta/0.14/plugins/technitium/index.md>) node.
 
 | Key | Type | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
@@ -1481,7 +1495,7 @@ A [Technitium DNS Server](<https://pushkar-anand.github.io/jocasta/0.13/plugins/
 
 ### plugins.pihole
 
-A [Pi-hole](<https://pushkar-anand.github.io/jocasta/0.13/plugins/pihole/index.md>) v6.
+A [Pi-hole](<https://pushkar-anand.github.io/jocasta/0.14/plugins/pihole/index.md>) v6.
 
 | Key | Type | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
@@ -1495,7 +1509,7 @@ A [Pi-hole](<https://pushkar-anand.github.io/jocasta/0.13/plugins/pihole/index.m
 
 ### plugins.adguard
 
-An [AdGuard Home](<https://pushkar-anand.github.io/jocasta/0.13/plugins/adguard/index.md>).
+An [AdGuard Home](<https://pushkar-anand.github.io/jocasta/0.14/plugins/adguard/index.md>).
 
 | Key | Type | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
@@ -1510,7 +1524,7 @@ An [AdGuard Home](<https://pushkar-anand.github.io/jocasta/0.13/plugins/adguard/
 
 ## notify
 
-Each destination sits under `notify`, keyed by a name you choose, and holds exactly one service block: `ntfy`, `webhook` or `http`. Which changes it is sent is picked on the account menu's Notifications page. See [Notifications](<https://pushkar-anand.github.io/jocasta/0.13/notifications/index.md>).
+Each destination sits under `notify`, keyed by a name you choose, and holds exactly one service block: `ntfy`, `webhook` or `http`. Which changes it is sent is picked on the account menu's Notifications page. See [Notifications](<https://pushkar-anand.github.io/jocasta/0.14/notifications/index.md>).
 
 | Key | Type | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
@@ -1530,7 +1544,7 @@ Each destination sits under `notify`, keyed by a name you choose, and holds exac
 | Key | Type | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
 | `notify.<name>.webhook.url` | string | none, required | An HTTP or HTTPS URL | Where the signed JSON POST goes. |
-| `notify.<name>.webhook.secret` | string | none, required | Any | Keys the signature on each request. See [Check a webhook's signature](<https://pushkar-anand.github.io/jocasta/0.13/notifications/webhook/index.md>). |
+| `notify.<name>.webhook.secret` | string | none, required | Any | Keys the signature on each request. See [Check a webhook's signature](<https://pushkar-anand.github.io/jocasta/0.14/notifications/webhook/index.md>). |
 
 ### http
 
@@ -1538,7 +1552,7 @@ Each destination sits under `notify`, keyed by a name you choose, and holds exac
 | --- | --- | --- | --- | --- |
 | `notify.<name>.http.url` | string | none, required | An HTTP or HTTPS URL | Where the request goes. It can hold the service's token; it is never logged or shown. |
 | `notify.<name>.http.headers` | map | empty | Header names and values | Sent with every request, such as `Authorization`. A `Content-Type` here replaces `application/json`. |
-| `notify.<name>.http.body` | string | none, required | A Go template | The request body. See [Send to another service](<https://pushkar-anand.github.io/jocasta/0.13/notifications/other-services/index.md>) for recipes. |
+| `notify.<name>.http.body` | string | none, required | A Go template | The request body. See [Send to another service](<https://pushkar-anand.github.io/jocasta/0.14/notifications/other-services/index.md>) for recipes. |
 
 # CLI
 
@@ -1676,8 +1690,8 @@ The pages in `docs/` are published with [Zensical](<https://zensical.org>) to Gi
 When you change the docs:
 
 - Add a new page to `nav` in `mkdocs.yml`, and to the `llmstxt` sections there, or the site leaves it out of the sidebar and `llms.txt`.
-- A new plugin gets a page under `docs/plugins/` and a line in the table on the plugins overview. A DNS resolver also gets a column on [Record what devices look up](<https://pushkar-anand.github.io/jocasta/0.13/plugins/dns/index.md>).
-- A new setting gets a row in the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.13/reference/configuration/index.md>). `TestReferenceDocumentsEveryKey` fails until it has one, and fails on a row for a setting that no longer exists.
+- A new plugin gets a page under `docs/plugins/` and a line in the table on the plugins overview. A DNS resolver also gets a column on [Record what devices look up](<https://pushkar-anand.github.io/jocasta/0.14/plugins/dns/index.md>).
+- A new setting gets a row in the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.14/reference/configuration/index.md>). `TestReferenceDocumentsEveryKey` fails until it has one, and fails on a row for a setting that no longer exists.
 - Keep `docs/setup.md` and `docs/mcp.md`. Earlier releases link to their sections on GitHub, and each section there points to where it moved.
 
 ## Release
@@ -1689,6 +1703,8 @@ After CI passes on `main`, run the following. It runs `make e2e-full` first, so 
 ```
 
 The script requires a clean working tree and a local `main` that matches `origin/main`. It checks that the tag is unused, creates an annotated tag, and pushes it to trigger the release workflow. It does not wait for the build.
+
+The GitHub release and the changelog page are written from the commit messages, as `cliff.toml` sets out. To give a minor release highlights, merge `docs/releases/<major.minor>.md` before tagging its `.0`.
 
 ## Layout
 
@@ -1705,13 +1721,13 @@ Queries are SQLC-generated from `internal/db/queries/`. The schema is in `intern
 
 ## Add a notification service
 
-Most services take an HTTP request, and the `http` provider reaches them with a body template and no new code. For one of those, add a recipe to [Send to another service](<https://pushkar-anand.github.io/jocasta/0.13/notifications/other-services/index.md>). `TestRecipesInTheDocsRender` renders every recipe there, so a broken one fails the tests.
+Most services take an HTTP request, and the `http` provider reaches them with a body template and no new code. For one of those, add a recipe to [Send to another service](<https://pushkar-anand.github.io/jocasta/0.14/notifications/other-services/index.md>). `TestRecipesInTheDocsRender` renders every recipe there, so a broken one fails the tests.
 
 A service gets a provider of its own only when the `http` provider cannot reach it: it needs more than one request, a protocol other than HTTP, or signing a template cannot do. Each provider is in `internal/notify`, in a file of its own, as `ntfy.go` and `webhook.go` are:
 
 1. Add a struct with `koanf` tags for its settings, and give it `Validate`, `Host` and `Send`. `Send` must not put a credential in its error. `post` covers a service that takes an HTTP request.
 2. Add a field for it to `notify.Config`, and a line to `Config.provider`.
-3. Add an example to `jocasta.example.yaml`, and a row for each setting to the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.13/reference/configuration/index.md>).
+3. Add an example to `jocasta.example.yaml`, and a row for each setting to the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.14/reference/configuration/index.md>).
 
 The notifier, the settings page, the store and `cmd` need no change.
 
@@ -1722,7 +1738,7 @@ Each name carries a standing, `dbtype.HostnameSource`, which says how it was lea
 1. Add a constant for it in `internal/db/dbtype/enum.go` and add it to `hostnameSources`.
 2. Give it a place in `HostnameSource.Rank`, and say why in the comment there. A name that resolves ranks above one a device only claims.
 3. Word it for the device page in `standing`, in `internal/web/funcs.go`.
-4. List it in [Name devices](<https://pushkar-anand.github.io/jocasta/0.13/naming/index.md>).
+4. List it in [Name devices](<https://pushkar-anand.github.io/jocasta/0.14/naming/index.md>).
 
 A sweep that asks devices for their names takes two more steps:
 
@@ -1733,4 +1749,4 @@ The column has no CHECK, so a new standing needs no migration.
 
 ## Screenshots
 
-The images in [`docs/ui.md`](<https://pushkar-anand.github.io/jocasta/0.13/ui/index.md>) are taken against a database of fabricated devices, never real network data: addresses from RFC 5737, hardware addresses from RFC 7042, invented names. Internet peers are well-known public services, so their organisations and countries resolve.
+The images in [`docs/ui.md`](<https://pushkar-anand.github.io/jocasta/0.14/ui/index.md>) are taken against a database of fabricated devices, never real network data: addresses from RFC 5737, hardware addresses from RFC 7042, invented names. Internet peers are well-known public services, so their organisations and countries resolve.

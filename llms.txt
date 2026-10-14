@@ -6,55 +6,56 @@ Jocasta is a single-binary network inventory with a web UI, a JSON API and an MC
 
 ## Get started
 
-- [Jocasta](<https://pushkar-anand.github.io/jocasta/0.13/index.md>)
-- [Your first inventory](<https://pushkar-anand.github.io/jocasta/0.13/tutorial/index.md>)
-- [How Jocasta works](<https://pushkar-anand.github.io/jocasta/0.13/concepts/index.md>)
-- [Tour the web UI](<https://pushkar-anand.github.io/jocasta/0.13/ui/index.md>)
-- [Install](<https://pushkar-anand.github.io/jocasta/0.13/install/index.md>)
-- [Configure](<https://pushkar-anand.github.io/jocasta/0.13/configuration/index.md>)
+- [Jocasta](<https://pushkar-anand.github.io/jocasta/0.14/index.md>)
+- [Your first inventory](<https://pushkar-anand.github.io/jocasta/0.14/tutorial/index.md>)
+- [How Jocasta works](<https://pushkar-anand.github.io/jocasta/0.14/concepts/index.md>)
+- [Tour the web UI](<https://pushkar-anand.github.io/jocasta/0.14/ui/index.md>)
+- [Install](<https://pushkar-anand.github.io/jocasta/0.14/install/index.md>)
+- [Configure](<https://pushkar-anand.github.io/jocasta/0.14/configuration/index.md>)
 
 ## Devices
 
-- [Label, group and ignore devices](<https://pushkar-anand.github.io/jocasta/0.13/devices/index.md>)
-- [How names are chosen](<https://pushkar-anand.github.io/jocasta/0.13/naming/index.md>)
-- [How a device gets its type](<https://pushkar-anand.github.io/jocasta/0.13/classification/index.md>)
+- [Label, group and ignore devices](<https://pushkar-anand.github.io/jocasta/0.14/devices/index.md>)
+- [How names are chosen](<https://pushkar-anand.github.io/jocasta/0.14/naming/index.md>)
+- [How a device gets its type](<https://pushkar-anand.github.io/jocasta/0.14/classification/index.md>)
 
 ## Plugins
 
-- [Plugins](<https://pushkar-anand.github.io/jocasta/0.13/plugins/index.md>)
-- [MikroTik RouterOS](<https://pushkar-anand.github.io/jocasta/0.13/plugins/routeros/index.md>)
-- [OpenWrt](<https://pushkar-anand.github.io/jocasta/0.13/plugins/openwrt/index.md>)
-- [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/0.13/plugins/topology/index.md>)
-- [NetFlow](<https://pushkar-anand.github.io/jocasta/0.13/plugins/netflow/index.md>)
-- [Record what devices look up](<https://pushkar-anand.github.io/jocasta/0.13/plugins/dns/index.md>)
-- [Technitium](<https://pushkar-anand.github.io/jocasta/0.13/plugins/technitium/index.md>)
-- [Pi-hole](<https://pushkar-anand.github.io/jocasta/0.13/plugins/pihole/index.md>)
-- [AdGuard Home](<https://pushkar-anand.github.io/jocasta/0.13/plugins/adguard/index.md>)
+- [Plugins](<https://pushkar-anand.github.io/jocasta/0.14/plugins/index.md>)
+- [MikroTik RouterOS](<https://pushkar-anand.github.io/jocasta/0.14/plugins/routeros/index.md>)
+- [OpenWrt](<https://pushkar-anand.github.io/jocasta/0.14/plugins/openwrt/index.md>)
+- [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/0.14/plugins/topology/index.md>)
+- [NetFlow](<https://pushkar-anand.github.io/jocasta/0.14/plugins/netflow/index.md>)
+- [Record what devices look up](<https://pushkar-anand.github.io/jocasta/0.14/plugins/dns/index.md>)
+- [Technitium](<https://pushkar-anand.github.io/jocasta/0.14/plugins/technitium/index.md>)
+- [Pi-hole](<https://pushkar-anand.github.io/jocasta/0.14/plugins/pihole/index.md>)
+- [AdGuard Home](<https://pushkar-anand.github.io/jocasta/0.14/plugins/adguard/index.md>)
 
 ## Notifications
 
-- [Notifications](<https://pushkar-anand.github.io/jocasta/0.13/notifications/index.md>)
-- [Get told when a device goes quiet](<https://pushkar-anand.github.io/jocasta/0.13/notifications/watch/index.md>)
-- [Check a webhook's signature](<https://pushkar-anand.github.io/jocasta/0.13/notifications/webhook/index.md>)
-- [Send to another service](<https://pushkar-anand.github.io/jocasta/0.13/notifications/other-services/index.md>)
+- [Notifications](<https://pushkar-anand.github.io/jocasta/0.14/notifications/index.md>)
+- [Get told when a device goes quiet](<https://pushkar-anand.github.io/jocasta/0.14/notifications/watch/index.md>)
+- [Check a webhook's signature](<https://pushkar-anand.github.io/jocasta/0.14/notifications/webhook/index.md>)
+- [Send to another service](<https://pushkar-anand.github.io/jocasta/0.14/notifications/other-services/index.md>)
 
 ## Integrations
 
-- [MCP server](<https://pushkar-anand.github.io/jocasta/0.13/integrations/mcp/index.md>)
-- [JSON API](<https://pushkar-anand.github.io/jocasta/0.13/integrations/api/index.md>)
+- [MCP server](<https://pushkar-anand.github.io/jocasta/0.14/integrations/mcp/index.md>)
+- [JSON API](<https://pushkar-anand.github.io/jocasta/0.14/integrations/api/index.md>)
 
 ## Operate
 
-- [Manage users and sign-in](<https://pushkar-anand.github.io/jocasta/0.13/operate/users/index.md>)
-- [Serve over HTTPS](<https://pushkar-anand.github.io/jocasta/0.13/operate/https/index.md>)
-- [Back up and upgrade](<https://pushkar-anand.github.io/jocasta/0.13/operate/backup/index.md>)
-- [Fix common problems](<https://pushkar-anand.github.io/jocasta/0.13/operate/troubleshooting/index.md>)
+- [Manage users and sign-in](<https://pushkar-anand.github.io/jocasta/0.14/operate/users/index.md>)
+- [Serve over HTTPS](<https://pushkar-anand.github.io/jocasta/0.14/operate/https/index.md>)
+- [Back up and upgrade](<https://pushkar-anand.github.io/jocasta/0.14/operate/backup/index.md>)
+- [Upgrade notes](<https://pushkar-anand.github.io/jocasta/0.14/operate/upgrading/index.md>)
+- [Fix common problems](<https://pushkar-anand.github.io/jocasta/0.14/operate/troubleshooting/index.md>)
 
 ## Reference
 
-- [Configuration reference](<https://pushkar-anand.github.io/jocasta/0.13/reference/configuration/index.md>)
-- [CLI](<https://pushkar-anand.github.io/jocasta/0.13/cli/index.md>)
+- [Configuration reference](<https://pushkar-anand.github.io/jocasta/0.14/reference/configuration/index.md>)
+- [CLI](<https://pushkar-anand.github.io/jocasta/0.14/cli/index.md>)
 
 ## Development
 
-- [Development](<https://pushkar-anand.github.io/jocasta/0.13/development/index.md>)
+- [Development](<https://pushkar-anand.github.io/jocasta/0.14/development/index.md>)
