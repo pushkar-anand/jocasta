@@ -1,4 +1,4 @@
-.PHONY: tidy fmt build run gen new_migration docker oui asn geo world htmx test lint dev e2e e2e-full docs docs-serve docs-mike
+.PHONY: tidy fmt build run gen new_migration docker oui asn geo world htmx test lint dev e2e e2e-full changelog docs docs-serve docs-mike
 
 .DEFAULT_GOAL := build
 
@@ -70,10 +70,17 @@ dev: gen build ## Start the server with hot-reload
 ZENSICAL_VERSION ?= 0.0.69
 MIKE_REF ?= 2d4ad799442f4592db8ad53b179bfb33db8c69ac
 
-docs: ## Build the docs site into site/ and check every link and anchor.
+# The release workflow's git-cliff is pinned to the same version, in the
+# shared go-release workflow.
+GIT_CLIFF_VERSION ?= 2.14.2
+
+changelog: ## Write the changelog page from the commit log and tags.
+	CHANGELOG_TARGET=docs uvx git-cliff@$(GIT_CLIFF_VERSION) --output docs/changelog.md
+
+docs: changelog ## Build the docs site into site/ and check every link and anchor.
 	uvx zensical@$(ZENSICAL_VERSION) build --clean --strict
 
-docs-serve: ## Preview the docs site at http://localhost:8000 while editing.
+docs-serve: changelog ## Preview the docs site at http://localhost:8000 while editing.
 	uvx zensical@$(ZENSICAL_VERSION) serve
 
 # Prints the uvx arguments that run mike, for the docs workflow.

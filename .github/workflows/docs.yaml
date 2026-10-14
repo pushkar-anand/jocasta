@@ -6,6 +6,7 @@ on:
     paths:
       - "docs/**"
       - "mkdocs.yml"
+      - "cliff.toml"
       - "Makefile"
       - ".github/workflows/docs.yaml"
   # GitHub skips path filters for tag pushes, so a release tag always
@@ -16,6 +17,7 @@ on:
     paths:
       - "docs/**"
       - "mkdocs.yml"
+      - "cliff.toml"
       - "Makefile"
       - ".github/workflows/docs.yaml"
   workflow_dispatch:
@@ -29,6 +31,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The changelog page is built from the whole history and its tags.
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
       - name: Build the docs and check every link
         run: make docs
