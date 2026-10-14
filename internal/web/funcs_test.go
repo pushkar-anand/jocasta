@@ -173,8 +173,11 @@ func TestTook(t *testing.T) {
 func TestScanFound(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "12 hosts", scanFound(&inventory.Scan{Kind: dbtype.ScanDiscovery, Found: 12}))
-	assert.Equal(t, "8 ports", scanFound(&inventory.Scan{Kind: dbtype.ScanPorts, Found: 8}))
+	assert.Equal(t, "12 devices", scanFound(&inventory.Scan{Kind: dbtype.ScanDiscovery, Found: 12}))
+	assert.Equal(t, "1 device", scanFound(&inventory.Scan{Kind: dbtype.ScanDiscovery, Found: 1}))
+	assert.Equal(t, "8 open ports", scanFound(&inventory.Scan{Kind: dbtype.ScanPorts, Found: 8}))
+	assert.Equal(t, "1 open port", scanFound(&inventory.Scan{Kind: dbtype.ScanPorts, Found: 1}))
+	assert.Equal(t, "0 open ports", scanFound(&inventory.Scan{Kind: dbtype.ScanPorts}))
 }
 
 func TestSourceKey(t *testing.T) {
