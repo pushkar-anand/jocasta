@@ -35,7 +35,6 @@ func TestPruneSchedule(t *testing.T) {
 
 	assert.Equal(t, "pruner", p.Name())
 	assert.Equal(t, time.Hour, p.Interval())
-	assert.Zero(t, p.DueIn(t.Context()), "a prune has no schedule to resume")
 }
 
 func TestPruneRunsOnAnEmptyStore(t *testing.T) {

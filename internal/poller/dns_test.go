@@ -55,7 +55,6 @@ func TestDNSResumesFromTheStoredCursor(t *testing.T) {
 
 	assert.Equal(t, "dns_reader", d.Name())
 	assert.Equal(t, DNSInterval, d.Interval())
-	assert.Zero(t, d.DueIn(t.Context()))
 
 	for range 3 {
 		require.NoError(t, d.Run(t.Context()))

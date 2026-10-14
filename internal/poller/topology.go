@@ -50,12 +50,6 @@ func (t *Topology) Name() string { return "topology_reader" }
 // Interval returns how often every source is read.
 func (t *Topology) Interval() time.Duration { return t.interval }
 
-// DueIn resumes the schedule across a restart: what is left of the interval
-// since any source was last read, or nothing when none has been.
-func (t *Topology) DueIn(ctx context.Context) time.Duration {
-	return resumeIn(ctx, t.interval, t.logger, t.store.LastTopologyReadAt)
-}
-
 // Run reads every source and records what each said. A source that fails is
 // reported in the error and leaves the others recorded.
 func (t *Topology) Run(ctx context.Context) error {

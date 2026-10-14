@@ -137,26 +137,6 @@ func (q *Queries) InsertTopologyPort(ctx context.Context, arg InsertTopologyPort
 	return err
 }
 
-const lastTopologyReadAt = `-- name: LastTopologyReadAt :one
-SELECT read_at
-FROM topology_nodes
-ORDER BY read_at DESC
-LIMIT 1
-`
-
-// When any source was last read for its topology. No row when none has been.
-//
-//	SELECT read_at
-//	FROM topology_nodes
-//	ORDER BY read_at DESC
-//	LIMIT 1
-func (q *Queries) LastTopologyReadAt(ctx context.Context) (dbtype.Time, error) {
-	row := q.queryRow(ctx, q.lastTopologyReadAtStmt, lastTopologyReadAt)
-	var read_at dbtype.Time
-	err := row.Scan(&read_at)
-	return read_at, err
-}
-
 const listTopologyNeighbours = `-- name: ListTopologyNeighbours :many
 SELECT source_id, port, mac, identity, platform, board, their_port, address
 FROM topology_neighbours

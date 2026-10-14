@@ -71,6 +71,8 @@ sql:
             go_type: *timestamp
           - column: "topology_nodes.read_at"
             go_type: *timestamp
+          - column: "task_runs.finished_at"
+            go_type: *timestamp
           - column: "topology_sightings.first_seen"
             go_type: *timestamp
           - column: "topology_sightings.last_seen"

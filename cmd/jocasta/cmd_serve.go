@@ -55,7 +55,7 @@ func (s *ServeCmd) Run(
 		MCPEnabled:          cfg.Server.MCP.Enabled,
 	}
 
-	p := poller.New(log)
+	p := poller.New(log, store)
 
 	defer p.Stop()
 

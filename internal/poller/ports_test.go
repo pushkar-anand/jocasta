@@ -53,53 +53,6 @@ func TestPortsName(t *testing.T) {
 	assert.Equal(t, "port_scanner", p.Name())
 }
 
-func TestPortsDueInWithoutHistoryIsNow(t *testing.T) {
-	t.Parallel()
-
-	p, _, _ := newPortsTask(t, time.Hour)
-	assert.Zero(t, p.DueIn(t.Context()), "a database with no port scan in it has nothing to wait for")
-}
-
-func TestPortsDueInResumesTheInterval(t *testing.T) {
-	t.Parallel()
-
-	p, store, _ := newPortsTask(t, time.Hour)
-
-	_, err := store.RecordPorts(t.Context(), "test-sweep", nil)
-	require.NoError(t, err)
-
-	due := p.DueIn(t.Context())
-	assert.Greater(t, due, 59*time.Minute)
-	assert.LessOrEqual(t, due, time.Hour)
-}
-
-// A port scan does not credit the discovery schedule and a discovery sweep does
-// not credit the port scan's: the two run to their own clocks.
-func TestPortsDueInIgnoresADiscoverySweep(t *testing.T) {
-	t.Parallel()
-
-	p, store, _ := newPortsTask(t, time.Hour)
-
-	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix("192.0.2.0/24"), nil)
-	require.NoError(t, err)
-
-	assert.Zero(t, p.DueIn(t.Context()), "a discovery sweep says nothing about when to port-scan")
-}
-
-func TestPortsDueInHoldsOffWhenTheStoreCannotBeRead(t *testing.T) {
-	t.Parallel()
-
-	p, _, _ := newPortsTask(t, time.Hour)
-
-	conn, err := db.New(&db.Config{Path: t.TempDir(), Name: "closed.db"})
-	require.NoError(t, err)
-	require.NoError(t, conn.Close())
-
-	p.store = inventory.New(conn, slog.New(slog.DiscardHandler))
-
-	assert.Equal(t, time.Hour, p.DueIn(t.Context()), "an unreadable store must not pass for no history")
-}
-
 func TestPortsRunScansEveryCurrentAddress(t *testing.T) {
 	t.Parallel()
 

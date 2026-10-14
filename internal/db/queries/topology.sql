@@ -62,13 +62,6 @@ SELECT *
 FROM topology_neighbours
 ORDER BY source_id, port, mac, identity;
 
--- name: LastTopologyReadAt :one
--- When any source was last read for its topology. No row when none has been.
-SELECT read_at
-FROM topology_nodes
-ORDER BY read_at DESC
-LIMIT 1;
-
 -- name: DeleteTopologySightingsBefore :execrows
 DELETE
 FROM topology_sightings

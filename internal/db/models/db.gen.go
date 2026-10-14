@@ -222,8 +222,8 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.insertTopologyPortStmt, err = db.PrepareContext(ctx, insertTopologyPort); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertTopologyPort: %w", err)
 	}
-	if q.lastTopologyReadAtStmt, err = db.PrepareContext(ctx, lastTopologyReadAt); err != nil {
-		return nil, fmt.Errorf("error preparing query LastTopologyReadAt: %w", err)
+	if q.lastTaskRunStmt, err = db.PrepareContext(ctx, lastTaskRun); err != nil {
+		return nil, fmt.Errorf("error preparing query LastTaskRun: %w", err)
 	}
 	if q.latestSuccessfulScanFinishedAtStmt, err = db.PrepareContext(ctx, latestSuccessfulScanFinishedAt); err != nil {
 		return nil, fmt.Errorf("error preparing query LatestSuccessfulScanFinishedAt: %w", err)
@@ -377,6 +377,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.setSourceCursorStmt, err = db.PrepareContext(ctx, setSourceCursor); err != nil {
 		return nil, fmt.Errorf("error preparing query SetSourceCursor: %w", err)
+	}
+	if q.setTaskRunStmt, err = db.PrepareContext(ctx, setTaskRun); err != nil {
+		return nil, fmt.Errorf("error preparing query SetTaskRun: %w", err)
 	}
 	if q.setUserTOTPSecretStmt, err = db.PrepareContext(ctx, setUserTOTPSecret); err != nil {
 		return nil, fmt.Errorf("error preparing query SetUserTOTPSecret: %w", err)
@@ -785,9 +788,9 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing insertTopologyPortStmt: %w", cerr)
 		}
 	}
-	if q.lastTopologyReadAtStmt != nil {
-		if cerr := q.lastTopologyReadAtStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing lastTopologyReadAtStmt: %w", cerr)
+	if q.lastTaskRunStmt != nil {
+		if cerr := q.lastTaskRunStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing lastTaskRunStmt: %w", cerr)
 		}
 	}
 	if q.latestSuccessfulScanFinishedAtStmt != nil {
@@ -1045,6 +1048,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing setSourceCursorStmt: %w", cerr)
 		}
 	}
+	if q.setTaskRunStmt != nil {
+		if cerr := q.setTaskRunStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing setTaskRunStmt: %w", cerr)
+		}
+	}
 	if q.setUserTOTPSecretStmt != nil {
 		if cerr := q.setUserTOTPSecretStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing setUserTOTPSecretStmt: %w", cerr)
@@ -1270,7 +1278,7 @@ type Queries struct {
 	insertAddressStmt                  *sql.Stmt
 	insertTopologyNeighbourStmt        *sql.Stmt
 	insertTopologyPortStmt             *sql.Stmt
-	lastTopologyReadAtStmt             *sql.Stmt
+	lastTaskRunStmt                    *sql.Stmt
 	latestSuccessfulScanFinishedAtStmt *sql.Stmt
 	listAPITokensByUserStmt            *sql.Stmt
 	listDeviceAddressesStmt            *sql.Stmt
@@ -1322,6 +1330,7 @@ type Queries struct {
 	setDeviceHostnameStmt              *sql.Stmt
 	setDeviceWatchedStmt               *sql.Stmt
 	setSourceCursorStmt                *sql.Stmt
+	setTaskRunStmt                     *sql.Stmt
 	setUserTOTPSecretStmt              *sql.Stmt
 	sourceCursorStmt                   *sql.Stmt
 	topOrganisationsStmt               *sql.Stmt
@@ -1418,7 +1427,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		insertAddressStmt:                  q.insertAddressStmt,
 		insertTopologyNeighbourStmt:        q.insertTopologyNeighbourStmt,
 		insertTopologyPortStmt:             q.insertTopologyPortStmt,
-		lastTopologyReadAtStmt:             q.lastTopologyReadAtStmt,
+		lastTaskRunStmt:                    q.lastTaskRunStmt,
 		latestSuccessfulScanFinishedAtStmt: q.latestSuccessfulScanFinishedAtStmt,
 		listAPITokensByUserStmt:            q.listAPITokensByUserStmt,
 		listDeviceAddressesStmt:            q.listDeviceAddressesStmt,
@@ -1470,6 +1479,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		setDeviceHostnameStmt:              q.setDeviceHostnameStmt,
 		setDeviceWatchedStmt:               q.setDeviceWatchedStmt,
 		setSourceCursorStmt:                q.setSourceCursorStmt,
+		setTaskRunStmt:                     q.setTaskRunStmt,
 		setUserTOTPSecretStmt:              q.setUserTOTPSecretStmt,
 		sourceCursorStmt:                   q.sourceCursorStmt,
 		topOrganisationsStmt:               q.topOrganisationsStmt,
