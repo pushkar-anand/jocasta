@@ -361,27 +361,29 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) error 
 }
 
 const createScan = `-- name: CreateScan :one
-INSERT INTO scans (source_id, kind, network_id, started_at)
-VALUES (?, ?, ?, ?)
-RETURNING id, source_id, kind, network_id, status, error, found_count, started_at, finished_at
+INSERT INTO scans (source_id, kind, scope, network_id, started_at)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, source_id, kind, network_id, status, error, found_count, started_at, finished_at, scope
 `
 
 type CreateScanParams struct {
-	SourceID  int64           `json:"source_id"`
-	Kind      dbtype.ScanKind `json:"kind"`
-	NetworkID sql.NullInt64   `json:"network_id"`
-	StartedAt dbtype.Time     `json:"started_at"`
+	SourceID  int64            `json:"source_id"`
+	Kind      dbtype.ScanKind  `json:"kind"`
+	Scope     dbtype.ScanScope `json:"scope"`
+	NetworkID sql.NullInt64    `json:"network_id"`
+	StartedAt dbtype.Time      `json:"started_at"`
 }
 
 // CreateScan
 //
-//	INSERT INTO scans (source_id, kind, network_id, started_at)
-//	VALUES (?, ?, ?, ?)
-//	RETURNING id, source_id, kind, network_id, status, error, found_count, started_at, finished_at
+//	INSERT INTO scans (source_id, kind, scope, network_id, started_at)
+//	VALUES (?, ?, ?, ?, ?)
+//	RETURNING id, source_id, kind, network_id, status, error, found_count, started_at, finished_at, scope
 func (q *Queries) CreateScan(ctx context.Context, arg CreateScanParams) (*Scan, error) {
 	row := q.queryRow(ctx, q.createScanStmt, createScan,
 		arg.SourceID,
 		arg.Kind,
+		arg.Scope,
 		arg.NetworkID,
 		arg.StartedAt,
 	)
@@ -396,6 +398,7 @@ func (q *Queries) CreateScan(ctx context.Context, arg CreateScanParams) (*Scan, 
 		&i.FoundCount,
 		&i.StartedAt,
 		&i.FinishedAt,
+		&i.Scope,
 	)
 	return &i, err
 }

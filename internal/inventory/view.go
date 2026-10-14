@@ -257,6 +257,7 @@ type Scan struct {
 	ID      int64             `json:"id"`
 	Source  string            `json:"source"`
 	Kind    dbtype.ScanKind   `json:"kind"`
+	Scope   dbtype.ScanScope  `json:"scope"`
 	Network string            `json:"network,omitempty"`
 	Status  dbtype.ScanStatus `json:"status"`
 	Error   string            `json:"error,omitempty"`
@@ -524,6 +525,7 @@ func newScan(s *models.Scan, source, network string) *Scan {
 		ID:        s.ID,
 		Source:    source,
 		Kind:      s.Kind,
+		Scope:     s.Scope,
 		Network:   network,
 		Status:    s.Status,
 		Error:     s.Error.String,

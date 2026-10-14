@@ -259,7 +259,7 @@ func (s *Store) ListEvents(ctx context.Context, p Page) (*EventPage, error) {
 // ListScans returns one page of the scan history, most recent first.
 func (s *Store) ListScans(ctx context.Context, p Page) (*ScanPage, error) {
 	rows, err := s.q.ListScans(ctx, models.PageParams{
-		Cursor: p.Cursor, Limit: p.seek(), ScanKind: p.ScanKind,
+		Cursor: p.Cursor, Limit: p.seek(), ScanKind: p.ScanKind, ScanScope: p.ScanScope,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list scans: %w", err)
@@ -291,10 +291,11 @@ func (s *Store) LatestScan(ctx context.Context) (*Scan, error) {
 	return page.Scans[0], nil
 }
 
-// LatestScanOfKind returns the most recent scan of k, or ErrNotFound when that
-// kind has never run.
+// LatestScanOfKind returns the most recent full scan of k, or ErrNotFound when
+// none has run. A scan of only the devices a sweep just discovered is left out:
+// it says nothing about the rest.
 func (s *Store) LatestScanOfKind(ctx context.Context, k dbtype.ScanKind) (*Scan, error) {
-	page, err := s.ListScans(ctx, Page{Limit: 1, ScanKind: k})
+	page, err := s.ListScans(ctx, Page{Limit: 1, ScanKind: k, ScanScope: dbtype.ScopeFull})
 	if err != nil {
 		return nil, err
 	}

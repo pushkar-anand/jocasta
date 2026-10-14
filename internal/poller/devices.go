@@ -30,6 +30,7 @@ type Device struct {
 	interval    time.Duration
 	networks    []*netip.Prefix
 	discoverers []plugin.HostDiscoverer
+	ports       *Ports
 	logger      *slog.Logger
 }
 
@@ -40,6 +41,14 @@ type DeviceOption func(*Device)
 func WithDiscoverers(ds ...plugin.HostDiscoverer) DeviceOption {
 	return func(d *Device) {
 		d.discoverers = append(d.discoverers, ds...)
+	}
+}
+
+// WithPortScan has each run port-scan the devices it discovered, through the
+// port-scan task, instead of leaving them to its next full scan.
+func WithPortScan(p *Ports) DeviceOption {
+	return func(d *Device) {
+		d.ports = p
 	}
 }
 
@@ -105,19 +114,34 @@ func (d *Device) Name() string {
 // networks already are: an expired router credential contributes no facts and
 // leaves everything else recorded.
 func (d *Device) Run(ctx context.Context) error {
-	var errs []error
+	var (
+		errs  []error
+		fresh []netip.Addr
+	)
 
 	for _, network := range d.networks {
-		err := d.scanAndSaveNetwork(ctx, network)
+		found, err := d.scanAndSaveNetwork(ctx, network)
 		if err != nil {
 			errs = append(errs, err)
 		}
+
+		fresh = append(fresh, found...)
 	}
 
 	for _, disc := range d.discoverers {
-		err := d.discoverAndSave(ctx, disc)
+		found, err := d.discoverAndSave(ctx, disc)
 		if err != nil {
 			errs = append(errs, err)
+		}
+
+		fresh = append(fresh, found...)
+	}
+
+	// The next full port scan covers them anyway, so a failure here is not the
+	// run's.
+	if d.ports != nil && len(fresh) > 0 {
+		if err := d.ports.ScanNew(ctx, fresh); err != nil {
+			d.logger.WarnContext(ctx, "could not port-scan the new devices; the next full port scan will", logger.Err(err))
 		}
 	}
 
@@ -128,17 +152,18 @@ func (d *Device) Run(ctx context.Context) error {
 	return nil
 }
 
-// scanAndSaveNetwork sweeps network and records the result. A failed sweep
-// returns without recording a successful inventory update.
-func (d *Device) scanAndSaveNetwork(ctx context.Context, network *netip.Prefix) error {
+// scanAndSaveNetwork sweeps network, records the result, and returns the
+// addresses of the devices it discovered. A failed sweep returns without
+// recording a successful inventory update.
+func (d *Device) scanAndSaveNetwork(ctx context.Context, network *netip.Prefix) ([]netip.Addr, error) {
 	result, err := d.scanner.Scan(ctx, *network)
 	if err != nil {
-		return fmt.Errorf("scan %s: %w", network, err)
+		return nil, fmt.Errorf("scan %s: %w", network, err)
 	}
 
 	saved, err := d.store.RecordSweep(ctx, d.source, *network, result)
 	if err != nil {
-		return fmt.Errorf("record sweep %s: %w", network, err)
+		return nil, fmt.Errorf("record sweep %s: %w", network, err)
 	}
 
 	d.logger.InfoContext(ctx,
@@ -153,16 +178,17 @@ func (d *Device) scanAndSaveNetwork(ctx context.Context, network *netip.Prefix) 
 		slog.Int("quiet", saved.Quiet),
 	)
 
-	return nil
+	return saved.New, nil
 }
 
-// discoverAndSave asks one source what it knows and records the answer.
+// discoverAndSave asks one source what it knows, records the answer, and
+// returns the addresses of the devices it discovered.
 //
 // Facts and an error together are a source half-read, with one table
 // answering while another timed out. The facts that arrived are true, so they
 // are recorded and the failure is logged. Only a read that returned nothing is
 // a failure worth propagating.
-func (d *Device) discoverAndSave(ctx context.Context, p plugin.HostDiscoverer) error {
+func (d *Device) discoverAndSave(ctx context.Context, p plugin.HostDiscoverer) ([]netip.Addr, error) {
 	// Segments before devices: ingest matches each address to a recorded
 	// network, so a VLAN the sweep list omits must exist before the facts that
 	// belong to it land.
@@ -174,7 +200,7 @@ func (d *Device) discoverAndSave(ctx context.Context, p plugin.HostDiscoverer) e
 
 	switch {
 	case err != nil && len(facts) == 0:
-		return fmt.Errorf("discover %s: %w", p.Name(), err)
+		return nil, fmt.Errorf("discover %s: %w", p.Name(), err)
 	case err != nil:
 		d.logger.WarnContext(ctx, "source answered in part; devices missing from it are not judged quiet until it reads whole",
 			slog.String("src", p.Name()),
@@ -190,7 +216,7 @@ func (d *Device) discoverAndSave(ctx context.Context, p plugin.HostDiscoverer) e
 
 	saved, err := record(ctx, p.Name(), p.Kind(), facts)
 	if err != nil {
-		return fmt.Errorf("record facts from %s: %w", p.Name(), err)
+		return nil, fmt.Errorf("record facts from %s: %w", p.Name(), err)
 	}
 
 	d.logger.InfoContext(ctx,
@@ -206,7 +232,7 @@ func (d *Device) discoverAndSave(ctx context.Context, p plugin.HostDiscoverer) e
 		slog.Int("quiet", saved.Quiet),
 	)
 
-	return nil
+	return saved.New, nil
 }
 
 // recordNetworks learns what the source calls the segments it serves.

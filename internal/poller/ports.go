@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/netip"
+	"slices"
 	"time"
 
 	"github.com/pushkar-anand/jocasta/internal/inventory"
@@ -86,6 +88,41 @@ func (p *Ports) Run(ctx context.Context) error {
 		slog.Int("open", sum.Open),
 		slog.Int("opened", sum.Opened),
 		slog.Int("closed", sum.Closed),
+	)
+
+	return nil
+}
+
+// ScanNew scans the ports of devices a sweep has just discovered, at addrs,
+// so they do not wait for the next full port scan. An address on no recorded
+// network is left out, as the full scan leaves it out.
+//
+// It is not a run of the task: the full scan's schedule stays where it was.
+func (p *Ports) ScanNew(ctx context.Context, addrs []netip.Addr) error {
+	all, err := p.store.PortScanTargets(ctx)
+	if err != nil {
+		return fmt.Errorf("port scan targets: %w", err)
+	}
+
+	targets := slices.DeleteFunc(all, func(t scanner.PortTarget) bool {
+		return !slices.Contains(addrs, t.Addr)
+	})
+
+	if len(targets) == 0 {
+		return nil
+	}
+
+	results := p.scanner.Scan(ctx, targets, time.Now())
+
+	sum, err := p.store.RecordNewDevicePorts(ctx, p.source, results)
+	if err != nil {
+		return fmt.Errorf("record port scan of new devices: %w", err)
+	}
+
+	p.logger.InfoContext(ctx, "recorded port scan of new devices",
+		slog.Int64("scan", sum.ScanID),
+		slog.Int("devices", sum.Devices),
+		slog.Int("open", sum.Open),
 	)
 
 	return nil

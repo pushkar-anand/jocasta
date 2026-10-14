@@ -72,6 +72,18 @@ func (s *ServeCmd) Run(
 		return err
 	}
 
+	deviceOpts := []poller.DeviceOption{poller.WithDiscoverers(hostDiscoverers(sources)...)}
+
+	var pp *poller.Ports
+
+	if cfg.Scan.Ports.Enabled {
+		if pp, err = portsPoller(cfg, log, store); err != nil {
+			return err
+		}
+
+		deviceOpts = append(deviceOpts, poller.WithPortScan(pp))
+	}
+
 	pd, err := poller.NewDevice(
 		log,
 		sweeper,
@@ -79,7 +91,7 @@ func (s *ServeCmd) Run(
 		cfg.Scan.Source,
 		cfg.Scan.Devices.Interval,
 		cfg.Networks,
-		poller.WithDiscoverers(hostDiscoverers(sources)...),
+		deviceOpts...,
 	)
 	if err != nil {
 		return fmt.Errorf("initialize device poller: %w", err)
@@ -115,12 +127,7 @@ func (s *ServeCmd) Run(
 		}
 	}
 
-	if cfg.Scan.Ports.Enabled {
-		pp, err := portsPoller(cfg, log, store)
-		if err != nil {
-			return err
-		}
-
+	if pp != nil {
 		if err := p.Register(pp); err != nil {
 			return fmt.Errorf("register port poller: %w", err)
 		}

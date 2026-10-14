@@ -26,7 +26,8 @@ jocasta serve -p 9000         # override the port
 Starts the HTTP server. When `scan.devices.enabled` is set, it also starts a
 poller that sweeps every network in `networks` on `scan.devices.interval`. When
 `scan.ports.enabled` is set, a second poller port-scans every address the
-inventory holds on your networks, on `scan.ports.interval`. Each enabled `routeros` and
+inventory holds on your networks, on `scan.ports.interval`, and port-scans each
+new device as soon as a sweep or router read discovers it. Each enabled `routeros` and
 `openwrt` instance is also read for what is plugged into it, on
 `scan.devices.interval`. Each
 enabled `netflow` instance

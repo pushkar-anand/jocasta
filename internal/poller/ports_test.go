@@ -95,3 +95,56 @@ func TestPortsRunWithNoTargetsAsksToRetry(t *testing.T) {
 	_, err := store.LastSuccessfulScanAt(t.Context(), dbtype.ScanPorts)
 	require.ErrorIs(t, err, inventory.ErrNotFound, "an empty inventory records no scan")
 }
+
+// listener opens a port on loopback, so a scan has one that genuinely answers.
+func listener(t *testing.T) uint16 {
+	t.Helper()
+
+	var lc net.ListenConfig
+
+	l, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = l.Close() })
+
+	return uint16(l.Addr().(*net.TCPAddr).Port) //nolint:gosec // kernel-assigned port.
+}
+
+// newDeviceScans counts the port scans of only new devices.
+func newDeviceScans(t *testing.T, conn *sql.DB) int {
+	t.Helper()
+
+	return countRows(t, conn, `SELECT COUNT(*) FROM scans WHERE kind = 'PORTS' AND scope = 'NEW_DEVICES'`)
+}
+
+func TestPortsScanNewRecordsANewDeviceScan(t *testing.T) {
+	t.Parallel()
+
+	open := listener(t)
+
+	p, store, conn := newPortsTask(t, time.Hour,
+		scanner.WithPorts([]uint16{open}),
+		scanner.WithDialTimeout(time.Second),
+	)
+	sweptDevice(t, store, "127.0.0.1")
+
+	require.NoError(t, p.ScanNew(t.Context(), []netip.Addr{netip.MustParseAddr("127.0.0.1")}))
+
+	assert.Equal(t, 1, newDeviceScans(t, conn))
+	assert.Equal(t, 1, countRows(t, conn, `SELECT COUNT(*) FROM device_ports WHERE state = 'open'`))
+
+	_, err := store.LatestScanOfKind(t.Context(), dbtype.ScanPorts)
+	require.ErrorIs(t, err, inventory.ErrNotFound, "no full port scan has run")
+}
+
+// An address on no recorded network is not one the full scan would reach, so
+// the new-device scan leaves it out too, and with nothing left records no scan.
+func TestPortsScanNewSkipsAddressesOffEveryNetwork(t *testing.T) {
+	t.Parallel()
+
+	p, store, conn := newPortsTask(t, time.Hour)
+	sweptDevice(t, store, "127.0.0.1")
+
+	require.NoError(t, p.ScanNew(t.Context(), []netip.Addr{netip.MustParseAddr("192.0.2.10")}))
+
+	assert.Zero(t, newDeviceScans(t, conn))
+}

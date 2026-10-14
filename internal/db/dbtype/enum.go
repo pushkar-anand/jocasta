@@ -103,6 +103,24 @@ func (s ScanStatus) Value() (driver.Value, error) { return enumValue(s, scanStat
 // Scan reads a stored scan status back into s.
 func (s *ScanStatus) Scan(src any) error { return enumScan(s, scanStatuses, "scan status", src) }
 
+// ScanScope is what a scan covered: every target its kind reads, or only the
+// devices a sweep had just discovered.
+type ScanScope string
+
+// ScanScope values a scan's coverage can take.
+const (
+	ScopeFull       ScanScope = "FULL"
+	ScopeNewDevices ScanScope = "NEW_DEVICES"
+)
+
+var scanScopes = []ScanScope{ScopeFull, ScopeNewDevices}
+
+// Value renders s for the driver, refusing anything the column does not admit.
+func (s ScanScope) Value() (driver.Value, error) { return enumValue(s, scanScopes, "scan scope") }
+
+// Scan reads a stored scan scope back into s.
+func (s *ScanScope) Scan(src any) error { return enumScan(s, scanScopes, "scan scope", src) }
+
 // PortState is what a probe last found at a port. A port that has answered once
 // keeps its row when it goes silent, flipping to closed, so the record of what
 // a device used to expose survives the service stopping.
