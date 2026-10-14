@@ -56,7 +56,7 @@ e2e-full: ## Run the browser tests on every screen and account, as a release doe
 	mkdir -p $(E2E_TMP)
 	E2E_FULL=1 TMPDIR=$(E2E_TMP) go test -tags e2e -count=1 -timeout 60m -run 'TestFixturesRender|TestE2E|TestSearchKeepsFocus' ./internal/web/e2e/
 
-smoke: ## Read OpenWrt, Pi-hole and AdGuard Home in containers and check what jocasta says. Needs Docker.
+smoke: ## Read the router, DNS and NetFlow sources in containers and check what jocasta says. Needs Docker.
 	scripts/smoke/smoke.sh up
 	scripts/smoke/smoke.sh check
 
