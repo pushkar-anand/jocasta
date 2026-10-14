@@ -6,8 +6,9 @@ change. One binary, with a web UI, a JSON API and an MCP server.
 !!! warning "Pre-1.0"
 
     A release can change the config format, the database schema or the API
-    with no upgrade path. Pin a version and read the release notes before
-    moving on. The version menu at the top picks the docs for your release.
+    with no upgrade path. Pin a version and read the
+    [upgrade notes](operate/upgrading.md) before moving on. The version menu
+    at the top picks the docs for your release.
 
 ![The overview page](img/overview.png)
 

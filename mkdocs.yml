@@ -44,6 +44,7 @@ nav:
       - operate/users.md
       - operate/https.md
       - operate/backup.md
+      - operate/upgrading.md
       - operate/troubleshooting.md
   - Reference:
       - reference/configuration.md
@@ -161,6 +162,7 @@ plugins:
           - operate/users.md
           - operate/https.md
           - operate/backup.md
+          - operate/upgrading.md
           - operate/troubleshooting.md
         Reference:
           - reference/configuration.md

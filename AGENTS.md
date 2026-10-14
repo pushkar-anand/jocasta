@@ -53,7 +53,7 @@ go fmt ./internal/... && goimports -w ./internal/
 | **Hot Reload Server** | `make dev` | Starts server with live reload via `air` |
 | **E2E Browser Tests** | `make e2e` | Runs visual regression & WCAG AA checks (requires Chrome) |
 | **Update E2E Goldens** | `E2E_UPDATE=1 make e2e` | Updates stored golden images in `internal/web/e2e/testdata/golden/` |
-| **Changelog Page** | `make changelog` | Writes `docs/changelog.md` from the commit log; `make docs` runs it first |
+| **Changelog Pages** | `make changelog` | Writes `docs/changelog.md` and `docs/operate/upgrading.md` from the commit log; `make docs` runs it first |
 
 ---
 
@@ -136,7 +136,7 @@ The repository enforces strict `golangci-lint` rules (`.golangci.yml`). Any viol
 
 ## 7. Commit Messages & Release Notes
 
-git-cliff (`cliff.toml`) writes the changelog page and each GitHub release from commit messages, so a commit message is published text.
+git-cliff (`cliff.toml`) writes the changelog page, the upgrade notes page and each GitHub release from commit messages, so a commit message is published text.
 
 - **Conventional Commits**: A PR title becomes the squash commit's subject, `type(scope): summary`. Release notes list `feat` and `fix` commits; a commit of another type appears only for its breaking change or upgrade note.
 - **Breaking Changes**: A change that makes an operator act on upgrade (a config key renamed or removed, an API field changed, a migration with no way back) marks the PR title with `!` (`feat(config)!: ...`) and carries a `BREAKING CHANGE:` paragraph. The paragraph says what changed and the steps to take: the old key and the new one, the command to run.
