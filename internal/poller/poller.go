@@ -216,7 +216,7 @@ func (p *Poller) runTask(r *run, t task) {
 			err := t.Run(ctx)
 
 			if ctx.Err() == nil && !errors.Is(err, errNotReady) {
-				p.record(ctx, t, log)
+				p.record(ctx, t, err, log)
 			}
 
 			switch {
@@ -270,10 +270,11 @@ func (p *Poller) firstRun(ctx context.Context, t task, log *slog.Logger) time.Du
 	return min(max(t.Interval()-time.Since(at), 0), t.Interval())
 }
 
-// record stores now as when t last finished a run. A failure is logged and
-// otherwise ignored: it costs one early run after the next restart.
-func (p *Poller) record(ctx context.Context, t task, log *slog.Logger) {
-	err := p.history.RecordRun(ctx, t.Name(), time.Now())
+// record stores now as when t last finished a run, and runErr as why it
+// failed. A failure to store is logged and otherwise ignored: it costs one
+// early run after the next restart.
+func (p *Poller) record(ctx context.Context, t task, runErr error, log *slog.Logger) {
+	err := p.history.RecordRun(ctx, t.Name(), time.Now(), runErr)
 	if err != nil {
 		log.ErrorContext(ctx, "could not record the task's run", logger.Err(err))
 	}

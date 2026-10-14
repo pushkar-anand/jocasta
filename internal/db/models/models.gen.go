@@ -205,8 +205,9 @@ type SourceCursor struct {
 }
 
 type TaskRun struct {
-	Name       string      `json:"name"`
-	FinishedAt dbtype.Time `json:"finished_at"`
+	Name       string         `json:"name"`
+	FinishedAt dbtype.Time    `json:"finished_at"`
+	Error      sql.NullString `json:"error"`
 }
 
 type TopologyNeighbour struct {

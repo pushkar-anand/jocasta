@@ -1,6 +1,8 @@
 package inventory
 
 import (
+	"database/sql"
+	"errors"
 	"testing"
 	"time"
 
@@ -27,9 +29,9 @@ func TestRecordRunKeepsTheLatestRunPerTask(t *testing.T) {
 	second := first.Add(time.Hour)
 	other := first.Add(time.Minute)
 
-	require.NoError(t, s.RecordRun(t.Context(), "sweeper", first))
-	require.NoError(t, s.RecordRun(t.Context(), "sweeper", second))
-	require.NoError(t, s.RecordRun(t.Context(), "pruner", other))
+	require.NoError(t, s.RecordRun(t.Context(), "sweeper", first, nil))
+	require.NoError(t, s.RecordRun(t.Context(), "sweeper", second, nil))
+	require.NoError(t, s.RecordRun(t.Context(), "pruner", other, nil))
 
 	got, err := s.LastRun(t.Context(), "sweeper")
 	require.NoError(t, err)
@@ -38,4 +40,27 @@ func TestRecordRunKeepsTheLatestRunPerTask(t *testing.T) {
 	got, err = s.LastRun(t.Context(), "pruner")
 	require.NoError(t, err)
 	assert.True(t, other.Equal(got), got)
+}
+
+// A failed run stores why, and the next run that succeeds clears it.
+func TestRecordRunKeepsTheLatestRunsError(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	at := time.Date(2026, 9, 28, 10, 0, 0, 0, time.UTC)
+
+	runErr := func() sql.NullString {
+		var msg sql.NullString
+		require.NoError(t, conn.QueryRowContext(t.Context(),
+			`SELECT error FROM task_runs WHERE name = 'sweeper'`).Scan(&msg))
+
+		return msg
+	}
+
+	require.NoError(t, s.RecordRun(t.Context(), "sweeper", at, errors.New("sweep 192.0.2.0/24: boom")))
+	assert.Equal(t, sql.NullString{String: "sweep 192.0.2.0/24: boom", Valid: true}, runErr())
+
+	require.NoError(t, s.RecordRun(t.Context(), "sweeper", at.Add(time.Hour), nil))
+	assert.False(t, runErr().Valid, "a run that succeeded must clear the last failure")
 }

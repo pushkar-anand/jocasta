@@ -26,9 +26,16 @@ func (s *Store) LastRun(ctx context.Context, task string) (time.Time, error) {
 	return at.Time, nil
 }
 
-// RecordRun stores at as when the poller task named task last finished a run.
-func (s *Store) RecordRun(ctx context.Context, task string, at time.Time) error {
-	err := s.q.SetTaskRun(ctx, models.SetTaskRunParams{Name: task, FinishedAt: dbtype.NewTime(at)})
+// RecordRun stores at as when the poller task named task last finished a run,
+// and runErr as why that run failed. A nil runErr clears the error a failed
+// run left.
+func (s *Store) RecordRun(ctx context.Context, task string, at time.Time, runErr error) error {
+	var msg sql.NullString
+	if runErr != nil {
+		msg = sql.NullString{String: runErr.Error(), Valid: true}
+	}
+
+	err := s.q.SetTaskRun(ctx, models.SetTaskRunParams{Name: task, FinishedAt: dbtype.NewTime(at), Error: msg})
 	if err != nil {
 		return fmt.Errorf("record run of %s: %w", task, err)
 	}

@@ -31,7 +31,9 @@ type History interface {
 	// LastRun returns when task last finished a run, or an error wrapping
 	// [inventory.ErrNotFound] when it never has.
 	LastRun(ctx context.Context, task string) (time.Time, error)
-	RecordRun(ctx context.Context, task string, at time.Time) error
+	// RecordRun stores at as when task last finished a run, and runErr as why
+	// it failed, nil when it did not.
+	RecordRun(ctx context.Context, task string, at time.Time, runErr error) error
 }
 
 var _ History = (*inventory.Store)(nil)

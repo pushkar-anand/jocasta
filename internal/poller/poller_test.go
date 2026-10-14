@@ -77,6 +77,7 @@ func newFake(name string) *fake {
 type history struct {
 	mu   sync.Mutex
 	runs map[string]time.Time
+	errs map[string]error
 
 	// err is returned from every LastRun, to check an unreadable history holds
 	// a task off.
@@ -84,7 +85,7 @@ type history struct {
 }
 
 func newHistory() *history {
-	return &history{runs: make(map[string]time.Time)}
+	return &history{runs: make(map[string]time.Time), errs: make(map[string]error)}
 }
 
 func (h *history) LastRun(_ context.Context, task string) (time.Time, error) {
@@ -103,11 +104,12 @@ func (h *history) LastRun(_ context.Context, task string) (time.Time, error) {
 	return at, nil
 }
 
-func (h *history) RecordRun(_ context.Context, task string, at time.Time) error {
+func (h *history) RecordRun(_ context.Context, task string, at time.Time, runErr error) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
 	h.runs[task] = at
+	h.errs[task] = runErr
 
 	return nil
 }
@@ -683,6 +685,10 @@ func TestFinishedRunIsRecorded(t *testing.T) {
 				synctest.Wait()
 				require.Equal(t, int32(1), f.runs.Load())
 				assert.Equal(t, tt.want, h.recorded("a"))
+
+				if tt.want {
+					assert.Equal(t, tt.err, h.errs["a"], "a run records why it failed, nil when it did not")
+				}
 
 				cancel()
 			})

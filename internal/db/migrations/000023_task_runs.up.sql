@@ -4,5 +4,7 @@
 CREATE TABLE task_runs
 (
     name        TEXT PRIMARY KEY,
-    finished_at TEXT NOT NULL
+    finished_at TEXT NOT NULL,
+    -- Why the run failed. NULL when it succeeded.
+    error       TEXT
 );

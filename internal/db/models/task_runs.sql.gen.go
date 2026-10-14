@@ -7,6 +7,7 @@ package models
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
@@ -30,22 +31,25 @@ func (q *Queries) LastTaskRun(ctx context.Context, name string) (dbtype.Time, er
 }
 
 const setTaskRun = `-- name: SetTaskRun :exec
-INSERT INTO task_runs (name, finished_at)
-VALUES (?, ?)
-ON CONFLICT (name) DO UPDATE SET finished_at = excluded.finished_at
+INSERT INTO task_runs (name, finished_at, error)
+VALUES (?, ?, ?)
+ON CONFLICT (name) DO UPDATE SET finished_at = excluded.finished_at,
+                                 error       = excluded.error
 `
 
 type SetTaskRunParams struct {
-	Name       string      `json:"name"`
-	FinishedAt dbtype.Time `json:"finished_at"`
+	Name       string         `json:"name"`
+	FinishedAt dbtype.Time    `json:"finished_at"`
+	Error      sql.NullString `json:"error"`
 }
 
 // SetTaskRun
 //
-//	INSERT INTO task_runs (name, finished_at)
-//	VALUES (?, ?)
-//	ON CONFLICT (name) DO UPDATE SET finished_at = excluded.finished_at
+//	INSERT INTO task_runs (name, finished_at, error)
+//	VALUES (?, ?, ?)
+//	ON CONFLICT (name) DO UPDATE SET finished_at = excluded.finished_at,
+//	                                 error       = excluded.error
 func (q *Queries) SetTaskRun(ctx context.Context, arg SetTaskRunParams) error {
-	_, err := q.exec(ctx, q.setTaskRunStmt, setTaskRun, arg.Name, arg.FinishedAt)
+	_, err := q.exec(ctx, q.setTaskRunStmt, setTaskRun, arg.Name, arg.FinishedAt, arg.Error)
 	return err
 }
