@@ -54,6 +54,7 @@ func TestDevicesPageWhenEmptyExplainsWhy(t *testing.T) {
 	body := get(t, empty(t), "/devices").Body.String()
 
 	assert.Contains(t, body, "No devices yet")
+	assert.Contains(t, body, "<code>jocasta scan 192.0.2.0/24 --save</code>", "says how to fill it")
 	assert.NotContains(t, body, "No device matches this filter")
 }
 
