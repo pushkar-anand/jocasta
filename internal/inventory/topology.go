@@ -2,12 +2,9 @@ package inventory
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/db/models"
@@ -140,21 +137,6 @@ func replaceNeighbours(ctx context.Context, q *models.Queries, sourceID int64, n
 	}
 
 	return nil
-}
-
-// LastTopologyReadAt returns when any source was last read for what is
-// plugged into it. It returns ErrNotFound when none has been.
-func (s *Store) LastTopologyReadAt(ctx context.Context) (time.Time, error) {
-	at, err := s.q.LastTopologyReadAt(ctx)
-
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		return time.Time{}, fmt.Errorf("last topology read: %w", ErrNotFound)
-	case err != nil:
-		return time.Time{}, fmt.Errorf("last topology read: %w", err)
-	}
-
-	return at.Time, nil
 }
 
 // joinVLANs renders a set of VLANs as the comma-separated list the ports table

@@ -40,10 +40,6 @@ func (d *DNS) Name() string { return "dns_reader" }
 // Interval returns how often every source is read.
 func (d *DNS) Interval() time.Duration { return DNSInterval }
 
-// DueIn is always now: each read resumes from its cursor, so running early
-// counts nothing twice.
-func (d *DNS) DueIn(context.Context) time.Duration { return 0 }
-
 // Run reads every source and records what each logged. A source that fails is
 // reported in the error and leaves the others recorded.
 func (d *DNS) Run(ctx context.Context) error {

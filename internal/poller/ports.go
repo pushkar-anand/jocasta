@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 )
@@ -55,16 +54,6 @@ func (p *Ports) Name() string { return "port_scanner" }
 
 // Interval returns the polling period configured for the port scan.
 func (p *Ports) Interval() time.Duration { return p.interval }
-
-// DueIn resumes the schedule across a restart: what is left of the interval
-// since the last successful port scan finished, or nothing when that much has
-// passed or none has ever succeeded.
-//
-// Keyed on the kind alone, like the device task: only this task writes PORTS
-// scans, so nothing else can credit its schedule.
-func (p *Ports) DueIn(ctx context.Context) time.Duration {
-	return dueIn(ctx, p.store, dbtype.ScanPorts, p.interval, p.logger)
-}
 
 // Run scans every current address on a recorded network and records what
 // answered.

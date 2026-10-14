@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/pushkar-anand/build-with-go/logger"
-	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/plugin"
 	"github.com/pushkar-anand/jocasta/internal/scanner"
@@ -97,16 +96,6 @@ func (d *Device) Interval() time.Duration {
 // Name returns the identifier used in logs and scheduling.
 func (d *Device) Name() string {
 	return "device_scanner"
-}
-
-// DueIn resumes the sweep schedule across a restart: what is left of the
-// interval since the last successful sweep finished, or nothing at all when
-// that much has already passed or no sweep has ever succeeded.
-//
-// It reads the newest scan of its own kind: a port scan says nothing about
-// whether the devices are due to be looked at again.
-func (d *Device) DueIn(ctx context.Context) time.Duration {
-	return dueIn(ctx, d.store, dbtype.ScanDiscovery, d.interval, d.logger)
 }
 
 // Run sweeps every configured network, then asks every source what it knows,

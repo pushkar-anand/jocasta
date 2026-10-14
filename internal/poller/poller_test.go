@@ -10,6 +10,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -43,20 +44,6 @@ type fake struct {
 	// block, when non-nil, holds Run until it is closed or the context ends,
 	// so a test can catch the poller mid-run.
 	block chan struct{}
-
-	// due is what DueIn reports. Zero, the default, is a task with nothing to
-	// resume from, which runs at once.
-	due time.Duration
-
-	// dueInCalls counts DueIn calls, so a test can check the scheduler asks
-	// only once. DueIn can read the store.
-	dueInCalls atomic.Int32
-}
-
-func (f *fake) DueIn(context.Context) time.Duration {
-	f.dueInCalls.Add(1)
-
-	return f.due
 }
 
 func (f *fake) Name() string            { return f.name }
@@ -85,10 +72,70 @@ func newFake(name string) *fake {
 	return &fake{name: name, interval: tick}
 }
 
+// history is a History kept in memory: it answers LastRun from what the
+// poller recorded, or from what a test seeded.
+type history struct {
+	mu   sync.Mutex
+	runs map[string]time.Time
+	errs map[string]error
+
+	// err is returned from every LastRun, to check an unreadable history holds
+	// a task off.
+	err error
+}
+
+func newHistory() *history {
+	return &history{runs: make(map[string]time.Time), errs: make(map[string]error)}
+}
+
+func (h *history) LastRun(_ context.Context, task string) (time.Time, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.err != nil {
+		return time.Time{}, h.err
+	}
+
+	at, ok := h.runs[task]
+	if !ok {
+		return time.Time{}, inventory.ErrNotFound
+	}
+
+	return at, nil
+}
+
+func (h *history) RecordRun(_ context.Context, task string, at time.Time, runErr error) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	h.runs[task] = at
+	h.errs[task] = runErr
+
+	return nil
+}
+
+// recorded reports whether a run of task has been recorded.
+func (h *history) recorded(task string) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	_, ok := h.runs[task]
+
+	return ok
+}
+
+var _ History = (*history)(nil)
+
 func newPoller(t *testing.T, tasks ...task) *Poller {
 	t.Helper()
 
-	p := New(slog.New(slog.DiscardHandler))
+	return newPollerWith(t, newHistory(), tasks...)
+}
+
+func newPollerWith(t *testing.T, h History, tasks ...task) *Poller {
+	t.Helper()
+
+	p := New(slog.New(slog.DiscardHandler), h)
 
 	for _, task := range tasks {
 		require.NoError(t, p.Register(task))
@@ -132,7 +179,7 @@ func eventually(t *testing.T, cond func() bool, msg string) {
 func TestRegisterRejectsZeroInterval(t *testing.T) {
 	t.Parallel()
 
-	p := New(slog.New(slog.DiscardHandler))
+	p := New(slog.New(slog.DiscardHandler), newHistory())
 
 	err := p.Register(&fake{name: "zero", interval: 0})
 
@@ -143,7 +190,7 @@ func TestRegisterRejectsZeroInterval(t *testing.T) {
 func TestRegisterRejectsEmptyName(t *testing.T) {
 	t.Parallel()
 
-	p := New(slog.New(slog.DiscardHandler))
+	p := New(slog.New(slog.DiscardHandler), newHistory())
 
 	err := p.Register(&fake{name: "", interval: tick})
 
@@ -154,7 +201,7 @@ func TestRegisterRejectsEmptyName(t *testing.T) {
 func TestRegisterAcceptsValidTaskWhenIdle(t *testing.T) {
 	t.Parallel()
 
-	p := New(slog.New(slog.DiscardHandler))
+	p := New(slog.New(slog.DiscardHandler), newHistory())
 
 	require.NoError(t, p.Register(newFake("a")))
 	require.NoError(t, p.Register(newFake("b")))
@@ -537,13 +584,16 @@ func TestStartUnderACancelledContextRunsNothing(t *testing.T) {
 	}
 }
 
-// A task that says its run is due later is left alone until then, which is what
-// stops a restart from re-running work that is not due.
+// A task that ran recently is left alone until its interval is up, which is
+// what stops a restart from re-running work that is not due.
 func TestTaskDueLaterIsLeftAlone(t *testing.T) {
 	t.Parallel()
 
-	f := &fake{name: "a", interval: 100 * tick, due: 100 * tick}
-	p := newPoller(t, f)
+	h := newHistory()
+	h.runs["a"] = time.Now()
+
+	f := &fake{name: "a", interval: 100 * tick}
+	p := newPollerWith(t, h, f)
 
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -555,9 +605,6 @@ func TestTaskDueLaterIsLeftAlone(t *testing.T) {
 
 	cancel()
 	requireReturned(t, errc)
-
-	assert.Equal(t, int32(1), f.dueInCalls.Load(),
-		"the scheduler must ask a task when its first run is due exactly once")
 }
 
 // A stored time that is wrong in either direction, from a clock that moved or
@@ -566,23 +613,112 @@ func TestFirstRunIsClamped(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]struct {
-		due  time.Duration
+		ago  time.Duration
 		want time.Duration
 	}{
-		"negative is now":     {due: -time.Hour, want: 0},
-		"beyond one interval": {due: time.Hour, want: 100 * tick},
-		"within the interval": {due: 50 * tick, want: 50 * tick},
+		"long ago is now":     {ago: time.Hour, want: 0},
+		"in the future":       {ago: -time.Hour, want: 100 * tick},
+		"within the interval": {ago: 50 * tick, want: 50 * tick},
 	}
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			f := &fake{name: "a", interval: 100 * tick, due: tt.due}
+			// A bubble, so the clock does not move between seeding the run and
+			// reading it back.
+			synctest.Test(t, func(t *testing.T) {
+				h := newHistory()
+				h.runs["a"] = time.Now().Add(-tt.ago)
 
-			assert.Equal(t, tt.want, firstRun(t.Context(), f))
+				f := &fake{name: "a", interval: 100 * tick}
+				p := newPollerWith(t, h, f)
+
+				assert.Equal(t, tt.want, p.firstRun(t.Context(), f, p.logger))
+			})
 		})
 	}
+}
+
+// Not knowing whether the work is due is a reason to hold off: running anyway
+// would turn a restart loop into a scan loop.
+func TestUnreadableHistoryHoldsOffOneInterval(t *testing.T) {
+	t.Parallel()
+
+	h := newHistory()
+	h.err = errors.New("database is locked")
+
+	f := &fake{name: "a", interval: time.Hour}
+	p := newPollerWith(t, h, f)
+
+	assert.Equal(t, time.Hour, p.firstRun(t.Context(), f, p.logger))
+}
+
+// A run that finished is recorded whatever it returned, since the poller waits
+// a full interval after either. A not-ready run did no work and is not.
+func TestFinishedRunIsRecorded(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		err  error
+		want bool
+	}{
+		"succeeded": {err: nil, want: true},
+		"failed":    {err: errors.New("boom"), want: true},
+		"not ready": {err: errNotReady, want: false},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			synctest.Test(t, func(t *testing.T) {
+				h := newHistory()
+				f := &fake{name: "a", interval: time.Hour, err: tt.err}
+				p := newPollerWith(t, h, f)
+
+				ctx, cancel := context.WithCancel(t.Context())
+				defer cancel()
+
+				go func() { _ = p.Start(ctx) }()
+
+				synctest.Wait()
+				require.Equal(t, int32(1), f.runs.Load())
+				assert.Equal(t, tt.want, h.recorded("a"))
+
+				if tt.want {
+					assert.Equal(t, tt.err, h.errs["a"], "a run records why it failed, nil when it did not")
+				}
+
+				cancel()
+			})
+		})
+	}
+}
+
+// A run cut short by shutdown did not finish its work, so the next start runs
+// it again rather than waiting out an interval.
+func TestRunCutShortIsNotRecorded(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		h := newHistory()
+		f := &fake{name: "a", interval: time.Hour, block: make(chan struct{})}
+		p := newPollerWith(t, h, f)
+
+		ctx, cancel := context.WithCancel(t.Context())
+
+		done := make(chan error, 1)
+		go func() { done <- p.Start(ctx) }()
+
+		synctest.Wait()
+		require.Equal(t, int32(1), f.runs.Load())
+
+		cancel()
+		require.NoError(t, <-done)
+
+		assert.False(t, h.recorded("a"), "a cancelled run must not count as one that finished")
+	})
 }
 
 // Start, Stop and Register hammering the lifecycle at once, to catch races

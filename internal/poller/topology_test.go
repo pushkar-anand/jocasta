@@ -45,23 +45,11 @@ func seenOnce(port, mac string) plugin.Topology {
 	return plugin.Topology{Seen: []plugin.Sighting{{Port: port, MAC: mac}}, ReadAt: time.Now()}
 }
 
-func TestTopologyDueInWithoutHistoryIsNow(t *testing.T) {
+func TestTopologyName(t *testing.T) {
 	t.Parallel()
 
 	task, _ := newTopologyTask(t)
 	assert.Equal(t, "topology_reader", task.Name())
-	assert.Zero(t, task.DueIn(t.Context()))
-}
-
-func TestTopologyDueInResumesTheInterval(t *testing.T) {
-	t.Parallel()
-
-	task, _ := newTopologyTask(t, &fakeReader{name: "routeros:switch_a", topo: seenOnce("ether4", "00:00:5e:00:53:01")})
-	require.NoError(t, task.Run(t.Context()))
-
-	due := task.DueIn(t.Context())
-	assert.Greater(t, due, 59*time.Minute)
-	assert.LessOrEqual(t, due, time.Hour)
 }
 
 // One source failing leaves the others recorded, and a partial read is

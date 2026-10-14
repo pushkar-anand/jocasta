@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/pushkar-anand/build-with-go/logger"
+	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
 // Poller.state holds one of these. They are uint32 to match the atomic that
@@ -32,21 +33,24 @@ type Poller struct {
 	state atomic.Uint32
 	run   atomic.Pointer[run]
 
-	tasks  []task
-	logger *slog.Logger
+	tasks   []task
+	history History
+	logger  *slog.Logger
 
 	mu sync.Mutex
 }
 
-// New creates a Poller that uses the given logger for task output.
-func New(log *slog.Logger) *Poller {
+// New creates a Poller that uses the given logger for task output, and resumes
+// each task's schedule from h.
+func New(log *slog.Logger, h History) *Poller {
 	if log == nil {
 		log = slog.Default()
 	}
 
 	p := &Poller{
-		tasks:  make([]task, 0),
-		logger: log,
+		tasks:   make([]task, 0),
+		history: h,
+		logger:  log,
 	}
 
 	return p
@@ -160,6 +164,11 @@ func (p *Poller) stop(r *run) {
 // wait firstRun allows, then one interval after each run finishes, or
 // notReadyRetry after a run that returned errNotReady. A failed run is logged
 // and retried on schedule. A panic is logged and ends this task alone.
+//
+// Every run that finishes, failed or not, is recorded in the history, so a
+// restart waits what an uninterrupted poller would have. A run that returned
+// errNotReady did no work, and one cut short by shutdown did not finish, so
+// neither is recorded and both run again at the next start.
 func (p *Poller) runTask(r *run, t task) {
 	log := p.logger.With(
 		slog.String("task", t.Name()),
@@ -175,9 +184,7 @@ func (p *Poller) runTask(r *run, t task) {
 		}
 	}()
 
-	// Asked once: DueIn can read the store, and a second call could disagree
-	// with the interval just logged.
-	dur := firstRun(ctx, t)
+	dur := p.firstRun(ctx, t, log)
 
 	log.InfoContext(
 		ctx,
@@ -185,7 +192,7 @@ func (p *Poller) runTask(r *run, t task) {
 		slog.Duration("next_run", dur),
 	)
 
-	// A timer, because the first wait is the task's to choose and may be
+	// A timer, because the first wait comes from the history and may be
 	// zero, which a ticker cannot express and panics on.
 	timer := time.NewTimer(dur)
 	defer timer.Stop()
@@ -206,8 +213,13 @@ func (p *Poller) runTask(r *run, t task) {
 			log.InfoContext(ctx, "starting task run")
 
 			next := t.Interval()
+			err := t.Run(ctx)
 
-			switch err := t.Run(ctx); {
+			if ctx.Err() == nil && !errors.Is(err, errNotReady) {
+				p.record(ctx, t, err, log)
+			}
+
+			switch {
 			case err == nil:
 				log.InfoContext(ctx, "task run completed")
 			case errors.Is(err, errNotReady):
@@ -230,13 +242,40 @@ func (p *Poller) runTask(r *run, t task) {
 	}
 }
 
-// firstRun is how long t waits before its first run, held to a wait the poller
-// can honour.
+// firstRun is how long t waits before its first run: what is left of its
+// interval since its last recorded run, or nothing when it has none.
 //
-// A task answering with more than an interval would be idle past its own
-// schedule, and one answering with less than nothing would run at once every
-// time it was asked. Both are what a stored timestamp looks like when a clock
-// has moved, so neither is a reason to distrust the task beyond clamping it.
-func firstRun(ctx context.Context, t task) time.Duration {
-	return min(max(t.DueIn(ctx), 0), t.Interval())
+// The wait is held to between zero and one interval. A stored time in the
+// future or far in the past is what a clock that moved looks like, so neither
+// is a reason to strand the task or run it more than once.
+//
+// A history that cannot be read waits a full interval. Not knowing whether
+// the work is due is a reason to hold off: running anyway would turn a restart
+// loop into a scan loop, the one failure the stored schedule exists to
+// prevent.
+func (p *Poller) firstRun(ctx context.Context, t task, log *slog.Logger) time.Duration {
+	at, err := p.history.LastRun(ctx, t.Name())
+
+	switch {
+	case errors.Is(err, inventory.ErrNotFound):
+		return 0
+	case err != nil:
+		log.ErrorContext(ctx, "could not tell when the task last ran, holding off for one interval",
+			logger.Err(err),
+		)
+
+		return t.Interval()
+	}
+
+	return min(max(t.Interval()-time.Since(at), 0), t.Interval())
+}
+
+// record stores now as when t last finished a run, and runErr as why it
+// failed. A failure to store is logged and otherwise ignored: it costs one
+// early run after the next restart.
+func (p *Poller) record(ctx context.Context, t task, runErr error, log *slog.Logger) {
+	err := p.history.RecordRun(ctx, t.Name(), time.Now(), runErr)
+	if err != nil {
+		log.ErrorContext(ctx, "could not record the task's run", logger.Err(err))
+	}
 }

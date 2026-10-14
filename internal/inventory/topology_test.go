@@ -115,23 +115,6 @@ func TestRecordTopologyReplacesPortsAndKeepsSightings(t *testing.T) {
 	}
 }
 
-func TestLastTopologyReadAt(t *testing.T) {
-	t.Parallel()
-
-	s, _ := newStore(t)
-
-	_, err := s.LastTopologyReadAt(t.Context())
-	require.ErrorIs(t, err, ErrNotFound)
-
-	at := time.Date(2026, 9, 28, 10, 0, 0, 0, time.UTC)
-	require.NoError(t, s.RecordTopology(t.Context(), "routeros:switch_a", dbtype.SourceRouter, switchRead(at)))
-	require.NoError(t, s.RecordTopology(t.Context(), "routeros:gateway", dbtype.SourceRouter, switchRead(at.Add(time.Minute))))
-
-	got, err := s.LastTopologyReadAt(t.Context())
-	require.NoError(t, err)
-	assert.True(t, at.Add(time.Minute).Equal(got))
-}
-
 // A sighting older than the history window goes; the node that made it stays.
 func TestPruneDeletesSightingsPastRetention(t *testing.T) {
 	t.Parallel()

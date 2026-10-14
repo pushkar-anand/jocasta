@@ -204,6 +204,12 @@ type SourceCursor struct {
 	Position string `json:"position"`
 }
 
+type TaskRun struct {
+	Name       string         `json:"name"`
+	FinishedAt dbtype.Time    `json:"finished_at"`
+	Error      sql.NullString `json:"error"`
+}
+
 type TopologyNeighbour struct {
 	SourceID  int64          `json:"source_id"`
 	Port      string         `json:"port"`

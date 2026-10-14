@@ -3,11 +3,8 @@ package poller
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"time"
 
-	"github.com/pushkar-anand/build-with-go/logger"
-	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
@@ -21,61 +18,22 @@ var errNotReady = errors.New("task has nothing to work on yet")
 const notReadyRetry = time.Minute
 
 type task interface {
+	// Name identifies the task in logs, and is the key its last run is stored
+	// under: renaming a task loses its schedule once.
 	Name() string
 	Interval() time.Duration
 	Run(ctx context.Context) error
-
-	// DueIn reports how long to wait before the first run, so that a restart
-	// resumes the schedule. Zero runs now, which
-	// is the right answer for a task with nothing to resume from.
-	//
-	// It returns no error because what a task cannot tell about its own history
-	// is the task's to interpret: only it knows whether a missing record means
-	// the work has never run or that the record could not be read. The poller
-	// clamps the answer to between zero and one interval, so a stored time that
-	// is wrong in either direction cannot strand the task.
-	DueIn(ctx context.Context) time.Duration
 }
 
-// dueIn is DueIn for a task that resumes from its last successful scan of
-// kind: due interval after that scan, or now when there has been none.
-func dueIn(
-	ctx context.Context,
-	store *inventory.Store,
-	kind dbtype.ScanKind,
-	interval time.Duration,
-	log *slog.Logger,
-) time.Duration {
-	last := func(ctx context.Context) (time.Time, error) { return store.LastSuccessfulScanAt(ctx, kind) }
-
-	return resumeIn(ctx, interval, log.With(slog.String("kind", string(kind))), last)
+// History is where the poller keeps when each task last finished a run, so
+// that a restart resumes every schedule instead of running everything at once.
+type History interface {
+	// LastRun returns when task last finished a run, or an error wrapping
+	// [inventory.ErrNotFound] when it never has.
+	LastRun(ctx context.Context, task string) (time.Time, error)
+	// RecordRun stores at as when task last finished a run, and runErr as why
+	// it failed, nil when it did not.
+	RecordRun(ctx context.Context, task string, at time.Time, runErr error) error
 }
 
-// resumeIn returns what is left of interval since the time last reports, and
-// nothing when last finds no earlier run.
-//
-// A store that cannot be read waits a full interval. Not knowing whether the
-// work is due is a reason to hold off: running anyway would turn a restart
-// loop into a scan loop, the one failure the stored schedule exists to
-// prevent.
-func resumeIn(
-	ctx context.Context,
-	interval time.Duration,
-	log *slog.Logger,
-	last func(context.Context) (time.Time, error),
-) time.Duration {
-	at, err := last(ctx)
-
-	switch {
-	case errors.Is(err, inventory.ErrNotFound):
-		return 0
-	case err != nil:
-		log.ErrorContext(ctx, "could not tell when the task last ran, holding off for one interval",
-			logger.Err(err),
-		)
-
-		return interval
-	}
-
-	return interval - time.Since(at)
-}
+var _ History = (*inventory.Store)(nil)
