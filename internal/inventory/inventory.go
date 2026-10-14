@@ -1022,7 +1022,8 @@ func (s *Store) claim(ctx context.Context, p *pass, deviceID int64, ip dbtype.Ad
 // Re-deriving from every claim on each pass is what lets a name that a source
 // has renamed, or that a higher source now contradicts, be picked up. A source
 // that stops reporting a name keeps the last one it gave (see
-// UpsertDeviceSource), so a device going quiet does not lose its name.
+// UpsertDeviceSource), and a device whose claims carry no name keeps the one it
+// has, so a device going quiet does not lose its name.
 func (s *Store) applyClaim(ctx context.Context, p *pass, d *models.Device, f plugin.Fact) error {
 	if err := s.recordClaim(ctx, p, d.ID, f); err != nil {
 		return err
@@ -1043,7 +1044,7 @@ func (s *Store) applyClaim(ctx context.Context, p *pass, d *models.Device, f plu
 	}
 
 	won := resolveHostname(claims, d.Hostname.String)
-	if won.name == d.Hostname.String && won.standing == d.HostnameSource {
+	if won.name == "" || won.name == d.Hostname.String && won.standing == d.HostnameSource {
 		return nil
 	}
 

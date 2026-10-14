@@ -960,6 +960,26 @@ func TestTwoSpellingsOfOneNameAreNotARename(t *testing.T) {
 	assert.NotContains(t, eventKinds(t, conn, id), dbtype.EventHostnameChanged)
 }
 
+// A device whose claims carry no name, as after 000022 dropped the names it
+// could not place, keeps the one it has. Electing from nameless claims cleared
+// it, and the classifier lost what the name told it.
+func TestADeviceKeepsItsNameWhenNoClaimGivesOne(t *testing.T) {
+	t.Parallel()
+
+	s, conn := newStore(t)
+
+	sweep(t, s, host("192.0.2.10", macA, "host-a.example.com"))
+
+	_, err := conn.ExecContext(t.Context(), `UPDATE device_sources SET hostname = NULL, hostname_source = NULL`)
+	require.NoError(t, err)
+
+	sweep(t, s, host("192.0.2.10", macA, ""))
+
+	id := deviceIDByMAC(t, conn, macA)
+	assert.Equal(t, "host-a.example.com", queryString(t, conn, `SELECT hostname FROM devices`))
+	assert.NotContains(t, eventKinds(t, conn, id), dbtype.EventHostnameChanged)
+}
+
 // A sweep that once resolved a name and now resolves nothing has not renamed
 // the device: the claim keeps the last name, and the elected name does not fall
 // back to a lower source.
