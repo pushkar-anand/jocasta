@@ -560,8 +560,9 @@ check_netflow() {
 
 	log "listening for IPFIX from RouterOS"
 
-	# A request from this host to the router is a flow RouterOS sees on
-	# ether1, so Traffic Flow exports it.
+	# A request from this host to the router is a flow RouterOS exports. The
+	# first batch can instead hold the REST reads above, which reached it on
+	# ether1, so any flow it exports will do.
 	(
 		sleep 2
 		hcurl -o /dev/null "http://$ROUTEROS_IP/" || true
@@ -575,8 +576,8 @@ check_netflow() {
 		fail "routeros: no IPFIX flow arrived from Traffic Flow"
 	}
 
-	expect "routeros: traffic to the router is decoded from IPFIX" "$out" \
-		"flow $ip\.1:[0-9]+ -> $ip\.14:[0-9]+ proto=[0-9]+ .* exporter=$ip\.14"
+	expect "routeros: a flow it exported is decoded from IPFIX" "$out" \
+		"flow [0-9.]+:[0-9]+ -> [0-9.]+:[0-9]+ proto=[0-9]+ .* exporter=$ip\.14"
 }
 
 down() {
