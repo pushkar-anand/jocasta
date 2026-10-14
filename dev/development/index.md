@@ -70,6 +70,8 @@ After CI passes on `main`, run the following. It runs `make e2e-full` first, so 
 
 The script requires a clean working tree and a local `main` that matches `origin/main`. It checks that the tag is unused, creates an annotated tag, and pushes it to trigger the release workflow. It does not wait for the build.
 
+The GitHub release and the changelog page are written from the commit messages, as `cliff.toml` sets out. To give a minor release highlights, merge `docs/releases/<major.minor>.md` before tagging its `.0`.
+
 ## Layout
 
 - `cmd/jocasta`: CLI entry point.

@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://pushkar-anand.github.io/jocasta/dev/development/">
       
       
-        <link rel="prev" href="../cli/">
+        <link rel="prev" href="../changelog/">
       
       
       
@@ -1518,6 +1518,8 @@
       
         
       
+        
+      
     
     
     
@@ -1604,6 +1606,33 @@
     
   
   CLI
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Changelog
 
     
   </span>
@@ -2029,6 +2058,9 @@ so Chrome must be installed.</p>
 <p>The script requires a clean working tree and a local <code>main</code> that matches
 <code>origin/main</code>. It checks that the tag is unused, creates an annotated tag,
 and pushes it to trigger the release workflow. It does not wait for the build.</p>
+<p>The GitHub release and the changelog page are written from the commit
+messages, as <code>cliff.toml</code> sets out. To give a minor release highlights, merge
+<code>docs/releases/&lt;major.minor&gt;.md</code> before tagging its <code>.0</code>.</p>
 <h2 id="layout">Layout<a class="headerlink" href="#layout" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>cmd/jocasta</code>: CLI entry point.</li>
@@ -2132,7 +2164,7 @@ so their organisations and countries resolve.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../cli/" class="md-footer__link md-footer__link--prev" aria-label="Previous: CLI">
+          <a href="../changelog/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Changelog">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
@@ -2142,7 +2174,7 @@ so their organisations and countries resolve.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                CLI
+                Changelog
               </div>
             </div>
           </a>

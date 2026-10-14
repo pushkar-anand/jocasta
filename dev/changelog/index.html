@@ -1,0 +1,4416 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A network inventory that keys each device by its hardware address.">
+      
+      
+      
+        <link rel="canonical" href="https://pushkar-anand.github.io/jocasta/dev/changelog/">
+      
+      
+        <link rel="prev" href="../cli/">
+      
+      
+        <link rel="next" href="../development/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.69">
+    
+    
+      
+        <title>Changelog - Jocasta</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../assets/stylesheets/modern/main.e15858d4.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../assets/stylesheets/modern/palette.b27955a4.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-hidden="true"></label>
+    <div data-md-component="skip">
+      <a href="#__skip" class="md-skip">
+        Skip to content
+      </a>
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="./.." title="Jocasta" class="md-header__button md-logo" aria-label="Jocasta" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Jocasta
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Changelog
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+        <a href="https://github.com/pushkar-anand/jocasta" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    pushkar-anand/jocasta
+  </div>
+</a>
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="./.." title="Jocasta" class="md-nav__button md-logo" aria-label="Jocasta" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    Jocasta
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/pushkar-anand/jocasta" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    pushkar-anand/jocasta
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Jocasta
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Get started
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_2">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Get started
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Your first inventory
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  How Jocasta works
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Tour the web UI
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Install
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Configure
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Devices
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_3">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Devices
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../devices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Label, group and ignore devices
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../naming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  How names are chosen
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../classification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  How a device gets its type
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../plugins/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Plugins
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Plugins
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+              
+                
+                  
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Routers
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_2">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Routers
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/routeros/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  MikroTik RouterOS
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/openwrt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  OpenWrt
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/topology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Show what is plugged in where
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/netflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  NetFlow
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  DNS resolvers
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_4">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  DNS resolvers
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/dns/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Record what devices look up
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/technitium/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Technitium
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/pihole/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Pi-hole
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/adguard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  AdGuard Home
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../notifications/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Notifications
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_5">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Notifications
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../notifications/watch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Get told when a device goes quiet
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../notifications/webhook/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Check a webhook's signature
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../notifications/other-services/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Send to another service
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Integrations
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_6">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Integrations
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integrations/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  MCP server
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integrations/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  JSON API
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Operate
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_7">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Operate
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operate/users/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Manage users and sign-in
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operate/https/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Serve over HTTPS
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operate/backup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Back up and upgrade
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operate/troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Fix common problems
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Reference
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+            <label class="md-nav__title" for="__nav_8">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Reference
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Configuration reference
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  CLI
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Changelog
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Changelog
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#unreleased" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Unreleased
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Unreleased">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0130" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.13.0
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.13.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0124" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.12.4
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.12.4">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0123" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.12.3
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.12.3">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0122" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.12.2
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.12.2">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0121" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.12.1
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.12.1">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0120" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.12.0
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.12.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0112" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.11.2
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0111" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.11.1
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0110" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.11.0
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.11.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0101" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.10.1
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.10.1">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0100" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.10.0
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.10.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#096" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.9.6
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.9.6">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#095" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.9.5
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.9.5">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#094" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.9.4
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.9.4">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#093" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.9.3
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.9.3">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#092" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.9.2
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.9.2">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#091" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.9.1
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#090" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.9.0
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.9.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#080" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.8.0
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.8.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#070" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.7.0
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.7.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#060" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.6.0
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.6.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#051" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.5.1
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#050" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.5.0
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.5.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#040" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.4.0
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.4.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#breaking-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Breaking changes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#features_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#030" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.3.0
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.3.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#012" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.1.2
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.1.2">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes_16" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#011" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.1.1
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.1.1">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes_17" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#005" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.0.5
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.0.5">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#004" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.0.4
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.0.4">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes_18" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#003" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.0.3
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.0.3">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes_19" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#002" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.0.2
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.0.2">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_16" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes_20" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#001" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.0.1
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.0.1">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_17" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes_21" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Development
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#unreleased" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Unreleased
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Unreleased">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0130" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.13.0
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.13.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0124" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.12.4
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.12.4">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0123" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.12.3
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.12.3">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0122" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.12.2
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.12.2">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0121" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.12.1
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.12.1">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0120" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.12.0
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.12.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0112" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.11.2
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0111" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.11.1
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0110" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.11.0
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.11.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0101" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.10.1
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.10.1">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#0100" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.10.0
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.10.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#096" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.9.6
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.9.6">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#095" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.9.5
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.9.5">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#094" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.9.4
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.9.4">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#093" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.9.3
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.9.3">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#092" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.9.2
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.9.2">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#091" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.9.1
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#090" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.9.0
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.9.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#080" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.8.0
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.8.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#070" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.7.0
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.7.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#060" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.6.0
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.6.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#051" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.5.1
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#050" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.5.0
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.5.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#040" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.4.0
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.4.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#breaking-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Breaking changes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#features_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#030" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.3.0
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.3.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#012" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.1.2
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.1.2">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes_16" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#011" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.1.1
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.1.1">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes_17" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#005" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.0.5
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.0.5">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#004" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.0.4
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.0.4">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes_18" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#003" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.0.3
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.0.3">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixes_19" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#002" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.0.2
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.0.2">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_16" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes_20" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#001" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        0.0.1
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.0.1">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_17" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Features
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixes_21" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Fixes
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="./.." class="md-path__link">
+        
+  
+  <span class="md-ellipsis">
+    Jocasta
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      <li class="md-path__item">
+        <a href="../reference/configuration/" class="md-path__link">
+          
+  
+  <span class="md-ellipsis">
+    Reference
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                <a id="__skip" tabindex="-1"></a>
+                
+                  
+
+  
+    <a href="https://github.com/pushkar-anand/jocasta/edit/main/docs/changelog.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-file-pen" viewBox="0 0 24 24"><path d="M12.659 22H18a2 2 0 0 0 2-2V8a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 14 2H6a2 2 0 0 0-2 2v9.34"/><path d="M14 2v5a1 1 0 0 0 1 1h5M10.378 12.622a1 1 0 0 1 3 3.003L8.36 20.637a2 2 0 0 1-.854.506l-2.867.837a.5.5 0 0 1-.62-.62l.836-2.869a2 2 0 0 1 .506-.853z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="changelog">Changelog<a class="headerlink" href="#changelog" title="Permanent link">&para;</a></h1>
+<p>What each release changed, newest first. Before upgrading, read
+<a href="../operate/backup/">Back up and upgrade</a>.</p>
+<h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<h3 id="features">Features<a class="headerlink" href="#features" title="Permanent link">&para;</a></h3>
+<ul>
+<li>docs: Publish a changelog page written from the commit log (<a href="https://github.com/pushkar-anand/jocasta/pull/440">#440</a>)</li>
+</ul>
+<h2 id="0130">0.13.0<a class="headerlink" href="#0130" title="Permanent link">&para;</a></h2>
+<p>Released 2026-10-14.</p>
+<h3 id="features_1">Features<a class="headerlink" href="#features_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>server: Add trusted proxy config and client IP resolution (<a href="https://github.com/pushkar-anand/jocasta/pull/427">#427</a>)</li>
+<li>poller: Port-scan a device as soon as it is discovered (<a href="https://github.com/pushkar-anand/jocasta/pull/439">#439</a>)</li>
+</ul>
+<h3 id="fixes">Fixes<a class="headerlink" href="#fixes" title="Permanent link">&para;</a></h3>
+<ul>
+<li>poller: Resume each task's schedule from its own record of when it last ran (<a href="https://github.com/pushkar-anand/jocasta/pull/438">#438</a>)</li>
+</ul>
+<h2 id="0124">0.12.4<a class="headerlink" href="#0124" title="Permanent link">&para;</a></h2>
+<p>Released 2026-10-14.</p>
+<h3 id="fixes_1">Fixes<a class="headerlink" href="#fixes_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>inventory: Keep a device's name when no source's claim gives one (<a href="https://github.com/pushkar-anand/jocasta/pull/437">#437</a>)</li>
+</ul>
+<h2 id="0123">0.12.3<a class="headerlink" href="#0123" title="Permanent link">&para;</a></h2>
+<p>Released 2026-10-13.</p>
+<h3 id="fixes_2">Fixes<a class="headerlink" href="#fixes_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>inventory: List only the latest sweep's services and log no event for advertised-only ports (<a href="https://github.com/pushkar-anand/jocasta/pull/430">#430</a>)</li>
+</ul>
+<h2 id="0122">0.12.2<a class="headerlink" href="#0122" title="Permanent link">&para;</a></h2>
+<p>Released 2026-10-13.</p>
+<h3 id="fixes_3">Fixes<a class="headerlink" href="#fixes_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li>inventory: Keep each source's claim per address so a multi-address device keeps one name (<a href="https://github.com/pushkar-anand/jocasta/pull/428">#428</a>)</li>
+<li>inventory: Keep each router address's own detail and stop guessing names in the claim backfill (<a href="https://github.com/pushkar-anand/jocasta/pull/429">#429</a>)</li>
+</ul>
+<h2 id="0121">0.12.1<a class="headerlink" href="#0121" title="Permanent link">&para;</a></h2>
+<p>Released 2026-10-13.</p>
+<h3 id="fixes_4">Fixes<a class="headerlink" href="#fixes_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li>inventory: Keep a device's name stable when it has several reverse DNS names (<a href="https://github.com/pushkar-anand/jocasta/pull/426">#426</a>)</li>
+<li>scans: Drop the import scan kind nothing records (<a href="https://github.com/pushkar-anand/jocasta/pull/420">#420</a>)</li>
+</ul>
+<h2 id="0120">0.12.0<a class="headerlink" href="#0120" title="Permanent link">&para;</a></h2>
+<p>Released 2026-10-13.</p>
+<h3 id="features_2">Features<a class="headerlink" href="#features_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>inventory: Store and show the vendor's registered name (<a href="https://github.com/pushkar-anand/jocasta/pull/425">#425</a>)</li>
+</ul>
+<h3 id="fixes_5">Fixes<a class="headerlink" href="#fixes_5" title="Permanent link">&para;</a></h3>
+<ul>
+<li>asn: Drop Pvt, Pte and other regional company suffixes from short names (<a href="https://github.com/pushkar-anand/jocasta/pull/424">#424</a>)</li>
+<li>traffic: Do not count an equal-port reply as an incoming connection (<a href="https://github.com/pushkar-anand/jocasta/pull/423">#423</a>)</li>
+<li>topology: Keep a quiet device current within the online window (<a href="https://github.com/pushkar-anand/jocasta/pull/422">#422</a>)</li>
+<li>routeros: Record the router's own addresses so it is one device (<a href="https://github.com/pushkar-anand/jocasta/pull/421">#421</a>)</li>
+</ul>
+<h2 id="0112">0.11.2<a class="headerlink" href="#0112" title="Permanent link">&para;</a></h2>
+<p>Released 2026-10-12.</p>
+<h2 id="0111">0.11.1<a class="headerlink" href="#0111" title="Permanent link">&para;</a></h2>
+<p>Released 2026-10-12.</p>
+<h2 id="0110">0.11.0<a class="headerlink" href="#0110" title="Permanent link">&para;</a></h2>
+<p>Released 2026-10-11.</p>
+<h3 id="features_3">Features<a class="headerlink" href="#features_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li>plugin: Read DNS queries from Technitium (<a href="https://github.com/pushkar-anand/jocasta/pull/405">#405</a>)</li>
+<li>inventory: Record what each device looks up (<a href="https://github.com/pushkar-anand/jocasta/pull/406">#406</a>)</li>
+<li>web: Show the names a device looks up (<a href="https://github.com/pushkar-anand/jocasta/pull/407">#407</a>)</li>
+<li>mcp: Add list_dns (<a href="https://github.com/pushkar-anand/jocasta/pull/408">#408</a>)</li>
+<li>inventory: Keep the addresses each lookup was answered with (<a href="https://github.com/pushkar-anand/jocasta/pull/410">#410</a>)</li>
+<li>web: Name traffic peers by what the device looked up (<a href="https://github.com/pushkar-anand/jocasta/pull/411">#411</a>)</li>
+<li>mcp: Say what looked_up means in list_traffic (<a href="https://github.com/pushkar-anand/jocasta/pull/412">#412</a>)</li>
+<li>plugin: Read DNS queries from Pi-hole (<a href="https://github.com/pushkar-anand/jocasta/pull/414">#414</a>)</li>
+<li>plugin: Read DNS queries from AdGuard Home (<a href="https://github.com/pushkar-anand/jocasta/pull/415">#415</a>)</li>
+</ul>
+<h3 id="fixes_6">Fixes<a class="headerlink" href="#fixes_6" title="Permanent link">&para;</a></h3>
+<ul>
+<li>web: Let the 2FA page switch to a recovery code field (<a href="https://github.com/pushkar-anand/jocasta/pull/397">#397</a>)</li>
+</ul>
+<h2 id="0101">0.10.1<a class="headerlink" href="#0101" title="Permanent link">&para;</a></h2>
+<p>Released 2026-10-09.</p>
+<h3 id="fixes_7">Fixes<a class="headerlink" href="#fixes_7" title="Permanent link">&para;</a></h3>
+<ul>
+<li>auth: Limit password attempts per account (<a href="https://github.com/pushkar-anand/jocasta/pull/371">#371</a>)</li>
+<li>auth: Accept each TOTP code once (<a href="https://github.com/pushkar-anand/jocasta/pull/385">#385</a>)</li>
+<li>auth: Accept recovery codes in any case, with or without dashes (<a href="https://github.com/pushkar-anand/jocasta/pull/386">#386</a>)</li>
+<li>auth: Replace recovery codes in one transaction (<a href="https://github.com/pushkar-anand/jocasta/pull/387">#387</a>)</li>
+</ul>
+<h2 id="0100">0.10.0<a class="headerlink" href="#0100" title="Permanent link">&para;</a></h2>
+<p>Released 2026-10-06.</p>
+<h3 id="features_4">Features<a class="headerlink" href="#features_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li>auth: Let an API token expire (<a href="https://github.com/pushkar-anand/jocasta/pull/388">#388</a>)</li>
+</ul>
+<h3 id="fixes_8">Fixes<a class="headerlink" href="#fixes_8" title="Permanent link">&para;</a></h3>
+<ul>
+<li>web: Keep one-time secrets out of the session store (<a href="https://github.com/pushkar-anand/jocasta/pull/372">#372</a>)</li>
+</ul>
+<h2 id="096">0.9.6<a class="headerlink" href="#096" title="Permanent link">&para;</a></h2>
+<p>Released 2026-10-06.</p>
+<h3 id="fixes_9">Fixes<a class="headerlink" href="#fixes_9" title="Permanent link">&para;</a></h3>
+<ul>
+<li>notify: Say that ntfy priority 0 is allowed (<a href="https://github.com/pushkar-anand/jocasta/pull/375">#375</a>)</li>
+<li>auth: Match session exemptions against the path (<a href="https://github.com/pushkar-anand/jocasta/pull/373">#373</a>)</li>
+<li>notify: Do not follow redirects when sending (<a href="https://github.com/pushkar-anand/jocasta/pull/374">#374</a>)</li>
+<li>hosts: Check every source's hostname the same way (<a href="https://github.com/pushkar-anand/jocasta/pull/376">#376</a>)</li>
+<li>server: Send no CORS headers unless origins are configured (<a href="https://github.com/pushkar-anand/jocasta/pull/378">#378</a>)</li>
+</ul>
+<h2 id="095">0.9.5<a class="headerlink" href="#095" title="Permanent link">&para;</a></h2>
+<p>Released 2026-10-06.</p>
+<h3 id="fixes_10">Fixes<a class="headerlink" href="#fixes_10" title="Permanent link">&para;</a></h3>
+<ul>
+<li>plugin: Bound NetFlow counts and flow end times (<a href="https://github.com/pushkar-anand/jocasta/pull/379">#379</a>)</li>
+<li>api: Change only the fields a device PATCH sends (<a href="https://github.com/pushkar-anand/jocasta/pull/381">#381</a>)</li>
+<li>notify: Name new devices on a source's first scan (<a href="https://github.com/pushkar-anand/jocasta/pull/384">#384</a>)</li>
+<li>inventory: Count devices, not addresses, in the port scan log (<a href="https://github.com/pushkar-anand/jocasta/pull/383">#383</a>)</li>
+</ul>
+<h2 id="094">0.9.4<a class="headerlink" href="#094" title="Permanent link">&para;</a></h2>
+<p>Released 2026-10-05.</p>
+<h3 id="fixes_11">Fixes<a class="headerlink" href="#fixes_11" title="Permanent link">&para;</a></h3>
+<ul>
+<li>inventory: Match search text literally (<a href="https://github.com/pushkar-anand/jocasta/pull/382">#382</a>)</li>
+<li>plugin: Warn at startup when a router is reached over plain HTTP (<a href="https://github.com/pushkar-anand/jocasta/pull/377">#377</a>)</li>
+</ul>
+<h2 id="093">0.9.3<a class="headerlink" href="#093" title="Permanent link">&para;</a></h2>
+<p>Released 2026-10-03.</p>
+<h3 id="fixes_12">Fixes<a class="headerlink" href="#fixes_12" title="Permanent link">&para;</a></h3>
+<ul>
+<li>db: Keep a device's traffic history when its peer is deleted (<a href="https://github.com/pushkar-anand/jocasta/pull/362">#362</a>)</li>
+<li>ports: Scan only addresses on your own networks (<a href="https://github.com/pushkar-anand/jocasta/pull/365">#365</a>)</li>
+<li>ports: Keep a device's ports open when it does not answer the scan (<a href="https://github.com/pushkar-anand/jocasta/pull/364">#364</a>)</li>
+<li>auth: Keep the 2FA secret out of reach once it is on (<a href="https://github.com/pushkar-anand/jocasta/pull/366">#366</a>)</li>
+<li>inventory: Keep a folded device's curation, ports, services and traffic (<a href="https://github.com/pushkar-anand/jocasta/pull/363">#363</a>)</li>
+<li>auth: Count wrong 2FA codes per account, not per session (<a href="https://github.com/pushkar-anand/jocasta/pull/367">#367</a>)</li>
+<li>auth: Allow only one admin, even when setup runs twice at once (<a href="https://github.com/pushkar-anand/jocasta/pull/368">#368</a>)</li>
+</ul>
+<h2 id="092">0.9.2<a class="headerlink" href="#092" title="Permanent link">&para;</a></h2>
+<p>Released 2026-10-02.</p>
+<h3 id="features_5">Features<a class="headerlink" href="#features_5" title="Permanent link">&para;</a></h3>
+<ul>
+<li>web: Serve IBM Plex from this origin (<a href="https://github.com/pushkar-anand/jocasta/pull/290">#290</a>)</li>
+<li>web: Put the version and the docs in the footer (<a href="https://github.com/pushkar-anand/jocasta/pull/302">#302</a>)</li>
+</ul>
+<h3 id="fixes_13">Fixes<a class="headerlink" href="#fixes_13" title="Permanent link">&para;</a></h3>
+<ul>
+<li>auth: List tokens and users in the same order every time (<a href="https://github.com/pushkar-anand/jocasta/pull/295">#295</a>)</li>
+<li>web: Keep the top bar on one row on a phone (<a href="https://github.com/pushkar-anand/jocasta/pull/296">#296</a>)</li>
+<li>web: Name the signed-in account on error pages (<a href="https://github.com/pushkar-anand/jocasta/pull/297">#297</a>)</li>
+<li>web: Keep the logo link's name for screen readers on a phone (<a href="https://github.com/pushkar-anand/jocasta/pull/298">#298</a>)</li>
+<li>web: Raise the smallest labels from 10px to 11px (<a href="https://github.com/pushkar-anand/jocasta/pull/299">#299</a>)</li>
+<li>web: Stop repeating the page title as its first heading (<a href="https://github.com/pushkar-anand/jocasta/pull/300">#300</a>)</li>
+<li>web: Show every empty page in a card (<a href="https://github.com/pushkar-anand/jocasta/pull/303">#303</a>)</li>
+<li>web: Say "scans", not "sweep", on an empty scan log (<a href="https://github.com/pushkar-anand/jocasta/pull/304">#304</a>)</li>
+<li>inventory: Name the class in a type edit's change (<a href="https://github.com/pushkar-anand/jocasta/pull/305">#305</a>)</li>
+<li>web: Make the green and red chips readable (<a href="https://github.com/pushkar-anand/jocasta/pull/306">#306</a>)</li>
+<li>web: Underline links inside sentences (<a href="https://github.com/pushkar-anand/jocasta/pull/307">#307</a>)</li>
+<li>web: Line up select arrows and stop selects growing with their options (<a href="https://github.com/pushkar-anand/jocasta/pull/308">#308</a>)</li>
+<li>web: Keep numbers, dates and hardware addresses whole (<a href="https://github.com/pushkar-anand/jocasta/pull/309">#309</a>)</li>
+<li>web: Open the sections from a menu button on phones and tablets (<a href="https://github.com/pushkar-anand/jocasta/pull/310">#310</a>)</li>
+<li>web: Keep focus in the filters and search once typing pauses (<a href="https://github.com/pushkar-anand/jocasta/pull/311">#311</a>)</li>
+<li>web: Fold the device and traffic tables into cards on a phone (<a href="https://github.com/pushkar-anand/jocasta/pull/312">#312</a>)</li>
+<li>web: Fit the device list on a tablet and beside the rail (<a href="https://github.com/pushkar-anand/jocasta/pull/313">#313</a>)</li>
+<li>web: Keep long names and many ports inside the device list (<a href="https://github.com/pushkar-anand/jocasta/pull/314">#314</a>)</li>
+<li>web: Let phone cards reach the edges of their table card (<a href="https://github.com/pushkar-anand/jocasta/pull/315">#315</a>)</li>
+<li>web: Keep a long device name inside the top bar and its path (<a href="https://github.com/pushkar-anand/jocasta/pull/316">#316</a>)</li>
+<li>web: Fold a device's long port list and long notes (<a href="https://github.com/pushkar-anand/jocasta/pull/317">#317</a>)</li>
+<li>web: Stack port changes on a phone and line up paired cards (<a href="https://github.com/pushkar-anand/jocasta/pull/318">#318</a>)</li>
+<li>web: Cap an organisation's device list and word the data credit once (<a href="https://github.com/pushkar-anand/jocasta/pull/319">#319</a>)</li>
+<li>web: Order the map's search, map and legend on a phone (<a href="https://github.com/pushkar-anand/jocasta/pull/320">#320</a>)</li>
+<li>web: Stop the world map's "More" spilling its box (<a href="https://github.com/pushkar-anand/jocasta/pull/321">#321</a>)</li>
+<li>web: Wrap a long topology group into columns (<a href="https://github.com/pushkar-anand/jocasta/pull/322">#322</a>)</li>
+<li>web: Keep map labels readable at any zoom (<a href="https://github.com/pushkar-anand/jocasta/pull/323">#323</a>)</li>
+<li>web: Take a hidden map label out of its node's box (<a href="https://github.com/pushkar-anand/jocasta/pull/324">#324</a>)</li>
+<li>web: Count bytes on into petabytes and exabytes (<a href="https://github.com/pushkar-anand/jocasta/pull/325">#325</a>)</li>
+<li>web: Give setup the same password field as Add a user (<a href="https://github.com/pushkar-anand/jocasta/pull/326">#326</a>)</li>
+<li>web: State a viewer's one token permission instead of a radio (<a href="https://github.com/pushkar-anand/jocasta/pull/327">#327</a>)</li>
+<li>web: Mark up password forms the way password managers expect (<a href="https://github.com/pushkar-anand/jocasta/pull/328">#328</a>)</li>
+<li>web: Name the maps as groups, not images (<a href="https://github.com/pushkar-anand/jocasta/pull/329">#329</a>)</li>
+<li>web: Fold the scans table into cards on a phone (<a href="https://github.com/pushkar-anand/jocasta/pull/330">#330</a>)</li>
+<li>web: Focus the password after a failed sign-in (<a href="https://github.com/pushkar-anand/jocasta/pull/331">#331</a>)</li>
+<li>auth: Refuse a second admin (<a href="https://github.com/pushkar-anand/jocasta/pull/332">#332</a>)</li>
+<li>web: Straighten the users table lines and even the panel padding (<a href="https://github.com/pushkar-anand/jocasta/pull/333">#333</a>)</li>
+<li>web: Keep hub names off their devices on the network map (<a href="https://github.com/pushkar-anand/jocasta/pull/334">#334</a>)</li>
+</ul>
+<h2 id="091">0.9.1<a class="headerlink" href="#091" title="Permanent link">&para;</a></h2>
+<p>Released 2026-10-01.</p>
+<h2 id="090">0.9.0<a class="headerlink" href="#090" title="Permanent link">&para;</a></h2>
+<p>Released 2026-10-01.</p>
+<h3 id="features_6">Features<a class="headerlink" href="#features_6" title="Permanent link">&para;</a></h3>
+<ul>
+<li>scanner: Ask nameless hosts for their names over mDNS (<a href="https://github.com/pushkar-anand/jocasta/pull/274">#274</a>)</li>
+<li>scanner: Ask still-nameless hosts for their names over NetBIOS (<a href="https://github.com/pushkar-anand/jocasta/pull/275">#275</a>)</li>
+<li>scanner: Name the rest after their UPnP friendlyName over SSDP (<a href="https://github.com/pushkar-anand/jocasta/pull/276">#276</a>)</li>
+<li>scanner: Name the rest after the services they advertise over DNS-SD (<a href="https://github.com/pushkar-anand/jocasta/pull/277">#277</a>)</li>
+<li>inventory: Record, classify and show the services devices advertise (<a href="https://github.com/pushkar-anand/jocasta/pull/278">#278</a>)</li>
+<li>scanner: Port-scan the ports devices advertise (<a href="https://github.com/pushkar-anand/jocasta/pull/279">#279</a>)</li>
+<li>plugin: Read devices and networks from an OpenWrt router (<a href="https://github.com/pushkar-anand/jocasta/pull/282">#282</a>)</li>
+<li>plugin: Read what is plugged into an OpenWrt router (<a href="https://github.com/pushkar-anand/jocasta/pull/283">#283</a>)</li>
+<li>inventory: Tell when a watched device goes quiet or comes back (<a href="https://github.com/pushkar-anand/jocasta/pull/284">#284</a>)</li>
+<li>web: Watch a device (<a href="https://github.com/pushkar-anand/jocasta/pull/285">#285</a>)</li>
+<li>mcp: Watch devices from the API and MCP (<a href="https://github.com/pushkar-anand/jocasta/pull/286">#286</a>)</li>
+</ul>
+<h3 id="fixes_14">Fixes<a class="headerlink" href="#fixes_14" title="Permanent link">&para;</a></h3>
+<ul>
+<li>inventory: Close a moved service's old port (<a href="https://github.com/pushkar-anand/jocasta/pull/280">#280</a>)</li>
+<li>netflow: Scale IPFIX flows sampled by packet interval and space (<a href="https://github.com/pushkar-anand/jocasta/pull/288">#288</a>)</li>
+</ul>
+<h2 id="080">0.8.0<a class="headerlink" href="#080" title="Permanent link">&para;</a></h2>
+<p>Released 2026-09-30.</p>
+<h3 id="features_7">Features<a class="headerlink" href="#features_7" title="Permanent link">&para;</a></h3>
+<ul>
+<li>mcp: Explain_device, why a device has the class it has (<a href="https://github.com/pushkar-anand/jocasta/pull/272">#272</a>)</li>
+<li>notify: An http provider whose body is a template (<a href="https://github.com/pushkar-anand/jocasta/pull/271">#271</a>)</li>
+<li>inventory: Delete devices nobody curated after 90 days away (<a href="https://github.com/pushkar-anand/jocasta/pull/273">#273</a>)</li>
+</ul>
+<h2 id="070">0.7.0<a class="headerlink" href="#070" title="Permanent link">&para;</a></h2>
+<p>Released 2026-09-30.</p>
+<h3 id="features_8">Features<a class="headerlink" href="#features_8" title="Permanent link">&para;</a></h3>
+<ul>
+<li>mcp: Say where a device is plugged in and how fast, in get_device (<a href="https://github.com/pushkar-anand/jocasta/pull/268">#268</a>)</li>
+<li>mcp: Get_topology, what is plugged in where across the network (<a href="https://github.com/pushkar-anand/jocasta/pull/269">#269</a>)</li>
+</ul>
+<h2 id="060">0.6.0<a class="headerlink" href="#060" title="Permanent link">&para;</a></h2>
+<p>Released 2026-09-30.</p>
+<h3 id="features_9">Features<a class="headerlink" href="#features_9" title="Permanent link">&para;</a></h3>
+<ul>
+<li>routeros: Read the bridge, neighbour and Wi-Fi tables (<a href="https://github.com/pushkar-anand/jocasta/pull/252">#252</a>)</li>
+<li>plugin: Read what is plugged into a RouterOS device (<a href="https://github.com/pushkar-anand/jocasta/pull/253">#253</a>)</li>
+<li>db: Store what each device says is plugged into it (<a href="https://github.com/pushkar-anand/jocasta/pull/254">#254</a>)</li>
+<li>topology: Read every RouterOS device on the sweep's schedule (<a href="https://github.com/pushkar-anand/jocasta/pull/255">#255</a>)</li>
+<li>topology: Assemble the network's tree from every device's tables (<a href="https://github.com/pushkar-anand/jocasta/pull/256">#256</a>)</li>
+<li>web: Lay out the topology page top down (<a href="https://github.com/pushkar-anand/jocasta/pull/257">#257</a>)</li>
+<li>web: Show the network's topology on its own page (<a href="https://github.com/pushkar-anand/jocasta/pull/258">#258</a>)</li>
+<li>web: Show where a device is connected on its page (<a href="https://github.com/pushkar-anand/jocasta/pull/259">#259</a>)</li>
+<li>topology: Group wired devices by VLAN, with the port on each (<a href="https://github.com/pushkar-anand/jocasta/pull/260">#260</a>)</li>
+<li>routeros: Read each port's link and each Wi-Fi client's rates (<a href="https://github.com/pushkar-anand/jocasta/pull/263">#263</a>)</li>
+<li>topology: Record each link's rate and each Wi-Fi client's (<a href="https://github.com/pushkar-anand/jocasta/pull/264">#264</a>)</li>
+<li>web: Show how fast a device is connected on its page (<a href="https://github.com/pushkar-anand/jocasta/pull/265">#265</a>)</li>
+</ul>
+<h2 id="051">0.5.1<a class="headerlink" href="#051" title="Permanent link">&para;</a></h2>
+<p>Released 2026-09-28.</p>
+<h2 id="050">0.5.0<a class="headerlink" href="#050" title="Permanent link">&para;</a></h2>
+<p>Released 2026-09-25.</p>
+<h3 id="features_10">Features<a class="headerlink" href="#features_10" title="Permanent link">&para;</a></h3>
+<ul>
+<li>inventory: Announce each finished scan and what it changed (<a href="https://github.com/pushkar-anand/jocasta/pull/244">#244</a>)</li>
+<li>notify: Ntfy and signed webhook providers (<a href="https://github.com/pushkar-anand/jocasta/pull/246">#246</a>)</li>
+<li>notify: Send each finished scan from its own goroutine (<a href="https://github.com/pushkar-anand/jocasta/pull/247">#247</a>)</li>
+<li>web: Pick what each destination is sent (<a href="https://github.com/pushkar-anand/jocasta/pull/248">#248</a>)</li>
+</ul>
+<h2 id="040">0.4.0<a class="headerlink" href="#040" title="Permanent link">&para;</a></h2>
+<p>Released 2026-09-25.</p>
+<h3 id="breaking-changes">Breaking changes<a class="headerlink" href="#breaking-changes" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p>config: Group retention, location, server settings (<a href="https://github.com/pushkar-anand/jocasta/pull/205">#205</a>)</p>
+<p>a config that sets inventory.retention, auth.* or mcp.enabled, or the matching JOCASTA_ variables, now has those settings ignored. Move them to the new paths.</p>
+</li>
+</ul>
+<h3 id="features_11">Features<a class="headerlink" href="#features_11" title="Permanent link">&para;</a></h3>
+<ul>
+<li>mcp: Add triage_devices and weekly_report prompts (<a href="https://github.com/pushkar-anand/jocasta/pull/157">#157</a>)</li>
+<li>asn: Resolve internet addresses to the organisation that announces them (<a href="https://github.com/pushkar-anand/jocasta/pull/158">#158</a>)</li>
+<li>db: Add traffic_hourly and its queries (<a href="https://github.com/pushkar-anand/jocasta/pull/167">#167</a>)</li>
+<li>plugin: Decode router flow exports (<a href="https://github.com/pushkar-anand/jocasta/pull/168">#168</a>)</li>
+<li>plugin: Credit NAT replies and drop the exporter's own feed (<a href="https://github.com/pushkar-anand/jocasta/pull/169">#169</a>)</li>
+<li>traffic: Roll flows up by the hour per device (<a href="https://github.com/pushkar-anand/jocasta/pull/170">#170</a>)</li>
+<li>traffic: Prune hourly totals past their retention (<a href="https://github.com/pushkar-anand/jocasta/pull/172">#172</a>)</li>
+<li>serve: Collect traffic from configured routers (<a href="https://github.com/pushkar-anand/jocasta/pull/159">#159</a>)</li>
+<li>web: Show who a device talks to (<a href="https://github.com/pushkar-anand/jocasta/pull/160">#160</a>)</li>
+<li>web: A Traffic page for the whole network (<a href="https://github.com/pushkar-anand/jocasta/pull/161">#161</a>)</li>
+<li>mcp: Add list_traffic (<a href="https://github.com/pushkar-anand/jocasta/pull/162">#162</a>)</li>
+<li>traffic: Keep connection attempts, counted per peer (<a href="https://github.com/pushkar-anand/jocasta/pull/164">#164</a>)</li>
+<li>web,mcp: Show devices probing the network (<a href="https://github.com/pushkar-anand/jocasta/pull/165">#165</a>)</li>
+<li>web: Tab traffic by network segment (<a href="https://github.com/pushkar-anand/jocasta/pull/166">#166</a>)</li>
+<li>db: Add broadcasts_hourly (<a href="https://github.com/pushkar-anand/jocasta/pull/176">#176</a>)</li>
+<li>traffic: Record the broadcasts and multicast a device sends (<a href="https://github.com/pushkar-anand/jocasta/pull/177">#177</a>)</li>
+<li>web: Show what a device broadcasts (<a href="https://github.com/pushkar-anand/jocasta/pull/178">#178</a>)</li>
+<li>db: Count connections by which side started them (<a href="https://github.com/pushkar-anand/jocasta/pull/180">#180</a>)</li>
+<li>traffic: Count connections the peer started (<a href="https://github.com/pushkar-anand/jocasta/pull/181">#181</a>)</li>
+<li>web: Show what was reached from the internet (<a href="https://github.com/pushkar-anand/jocasta/pull/182">#182</a>)</li>
+<li>plugin: Report the exporter and the address NAT sent a flow from (<a href="https://github.com/pushkar-anand/jocasta/pull/183">#183</a>)</li>
+<li>db: Add probes_hourly and outside_addresses (<a href="https://github.com/pushkar-anand/jocasta/pull/184">#184</a>)</li>
+<li>traffic: Record what the internet tries on the network (<a href="https://github.com/pushkar-anand/jocasta/pull/185">#185</a>)</li>
+<li>web,mcp: Show what the internet tried on the network (<a href="https://github.com/pushkar-anand/jocasta/pull/186">#186</a>)</li>
+<li>web: Show who opened each row's connections, and filter by it (<a href="https://github.com/pushkar-anand/jocasta/pull/188">#188</a>)</li>
+<li>traffic: Keep the last 15 minutes of activity in memory (<a href="https://github.com/pushkar-anand/jocasta/pull/189">#189</a>)</li>
+<li>db: Add the traffic map queries (<a href="https://github.com/pushkar-anand/jocasta/pull/190">#190</a>)</li>
+<li>inventory: Build the traffic map (<a href="https://github.com/pushkar-anand/jocasta/pull/191">#191</a>)</li>
+<li>web: Lay out the network map (<a href="https://github.com/pushkar-anand/jocasta/pull/192">#192</a>)</li>
+<li>web: A Map page that redraws itself each minute (<a href="https://github.com/pushkar-anand/jocasta/pull/193">#193</a>)</li>
+<li>scanner: Name port 8883 as MQTT over TLS (<a href="https://github.com/pushkar-anand/jocasta/pull/194">#194</a>)</li>
+<li>geo: Resolve internet addresses to a country (<a href="https://github.com/pushkar-anand/jocasta/pull/196">#196</a>)</li>
+<li>geo: Embed a world outline (<a href="https://github.com/pushkar-anand/jocasta/pull/197">#197</a>)</li>
+<li>db: Add the world map query (<a href="https://github.com/pushkar-anand/jocasta/pull/198">#198</a>)</li>
+<li>inventory: Internet traffic by country (<a href="https://github.com/pushkar-anand/jocasta/pull/199">#199</a>)</li>
+<li>web: A World view on the Map page (<a href="https://github.com/pushkar-anand/jocasta/pull/200">#200</a>)</li>
+<li>config: Name the country the network is in (<a href="https://github.com/pushkar-anand/jocasta/pull/202">#202</a>)</li>
+<li>web: Find the network's country from the router's outside address (<a href="https://github.com/pushkar-anand/jocasta/pull/203">#203</a>)</li>
+<li>web: Draw lines from home on the world map (<a href="https://github.com/pushkar-anand/jocasta/pull/204">#204</a>)</li>
+</ul>
+<h3 id="fixes_15">Fixes<a class="headerlink" href="#fixes_15" title="Permanent link">&para;</a></h3>
+<ul>
+<li>traffic: Keep only conversations, and name the service a peer offers (<a href="https://github.com/pushkar-anand/jocasta/pull/171">#171</a>)</li>
+<li>traffic: A knock's late answer is not a conversation (<a href="https://github.com/pushkar-anand/jocasta/pull/174">#174</a>)</li>
+<li>traffic: Credit ping replies that land a flush late (<a href="https://github.com/pushkar-anand/jocasta/pull/175">#175</a>)</li>
+<li>geo: Name each country after itself, not a territory filed under its code (<a href="https://github.com/pushkar-anand/jocasta/pull/207">#207</a>)</li>
+<li>Use documentation addresses in CLI fixtures, drop "X, not Y" copy (<a href="https://github.com/pushkar-anand/jocasta/pull/210">#210</a>)</li>
+<li>cli: Use the configured store in scan, ports and plugin run (<a href="https://github.com/pushkar-anand/jocasta/pull/217">#217</a>)</li>
+</ul>
+<h2 id="030">0.3.0<a class="headerlink" href="#030" title="Permanent link">&para;</a></h2>
+<p>Released 2026-09-23.</p>
+<h3 id="features_12">Features<a class="headerlink" href="#features_12" title="Permanent link">&para;</a></h3>
+<ul>
+<li>auth: Add TOTP two-factor authentication to login (<a href="https://github.com/pushkar-anand/jocasta/pull/143">#143</a>)</li>
+<li>inventory: Prune events and scans past a retention window (<a href="https://github.com/pushkar-anand/jocasta/pull/146">#146</a>)</li>
+<li>mcp: Serve the inventory to AI agents over MCP (<a href="https://github.com/pushkar-anand/jocasta/pull/147">#147</a>)</li>
+<li>mcp: Answer failures with the API's problem documents (<a href="https://github.com/pushkar-anand/jocasta/pull/148">#148</a>)</li>
+<li>mcp: Add get_device and list_events tools (<a href="https://github.com/pushkar-anand/jocasta/pull/149">#149</a>)</li>
+<li>mcp: Add list_networks, get_network and list_devices network and type filters (<a href="https://github.com/pushkar-anand/jocasta/pull/150">#150</a>)</li>
+<li>mcp: Add get_stats and list_groups tools (<a href="https://github.com/pushkar-anand/jocasta/pull/151">#151</a>)</li>
+<li>mcp: Add get_port_overview tool (<a href="https://github.com/pushkar-anand/jocasta/pull/152">#152</a>)</li>
+<li>mcp: Add list_scans tool (<a href="https://github.com/pushkar-anand/jocasta/pull/153">#153</a>)</li>
+<li>mcp: Add update_device_curation, the first write tool (<a href="https://github.com/pushkar-anand/jocasta/pull/154">#154</a>)</li>
+</ul>
+<h2 id="012">0.1.2<a class="headerlink" href="#012" title="Permanent link">&para;</a></h2>
+<p>Released 2026-09-09.</p>
+<h3 id="features_13">Features<a class="headerlink" href="#features_13" title="Permanent link">&para;</a></h3>
+<ul>
+<li>auth: Configurable session lifetime, idle timeout and cookie-secure (<a href="https://github.com/pushkar-anand/jocasta/pull/141">#141</a>)</li>
+</ul>
+<h3 id="fixes_16">Fixes<a class="headerlink" href="#fixes_16" title="Permanent link">&para;</a></h3>
+<ul>
+<li>docker: Let a mounted config set server.port (<a href="https://github.com/pushkar-anand/jocasta/pull/142">#142</a>)</li>
+</ul>
+<h2 id="011">0.1.1<a class="headerlink" href="#011" title="Permanent link">&para;</a></h2>
+<p>Released 2026-09-09.</p>
+<h3 id="features_14">Features<a class="headerlink" href="#features_14" title="Permanent link">&para;</a></h3>
+<ul>
+<li>web: Type scale, section headings, and a skip link (<a href="https://github.com/pushkar-anand/jocasta/pull/132">#132</a>)</li>
+<li>web: One focus rule for content htmx swaps in (<a href="https://github.com/pushkar-anand/jocasta/pull/133">#133</a>)</li>
+<li>web: Theme toggle reflects the theme; exact time on demand (<a href="https://github.com/pushkar-anand/jocasta/pull/134">#134</a>)</li>
+<li>web: Give presence dots a spoken status and explain the observation window (<a href="https://github.com/pushkar-anand/jocasta/pull/135">#135</a>)</li>
+<li>web: Surface collection health on the overview (<a href="https://github.com/pushkar-anand/jocasta/pull/136">#136</a>)</li>
+<li>web: Lead the device page with facts; keep a row's identity while quick-editing (<a href="https://github.com/pushkar-anand/jocasta/pull/137">#137</a>)</li>
+<li>web: Clearer network, source, ports and scan pages (<a href="https://github.com/pushkar-anand/jocasta/pull/138">#138</a>)</li>
+<li>auth: Persist web sessions in SQLite (<a href="https://github.com/pushkar-anand/jocasta/pull/140">#140</a>)</li>
+</ul>
+<h3 id="fixes_17">Fixes<a class="headerlink" href="#fixes_17" title="Permanent link">&para;</a></h3>
+<ul>
+<li>web: Comfortable touch targets and a repaired inline edit form on mobile (<a href="https://github.com/pushkar-anand/jocasta/pull/139">#139</a>)</li>
+</ul>
+<h2 id="005">0.0.5<a class="headerlink" href="#005" title="Permanent link">&para;</a></h2>
+<p>Released 2026-09-08.</p>
+<h3 id="features_15">Features<a class="headerlink" href="#features_15" title="Permanent link">&para;</a></h3>
+<ul>
+<li>web: Redesign Users and add a topbar account menu (<a href="https://github.com/pushkar-anand/jocasta/pull/130">#130</a>)</li>
+<li>web: Redesign the API tokens page around the shared settings shell (<a href="https://github.com/pushkar-anand/jocasta/pull/131">#131</a>)</li>
+</ul>
+<h2 id="004">0.0.4<a class="headerlink" href="#004" title="Permanent link">&para;</a></h2>
+<p>Released 2026-09-07.</p>
+<h3 id="fixes_18">Fixes<a class="headerlink" href="#fixes_18" title="Permanent link">&para;</a></h3>
+<ul>
+<li>web: Raise text, link, and badge contrast to WCAG AA (<a href="https://github.com/pushkar-anand/jocasta/pull/126">#126</a>)</li>
+<li>web: Merge device-list columns and add a mobile card layout (<a href="https://github.com/pushkar-anand/jocasta/pull/129">#129</a>)</li>
+</ul>
+<h2 id="003">0.0.3<a class="headerlink" href="#003" title="Permanent link">&para;</a></h2>
+<p>Released 2026-09-07.</p>
+<h3 id="fixes_19">Fixes<a class="headerlink" href="#fixes_19" title="Permanent link">&para;</a></h3>
+<ul>
+<li>ci: Add <code>id-token</code> write permission to release workflow (<a href="https://github.com/pushkar-anand/jocasta/pull/124">#124</a>)</li>
+</ul>
+<h2 id="002">0.0.2<a class="headerlink" href="#002" title="Permanent link">&para;</a></h2>
+<p>Released 2026-09-07.</p>
+<h3 id="features_16">Features<a class="headerlink" href="#features_16" title="Permanent link">&para;</a></h3>
+<ul>
+<li>db: Record the open ports on a device (<a href="https://github.com/pushkar-anand/jocasta/pull/79">#79</a>)</li>
+<li>scanner: TCP connect port scan (<a href="https://github.com/pushkar-anand/jocasta/pull/80">#80</a>)</li>
+<li>inventory: Ingest a port scan (<a href="https://github.com/pushkar-anand/jocasta/pull/81">#81</a>)</li>
+<li>poller: Run port scans on their own schedule (<a href="https://github.com/pushkar-anand/jocasta/pull/82">#82</a>)</li>
+<li>web: Show a device's open ports (<a href="https://github.com/pushkar-anand/jocasta/pull/83">#83</a>)</li>
+<li>scanner: Make port-scan concurrency configurable (<a href="https://github.com/pushkar-anand/jocasta/pull/86">#86</a>)</li>
+<li>classify: Rules-based device-type classification (<a href="https://github.com/pushkar-anand/jocasta/pull/87">#87</a>)</li>
+<li>inventory: Classify device types and show them as icons (<a href="https://github.com/pushkar-anand/jocasta/pull/88">#88</a>)</li>
+<li>web: Show open ports in the device list (<a href="https://github.com/pushkar-anand/jocasta/pull/90">#90</a>)</li>
+<li>web: Show a device's network in the list (<a href="https://github.com/pushkar-anand/jocasta/pull/91">#91</a>)</li>
+<li>web: Show the classifier's confidence on the device panel (<a href="https://github.com/pushkar-anand/jocasta/pull/93">#93</a>)</li>
+<li>web: Let the change log be narrowed to one device (<a href="https://github.com/pushkar-anand/jocasta/pull/94">#94</a>)</li>
+<li>web: Filter and sort devices by type (<a href="https://github.com/pushkar-anand/jocasta/pull/95">#95</a>)</li>
+<li>web: Give the network page the device filters and paging (<a href="https://github.com/pushkar-anand/jocasta/pull/96">#96</a>)</li>
+<li>web: Show the match count and a way to clear the filter (<a href="https://github.com/pushkar-anand/jocasta/pull/97">#97</a>)</li>
+<li>api: Add device type validation and extend filtering by type</li>
+<li>web: Update brandmark logo and favicon (<a href="https://github.com/pushkar-anand/jocasta/pull/103">#103</a>)</li>
+<li>web: Add ports and services overview (<a href="https://github.com/pushkar-anand/jocasta/pull/102">#102</a>)</li>
+<li>server: Add configurable CORS support via rs/cors (<a href="https://github.com/pushkar-anand/jocasta/pull/106">#106</a>)</li>
+<li>server: Cap request body size on PATCH routes (<a href="https://github.com/pushkar-anand/jocasta/pull/107">#107</a>)</li>
+<li>Session-based login, API tokens, and first-run user setup (<a href="https://github.com/pushkar-anand/jocasta/pull/108">#108</a>)</li>
+<li>web: Role-based authorization (read / read_write / admin) (<a href="https://github.com/pushkar-anand/jocasta/pull/118">#118</a>)</li>
+</ul>
+<h3 id="fixes_20">Fixes<a class="headerlink" href="#fixes_20" title="Permanent link">&para;</a></h3>
+<ul>
+<li>poller: Retry the port scan soon when discovery has not run yet (<a href="https://github.com/pushkar-anand/jocasta/pull/84">#84</a>)</li>
+<li>inventory: Keep ignored devices out of network counts (<a href="https://github.com/pushkar-anand/jocasta/pull/92">#92</a>)</li>
+<li>web: Keep the device type from overflowing its column (<a href="https://github.com/pushkar-anand/jocasta/pull/98">#98</a>)</li>
+<li>Gofmt in cursor test (<a href="https://github.com/pushkar-anand/jocasta/pull/99">#99</a>)</li>
+<li>db: Reset dbVersion to 1</li>
+<li>api: Pass JSONWriter in test handler constructor (<a href="https://github.com/pushkar-anand/jocasta/pull/104">#104</a>)</li>
+<li>test: Repair health assertion, drop stale migration round-trip test (<a href="https://github.com/pushkar-anand/jocasta/pull/105">#105</a>)</li>
+<li>web: Render form parse and validation failures as a page (<a href="https://github.com/pushkar-anand/jocasta/pull/110">#110</a>)</li>
+<li>web: Redirect after creating a user or a token (<a href="https://github.com/pushkar-anand/jocasta/pull/111">#111</a>)</li>
+<li>web: Swap the whole token list on a revoke, not the one row (<a href="https://github.com/pushkar-anand/jocasta/pull/112">#112</a>)</li>
+<li>web: Show the Users link only to an admin, and the refresh line only when it refreshes (<a href="https://github.com/pushkar-anand/jocasta/pull/113">#113</a>)</li>
+<li>web: Sign out with a POST, and fix two smaller UI faults (<a href="https://github.com/pushkar-anand/jocasta/pull/114">#114</a>)</li>
+<li>web: Topbar current-page marker, and three small presentation fixes (<a href="https://github.com/pushkar-anand/jocasta/pull/115">#115</a>)</li>
+<li>web: Keep mobile activity descriptions readable (<a href="https://github.com/pushkar-anand/jocasta/pull/119">#119</a>)</li>
+<li>web: Preserve user creation inputs after duplicate errors (<a href="https://github.com/pushkar-anand/jocasta/pull/120">#120</a>)</li>
+<li>web: Contain mobile navigation and header controls (<a href="https://github.com/pushkar-anand/jocasta/pull/121">#121</a>)</li>
+<li>ci: Valid golangci-lint v2 config, and clear the findings it surfaces (<a href="https://github.com/pushkar-anand/jocasta/pull/123">#123</a>)</li>
+<li>web: Show device search failures and retry (<a href="https://github.com/pushkar-anand/jocasta/pull/122">#122</a>)</li>
+</ul>
+<h2 id="001">0.0.1<a class="headerlink" href="#001" title="Permanent link">&para;</a></h2>
+<p>Released 2026-09-03.</p>
+<h3 id="features_17">Features<a class="headerlink" href="#features_17" title="Permanent link">&para;</a></h3>
+<ul>
+<li>proj: Init Go module with basic project</li>
+<li>setup: Integrate sqlc and setup dependencies</li>
+<li>setup: Add HTTP server with basic liveness endpoint</li>
+<li>db: Add initial database setup</li>
+<li>server: Refactor server setup and add API handler with health endpoint</li>
+<li>config: Integrate configuration management with koanf</li>
+<li>web: Add web handler with template rendering and static file support</li>
+<li>scanner: ICMP host discovery (<a href="https://github.com/pushkar-anand/jocasta/pull/13">#13</a>)</li>
+<li>oui: Resolve MAC addresses to their registered vendor (<a href="https://github.com/pushkar-anand/jocasta/pull/17">#17</a>)</li>
+<li>cli: Add CLI framework and commands for <code>serve</code> and <code>scan</code> (<a href="https://github.com/pushkar-anand/jocasta/pull/22">#22</a>)</li>
+<li>db: Device inventory schema and sweep ingest (<a href="https://github.com/pushkar-anand/jocasta/pull/25">#25</a>)</li>
+<li>inventory: Read the device inventory back out (<a href="https://github.com/pushkar-anand/jocasta/pull/29">#29</a>)</li>
+<li>api: Serve the inventory as JSON (<a href="https://github.com/pushkar-anand/jocasta/pull/30">#30</a>)</li>
+<li>web: Overview page, htmx shell and vendored assets (<a href="https://github.com/pushkar-anand/jocasta/pull/31">#31</a>)</li>
+<li>web: Device list, device detail, and the two logs (<a href="https://github.com/pushkar-anand/jocasta/pull/32">#32</a>)</li>
+<li>Curate a device's label, notes, group, type and ignored flag (<a href="https://github.com/pushkar-anand/jocasta/pull/33">#33</a>)</li>
+<li>Add poller for regaulr scanning (<a href="https://github.com/pushkar-anand/jocasta/pull/42">#42</a>)</li>
+<li>poller: Run a task at start when its work is already due (<a href="https://github.com/pushkar-anand/jocasta/pull/43">#43</a>)</li>
+<li>poller: Add logging for task scheduling and execution lifecycle (<a href="https://github.com/pushkar-anand/jocasta/pull/44">#44</a>)</li>
+<li>web: Rebuild the UI around a sidebar shell (<a href="https://github.com/pushkar-anand/jocasta/pull/45">#45</a>)</li>
+<li>routeros: Read the ARP and DHCP lease tables over REST (<a href="https://github.com/pushkar-anand/jocasta/pull/47">#47</a>)</li>
+<li>plugin: Enrich devices from the router's ARP and DHCP tables (<a href="https://github.com/pushkar-anand/jocasta/pull/48">#48</a>)</li>
+<li>Add dark mode toggle (<a href="https://github.com/pushkar-anand/jocasta/pull/52">#52</a>)</li>
+<li>db: Record what each source claims about a device (<a href="https://github.com/pushkar-anand/jocasta/pull/55">#55</a>)</li>
+<li>plugin: Read devices from configured RouterOS sources (<a href="https://github.com/pushkar-anand/jocasta/pull/56">#56</a>)</li>
+<li>web: Show what each source says about a device (<a href="https://github.com/pushkar-anand/jocasta/pull/57">#57</a>)</li>
+<li>plugins: Read the segments a router serves so the overview can name them (<a href="https://github.com/pushkar-anand/jocasta/pull/58">#58</a>)</li>
+<li>web: Filter devices by network, and give each network a page (<a href="https://github.com/pushkar-anand/jocasta/pull/60">#60</a>)</li>
+<li>web: Name the network each of a device's addresses is on (<a href="https://github.com/pushkar-anand/jocasta/pull/61">#61</a>)</li>
+<li>web: Page the device list (<a href="https://github.com/pushkar-anand/jocasta/pull/62">#62</a>)</li>
+<li>web: Show when a device was last checked, not only last seen (<a href="https://github.com/pushkar-anand/jocasta/pull/77">#77</a>)</li>
+</ul>
+<h3 id="fixes_21">Fixes<a class="headerlink" href="#fixes_21" title="Permanent link">&para;</a></h3>
+<ul>
+<li>gen: Run pinned tools through go tool (<a href="https://github.com/pushkar-anand/jocasta/pull/11">#11</a>)</li>
+<li>test: Thread the injected database through handler tests (<a href="https://github.com/pushkar-anand/jocasta/pull/27">#27</a>)</li>
+<li>scanner: Drop redundant embedded host selector (<a href="https://github.com/pushkar-anand/jocasta/pull/54">#54</a>)</li>
+<li>web: Keep the theme toggle reachable from every screen (<a href="https://github.com/pushkar-anand/jocasta/pull/59">#59</a>)</li>
+<li>web: Lay the device filters out for a narrow screen (<a href="https://github.com/pushkar-anand/jocasta/pull/64">#64</a>)</li>
+<li>poller: Ask a task once when its first run is due (<a href="https://github.com/pushkar-anand/jocasta/pull/68">#68</a>)</li>
+<li>inventory: Retire an address a device has moved off (<a href="https://github.com/pushkar-anand/jocasta/pull/72">#72</a>)</li>
+<li>inventory: Keep a source's last name when it goes quiet (<a href="https://github.com/pushkar-anand/jocasta/pull/74">#74</a>)</li>
+<li>routeros: A stale ARP entry is not a sighting (<a href="https://github.com/pushkar-anand/jocasta/pull/75">#75</a>)</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-circle-arrow-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4M12 16V8"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../cli/" class="md-footer__link md-footer__link--prev" aria-label="Previous: CLI">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                CLI
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../development/" class="md-footer__link md-footer__link--next" aria-label="Next: Development">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Development
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog" role="status" aria-atomic="true">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      
+        
+        
+          
+        
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":["content.action.copy","content.action.edit","content.code.copy","content.tabs.link","navigation.footer","navigation.indexes","navigation.instant","navigation.path","navigation.sections","navigation.top","search.highlight","toc.follow"],"redirect":"../redirect.json","search":"../assets/javascripts/workers/search.7d14d953.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","clipboard.error":"Could not copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":{"default":"latest","provider":"mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.8b1c90bd.min.js"></script>
+      
+    
+  </body>
+</html>
