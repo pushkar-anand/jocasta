@@ -56,3 +56,4 @@ docs/screenshots/
 # Docs site build output
 /site/
 /docs/changelog.md
+/docs/operate/upgrading.md

@@ -2,7 +2,9 @@
 # the template writes the GitHub release body for the release workflow. With
 # CHANGELOG_TARGET=docs, as `make changelog` runs it, it writes the docs
 # site's changelog page: every release, with its date and any highlights from
-# docs/releases/<major.minor>.md.
+# docs/releases/<major.minor>.md. With CHANGELOG_TARGET=upgrading it writes
+# the upgrade notes page: only the releases with a breaking change or upgrade
+# note, and only those.
 #
 # A breaking change or upgrade note is any paragraph of a commit message that
 # starts with "BREAKING CHANGE:" or "Upgrade-note:". The templates read each
@@ -12,11 +14,18 @@
 
 [changelog]
 header = """
-{% if get_env(name="CHANGELOG_TARGET", default="") == "docs" -%}
+{% set target = get_env(name="CHANGELOG_TARGET", default="") -%}
+{% if target == "docs" -%}
 # Changelog
 
-What each release changed, newest first. Before upgrading, read
-[Back up and upgrade](operate/backup.md).
+What each release changed, newest first. Before upgrading, read the
+[upgrade notes](operate/upgrading.md).
+{% elif target == "upgrading" -%}
+# Upgrade notes
+
+What to change or expect when moving to a release, newest first. Read every
+section after the release you run, and [back up](backup.md#back-up) first.
+A release not listed here needs only the [usual steps](backup.md#upgrade).
 {% endif -%}
 """
 body = """
@@ -33,16 +42,25 @@ body = """
 {% endfor -%}
 {% endmacro notes -%}
 
-{% set docs = get_env(name="CHANGELOG_TARGET", default="") == "docs" -%}
+{% set target = get_env(name="CHANGELOG_TARGET", default="") -%}
+{% set docs = target == "docs" -%}
+{% set upgrading = target == "upgrading" -%}
 {% if version -%}
 {% set minor = version | trim_start_matches(pat="v") | split(pat=".") | slice(end=2) | join(sep=".") -%}
 {% endif -%}
-{% if docs %}
+{% set breaking = commits | filter(attribute="breaking", value=true) -%}
+{% set_global upgrade = false -%}
+{% for commit in commits -%}
+{% if commit.raw_message is containing("\n\nUpgrade-note:") %}{% set_global upgrade = true %}{% endif -%}
+{% endfor -%}
+
+{% if not upgrading or breaking or upgrade -%}
+{% if docs or upgrading %}
 {% if version -%}
 ## {{ version | trim_start_matches(pat="v") }}
 
 Released {{ timestamp | date(format="%Y-%m-%d") }}.
-{% if version is ending_with(".0") %}
+{% if docs and version is ending_with(".0") %}
 --8<-- "docs/releases/{{ minor }}.md"
 {% endif -%}
 {% else -%}
@@ -50,7 +68,6 @@ Released {{ timestamp | date(format="%Y-%m-%d") }}.
 {% endif -%}
 {% endif -%}
 
-{% set breaking = commits | filter(attribute="breaking", value=true) -%}
 {% if breaking %}
 ### Breaking changes
 {% for commit in breaking %}
@@ -58,15 +75,16 @@ Released {{ timestamp | date(format="%Y-%m-%d") }}.
 {%- endfor %}
 {% endif -%}
 
-{% for commit in commits -%}
-{% if commit.raw_message is containing("\n\nUpgrade-note:") -%}
-{% if not upgrade_heading %}{% set_global upgrade_heading = true %}
+{% if upgrade %}
 ### Upgrade notes
-{% endif %}
+{% for commit in commits -%}
+{% if commit.raw_message is containing("\n\nUpgrade-note:") %}
 {{ self::entry(commit=commit) }}{{ self::notes(commit=commit, token="Upgrade-note:") }}
 {%- endif %}
 {%- endfor %}
+{% endif -%}
 
+{% if not upgrading -%}
 {% for group, commits in commits | filter(attribute="breaking", value=false) | group_by(attribute="group") -%}
 {% if group != "Other" %}
 ### {{ group | striptags | trim }}
@@ -75,8 +93,10 @@ Released {{ timestamp | date(format="%Y-%m-%d") }}.
 {%- endfor %}
 {% endif -%}
 {% endfor %}
-{% if version and not docs %}
-[Changelog and upgrade notes](https://pushkar-anand.github.io/jocasta/{{ minor }}/changelog/)
+{% endif -%}
+{% if version and not docs and not upgrading %}
+[Changelog](https://pushkar-anand.github.io/jocasta/{{ minor }}/changelog/) · [Upgrade notes](https://pushkar-anand.github.io/jocasta/{{ minor }}/operate/upgrading/)
+{% endif -%}
 {% endif -%}
 """
 # trim would strip the indent that keeps a note inside its list item, so the

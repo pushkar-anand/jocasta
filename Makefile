@@ -74,8 +74,9 @@ MIKE_REF ?= 2d4ad799442f4592db8ad53b179bfb33db8c69ac
 # shared go-release workflow.
 GIT_CLIFF_VERSION ?= 2.14.2
 
-changelog: ## Write the changelog page from the commit log and tags.
+changelog: ## Write the changelog and upgrade notes pages from the commit log and tags.
 	CHANGELOG_TARGET=docs uvx git-cliff@$(GIT_CLIFF_VERSION) --output docs/changelog.md
+	CHANGELOG_TARGET=upgrading uvx git-cliff@$(GIT_CLIFF_VERSION) --output docs/operate/upgrading.md
 
 docs: changelog ## Build the docs site into site/ and check every link and anchor.
 	uvx zensical@$(ZENSICAL_VERSION) build --clean --strict
