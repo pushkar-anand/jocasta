@@ -68,7 +68,7 @@
                                     <span class="dim">{{ count .Lookups }} {{ if eq .Lookups 1 }}lookup{{ else }}lookups{{ end }}{{ if .Blocked }}, {{ count .Blocked }} blocked{{ end }}{{ if .Failed }}, {{ count .Failed }} failed{{ end }}</span></li>
                                 {{- end }}
                                 {{- with .Hidden }}
-                                <li class="dim">and {{ count . }} more {{ if eq . 1 }}name{{ else }}names{{ end }} with fewer lookups.</li>
+                                <li class="dim">and {{ count . }} more {{ if eq . 1 }}name{{ else }}names{{ end }}.</li>
                                 {{- end }}
                             </ul>
                         </details>
@@ -83,7 +83,7 @@
         </div>
     </div>
     {{- with .Hidden }}
-    <p class="note">and {{ count . }} more {{ if eq . 1 }}domain{{ else }}domains{{ end }} with fewer lookups.</p>
+    <p class="note">and {{ count . }} more {{ if eq . 1 }}domain{{ else }}domains{{ end }}.</p>
     {{- end }}
     {{- end }}
 </div>

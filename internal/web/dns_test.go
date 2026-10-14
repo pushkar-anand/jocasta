@@ -146,6 +146,6 @@ func TestDevicePageCutsLongListsAndCountsTheRest(t *testing.T) {
 	assert.Contains(t, body, `<span class="dim">25 names</span>`)
 	assert.Contains(t, body, `<span class="mono">edge-19.example.net</span>`)
 	assert.NotContains(t, body, `<span class="mono">edge-20.example.net</span>`)
-	assert.Contains(t, body, `<li class="dim">and 5 more names with fewer lookups.</li>`)
-	assert.Contains(t, body, `<p class="note">and 2 more domains with fewer lookups.</p>`)
+	assert.Contains(t, body, `<li class="dim">and 5 more names.</li>`)
+	assert.Contains(t, body, `<p class="note">and 2 more domains.</p>`)
 }
