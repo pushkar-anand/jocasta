@@ -7,6 +7,7 @@ make build          # build to bin/
 make test           # go test ./...
 make e2e            # browser tests a pull request must pass (needs Chrome)
 make e2e-full       # browser tests on every screen and account
+make smoke          # read OpenWrt, Pi-hole and AdGuard Home in containers (needs Docker)
 make lint           # golangci-lint (installs it to bin/ on first run)
 make dev            # hot-reload server via air
 make gen            # regenerate sqlc models
@@ -65,6 +66,40 @@ E2E_AUDIT=$PWD/tmp/audit TMPDIR=$PWD/tmp go test -tags e2e -run TestAudit -timeo
 
 `E2E_FIXTURES`, `E2E_ROLES`, `E2E_VIEWPORTS`, `E2E_THEMES` and `E2E_PAGES`
 narrow either run to a comma-separated list.
+
+## Smoke tests
+
+`make smoke` reads real OpenWrt, Pi-hole and AdGuard Home servers, each in a
+container, and checks what jocasta says about them. The plugin tests answer
+from canned replies; this catches a server that has changed what it sends.
+It needs Docker and Go, and CI does not run it: run it before opening a pull
+request that changes one of these plugins or the client under `pkg/`.
+
+`scripts/smoke/smoke.sh up` starts the three servers on a network of their
+own, `198.51.100.0/24`. It sets OpenWrt up as
+[the OpenWrt page](plugins/openwrt.md) describes, with the ACL in
+`docs/openwrt/jocasta.json`, and gives it leases and static hosts. It blocks
+a name on each resolver, adds a rewrite to AdGuard Home and sends lookups to
+both. Each server's web interface is published on `127.0.0.1`, which jocasta
+reads.
+
+`scripts/smoke/smoke.sh check` runs `jocasta plugin run` against each server,
+checks the rows it prints, and runs `TestReadLive` in `pkg/openwrt`. It
+writes the config it used to `$TMPDIR/jocasta-smoke/jocasta.yaml`, so you can
+point `jocasta serve` at the same servers. `make smoke-down` removes them.
+
+To change a setting, set the matching variable:
+
+- `SMOKE_REGISTRY` pulls the images from a mirror, such as `mirror.gcr.io`,
+  when Docker Hub limits your pulls.
+- `SMOKE_PIHOLE_IMAGE`, `SMOKE_ADGUARD_IMAGE` and `SMOKE_OPENWRT_IMAGE` test
+  another release.
+- `SMOKE_PIHOLE_PORT`, `SMOKE_ADGUARD_PORT`, `SMOKE_ADGUARD_SETUP_PORT` and
+  `SMOKE_OPENWRT_PORT` move the published ports, 18081 to 18084 by default.
+
+netifd cannot create the `br-lan` bridge inside a container, so the OpenWrt
+container's `lan` sits on `eth0`. Its bridge table and VLANs are empty, and
+the unit tests cover reading them.
 
 ## Docs
 
