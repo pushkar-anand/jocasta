@@ -80,3 +80,21 @@ func TestScansPageEmptyKindReadsRight(t *testing.T) {
 	// A log with nothing in it at all says how scans come to be.
 	assert.Contains(t, get(t, empty(t), "/scans").Body.String(), "No scans recorded yet.")
 }
+
+// A port scan of only the new devices is tagged; the full one is not.
+func TestScansPageTagsANewDeviceScan(t *testing.T) {
+	t.Parallel()
+
+	h := scanned(t)
+
+	assert.NotContains(t, get(t, h, "/scans").Body.String(), "new devices", "a full port scan carries no tag")
+
+	store := testStore(t)
+
+	_, err := store.RecordNewDevicePorts(t.Context(), "test-sweep", []scanner.PortScan{
+		{Addr: netip.MustParseAddr("192.0.2.10"), Open: []uint16{22}, Scanned: []uint16{22}},
+	})
+	require.NoError(t, err)
+
+	assert.Contains(t, get(t, newWebHandler(t, store), "/scans").Body.String(), `<span class="chip">new devices</span>`)
+}

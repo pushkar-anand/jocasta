@@ -31,11 +31,12 @@ type PageParams struct {
 	// is the whole log. Only ListEvents honours it.
 	DeviceID int64
 
-	// EventKinds, ExcludeIgnored and ScanKind optionally narrow their
-	// respective logs.
+	// EventKinds, ExcludeIgnored, ScanKind and ScanScope optionally narrow
+	// their respective logs.
 	EventKinds     []dbtype.EventKind
 	ExcludeIgnored bool
 	ScanKind       dbtype.ScanKind
+	ScanScope      dbtype.ScanScope
 }
 
 // ListEventsRow is one entry of the change log with the device it named.
@@ -133,7 +134,7 @@ type ListScansRow struct {
 func (q *Queries) ListScans(ctx context.Context, arg PageParams) ([]*ListScansRow, error) {
 	sb := squirrel.
 		Select(
-			"s.id", "s.source_id", "s.kind", "s.network_id", "s.status",
+			"s.id", "s.source_id", "s.kind", "s.scope", "s.network_id", "s.status",
 			"s.error", "s.found_count", "s.started_at", "s.finished_at",
 			"src.name",
 			"CAST(COALESCE(n.cidr, '') AS TEXT)",
@@ -146,6 +147,10 @@ func (q *Queries) ListScans(ctx context.Context, arg PageParams) ([]*ListScansRo
 
 	if arg.ScanKind != "" {
 		sb = sb.Where(squirrel.Eq{"s.kind": arg.ScanKind})
+	}
+
+	if arg.ScanScope != "" {
+		sb = sb.Where(squirrel.Eq{"s.scope": arg.ScanScope})
 	}
 
 	sb = arg.Cursor.WithValue(cursorTime(arg.Cursor)).Where(sb, "s.started_at", "s.id")
@@ -166,6 +171,7 @@ func (q *Queries) ListScans(ctx context.Context, arg PageParams) ([]*ListScansRo
 			&i.Scan.ID,
 			&i.Scan.SourceID,
 			&i.Scan.Kind,
+			&i.Scan.Scope,
 			&i.Scan.NetworkID,
 			&i.Scan.Status,
 			&i.Scan.Error,

@@ -39,6 +39,8 @@ func listScans(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 			"when it started and finished, whether it succeeded, and what it found. " +
 			"Kinds: DISCOVERY is a sweep or a router read, which source tells apart, and found counts devices; " +
 			"PORTS is a port scan and found counts open ports. " +
+			"Scope FULL covered every target its kind reads; NEW_DEVICES is a port scan of only the devices " +
+			"a sweep or router read had just discovered, run straight after it so they do not wait for the next full one. " +
 			"A scan still RUNNING long after it started is one whose process died before it could finish. " +
 			"Use it to tell how current the inventory is, or why a device was not seen. This tool does not start a scan. " +
 			"To read further back, pass next_cursor as cursor with kind unchanged, until next_cursor is absent.",

@@ -83,9 +83,30 @@ func (s *Store) RecordPorts(
 	source string,
 	scans []scanner.PortScan,
 ) (*PortSummary, error) {
+	return s.recordPortScan(ctx, source, dbtype.ScopeFull, scans)
+}
+
+// RecordNewDevicePorts folds a port scan of only the devices a sweep had just
+// discovered into the inventory, as [Store.RecordPorts] does. Its scan is
+// marked as covering new devices, so it is not mistaken for the latest full
+// port scan.
+func (s *Store) RecordNewDevicePorts(
+	ctx context.Context,
+	source string,
+	scans []scanner.PortScan,
+) (*PortSummary, error) {
+	return s.recordPortScan(ctx, source, dbtype.ScopeNewDevices, scans)
+}
+
+func (s *Store) recordPortScan(
+	ctx context.Context,
+	source string,
+	scope dbtype.ScanScope,
+	scans []scanner.PortScan,
+) (*PortSummary, error) {
 	// The port scan runs from the sweeping host, so it files under the sweep's
 	// source row.
-	scanID, _, err := s.openScan(ctx, source, dbtype.SourceSweep, dbtype.ScanPorts, nil)
+	scanID, _, err := s.openScan(ctx, source, dbtype.SourceSweep, dbtype.ScanPorts, scope, nil)
 	if err != nil {
 		return nil, err
 	}

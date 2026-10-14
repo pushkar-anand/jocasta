@@ -39,6 +39,10 @@ type Page struct {
 	// ScanKind narrows scan history to one kind. Empty is every kind. Only
 	// ListScans reads it.
 	ScanKind dbtype.ScanKind
+
+	// ScanScope narrows scan history to one scope. Empty is every scope. Only
+	// ListScans reads it.
+	ScanScope dbtype.ScanScope
 }
 
 // EventPage is one window onto the change log.

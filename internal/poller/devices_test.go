@@ -13,6 +13,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/hosts"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/plugin"
+	"github.com/pushkar-anand/jocasta/internal/scanner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -202,6 +203,46 @@ func TestRunAsksOnlyTheSourcesThatKnowTheirSegments(t *testing.T) {
 
 	assert.Equal(t, 1, countRows(t, conn, `SELECT count(*) FROM devices`))
 	assert.Zero(t, countRows(t, conn, `SELECT count(*) FROM networks`))
+}
+
+// A device the run discovers has its ports scanned in the same run; one it
+// already knew waits for the full port scan.
+func TestRunPortScansTheDevicesItDiscovered(t *testing.T) {
+	t.Parallel()
+
+	open := listener(t)
+
+	ports, _, conn := newPortsTask(t, time.Hour,
+		scanner.WithPorts([]uint16{open}),
+		scanner.WithDialTimeout(time.Second),
+	)
+
+	src := &segmentDiscoverer{
+		stubDiscoverer: stubDiscoverer{
+			name:  "routeros:gateway",
+			facts: []plugin.Fact{discoveredFact(t, "127.0.0.1", "00:00:5e:00:53:01")},
+		},
+		networks: []plugin.Network{{Prefix: netip.MustParsePrefix("127.0.0.0/8")}},
+	}
+
+	d, err := NewDevice(
+		slog.New(slog.DiscardHandler),
+		nil,
+		inventory.New(conn, slog.New(slog.DiscardHandler)),
+		"test-sweep",
+		time.Hour,
+		nil,
+		WithDiscoverers(src),
+		WithPortScan(ports),
+	)
+	require.NoError(t, err)
+
+	require.NoError(t, d.Run(t.Context()))
+	assert.Equal(t, 1, newDeviceScans(t, conn))
+	assert.Equal(t, 1, countRows(t, conn, `SELECT COUNT(*) FROM device_ports WHERE state = 'open'`))
+
+	require.NoError(t, d.Run(t.Context()))
+	assert.Equal(t, 1, newDeviceScans(t, conn), "a device already known is not scanned again")
 }
 
 func TestRunWithoutSourcesDoesNothing(t *testing.T) {

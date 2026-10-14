@@ -213,6 +213,7 @@ func TestRecordSweepDiscovers(t *testing.T) {
 	)
 
 	assert.Equal(t, 2, res.Discovered)
+	assert.ElementsMatch(t, []netip.Addr{netip.MustParseAddr("192.0.2.10"), netip.MustParseAddr("192.0.2.11")}, res.New)
 	assert.Equal(t, 2, res.Seen)
 	assert.Zero(t, res.Identified)
 	assert.Zero(t, res.Merged)
@@ -261,6 +262,7 @@ func TestRecordSweepIsIdempotent(t *testing.T) {
 	res := sweep(t, s, h)
 
 	assert.Zero(t, res.Discovered)
+	assert.Empty(t, res.New)
 	assert.Zero(t, res.Merged)
 	assert.Equal(t, 1, res.Seen)
 

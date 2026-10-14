@@ -33,7 +33,7 @@
                 {{- range .Scans }}
                 <tr>
                     <td class="dim">{{ stamp .StartedAt "" }}</td>
-                    <td data-label="Kind" class="lower">{{ .Kind }}</td>
+                    <td data-label="Kind" class="lower">{{ .Kind }}{{ if eq .Scope "NEW_DEVICES" }} <span class="chip">new devices</span>{{ end }}</td>
                     <td data-label="Source" class="strong">{{ .Source }}</td>
                     <td data-label="Network" class="mono">{{ dash .Network }}</td>
                     <td data-label="Found">{{ found . }}</td>

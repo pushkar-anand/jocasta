@@ -184,6 +184,7 @@ type Scan struct {
 	FoundCount int64             `json:"found_count"`
 	StartedAt  dbtype.Time       `json:"started_at"`
 	FinishedAt dbtype.NullTime   `json:"finished_at"`
+	Scope      dbtype.ScanScope  `json:"scope"`
 }
 
 type Session struct {

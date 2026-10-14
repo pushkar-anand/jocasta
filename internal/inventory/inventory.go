@@ -169,6 +169,10 @@ type Result struct {
 	// address and no address any device holds, so believing them would invent a
 	// device with nothing to tell it apart.
 	Dropped int
+
+	// New holds the address each device this reading discovered was found at,
+	// so its ports can be scanned without waiting for the next full port scan.
+	New []netip.Addr
 }
 
 // reading is what one source read: who read it, what they claim, and the
@@ -422,7 +426,7 @@ func nullInt64[T int | int64](n T) sql.NullInt64 {
 // report records one source's reading: it opens a scan row, ingests the facts
 // as one transaction, and closes the scan with whatever happened.
 func (s *Store) report(ctx context.Context, r reading) (*Result, error) {
-	scanID, sourceID, err := s.openScan(ctx, r.source, r.kind, dbtype.ScanDiscovery, r.network)
+	scanID, sourceID, err := s.openScan(ctx, r.source, r.kind, dbtype.ScanDiscovery, dbtype.ScopeFull, r.network)
 	if err != nil {
 		return nil, err
 	}
@@ -461,13 +465,14 @@ func (s *Store) report(ctx context.Context, r reading) (*Result, error) {
 }
 
 // openScan is the first of the three phases every recorded reading shares: it
-// registers the source and opens a running scan row of the given kind,
-// recording the network when the reading covered exactly one.
+// registers the source and opens a running scan row of the given kind and
+// scope, recording the network when the reading covered exactly one.
 func (s *Store) openScan(
 	ctx context.Context,
 	source string,
 	srcKind dbtype.SourceKind,
 	scanKind dbtype.ScanKind,
+	scope dbtype.ScanScope,
 	network *netip.Prefix,
 ) (scanID, sourceID int64, err error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
@@ -502,6 +507,7 @@ func (s *Store) openScan(
 	sc, err := q.CreateScan(ctx, models.CreateScanParams{
 		SourceID:  src.ID,
 		Kind:      scanKind,
+		Scope:     scope,
 		NetworkID: networkID,
 		StartedAt: at,
 	})
@@ -865,6 +871,10 @@ func (s *Store) create(ctx context.Context, p *pass, mac dbtype.MAC, f plugin.Fa
 	}
 
 	p.res.Discovered++
+
+	if a := f.Host.Address(); a.IsValid() {
+		p.res.New = append(p.res.New, a)
+	}
 
 	return d, nil
 }

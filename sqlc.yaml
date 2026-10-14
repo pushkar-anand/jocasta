@@ -182,6 +182,10 @@ sql:
             go_type:
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
               type: "ScanStatus"
+          - column: "scans.scope"
+            go_type:
+              import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"
+              type: "ScanScope"
           - column: "api_tokens.scope"
             go_type:
               import: "github.com/pushkar-anand/jocasta/internal/db/dbtype"

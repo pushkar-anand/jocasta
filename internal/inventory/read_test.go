@@ -506,6 +506,30 @@ func TestListScansDescribesTheRun(t *testing.T) {
 	assert.Equal(t, sc.ID, latest.ID)
 }
 
+// A port scan of only the new devices is listed, but is not the latest port
+// scan: it says nothing about every other device.
+func TestLatestScanOfKindSkipsNewDeviceScans(t *testing.T) {
+	t.Parallel()
+
+	s, _ := newStore(t)
+	sweep(t, s, host("192.0.2.10", macA, ""))
+
+	full := recordPorts(t, s, portScan("192.0.2.10", []uint16{22}, []uint16{22}))
+
+	_, err := s.RecordNewDevicePorts(t.Context(), "test-sweep", []scanner.PortScan{portScan("192.0.2.10", nil, []uint16{22})})
+	require.NoError(t, err)
+
+	page, err := s.ListScans(t.Context(), Page{Limit: 10, ScanKind: dbtype.ScanPorts})
+	require.NoError(t, err)
+	require.Len(t, page.Scans, 2)
+	assert.Equal(t, dbtype.ScopeNewDevices, page.Scans[0].Scope)
+	assert.Equal(t, dbtype.ScopeFull, page.Scans[1].Scope)
+
+	latest, err := s.LatestScanOfKind(t.Context(), dbtype.ScanPorts)
+	require.NoError(t, err)
+	assert.Equal(t, full.ScanID, latest.ID)
+}
+
 func TestLatestScanWithoutAnyIsNotFound(t *testing.T) {
 	t.Parallel()
 

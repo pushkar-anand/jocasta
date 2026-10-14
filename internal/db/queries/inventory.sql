@@ -28,8 +28,8 @@ ON CONFLICT (cidr) DO UPDATE SET name    = excluded.name,
                                  vlan_id = excluded.vlan_id;
 
 -- name: CreateScan :one
-INSERT INTO scans (source_id, kind, network_id, started_at)
-VALUES (?, ?, ?, ?)
+INSERT INTO scans (source_id, kind, scope, network_id, started_at)
+VALUES (?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: LatestSuccessfulScanFinishedAt :one
