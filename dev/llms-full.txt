@@ -1345,6 +1345,7 @@ Types:
 | --- | --- | --- | --- | --- |
 | `server.host` | string | `localhost` | An address or host name | Where the web server listens. `0.0.0.0` listens on every interface. The container image sets `0.0.0.0`. |
 | `server.port` | int | `8080` | 1 to 65535 | The port the web server listens on. |
+| `server.trusted_proxies` | list | empty | Addresses or CIDR prefixes, such as `192.0.2.1` or `10.0.0.0/8` | Reverse proxy addresses whose forwarding headers the server trusts to identify the client. Empty reads the client address from the connection directly. |
 | `server.cors.allowed_origins` | list | empty | Origins as `scheme://host[:port]` | Browser origins besides the server's own that may read `/api`. Empty sends no CORS headers. |
 | `server.auth.session_lifetime` | duration | `168h` | A duration | The longest a sign-in lasts, whatever the activity. |
 | `server.auth.idle_timeout` | duration | `24h` | A duration | How long a session survives with no requests. |

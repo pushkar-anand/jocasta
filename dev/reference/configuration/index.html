@@ -2318,6 +2318,13 @@ the instance or destination name is one level of the path:
 <td>The port the web server listens on.</td>
 </tr>
 <tr>
+<td><code>server.trusted_proxies</code></td>
+<td>list</td>
+<td>empty</td>
+<td>Addresses or CIDR prefixes, such as <code>192.0.2.1</code> or <code>10.0.0.0/8</code></td>
+<td>Reverse proxy addresses whose forwarding headers the server trusts to identify the client. Empty reads the client address from the connection directly.</td>
+</tr>
+<tr>
 <td><code>server.cors.allowed_origins</code></td>
 <td>list</td>
 <td>empty</td>
