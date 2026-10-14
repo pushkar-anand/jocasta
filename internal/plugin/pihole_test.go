@@ -268,6 +268,33 @@ func TestPiHolePartial(t *testing.T) {
 	assert.Len(t, qs, logPageSize+2)
 }
 
+// A log numbered below the cursor, as Pi-hole's is once its database is gone,
+// is read from an hour back instead of waiting for its ids to pass the
+// cursor.
+func TestPiHoleReset(t *testing.T) {
+	f, p := testPiHole(t)
+	f.log("before.example.com", "before.example.com", "before.example.com")
+
+	_, cursor, err := p.Queries(t.Context(), "")
+	require.NoError(t, err)
+	require.Equal(t, "3", cursor)
+
+	f.queries = nil
+	f.log("after.example.com")
+
+	qs, cursor, err := p.Queries(t.Context(), cursor)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"after.example.com"}, names(qs))
+	assert.Equal(t, "1", cursor)
+	assert.Equal(t, strconv.FormatInt(pinned.Add(-time.Hour).Unix(), 10), f.requests[len(f.requests)-1].Get("from"))
+
+	f.log("next.example.com")
+
+	qs, _, err = p.Queries(t.Context(), cursor)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"next.example.com"}, names(qs), "the read after the reset resumes from its cursor")
+}
+
 // A cursor that does not parse starts the read afresh instead of refusing
 // every read after it.
 func TestPiHoleBadCursor(t *testing.T) {
