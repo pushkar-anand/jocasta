@@ -1,15 +1,12 @@
 package web
 
 import (
-	"context"
-	"errors"
-	"log/slog"
 	"net/http"
 
 	"github.com/pushkar-anand/build-with-go/ctxval"
 	"github.com/pushkar-anand/build-with-go/http/response"
+	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/jocasta/internal/auth"
-	"github.com/pushkar-anand/jocasta/internal/db/models"
 )
 
 // loginData is what the login page needs to render standalone. It carries no
@@ -68,7 +65,7 @@ func (h *Handler) loginForm(
 
 		result, err := a.Login(ctx, sm, addr, input.Username, input.Password, input.RememberMe)
 		if err != nil {
-			h.logRefused(ctx, err)
+			h.log.WarnContext(ctx, "sign-in refused", logger.Err(err))
 			return err
 		}
 
@@ -77,42 +74,10 @@ func (h *Handler) loginForm(
 			return nil
 		}
 
-		h.logSignedIn(ctx, result.User)
 		http.Redirect(w, r, "/", http.StatusFound)
 
 		return nil
 	}
-}
-
-// logSignedIn records the account a completed sign-in opened. The logger
-// adds the client's address from ctx.
-func (h *Handler) logSignedIn(ctx context.Context, user *models.User) {
-	h.log.InfoContext(ctx, "signed in",
-		slog.String("user", user.Username),
-		slog.Int64("user_id", user.ID),
-	)
-}
-
-// logRefused logs why err refused a sign-in step. The username as typed
-// stays out of the log, since people type a password into that field often
-// enough. Other errors are not logged here.
-func (h *Handler) logRefused(ctx context.Context, err error) {
-	var reason string
-
-	switch {
-	case errors.Is(err, auth.ErrInvalidCredentials):
-		reason = "username and password do not match"
-	case errors.Is(err, auth.ErrLoginLocked):
-		reason = "too many passwords"
-	case errors.Is(err, auth.ErrInvalidTOTPCode):
-		reason = "code does not match"
-	case errors.Is(err, auth.ErrTOTPLocked):
-		reason = "too many codes"
-	default:
-		return
-	}
-
-	h.log.WarnContext(ctx, "sign-in refused", slog.String("reason", reason))
 }
 
 func (h *Handler) logout(sm *auth.Session) response.HandlerFunc {
