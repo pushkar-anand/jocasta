@@ -100,8 +100,8 @@ github.com/orisano/pixelmatch v0.0.0-20220722002657-fb0b55479cde/go.mod h1:nZgzb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pquerna/otp v1.5.0 h1:NMMR+WrmaqXU4EzdGJEE1aUUI0AMRzsp96fFFWNPwxs=
 github.com/pquerna/otp v1.5.0/go.mod h1:dkJfzwRKNiegxyNb54X/3fLwhCynbMspSyWKnvi1AEg=
-github.com/pushkar-anand/build-with-go v0.2.1 h1:IaTYdNZ6PGcxQ0vVRA4ZL3E7EsBjjRh4eclLvFnimX0=
-github.com/pushkar-anand/build-with-go v0.2.1/go.mod h1:qqJTTI0ulZqg/ZDGuITLeMdrn38lSHvrJ5J4/Y5dhiI=
+github.com/pushkar-anand/build-with-go v0.3.0 h1:7qY7qcTKehx/nIg1GjmyR4JuURLVQMiRbJGzOq1Uf3Q=
+github.com/pushkar-anand/build-with-go v0.3.0/go.mod h1:qqJTTI0ulZqg/ZDGuITLeMdrn38lSHvrJ5J4/Y5dhiI=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec h1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
 github.com/rs/cors v1.11.1 h1:eU3gRzXLRK57F5rKMGMZURNdIG4EoAmX8k94r9wXWHA=

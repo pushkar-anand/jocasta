@@ -13,7 +13,7 @@ require (
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/netsampler/goflow2/v2 v2.2.7
 	github.com/pquerna/otp v1.5.0
-	github.com/pushkar-anand/build-with-go v0.2.1
+	github.com/pushkar-anand/build-with-go v0.3.0
 	github.com/rs/cors v1.11.1
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/net v0.60.0
