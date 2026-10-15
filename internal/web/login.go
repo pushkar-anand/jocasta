@@ -5,6 +5,7 @@ import (
 
 	"github.com/pushkar-anand/build-with-go/ctxval"
 	"github.com/pushkar-anand/build-with-go/http/response"
+	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/jocasta/internal/auth"
 )
 
@@ -64,6 +65,7 @@ func (h *Handler) loginForm(
 
 		result, err := a.Login(ctx, sm, addr, input.Username, input.Password, input.RememberMe)
 		if err != nil {
+			h.log.WarnContext(ctx, "sign-in refused", logger.Err(err))
 			return err
 		}
 

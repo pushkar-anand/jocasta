@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/pushkar-anand/build-with-go/http/response"
+	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/jocasta/internal/auth"
 )
 
@@ -71,6 +72,7 @@ func (h *Handler) loginTOTPForm(sm *auth.Session, a *auth.Auth) response.Handler
 		}
 
 		if _, err := a.VerifyTOTP(ctx, sm, input.Code); err != nil {
+			h.log.WarnContext(ctx, "sign-in refused", logger.Err(err))
 			return err
 		}
 
