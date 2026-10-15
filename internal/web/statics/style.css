@@ -1901,6 +1901,13 @@ input[type="radio"] {
     color: var(--text-2);
 }
 
+/* A looked-up name can run to 253 characters with nowhere to break. */
+.peers > summary > *,
+.peers__list li > * {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
 /* The period at a glance, before any filter: the same figures the network
    cards lead with, wrapping on a narrow screen. */
 .traffic__summary {

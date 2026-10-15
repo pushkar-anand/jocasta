@@ -70,7 +70,8 @@ func (p *PiHole) Kind() dbtype.SourceKind { return dbtype.SourceDNS }
 // read. Pi-hole pages its log newest first, so a read that reaches its page
 // cap before the cursor keeps the newest lookups and skips the older ones.
 // A page that fails returns nothing and the cursor it was given: what came
-// before it sits above lookups no read has reached.
+// before it sits above lookups no read has reached. A log whose newest id is
+// below the cursor was reset, and is read as a first read would.
 //
 // Pi-hole logs no answer addresses, so its lookups name no traffic peers.
 func (p *PiHole) Queries(ctx context.Context, cursor string) ([]Query, string, error) {
@@ -98,6 +99,20 @@ func (p *PiHole) Queries(ctx context.Context, cursor string) ([]Query, string, e
 		res, err := p.client.Queries(ctx, req)
 		if err != nil {
 			return nil, cursor, fmt.Errorf("read query log page %d: %w", page+1, classifyPiHole(err))
+		}
+
+		// Pi-hole numbers its log from zero again once its database is gone,
+		// as on a container redeployed without its volume, which leaves every
+		// new query below the cursor. Without this the source records nothing
+		// until the new ids pass the old ones. Read with no cursor, after has
+		// to be 0, so this recurses at most once.
+		if page == 0 && after != 0 && len(res.Queries) > 0 && res.Queries[0].ID < after {
+			p.logger.WarnContext(ctx, "query log is numbered below the stored cursor, so the log was reset; reading the last hour",
+				slog.Int64("cursor", after),
+				slog.Int64("newest", res.Queries[0].ID),
+			)
+
+			return p.Queries(ctx, "")
 		}
 
 		for _, e := range res.Queries {

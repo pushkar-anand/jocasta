@@ -40,8 +40,8 @@ func TestScansPageNamesTheKindAndUnits(t *testing.T) {
 	assert.Contains(t, body, "PORTS")
 
 	// The count says what it counts.
-	assert.Contains(t, body, "hosts")
-	assert.Contains(t, body, "ports")
+	assert.Regexp(t, `\d+ devices?\b`, body)
+	assert.Regexp(t, `\d+ open ports?\b`, body)
 }
 
 func TestScansPageFiltersByKind(t *testing.T) {
@@ -52,7 +52,7 @@ func TestScansPageFiltersByKind(t *testing.T) {
 	ports := get(t, h, "/scans?kind=ports").Body.String()
 	assert.Contains(t, ports, "PORTS")
 	assert.NotContains(t, ports, "DISCOVERY")
-	assert.NotContains(t, ports, "hosts", "the discovery row is gone, and with it its units")
+	assert.NotRegexp(t, `\d+ devices?\b`, ports, "the discovery row is gone, and with it its units")
 
 	// The filter row marks where you are, and the pager would carry it.
 	assert.Contains(t, ports, `href="/scans?kind=ports"`)

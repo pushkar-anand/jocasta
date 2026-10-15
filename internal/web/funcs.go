@@ -383,13 +383,16 @@ func took(s *inventory.Scan) string {
 // scanFound says what a scan's Found count counts, since a discovery sweep and
 // a port scan put incommensurable numbers in the same column.
 func scanFound(s *inventory.Scan) string {
-	n := strconv.Itoa(s.Found)
-
+	unit := "device"
 	if s.Kind == dbtype.ScanPorts {
-		return n + " ports"
+		unit = "open port"
 	}
 
-	return n + " hosts"
+	if s.Found != 1 {
+		unit += "s"
+	}
+
+	return strconv.Itoa(s.Found) + " " + unit
 }
 
 // tone is the tint a log line's icon carries. Kinds share colours by group:
