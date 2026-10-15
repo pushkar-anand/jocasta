@@ -1,11 +1,16 @@
 package auth
 
 import (
+	"maps"
 	"sync"
 	"time"
 
 	"golang.org/x/time/rate"
 )
+
+// minPrune is the fewest entries an attemptLimiter holds before it looks for
+// ones to drop. Below it a sweep costs more than the memory it frees.
+const minPrune = 1024
 
 // attemptLimiter holds a separate allowance of attempts for each key, such as
 // an account. Each key starts with burst attempts and gets one back every
@@ -17,13 +22,17 @@ type attemptLimiter[K comparable] struct {
 
 	mu   sync.Mutex
 	keys map[K]*rate.Limiter
+
+	// pruneAt is the entry count at which the next new key sets off a prune.
+	pruneAt int
 }
 
 func newAttemptLimiter[K comparable](burst int, refill time.Duration) *attemptLimiter[K] {
 	return &attemptLimiter[K]{
-		burst:  burst,
-		refill: refill,
-		keys:   make(map[K]*rate.Limiter),
+		burst:   burst,
+		refill:  refill,
+		keys:    make(map[K]*rate.Limiter),
+		pruneAt: minPrune,
 	}
 }
 
@@ -31,14 +40,18 @@ func newAttemptLimiter[K comparable](burst int, refill time.Duration) *attemptLi
 // was left to take, and last whether that was the final one, so the caller
 // can stop asking before the next attempt is refused.
 //
-// A key's entry stays for the life of the process. Callers keep that bounded
-// by choosing keys that cannot be invented at will.
+// Memory stays bounded however many keys arrive, so a key may be one a caller
+// cannot bound, such as a client address.
 func (l *attemptLimiter[K]) spend(key K, now time.Time) (ok, last bool) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
 	lim, found := l.keys[key]
 	if !found {
+		if len(l.keys) >= l.pruneAt {
+			l.prune(now)
+		}
+
 		lim = rate.NewLimiter(rate.Every(l.refill), l.burst)
 		l.keys[key] = lim
 	}
@@ -48,4 +61,15 @@ func (l *attemptLimiter[K]) spend(key K, now time.Time) (ok, last bool) {
 	}
 
 	return true, lim.TokensAt(now) < 1
+}
+
+// prune drops every entry back at a full allowance at now, which a later
+// attempt cannot tell from a key never seen. l.mu must be held.
+func (l *attemptLimiter[K]) prune(now time.Time) {
+	maps.DeleteFunc(l.keys, func(_ K, lim *rate.Limiter) bool {
+		return lim.TokensAt(now) >= float64(l.burst)
+	})
+
+	// Twice what is left, so prunes stay rare however many keys are live.
+	l.pruneAt = max(minPrune, 2*len(l.keys))
 }
