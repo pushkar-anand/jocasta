@@ -7,6 +7,7 @@ import (
 	"net/netip"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/pushkar-anand/build-with-go/security/password"
@@ -435,34 +436,38 @@ func TestVerifyLimitIsPerAccount(t *testing.T) {
 func TestVerifyLimitIsPerAddress(t *testing.T) {
 	t.Parallel()
 
-	users := map[string]*models.User{}
-	names := []string{"ada", "grace", "alan", "linus"}
+	// The bubble's clock stands still while the hashes run, so no attempt
+	// comes back before the last one is checked, however slow the machine.
+	synctest.Test(t, func(t *testing.T) {
+		users := map[string]*models.User{}
+		names := []string{"ada", "grace", "alan", "linus"}
 
-	for i, name := range append(names, "edsger") {
-		users[name] = &models.User{ID: int64(i + 1), Username: name, PasswordHash: hashOf(t, "correct-password")}
-	}
+		for i, name := range append(names, "edsger") {
+			users[name] = &models.User{ID: int64(i + 1), Username: name, PasswordHash: hashOf(t, "correct-password")}
+		}
 
-	a := newTestAuth(t, users)
-	from := netip.MustParseAddr("198.51.100.7")
-	other := netip.MustParseAddr("198.51.100.8")
+		a := newTestAuth(t, users)
+		from := netip.MustParseAddr("198.51.100.7")
+		other := netip.MustParseAddr("198.51.100.8")
 
-	// 30 spread over four accounts is 8, 8, 7 and 7: each under loginBurst.
-	for i := range loginAddrBurst {
-		_, err := a.Verify(t.Context(), from, names[i%len(names)], "wrong-password")
-		require.ErrorIs(t, err, ErrInvalidCredentials)
-	}
+		// 30 spread over four accounts is 8, 8, 7 and 7: each under loginBurst.
+		for i := range loginAddrBurst {
+			_, err := a.Verify(t.Context(), from, names[i%len(names)], "wrong-password")
+			require.ErrorIs(t, err, ErrInvalidCredentials)
+		}
 
-	_, err := a.Verify(t.Context(), from, "edsger", "correct-password")
-	require.ErrorIs(t, err, ErrLoginLocked, "the address has none left, whichever account it names")
+		_, err := a.Verify(t.Context(), from, "edsger", "correct-password")
+		require.ErrorIs(t, err, ErrLoginLocked, "the address has none left, whichever account it names")
 
-	for range loginBurst {
-		_, err = a.Verify(t.Context(), from, "ada", "wrong-password")
-		require.ErrorIs(t, err, ErrLoginLocked)
-	}
+		for range loginBurst {
+			_, err = a.Verify(t.Context(), from, "ada", "wrong-password")
+			require.ErrorIs(t, err, ErrLoginLocked)
+		}
 
-	user, err := a.Verify(t.Context(), other, "ada", "correct-password")
-	require.NoError(t, err, "ada still has the attempts the refused address could not spend")
-	assert.Equal(t, int64(1), user.ID)
+		user, err := a.Verify(t.Context(), other, "ada", "correct-password")
+		require.NoError(t, err, "ada still has the attempts the refused address could not spend")
+		assert.Equal(t, int64(1), user.ID)
+	})
 }
 
 // TestVerifyLimitGroupsIPv6ByNetwork covers the addresses of one IPv6 /64
@@ -472,25 +477,27 @@ func TestVerifyLimitIsPerAddress(t *testing.T) {
 func TestVerifyLimitGroupsIPv6ByNetwork(t *testing.T) {
 	t.Parallel()
 
-	a := newTestAuth(t, map[string]*models.User{
-		"ada": {ID: 1, Username: "ada", PasswordHash: hashOf(t, "correct-password")},
+	synctest.Test(t, func(t *testing.T) {
+		a := newTestAuth(t, map[string]*models.User{
+			"ada": {ID: 1, Username: "ada", PasswordHash: hashOf(t, "correct-password")},
+		})
+
+		// Unknown usernames share one account allowance, which would run out
+		// before the address's. Raising it keeps this test about addresses.
+		a.loginAttempts = newAttemptLimiter[int64](loginAddrBurst+1, loginRefill)
+
+		for i := range loginAddrBurst {
+			from := netip.AddrFrom16([16]byte{0x20, 0x01, 0x0d, 0xb8, 15: byte(i + 1)})
+			_, err := a.Verify(t.Context(), from, "nobody", "wrong-password")
+			require.ErrorIs(t, err, ErrInvalidCredentials)
+		}
+
+		_, err := a.Verify(t.Context(), netip.MustParseAddr("2001:db8::ffff"), "ada", "correct-password")
+		require.ErrorIs(t, err, ErrLoginLocked, "another address in the same /64")
+
+		_, err = a.Verify(t.Context(), netip.MustParseAddr("2001:db8:0:1::1"), "ada", "correct-password")
+		assert.NoError(t, err, "an address in the next /64")
 	})
-
-	// Unknown usernames share one account allowance, which would run out
-	// before the address's. Raising it keeps this test about addresses.
-	a.loginAttempts = newAttemptLimiter[int64](loginAddrBurst+1, loginRefill)
-
-	for i := range loginAddrBurst {
-		from := netip.AddrFrom16([16]byte{0x20, 0x01, 0x0d, 0xb8, 15: byte(i + 1)})
-		_, err := a.Verify(t.Context(), from, "nobody", "wrong-password")
-		require.ErrorIs(t, err, ErrInvalidCredentials)
-	}
-
-	_, err := a.Verify(t.Context(), netip.MustParseAddr("2001:db8::ffff"), "ada", "correct-password")
-	require.ErrorIs(t, err, ErrLoginLocked, "another address in the same /64")
-
-	_, err = a.Verify(t.Context(), netip.MustParseAddr("2001:db8:0:1::1"), "ada", "correct-password")
-	assert.NoError(t, err, "an address in the next /64")
 }
 
 // TestVerifyWithoutAddress covers a connection with no IP address: only the
