@@ -27,6 +27,20 @@ Pass the `Host` header through unchanged. Jocasta checks it against `Origin`
 to refuse cross-site form posts from browsers that send no `Sec-Fetch-Site`.
 In nginx: `proxy_set_header Host $host;`.
 
+## Name the proxy
+
+Sign-in attempts are limited per client address. Behind a proxy every request
+comes from the proxy's address, so all clients share one allowance until
+Jocasta knows to read the client from `X-Forwarded-For`:
+
+```yaml
+server:
+  trusted_proxies:
+    - "127.0.0.1"
+```
+
+List each proxy's address or range. Caddy, nginx and Traefik set the header.
+
 ## Close the plain port
 
 With the proxy on the same machine, listen on loopback only:
