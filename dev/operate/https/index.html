@@ -1510,6 +1510,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#name-the-proxy" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Name the proxy
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#close-the-plain-port" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -1855,6 +1866,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#name-the-proxy" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Name the proxy
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#close-the-plain-port" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -1979,6 +2001,15 @@ the certificate itself, and each browser has to trust it once.</p>
 <p>Pass the <code>Host</code> header through unchanged. Jocasta checks it against <code>Origin</code>
 to refuse cross-site form posts from browsers that send no <code>Sec-Fetch-Site</code>.
 In nginx: <code>proxy_set_header Host $host;</code>.</p>
+<h2 id="name-the-proxy">Name the proxy<a class="headerlink" href="#name-the-proxy" title="Permanent link">&para;</a></h2>
+<p>Sign-in attempts are limited per client address. Behind a proxy every request
+comes from the proxy's address, so all clients share one allowance until
+Jocasta knows to read the client from <code>X-Forwarded-For</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">server</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">trusted_proxies</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">"127.0.0.1"</span>
+</code></pre></div>
+<p>List each proxy's address or range. Caddy, nginx and Traefik set the header.</p>
 <h2 id="close-the-plain-port">Close the plain port<a class="headerlink" href="#close-the-plain-port" title="Permanent link">&para;</a></h2>
 <p>With the proxy on the same machine, listen on loopback only:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">server</span><span class="p">:</span>
