@@ -218,15 +218,13 @@ func Handler(
 
 	h := logger.NewHTTPLogger(cfg.Logger)(mux)
 
-	// The clientip middleware resolves the real client address from forwarding
-	// headers when the request arrives from a trusted proxy. It runs outside
+	// The client address goes into every request's context, read from the
+	// connection or from a trusted proxy's forwarding header. It runs outside
 	// the access logger so the log line shows the resolved address.
-	if len(cfg.TrustedProxies) > 0 {
-		h = clientip.New(
-			clientip.WithTrustedProxies(cfg.TrustedProxies...),
-			clientip.WithLogger(cfg.Logger),
-		).Middleware(h)
-	}
+	h = clientip.New(
+		clientip.WithTrustedProxies(cfg.TrustedProxies...),
+		clientip.WithLogger(cfg.Logger),
+	).Middleware(h)
 
 	// rs/cors reads an empty AllowedOrigins as every origin, so with none
 	// configured the middleware is left out and no response carries CORS
