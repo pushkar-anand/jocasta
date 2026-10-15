@@ -1,4 +1,4 @@
-.PHONY: tidy fmt build run gen new_migration docker oui asn geo world htmx test lint dev e2e e2e-full changelog docs docs-serve docs-mike
+.PHONY: tidy fmt build run gen new_migration docker oui asn geo world htmx test lint dev e2e e2e-full smoke smoke-down changelog docs docs-serve docs-mike
 
 .DEFAULT_GOAL := build
 
@@ -55,6 +55,13 @@ e2e: ## Run the browser tests a pull request must pass. Needs Chrome.
 e2e-full: ## Run the browser tests on every screen and account, as a release does.
 	mkdir -p $(E2E_TMP)
 	E2E_FULL=1 TMPDIR=$(E2E_TMP) go test -tags e2e -count=1 -timeout 60m -run 'TestFixturesRender|TestE2E|TestSearchKeepsFocus' ./internal/web/e2e/
+
+smoke: ## Read the router, DNS and NetFlow sources in containers and check what jocasta says. Needs Docker.
+	scripts/smoke/smoke.sh up
+	scripts/smoke/smoke.sh check
+
+smoke-down: ## Remove the containers make smoke started.
+	scripts/smoke/smoke.sh down
 
 lint: ## Run golangci-lint
 	@if [ ! -f ./bin/golangci-lint ]; then \
