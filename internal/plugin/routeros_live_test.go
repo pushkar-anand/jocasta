@@ -82,11 +82,20 @@ func TestDiscoverLive(t *testing.T) {
 	leases, err := client.DHCPLeases(t.Context())
 	require.NoError(t, err)
 
-	usableARP := 0
+	addrs, err := client.Addresses(t.Context())
+	require.NoError(t, err)
+
+	usableARP, usableOwn := 0, 0
 
 	for _, e := range arp {
 		if e.Usable() {
 			usableARP++
+		}
+	}
+
+	for _, a := range addrs {
+		if a.Usable() {
+			usableOwn++
 		}
 	}
 
@@ -109,8 +118,8 @@ func TestDiscoverLive(t *testing.T) {
 		}
 	}
 
-	t.Logf("%d arp rows (%d usable) + %d leases -> %d facts: %d present, %d named, %d with a MAC",
-		len(arp), usableARP, len(leases), len(facts), present, named, withMAC)
+	t.Logf("%d arp rows (%d usable) + %d leases + %d own addresses -> %d facts: %d present, %d named, %d with a MAC",
+		len(arp), usableARP, len(leases), usableOwn, len(facts), present, named, withMAC)
 
 	w := tabwriter.NewWriter(os.Stderr, 0, 0, 2, ' ', 0)
 	_, _ = w.Write([]byte("\nADDRESS\tMAC\tVENDOR\tHOSTNAME\tSTANDING\tPRESENT\tDETAIL\n"))
@@ -131,8 +140,8 @@ func TestDiscoverLive(t *testing.T) {
 
 	// The invariants the mapping is responsible for, checked against whatever
 	// the router actually holds.
-	assert.LessOrEqual(t, len(facts), len(arp)+len(leases), "no fact is invented")
-	assert.LessOrEqual(t, present, usableARP+len(leases), "presence needs a row that says so")
+	assert.LessOrEqual(t, len(facts), len(arp)+len(leases)+usableOwn, "no fact is invented")
+	assert.LessOrEqual(t, present, usableARP+len(leases)+usableOwn, "presence needs a row that says so")
 
 	for _, f := range facts {
 		assert.True(t, f.Host.Address().IsValid(), "every fact carries a parsed address")
