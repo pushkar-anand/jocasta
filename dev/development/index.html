@@ -1770,6 +1770,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#smoke-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Smoke tests
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#docs" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -1906,6 +1917,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#smoke-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Smoke tests
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#docs" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -2015,6 +2037,7 @@
 make<span class="w"> </span><span class="nb">test</span><span class="w">           </span><span class="c1"># go test ./...</span>
 make<span class="w"> </span>e2e<span class="w">            </span><span class="c1"># browser tests a pull request must pass (needs Chrome)</span>
 make<span class="w"> </span>e2e-full<span class="w">       </span><span class="c1"># browser tests on every screen and account</span>
+make<span class="w"> </span>smoke<span class="w">          </span><span class="c1"># read the router, DNS and NetFlow sources in containers (needs Docker)</span>
 make<span class="w"> </span>lint<span class="w">           </span><span class="c1"># golangci-lint (installs it to bin/ on first run)</span>
 make<span class="w"> </span>dev<span class="w">            </span><span class="c1"># hot-reload server via air</span>
 make<span class="w"> </span>gen<span class="w">            </span><span class="c1"># regenerate sqlc models</span>
@@ -2057,6 +2080,70 @@ differs is written there beside a map of the changed pixels.</p>
 </code></pre></div>
 <p><code>E2E_FIXTURES</code>, <code>E2E_ROLES</code>, <code>E2E_VIEWPORTS</code>, <code>E2E_THEMES</code> and <code>E2E_PAGES</code>
 narrow either run to a comma-separated list.</p>
+<h2 id="smoke-tests">Smoke tests<a class="headerlink" href="#smoke-tests" title="Permanent link">&para;</a></h2>
+<p><code>make smoke</code> reads real OpenWrt, RouterOS, Pi-hole, AdGuard Home and
+Technitium servers and a real NetFlow exporter, each in a container, and checks what jocasta
+says about them. The plugin tests answer from canned replies; this catches a
+server that has changed what it sends. It needs Docker and Go, and CI does
+not run it: run it before opening a pull request that changes one of these
+plugins or the client under <code>pkg/</code>.</p>
+<p><code>scripts/smoke/smoke.sh up</code> starts the servers on a network of their own,
+<code>198.51.100.0/24</code>:</p>
+<ul>
+<li>OpenWrt is set up as <a href="../plugins/openwrt/">the OpenWrt page</a> describes, with
+  the ACL in <code>docs/openwrt/jocasta.json</code>, and given leases and static hosts.</li>
+<li>RouterOS CHR runs in QEMU, booted by <code>scripts/smoke/routeros.sh</code>. Its
+  <code>ether1</code> takes an address over DHCP, as a WAN does, and <code>ether2</code> sits on
+  the smoke network. It gets a read-only <code>jocasta</code> user, a bridge with an
+  address of its own, a DHCP server with a static lease, a static ARP entry,
+  and Traffic Flow exporting IPFIX, as
+  <a href="../plugins/routeros/#export-traffic-flows">the RouterOS page</a> sets it up.</li>
+<li>Pi-hole, AdGuard Home and Technitium each block a name, and AdGuard Home
+  rewrites one. Technitium is set up as
+  <a href="../plugins/technitium/">the Technitium page</a> describes: a user that can
+  view Logs, its API token, and the Query Logs (Sqlite) app. Pi-hole answers
+  as the other two's upstream, so no lookup leaves the network.</li>
+<li>pmacct runs in the OpenWrt container's network namespace and exports
+  NetFlow v9 to this host, as the router would.</li>
+<li>The OpenWrt container sends lookups to each resolver.</li>
+</ul>
+<p>Each server's web interface is published on <code>127.0.0.1</code>, which jocasta
+reads.</p>
+<p><code>scripts/smoke/smoke.sh check</code> runs <code>jocasta plugin run</code> against each server
+and checks the rows it prints. It runs <code>TestNetFlowLive</code> in <code>internal/plugin</code>
+while the OpenWrt container makes a lookup, and again while this host makes
+a request to the router, and checks the flows each decodes. It also runs the
+live tests in <code>pkg/openwrt</code>, <code>pkg/routeros</code> and <code>internal/plugin</code>. It writes the config it used to
+<code>$TMPDIR/jocasta-smoke/jocasta.yaml</code>, so you can point <code>jocasta serve</code> at the
+same servers. <code>make smoke-down</code> removes them.</p>
+<p>Some services need more than Docker. Leave any of them out with
+<code>SMOKE_SKIP</code>, such as <code>SMOKE_SKIP="technitium netflow" make smoke</code>:</p>
+<ul>
+<li><code>routeros</code>: RouterOS runs under QEMU, which emulates the CPU where the
+  host has no KVM. It boots in under a minute either way. Its container
+  joins a second network, which needs Docker 28 or later.</li>
+<li><code>technitium</code>: the server downloads the Query Logs app from Technitium's app
+  store, so its container needs internet.</li>
+<li><code>netflow</code>: the exporter sends to the network's gateway address, which only
+  Docker on Linux puts on the host.</li>
+</ul>
+<p>To change a setting, set the matching variable:</p>
+<ul>
+<li><code>SMOKE_REGISTRY</code> pulls the images from a mirror, such as <code>mirror.gcr.io</code>,
+  when Docker Hub limits your pulls.</li>
+<li><code>SMOKE_PIHOLE_IMAGE</code>, <code>SMOKE_ADGUARD_IMAGE</code>, <code>SMOKE_OPENWRT_IMAGE</code>,
+  <code>SMOKE_ROUTEROS_IMAGE</code>, <code>SMOKE_TECHNITIUM_IMAGE</code> and <code>SMOKE_PMACCT_IMAGE</code>
+  test another release. MikroTik publishes no image; the RouterOS one is
+  <code>evilfreelancer/docker-routeros</code>, which carries the CHR disk and QEMU.</li>
+<li><code>SMOKE_PIHOLE_PORT</code>, <code>SMOKE_ADGUARD_PORT</code>, <code>SMOKE_ADGUARD_SETUP_PORT</code>,
+  <code>SMOKE_OPENWRT_PORT</code>, <code>SMOKE_TECHNITIUM_PORT</code> and <code>SMOKE_ROUTEROS_PORT</code>
+  move the published ports, 18081 to 18086 by default. <code>SMOKE_FLOW_PORT</code> and
+  <code>SMOKE_ROUTEROS_FLOW_PORT</code> move the ports the NetFlow and IPFIX exports
+  arrive on, 2055 and 2056 by default.</li>
+</ul>
+<p>netifd cannot create the <code>br-lan</code> bridge inside a container, so the OpenWrt
+container's <code>lan</code> sits on <code>eth0</code>. Its bridge table and VLANs are empty, and
+the unit tests cover reading them.</p>
 <h2 id="docs">Docs<a class="headerlink" href="#docs" title="Permanent link">&para;</a></h2>
 <p>The pages in <code>docs/</code> are published with <a href="https://zensical.org">Zensical</a> to
 GitHub Pages, one version for each minor release and one for <code>main</code>. The

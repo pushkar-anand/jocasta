@@ -7,6 +7,7 @@ make build          # build to bin/
 make test           # go test ./...
 make e2e            # browser tests a pull request must pass (needs Chrome)
 make e2e-full       # browser tests on every screen and account
+make smoke          # read the router, DNS and NetFlow sources in containers (needs Docker)
 make lint           # golangci-lint (installs it to bin/ on first run)
 make dev            # hot-reload server via air
 make gen            # regenerate sqlc models
@@ -48,6 +49,36 @@ E2E_AUDIT=$PWD/tmp/audit TMPDIR=$PWD/tmp go test -tags e2e -run TestAudit -timeo
 ```
 
 `E2E_FIXTURES`, `E2E_ROLES`, `E2E_VIEWPORTS`, `E2E_THEMES` and `E2E_PAGES` narrow either run to a comma-separated list.
+
+## Smoke tests
+
+`make smoke` reads real OpenWrt, RouterOS, Pi-hole, AdGuard Home and Technitium servers and a real NetFlow exporter, each in a container, and checks what jocasta says about them. The plugin tests answer from canned replies; this catches a server that has changed what it sends. It needs Docker and Go, and CI does not run it: run it before opening a pull request that changes one of these plugins or the client under `pkg/`.
+
+`scripts/smoke/smoke.sh up` starts the servers on a network of their own, `198.51.100.0/24`:
+
+- OpenWrt is set up as [the OpenWrt page](<https://pushkar-anand.github.io/jocasta/dev/plugins/openwrt/index.md>) describes, with the ACL in `docs/openwrt/jocasta.json`, and given leases and static hosts.
+- RouterOS CHR runs in QEMU, booted by `scripts/smoke/routeros.sh`. Its `ether1` takes an address over DHCP, as a WAN does, and `ether2` sits on the smoke network. It gets a read-only `jocasta` user, a bridge with an address of its own, a DHCP server with a static lease, a static ARP entry, and Traffic Flow exporting IPFIX, as [the RouterOS page](<https://pushkar-anand.github.io/jocasta/dev/plugins/routeros/#export-traffic-flows>) sets it up.
+- Pi-hole, AdGuard Home and Technitium each block a name, and AdGuard Home rewrites one. Technitium is set up as [the Technitium page](<https://pushkar-anand.github.io/jocasta/dev/plugins/technitium/index.md>) describes: a user that can view Logs, its API token, and the Query Logs (Sqlite) app. Pi-hole answers as the other two's upstream, so no lookup leaves the network.
+- pmacct runs in the OpenWrt container's network namespace and exports NetFlow v9 to this host, as the router would.
+- The OpenWrt container sends lookups to each resolver.
+
+Each server's web interface is published on `127.0.0.1`, which jocasta reads.
+
+`scripts/smoke/smoke.sh check` runs `jocasta plugin run` against each server and checks the rows it prints. It runs `TestNetFlowLive` in `internal/plugin` while the OpenWrt container makes a lookup, and again while this host makes a request to the router, and checks the flows each decodes. It also runs the live tests in `pkg/openwrt`, `pkg/routeros` and `internal/plugin`. It writes the config it used to `$TMPDIR/jocasta-smoke/jocasta.yaml`, so you can point `jocasta serve` at the same servers. `make smoke-down` removes them.
+
+Some services need more than Docker. Leave any of them out with `SMOKE_SKIP`, such as `SMOKE_SKIP="technitium netflow" make smoke`:
+
+- `routeros`: RouterOS runs under QEMU, which emulates the CPU where the host has no KVM. It boots in under a minute either way. Its container joins a second network, which needs Docker 28 or later.
+- `technitium`: the server downloads the Query Logs app from Technitium's app store, so its container needs internet.
+- `netflow`: the exporter sends to the network's gateway address, which only Docker on Linux puts on the host.
+
+To change a setting, set the matching variable:
+
+- `SMOKE_REGISTRY` pulls the images from a mirror, such as `mirror.gcr.io`, when Docker Hub limits your pulls.
+- `SMOKE_PIHOLE_IMAGE`, `SMOKE_ADGUARD_IMAGE`, `SMOKE_OPENWRT_IMAGE`, `SMOKE_ROUTEROS_IMAGE`, `SMOKE_TECHNITIUM_IMAGE` and `SMOKE_PMACCT_IMAGE` test another release. MikroTik publishes no image; the RouterOS one is `evilfreelancer/docker-routeros`, which carries the CHR disk and QEMU.
+- `SMOKE_PIHOLE_PORT`, `SMOKE_ADGUARD_PORT`, `SMOKE_ADGUARD_SETUP_PORT`, `SMOKE_OPENWRT_PORT`, `SMOKE_TECHNITIUM_PORT` and `SMOKE_ROUTEROS_PORT` move the published ports, 18081 to 18086 by default. `SMOKE_FLOW_PORT` and `SMOKE_ROUTEROS_FLOW_PORT` move the ports the NetFlow and IPFIX exports arrive on, 2055 and 2056 by default.
+
+netifd cannot create the `br-lan` bridge inside a container, so the OpenWrt container's `lan` sits on `eth0`. Its bridge table and VLANs are empty, and the unit tests cover reading them.
 
 ## Docs
 
