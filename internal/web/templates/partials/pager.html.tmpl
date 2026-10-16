@@ -1,8 +1,8 @@
 {{- /*
-    Takes a pagination value built by the pager helper: a log is read by walking
-    it from the top, and the walk only runs one way. The way back leads to the
-    top, since the cursor a page was reached by says only where the page before
-    it ended.
+    Takes a pagination value from the pager helper. A person reads a log with a
+    walk from the top, and the walk goes in only one direction. The way back
+    goes to the top. The cursor of a page tells only where the page before it
+    ended.
 */ -}}
 {{ define "partial/pager" }}
 {{- if or (not .AtTop) .HasOlder }}

@@ -1,15 +1,15 @@
 {{- /*
-    The device list's filter form. Shared by the Devices page and a network's
-    page: FilterAction and FilterRows are where it submits and what it fetches,
-    so the same form narrows /devices or the list on one prefix. On a network's
-    page OnNetwork is set and the network select is left out, since the path
-    names the network already.
+    The filter form of the device list. The Devices page and the page of a
+    network share it. FilterAction is where it sends, and FilterRows is what it
+    fetches. So the same form filters /devices, or the list on one prefix. On
+    the page of a network, OnNetwork is set, and the network select is left out.
+    The path already names the network.
 
-    The form fetches only the table, when search.js says to: see there for
-    when a search goes out. It targets the fragment endpoint, which
-    answers with HX-Push-Url naming the page, so the address bar ends up
-    somewhere that can be reloaded or shared. Without htmx it submits normally
-    and the server renders the filtered page.
+    The form fetches only the table, when search.js tells it to. See search.js
+    for when a search goes out. It targets the fragment endpoint. That endpoint
+    answers with HX-Push-Url, which names the page. So a person can reload or
+    share the address in the address bar. Without htmx, the form sends in the
+    normal way, and the server renders the filtered page.
 */ -}}
 {{ define "partial/device-filters" }}
 <form id="device-filters" class="filters" role="search" action="{{ .FilterAction }}" method="get"
@@ -92,10 +92,9 @@
         <span>Show ignored</span>
     </label>
 
-    {{- /* Reached only without htmx, where the form has to be submitted. The
-           way to clear the filter rides with the result count, inside
-           the fragment htmx swaps, so it is never left showing when nothing is
-           set. */}}
+    {{- /* Used only without htmx, where the form must be sent. The clear link
+           is with the result count, inside the fragment that htmx swaps. So it
+           never shows when no filter is set. */}}
     <noscript><button type="submit" class="btn">Apply</button></noscript>
 </form>
 <div>

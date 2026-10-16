@@ -329,7 +329,7 @@ func TestOverviewRendersTheInventory(t *testing.T) {
 	// The last-sweep panel anchors freshness to when collection last succeeded,
 	// and a healthy collector raises no staleness warning.
 	assert.Contains(t, body, "Last complete sweep")
-	assert.NotContains(t, body, "presence counts may be out of date")
+	assert.NotContains(t, body, "presence counts can be out of date")
 }
 
 // A collector that keeps recording scan rows while failing every one of them
@@ -354,7 +354,7 @@ func TestOverviewFlagsAStalledCollector(t *testing.T) {
 
 	body := get(t, newWebHandler(t, store), "/").Body.String()
 
-	assert.Contains(t, body, "presence counts may be out of date")
+	assert.Contains(t, body, "presence counts can be out of date")
 	assert.Contains(t, body, `href="/scans"`)
 }
 

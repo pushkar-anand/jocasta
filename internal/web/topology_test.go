@@ -134,7 +134,7 @@ func TestDevicePageShowsTheLinkSpeed(t *testing.T) {
 
 	body := rec.Body.String()
 	assert.Contains(t, body, "<strong>laptop.example.com</strong><span class=\"chip\">100\u00a0Mbps</span>")
-	assert.Contains(t, body, "Both ends can run at 1\u00a0Gbps, and this link runs slower.")
+	assert.Contains(t, body, "Both ends can run at 1\u00a0Gbps, but this link runs slower.")
 }
 
 func TestDevicePageSaysWhenNothingHasSeenTheDevice(t *testing.T) {

@@ -4,8 +4,8 @@
 <div class="card">
     <ul class="activity">
         {{- range . }}
-        {{- /* Bound so the device link can be built inside the with below,
-               which rebinds the dot to the name. */}}
+        {{- /* Bound to a variable, so the device link can be built inside the
+               with below. The with binds the dot to the name. */}}
         {{- $event := . }}
         <li class="act {{ tone .Kind }}">
             <span class="acticon">

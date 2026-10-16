@@ -6,8 +6,8 @@
         <p class="block__aside">Scheduled by <code>jocasta serve</code>, or run with <code>jocasta scan</code></p>
     </div>
 
-    {{- /* Discovery sweeps and port scans share this log; the filter is how you
-           read one without the other. */}}
+    {{- /* Discovery sweeps and port scans share this log. The filter lets a
+           person read one without the other. */}}
     <nav class="logfilter" aria-label="Filter scans by kind">
         <a href="/scans"{{ if not .Kind }} aria-current="page"{{ end }}>All</a>
         <a href="/scans?kind=discovery"{{ if eq .Kind "discovery" }} aria-current="page"{{ end }}>Discovery</a>

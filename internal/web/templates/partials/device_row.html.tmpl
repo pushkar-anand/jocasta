@@ -1,7 +1,7 @@
 {{- /*
-    One device. Takes the device itself, and replaces itself when edited.
-    data-focus-after-swap: when the inline edit form closes (save or cancel)
-    and this row swaps back in, focus returns to its Edit button.
+    One device. It takes the device itself, and replaces itself after an edit.
+    data-focus-after-swap: when the inline edit form closes (save or cancel),
+    this row swaps back in. Focus then returns to its Edit button.
 */ -}}
 {{ define "partial/device-row" }}
 <tr id="device-row-{{ .ID }}" data-focus-after-swap=".btn--icon">
@@ -20,14 +20,15 @@
                  aria-label="Watched"><title>Watched</title><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             {{- end }}
         </span>
-        {{- /* Shown in place of the Group column at middle widths; see style.css. */}}
+        {{- /* Shown instead of the Group column at middle widths. See
+               style.css. */}}
         {{- with .Group }}
         <span class="devrow__group dim">{{ . }}</span>
         {{- end }}
     </td>
-    {{- /* The addresses the device answers on, and the ports it answers on
-           there: a device's open ports are always on one of its addresses, so
-           they share the cell. */}}
+    {{- /* The addresses on which the device answers, and its ports there. The
+           open ports of a device are always on one of its addresses. So they
+           share the cell. */}}
     <td data-label="Addresses">
         <span class="cell cell--lines">
             <span class="mono">{{ addrs .Current }}</span>
@@ -51,13 +52,13 @@
         <span class="dim">&mdash;</span>
         {{- end }}
     </td>
-    {{- /* The hardware address and who made it: one fact about the silicon, so
-           one cell. */}}
+    {{- /* The hardware address and its maker. This is one fact about the
+           hardware, so it is one cell. */}}
     <td data-label="Hardware">
         <span class="cell cell--lines">
             <span class="mono dim">{{ dash .MAC }}{{ if .Randomised }} <span class="chip chip--warn">randomised</span>{{ end }}</span>
-            {{- /* The short name fits the cell; the registered name is on hover and
-                   is what a screen reader reads. */}}
+            {{- /* The short name fits the cell. The registered name shows on
+                   hover, and a screen reader reads it. */}}
             {{- with .VendorShort }}<span class="dim">
                 {{- if eq . $.Vendor }}{{ . }}
                 {{- else }}<span title="{{ $.Vendor }}" aria-hidden="true">{{ . }}</span><span class="visually-hidden">{{ $.Vendor }}</span>

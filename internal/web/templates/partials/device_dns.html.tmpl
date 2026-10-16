@@ -1,10 +1,9 @@
 {{- /*
-    Takes a dnsSection. The names one device looked up over a period, from the
-    hourly counts a resolver's query log adds up to.
-
-    The period switch fetches this fragment and swaps it whole. Without htmx
-    it is a form submitting to the device page, which renders the same
-    section. Each row is a registrable domain that opens to its busiest names.
+    Takes a dnsSection. The names that one device looked up over a period, from
+    the hourly counts of the query log of a resolver. The period switch fetches
+    this fragment, and swaps all of it. Without htmx, it is a form that sends to
+    the device page. That page renders the same section. Each row is a
+    registrable domain that opens to its busiest names.
 */ -}}
 {{ define "partial/device-dns" }}
 <div id="device-dns" class="traffic">
@@ -27,7 +26,7 @@
     </form>
 
     {{- if not .Domains }}
-    <p class="dim">No lookups from this device in the last {{ .Window.Label }}. They appear here once it sends its lookups to the resolver Jocasta reads.</p>
+    <p class="dim">No lookups from this device in the last {{ .Window.Label }}. They appear here when it sends its lookups to the resolver that Jocasta reads.</p>
     {{- else }}
 
     {{- with .Summary }}

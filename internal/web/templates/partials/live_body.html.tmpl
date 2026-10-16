@@ -1,11 +1,12 @@
 {{- /*
-    The overview's self-refreshing content: the networks, the presence and
-    last-sweep panels, and a window on the change log. partial/live wraps this
-    in the element that polls for it; the poll swaps this in on its own.
+    The content of the overview that refreshes itself: the networks, the
+    presence and last-sweep panels, and a window of the change log. partial/live
+    wraps this in the element that polls for it. The poll swaps only this in.
 */ -}}
 {{ define "partial/live-body" }}
 
-    {{- /* The prefixes first: what an operator looks at before anything else. */}}
+    {{- /* The prefixes come first. An operator looks at them before anything
+           else. */}}
     <section class="block">
         <div class="block__head">
             <h2 class="section">Networks</h2>
@@ -32,7 +33,7 @@
                     <div class="stat--quiet"><dd>{{ .Offline }}</dd><dt>Quiet</dt></div>
                 </dl>
 
-                {{- /* Widths are attributes: see the ledger in the stylesheet. */}}
+                {{- /* Widths are attributes. See the ledger in the stylesheet. */}}
                 <svg class="ledger ledger--thin" viewBox="0 0 100 6" preserveAspectRatio="none" role="img"
                      aria-label="{{ .Online }} of {{ .Total }} {{ if eq .Total 1 }}device{{ else }}devices{{ end }} seen recently">
                     <rect class="ledger__track" x="0" y="0" width="100" height="6"></rect>
@@ -45,7 +46,7 @@
             {{- end }}
         </div>
         {{- else }}
-        <p class="dim">No network has been swept yet. Add the prefixes to <code>networks</code> in the config file; see
+        <p class="dim">No sweep has run yet. Add the prefixes to <code>networks</code> in the config file. See
             <a href="https://github.com/pushkar-anand/jocasta/blob/main/docs/configuration.md">Configure networks</a>.</p>
         {{- end }}
     </section>
@@ -95,17 +96,16 @@
                 <div><dt>Took</dt><dd>{{ took . }}</dd></div>
                 <div><dt>Kind</dt><dd class="lower">{{ .Kind }}</dd></div>
                 <div><dt>Started</dt><dd class="dim">{{ stamp .StartedAt "" }}</dd></div>
-                {{- /* When collection last succeeded, as well as when the newest
-                       run started: the two differ exactly when the collector is
-                       failing, which is when the presence counts stop meaning
-                       what they say. */}}
+                {{- /* When collection last succeeded, and when the newest run
+                       started. The two are different exactly when the collector
+                       fails. Then the presence counts are no longer correct. */}}
                 <div><dt>Last complete sweep</dt><dd class="dim">{{ stamp $.LastCollected "" }}</dd></div>
             </dl>
             {{- with .Error }}
             <p class="failure">{{ . }}</p>
             {{- end }}
             {{- if $.Stale }}
-            <p class="failure">The presence counts may be out of date.
+            <p class="failure">The presence counts can be out of date.
                 {{- if $.LastCollected.IsZero }} No sweep has finished cleanly yet.
                 {{- else }} The last sweep to finish cleanly was {{ stamp $.LastCollected "" }}.{{ end }}</p>
             <a class="more" href="/scans">Review sweeps
@@ -171,7 +171,7 @@
                     <div><dt>Started</dt><dd class="dim">{{ stamp .StartedAt "" }}</dd></div>
                 </dl>
                 {{- else }}
-                <p class="dim">No port scan has been recorded yet. Set <code>scan.ports.enabled: true</code>, or run <code>jocasta ports --save</code>.</p>
+                <p class="dim">No port scan has run yet. Set <code>scan.ports.enabled: true</code>, or run <code>jocasta ports --save</code>.</p>
                 {{- end }}
             </div>
         </div>
