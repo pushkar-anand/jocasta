@@ -13,37 +13,37 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// trafficFilter narrows a device's traffic. The zero value shows the busiest
-// tab, conversations only, unfiltered.
+// trafficFilter limits the traffic of a device. The zero value shows the
+// busiest tab, with only conversations, and no filter.
 type trafficFilter struct {
-	// Tab is the key of the segment tab shown, empty for the busiest.
+	// Tab is the key of the shown segment tab. It is empty for the busiest.
 	Tab string
 
 	// Service is a serviceChoice key: protocol and port, "6/443".
 	Service string
 
-	// Query matches, ignoring case, anything the section names a peer by:
+	// Query matches, without case, every name of a peer in the section:
 	// device name, address, DNS name, organisation, service.
 	Query string
 
 	// Tried adds the connections that never carried data to the rows.
 	Tried bool
 
-	// Direction keeps only the peers connections went to one way: dirOut
-	// those this device opened connections to, dirIn those that opened
-	// connections to it. Empty keeps both.
+	// Direction keeps only the peers with connections in one direction.
+	// dirOut is the peers to which this device opened connections. dirIn is
+	// the peers that opened connections to it. Empty keeps both.
 	Direction string
 }
 
-// Directions the traffic can be narrowed to.
+// Directions for the traffic filter.
 const (
 	dirOut = "out"
 	dirIn  = "in"
 )
 
-// trafficFilterFrom reads a filter from a query string. A value it does not
-// know is dropped: values only ever arrive from the form.
-// An unknown tab is dropped once the tabs are known.
+// trafficFilterFrom reads a filter from a query string. It drops a value that
+// it does not know, because values only come from the form. It drops an
+// unknown tab when the tabs are known.
 func trafficFilterFrom(q url.Values) trafficFilter {
 	f := trafficFilter{
 		Tab:     strings.TrimSpace(q.Get("tab")),
@@ -63,8 +63,8 @@ func trafficFilterFrom(q url.Values) trafficFilter {
 	return f
 }
 
-// Active reports whether the filter narrows the rows. The tab and the tries
-// switch only choose what is shown, so clearing the filter keeps them.
+// Active reports whether the filter limits the rows. The tab and the tries
+// switch only choose what shows. So a clear of the filter keeps them.
 func (f trafficFilter) Active() bool {
 	return f.Service != "" || f.Query != "" || f.Direction != ""
 }
@@ -92,7 +92,7 @@ func serviceKey(p *inventory.TrafficPeer) string {
 }
 
 // parseServiceKey decodes a protocol/port filter. It reports false for missing
-// components or numbers outside the wire fields' ranges.
+// parts, or for numbers outside the ranges of the protocol fields.
 func parseServiceKey(k string) (protocol uint8, port uint16, ok bool) {
 	a, b, found := strings.Cut(k, "/")
 	if !found {
@@ -112,14 +112,14 @@ func parseServiceKey(k string) (protocol uint8, port uint16, ok bool) {
 	return uint8(pr), uint16(po), true
 }
 
-// serviceLabel is a peer's service as a person reads it.
+// serviceLabel is the service of a peer, as a person reads it.
 func serviceLabel(p *inventory.TrafficPeer) string {
 	return serviceName(p.Protocol, p.ServicePort, p.Service)
 }
 
 // serviceName is a service as a person reads it: its usual name, or its port
-// when it has none, with the protocol when that is not TCP. Port zero is the
-// protocol alone.
+// when it has no name. It adds the protocol when that is not TCP. Port zero is
+// only the protocol.
 func serviceName(protocol uint8, port uint16, name string) string {
 	if port == 0 {
 		return cmp.Or(protoName(protocol), "TCP")
@@ -160,19 +160,21 @@ func allPeers(t *inventory.DeviceTraffic) []*inventory.TrafficPeer {
 	return out
 }
 
-// peerRow is everything a device exchanged with one peer, across services,
-// and what it tried there that never carried data.
+// peerRow is everything that a device exchanged with one peer, across
+// services. It also has what the device tried there that never carried
+// data.
 type peerRow struct {
 	DeviceID   int64
 	DeviceName string
 	IP         netip.Addr
 	Name       string
 
-	// LookedUp is the names the device looked up for the peer's address,
-	// most looked up first.
+	// LookedUp is the names that the device looked up for the address of the
+	// peer. The most frequent name is first.
 	LookedUp []string
 
-	// Services are the per-service rows behind this one, busiest first.
+	// Services are the rows of each service behind this row, busiest
+	// first.
 	Services []*inventory.TrafficPeer
 
 	// Tried are the connections to the peer that carried nothing, when the
@@ -182,9 +184,9 @@ type peerRow struct {
 	peerTally
 }
 
-// ShownName is what names the peer beside its address: the name the device
-// looked up most for it and how many more, or its reverse DNS name when the
-// device looked up none.
+// ShownName is the name of the peer next to its address. It is the name that
+// the device looked up most for it, and how many more. If the device looked up
+// none, it is its reverse DNS name.
 func (r *peerRow) ShownName() string {
 	switch len(r.LookedUp) {
 	case 0:
@@ -196,16 +198,19 @@ func (r *peerRow) ShownName() string {
 	return fmt.Sprintf("%s +%d more", r.LookedUp[0], len(r.LookedUp)-1)
 }
 
-// AllLookedUp is every name the device looked up for the peer's address.
+// AllLookedUp is every name that the device looked up for the address of the
+// peer.
 func (r *peerRow) AllLookedUp() string { return strings.Join(r.LookedUp, ", ") }
 
-// ServiceSummary names the peer's two busiest services and how many more.
+// ServiceSummary names the two busiest services of the peer, and how many
+// more.
 func (r *peerRow) ServiceSummary() string { return headAndMore(r.Services, serviceLabel, ", ") }
 
-// TriedSummary says what was tried at the peer: pings, or which ports.
+// TriedSummary tells what the device tried at the peer: pings, or which
+// ports.
 func (r *peerRow) TriedSummary() string { return headAndMore(r.Tried, attemptWhat, "; ") }
 
-// headAndMore names the first two items, joined by sep, and counts the rest.
+// headAndMore names the first two items, joined by sep. It counts the rest.
 func headAndMore[T any](items []T, name func(T) string, sep string) string {
 	head := items[:min(2, len(items))]
 
@@ -222,8 +227,8 @@ func headAndMore[T any](items []T, name func(T) string, sep string) string {
 	return out
 }
 
-// ServiceLabel is one of the row's services as a person reads it, for the
-// template's breakdown.
+// ServiceLabel is one service of the row, as a person reads it, for the
+// breakdown of the template.
 func (r *peerRow) ServiceLabel(p *inventory.TrafficPeer) string { return serviceLabel(p) }
 
 func (r *peerRow) add(p *inventory.TrafficPeer) {
@@ -247,13 +252,13 @@ func busier(aBytes, aTries, bBytes, bTries int64) int {
 	return cmp.Or(cmp.Compare(bBytes, aBytes), cmp.Compare(bTries, aTries))
 }
 
-// peerTally is what a set of rows adds up to.
+// peerTally is the total of a set of rows.
 type peerTally struct {
 	Sent, Received  int64
 	Tries, Answered int64
 
-	// Outgoing counts the connections the device opened on the peer,
-	// Incoming the ones the peer opened on the device.
+	// Outgoing counts the connections that the device opened on the peer.
+	// Incoming counts the connections that the peer opened on the device.
 	Outgoing, Incoming int64
 
 	LastHour time.Time
@@ -261,7 +266,7 @@ type peerTally struct {
 
 func (t *peerTally) total() int64 { return t.Sent + t.Received }
 
-// merge adds o's counts to t.
+// merge adds the counts of o to t.
 func (t *peerTally) merge(o peerTally) {
 	t.Sent += o.Sent
 	t.Received += o.Received
@@ -278,22 +283,23 @@ func (t *peerTally) seen(hour time.Time) {
 	}
 }
 
-// peerListHead is how many addresses a folded row opens to before the rest
-// are only counted: a sweep of a subnet is hundreds of near-identical lines.
+// peerListHead is how many addresses a merged row opens to. After that, the
+// rest only count. A sweep of a subnet is hundreds of almost identical
+// lines.
 const peerListHead = 20
 
-// peerList is the peers a folded row opens to.
+// peerList is the peers that a merged row opens to.
 type peerList []*peerRow
 
 // Head is the busiest of them, as many as a person reads.
 func (l peerList) Head() peerList { return l[:min(peerListHead, len(l))] }
 
-// Rest counts the ones Head leaves out.
+// Rest counts the peers that Head leaves out.
 func (l peerList) Rest() int64 { return int64(max(0, len(l)-peerListHead)) }
 
-// strangerGroup is local addresses no device holds, collapsed by the subnet
-// they sit in: a device reaching many unknown hosts next to each other is one
-// fact, shown as one row.
+// strangerGroup is local addresses of no device, collapsed by their subnet. A
+// device that reaches many unknown hosts next to each other is one fact. The
+// page shows it as one row.
 type strangerGroup struct {
 	peerTally
 
@@ -301,7 +307,7 @@ type strangerGroup struct {
 	Peers  peerList
 }
 
-// localEntry is one row of a segment tab: a peer on its own, or a group.
+// localEntry is one row of a segment tab: a single peer, or a group.
 type localEntry struct {
 	Peer  *peerRow
 	Group *strangerGroup
@@ -325,9 +331,8 @@ type orgEntry struct {
 	Peers       peerList
 }
 
-// LookedUp names two of the names the device looked up for the
-// organisation's addresses, from the busiest address down, and counts the
-// rest.
+// LookedUp names two of the names that the device looked up for the addresses
+// of the organisation, from the busiest address down. It counts the rest.
 func (e *orgEntry) LookedUp() string {
 	var names []string
 
@@ -346,9 +351,9 @@ func (e *orgEntry) LookedUp() string {
 	return headAndMore(names, func(s string) string { return s }, ", ")
 }
 
-// filterPeers keeps the peers on f's service, connected the way f's direction
-// asks, whose names contain its query. org is the lowercased organisation the
-// peers belong to, which matches all of them.
+// filterPeers keeps the peers on the service of f, in the direction of f, whose
+// names contain its query. org is the lowercase organisation of the peers. It
+// matches all of them.
 func filterPeers(peers []*inventory.TrafficPeer, f trafficFilter, org string) []*inventory.TrafficPeer {
 	var out []*inventory.TrafficPeer
 
@@ -376,9 +381,9 @@ func peerMatches(p *inventory.TrafficPeer, query string) bool {
 	return anyContains(query, append([]string{p.DeviceName, p.IP.String(), p.Name, serviceLabel(p)}, p.LookedUp...)...)
 }
 
-// mergePeers folds per-service rows and tries into one row per peer, busiest
-// first. A known device is one peer whatever address it used; anything else
-// is its address.
+// mergePeers merges the rows of each service, and the tries, into one row for
+// each peer, busiest first. A known device is one peer, for any address that
+// it used. Any other peer is its address.
 func mergePeers(peers []*inventory.TrafficPeer, tried []*inventory.Attempt) []*peerRow {
 	type key struct {
 		device int64
@@ -433,7 +438,7 @@ func mergePeers(peers []*inventory.TrafficPeer, tried []*inventory.Attempt) []*p
 	return out
 }
 
-// groupLocal turns local peers and tries into rows, collapsing two or more
+// groupLocal turns local peers and tries into rows. It collapses two or more
 // unknown addresses in one subnet into a single entry.
 func groupLocal(peers []*inventory.TrafficPeer, tried []*inventory.Attempt) []*localEntry {
 	var (
@@ -494,9 +499,9 @@ func groupLocal(peers []*inventory.TrafficPeer, tried []*inventory.Attempt) []*l
 	return out
 }
 
-// orgKey is what folds internet peers into one row: the organisation's short
-// name, so one company announcing from several ASNs is one row, or the address
-// when no organisation announces it.
+// orgKey merges internet peers into one row. It is the short name of the
+// organisation. So one company that announces from several ASNs is one row. If
+// no organisation announces the address, it is the address.
 func orgKey(asn uint32, short string, ip netip.Addr) string {
 	if asn == 0 {
 		return "ip:" + ip.String()
@@ -505,10 +510,10 @@ func orgKey(asn uint32, short string, ip netip.Addr) string {
 	return "org:" + short
 }
 
-// groupInternet applies the service and query filter to the organisations a
-// device exchanged data with, and adds the tries, already filtered, to the
-// organisation announcing each address. An address no organisation announces
-// is its own entry.
+// groupInternet applies the service and query filter to the organisations with
+// which a device exchanged data. It adds the filtered tries to the
+// organisation that announces each address. An address that no organisation
+// announces is its own entry.
 func groupInternet(orgs []*inventory.TrafficOrg, tried []*inventory.Attempt, f trafficFilter) []*orgEntry {
 	type staged struct {
 		entry *orgEntry

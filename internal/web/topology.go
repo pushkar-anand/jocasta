@@ -12,19 +12,19 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/web/topomap"
 )
 
-// topologyPage is the network as a tree: what is plugged into what.
+// topologyPage is the network as a tree: what is connected to what.
 type topologyPage struct {
 	view
 
 	Tree   *topology.Tree
 	Layout *topomap.Layout
 
-	// VLANs is the legend: every VLAN a placed device is in, in order.
+	// VLANs is the legend: every VLAN of a placed device, in order.
 	VLANs []vlanKey
 }
 
 // vlanKey is one VLAN in the legend. Label names it as the map names the
-// network in that VLAN, or by the VLAN alone when no network is in it.
+// network in that VLAN. If no network is in it, Label is only the VLAN.
 type vlanKey struct {
 	VLAN    int
 	Label   string
@@ -53,7 +53,7 @@ func (h *Handler) topologyView(sm *auth.Session) response.HandlerFunc {
 	}
 }
 
-// topologyLive serves the tree alone, which is what the page polls for.
+// topologyLive serves only the tree, for the poll of the page.
 func (h *Handler) topologyLive() response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		data, err := h.buildTopology(r.Context())
@@ -68,7 +68,7 @@ func (h *Handler) topologyLive() response.HandlerFunc {
 }
 
 // buildTopology prepares the connection tree and its VLAN legend. A nil Layout
-// means no topology is available and the page should show setup guidance.
+// means that no topology is available. The page then shows setup help.
 func (h *Handler) buildTopology(ctx context.Context) (*topologyPage, error) {
 	tree, err := h.store.Topology(ctx)
 	if err != nil {

@@ -13,9 +13,9 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/web/netmap"
 )
 
-// network builds a router with a switch on a trunk and an access point on
-// another, each with devices, plus a device on the router itself. Hardware
-// addresses are RFC 7042 documentation values.
+// network builds a router with a switch on one trunk and an access point on a
+// second, each with devices. It also has a device on the router itself.
+// Hardware addresses are RFC 7042 documentation values.
 func network(t *testing.T, perSwitch int) *topology.Tree {
 	t.Helper()
 
@@ -75,7 +75,7 @@ func TestPlaceIsStable(t *testing.T) {
 	}
 }
 
-// Nothing overlaps: no two boxes or groups share any of the canvas.
+// Nothing overlaps. No two boxes or groups share a part of the canvas.
 func TestPlaceKeepsBoxesApart(t *testing.T) {
 	t.Parallel()
 
@@ -108,7 +108,7 @@ func TestPlaceKeepsBoxesApart(t *testing.T) {
 	}
 }
 
-// The internet is above the router, and everything hangs below its parent.
+// The internet is above the router. Everything hangs below its parent.
 func TestPlaceReadsTopDown(t *testing.T) {
 	t.Parallel()
 
@@ -128,8 +128,8 @@ func TestPlaceReadsTopDown(t *testing.T) {
 	}
 }
 
-// Every box but the router, and every group, has a line to it, and the
-// internet one to the router.
+// Every box except the router, and every group, has a line to it. The internet
+// has a line to the router.
 func TestPlaceDrawsEveryBranch(t *testing.T) {
 	t.Parallel()
 
@@ -151,8 +151,8 @@ func TestPlaceDrawsEveryBranch(t *testing.T) {
 	assert.True(t, labels["ether2 · trunk"])
 }
 
-// Groups are titled by port or Wi-Fi network and VLAN, and devices take their
-// VLAN's colour.
+// Groups get a title from their port or Wi-Fi network and VLAN. Devices get the
+// colour of their VLAN.
 func TestPlaceTitlesGroups(t *testing.T) {
 	t.Parallel()
 
@@ -164,8 +164,8 @@ func TestPlaceTitlesGroups(t *testing.T) {
 		titles[i] = g.Title
 	}
 
-	// The router's wired devices, then the access point on ether2, then the
-	// switch on sfp1.
+	// The wired devices of the router, then the access point on ether2, then
+	// the switch on sfp1.
 	assert.Equal(t, []string{
 		"Wired · VLAN\u00a010", "home · VLAN\u00a010", "iot · VLAN\u00a020", "Wired · VLAN\u00a010", "Wired · VLAN\u00a030",
 	}, titles)
@@ -177,8 +177,8 @@ func TestPlaceTitlesGroups(t *testing.T) {
 	}
 }
 
-// Selecting a device lights every box and line on its path: each carries the
-// keys below it.
+// A selection of a device highlights every box and line on its path. Each has
+// the keys below it.
 func TestPlaceMarksThePathToEachDevice(t *testing.T) {
 	t.Parallel()
 
@@ -233,7 +233,8 @@ func TestChipTitleSaysWhere(t *testing.T) {
 		chipTitle(&topology.Leaf{Name: "nas", Port: "ether4", VLANs: []int{10, 20}, VLAN: 10}))
 }
 
-// A wired chip names its port and a Wi-Fi one its band, on the chip's right.
+// A wired chip names its port, and a Wi-Fi chip names its band, on the right of
+// the chip.
 func TestPlaceNamesEachChipsPortOrBand(t *testing.T) {
 	t.Parallel()
 
@@ -257,9 +258,9 @@ func TestPlaceNamesEachChipsPortOrBand(t *testing.T) {
 	assert.Empty(t, asides["device-80"], "no band was reported")
 }
 
-// A long group wraps its chips into columns, so it stays near as wide as it
-// is tall instead of drawing as one column thousands of pixels tall, and its
-// chips and its neighbours still never overlap.
+// A long group wraps its chips into columns. So it stays about as wide as it is
+// tall. It does not draw as one column thousands of pixels tall. Its chips and
+// its neighbours still never overlap.
 func TestLongGroupWrapsIntoColumns(t *testing.T) {
 	t.Parallel()
 

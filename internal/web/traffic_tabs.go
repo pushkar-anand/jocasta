@@ -9,35 +9,35 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// Tab keys that are not a recorded network's.
+// Tab keys that are not the key of a recorded network.
 const (
 	// tabInternet holds every public address, by organisation.
 	tabInternet = "internet"
 
-	// tabElsewhere holds local addresses on no recorded network: a network
-	// the router never reported, or every local address when none is
-	// recorded.
+	// tabElsewhere holds local addresses on no recorded network. This is a
+	// network that the router never reported. Or it is every local address,
+	// when no network is recorded.
 	tabElsewhere = "local"
 
 	// tabBroadcasts holds what the device sent to everyone.
 	tabBroadcasts = "broadcasts"
 )
 
-// trafficTab is one segment of a device's "Talks to" section: a recorded
+// trafficTab is one segment of the "Talks to" section of a device: a recorded
 // network, the rest of the local addresses, or the internet.
 type trafficTab struct {
 	Key   string
 	Label string
 	VLAN  int
 
-	// Local are the rows of a local tab, Internet the rows of the Internet
-	// tab, Broadcasts the rows of the Broadcasts tab.
+	// Local are the rows of a local tab. Internet are the rows of the Internet
+	// tab. Broadcasts are the rows of the Broadcasts tab.
 	Local      []*localEntry
 	Internet   []*orgEntry
 	Broadcasts []*broadcastRow
 
 	// Count is how many peers the tab holds: devices and addresses on a local
-	// tab, organisations on the Internet tab.
+	// tab, and organisations on the Internet tab.
 	Count int
 
 	prefix     netip.Prefix
@@ -58,11 +58,11 @@ func (t *trafficTab) Empty() bool { return t.Count == 0 }
 
 func networkTabKey(id int64) string { return "net-" + strconv.FormatInt(id, 10) }
 
-// segmentTabs splits a device's traffic and tries, both already filtered, into
-// one tab per recorded network, one for local addresses on none of them, and
-// one for the internet. A recorded network the device reached nothing on is
-// still a tab, so the tabs read the same from one device to the next; the
-// leftover local tab is only there when something is in it.
+// segmentTabs splits the filtered traffic and tries of a device into tabs.
+// There is one tab for each recorded network, one for local addresses on none
+// of them, and one for the internet. A recorded network where the device
+// reached nothing is still a tab. So the tabs are the same from one device to
+// the next. The other local tab is there only when it has something.
 func segmentTabs(
 	nets []*inventory.Network, local []*inventory.TrafficPeer, orgs []*inventory.TrafficOrg,
 	tried []*inventory.Attempt, f trafficFilter,
@@ -89,8 +89,8 @@ func segmentTabs(
 		elsewhere.Label = "On your network"
 	}
 
-	// The narrowest recorded network holding an address is its segment, so
-	// a /24 carved out of a /16 wins over the /16.
+	// The narrowest recorded network that contains an address is its segment.
+	// So a /24 inside a /16 wins over the /16.
 	segmentOf := func(ip netip.Addr) *trafficTab {
 		var best *trafficTab
 
@@ -159,25 +159,24 @@ func segmentTabs(
 	return append(tabs, internet)
 }
 
-// broadcastRow is one broadcast as the Broadcasts tab reads it.
+// broadcastRow is one broadcast, as the Broadcasts tab reads it.
 type broadcastRow struct {
 	*inventory.Broadcast
 
-	// What is the protocol it most likely is, or the port it went to; To
-	// is who it went to.
+	// What is its most likely protocol, or its port. To is who it went to.
 	What string
 	To   string
 }
 
 // broadcastTab is the tab for what the device sent to everyone, after the
-// service and query filter. nets name the subnet a broadcast went to.
+// service and query filter. nets name the subnet of a broadcast.
 func broadcastTab(nets []*inventory.Network, all []*inventory.Broadcast, f trafficFilter) *trafficTab {
 	t := &trafficTab{Key: tabBroadcasts, Label: "Broadcasts"}
 	query := strings.ToLower(f.Query)
 	protocol, port, hasService := parseServiceKey(f.Service)
 
 	for _, b := range all {
-		// A broadcast is always the device's own.
+		// A broadcast always belongs to the device.
 		if f.Direction == dirIn || hasService && (b.Protocol != protocol || b.Port != port) {
 			continue
 		}
@@ -197,8 +196,8 @@ func broadcastTab(nets []*inventory.Network, all []*inventory.Broadcast, f traff
 	return t
 }
 
-// broadcastWhat is what a broadcast most likely was, or where it went when
-// nothing says.
+// broadcastWhat is the most likely protocol of a broadcast. If nothing tells,
+// it is where it went.
 func broadcastWhat(b *inventory.Broadcast) string {
 	if b.Service != "" {
 		return b.Service
@@ -212,7 +211,7 @@ func broadcastWhat(b *inventory.Broadcast) string {
 	return proto + " port " + strconv.Itoa(int(b.Port))
 }
 
-// broadcastTo says who a broadcast reached.
+// broadcastTo tells who a broadcast reached.
 func broadcastTo(b *inventory.Broadcast, nets []*inventory.Network) string {
 	switch b.Kind {
 	case "subnet":
@@ -230,8 +229,8 @@ func broadcastTo(b *inventory.Broadcast, nets []*inventory.Network) string {
 	return "multicast group"
 }
 
-// pickTab is the tab key names, or the busiest when key names none: most
-// data moved, then most tries, then the first with anything in it.
+// pickTab is the tab that key names. If key names none, it is the busiest: the
+// most data moved, then the most tries, then the first tab with something.
 func pickTab(tabs []*trafficTab, key string) *trafficTab {
 	for _, t := range tabs {
 		if t.Key == key {
@@ -251,28 +250,28 @@ func pickTab(tabs []*trafficTab, key string) *trafficTab {
 	return best
 }
 
-// trafficSummary is a device's traffic over the window at a glance, before
-// any filter.
+// trafficSummary is a short summary of the traffic of a device over the
+// window, before a filter.
 type trafficSummary struct {
 	Sent, Received int64
 
-	// Local is how many devices and addresses on the network it talked to,
-	// Orgs how many organisations on the internet.
+	// Local is how many devices and addresses on the network it talked to.
+	// Orgs is how many organisations on the internet.
 	Local int
 	Orgs  int
 
-	// Tries and Answered count the connections that carried nothing, and
-	// TriedPeers how many peers they went to.
+	// Tries and Answered count the connections that carried nothing.
+	// TriedPeers is how many peers they went to.
 	Tries, Answered int64
 	TriedPeers      int
 
-	// FromInternet counts the connections internet peers opened on the
+	// FromInternet counts the connections that internet peers opened on the
 	// device.
 	FromInternet int64
 }
 
-// summarise totals exchanged data and counts distinct local peers and internet
-// organisations. Attempts are counted separately from conversations.
+// summarise adds up exchanged data. It counts the different local peers and
+// internet organisations. It counts attempts separately from conversations.
 func summarise(t *inventory.DeviceTraffic, attempts []*inventory.Attempt) trafficSummary {
 	var s trafficSummary
 

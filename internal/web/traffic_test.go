@@ -23,7 +23,7 @@ type trafficSource struct{}
 func (trafficSource) Name() string            { return "netflow:test" }
 func (trafficSource) Kind() dbtype.SourceKind { return dbtype.SourceRouter }
 
-// recordTraffic writes flows the way the recorder does in production.
+// recordTraffic writes flows, as the recorder does in production.
 func recordTraffic(t *testing.T, store *inventory.Store, flows ...plugin.Flow) {
 	t.Helper()
 
@@ -76,8 +76,8 @@ func tabKey(t *testing.T, store *inventory.Store, cidr string) string {
 	return ""
 }
 
-// afterForm is the section below its filter form, whose service choices list
-// everything whatever is shown.
+// afterForm is the section below its filter form. The service choices of the
+// form list everything, for any shown content.
 func afterForm(body string) string {
 	if i := strings.Index(body, "</form>"); i >= 0 {
 		return body[i:]
@@ -103,7 +103,8 @@ func TestDevicePageSaysWhenThisDeviceExchangedNothing(t *testing.T) {
 
 	store := sweptPair(t)
 
-	// Traffic exists, but only between the other device and the internet.
+	// Traffic exists, but only between the other device and the
+	// internet.
 	recordTraffic(t, store, tcp("192.0.2.11", "198.51.100.7", 443, 100))
 
 	rec := get(t, newWebHandler(t, store), "/devices/1")
@@ -118,7 +119,8 @@ func TestDevicePageShowsWhoTheDeviceTalksTo(t *testing.T) {
 
 	recordTraffic(t, store,
 		tcp("192.0.2.10", "192.0.2.11", 445, 2_500_000),
-		// Public resolvers, as in the asn tests: one organisation, two addresses.
+		// Public resolvers, as in the asn tests: one organisation, two
+		// addresses.
 		tcp("192.0.2.10", "1.1.1.1", 443, 1_200),
 		tcp("192.0.2.10", "1.0.0.1", 443, 800),
 	)
@@ -130,7 +132,8 @@ func TestDevicePageShowsWhoTheDeviceTalksTo(t *testing.T) {
 
 	body := rec.Body.String()
 
-	// The figures cover everything; the busiest tab, the home network, opens.
+	// The figures cover everything. The busiest tab, the home network,
+	// opens.
 	assert.Contains(t, body, "<dt>Received</dt>")
 	assert.Contains(t, body, "<div><dd>1</dd><dt>On your network</dt></div>")
 	assert.Contains(t, body, "<div><dd>1</dd><dt>Organisation on the internet</dt></div>")
@@ -143,7 +146,7 @@ func TestDevicePageShowsWhoTheDeviceTalksTo(t *testing.T) {
 	assert.NotContains(t, afterForm(body), "Cloudflare", "the internet is another tab")
 	assert.Contains(t, body, "DB-IP", "the ASN data's licence asks for credit")
 
-	// The page speaks plainly: no protocol jargon reaches it.
+	// The page uses plain words. No protocol jargon reaches it.
 	for _, word := range []string{"NetFlow", "IPFIX", "flow", "exporter"} {
 		assert.NotContains(t, body, word)
 	}
@@ -162,10 +165,12 @@ func TestDevicePageShowsWhoTheDeviceTalksTo(t *testing.T) {
 	assert.NotContains(t, body, "ZgotmplZ")
 }
 
-// TestDeviceTrafficNamesPeersByWhatTheDeviceLookedUp checks that a peer
-// carries the names the device looked up for its address in the period, most
-// looked up first, that the organisation row lists them, that an older lookup
-// is left out, and that the search finds a peer by them.
+// TestDeviceTrafficNamesPeersByWhatTheDeviceLookedUp checks these points:
+//   - a peer has the names that the device looked up for its address in the
+//     period, the most frequent first
+//   - the organisation row lists them
+//   - the page leaves out an older lookup
+//   - the search finds a peer by them
 func TestDeviceTrafficNamesPeersByWhatTheDeviceLookedUp(t *testing.T) {
 	t.Parallel()
 
@@ -237,8 +242,8 @@ func TestDeviceTrafficCollapsesServicesAndUnknownNeighbours(t *testing.T) {
 		// Two services on the same device: one row.
 		tcp("192.0.2.10", "192.0.2.11", 445, 2_000),
 		tcp("192.0.2.10", "192.0.2.11", 22, 1_000),
-		// Two addresses no device holds, on no recorded network: one row, on
-		// a tab of their own.
+		// Two addresses of no device, on no recorded network: one row, on
+		// their own tab.
 		tcp("192.0.2.10", "198.51.100.7", 80, 300),
 		tcp("192.0.2.10", "198.51.100.8", 80, 200),
 	)
@@ -292,8 +297,8 @@ func TestDeviceTrafficFilters(t *testing.T) {
 			want: []string{"nas.example.com"}, avoid: []string{"Cloudflare"},
 		},
 		{
-			// Nothing on the home network matches, so the busiest tab left
-			// is the internet.
+			// Nothing on the home network matches. So the busiest tab that
+			// is left is the internet.
 			name: "search opens the tab it matches on", query: "q=google&traffic=7d", push: "/devices/1?q=google&traffic=7d",
 			want: []string{"Google"}, avoid: []string{"Cloudflare", "nas.example.com"},
 		},
@@ -303,7 +308,7 @@ func TestDeviceTrafficFilters(t *testing.T) {
 			want: []string{"Nothing on the internet in the last 24 hours matches.", "Clear filters"},
 		},
 		{
-			// The internet moved the most, so it is the tab that opens.
+			// The internet moved the most. So it is the tab that opens.
 			name: "unknown values are dropped", query: "tab=moon&service=https", push: "/devices/1",
 			want: []string{"Cloudflare", "Google"},
 		},
@@ -457,8 +462,8 @@ func TestTrafficPageSummarisesTheNetwork(t *testing.T) {
 	assert.Contains(t, body, "9.0 MB")
 	assert.Contains(t, body, `<option value="7d" selected>Last 7 days</option>`)
 
-	// Collection started moments ago, so everything is a first contact, and
-	// the page says why, so it does not imply the network changed.
+	// Collection started a moment ago. So everything is a first contact. The
+	// page tells why. So it does not suggest that the network changed.
 	assert.Contains(t, body, "New this week")
 	assert.Contains(t, body, "Cloudflare")
 	assert.Contains(t, body, "Google")
@@ -480,7 +485,8 @@ func TestTrafficPageGroupsNewContactsAndNarrowsToAGroup(t *testing.T) {
 	store := sweptPair(t)
 
 	recordTraffic(t, store,
-		// Both devices reach Google for the first time: one row, two devices.
+		// Both devices reach Google for the first time: one row, two
+		// devices.
 		tcp("192.0.2.10", "8.8.8.8", 443, 1_000),
 		tcp("192.0.2.11", "8.8.8.8", 443, 3_000),
 		tcp("192.0.2.11", "1.1.1.1", 443, 500),
@@ -514,8 +520,9 @@ func TestTrafficPageGroupsNewContactsAndNarrowsToAGroup(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "laptop.example.com")
 }
 
-// pingSweep is device 192.0.2.10 pinging n documentation addresses, none of
-// which answers, plus one refused knock on the NAS's telnet port.
+// pingSweep is device 192.0.2.10, which pings n documentation addresses. None
+// of them answers. It also has one refused knock on the telnet port of the
+// NAS.
 func pingSweep(n int) []plugin.Flow {
 	var flows []plugin.Flow
 
@@ -577,7 +584,7 @@ func TestDevicePageShowsWhatTheDeviceTriedWhenAsked(t *testing.T) {
 	rec := get(t, h, "/devices/1")
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	// Tries are counted at the top but left out of the rows by default.
+	// Tries count at the top. By default, the rows leave them out.
 	body := rec.Body.String()
 	assert.Contains(t, body, "This device probed your network.")
 	assert.Contains(t, body, "In one hour it tried 26 addresses on your network.")
@@ -586,7 +593,7 @@ func TestDevicePageShowsWhatTheDeviceTriedWhenAsked(t *testing.T) {
 	assert.Contains(t, body, "Show tries with no data")
 	assert.NotContains(t, body, "198.51.100.0/24")
 
-	// Asked for, they open on the busiest tab: the sweep.
+	// When asked for, they open on the busiest tab: the sweep.
 	rec = get(t, h, "/devices/1/traffic?tried=1")
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, "/devices/1?tried=1", rec.Header().Get("HX-Push-Url"))
@@ -605,12 +612,12 @@ func TestDevicePageShowsWhatTheDeviceTriedWhenAsked(t *testing.T) {
 	assert.Contains(t, body, "port 23")
 	assert.Contains(t, body, "1 tried, 0 answered")
 
-	// The NAS tried nothing, so it carries no notice.
+	// The NAS tried nothing. So it has no notice.
 	rec = get(t, h, "/devices/2")
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.NotContains(t, rec.Body.String(), "This device probed your network.")
 
-	// The search narrows tries like everything else.
+	// The search limits tries, as it limits everything else.
 	rec = get(t, h, "/devices/1/traffic?tried=1&q=nas")
 	require.Equal(t, http.StatusOK, rec.Code)
 
@@ -669,8 +676,8 @@ func TestTrafficPageTabsBySegment(t *testing.T) {
 	assert.NotContains(t, body, "ZgotmplZ")
 }
 
-// What a device sends to everyone gets a tab of its own, named by the
-// protocol it most likely is and who it reached.
+// What a device sends to everyone gets its own tab. The tab names the most
+// likely protocol, and who it reached.
 func TestDevicePageShowsWhatTheDeviceBroadcasts(t *testing.T) {
 	t.Parallel()
 
@@ -687,7 +694,7 @@ func TestDevicePageShowsWhatTheDeviceBroadcasts(t *testing.T) {
 
 	h := newWebHandler(t, store)
 
-	// Nothing else was exchanged, so the Broadcasts tab is the one that opens.
+	// Nothing else was exchanged. So the Broadcasts tab opens.
 	rec := get(t, h, "/devices/1")
 	require.Equal(t, http.StatusOK, rec.Code)
 
@@ -702,7 +709,7 @@ func TestDevicePageShowsWhatTheDeviceBroadcasts(t *testing.T) {
 	assert.Contains(t, body, "everyone on its segment")
 	assert.NotContains(t, body, "ZgotmplZ")
 
-	// The search narrows it like every other tab.
+	// The search limits it, as for every other tab.
 	rec = get(t, h, "/devices/1/traffic?tab=broadcasts&q=mdns")
 	require.Equal(t, http.StatusOK, rec.Code)
 
@@ -716,19 +723,20 @@ func TestDevicePageShowsWhatTheDeviceBroadcasts(t *testing.T) {
 	assert.NotContains(t, rec.Body.String(), ">Broadcasts")
 }
 
-// Who opened each row's connections is shown, the device (→) or the peer
-// (←); the direction filter narrows to one side, and the device and service
-// the internet reached are listed on the Traffic page.
+// The page shows who opened the connections of each row: the device (→) or the
+// peer (←). The direction filter limits to one side. The Traffic page lists
+// the device and service that the internet reached.
 func TestConnectionDirectionsAreShown(t *testing.T) {
 	t.Parallel()
 
 	store := sweptPair(t)
 
 	recordTraffic(t, store,
-		// Cloudflare's address opens the laptop's 443; the NAS its ssh.
+		// The address of Cloudflare opens port 443 of the laptop, and the ssh
+		// of the NAS.
 		tcp("1.1.1.1", "192.0.2.10", 443, 3_000),
 		tcp("192.0.2.11", "192.0.2.10", 22, 3_000),
-		// And the laptop opens Google's 443.
+		// The laptop opens port 443 of Google.
 		tcp("192.0.2.10", "8.8.8.8", 443, 5_000),
 	)
 
@@ -748,7 +756,7 @@ func TestConnectionDirectionsAreShown(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "&larr; 1", "the NAS opened the laptop's ssh")
 
-	// Opened by them: Cloudflare only. Opened by this device: Google only.
+	// Opened by them: only Cloudflare. Opened by this device: only Google.
 	rec = get(t, h, "/devices/1/traffic?tab=internet&dir=in")
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, "/devices/1?dir=in&tab=internet", rec.Header().Get("HX-Push-Url"))
@@ -774,10 +782,10 @@ func TestConnectionDirectionsAreShown(t *testing.T) {
 	assert.NotContains(t, body, "ZgotmplZ")
 }
 
-// What the internet tried on the network is listed on the Traffic page and
-// noted on the device it was tried on: a port forwarded to the laptop, and
-// the router's outside address, counted under the router, which here is the
-// NAS.
+// The Traffic page lists what the internet tried on the network. The page of
+// the target device also notes it. Here, the targets are a port forwarded to
+// the laptop, and the outside address of the router. The router, which here is
+// the NAS, counts the second.
 func TestProbesFromTheInternetAreShown(t *testing.T) {
 	t.Parallel()
 
@@ -848,8 +856,8 @@ func TestBehindNATFrom(t *testing.T) {
 	}
 }
 
-// The Traffic page says the router is behind another NAT when its outside
-// address is private, and says nothing when it is public.
+// The Traffic page says that the router is behind a different NAT when its
+// outside address is private. It says nothing when the address is public.
 func TestTrafficPageSaysWhenTheRouterIsBehindNAT(t *testing.T) {
 	t.Parallel()
 
@@ -883,9 +891,9 @@ func TestTrafficPageSaysWhenTheRouterIsBehindNAT(t *testing.T) {
 	}
 }
 
-// An organisation reached by much of the network opens to its busiest 10
-// devices and a count of the rest, so one open row stays near the height of
-// the card beside it.
+// An organisation that much of the network reached opens to its busiest 10
+// devices and a count of the rest. So one open row stays near the height of
+// the card next to it.
 func TestOrgRowListsItsBusiestDevices(t *testing.T) {
 	t.Parallel()
 

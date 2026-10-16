@@ -32,8 +32,8 @@ func withOrgs(m *inventory.TrafficMap, n int) *inventory.TrafficMap {
 	return m
 }
 
-// A device keeps its place however its traffic changes, since places follow
-// ids.
+// A device keeps its place for any change of its traffic, because places
+// follow ids.
 func TestPlaceIsStable(t *testing.T) {
 	t.Parallel()
 
@@ -58,8 +58,8 @@ func TestPlaceIsStable(t *testing.T) {
 	}
 }
 
-// At the most the map draws, however they are split, no node sits on another
-// and everything is on the canvas.
+// At the maximum that the map draws, in any split, no node is on another, and
+// everything is on the canvas.
 func TestPlaceKeepsNodesApart(t *testing.T) {
 	t.Parallel()
 
@@ -95,8 +95,9 @@ func TestPlaceKeepsNodesApart(t *testing.T) {
 	}
 }
 
-// The internet's hub comes first, then the networks in the order given with
-// devices on none last; a network with no devices has no hub.
+// The hub of the internet comes first. Then the networks come in the given
+// order, with devices on no network last. A network with no devices has no
+// hub.
 func TestPlaceHubsInOrder(t *testing.T) {
 	t.Parallel()
 
@@ -127,8 +128,8 @@ func TestPlaceHubsInOrder(t *testing.T) {
 	assert.Equal(t, []int64{2, 3, 1}, ids)
 }
 
-// A name set across its hub's branch, as one above or below the router is,
-// sits past the hub's nodes, so none is drawn under it.
+// A name across the branch of its hub, above or below the router, is after the
+// nodes of the hub. So no node is drawn under it.
 func TestHubNameAcrossItsBranchClearsItsNodes(t *testing.T) {
 	t.Parallel()
 
@@ -146,7 +147,7 @@ func TestHubNameAcrossItsBranchClearsItsNodes(t *testing.T) {
 
 		name := math.Hypot(h.LabelAt.X-h.At.X, h.LabelAt.Y-h.At.Y)
 
-		// It grows away from the hub, so a larger drawing stays clear too.
+		// It grows away from the hub. So a larger drawing also stays clear.
 		want := "down"
 		if h.At.Y > l.Router.Y {
 			want = "up"
@@ -166,9 +167,9 @@ func TestHubNameAcrossItsBranchClearsItsNodes(t *testing.T) {
 	require.Positive(t, across, "no hub sits above or below the router")
 }
 
-// The lines are the tree's branches: one to each node, one to each hub. An
-// active node lights its branch and its hub's; busier branches are thicker and
-// drawn last.
+// The lines are the branches of the tree: one to each node, and one to each
+// hub. An active node highlights its branch and the branch of its hub. Busier
+// branches are thicker, and drawn last.
 func TestPlaceDrawsTheTree(t *testing.T) {
 	t.Parallel()
 
@@ -205,7 +206,7 @@ func TestPlaceWithNothing(t *testing.T) {
 	assert.Positive(t, l.Width)
 }
 
-// A label on the left of its hub is turned round to read left to right.
+// A label on the left of its hub turns, so it reads from left to right.
 func TestLabelsNeverReadUpsideDown(t *testing.T) {
 	t.Parallel()
 
@@ -224,9 +225,9 @@ func TestShortenCutsLongNames(t *testing.T) {
 	assert.Equal(t, maxLabel, len([]rune(shorten("a-very-long-device-name.example.com"))))
 }
 
-// Every link joins the two nodes it names (a device and an organisation, or
-// devices on two networks), keeping its services, and one to a node the map
-// left off is not drawn.
+// Every link joins the two nodes that it names (a device and an organisation,
+// or devices on two networks), and keeps its services. The map does not draw a
+// link to a node that it left out.
 func TestPlaceDrawsLinksBetweenNodes(t *testing.T) {
 	t.Parallel()
 

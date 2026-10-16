@@ -14,9 +14,9 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/plugin"
 )
 
-// recordRouter records a router read that learned the laptop on ether4 in
-// VLAN 10, on a gigabit link that came up at 100 Mbps, and the nas behind a
-// switch that announced itself on sfp1.
+// recordRouter records a router read. The read learned the laptop on ether4 in
+// VLAN 10, on a gigabit link that came up at 100 Mbps. It learned the nas
+// behind a switch that announced itself on sfp1.
 func recordRouter(t *testing.T, store *inventory.Store) {
 	t.Helper()
 
@@ -56,8 +56,8 @@ func TestTopologySaysWhenNothingIsRead(t *testing.T) {
 	assert.NotContains(t, body, `hx-get="/topology/live"`, "nothing to refresh")
 }
 
-// The page draws the router, the switch that announced itself, and each
-// device on its port, and polls for itself.
+// The page draws the router, the switch that announced itself, and each device
+// on its port. It polls for itself.
 func TestTopologyDrawsTheTree(t *testing.T) {
 	t.Parallel()
 
@@ -99,8 +99,8 @@ func TestTopologyLiveIsTheTreeAlone(t *testing.T) {
 	assert.NotContains(t, body, "<html")
 }
 
-// A device's page shows the path down to it, each hop linked, and links to
-// the device on the topology.
+// The page of a device shows the path down to it, with a link on each hop. It
+// links to the device on the topology.
 func TestDevicePageShowsWhereTheDeviceIsConnected(t *testing.T) {
 	t.Parallel()
 
@@ -121,8 +121,8 @@ func TestDevicePageShowsWhereTheDeviceIsConnected(t *testing.T) {
 	assert.NotContains(t, body, "Gbps", "the nas is behind the switch, whose link it is")
 }
 
-// A device alone on a port shows the port's rate, and a link that came up
-// below what both ends can run says so.
+// A device alone on a port shows the rate of the port. A link that came up
+// below what both ends can run tells this.
 func TestDevicePageShowsTheLinkSpeed(t *testing.T) {
 	t.Parallel()
 
@@ -158,7 +158,7 @@ func TestDevicePageLeavesConnectedOutBeforeAnyRead(t *testing.T) {
 	assert.NotContains(t, rec.Body.String(), `<h2 class="section">Connected</h2>`)
 }
 
-// A device that is itself the router hangs straight from the internet.
+// A device that is itself the router hangs directly from the internet.
 func TestDevicePageShowsTheRouterBelowTheInternet(t *testing.T) {
 	t.Parallel()
 

@@ -9,7 +9,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// attemptWhat says what was tried: pings, or which ports.
+// attemptWhat tells what was tried: pings, or which ports.
 func attemptWhat(a *inventory.Attempt) string {
 	switch a.Protocol {
 	case 1, 58:
@@ -38,7 +38,7 @@ func attemptWhat(a *inventory.Attempt) string {
 	return out
 }
 
-// filterAttempts keeps the tries on f's service whose names contain its
+// filterAttempts keeps the tries on the service of f whose names contain its
 // query.
 func filterAttempts(attempts []*inventory.Attempt, f trafficFilter) []*inventory.Attempt {
 	query := strings.ToLower(f.Query)
@@ -64,8 +64,8 @@ func attemptMatches(a *inventory.Attempt, query string) bool {
 	return anyContains(query, a.PeerDeviceName, a.IP.String(), a.OrgShort, attemptWhat(a))
 }
 
-// anyContains reports whether any field, lowercased, contains query, which the
-// caller has lowercased already.
+// anyContains reports whether a lowercase field contains query. The caller
+// already made query lowercase.
 func anyContains(query string, fields ...string) bool {
 	return slices.ContainsFunc(fields, func(s string) bool {
 		return strings.Contains(strings.ToLower(s), query)

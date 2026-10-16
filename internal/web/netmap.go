@@ -17,18 +17,18 @@ import (
 )
 
 const (
-	// mapSpan is how far back the map's lines reach. The tables hold hours,
-	// so it covers the hour before and the one in progress.
+	// mapSpan is how far back the lines of the map go. The tables hold hours.
+	// So it covers the hour before and the current hour.
 	mapSpan = time.Hour
 
-	// mapRecent is how far back a line counts as active: the recorder's
-	// whole window.
+	// mapRecent is how far back a line counts as active: the whole window of
+	// the recorder.
 	mapRecent = 15 * time.Minute
 )
 
-// RecentTraffic is what the traffic recorder saw lately, by address, for the
-// map to mark what is active. The recorder only runs when a traffic source is
-// configured.
+// RecentTraffic is what the traffic recorder saw recently, by address. The map
+// uses it to mark what is active. The recorder runs only when a traffic
+// source is configured.
 type RecentTraffic interface {
 	Recent(since time.Time) []inventory.RecentEdge
 }
@@ -36,14 +36,14 @@ type RecentTraffic interface {
 // Option configures a Handler.
 type Option func(*Handler)
 
-// WithRecentTraffic has the map mark what recent reports as active.
+// WithRecentTraffic makes the map mark what recent reports as active.
 func WithRecentTraffic(recent RecentTraffic) Option {
 	return func(h *Handler) { h.recent = recent }
 }
 
-// WithHomeCountry has the world map draw its lines from a country, given by
-// its two-letter code, when the router's outside address cannot place the
-// network.
+// WithHomeCountry makes the world map draw its lines from a country, by its
+// two-letter code. Use it when the outside address of the router cannot give
+// the country of the network.
 func WithHomeCountry(code string) Option {
 	return func(h *Handler) { h.homeCountry = code }
 }
@@ -52,27 +52,29 @@ func WithHomeCountry(code string) Option {
 type mapPage struct {
 	view
 
-	// Recorded is whether any traffic has been recorded at all.
+	// Recorded tells whether Jocasta recorded any traffic.
 	Recorded bool
 
-	// Watching is whether what is active now can be told apart: the
-	// recorder runs in this process.
+	// Watching tells whether the page can know what is active now. This is
+	// true when the recorder runs in this process.
 	Watching bool
 
-	// World is set on the world view, and Map and Layout on the network
-	// one.
+	// World is set on the world view. Map and Layout are set on the network
+	// view.
 	World  *worldView
 	Map    *inventory.TrafficMap
 	Layout *netmap.Layout
 }
 
-// The map's two views: the network as a tree, and the internet on the world.
+// The two views of the map: the network as a tree, and the internet on the
+// world.
 const (
 	mapViewNetwork = "network"
 	mapViewWorld   = "world"
 )
 
-// mapView is the view a request asks for, the network when it names none.
+// mapView is the view that a request asks for. It is the network when the
+// request names none.
 func mapView(r *http.Request) string {
 	if r.URL.Query().Get("view") == mapViewWorld {
 		return mapViewWorld
@@ -81,26 +83,28 @@ func mapView(r *http.Request) string {
 	return mapViewNetwork
 }
 
-// worldShades is how many steps the world map shades countries in.
+// worldShades is the number of shade steps for countries on the world map.
 const worldShades = 5
 
 // worldView is the internet placed on the world.
 type worldView struct {
 	Width, Height float64
 
-	// Outline is every country's shape; Countries the ones with traffic.
+	// Outline is the shape of every country. Countries are the countries with
+	// traffic.
 	Outline   []geo.Country
 	Countries []*worldCountry
 
-	// Home is the country the network is in, which the lines are drawn
-	// from; nil when it is not known.
+	// Home is the country of the network, from which the lines start. It is
+	// nil when it is not known.
 	Home *geo.Country
 
 	Attribution string
 }
 
-// worldCountry is one country's traffic and how dark it is shaded, with the
-// line to it from home: empty when home is not known or is this country.
+// worldCountry is the traffic of one country and its shade, with the line to
+// it from home. The line is empty when home is not known, or is this
+// country.
 type worldCountry struct {
 	*inventory.CountryTraffic
 
@@ -110,7 +114,7 @@ type worldCountry struct {
 	ArcWidth float64
 }
 
-// HomeKey is home's name for selection, the other end of every arc.
+// HomeKey is the name of home for selection, the other end of every arc.
 func (w *worldView) HomeKey() string {
 	if w.Home == nil {
 		return ""
@@ -119,12 +123,12 @@ func (w *worldView) HomeKey() string {
 	return countryKey(w.Home.Code)
 }
 
-// Key is the country's name for selection, as a device's is.
+// Key is the name of the country for selection, as for a device.
 func (c *worldCountry) Key() string { return countryKey(c.Code) }
 
 func countryKey(code string) string { return "c" + code }
 
-// Shades are the steps of the world map's legend.
+// Shades are the steps of the legend of the world map.
 func (w *worldView) Shades() []int {
 	out := make([]int, worldShades)
 	for i := range out {
@@ -155,8 +159,8 @@ func (h *Handler) networkMap(sm *auth.Session) response.HandlerFunc {
 	}
 }
 
-// networkMapLive serves the map alone, which is what the page polls for. The
-// wrapper that drives the poll stays on the page across every refresh.
+// networkMapLive serves only the map, for the poll of the page. The wrapper
+// that drives the poll stays on the page across every refresh.
 func (h *Handler) networkMapLive() response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		data, err := h.buildMap(r.Context(), mapView(r))
@@ -176,8 +180,9 @@ func (h *Handler) networkMapLive() response.HandlerFunc {
 	}
 }
 
-// buildMap prepares the last hour's network or world map. Before any traffic
-// is recorded, it returns page data without a layout for the setup message.
+// buildMap prepares the network or world map of the last hour. Before Jocasta
+// records traffic, it returns page data without a layout, for the setup
+// message.
 func (h *Handler) buildMap(ctx context.Context, which string) (*mapPage, error) {
 	now := h.store.Now()
 	data := &mapPage{Watching: h.recent != nil}
@@ -229,7 +234,7 @@ func (h *Handler) buildMap(ctx context.Context, which string) (*mapPage, error) 
 	return data, nil
 }
 
-// buildWorld places the last hour's internet traffic on the world, shading
+// buildWorld puts the internet traffic of the last hour on the world. It shades
 // each country on a log scale against the busiest.
 func (h *Handler) buildWorld(ctx context.Context, now time.Time, recent []inventory.RecentEdge) (*worldView, error) {
 	countries, err := h.store.TrafficByCountry(ctx, now.Add(-mapSpan), recent)
@@ -265,12 +270,12 @@ func (h *Handler) buildWorld(ctx context.Context, now time.Time, recent []invent
 	return w, nil
 }
 
-// arcBow is how far an arc bows up from the straight line, as a share of its
-// length: enough to read as a route.
+// arcBow is how far an arc bends up from the straight line, as a part of its
+// length. It is enough to look like a route.
 const arcBow = 0.25
 
-// arc is a curve from one point on the world map to another, bowed upwards
-// so the lines out of one country fan apart.
+// arc is a curve from one point on the world map to another, bent up. So the
+// lines from one country spread apart.
 func arc(x1, y1, x2, y2 float64) string {
 	dx, dy := x2-x1, y2-y1
 	length := math.Hypot(dx, dy)
@@ -287,8 +292,8 @@ func arc(x1, y1, x2, y2 float64) string {
 	return fmt.Sprintf("M %.1f %.1f Q %.1f %.1f %.1f %.1f", x1, y1, cx, cy, x2, y2)
 }
 
-// arcWidth is an arc's width for n bytes against the busiest country's top,
-// on a log scale.
+// arcWidth is the width of an arc for n bytes against the top of the busiest
+// country, on a log scale.
 func arcWidth(n, top int64) float64 {
 	const thinnest, thickest = 0.6, 3.5
 
@@ -301,10 +306,10 @@ func arcWidth(n, top int64) float64 {
 	return math.Round((thinnest+(thickest-thinnest)*min(max(f, 0), 1))*10) / 10
 }
 
-// homeOf is the country the network is in: the one configured, or else the
-// one the router's outside address is registered in. A private outside
-// address, as behind an ISP's carrier-grade NAT, places nothing, and nil is
-// returned when nothing does.
+// homeOf is the country of the network. It is the configured country. Else, it
+// is the country of the outside address of the router. A private outside
+// address, as behind the carrier-grade NAT of an ISP, gives nothing. If
+// nothing gives a country, it returns nil.
 func (h *Handler) homeOf(ctx context.Context, now time.Time) (*geo.Country, error) {
 	if c, ok := geo.CountryOf(h.homeCountry); ok {
 		return &c, nil
@@ -329,8 +334,8 @@ func (h *Handler) homeOf(ctx context.Context, now time.Time) (*geo.Country, erro
 	return nil, nil
 }
 
-// shade is the step, 1 to worldShades, n bytes falls in against the busiest
-// country's top, on a log scale.
+// shade is the step, 1 to worldShades, of n bytes against the top of the
+// busiest country, on a log scale.
 func shade(n, top int64) int {
 	if n <= 1 || top <= 1 {
 		return 1
@@ -341,8 +346,8 @@ func shade(n, top int64) int {
 	return min(max(int(math.Ceil(f*worldShades)), 1), worldShades)
 }
 
-// mapServices is a link's services as a person reads them, "https · port 123
-// UDP": each one's usual name or its port, with the protocol when that is
+// mapServices is the services of a link as a person reads them, "https · port
+// 123 UDP". Each is its usual name or its port, with the protocol when that is
 // not TCP.
 func mapServices(list []inventory.MapService) string {
 	names := make([]string, 0, len(list))
@@ -354,8 +359,8 @@ func mapServices(list []inventory.MapService) string {
 	return strings.Join(names, " · ")
 }
 
-// networkLabel is a network's name, with its VLAN when it has one, or its
-// prefix when it has no name.
+// networkLabel is the name of a network, with its VLAN when it has one. It is
+// its prefix when it has no name.
 func networkLabel(n *inventory.Network) string {
 	label := n.Name
 	if label == "" {

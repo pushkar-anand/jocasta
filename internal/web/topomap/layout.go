@@ -1,15 +1,15 @@
-// Package topomap lays out the topology page: where each router, switch,
-// access point and group of devices goes on the canvas.
+// Package topomap lays out the topology page: where each router, switch, access
+// point and group of devices goes on the canvas.
 //
-// The tree reads top down, like a drawing of a network on a whiteboard: the
-// internet at the top, the router below it, then each switch and access point
-// on the port it hangs from. Below each of those, its devices stand in a
-// column per port or Wi-Fi network, beside the switches and access points on
-// its other ports. A branch is as wide as everything below it, so nothing
-// overlaps.
+// The tree reads from the top down, as a drawing of a network on a whiteboard.
+// The internet is at the top, and the router below it. Then each switch and
+// access point is on the port from which it hangs. Below each, its devices are
+// in a column for each port or Wi-Fi network. They are next to the switches
+// and access points on its other ports. A branch is as wide as everything
+// below it. So nothing overlaps.
 //
-// The layout is a pure function of the tree, and the tree is ordered by port,
-// so a device keeps its place from one refresh to the next.
+// The layout is a pure function of the tree, and the tree is ordered by port.
+// So a device keeps its place from one refresh to the next.
 package topomap
 
 import (
@@ -33,23 +33,22 @@ const (
 	chipGap = 4.0
 	headH   = 26.0
 
-	// slotGap is the room between two columns under one node, and levelGap
-	// the drop from a node to what hangs below it, which holds the port
-	// labels.
+	// slotGap is the space between two columns under one node. levelGap is
+	// the drop from a node to what hangs below it. The port labels are in it.
 	slotGap  = 28.0
 	levelGap = 64.0
 
-	// groupColumn is the most devices a group lists in one column. Past it
-	// the chips wrap into columns colGap apart, so a long group stays near
-	// as wide as it is tall rather than drawing as a sliver.
+	// groupColumn is the most devices that a group lists in one column. After
+	// it, the chips wrap into columns colGap apart. So a long group stays
+	// about as wide as it is tall, and does not draw as a thin strip.
 	groupColumn = 24
 	colGap      = 8.0
 
 	margin    = 40.0
 	internetR = 20.0
 
-	// legendRoom is kept clear on the right, where the page floats its
-	// legend over the canvas.
+	// legendRoom stays clear on the right, where the page puts its legend
+	// over the canvas.
 	legendRoom = 260.0
 
 	maxLabel = 26
@@ -64,13 +63,13 @@ type Box struct {
 
 	X, Y, W, H float64
 
-	// Key is what selecting it is keyed on: its device's key when it is one,
-	// and the node's own key otherwise.
+	// Key is the key for its selection. It is the key of its device, if it is
+	// one. Else, it is the own key of the node.
 	Key   string
 	Label string
 
-	// On is every key below it and its own, space-separated: selecting any
-	// of them lights this box as part of the path.
+	// On is every key below it, and its own, space-separated. A selection of
+	// any of them highlights this box as part of the path.
 	On string
 }
 
@@ -81,7 +80,8 @@ type Group struct {
 	X, Y, W, H float64
 	Title      string
 
-	// Tone is the colour index of the group's VLAN, -1 when it has none.
+	// Tone is the colour index of the VLAN of the group. It is -1 when the
+	// group has none.
 	Tone  int
 	Chips []Chip
 	On    string
@@ -95,15 +95,17 @@ type Chip struct {
 	Key   string
 	Label string
 
-	// Title is the device's full name and where it is, for its tooltip.
+	// Title is the full name of the device and where it is, for its
+	// tooltip.
 	Title string
 
-	// Aside is the port a wired device is on, or the band of a Wi-Fi one,
-	// drawn at AsideAt on the chip's right.
+	// Aside is the port of a wired device, or the band of a Wi-Fi device. It
+	// is drawn at AsideAt, on the right of the chip.
 	Aside   string
 	AsideAt Point
 
-	// Tone is the colour index of the device's VLAN, -1 when it has none.
+	// Tone is the colour index of the VLAN of the device. It is -1 when the
+	// device has none.
 	Tone int
 }
 
@@ -111,17 +113,17 @@ type Chip struct {
 type Edge struct {
 	Path string
 
-	// Kind is "trunk", "vlan" or "wifi", for how it is drawn.
+	// Kind is "trunk", "vlan" or "wifi". It sets how the edge is drawn.
 	Kind string
 
-	// Label names the parent's port, drawn at LabelAt.
+	// Label names the port of the parent, drawn at LabelAt.
 	Label   string
 	LabelAt Point
 	Title   string
 	On      string
 }
 
-// Layout is everything the template draws.
+// Layout is everything that the template draws.
 type Layout struct {
 	Width, Height float64
 	Internet      Point
@@ -131,7 +133,7 @@ type Layout struct {
 	Edges  []*Edge
 }
 
-// Place lays out tree. A tree with nothing read has no layout.
+// Place lays out tree. A tree with no reads has no layout.
 func Place(tree *topology.Tree) *Layout {
 	if tree == nil || tree.Root == nil {
 		return nil
@@ -173,8 +175,8 @@ type placer struct {
 	out    *Layout
 }
 
-// tone returns the colour index of VLAN v, or -1 for a device in no known
-// VLAN.
+// tone returns the colour index of VLAN v. It returns -1 for a device in no
+// known VLAN.
 func (p *placer) tone(v int) int {
 	if t, ok := p.tones[v]; ok {
 		return t
@@ -192,7 +194,7 @@ type slot struct {
 }
 
 // slots returns what hangs below n: its wired devices, the nodes on its ports
-// in port order, then its Wi-Fi networks.
+// in port order, and then its Wi-Fi networks.
 func slots(n *topology.Node) []slot {
 	out := make([]slot, 0, len(n.Groups)+len(n.Children))
 
@@ -218,7 +220,7 @@ func slots(n *topology.Node) []slot {
 	return out
 }
 
-// measure returns how wide n's subtree is.
+// measure returns the width of the subtree of n.
 func (p *placer) measure(n *topology.Node) float64 {
 	ss := slots(n)
 
@@ -234,8 +236,8 @@ func (p *placer) measure(n *topology.Node) float64 {
 	return w
 }
 
-// span returns the width of slots ss side by side, from the widths measure
-// recorded.
+// span returns the width of slots ss next to each other, from the widths that
+// measure recorded.
 func (p *placer) span(ss []slot) float64 {
 	total := 0.0
 
@@ -254,8 +256,8 @@ func (p *placer) span(ss []slot) float64 {
 	return total
 }
 
-// position places n's subtree with its left edge at left and n's box at top,
-// returning n's box and the keys below it.
+// position places the subtree of n, with its left edge at left, and the box of
+// n at top. It returns the box of n and the keys below it.
 func (p *placer) position(n *topology.Node, left, top float64) (*Box, []string) {
 	w := p.width[n]
 
@@ -309,8 +311,8 @@ func (p *placer) position(n *topology.Node, left, top float64) (*Box, []string) 
 	return box, keys
 }
 
-// nodeEdge draws the line from a parent at from down to child, labelled with
-// the parent's port.
+// nodeEdge draws the line from a parent at from down to child. The label is the
+// port of the parent.
 func (p *placer) nodeEdge(from Point, child *Box, link *topology.Link) *Edge {
 	to := Point{child.X + child.W/2, child.Y}
 
@@ -339,8 +341,8 @@ func (p *placer) nodeEdge(from Point, child *Box, link *topology.Link) *Edge {
 	return e
 }
 
-// LinkLabel names the parent's port a node hangs from and what it carries:
-// "sfp1 · trunk", or "ether4 · VLAN 10" for a port carrying one VLAN.
+// LinkLabel names the port of the parent from which a node hangs, and what it
+// carries: "sfp1 · trunk", or "ether4 · VLAN 10" for a port with one VLAN.
 func LinkLabel(link *topology.Link) string {
 	switch {
 	case link.Trunk:
@@ -352,8 +354,9 @@ func LinkLabel(link *topology.Link) string {
 	}
 }
 
-// groupColumns is how many columns g's chips take: one up to groupColumn
-// devices, then as many as keep the group about as wide as it is tall.
+// groupColumns is how many columns the chips of g take. It is one up to
+// groupColumn devices. Then it is as many as keep the group about as wide as
+// it is tall.
 func groupColumns(g *topology.Group) int {
 	n := len(g.Devices)
 	if n <= groupColumn {
@@ -363,14 +366,15 @@ func groupColumns(g *topology.Group) int {
 	return max(2, int(math.Round(math.Sqrt(float64(n)*(chipH+chipGap)/(chipW+colGap)))))
 }
 
-// groupWidth is how wide g draws.
+// groupWidth is the drawn width of g.
 func groupWidth(g *topology.Group) float64 {
 	cols := float64(groupColumns(g))
 
 	return cols*chipW + (cols-1)*colGap
 }
 
-// group places g's devices in columns with its top left at (left, top).
+// group places the devices of g in columns, with its top left at (left,
+// top).
 func (p *placer) group(g *topology.Group, left, top float64) (*Group, []string) {
 	cols := groupColumns(g)
 	rows := (len(g.Devices) + cols - 1) / cols
@@ -422,8 +426,8 @@ func (p *placer) group(g *topology.Group, left, top float64) (*Group, []string) 
 	return out, keys
 }
 
-// chipTitle says what a device is and where, and whether that is only where it
-// was last seen.
+// chipTitle tells what a device is and where it is. It also tells whether that
+// is only where a source last saw it.
 func chipTitle(l *topology.Leaf) string {
 	parts := []string{l.Name}
 
@@ -438,8 +442,8 @@ func chipTitle(l *topology.Leaf) string {
 	return strings.Join(parts, " · ")
 }
 
-// Where says where a device is on the node it hangs from: its port, or its
-// Wi-Fi network and band, then its VLANs.
+// Where tells where a device is on the node from which it hangs: its port, or
+// its Wi-Fi network and band, then its VLANs.
 func Where(l *topology.Leaf) string {
 	var parts []string
 
@@ -459,8 +463,9 @@ func Where(l *topology.Leaf) string {
 	return strings.Join(parts, " · ")
 }
 
-// Band says a Wi-Fi band the way people do: RouterOS's "5ghz-ax" is "5 GHz",
-// and "2ghz-n" is "2.4 GHz". A band it does not recognise comes back as it is.
+// Band writes a Wi-Fi band as people say it. "5ghz-ax" of RouterOS is "5 GHz",
+// and "2ghz-n" is "2.4 GHz". A band that it does not know comes back as it
+// is.
 func Band(band string) string {
 	ghz, _, ok := strings.Cut(strings.ToLower(band), "ghz")
 	if !ok {
@@ -482,7 +487,7 @@ func groupKind(g *topology.Group) string {
 	return "vlan"
 }
 
-// groupTitle names a group by its Wi-Fi network, or as wired, and its VLAN.
+// groupTitle names a group by its Wi-Fi network, or as wired, with its VLAN.
 func groupTitle(g *topology.Group) string {
 	where := "Wired"
 	if g.WiFi {
@@ -496,7 +501,7 @@ func groupTitle(g *topology.Group) string {
 	return join(where, "VLAN\u00a0"+strconv.Itoa(g.VLAN))
 }
 
-// nodeKey is the key a node is selected by.
+// nodeKey is the key for the selection of a node.
 func nodeKey(n *topology.Node) string {
 	if n.DeviceID != 0 {
 		return netmap.DeviceKey(n.DeviceID)
@@ -505,8 +510,8 @@ func nodeKey(n *topology.Node) string {
 	return n.Key
 }
 
-// NodeName is what a node is called on the page: its name, or what it is when
-// it has none.
+// NodeName is the name of a node on the page. It is its name, or what it is
+// when it has no name.
 func NodeName(n *topology.Node) string {
 	switch {
 	case n.Name != "":
@@ -520,8 +525,8 @@ func NodeName(n *topology.Node) string {
 	}
 }
 
-// elbow is a line down from a, across, and down into b, so branches read as a
-// tree and never cross a box.
+// elbow is a line down from a, across, and down into b. So branches look like a
+// tree, and never cross a box.
 func elbow(a, b Point) string {
 	mid := a.Y + levelGap/2
 
@@ -552,7 +557,7 @@ func vlanList(vlans []int) string {
 	return strings.Join(parts, ", ")
 }
 
-// shorten cuts a label longer than n runes, so it stays inside its box.
+// shorten cuts a label longer than n runes. So it stays inside its box.
 func shorten(s string, n int) string {
 	r := []rune(s)
 	if len(r) <= n {
@@ -562,5 +567,5 @@ func shorten(s string, n int) string {
 	return string(r[:n-1]) + "…"
 }
 
-// num renders a coordinate to one decimal place, which keeps the SVG short.
+// num renders a coordinate to one decimal place. This keeps the SVG short.
 func num(f float64) string { return strconv.FormatFloat(f, 'f', 1, 64) }

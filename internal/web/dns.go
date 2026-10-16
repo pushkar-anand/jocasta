@@ -16,51 +16,51 @@ import (
 )
 
 const (
-	// dnsDomainRows is how many domains the section lists. The rest are
-	// counted in the summary and in a line under the table.
+	// dnsDomainRows is how many domains the section lists. The summary and a
+	// line under the table count the rest.
 	dnsDomainRows = 50
 
-	// dnsDomainNames is how many names an opened domain lists. A CDN's domain
-	// can hold hundreds, and the rest are counted in a line under them.
+	// dnsDomainNames is how many names an opened domain lists. The domain of a
+	// CDN can hold hundreds. A line under them counts the rest.
 	dnsDomainNames = 20
 )
 
-// dnsSection is a device's "Looks up" section, on the page and as the
-// fragment its period switch fetches.
+// dnsSection is the "Looks up" section of a device, on the page and as the
+// fragment that its period switch fetches.
 type dnsSection struct {
 	DeviceID int64
 	Window   trafficWindow
 	Windows  []trafficWindow
 
-	// Read is whether any resolver's log has been read. Without one the
-	// section is left off the page.
+	// Read tells whether Jocasta read the log of any resolver. Without one,
+	// the page leaves out the section.
 	Read bool
 
-	// Summary adds up every name in the period, not only those listed.
+	// Summary adds up every name in the period, not only the listed names.
 	Summary *inventory.DNSTotals
 
-	// Domains are the busiest registrable domains, each with the names under
-	// it; Hidden counts the domains past them.
+	// Domains are the busiest registrable domains, each with its names.
+	// Hidden counts the domains after them.
 	Domains []*dnsDomain
 	Hidden  int64
 }
 
-// dnsDomain is the names under one registrable domain, such as example.com
-// for www.example.com and api.example.com, added up.
+// dnsDomain is the total of the names under one registrable domain, such as
+// example.com for www.example.com and api.example.com.
 type dnsDomain struct {
 	Domain                   string
 	Lookups, Blocked, Failed int64
 	LastHour                 time.Time
 
-	// Names are the busiest names under the domain; Hidden counts the names
-	// past them, and NameCount all of them.
+	// Names are the busiest names under the domain. Hidden counts the names
+	// after them. NameCount counts all of them.
 	Names     []*inventory.DNSName
 	Hidden    int64
 	NameCount int64
 }
 
-// buildDNSSection reads what device id looked up over the period windowKey
-// names, ending at now.
+// buildDNSSection reads what device id looked up over the period that windowKey
+// names, until now.
 func buildDNSSection(
 	ctx context.Context, store *inventory.Store, id int64, windowKey string, now time.Time,
 ) (*dnsSection, error) {
@@ -122,9 +122,9 @@ func buildDNSSection(
 	return sec, nil
 }
 
-// registrableDomain is the part of name a person registered, such as
-// example.co.uk for www.example.co.uk. A name with none, such as a bare host
-// name on the local network, stands for itself.
+// registrableDomain is the part of name that a person registered, such as
+// example.co.uk for www.example.co.uk. A name without one, such as a bare host
+// name on the local network, is its own domain.
 func registrableDomain(name string) string {
 	d, err := publicsuffix.EffectiveTLDPlusOne(name)
 	if err != nil {
@@ -134,7 +134,7 @@ func registrableDomain(name string) string {
 	return d
 }
 
-// deviceDNS serves the "Looks up" section alone, for its period switch.
+// deviceDNS serves only the "Looks up" section, for its period switch.
 func (h *Handler) deviceDNS() response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		id, ok := pathID(r)
@@ -142,7 +142,7 @@ func (h *Handler) deviceDNS() response.HandlerFunc {
 			return inventory.ErrNotFound
 		}
 
-		// A device that is not there is a 404 here too.
+		// A missing device is also a 404 here.
 		if err := h.store.RequireDevice(r.Context(), id); err != nil {
 			return err
 		}
