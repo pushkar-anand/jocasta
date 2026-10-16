@@ -14,16 +14,16 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/plugin"
 )
 
-// QueryResult counts what one recorded read of a query log held.
+// QueryResult counts the content of one recorded read of a query log.
 type QueryResult struct {
-	// Recorded is the lookups counted against a device, and Dropped those
-	// from an address no device holds.
+	// Recorded is the lookups counted against a device. Dropped is the
+	// lookups from an address of no device.
 	Recorded int
 	Dropped  int
 }
 
-// QueryCursor returns where the last recorded read of source left off, and
-// an empty cursor when nothing has been recorded from it.
+// QueryCursor returns where the last recorded read of source stopped. It
+// returns an empty cursor when nothing from it was recorded.
 func (s *Store) QueryCursor(ctx context.Context, source string) (string, error) {
 	pos, err := s.q.SourceCursor(ctx, source)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -37,17 +37,18 @@ func (s *Store) QueryCursor(ctx context.Context, source string) (string, error) 
 	return pos, nil
 }
 
-// RecordQueries adds one read of source's query log to each device's hourly
-// counts, and stores cursor as where the next read starts. Both land in one
-// transaction, so a read is counted once whatever fails around it.
+// RecordQueries adds one read of the query log of source to the hourly counts
+// of each device. It stores cursor as the start of the next read. Both go in
+// one transaction. So a read counts once, for any failure around it.
 //
-// A lookup is counted against the device holding its client address now. A
-// lookup from an address no device holds says nothing about the inventory
-// and is dropped.
+// A lookup counts against the device that has its client address now. A
+// lookup from an address of no device tells nothing about the inventory. So
+// RecordQueries drops it.
 //
-// The addresses a lookup was answered with are kept against the device too,
-// unless the resolver blocked it or found nothing: a blocked name's answer is
-// whatever the resolver blocks with, which names no peer.
+// It also keeps the addresses in the answer of a lookup against the device.
+// It does not keep them if the resolver blocked the lookup, or found nothing.
+// The answer for a blocked name is the block value of the resolver, which
+// names no peer.
 func (s *Store) RecordQueries(
 	ctx context.Context,
 	source string,
@@ -176,27 +177,28 @@ func (s *Store) RecordQueries(
 	return &res, nil
 }
 
-// deviceDNSLimit caps the names one device's view reads. A device that looked
-// up more distinct names than this in a month is a crawler, and its busiest
-// names are the ones worth showing.
+// deviceDNSLimit limits the names that the view of one device reads. A device
+// that looked up more different names than this in a month is a crawler. Its
+// busiest names are the ones worth showing.
 const deviceDNSLimit = 2000
 
 // DNSName is how often one device looked up one name over a period.
 type DNSName struct {
 	Name string `json:"name"`
 
-	// Lookups counts every lookup of the name, Blocked those the resolver
-	// blocked, and Failed those that found nothing or failed upstream.
+	// Lookups counts every lookup of the name. Blocked counts the lookups
+	// that the resolver blocked. Failed counts the lookups that found nothing
+	// or failed upstream.
 	Lookups int64 `json:"lookups"`
 	Blocked int64 `json:"blocked"`
 	Failed  int64 `json:"failed"`
 
-	// LastHour is the start of the latest hour the name was looked up in.
+	// LastHour is the start of the latest hour with a lookup of the name.
 	LastHour time.Time `json:"last_hour"`
 }
 
-// DeviceDNS returns the names device id looked up from the hour since falls
-// in, busiest first. A device that looked nothing up has an empty list.
+// DeviceDNS returns the names that device id looked up from the hour of since,
+// busiest first. A device that looked up nothing has an empty list.
 func (s *Store) DeviceDNS(ctx context.Context, id int64, since time.Time) ([]*DNSName, error) {
 	rows, err := s.q.DeviceDNS(ctx, models.DeviceDNSParams{
 		DeviceID: id,
@@ -221,15 +223,15 @@ func (s *Store) DeviceDNS(ctx context.Context, id int64, since time.Time) ([]*DN
 	return out, nil
 }
 
-// DNSTotals is what one device looked up over a period, added up over every
-// name.
+// DNSTotals is the total of what one device looked up over a period, across
+// every name.
 type DNSTotals struct {
 	Lookups, Names, Blocked, Failed int64
 }
 
-// DeviceDNSTotals adds up what device id looked up from the hour since falls
-// in. It counts every name, so it stays exact for a device that looked up
-// more names than [Store.DeviceDNS] returns.
+// DeviceDNSTotals adds up what device id looked up from the hour of since. It
+// counts every name. So it stays exact for a device that looked up more names
+// than [Store.DeviceDNS] returns.
 func (s *Store) DeviceDNSTotals(ctx context.Context, id int64, since time.Time) (*DNSTotals, error) {
 	row, err := s.q.DeviceDNSTotals(ctx, models.DeviceDNSTotalsParams{DeviceID: id, Hour: hourOf(since)})
 	if err != nil {
@@ -239,8 +241,8 @@ func (s *Store) DeviceDNSTotals(ctx context.Context, id int64, since time.Time) 
 	return &DNSTotals{Lookups: row.Lookups, Names: row.Names, Blocked: row.Blocked, Failed: row.Failed}, nil
 }
 
-// deviceAnswers returns, for each address device id's lookups were answered
-// with from the hour since falls in, the names it looked up, most looked up
+// deviceAnswers returns the names that device id looked up from the hour of
+// since, for each address in their answers. The most frequent name is
 // first.
 func (s *Store) deviceAnswers(ctx context.Context, id int64, since time.Time) (map[netip.Addr][]string, error) {
 	rows, err := s.q.DeviceDNSAnswers(ctx, models.DeviceDNSAnswersParams{DeviceID: id, LastHour: hourOf(since)})
@@ -257,7 +259,7 @@ func (s *Store) deviceAnswers(ctx context.Context, id int64, since time.Time) (m
 	return out, nil
 }
 
-// DNSRead reports whether any resolver's query log has been read.
+// DNSRead reports whether Jocasta read the query log of any resolver.
 func (s *Store) DNSRead(ctx context.Context) (bool, error) {
 	n, err := s.q.AnyDNSRead(ctx)
 	if err != nil {

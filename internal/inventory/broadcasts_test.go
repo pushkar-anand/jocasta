@@ -50,10 +50,9 @@ func udp(src, dst string, srcPort, dstPort uint16, bytes uint64, at time.Time) p
 	}
 }
 
-// What a device sends to everyone is kept per group and port: to a multicast
-// group, to
-// 255.255.255.255, and to its subnet's broadcast address, which only the
-// recorded networks tell apart from a host.
+// The store keeps what a device sends to everyone, for each group and port.
+// This is a multicast group, 255.255.255.255, or the broadcast address of its
+// subnet. Only the recorded networks separate that address from a host.
 func TestBroadcastsAreRecordedPerGroupAndPort(t *testing.T) {
 	t.Parallel()
 
@@ -67,8 +66,9 @@ func TestBroadcastsAreRecordedPerGroupAndPort(t *testing.T) {
 		udp("192.0.2.10", "224.0.0.251", 5353, 5353, 300, at),
 		udp("192.0.2.10", "224.0.0.251", 5353, 5353, 200, at),
 		udp("192.0.2.10", "255.255.255.255", 68, 67, 330, at),
-		// Both ways, as a router exported a discovery protocol's broadcasts:
-		// the one from the broadcast address is not anyone talking.
+		// Both directions, as a router exported the broadcasts of a discovery
+		// protocol. The packet from the broadcast address is not a host that
+		// talks.
 		udp("192.0.2.10", "192.0.2.255", 21027, 21027, 150, at),
 		udp("192.0.2.255", "192.0.2.10", 21027, 21027, 150, at),
 	})
@@ -81,7 +81,7 @@ func TestBroadcastsAreRecordedPerGroupAndPort(t *testing.T) {
 		{Device: 1, Dst: "255.255.255.255", Kind: "all", Protocol: protoUDP, Port: 67, Bytes: 330, Packets: 1},
 	}, broadcastRows(t, conn))
 
-	// The hour's totals grow with each flush.
+	// The totals of the hour grow with each flush.
 	rec.Add(trafficSource{}, []plugin.Flow{udp("192.0.2.10", "224.0.0.251", 5353, 5353, 100, at)})
 	require.NoError(t, rec.Flush(t.Context()))
 
@@ -91,8 +91,8 @@ func TestBroadcastsAreRecordedPerGroupAndPort(t *testing.T) {
 	assert.Equal(t, int64(3), rows[1].Packets)
 }
 
-// A sender that is no device, or has no address yet (a DHCP client asking
-// for one), cannot be filed under anything in the inventory.
+// A sender that is no device, or that has no address yet (a DHCP client that
+// asks for one), cannot go under anything in the inventory.
 func TestBroadcastsFromNoDeviceAreNotKept(t *testing.T) {
 	t.Parallel()
 

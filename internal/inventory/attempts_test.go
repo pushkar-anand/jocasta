@@ -13,9 +13,9 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/plugin"
 )
 
-// knock is one TCP connection attempt from src to dst's port and what came
-// back: a SYN and ACK when the port was open, a RST when it was closed, and
-// nothing when a firewall dropped it.
+// knock is one TCP connection attempt from src to the port of dst, and what
+// came back. This is a SYN and ACK when the port was open, a RST when it was
+// closed, and nothing when a firewall dropped it.
 func knock(src, dst string, port uint16, reply string, at time.Time) []plugin.Flow {
 	out := []plugin.Flow{{
 		Src: netip.MustParseAddr(src), Dst: netip.MustParseAddr(dst),
@@ -140,7 +140,7 @@ func TestAPingSweepFlagsTheDeviceAndKeepsEveryAddressItTried(t *testing.T) {
 
 	var flows []plugin.Flow
 
-	// Nothing answers but every tenth address; no device holds any of them.
+	// Only every tenth address answers. No device has any of them.
 	for i := 1; i <= 30; i++ {
 		flows = append(flows, ping("192.0.2.10", fmt.Sprintf("198.51.100.%d", i), i%10 == 0, at)...)
 	}
@@ -184,14 +184,15 @@ func TestConversationsAreNotAttempts(t *testing.T) {
 
 	rec := newRecorder(s, nil)
 	rec.Add(trafficSource{}, []plugin.Flow{
-		// A connection that carried data, flagged as a MikroTik reports it:
-		// the first packet's flags only, so no PSH anywhere.
+		// A connection with data, with flags as a MikroTik reports them. Only
+		// the flags of the first packet, so no PSH anywhere.
 		{Src: a, Dst: b, SrcPort: 50001, DstPort: 445, Protocol: protoTCP, TCPFlags: tcpSYN, Bytes: 9000, Packets: 12, End: at},
 		{Src: b, Dst: a, SrcPort: 445, DstPort: 50001, Protocol: protoTCP, TCPFlags: tcpSYN | tcpACK, Bytes: 90000, Packets: 70, End: at},
-		// One small request and its answer: handshake, a little data, close.
+		// One small request and its answer: handshake, a little data,
+		// close.
 		{Src: a, Dst: b, SrcPort: 50005, DstPort: 80, Protocol: protoTCP, TCPFlags: tcpSYN, Bytes: 256, Packets: 4, End: at},
 		{Src: b, Dst: a, SrcPort: 80, DstPort: 50005, Protocol: protoTCP, TCPFlags: tcpSYN | tcpACK, Bytes: 256, Packets: 4, End: at},
-		// A long connection that only traded keepalives this minute: no SYN.
+		// A long connection that only sent keepalives this minute: no SYN.
 		{Src: a, Dst: b, SrcPort: 50002, DstPort: 22, Protocol: protoTCP, TCPFlags: tcpACK, Bytes: 52, Packets: 1, End: at},
 		// A DNS question and its answer.
 		{Src: a, Dst: b, SrcPort: 50003, DstPort: 53, Protocol: protoUDP, Bytes: 70, Packets: 1, End: at},
@@ -221,7 +222,8 @@ func TestAConnectionOpenedAndClosedAtOnceIsAnAnsweredAttempt(t *testing.T) {
 	a := netip.MustParseAddr("192.0.2.10")
 	b := netip.MustParseAddr("192.0.2.11")
 
-	// A scanner's connect(): SYN, ACK, FIN, ACK out; SYN-ACK, FIN, ACK back.
+	// The connect() of a scanner: SYN, ACK, FIN, ACK out. SYN-ACK, FIN, ACK
+	// back.
 	rec := newRecorder(s, nil)
 	rec.Add(trafficSource{}, []plugin.Flow{
 		{Src: a, Dst: b, SrcPort: 50000, DstPort: 8080, Protocol: protoTCP, TCPFlags: tcpSYN, Bytes: 216, Packets: 4, End: at},
@@ -256,9 +258,10 @@ func TestAnUnansweredUDPDatagramIsAnAttempt(t *testing.T) {
 	assert.Equal(t, "161", rows[0].Ports)
 }
 
-// The router exports each direction as its own flow, and a knock's answer can
-// land a flush after the knock. The knock is counted then as unanswered; its
-// answer is not a conversation, and an open port marks the knock answered.
+// The router exports each direction as its own flow. The answer of a knock can
+// arrive one flush after the knock. The knock then counts as without an
+// answer. Its answer is not a conversation. An open port marks the knock as
+// answered.
 func TestAKnockAnsweredInTheNextFlushIsNotTraffic(t *testing.T) {
 	t.Parallel()
 
@@ -293,8 +296,8 @@ func TestAKnockAnsweredInTheNextFlushIsNotTraffic(t *testing.T) {
 	}
 }
 
-// A ping's reply can land a flush after the ping, as a knock's can. The ping
-// is counted then as unanswered, and the reply marks it answered.
+// The reply of a ping can arrive one flush after the ping, as for a knock. The
+// ping then counts as without an answer. The reply marks it as answered.
 func TestAPingAnsweredInTheNextFlushIsAnswered(t *testing.T) {
 	t.Parallel()
 
@@ -317,8 +320,9 @@ func TestAPingAnsweredInTheNextFlushIsAnswered(t *testing.T) {
 	assert.Equal(t, int64(1), rows[0].Answered)
 }
 
-// An answer whose knock is not on record, because it fell in the previous hour
-// or before this process started, has nothing to mark and is dropped.
+// An answer whose knock is not recorded has nothing to mark. So the recorder
+// drops it. The knock was in the previous hour, or before this process
+// started.
 func TestALateAnswerWithNoKnockOnRecordIsDropped(t *testing.T) {
 	t.Parallel()
 
@@ -333,9 +337,9 @@ func TestALateAnswerWithNoKnockOnRecordIsDropped(t *testing.T) {
 	assert.Empty(t, attemptRows(t, conn))
 }
 
-// The router answers DHCP by broadcast, or from itself, and exports neither,
-// so a renewal is a one-way request every time. It counts as a conversation;
-// one-way UDP to another of the router's ports is still a try.
+// The router answers DHCP by broadcast, or from itself, and exports neither. So
+// a renewal is a one-way request every time. It counts as a conversation.
+// One-way UDP to a different port of the router is still an attempt.
 func TestDHCPIsNeverAnAttempt(t *testing.T) {
 	t.Parallel()
 
@@ -386,7 +390,8 @@ func TestAttemptPortsAddUpAcrossFlushesAndRestarts(t *testing.T) {
 	scan(rec, 80, 443)
 	scan(rec, 443, 8080) // 443 again: tried twice, one distinct port.
 
-	// A new process remembers nothing, but the stored sample and count stay.
+	// A new process remembers nothing. But the stored sample and count
+	// stay.
 	scan(newRecorder(s, nil), 22)
 
 	rows := attemptRows(t, conn)

@@ -9,20 +9,20 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 )
 
-// Broadcast is what one device sent to everyone on one group and port over a
+// Broadcast is what one device sent to everyone on one group and port, over a
 // window.
 type Broadcast struct {
-	// Dst is the multicast group, 255.255.255.255, or the subnet's broadcast
-	// address; Kind says which of the three.
+	// Dst is the multicast group, 255.255.255.255, or the broadcast address of
+	// the subnet. Kind tells which of the three.
 	Dst  netip.Addr `json:"dst"`
 	Kind string     `json:"kind"`
 
 	Protocol uint8  `json:"protocol"`
 	Port     uint16 `json:"port"`
 
-	// Service names the discovery protocol usually found on the group or
-	// port, and is empty when there is no well-known one. It is a guess from
-	// the numbers; nothing reads the packets.
+	// Service names the usual discovery protocol on the group or port. It is
+	// empty when there is no well-known protocol. It is a guess from the
+	// numbers. Nothing reads the packets.
 	Service string `json:"service,omitempty"`
 
 	Bytes    int64     `json:"bytes"`
@@ -31,7 +31,7 @@ type Broadcast struct {
 }
 
 // DeviceBroadcasts returns what device id sent to everyone since the start of
-// the hour containing since, most packets first.
+// the hour of since, most packets first.
 func (s *Store) DeviceBroadcasts(ctx context.Context, id int64, since time.Time) ([]*Broadcast, error) {
 	rows, err := s.q.DeviceBroadcasts(ctx, models.DeviceBroadcastsParams{
 		DeviceID: id,
@@ -71,8 +71,8 @@ func (s *Store) DeviceBroadcasts(ctx context.Context, id int64, since time.Time)
 	return out, nil
 }
 
-// broadcastGroups names the multicast groups discovery protocols use, for a
-// port that says nothing on its own.
+// broadcastGroups names the multicast groups of discovery protocols, for a port
+// that tells nothing alone.
 var broadcastGroups = map[netip.Addr]string{
 	netip.MustParseAddr("224.0.0.251"):     "mDNS",
 	netip.MustParseAddr("ff02::fb"):        "mDNS",
@@ -82,8 +82,8 @@ var broadcastGroups = map[netip.Addr]string{
 	netip.MustParseAddr("ff02::1:3"):       "LLMNR",
 }
 
-// broadcastPorts names the discovery protocols by the UDP port they announce
-// on.
+// broadcastPorts names the discovery protocols by the UDP port on which they
+// announce.
 var broadcastPorts = map[uint16]string{
 	67:    "DHCP",
 	68:    "DHCP",
@@ -110,8 +110,9 @@ var broadcastPorts = map[uint16]string{
 	57621: "Spotify Connect",
 }
 
-// broadcastService names what a broadcast most likely is: by port for UDP,
-// then by group; IGMP and neighbour discovery by protocol.
+// broadcastService names the most likely protocol of a broadcast. For UDP, it
+// uses the port, then the group. For IGMP and neighbour discovery, it uses the
+// protocol.
 func broadcastService(protocol uint8, port uint16, dst netip.Addr) string {
 	switch protocol {
 	case 2:

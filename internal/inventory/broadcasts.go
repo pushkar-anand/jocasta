@@ -11,7 +11,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/plugin"
 )
 
-// Where a packet sent to everyone went: the sender's subnet, every host on the
+// Where a packet to everyone went: the subnet of the sender, every host on the
 // segment (255.255.255.255), or a multicast group.
 const (
 	broadcastSubnet    = "subnet"
@@ -19,8 +19,8 @@ const (
 	broadcastMulticast = "multicast"
 )
 
-// broadcastKey is what one device sent to one group on one port in one hour,
-// as a source saw it.
+// broadcastKey is what one device sent to one group on one port in one hour, as
+// a source saw it.
 type broadcastKey struct {
 	source   string
 	kind     dbtype.SourceKind
@@ -35,11 +35,11 @@ type broadcastTotals struct {
 	bytes, packets uint64
 }
 
-// broadcastScope says where a flow went when it went to everyone: to a
-// multicast group or to 255.255.255.255. A subnet's own broadcast address
-// looks like a host's, and only the recorded networks tell it apart, so Flush
-// finds those. A sender with no address of its own, such as a DHCP client
-// asking for one, cannot be told apart from any other, and is not kept.
+// broadcastScope tells where a flow to everyone went: to a multicast group, or
+// to 255.255.255.255. The broadcast address of a subnet looks like the address
+// of a host. Only the recorded networks separate them. So Flush finds those. A
+// sender with no address, such as a DHCP client that asks for one, cannot be
+// told from any other sender. So the recorder does not keep it.
 func broadcastScope(f plugin.Flow) (string, bool) {
 	if !f.Src.IsValid() || f.Src.IsUnspecified() || f.Src.IsMulticast() || f.Src == limitedBroadcast {
 		return "", false
@@ -78,9 +78,9 @@ func (r *TrafficRecorder) addBroadcast(src plugin.Plugin, f plugin.Flow, scope s
 	t.packets += f.Packets
 }
 
-// takeSubnetBroadcasts moves what went to a recorded network's broadcast
-// address out of pending and into broadcasts. Something sent from one is not a
-// host talking, and is dropped.
+// takeSubnetBroadcasts moves what went to the broadcast address of a recorded
+// network from pending to broadcasts. A packet from such an address is not a
+// host that talks. So it drops that packet.
 func takeSubnetBroadcasts(
 	pending map[trafficKey]*trafficTotals,
 	broadcasts map[broadcastKey]*broadcastTotals,
@@ -110,9 +110,9 @@ func takeSubnetBroadcasts(
 	}
 }
 
-// writeBroadcasts writes one flush's broadcasts inside tx. Only a device's
-// are kept: an address no device holds announcing itself says nothing about
-// the inventory.
+// writeBroadcasts writes the broadcasts of one flush in tx. It keeps only the
+// broadcasts of a device. An address of no device that announces itself tells
+// nothing about the inventory.
 func writeBroadcasts(
 	ctx context.Context,
 	q *models.Queries,

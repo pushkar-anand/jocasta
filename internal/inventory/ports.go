@@ -17,32 +17,32 @@ import (
 )
 
 // PortChangeWindow is how far back the overview counts a port as newly opened
-// or closed. It is a rolling day, matching the overview's other "today" count.
+// or closed. It is a rolling day, as the other "today" count of the
+// overview.
 const PortChangeWindow = 24 * time.Hour
 
-// PortSummary counts what recording one port scan changed.
+// PortSummary counts what the record of one port scan changed.
 type PortSummary struct {
 	ScanID int64
 
-	// Targets is how many addresses the scan reported on; Devices how many
-	// devices the inventory still holds those addresses resolved to, and
-	// Dropped how many addresses resolved to none: addresses retired between
+	// Targets is how many addresses the scan reported on. Devices is how many
+	// devices of the inventory those addresses resolved to. Dropped is how
+	// many addresses resolved to no device. These addresses retired between
 	// the sweep that found them and this scan.
 	Targets int
 	Devices int
 	Dropped int
 
-	// Open is how many open ports were seen across those devices. Opened and
-	// Closed count only the transitions: a port newly answering, and one that
-	// was open and has gone quiet.
+	// Open is how many open ports the scan saw across those devices. Opened
+	// and Closed count only the changes: a port that newly answers, and a port
+	// that was open and stopped answering.
 	Open   int
 	Opened int
 	Closed int
 }
 
-// PortOverview returns current open-service counts and recent transitions.
-// Ignored devices are excluded, as they are from the device list the overview
-// links to.
+// PortOverview returns current open-service counts and recent changes. It
+// leaves out ignored devices, as the device list of the overview does.
 func (s *Store) PortOverview(ctx context.Context, serviceLimit int) (*PortOverview, error) {
 	stats, err := s.q.PortStats(ctx, dbtype.NewTime(s.now().Add(-PortChangeWindow)))
 	if err != nil {
@@ -57,7 +57,7 @@ func (s *Store) PortOverview(ctx context.Context, serviceLimit int) (*PortOvervi
 	services := make([]*ServiceCount, 0, len(rows))
 	for _, row := range rows {
 		services = append(services, &ServiceCount{
-			// device_ports.port is CHECK-constrained to 1-65535, so it fits.
+			// A CHECK limits device_ports.port to 1-65535, so it fits.
 			Port:    uint16(row.Port), //nolint:gosec // range enforced by the column CHECK.
 			Service: row.Service.String, Devices: int(row.Devices),
 		})
@@ -69,15 +69,14 @@ func (s *Store) PortOverview(ctx context.Context, serviceLimit int) (*PortOvervi
 	}, nil
 }
 
-// RecordPorts folds a port scan into the inventory, attributing it to the named
-// source: the same vantage point the sweep records, since it is the same host
-// probing.
+// RecordPorts merges a port scan into the inventory, under the named source.
+// This is the same place as for the sweep, because the same host probes.
 //
-// A port scan is a third kind of reading beside a sweep and a source read. It
-// asserts no presence, identifies no device and carries no name, so it does not
-// go through the fact path. It shares the three phases every reading does (a
-// scan row opened, the work in one transaction, the row closed with the
-// outcome), so an interrupted scan cannot leave a device half-updated.
+// A port scan is a third kind of reading, with a sweep and a source read. It
+// asserts no presence, identifies no device, and has no name. So it does not
+// go through the fact path. It shares the three phases of every reading: a
+// scan row opens, the work goes in one transaction, and the row closes with
+// the outcome. So an interrupted scan cannot leave a device half-updated.
 func (s *Store) RecordPorts(
 	ctx context.Context,
 	source string,
@@ -86,10 +85,9 @@ func (s *Store) RecordPorts(
 	return s.recordPortScan(ctx, source, dbtype.ScopeFull, scans)
 }
 
-// RecordNewDevicePorts folds a port scan of only the devices a sweep had just
-// discovered into the inventory, as [Store.RecordPorts] does. Its scan is
-// marked as covering new devices, so it is not mistaken for the latest full
-// port scan.
+// RecordNewDevicePorts merges a port scan of only the devices that a sweep just
+// found into the inventory, as [Store.RecordPorts] does. Its scan is marked as
+// a scan of new devices. So nothing takes it for the latest full port scan.
 func (s *Store) RecordNewDevicePorts(
 	ctx context.Context,
 	source string,
@@ -104,8 +102,8 @@ func (s *Store) recordPortScan(
 	scope dbtype.ScanScope,
 	scans []scanner.PortScan,
 ) (*PortSummary, error) {
-	// The port scan runs from the sweeping host, so it files under the sweep's
-	// source row.
+	// The port scan runs from the sweeping host. So it goes under the source
+	// row of the sweep.
 	scanID, _, err := s.openScan(ctx, source, dbtype.SourceSweep, dbtype.ScanPorts, scope, nil)
 	if err != nil {
 		return nil, err
@@ -126,9 +124,9 @@ func (s *Store) recordPortScan(
 
 	sum.ScanID = scanID
 
-	// A port that opened or closed can move the classifier's guess. Best-effort,
-	// like the pass after a discovery: a stale icon is not worth failing a scan
-	// that recorded the ports correctly.
+	// A port that opened or closed can change the guess of the classifier.
+	// This is best-effort, as the pass after a discovery. An old icon is not a
+	// reason to fail a scan that recorded the ports correctly.
 	if err := s.reclassify(ctx, scanID, touched); err != nil {
 		s.log.WarnContext(ctx, "classify pass after port scan failed", slog.Int64("scan", scanID), logger.Err(err))
 	}
@@ -138,9 +136,9 @@ func (s *Store) recordPortScan(
 	return sum, nil
 }
 
-// ingestPorts applies every result as one transaction, so a scan either lands
-// whole or not at all. It returns the ids of the devices it wrote a port for,
-// sorted, for the classify pass that runs after the commit.
+// ingestPorts applies every result as one transaction. So a scan goes in whole,
+// or not at all. It returns the sorted ids of the devices for which it wrote a
+// port, for the classify pass after the commit.
 func (s *Store) ingestPorts(ctx context.Context, scanID int64, scans []scanner.PortScan) (*PortSummary, []int64, error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
@@ -174,32 +172,34 @@ func (s *Store) ingestPorts(ctx context.Context, scanID int64, scans []scanner.P
 	return sum, ids, nil
 }
 
-// devicePorts is what a scan found across every address of one device: the
-// ports that answered on any of them, the ports probed on any of them that
-// answered the scan, and the ports probed only because the device asked for
-// them beyond the scanner's set.
+// devicePorts is what a scan found across every address of one device:
+//   - the ports that answered on one of them
+//   - the ports probed on one of them that answered the scan
+//   - the ports probed only because the device asked for them, outside the
+//     set of the scanner
 type devicePorts struct {
 	open    map[uint16]struct{}
 	scanned map[uint16]struct{}
 	extra   map[uint16]struct{}
 }
 
-// logged reports whether a change on port goes in the event log. A port
-// outside the scanner's set is left out: the scan probes it only because the
-// device advertised a service there, and a phone advertises on a new random
-// port each time, so logging each one would bury the changes worth reading.
+// logged reports whether a change on port goes in the event log. It leaves out
+// a port outside the set of the scanner. The scan probes it only because the
+// device advertised a service there. A phone advertises on a new random port
+// each time. A log entry for each would hide the changes that are worth a
+// read.
 func (d *devicePorts) logged(port uint16) bool {
 	_, extra := d.extra[port]
 
 	return !extra
 }
 
-// gatherPorts files each result under the device that holds its address now,
-// keyed by device id. A device can hold several addresses, such as a wired
-// and a Wi-Fi one, and a service can listen on one of them alone, so a port
-// is the device's own once any of its addresses answers on it. An address that
-// answered nothing adds nothing to the scanned set, so a device that is asleep
-// or gone keeps the ports it had.
+// gatherPorts puts each result under the device that has its address now, with
+// the device id as key. A device can have several addresses, such as a wired
+// address and a Wi-Fi address. A service can listen on only one of them. So a
+// port belongs to the device when one of its addresses answers on it. An
+// address that answered nothing adds nothing to the scanned set. So a device
+// that is asleep or gone keeps its ports.
 func (s *Store) gatherPorts(
 	ctx context.Context,
 	q *models.Queries,
@@ -248,11 +248,13 @@ func (s *Store) gatherPorts(
 	return found, nil
 }
 
-// recordPorts diffs what a scan found across a device's addresses against what
-// the inventory has for it: a port newly open gets a row and an event, a port
-// that was open and was looked at again but answered on none of its addresses
-// flips to closed, and a port the scan did not cover is left alone, since this
-// run has no opinion on it.
+// recordPorts compares what a scan found across the addresses of a device with
+// what the inventory has for it:
+//   - a port that is newly open gets a row and an event
+//   - a port that was open, was checked again, and answered on none of its
+//     addresses changes to closed
+//   - a port that the scan did not cover does not change, because this run
+//     checked nothing about it
 func (s *Store) recordPorts(
 	ctx context.Context,
 	q *models.Queries,
@@ -297,8 +299,8 @@ func (s *Store) recordPorts(
 	return nil
 }
 
-// openPort records a port as answering and, when it was not already and
-// logged is set, logs it.
+// openPort records a port as answering. If it was not already open and logged
+// is set, it logs it.
 func (s *Store) openPort(
 	ctx context.Context,
 	q *models.Queries,
@@ -327,8 +329,8 @@ func (s *Store) openPort(
 		dbtype.EventPortOpened, "", strconv.Itoa(int(port)), scanner.ServiceName(port))
 }
 
-// closePort flips a port that has stopped answering and, when logged is set,
-// logs it.
+// closePort changes a port that stopped answering to closed. When logged is
+// set, it logs it.
 func (s *Store) closePort(
 	ctx context.Context,
 	q *models.Queries,
@@ -351,7 +353,7 @@ func (s *Store) closePort(
 		dbtype.EventPortClosed, strconv.Itoa(int(port)), "", scanner.ServiceName(port))
 }
 
-// openPorts reads the ports currently recorded open on a device into a set.
+// openPorts reads the ports recorded as open on a device now into a set.
 func openPorts(ctx context.Context, q *models.Queries, deviceID int64) (map[uint16]struct{}, error) {
 	rows, err := q.ListDeviceOpenPorts(ctx, deviceID)
 	if err != nil {
@@ -360,7 +362,7 @@ func openPorts(ctx context.Context, q *models.Queries, deviceID int64) (map[uint
 
 	set := make(map[uint16]struct{}, len(rows))
 	for _, row := range rows {
-		// device_ports.port is CHECK-constrained to 1-65535, so it fits.
+		// A CHECK limits device_ports.port to 1-65535, so it fits.
 		set[uint16(row.Port)] = struct{}{} //nolint:gosec // range enforced by the column CHECK.
 	}
 

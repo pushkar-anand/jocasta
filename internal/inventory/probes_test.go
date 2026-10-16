@@ -12,8 +12,8 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/plugin"
 )
 
-// The router, a device behind it, the router's outside address, and a host on
-// the internet trying things.
+// The router, a device behind it, the outside address of the router, and a host
+// on the internet that tries things.
 const (
 	probeRouter  = "192.0.2.1"
 	probeDevice  = "192.0.2.10"
@@ -63,8 +63,8 @@ func exported(flows ...plugin.Flow) []plugin.Flow {
 	return flows
 }
 
-// outbound is the device reaching the internet through the router's NAT,
-// which names the outside address it left with.
+// outbound is the device that reaches the internet through the NAT of the
+// router. It names the outside address with which it left.
 func outbound(at time.Time) plugin.Flow {
 	f := flow(probeDevice, "8.8.8.8", 51000, 443, 2_000, at)
 	f.NATSrc = netip.MustParseAddr(probeOutside)
@@ -81,9 +81,9 @@ func probeStore(t *testing.T) (*Store, *sql.DB) {
 	return s, conn
 }
 
-// A knock on the outside address is filed under the router, as a probe from
-// the internet; so is a knock on a port forwarded to a device, under that
-// device. Whether the knock was answered counts as for any attempt.
+// A knock on the outside address goes under the router, as a probe from the
+// internet. A knock on a port forwarded to a device goes under that device.
+// The answer of the knock counts as for any attempt.
 func TestTheInternetsTriesOnTheNetworkAreProbes(t *testing.T) {
 	t.Parallel()
 
@@ -107,8 +107,8 @@ func TestTheInternetsTriesOnTheNetworkAreProbes(t *testing.T) {
 	assert.Empty(t, attemptRows(t, conn), "no device made them")
 }
 
-// A device's answer that lands a flush after the probe marks it answered, as
-// a late answer to a device's own knock does.
+// An answer of a device one flush after the probe marks the probe as answered.
+// A late answer to the own knock of a device does the same.
 func TestAProbeAnsweredInTheNextFlushIsAnswered(t *testing.T) {
 	t.Parallel()
 
@@ -126,8 +126,8 @@ func TestAProbeAnsweredInTheNextFlushIsAnswered(t *testing.T) {
 	assert.Equal(t, int64(1), rows[0].Answered)
 }
 
-// Real traffic with the outside address, such as a VPN ended on the router,
-// is the router's, and the peer started it.
+// Real traffic with the outside address, such as a VPN that ends on the router,
+// belongs to the router. The peer started it.
 func TestTrafficWithTheOutsideAddressIsTheRouters(t *testing.T) {
 	t.Parallel()
 
@@ -153,9 +153,9 @@ func TestTrafficWithTheOutsideAddressIsTheRouters(t *testing.T) {
 	assert.Equal(t, int64(1), connsIn)
 }
 
-// Until an outbound flow names the outside address, nothing is known to be
-// it, and a knock on it has no device to be counted on. Nor is a local
-// address's knock a probe from the internet.
+// Until an outbound flow names the outside address, nothing is known as that
+// address. A knock on it has no device for the count. Also, a knock from a
+// local address is not a probe from the internet.
 func TestNoProbesWithoutAnOutsideAddressOrFromTheNetwork(t *testing.T) {
 	t.Parallel()
 
@@ -189,8 +189,8 @@ func TestPruneDeletesProbesWithTraffic(t *testing.T) {
 	assert.Empty(t, probeRows(t, conn))
 }
 
-// The outside addresses the router named are kept, so a view can tell a
-// router with a public address from one behind another NAT.
+// The store keeps the outside addresses that the router named. So a view can
+// tell a router with a public address from a router behind a different NAT.
 func TestOutsideAddressesAreRecorded(t *testing.T) {
 	t.Parallel()
 

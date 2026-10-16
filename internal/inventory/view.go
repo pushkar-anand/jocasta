@@ -16,12 +16,12 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 )
 
-// The types here are what the inventory hands to a caller that renders it. The
-// generated models cannot serve that purpose: every optional column reaches Go
-// as a sql.NullString, which marshals as {"String":"","Valid":false} and reads
-// as .Label.String in a template. An absent value is "" here, and the two
-// facts every caller derives (what to call a device and whether it is still
-// answering) are settled once, here.
+// The types here are what the inventory gives to a caller that renders it. The
+// generated models cannot do this. Every optional column reaches Go as a
+// sql.NullString. It marshals as {"String":"","Valid":false}, and a template
+// reads it as .Label.String. Here, an absent value is "". Every caller needs
+// two facts: the name of a device, and whether it still answers. This code
+// settles both once.
 
 // Device is a device as it is displayed.
 type Device struct {
@@ -30,10 +30,10 @@ type Device struct {
 	IdentitySource dbtype.IdentitySource `json:"identity_source"`
 	Randomised     bool                  `json:"randomised"`
 
-	// Vendor is the organisation that registered the hardware address, and
-	// VendorShort the OUI table's short form of it, such as "ProxmoxServe".
-	// Vendor falls back to VendorShort until the device's next sighting
-	// records the registered name.
+	// Vendor is the organisation that registered the hardware address.
+	// VendorShort is its short form in the OUI table, such as "ProxmoxServe".
+	// Vendor is VendorShort until the next sighting of the device records the
+	// registered name.
 	Vendor      string `json:"vendor,omitempty"`
 	VendorShort string `json:"vendor_short,omitempty"`
 
@@ -41,11 +41,11 @@ type Device struct {
 	HostnameSource dbtype.HostnameSource `json:"hostname_source,omitempty"`
 	Type           string                `json:"type,omitempty"`
 
-	// Class is the device category a surface shows as an icon: the user's own
-	// answer in Type when they have set one, and the classifier's guess
-	// otherwise. ClassGuess is that guess regardless of the override, and
-	// ClassConfidence how much stood behind it, so the device page can show what
-	// the classifier would say if left to itself.
+	// Class is the device category that a surface shows as an icon. It is the
+	// answer of the user in Type, if set. Else, it is the guess of the
+	// classifier. ClassGuess is that guess, with or without the override.
+	// ClassConfidence is its confidence. So the device page can show what the
+	// classifier says alone.
 	Class           classify.Class      `json:"class,omitempty"`
 	ClassGuess      classify.Class      `json:"class_guess,omitempty"`
 	ClassConfidence classify.Confidence `json:"class_confidence,omitempty"`
@@ -55,55 +55,56 @@ type Device struct {
 	Group   string `json:"group,omitempty"`
 	Ignored bool   `json:"ignored"`
 
-	// Watched is whether the owner is told when the device goes quiet or
+	// Watched tells whether the owner gets told when the device goes quiet or
 	// comes back.
 	Watched bool `json:"watched"`
 
 	FirstSeen time.Time `json:"first_seen"`
 	LastSeen  time.Time `json:"last_seen"`
 
-	// Online reports whether the device was seen inside the store's online
-	// window. It is fixed when the device is read, so a list does not report
-	// two devices differently for having been formatted a second apart.
+	// Online reports whether the device was seen within the online window of
+	// the store. It is fixed when the device is read. So a list does not
+	// report two devices differently because of one second between them.
 	Online bool `json:"online"`
 
-	// PresentSince is when the device's current run of sightings began. It is
-	// zero while the device is quiet, and for one no reading has judged since
-	// presence was recorded.
+	// PresentSince is when the current run of sightings of the device began.
+	// It is zero while the device is quiet. It is also zero for a device that
+	// no reading checked since the start of presence tracking.
 	PresentSince time.Time `json:"present_since,omitzero"`
 
-	// Current holds the addresses the device answers on now, in address order.
+	// Current holds the addresses on which the device answers now, in address
+	// order.
 	Current []netip.Addr `json:"current_addresses,omitempty"`
 
-	// Addresses is the full history, current entries first. Only Device
-	// fills it: a list would need a row per address to say when each was seen,
-	// and it only ever shows the current ones.
+	// Addresses is the full history, current entries first. Only Device fills
+	// it. A list would need a row for each address to tell when each was seen.
+	// A list shows only the current addresses.
 	Addresses []*Address `json:"addresses,omitempty"`
 
-	// Ports is every TCP port a scan has found open on the device, the ones
-	// still answering first. Only Device fills it, for the same reason
-	// Addresses is.
+	// Ports is every TCP port that a scan found open on the device, the ports
+	// that still answer first. Only Device fills it, for the same reason as
+	// Addresses.
 	Ports []*Port `json:"ports,omitempty"`
 
-	// OpenPorts is the numbers of the ports a scan currently finds open, in
-	// number order. A list carries these because the full Ports history would
-	// be more than a row can hold; the device page reads Ports.
+	// OpenPorts is the numbers of the ports that a scan finds open now, in
+	// number order. A list has these, because the full Ports history would be
+	// too much for a row. The device page reads Ports.
 	OpenPorts []uint16 `json:"open_ports,omitempty"`
 
 	// Services is what the device advertised over DNS-SD in the latest sweep
-	// that heard it, by type and instance. Only Device fills it, as it does
+	// that heard it, by type and instance. Only Device fills it, as for
 	// Ports.
 	Services []*Service `json:"services,omitempty"`
 
-	// Networks is the distinct set of recorded prefixes the device currently
-	// holds an address on, in CIDR order. A list reads this to say where a
-	// device lives; the per-address history, and the prefixes older addresses
-	// sat on, are on Addresses, which only the device page fills.
+	// Networks is the set of recorded prefixes where the device has an address
+	// now, in CIDR order. A list reads this to tell the network of a device.
+	// The history of each address, and the prefixes of older addresses, are
+	// on Addresses. Only the device page fills Addresses.
 	Networks []*Network `json:"networks,omitempty"`
 }
 
-// Name is what to call the device: whatever the user labelled it, falling back
-// through the identity the network offered.
+// Name is the name of the device. It is the label of the user. If there is
+// none, it comes from the identity that the network gave.
 func (d *Device) Name() string {
 	var addr string
 	if len(d.Current) > 0 {
@@ -113,63 +114,65 @@ func (d *Device) Name() string {
 	return displayName(d.Label, d.Hostname, d.MAC, addr, d.ID)
 }
 
-// Address is one address a device holds, or held.
+// Address is one address that a device has, or had.
 type Address struct {
 	IP        netip.Addr `json:"ip"`
 	Current   bool       `json:"current"`
 	FirstSeen time.Time  `json:"first_seen"`
 	LastSeen  time.Time  `json:"last_seen"`
 
-	// Network is the recorded prefix a sweep placed this address on. It is nil
-	// when no sweep matched it to one: an address recorded before networks
-	// were tracked, or one on a prefix nothing has recorded.
+	// Network is the recorded prefix where a sweep put this address. It is nil
+	// when no sweep matched it to one. This is an address from before network
+	// tracking, or an address on a prefix that nothing recorded.
 	Network *Network `json:"network,omitzero"`
 }
 
-// Port is one TCP port a scan has found a device listening on, or found it
-// listening on once and later found shut. Only a port seen open is ever
-// recorded, so the list is what the device exposes now plus what it used to.
+// Port is one TCP port on which a scan found a device listening. It can also be
+// a port that was open once and closed later. The store records only a port
+// seen open. So the list is what the device exposes now, plus what it exposed
+// before.
 type Port struct {
 	Number  uint16           `json:"port"`
 	Service string           `json:"service,omitempty"`
 	State   dbtype.PortState `json:"state"`
 
-	// FirstSeen is the first scan that found the port open; LastSeen the most
-	// recent scan that had an opinion on it. ChangedAt is when the state last
-	// flipped, so "open since" and "closed on" stay distinct from either.
+	// FirstSeen is the first scan that found the port open. LastSeen is the
+	// most recent scan that checked it. ChangedAt is the last change of the
+	// state. So "open since" and "closed on" stay separate from both.
 	FirstSeen time.Time `json:"first_seen"`
 	LastSeen  time.Time `json:"last_seen"`
 	ChangedAt time.Time `json:"changed_at"`
 }
 
-// Service is one service a device advertised over DNS-SD within the history
-// window. The device announced it itself, so it is listed whether or not a
-// port scan reached its port.
+// Service is one service that a device advertised over DNS-SD within the
+// history window. The device announced it itself. So the list includes it,
+// whether a port scan reached its port or not.
 type Service struct {
 	// Type is the service type without the domain, such as
 	// "_googlecast._tcp".
 	Type string `json:"type"`
 
-	// Instance is the name the device gives the service, such as "Living Room
-	// TV", and is empty when that name was no fit to show.
+	// Instance is the name that the device gives the service, such as "Living
+	// Room TV". It is empty when that name was not safe to show.
 	Instance string `json:"instance,omitempty"`
 
-	// Port is where the service listens, and zero when the device gave none.
+	// Port is where the service listens. It is zero when the device gave
+	// none.
 	Port uint16 `json:"port,omitempty"`
 
-	// Label and Model are the name a Google Cast device shows its owner and
+	// Label is the name that a Google Cast device shows its owner. Model is
 	// its model, such as "Google Nest Mini". Both are empty for any other
 	// service type.
 	Label string `json:"label,omitempty"`
 	Model string `json:"model,omitempty"`
 
-	// FirstSeen is the first sweep that heard the service, and LastSeen the
+	// FirstSeen is the first sweep that heard the service. LastSeen is the
 	// latest.
 	FirstSeen time.Time `json:"first_seen"`
 	LastSeen  time.Time `json:"last_seen"`
 }
 
-// PortOverview is the compact service picture shown on the overview page.
+// PortOverview is the short service summary on the overview page.
 //
 // Open is how many ports are open now, across Devices devices. Opened and
 // Closed count the ports that changed state within PortChangeWindow.
@@ -181,16 +184,16 @@ type PortOverview struct {
 	Services []*ServiceCount `json:"services"`
 }
 
-// ServiceCount reports how many devices currently answer on one known service
-// or, where the static map has no name for it, one port number.
+// ServiceCount reports how many devices answer now on one known service. If the
+// static map has no name for it, it counts one port number.
 type ServiceCount struct {
 	Port    uint16 `json:"port"`
 	Service string `json:"service,omitempty"`
 	Devices int    `json:"devices"`
 }
 
-// Name is the recognisable service name, falling back to the port when the
-// scanner's static service map does not know one.
+// Name is the known service name. If the static service map of the scanner
+// does not know one, it is the port.
 func (s *ServiceCount) Name() string {
 	if s.Service != "" {
 		return s.Service
@@ -199,37 +202,38 @@ func (s *ServiceCount) Name() string {
 	return "Port " + strconv.Itoa(int(s.Port))
 }
 
-// Open reports whether the port answered the most recent scan that reached it.
+// Open reports whether the port answered the most recent scan that reached
+// it.
 func (p *Port) Open() bool { return p.State == dbtype.PortOpen }
 
 // Claim is what one source says about a device, as it is displayed.
 //
-// The device row carries one name; this is every name that was offered for it,
-// so a source that lost the election is still readable.
+// The device row has one name. This is every name that a source gave for it.
+// So a source that lost the election is still readable.
 type Claim struct {
 	Source string            `json:"source"`
 	Kind   dbtype.SourceKind `json:"kind"`
 
-	// Address is the address the source said this about. A source files one
-	// claim per address it reports the device at.
+	// Address is the address of this claim. A source makes one claim for each
+	// address at which it reports the device.
 	Address netip.Addr `json:"address"`
 
 	Hostname       string                `json:"hostname,omitempty"`
 	HostnameSource dbtype.HostnameSource `json:"hostname_source,omitempty"`
 
-	// Detail is what only this source knows, decoded from the JSON it was
-	// stored as and sorted by key so a page renders it the same way twice.
+	// Detail is what only this source knows, decoded from its stored JSON. It
+	// is sorted by key. So a page renders it in the same way twice.
 	Detail []Field `json:"detail,omitempty"`
 
-	// FirstSeen and LastSeen are this source's own sighting, which can differ
-	// from the device's.
-	// A router holding a bound lease for something that has not answered a ping
-	// in days is two sources disagreeing, which is what these are here to show.
+	// FirstSeen and LastSeen are the sighting of this source. It can be
+	// different from the sighting of the device. A router can have a bound
+	// lease for a device that did not answer a ping for days. Then two sources
+	// disagree. These fields exist to show this.
 	FirstSeen time.Time `json:"first_seen"`
 	LastSeen  time.Time `json:"last_seen"`
 }
 
-// Field is one entry of a claim's detail.
+// Field is one entry of the detail of a claim.
 type Field struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
@@ -246,9 +250,8 @@ type Event struct {
 	Detail   string           `json:"detail,omitempty"`
 	At       time.Time        `json:"occurred_at"`
 
-	// DeviceName names the device the event was about. It is empty when the
-	// device has since been deleted, and when the caller already knows which
-	// device it asked about.
+	// DeviceName names the device of the event. It is empty when the device
+	// was deleted, and when the caller already knows the device.
 	DeviceName string `json:"device_name,omitempty"`
 }
 
@@ -265,15 +268,14 @@ type Scan struct {
 
 	StartedAt time.Time `json:"started_at"`
 
-	// FinishedAt is zero while the scan is still running.
+	// FinishedAt is zero while the scan still runs.
 	FinishedAt time.Time `json:"finished_at,omitzero"`
 }
 
-// Took is how long the scan ran, and is zero while it still is.
+// Took is how long the scan ran. It is zero while the scan still runs.
 //
-// It is derived: the two timestamps already say it, and a time.Duration has no
-// JSON representation to be sent as. encoding/json/v2 refuses to marshal one
-// at all.
+// It comes from the two timestamps, which already tell it. A time.Duration has
+// no JSON form. encoding/json/v2 refuses to marshal one.
 func (s *Scan) Took() time.Duration {
 	if s.FinishedAt.IsZero() {
 		return 0
@@ -282,8 +284,8 @@ func (s *Scan) Took() time.Duration {
 	return s.FinishedAt.Sub(s.StartedAt)
 }
 
-// Stats counts the inventory as a whole. Every count is over all devices,
-// including the ignored ones, which Ignored reports separately.
+// Stats counts the whole inventory. Every count includes all devices, also the
+// ignored devices. Ignored reports them separately.
 type Stats struct {
 	Total   int `json:"total"`
 	Online  int `json:"online"`
@@ -294,17 +296,17 @@ type Stats struct {
 	Discovered int `json:"discovered"`
 }
 
-// Network is one prefix the inventory has recorded, as it is displayed. The
-// counts are of devices holding a current address on it, judged by the same
-// online window a device list is.
+// Network is one prefix that the inventory recorded, as it is displayed. The
+// counts are of devices with a current address on it. They use the same online
+// window as a device list.
 type Network struct {
 	ID   int64  `json:"id"`
 	CIDR string `json:"cidr"`
 	Name string `json:"name,omitempty"`
 
-	// VLAN is the tag the network carries, and is zero when it carries none.
-	// The schema allows a network without one, and an untagged network is a
-	// real answer.
+	// VLAN is the tag of the network. It is zero when the network has none.
+	// The schema allows a network without a tag. An untagged network is a real
+	// answer.
 	VLAN int `json:"vlan,omitempty"`
 
 	Total   int `json:"total"`
@@ -312,10 +314,10 @@ type Network struct {
 	Offline int `json:"offline"`
 }
 
-// Status filters a device list by whether the devices are still answering.
+// Status filters a device list by whether the devices still answer.
 type Status string
 
-// Status values a filter's online/offline state can take.
+// Status values for the online/offline state of a filter.
 const (
 	StatusAny     Status = ""
 	StatusOnline  Status = "online"
@@ -324,14 +326,14 @@ const (
 
 var statuses = []Status{StatusAny, StatusOnline, StatusOffline}
 
-// Valid reports whether s is one of the statuses that filters anything. A
-// caller that rejects an invalid one tells the user their filter was misspelt;
-// one that does not still gets the whole list back.
+// Valid reports whether s is a status that filters. A caller that rejects an
+// invalid status tells the user that the filter was misspelt. A caller that
+// does not still gets the whole list.
 func (s Status) Valid() bool { return slices.Contains(statuses, s) }
 
 // admits reports whether a device in the given state passes the filter. An
-// unrecognised status filters nothing out, so a hand-typed query parameter
-// widens the list.
+// unknown status filters nothing. So a hand-typed query parameter makes the
+// list wider.
 func (s Status) admits(online bool) bool {
 	switch s {
 	case StatusOnline:
@@ -343,14 +345,14 @@ func (s Status) admits(online bool) bool {
 	}
 }
 
-// Sort orders a device list. The ordering is applied in Go because addresses
-// are stored as TEXT, which sorts 192.0.2.9 after
-// 192.0.2.100, and because a name is assembled from several columns.
+// Sort orders a device list. The order happens in Go, because addresses are
+// stored as TEXT. TEXT sorts 192.0.2.9 after 192.0.2.100. Also, a name comes
+// from several columns.
 type Sort string
 
 // Sort names an ordering for a device list.
 const (
-	// SortDefault is SortLastSeen, so an unset field needs no special case.
+	// SortDefault is SortLastSeen. So an unset field needs no special case.
 	SortDefault Sort = ""
 
 	// SortLastSeen puts the most recently seen device first.
@@ -359,8 +361,8 @@ const (
 	SortName    Sort = "name"
 	SortAddress Sort = "address"
 
-	// SortType groups the list by device class, like with like: the
-	// classified devices first and the unclassified ones after them.
+	// SortType groups the list by device class. The classified devices come
+	// first, and the unclassified devices after them.
 	SortType Sort = "type"
 )
 
@@ -369,43 +371,44 @@ var sorts = []Sort{SortDefault, SortLastSeen, SortName, SortAddress, SortType}
 // Valid reports whether by names an ordering.
 func (by Sort) Valid() bool { return slices.Contains(sorts, by) }
 
-// DeviceFilter narrows a device list.
+// DeviceFilter limits a device list.
 type DeviceFilter struct {
 	// Query matches a substring of the label, hostname, vendor, hardware
 	// address, or any current address.
 	Query string
 	Group string
 
-	// Network admits only devices holding a current address on the network
-	// with this id. Zero is every network.
+	// Network allows only devices with a current address on the network with
+	// this id. Zero is every network.
 	Network int64
 
-	// Type admits only devices whose effective class (the user's override
-	// where they set one, the classifier's guess otherwise) is this one. The
-	// zero class is every type, and matches the same field the icon column
-	// reads, so what the filter selects is what the list already shows.
+	// Type allows only devices with this effective class. The effective class
+	// is the override of the user, if set. Else, it is the guess of the
+	// classifier. The zero class is every type. It matches the same field as
+	// the icon column. So the filter selects what the list already shows.
 	Type classify.Class
 
 	Status Status
 	Sort   Sort
 
-	// Watched admits only the devices the owner watches. False is every
+	// Watched allows only the devices that the owner watches. False is every
 	// device.
 	Watched bool
 
-	// IncludeIgnored admits the devices the user has marked ignored, which are
-	// left out otherwise.
+	// IncludeIgnored allows the devices that the user ignored. Else, the list
+	// leaves them out.
 	IncludeIgnored bool
 }
 
-// newDevice converts a stored device, resolving whether it counts as online
-// against a single cutoff so every device in one read is judged alike.
+// newDevice converts a stored device. It decides whether the device counts as
+// online against a single cutoff. So every device in one read uses the same
+// rule.
 func newDevice(d *models.Device, cutoff time.Time) *Device {
 	guess := classify.Class(d.DeviceClass.String)
 
-	// The user's answer wins when it names a class this build knows; a value
-	// that does not (such as an old free-text type)
-	// is no override, and the guess stands.
+	// The answer of the user wins when it names a class that this build
+	// knows. A value that does not, such as an old free-text type, is no
+	// override. Then the guess stays.
 	effective := guess
 	if override := classify.Class(d.DeviceType.String); override.Known() {
 		effective = override
@@ -447,7 +450,7 @@ func newAddress(a *models.Address) *Address {
 
 func newPort(p *models.DevicePort) *Port {
 	return &Port{
-		// device_ports.port is CHECK-constrained to 1-65535, so it fits.
+		// A CHECK limits device_ports.port to 1-65535, so it fits.
 		Number:    uint16(p.Port), //nolint:gosec // range enforced by the column CHECK.
 		Service:   p.Service.String,
 		State:     p.State,
@@ -482,11 +485,11 @@ func newClaim(r *models.ListDeviceSourcesRow) *Claim {
 	}
 }
 
-// claimFields decodes a claim's stored detail.
+// claimFields decodes the stored detail of a claim.
 //
-// Detail that will not decode is dropped: it is a source's
-// aside about one device, and a page that refuses to render because of it would
-// hide everything else the device knows.
+// It drops detail that does not decode. The detail is an extra note of a
+// source about one device. A page that does not render because of it would
+// hide everything else about the device.
 func claimFields(raw string) []Field {
 	if raw == "" {
 		return nil
@@ -518,8 +521,8 @@ func newEvent(e *models.Event) *Event {
 	}
 }
 
-// newScan attaches source and network names to a recorded scan. FinishedAt is
-// zero until the scan has finished.
+// newScan adds source and network names to a recorded scan. FinishedAt is zero
+// until the scan finished.
 func newScan(s *models.Scan, source, network string) *Scan {
 	sc := &Scan{
 		ID:        s.ID,
@@ -540,8 +543,8 @@ func newScan(s *models.Scan, source, network string) *Scan {
 	return sc
 }
 
-// displayName picks the first identifying value that is set, falling back to
-// the row's own id so a device with nothing known about it is still nameable.
+// displayName picks the first identifying value that is set. If none is, it
+// uses the id of the row. So a device with nothing known still has a name.
 func displayName(label, hostname, mac, addr string, id int64) string {
 	if n := cmp.Or(label, hostname, mac, addr); n != "" {
 		return n
@@ -562,10 +565,10 @@ func macString(m dbtype.MAC) string {
 	return m.String()
 }
 
-// parsePorts reads the port numbers GROUP_CONCAT packed into one column and
-// orders them, since the aggregate has no order worth keeping. A value that is
-// not a port is dropped: the column is written from a CHECK-constrained one, so
-// one that will not parse is a row written around the application.
+// parsePorts reads the port numbers that GROUP_CONCAT put into one column, and
+// sorts them. The aggregate has no useful order. It drops a value that is not a
+// port. The column comes from a column with a CHECK. So a value that does not
+// parse is a row written outside the application.
 func parsePorts(concat string) []uint16 {
 	if concat == "" {
 		return nil
@@ -585,8 +588,9 @@ func parsePorts(concat string) []uint16 {
 	return ports
 }
 
-// parseIDs reads the row ids GROUP_CONCAT packed into one column. Order is not
-// kept: the caller resolves these against a list that has its own.
+// parseIDs reads the row ids that GROUP_CONCAT put into one column. It does not
+// keep an order. The caller resolves these against a list with its own
+// order.
 func parseIDs(concat string) []int64 {
 	if concat == "" {
 		return nil
@@ -604,9 +608,9 @@ func parseIDs(concat string) []int64 {
 	return ids
 }
 
-// parseAddrs reads the addresses GROUP_CONCAT packed into one column and orders
-// them, since neither the concatenation nor the TEXT column they came from has
-// an order worth keeping.
+// parseAddrs reads the addresses that GROUP_CONCAT put into one column, and
+// sorts them. Neither the concatenation nor their TEXT column has a useful
+// order.
 func parseAddrs(concat string) []netip.Addr {
 	if concat == "" {
 		return nil
@@ -616,8 +620,8 @@ func parseAddrs(concat string) []netip.Addr {
 	addrs := make([]netip.Addr, 0, len(fields))
 
 	for _, f := range fields {
-		// Every address reached the column through dbtype.Addr, so one that
-		// will not parse back is a row written around the application.
+		// Every address reached the column through dbtype.Addr. So an address
+		// that does not parse is a row written outside the application.
 		if a, err := netip.ParseAddr(f); err == nil {
 			addrs = append(addrs, a)
 		}
@@ -628,8 +632,8 @@ func parseAddrs(concat string) []netip.Addr {
 	return addrs
 }
 
-// sortDevices orders the list in place. Ties fall back to the id so that a
-// repeated read returns the same order.
+// sortDevices sorts the list in place. A tie uses the id. So a repeated read
+// returns the same order.
 func sortDevices(devices []*Device, by Sort) {
 	var cmpFn func(a, b *Device) int
 
@@ -643,7 +647,7 @@ func sortDevices(devices []*Device, by Sort) {
 	case SortType:
 		cmpFn = compareClass
 	default:
-		// SortLastSeen, and the unset field that means it.
+		// SortLastSeen, and the unset field that means the same.
 		cmpFn = func(a, b *Device) int { return b.LastSeen.Compare(a.LastSeen) }
 	}
 
@@ -652,9 +656,9 @@ func sortDevices(devices []*Device, by Sort) {
 	})
 }
 
-// compareClass orders by device class, keeping like with like. An unclassified
-// device sorts last: it has no class to group with, and the reader ordering by
-// type is looking for the ones that do.
+// compareClass orders by device class, and keeps the same classes together. An
+// unclassified device sorts last. It has no class for a group. A reader who
+// sorts by type looks for the devices that have one.
 func compareClass(a, b *Device) int {
 	switch {
 	case a.Class == b.Class:
@@ -668,8 +672,8 @@ func compareClass(a, b *Device) int {
 	return cmp.Compare(a.Class, b.Class)
 }
 
-// compareFirstAddr orders by the lowest address a device currently holds. A
-// device holding none sorts last, since it has nothing to compare.
+// compareFirstAddr orders by the lowest current address of a device. A device
+// with no address sorts last, because it has nothing to compare.
 func compareFirstAddr(a, b *Device) int {
 	switch {
 	case len(a.Current) == 0 && len(b.Current) == 0:

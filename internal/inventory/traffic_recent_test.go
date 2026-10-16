@@ -11,7 +11,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/plugin"
 )
 
-// Both directions of a conversation are one edge, with the flush that last
+// Both directions of a conversation are one edge, with the last flush that
 // carried it.
 func TestRecentMergesBothDirections(t *testing.T) {
 	t.Parallel()
@@ -35,7 +35,7 @@ func TestRecentMergesBothDirections(t *testing.T) {
 	assert.True(t, got[0].Last.After(at))
 }
 
-// A knock nothing came of is not activity.
+// A knock that gave nothing is not activity.
 func TestRecentLeavesOutAttempts(t *testing.T) {
 	t.Parallel()
 
@@ -50,8 +50,8 @@ func TestRecentLeavesOutAttempts(t *testing.T) {
 	assert.Empty(t, rec.Recent(at.Add(-time.Minute)))
 }
 
-// A flush leaves the window once it is older than it, and a caller asking
-// about a later moment does not see earlier flushes.
+// A flush leaves the window when it is older than the window. A caller that
+// asks about a later time does not see earlier flushes.
 func TestRecentForgetsOldFlushes(t *testing.T) {
 	t.Parallel()
 

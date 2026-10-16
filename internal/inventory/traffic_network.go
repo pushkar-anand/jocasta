@@ -11,7 +11,8 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 )
 
-// DeviceTotal is how much one device moved over a window, both ways.
+// DeviceTotal is how much data one device moved over a window, in both
+// directions.
 type DeviceTotal struct {
 	DeviceID   int64  `json:"device_id"`
 	DeviceName string `json:"device_name"`
@@ -19,7 +20,7 @@ type DeviceTotal struct {
 	Received   int64  `json:"received"`
 }
 
-// OrgTotal is how much the whole network exchanged with one organisation over
+// OrgTotal is how much the whole network exchanged with one organisation, over
 // a window.
 type OrgTotal struct {
 	ASN      uint32 `json:"asn"`
@@ -32,8 +33,8 @@ type OrgTotal struct {
 	Devices int64 `json:"devices"`
 }
 
-// FirstContact is a device exchanging data with an organisation for the first
-// time on record.
+// FirstContact is the first recorded data exchange of a device with an
+// organisation.
 type FirstContact struct {
 	DeviceID   int64     `json:"device_id"`
 	DeviceName string    `json:"device_name"`
@@ -44,23 +45,24 @@ type FirstContact struct {
 	Bytes      int64     `json:"bytes"`
 }
 
-// FirstContacts is every first contact since a moment.
+// FirstContacts is every first contact since a time.
 type FirstContacts struct {
 	Since    time.Time       `json:"since"`
 	Contacts []*FirstContact `json:"contacts"`
 
-	// Partial is set when traffic was first recorded after Since. Everything
-	// is a first contact in the first days of collecting, so a reader needs to
-	// know the list covers less than the period asked for.
+	// Partial is set when the first recorded traffic is after Since. In the
+	// first days of collection, everything is a first contact. So a reader
+	// needs to know that the list covers less than the asked period.
 	Partial bool `json:"partial"`
 
-	// Started is when traffic was first recorded, zero when it never has.
+	// Started is the time of the first recorded traffic. It is zero when
+	// there is none.
 	Started time.Time `json:"started,omitzero"`
 }
 
 // BusiestDevices returns the devices that moved the most data since the start
-// of the hour containing since, busiest first. A non-empty group keeps only
-// the devices in it.
+// of the hour of since, busiest first. A non-empty group keeps only its
+// devices.
 func (s *Store) BusiestDevices(ctx context.Context, since time.Time, group string, limit int) ([]*DeviceTotal, error) {
 	rows, err := s.q.BusiestDevices(ctx, models.BusiestDevicesParams{
 		Since:     hourOf(since),
@@ -84,9 +86,9 @@ func (s *Store) BusiestDevices(ctx context.Context, since time.Time, group strin
 	return out, nil
 }
 
-// TopOrganisations returns the organisations the network exchanged the most
-// with since the start of the hour containing since. A non-empty group counts
-// only the devices in it.
+// TopOrganisations returns the organisations with which the network exchanged
+// the most, since the start of the hour of since. A non-empty group counts
+// only its devices.
 func (s *Store) TopOrganisations(ctx context.Context, since time.Time, group string, limit int) ([]*OrgTotal, error) {
 	rows, err := s.q.TopOrganisations(ctx, models.TopOrganisationsParams{
 		Since:     hourOf(since),
@@ -112,9 +114,9 @@ func (s *Store) TopOrganisations(ctx context.Context, since time.Time, group str
 	return out, nil
 }
 
-// FirstContacts returns the organisations devices exchanged data with for the
-// first time since the start of the hour containing since, newest first. A
-// non-empty group keeps only the devices in it.
+// FirstContacts returns the organisations with which devices exchanged data for
+// the first time, since the start of the hour of since, newest first. A
+// non-empty group keeps only its devices.
 func (s *Store) FirstContacts(ctx context.Context, since time.Time, group string, limit int) (*FirstContacts, error) {
 	since = since.UTC().Truncate(time.Hour)
 
@@ -164,9 +166,9 @@ func (s *Store) FirstContacts(ctx context.Context, since time.Time, group string
 	return out, nil
 }
 
-// OrganisationDevices returns, for each organisation, what each device
-// exchanged with it since the start of the hour containing since, busiest
-// device first. A non-empty group keeps only the devices in it.
+// OrganisationDevices returns what each device exchanged with each
+// organisation, since the start of the hour of since. The busiest device comes
+// first. A non-empty group keeps only its devices.
 func (s *Store) OrganisationDevices(ctx context.Context, since time.Time, group string) (map[uint32][]*DeviceTotal, error) {
 	rows, err := s.q.OrganisationDevices(ctx, models.OrganisationDevicesParams{
 		Since:     hourOf(since),
@@ -191,16 +193,16 @@ func (s *Store) OrganisationDevices(ctx context.Context, since time.Time, group 
 	return out, nil
 }
 
-// parseAddr reads an address the database wrote, and the zero address for
-// anything else, which names no organisation.
+// parseAddr reads an address that the database wrote. For any other value, it
+// returns the zero address, which names no organisation.
 func parseAddr(s string) netip.Addr {
 	a, _ := netip.ParseAddr(s)
 
 	return a
 }
 
-// Incoming is one device's service that peers on the internet opened
-// connections to over a window.
+// Incoming is one service of a device to which peers on the internet opened
+// connections, over a window.
 type Incoming struct {
 	DeviceID   int64  `json:"device_id"`
 	DeviceName string `json:"device_name"`
@@ -208,24 +210,25 @@ type Incoming struct {
 	Protocol uint8  `json:"protocol"`
 	Port     uint16 `json:"port"`
 
-	// Service is the service usually found on Port; nothing detects it.
+	// Service is the usual service on Port. Nothing detects it.
 	Service string `json:"service,omitempty"`
 
-	// Connections is how many the internet opened; Peers how many addresses
-	// and Orgs how many organisations they came from.
+	// Connections is how many connections the internet opened. Peers is how
+	// many addresses they came from. Orgs is how many organisations they came
+	// from.
 	Connections int64 `json:"connections"`
 	Peers       int64 `json:"peers"`
 	Orgs        int64 `json:"orgs"`
 
-	// Sent and Received are from the device's side.
+	// Sent and Received are from the side of the device.
 	Sent     int64     `json:"sent"`
 	Received int64     `json:"received"`
 	LastHour time.Time `json:"last_hour"`
 }
 
-// IncomingFromInternet returns the device services internet peers opened
-// connections to since the start of the hour containing since, most
-// connections first. A non-empty group keeps only the devices in it.
+// IncomingFromInternet returns the device services to which internet peers
+// opened connections, since the start of the hour of since. The most
+// connections come first. A non-empty group keeps only its devices.
 func (s *Store) IncomingFromInternet(ctx context.Context, since time.Time, group string, limit int) ([]*Incoming, error) {
 	rows, err := s.q.IncomingFromInternet(ctx, models.IncomingFromInternetParams{
 		Since:     hourOf(since),

@@ -14,8 +14,8 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/asn"
 )
 
-// A pair of devices is one line, drawn once; a device's traffic with the
-// internet is a line to the organisation, whatever addresses it used.
+// A pair of devices is one line, drawn once. The traffic of a device with the
+// internet is a line to the organisation, for any addresses that it used.
 func TestTrafficMapLinksDevicesAndOrganisations(t *testing.T) {
 	t.Parallel()
 
@@ -58,8 +58,8 @@ func TestTrafficMapLinksDevicesAndOrganisations(t *testing.T) {
 	assert.False(t, m.Devices[0].Active, "no recent edges given")
 }
 
-// What the recorder saw lately marks the devices, organisation and lines it
-// covers; the rest stay still.
+// What the recorder saw recently marks the devices, organisation and lines
+// that it covers. The rest do not move.
 func TestTrafficMapMarksRecentActivity(t *testing.T) {
 	t.Parallel()
 
@@ -94,7 +94,7 @@ func TestTrafficMapMarksRecentActivity(t *testing.T) {
 	}
 }
 
-// Past the cap the quietest devices are only counted, and their lines go with
+// After the limit, the quietest devices only count. Their lines go with
 // them.
 func TestTrafficMapFoldsTheQuietest(t *testing.T) {
 	t.Parallel()
@@ -127,8 +127,8 @@ func TestTrafficMapFoldsTheQuietest(t *testing.T) {
 	assert.Len(t, m.Links, MapMaxDevices)
 }
 
-// A company announcing from two ASNs is one organisation on the map, under
-// its busier number, and every ASN leads to it.
+// A company that announces from two ASNs is one organisation on the map, under
+// its busier number. Every ASN leads to it.
 func TestMergeOrgsFoldsOneCompanysNumbers(t *testing.T) {
 	t.Parallel()
 
@@ -144,8 +144,8 @@ func TestMergeOrgsFoldsOneCompanysNumbers(t *testing.T) {
 	assert.Equal(t, map[uint32]uint32{64500: 64501, 64501: 64501, 64502: 64502}, canon)
 }
 
-// A line lists the services it carried, once each and by port, named where
-// the port has a usual name.
+// A line lists its services, once each and by port. A port with a usual name
+// has that name.
 func TestTrafficMapLinksCarryTheirServices(t *testing.T) {
 	t.Parallel()
 

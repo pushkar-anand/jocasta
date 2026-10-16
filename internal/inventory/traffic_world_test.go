@@ -11,8 +11,8 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/geo"
 )
 
-// Internet traffic is gathered by the country each address is registered in,
-// with the devices and organisations behind it; a device on the network is in
+// Internet traffic is grouped by the country where each address is registered,
+// with the devices and organisations behind it. A device on the network is in
 // no country.
 func TestTrafficByCountryPlacesTheInternet(t *testing.T) {
 	t.Parallel()
@@ -47,7 +47,7 @@ func TestTrafficByCountryPlacesTheInternet(t *testing.T) {
 	assert.Equal(t, int64(1_000), c.Orgs[0].Bytes)
 }
 
-// A recent exchange with an address marks its country active.
+// A recent exchange with an address marks its country as active.
 func TestTrafficByCountryMarksRecentActivity(t *testing.T) {
 	t.Parallel()
 

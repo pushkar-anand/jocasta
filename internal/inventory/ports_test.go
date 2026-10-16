@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// portScan builds one address's scan result the way the scanner hands it over
-// for an address that answered.
+// portScan builds the scan result of one address, as the scanner gives it for
+// an address that answered.
 func portScan(addr string, open []uint16, scanned []uint16) scanner.PortScan {
 	return scanner.PortScan{
 		Addr:     netip.MustParseAddr(addr),
@@ -23,7 +23,7 @@ func portScan(addr string, open []uint16, scanned []uint16) scanner.PortScan {
 	}
 }
 
-// silentScan builds the result for an address that let every probe time out.
+// silentScan builds the result for an address where every probe timed out.
 func silentScan(addr string, scanned []uint16) scanner.PortScan {
 	return scanner.PortScan{
 		Addr:    netip.MustParseAddr(addr),
@@ -40,8 +40,8 @@ func recordPorts(t *testing.T, s *Store, scans ...scanner.PortScan) *PortSummary
 	return sum
 }
 
-// portRow is device_ports read back for one (device, port), so the state
-// machine is asserted against the table itself.
+// portRow is device_ports, read back for one (device, port). So the test
+// asserts the state machine against the table itself.
 type portRow struct {
 	state             string
 	service           string
@@ -163,8 +163,8 @@ func TestRecordPortsClosesAPortThatStoppedAnswering(t *testing.T) {
 	}, eventKinds(t, conn, id))
 }
 
-// A host that answered nothing may be asleep or gone, so a scan of it closes
-// none of its ports and writes no events.
+// A host that answered nothing can be asleep or gone. So a scan of it closes
+// none of its ports, and writes no events.
 func TestRecordPortsKeepsPortsOpenOnAHostThatDidNotAnswer(t *testing.T) {
 	t.Parallel()
 
@@ -183,8 +183,8 @@ func TestRecordPortsKeepsPortsOpenOnAHostThatDidNotAnswer(t *testing.T) {
 		`SELECT COUNT(*) FROM events WHERE device_id = ? AND kind = 'PORT_CLOSED'`, id))
 }
 
-// On a device with two addresses, the one that answered decides which ports
-// have closed, and the silent one has no say.
+// On a device with two addresses, the address that answered decides which
+// ports closed. The silent address does not decide.
 func TestRecordPortsClosesFromTheAddressThatAnswered(t *testing.T) {
 	t.Parallel()
 
@@ -230,8 +230,8 @@ func TestRecordPortsLeavesAnUnscannedPortAlone(t *testing.T) {
 
 	recordPorts(t, s, portScan("192.0.2.10", []uint16{22, 443}, []uint16{22, 443}))
 
-	// A later run with a narrower set: 443 was not looked at, so nothing is
-	// concluded about it.
+	// A later run with a narrower set. The run did not check 443. So it
+	// decides nothing about it.
 	sum := recordPorts(t, s, portScan("192.0.2.10", []uint16{22}, []uint16{22}))
 
 	assert.Zero(t, sum.Closed)
@@ -290,8 +290,8 @@ func TestRecordPortsFilesUnderTheSweepSource(t *testing.T) {
 	sweep(t, s, host("192.0.2.10", macA, "host-a"))
 	recordPorts(t, s, portScan("192.0.2.10", []uint16{22}, []uint16{22}))
 
-	// The sweep and the port scan name the same source, so there is one row and
-	// both scans point at it.
+	// The sweep and the port scan name the same source. So there is one row,
+	// and both scans point at it.
 	assert.Equal(t, 1, queryInt(t, conn, `SELECT COUNT(*) FROM sources WHERE name = 'test-sweep'`))
 	assert.Equal(t, 1, queryInt(t, conn, `SELECT COUNT(DISTINCT source_id) FROM scans`))
 	assert.Equal(t, "PORTS", queryString(t, conn,
@@ -343,9 +343,9 @@ func TestPortScanTargetsSkipsIgnoredDevices(t *testing.T) {
 	assert.Equal(t, []scanner.PortTarget{{Addr: netip.MustParseAddr("192.0.2.10")}}, targets)
 }
 
-// A device's targets carry the TCP ports it advertised a service on, once each,
-// so the port scan probes them beside its preset. A UDP service is left out,
-// since the scan connects over TCP.
+// The targets of a device have the TCP ports on which it advertised a service,
+// once each. So the port scan probes them with its preset. A UDP service is
+// left out, because the scan connects over TCP.
 func TestPortScanTargetsCarryAdvertisedTCPPorts(t *testing.T) {
 	t.Parallel()
 
@@ -371,8 +371,9 @@ func TestPortScanTargetsCarryAdvertisedTCPPorts(t *testing.T) {
 	}, targets)
 }
 
-// A router's ARP table can hold a neighbour on its WAN side, such as the ISP's
-// gateway. Its address lies on no recorded network, so it is never a target.
+// The ARP table of a router can have a neighbour on its WAN side, such as the
+// gateway of the ISP. Its address is on no recorded network. So it is never a
+// target.
 func TestPortScanTargetsSkipAddressesOutsideRecordedNetworks(t *testing.T) {
 	t.Parallel()
 
@@ -386,8 +387,8 @@ func TestPortScanTargetsSkipAddressesOutsideRecordedNetworks(t *testing.T) {
 	assert.Equal(t, []scanner.PortTarget{{Addr: netip.MustParseAddr("192.0.2.10")}}, targets)
 }
 
-// A segment the router serves counts as one of the user's networks even when
-// the config does not list it for sweeping.
+// A segment that the router serves counts as a network of the user, also when
+// the config does not list it for a sweep.
 func TestPortScanTargetsIncludeARouterSegment(t *testing.T) {
 	t.Parallel()
 
@@ -402,8 +403,8 @@ func TestPortScanTargetsIncludeARouterSegment(t *testing.T) {
 	assert.Equal(t, []scanner.PortTarget{{Addr: netip.MustParseAddr("198.51.100.5")}}, targets)
 }
 
-// With no network recorded there is nothing known to be the user's, so the
-// scan has no targets.
+// With no recorded network, nothing is known to belong to the user. So the scan
+// has no targets.
 func TestPortScanTargetsEmptyWithNoRecordedNetwork(t *testing.T) {
 	t.Parallel()
 
@@ -416,8 +417,8 @@ func TestPortScanTargetsEmptyWithNoRecordedNetwork(t *testing.T) {
 	assert.Empty(t, targets)
 }
 
-// An advertised port the scan found open and later finds shut closes like any
-// other, because the scanned set names it.
+// An advertised port that the scan found open, and later finds closed, closes
+// as any other port. The scanned set names it.
 func TestAnAdvertisedPortThatStopsAnsweringCloses(t *testing.T) {
 	t.Parallel()
 
@@ -430,8 +431,8 @@ func TestAnAdvertisedPortThatStopsAnsweringCloses(t *testing.T) {
 	assert.Equal(t, "closed", queryString(t, conn, `SELECT state FROM device_ports WHERE port = 10001`))
 }
 
-// A service that moves to a new port leaves its old one recorded open. The
-// targets carry the old port beside the new, so the next scan closes it.
+// A service that moves to a new port leaves its old port recorded as open. The
+// targets have the old port with the new port. So the next scan closes it.
 func TestAMovedServicesOldPortCloses(t *testing.T) {
 	t.Parallel()
 
@@ -457,8 +458,8 @@ func TestAMovedServicesOldPortCloses(t *testing.T) {
 }
 
 // A port probed only because the device advertised it opens and closes in
-// device_ports but logs no event, so a phone's rotating ports stay out of the
-// change log.
+// device_ports, but logs no event. So the changing ports of a phone stay out
+// of the change log.
 func TestAnAdvertisedPortChangesWithoutAnEvent(t *testing.T) {
 	t.Parallel()
 
@@ -488,9 +489,9 @@ func TestAnAdvertisedPortChangesWithoutAnEvent(t *testing.T) {
 	}, eventKinds(t, conn, id), "only port 22, in the scanner's set, is logged")
 }
 
-// A device with two addresses whose service listens on one of them keeps the
-// port open across scans, with the one event that opened it, and counts it
-// once. A port closes only once no address of the device answers on it.
+// A device with two addresses, whose service listens on one of them, keeps the
+// port open across scans. It has the one event that opened it, and counts it
+// once. A port closes only when no address of the device answers on it.
 func TestAPortOpenOnOneAddressOfADeviceStaysOpen(t *testing.T) {
 	t.Parallel()
 
@@ -506,7 +507,7 @@ func TestAPortOpenOnOneAddressOfADeviceStaysOpen(t *testing.T) {
 		)
 	}
 
-	// Answering on both addresses is still one port of one device.
+	// An answer on both addresses is still one port of one device.
 	sum := recordPorts(t, s,
 		portScan("192.0.2.10", []uint16{8080}, []uint16{22, 8080}),
 		portScan("192.0.2.20", []uint16{8080}, []uint16{22, 8080}),
@@ -537,7 +538,8 @@ func TestPortOverviewSummarisesCurrentServicesAndChanges(t *testing.T) {
 		portScan("192.0.2.10", []uint16{22, 443}, []uint16{22, 80, 443}),
 		portScan("192.0.2.11", []uint16{22}, []uint16{22, 80, 443}),
 	)
-	// Close one service so the current and transition counts differ.
+	// Close one service, so the current count and the change count are
+	// different.
 	recordPorts(t, s,
 		portScan("192.0.2.10", []uint16{22}, []uint16{22, 80, 443}),
 		portScan("192.0.2.11", []uint16{22}, []uint16{22, 80, 443}),
@@ -554,7 +556,8 @@ func TestPortOverviewSummarisesCurrentServicesAndChanges(t *testing.T) {
 	assert.Equal(t, "ssh", got.Services[0].Name())
 	assert.Equal(t, 2, got.Services[0].Devices)
 
-	// Ignoring a device removes both its port and its history from the overview.
+	// To ignore a device removes its port and its history from the
+	// overview.
 	_, err = conn.ExecContext(t.Context(), `UPDATE devices SET is_ignored = 1 WHERE mac = ?`, macB)
 	require.NoError(t, err)
 

@@ -11,37 +11,39 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/geo"
 )
 
-// countryTop is how many devices and organisations a country lists; the rest
-// are counted.
+// countryTop is how many devices and organisations a country lists. The rest
+// are only counted.
 const countryTop = 5
 
-// CountryTraffic is what the network exchanged with one country over a window.
+// CountryTraffic is what the network exchanged with one country, over a
+// window.
 type CountryTraffic struct {
 	Code, Name string
 	Bytes      int64
 
-	// Active is set when anything in it was exchanged in the recent window.
+	// Active is set when something in it was exchanged in the recent
+	// window.
 	Active bool
 
-	// Devices and Orgs are the busiest that talked to it, and MoreDevices,
-	// MoreOrgs how many others did.
+	// Devices and Orgs are the busiest that talked to it. MoreDevices and
+	// MoreOrgs are how many others did.
 	Devices               []*CountryPart
 	Orgs                  []*CountryPart
 	MoreDevices, MoreOrgs int
 }
 
-// CountryPart is one device or organisation's share of a country's traffic.
-// ID is the device's id, zero for an organisation.
+// CountryPart is the share of one device or organisation of the traffic of a
+// country. ID is the id of the device. It is zero for an organisation.
 type CountryPart struct {
 	ID    int64
 	Name  string
 	Bytes int64
 }
 
-// TrafficByCountry returns what the network exchanged with each country since
-// the start of the hour holding since, busiest first, with what recent covers
-// marked active. A country is where an address is registered, as package geo
-// has it; addresses it cannot place are left out.
+// TrafficByCountry returns what the network exchanged with each country, since
+// the start of the hour of since, busiest first. It marks what recent covers
+// as active. A country is where an address is registered, from package geo. It
+// leaves out addresses that package geo cannot place.
 func (s *Store) TrafficByCountry(ctx context.Context, since time.Time, recent []RecentEdge) ([]*CountryTraffic, error) {
 	hour := hourOf(since)
 
@@ -117,8 +119,8 @@ func (s *Store) TrafficByCountry(ctx context.Context, since time.Time, recent []
 	return out, nil
 }
 
-// markCountries sets Active on each country an address in recent is placed
-// in. Only the ends on the public internet can be.
+// markCountries sets Active on each country of an address in recent. Only the
+// ends on the public internet can have a country.
 func markCountries(countries []*CountryTraffic, recent []RecentEdge) {
 	byCode := make(map[string]*CountryTraffic, len(countries))
 	for _, c := range countries {
@@ -136,7 +138,7 @@ func markCountries(countries []*CountryTraffic, recent []RecentEdge) {
 	}
 }
 
-// topParts keeps the busiest countryTop parts and counts the rest.
+// topParts keeps the busiest countryTop parts, and counts the rest.
 func topParts(parts []*CountryPart) ([]*CountryPart, int) {
 	slices.SortFunc(parts, func(a, b *CountryPart) int {
 		return cmp.Or(cmp.Compare(b.Bytes, a.Bytes), cmp.Compare(a.Name, b.Name))

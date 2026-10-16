@@ -13,7 +13,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/plugin"
 )
 
-// lookup is a query for name from client, logged at.
+// lookup is a query for name from client, logged at the time at.
 func lookup(client, name string, at time.Time) plugin.Query {
 	return plugin.Query{Client: netip.MustParseAddr(client), Name: name, Type: "A", At: at}
 }
@@ -26,9 +26,9 @@ func dnsRows(t *testing.T, s *Store) []string {
 		FROM dns_hourly ORDER BY device_id, hour, name`)
 }
 
-// TestRecordQueriesCountsPerDeviceHourAndName checks the rollup: one row per
-// device, hour and name, a lookup from an address no device holds dropped,
-// and a second read adding to the first.
+// TestRecordQueriesCountsPerDeviceHourAndName checks the rollup. There is one
+// row for each device, hour and name. A lookup from an address of no device
+// drops. A second read adds to the first.
 func TestRecordQueriesCountsPerDeviceHourAndName(t *testing.T) {
 	t.Parallel()
 
@@ -82,7 +82,7 @@ func answerRows(t *testing.T, s *Store) []string {
 		FROM dns_answers ORDER BY device_id, addr, name`)
 }
 
-// answered is a lookup of name from client, answered with addrs.
+// answered is a lookup of name from client, with addrs in the answer.
 func answered(client, name string, at time.Time, addrs ...string) plugin.Query {
 	q := lookup(client, name, at)
 
@@ -93,10 +93,12 @@ func answered(client, name string, at time.Time, addrs ...string) plugin.Query {
 	return q
 }
 
-// TestRecordQueriesKeepsAnswers checks that each answered address is kept per
-// device and name with the latest hour it was seen, that blocked and failed
-// lookups and unspecified or loopback answers are left out, and that a second
-// read adds to the first.
+// TestRecordQueriesKeepsAnswers checks these points:
+//   - the store keeps each answer address for each device and name, with
+//     the latest hour of its sighting
+//   - it leaves out blocked and failed lookups, and unspecified or loopback
+//     answers
+//   - a second read adds to the first
 func TestRecordQueriesKeepsAnswers(t *testing.T) {
 	t.Parallel()
 
@@ -139,8 +141,9 @@ func TestRecordQueriesKeepsAnswers(t *testing.T) {
 	}, answerRows(t, s))
 }
 
-// TestQueryCursorIsEmptyBeforeAnyRead checks that a source never recorded
-// starts with no cursor, and that a read with no lookups still moves it.
+// TestQueryCursorIsEmptyBeforeAnyRead checks that a source with no record
+// starts with no cursor. It also checks that a read with no lookups still
+// moves it.
 func TestQueryCursorIsEmptyBeforeAnyRead(t *testing.T) {
 	t.Parallel()
 
@@ -160,7 +163,7 @@ func TestQueryCursorIsEmptyBeforeAnyRead(t *testing.T) {
 }
 
 // TestPruneDeletesLookupsPastTheirWindow checks that lookups and their answers
-// follow their own window, and that the traffic window leaves them alone.
+// use their own window. The traffic window does not change them.
 func TestPruneDeletesLookupsPastTheirWindow(t *testing.T) {
 	t.Parallel()
 
@@ -192,8 +195,8 @@ func TestPruneDeletesLookupsPastTheirWindow(t *testing.T) {
 	assert.Len(t, answerRows(t, s), 1)
 }
 
-// TestDeviceDNSSumsSourcesBusiestFirst checks that two nodes' counts for one
-// name add up, names come busiest first, and the period drops older hours.
+// TestDeviceDNSSumsSourcesBusiestFirst checks that the counts of two nodes for
+// one name add up. Names come busiest first. The period drops older hours.
 func TestDeviceDNSSumsSourcesBusiestFirst(t *testing.T) {
 	t.Parallel()
 
