@@ -14,11 +14,12 @@ import (
 )
 
 // recipeBody matches a single-quoted body line in a YAML example. Two single
-// quotes inside it are YAML's escaped quote.
+// quotes in it are the escaped quote of YAML.
 var recipeBody = regexp.MustCompile(`(?m)^\s*body: '((?:[^']|'')*)'`)
 
-// Every http body the docs and the example config show must pass the check
-// the server runs when it starts, so a recipe cannot rot unnoticed.
+// Every http body in the docs and the example config must pass the check that
+// the server runs when it starts. So a recipe cannot break without a
+// warning.
 func TestRecipesInTheDocsRender(t *testing.T) {
 	repo := os.DirFS("../..")
 

@@ -8,18 +8,18 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// buildConcurrency caps active workers so a full /24 sweep does not
-// burst hundreds of concurrent DNS queries or exhaust descriptors.
+// buildConcurrency limits the active workers. So a full /24 sweep does not
+// send hundreds of DNS queries at once, or use up all descriptors.
 const buildConcurrency = 16
 
-// BulkBuild concurrently builds and enriches multiple Host instances, capping
-// concurrent builds at buildConcurrency.
+// BulkBuild builds and enriches several Host instances at the same time. It
+// runs at most buildConcurrency builds at once.
 //
-// A malformed address or MAC costs its own entry and nothing else: the returned
-// slice holds every host that built, in input order, and the error joins the
-// failures, each naming the address it came from. Both can be non-empty at
-// once, which is the ordinary result of sweeping a table a router filled in.
-// Callers wanting all or nothing should check the error and drop the slice.
+// A malformed address or MAC loses only its own entry. The returned slice has
+// every host that built, in input order. The error joins the failures, and
+// each failure names its address. Both can be non-empty at once. This is the
+// normal result of a sweep of a table that a router filled. A caller that
+// wants all or nothing must check the error and discard the slice.
 func BulkBuild(ctx context.Context, inputs []HostInput) ([]*Host, error) {
 	if len(inputs) == 0 {
 		return nil, nil
@@ -33,8 +33,8 @@ func BulkBuild(ctx context.Context, inputs []HostInput) ([]*Host, error) {
 	g.SetLimit(buildConcurrency)
 
 	for i, input := range inputs {
-		// Stop handing out work once the caller has given up. Builds already
-		// running still finish, so what comes back stays coherent.
+		// Stop giving out work when the caller stops. Builds that already run
+		// still finish. So the result stays consistent.
 		if ctx.Err() != nil {
 			break
 		}
@@ -53,9 +53,9 @@ func BulkBuild(ctx context.Context, inputs []HostInput) ([]*Host, error) {
 		})
 	}
 
-	// Each worker records its failure against its entry and returns nil, so one
-	// bad row neither cancels its siblings nor ends the group early. Wait
-	// therefore has nothing left to report.
+	// Each worker records its failure on its entry and returns nil. So one bad
+	// row does not cancel the other workers, or end the group early. So Wait
+	// has nothing to report.
 	_ = g.Wait()
 
 	out := make([]*Host, 0, len(inputs))
@@ -66,7 +66,7 @@ func BulkBuild(ctx context.Context, inputs []HostInput) ([]*Host, error) {
 		}
 	}
 
-	// A cancelled sweep is incomplete. Saying so keeps a caller from reading a
-	// truncated result as the whole table.
+	// A cancelled sweep is incomplete. This error stops a caller from reading
+	// a cut result as the whole table.
 	return out, errors.Join(errors.Join(errs...), ctx.Err())
 }

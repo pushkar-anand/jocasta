@@ -20,7 +20,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/notify"
 )
 
-// request is what a test server was sent.
+// request is what a test server got.
 type request struct {
 	method string
 	path   string
@@ -29,7 +29,7 @@ type request struct {
 	body   map[string]any
 }
 
-// server records the one request it is sent and answers with status.
+// server records the one request that it gets, and answers with status.
 func server(t *testing.T, status int) (*httptest.Server, *request) {
 	t.Helper()
 
@@ -88,7 +88,7 @@ func TestNtfy(t *testing.T) {
 	}, got.body)
 }
 
-// A server can sit under a path of its own; the topic is the last segment.
+// A server can be under its own path. The topic is the last segment.
 func TestNtfyUnderAPath(t *testing.T) {
 	srv, got := server(t, http.StatusOK)
 
@@ -114,7 +114,8 @@ func TestWebhookIsSigned(t *testing.T) {
 	assert.Equal(t, http.MethodPost, got.method)
 	assert.Equal(t, "/jocasta", got.path)
 
-	// What a receiver does: recompute over the raw body and compare.
+	// Do what a receiver does: compute again over the raw body, and
+	// compare.
 	mac := hmac.New(sha256.New, []byte("placeholder-secret"))
 	mac.Write(got.raw)
 	want := "sha256=" + hex.EncodeToString(mac.Sum(nil))
@@ -142,8 +143,8 @@ func TestEachDeliveryHasItsOwnID(t *testing.T) {
 	assert.NotEqual(t, first, got.header.Get(notify.HeaderDelivery))
 }
 
-// A webhook URL can carry a token in its query; a failed send must not put it
-// in the log.
+// A webhook URL can have a token in its query. A failed send must not put the
+// token in the log.
 func TestSendErrorsNameTheHostOnly(t *testing.T) {
 	srv, _ := server(t, http.StatusUnauthorized)
 	host := strings.TrimPrefix(srv.URL, "http://")
@@ -164,9 +165,9 @@ func TestSendErrorsNameTheHostOnly(t *testing.T) {
 	assert.Contains(t, err.Error(), "could not reach "+host)
 }
 
-// A redirect is not followed, so the headers a destination sets, such as a
-// token, never reach the address it points to. The send fails and says what
-// to change.
+// The client does not follow a redirect. So the headers of a destination, such
+// as a token, never reach the address of the redirect. The send fails and
+// tells what to change.
 func TestRedirectIsNotFollowed(t *testing.T) {
 	elsewhere := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		t.Error("the redirect was followed")
@@ -189,9 +190,9 @@ func TestRedirectIsNotFollowed(t *testing.T) {
 		err.Error())
 }
 
-// A destination's timeout bounds a service that stops answering.
+// The timeout of a destination limits a service that stops answering.
 func TestTimeoutBoundsASlowService(t *testing.T) {
-	// The server notices the client hang up only once it has read the body.
+	// The server sees that the client closed only after it read the body.
 	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(io.Discard, r.Body)
 		<-r.Context().Done()
@@ -238,7 +239,7 @@ func TestNewDestinationRejectsBadConfig(t *testing.T) {
 	}
 }
 
-// Zero is a valid priority, so the error's range starts there.
+// Zero is a valid priority, so the range in the error starts at zero.
 func TestNtfyPriorityErrorNamesTheRange(t *testing.T) {
 	err := (&notify.Ntfy{URL: "https://ntfy.example.com/t", Priority: 7}).Validate()
 	require.Error(t, err)
@@ -271,7 +272,7 @@ func TestHTTPShapesTheBody(t *testing.T) {
 	}, got.body)
 }
 
-// The json function escapes what a device name or a message can hold.
+// The json function escapes what a device name or a message can contain.
 func TestHTTPEscapesValues(t *testing.T) {
 	srv, got := server(t, http.StatusOK)
 
@@ -286,8 +287,8 @@ func TestHTTPEscapesValues(t *testing.T) {
 	assert.Equal(t, map[string]any{"title": m.Title, "message": m.Body}, got.body)
 }
 
-// A Content-Type among the headers replaces JSON, and the body is then not
-// checked as JSON.
+// A Content-Type in the headers replaces JSON. Then Validate does not check the
+// body as JSON.
 func TestHTTPContentTypeFromHeaders(t *testing.T) {
 	var (
 		contentType string
@@ -349,8 +350,8 @@ func TestHTTPRejectsBadConfig(t *testing.T) {
 	}
 }
 
-// truncate cuts by character, so a multi-byte name is not split, and leaves a
-// string that fits alone.
+// truncate cuts by character, so it does not split a multi-byte name. It does
+// not change a string that fits.
 func TestHTTPTruncate(t *testing.T) {
 	srv, got := server(t, http.StatusOK)
 

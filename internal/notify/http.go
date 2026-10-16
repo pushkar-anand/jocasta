@@ -17,36 +17,36 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// KindHTTP is any service that takes a POST whose body a template shapes,
+// KindHTTP is any service that accepts a POST with a body from a template,
 // such as Discord, Slack, Telegram, Gotify or an Apprise API server.
 const KindHTTP Kind = "http"
 
-// HTTP posts each message with a body the owner writes as a template, so one
-// provider reaches every service that takes a request in a shape of its own.
-// Its requests are unsigned. A receiver that checks where a request came from
-// uses the [Webhook], which signs each one.
+// HTTP posts each message with a body that the owner writes as a template. So
+// one provider reaches every service that has its own request shape. Its
+// requests have no signature. A receiver that checks the origin of a request
+// uses the [Webhook], which signs each request.
 type HTTP struct {
-	// URL is where the request goes. It can hold the service's token, as
-	// Discord's and Telegram's do; it is never logged or shown.
+	// URL is where the request goes. It can contain the token of the
+	// service, as for Discord and Telegram. Jocasta never logs or shows it.
 	URL string `koanf:"url"`
 
-	// Headers are sent with every request, such as an Authorization header.
-	// A Content-Type among them replaces the default, application/json.
+	// Headers go with every request, such as an Authorization header. A
+	// Content-Type in them replaces the default, application/json.
 	Headers map[string]string `koanf:"headers"`
 
-	// Body is a text/template of the request body. It is given .Title,
-	// .Body, .ScanID and .Events, each event with .Kind, .DeviceID, .Device
-	// and .Change. Its json function writes a value as JSON, so
-	// {{ json .Title }} is a quoted, escaped string, and truncate n cuts a
-	// string to at most n characters, for a service that caps its length.
+	// Body is a text/template of the request body. It gets .Title, .Body,
+	// .ScanID and .Events. Each event has .Kind, .DeviceID, .Device and
+	// .Change. Its json function writes a value as JSON. So
+	// {{ json .Title }} is a string with quotes and escapes. truncate n cuts
+	// a string to at most n characters, for a service with a length limit.
 	Body string `koanf:"body"`
 
-	// tmpl is Body, parsed by Validate. Send executes it and nothing else, so
-	// a destination sends only a template that passed validation.
+	// tmpl is Body, after Validate parsed it. Send executes only tmpl. So a
+	// destination sends only a template that passed validation.
 	tmpl *template.Template
 }
 
-// templateData is what the body template is given.
+// templateData is the data of the body template.
 type templateData struct {
 	Title  string
 	Body   string
@@ -54,11 +54,11 @@ type templateData struct {
 	Events []change
 }
 
-// samples are rendered when the config is read, so a template that fails or
-// writes broken JSON is reported at startup, before a scan has anything to
-// send. The first carries the quotes and line breaks real messages carry. The
-// second is the settings page's test message, which has no events, so a
-// template that indexes .Events fails here and not on the first test send.
+// samples render when Jocasta reads the config. So Jocasta reports a template
+// that fails or writes broken JSON at startup, before a scan has anything to
+// send. The first sample has the quotes and line breaks of real messages. The
+// second is the test message of the settings page, which has no events. So a
+// template that indexes .Events fails here, not on the first test send.
 var samples = []Message{
 	{
 		Title:  `2 changes on "lab"`,
@@ -71,10 +71,13 @@ var samples = []Message{
 	Test(),
 }
 
-// Validate reports a URL that is not an absolute http or https address, a
-// header that cannot be sent, a missing body, a body that does not parse or
-// render, and a JSON body that renders as something other than JSON. On
-// success it keeps the parsed body, which Send executes.
+// Validate reports these problems:
+//   - a URL that is not an absolute http or https address
+//   - a header that cannot be sent
+//   - a missing body, or a body that does not parse or render
+//   - a JSON body that does not render as JSON
+//
+// On success, it keeps the parsed body, which Send executes.
 func (h *HTTP) Validate() error {
 	if _, err := parseURL(h.URL); err != nil {
 		return err
@@ -117,7 +120,7 @@ func (h *HTTP) Validate() error {
 	return nil
 }
 
-// Host is the service's host.
+// Host is the host of the service.
 func (h *HTTP) Host() string {
 	u, err := parseURL(h.URL)
 	if err != nil {
@@ -127,8 +130,8 @@ func (h *HTTP) Host() string {
 	return u.Host
 }
 
-// Send posts m, shaped by the body template. It returns an error when
-// Validate has not passed.
+// Send posts m, with the body from the template. It returns an error if
+// Validate did not pass.
 func (h *HTTP) Send(ctx context.Context, m Message) error {
 	if h.tmpl == nil {
 		return errors.New("the destination was not validated")
@@ -147,8 +150,8 @@ func (h *HTTP) Send(ctx context.Context, m Message) error {
 	return post(ctx, h.URL, header, raw)
 }
 
-// render executes the body template t over m. An error names what is wrong
-// with the template and never the values it was given.
+// render executes the body template t over m. An error names the problem with
+// the template, and never the values that it got.
 func render(t *template.Template, m Message) ([]byte, error) {
 	var buf bytes.Buffer
 
@@ -160,8 +163,8 @@ func render(t *template.Template, m Message) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// sendsJSON reports whether the body is sent as JSON: when no header names
-// another Content-Type.
+// sendsJSON reports whether the body goes as JSON. This is true when no header
+// names a different Content-Type.
 func (h *HTTP) sendsJSON() bool {
 	for k, v := range h.Headers {
 		if http.CanonicalHeaderKey(k) != "Content-Type" {
@@ -176,7 +179,7 @@ func (h *HTTP) sendsJSON() bool {
 	return true
 }
 
-// toJSON writes v as JSON, for the template's json function.
+// toJSON writes v as JSON, for the json function of the template.
 func toJSON(v any) (string, error) {
 	raw, err := json.Marshal(v)
 	if err != nil {
@@ -186,8 +189,8 @@ func toJSON(v any) (string, error) {
 	return string(raw), nil
 }
 
-// truncate cuts s to at most n characters, ending it with an ellipsis when it
-// is cut, for the template's truncate function.
+// truncate cuts s to at most n characters, for the truncate function of the
+// template. If it cuts s, it adds an ellipsis at the end.
 func truncate(n int, s string) string {
 	r := []rune(s)
 	if n < 1 || len(r) <= n {

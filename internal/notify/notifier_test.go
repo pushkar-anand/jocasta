@@ -20,10 +20,10 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 )
 
-// wait is how long a test waits for the notifier's goroutine to send.
+// wait is how long a test waits for the goroutine of the notifier to send.
 const wait = 5 * time.Second
 
-// inbox is an ntfy server that hands each published message to the test.
+// inbox is an ntfy server that gives each published message to the test.
 func inbox(t *testing.T, status int) (*httptest.Server, chan map[string]any) {
 	t.Helper()
 
@@ -42,7 +42,7 @@ func inbox(t *testing.T, status int) (*httptest.Server, chan map[string]any) {
 	return srv, got
 }
 
-// running starts a notifier over a fresh store, listening for its scans.
+// running starts a notifier over a new store, and listens for its scans.
 func running(t *testing.T, ds ...*notify.Destination) (*notify.Notifier, *inventory.Store) {
 	t.Helper()
 
@@ -61,9 +61,9 @@ func running(t *testing.T, ds ...*notify.Destination) (*notify.Notifier, *invent
 	return n, store
 }
 
-// sweepHosts records a sweep of 192.0.2.0/24 that found each address, with
-// the MAC of its position in the list, so the same address in a later sweep
-// is the same device.
+// sweepHosts records a sweep of 192.0.2.0/24 that found each address. Each
+// address gets the MAC of its position in the list. So the same address in a
+// later sweep is the same device.
 func sweepHosts(t *testing.T, store *inventory.Store, ips ...string) {
 	t.Helper()
 
@@ -142,7 +142,7 @@ func TestNotifierSendsNothingWithoutKinds(t *testing.T) {
 	}
 }
 
-// One destination failing is recorded, and the others are still sent.
+// The notifier records a failed destination, and still sends to the others.
 func TestNotifierRecordsAFailedSend(t *testing.T) {
 	t.Parallel()
 

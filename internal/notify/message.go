@@ -10,28 +10,28 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// MaxLines is how many changes one message lists before it counts the rest,
-// so a large scan stays readable on a phone.
+// MaxLines is how many changes one message lists. For the rest, the message
+// gives only a count. So a large scan stays readable on a phone.
 const MaxLines = 20
 
 // Message is one notification: a title, a body of plain text lines, and the
-// changes it describes, for a destination that takes them as data.
+// changes that it describes, for a destination that takes them as data.
 type Message struct {
 	Title string
 	Body  string
 
-	// ScanID is the scan the changes came from; zero for a test.
+	// ScanID is the scan that the changes came from. It is zero for a test.
 	ScanID int64
 	Events []*inventory.Event
 }
 
-// ForScan words what one scan changed, keeping only the events of the given
-// kinds. It reports false when nothing is left to send.
+// ForScan writes the text for the changes of one scan. It keeps only the
+// events of the given kinds. It reports false when nothing is left to send.
 //
-// A first scan of a source and network into an empty inventory finds every
-// device at once, so one that found only new devices is sent as a count. A
-// first scan that also found devices already known is worded like any other,
-// so the new ones are named.
+// The first scan of a source and network into an empty inventory finds every
+// device at once. So if a first scan found only new devices, the message is a
+// count. If a first scan also found known devices, the message is the same as
+// for any other scan. So it names the new devices.
 func ForScan(scanID int64, c *inventory.ScanChanges, kinds []dbtype.EventKind) (Message, bool) {
 	events := slices.DeleteFunc(slices.Clone(c.Events), func(e *inventory.Event) bool {
 		return !slices.Contains(kinds, e.Kind)
@@ -77,9 +77,9 @@ func ForScan(scanID int64, c *inventory.ScanChanges, kinds []dbtype.EventKind) (
 	return m, true
 }
 
-// Line words one change. A new device is named with its address, since the
-// title already says it is new; any other change reads as the activity log
-// words it.
+// Line writes the text for one change. For a new device, it gives the name and
+// address, because the title already tells that it is new. Any other change
+// has the text of the activity log.
 func Line(e *inventory.Event) string {
 	if e.Kind == dbtype.EventDeviceDiscovered {
 		return strings.Join(nonEmpty(e.DeviceName, e.NewValue), " · ")
@@ -88,7 +88,7 @@ func Line(e *inventory.Event) string {
 	return strings.Join(nonEmpty(e.DeviceName, inventory.Phrase(e.Kind), e.Change()), " ")
 }
 
-// Test returns a sample message, for checking that a destination works.
+// Test returns a sample message. Use it to check that a destination works.
 func Test() Message {
 	return Message{
 		Title: "Jocasta test",
@@ -96,8 +96,8 @@ func Test() Message {
 	}
 }
 
-// where says where a scan looked: its network, its source for one that read
-// every network at once, or the port scan.
+// where tells where a scan looked: its network, or its source for a scan that
+// read every network at once, or the port scan.
 func where(c *inventory.ScanChanges) string {
 	switch {
 	case c.Kind == dbtype.ScanPorts:
@@ -109,9 +109,9 @@ func where(c *inventory.ScanChanges) string {
 	return "from " + c.Source
 }
 
-// sortByKind groups events by kind, in the order dbtype.EventKinds lists
-// them, so a watched device going quiet leads; within a kind they keep the
-// order they happened in.
+// sortByKind groups events by kind, in the order of dbtype.EventKinds. So a
+// watched device that goes quiet comes first. In a kind, events keep the order
+// in which they happened.
 func sortByKind(events []*inventory.Event) {
 	rank := make(map[dbtype.EventKind]int)
 	for i, k := range dbtype.EventKinds() {
@@ -123,8 +123,8 @@ func sortByKind(events []*inventory.Event) {
 	})
 }
 
-// allNew reports whether every device the scan found is new to the
-// inventory. It counts every discovery the scan made, whichever kinds the
+// allNew reports whether every device that the scan found is new to the
+// inventory. It counts every discovery of the scan, for all kinds that the
 // message keeps.
 func allNew(c *inventory.ScanChanges) bool {
 	discovered := 0

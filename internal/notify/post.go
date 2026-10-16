@@ -10,15 +10,17 @@ import (
 	"net/url"
 )
 
-// client sends every notification. It never follows a redirect, which would
-// carry a destination's headers, such as its token, to another address.
+// client sends every notification. It never follows a redirect. A redirect
+// would send the headers of a destination, such as its token, to a different
+// address.
 var client = &http.Client{
 	CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 }
 
-// post sends body to target, for the providers whose service takes an HTTP
-// request. It is sent as JSON unless header names another Content-Type. An
-// error names the target's host and no more, since a URL can hold a token.
+// post sends body to target, for the providers whose service accepts an HTTP
+// request. It sends JSON, unless header names a different Content-Type. An
+// error names only the host of the target, because a URL can contain a
+// token.
 func post(ctx context.Context, target string, header http.Header, body []byte) error {
 	u, err := url.Parse(target)
 	if err != nil {
@@ -40,7 +42,7 @@ func post(ctx context.Context, target string, header http.Header, body []byte) e
 
 	resp, err := client.Do(req)
 	if err != nil {
-		// A *url.Error spells out the whole URL; keep only what went wrong.
+		// A *url.Error contains the whole URL. Keep only the problem.
 		if ue, ok := errors.AsType[*url.Error](err); ok {
 			err = ue.Err
 		}
@@ -63,8 +65,8 @@ func post(ctx context.Context, target string, header http.Header, body []byte) e
 	return nil
 }
 
-// parseURL returns raw parsed, or an error unless it is an absolute http or
-// https URL.
+// parseURL returns raw, parsed. If raw is not an absolute http or https URL,
+// it returns an error.
 func parseURL(raw string) (*url.URL, error) {
 	if raw == "" {
 		return nil, errors.New("a url is required")

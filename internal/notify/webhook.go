@@ -14,33 +14,33 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
 
-// KindWebhook is any URL that takes a signed JSON POST.
+// KindWebhook is any URL that accepts a signed JSON POST.
 const KindWebhook Kind = "webhook"
 
-// The headers every webhook request carries.
+// The headers of every webhook request.
 const (
-	// HeaderSignature is "sha256=" and the hex HMAC-SHA256 of the request
-	// body, keyed with the destination's secret.
+	// HeaderSignature is "sha256=", then the hex HMAC-SHA256 of the request
+	// body. The key is the secret of the destination.
 	HeaderSignature = "X-Jocasta-Signature-256"
 
-	// HeaderDelivery is a random id per request, for a receiver to log and
-	// to drop a delivery it has already handled.
+	// HeaderDelivery is a random id for each request. A receiver logs it. It
+	// also uses it to discard a delivery that it already handled.
 	HeaderDelivery = "X-Jocasta-Delivery"
 )
 
-// Webhook posts each message as JSON with a title, a message and the changes
-// it lists, signed with a shared secret so the receiver can tell it came from
-// this server.
+// Webhook posts each message as JSON, with a title, a message and its changes.
+// It signs the message with a shared secret. So the receiver can tell that it
+// came from this server.
 type Webhook struct {
 	URL string `koanf:"url"`
 
-	// Secret keys the signature. It is required: an unsigned request could
-	// have come from anyone.
+	// Secret is the key of the signature. It is required, because a request
+	// without a signature could come from anyone.
 	Secret string `koanf:"secret"`
 }
 
-// Validate reports a URL that is not an absolute http or https address, and a
-// missing secret.
+// Validate reports a URL that is not an absolute http or https address. It
+// also reports a missing secret.
 func (w *Webhook) Validate() error {
 	if _, err := parseURL(w.URL); err != nil {
 		return err
@@ -53,7 +53,7 @@ func (w *Webhook) Validate() error {
 	return nil
 }
 
-// Host is the webhook's host.
+// Host is the host of the webhook.
 func (w *Webhook) Host() string {
 	u, err := parseURL(w.URL)
 	if err != nil {
@@ -77,9 +77,9 @@ func (w *Webhook) Send(ctx context.Context, m Message) error {
 	return post(ctx, w.URL, header, raw)
 }
 
-// Sign returns the signature header's value for body: "sha256=" and the hex
-// HMAC-SHA256 of body keyed with secret. A receiver recomputes it over the raw
-// body it was sent and compares the two in constant time.
+// Sign returns the value of the signature header for body. This is "sha256=",
+// then the hex HMAC-SHA256 of body with secret as key. A receiver computes it
+// again over the raw body that it got. It compares the two in constant time.
 func Sign(secret string, body []byte) string {
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write(body)
@@ -88,7 +88,7 @@ func Sign(secret string, body []byte) string {
 }
 
 // change is one change as data, for a receiver that acts on one device. The
-// webhook sends it as JSON and the http provider's template reads it.
+// webhook sends it as JSON. The template of the http provider reads it.
 type change struct {
 	Kind     dbtype.EventKind `json:"kind"`
 	DeviceID int64            `json:"device_id,omitempty"`
@@ -96,7 +96,7 @@ type change struct {
 	Change   string           `json:"change,omitempty"`
 }
 
-// changes returns m's events as data.
+// changes returns the events of m as data.
 func changes(m Message) []change {
 	out := make([]change, 0, len(m.Events))
 	for _, e := range m.Events {
@@ -106,7 +106,7 @@ func changes(m Message) []change {
 	return out
 }
 
-// webhookBody is the message, and the changes as data.
+// webhookBody is the message, with the changes as data.
 func webhookBody(m Message) any {
 	return struct {
 		Title   string   `json:"title"`

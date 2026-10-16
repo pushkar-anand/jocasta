@@ -15,15 +15,15 @@ import (
 )
 
 // queueSize is how many finished scans can wait to be sent. Scans finish
-// minutes apart, so the queue fills only while every send is timing out; a
-// scan that finds it full is logged and not sent.
+// minutes apart. So the queue fills only while every send times out. If a scan
+// finds the queue full, the notifier logs it and does not send it.
 const queueSize = 64
 
-// Notifier sends each finished scan's changes to the destinations that asked
-// for them. Scans are handed to it with Queue and sent by Run, on its own
-// goroutine, so a slow or unreachable service never holds up a scan.
+// Notifier sends the changes of each finished scan to the destinations that
+// asked for them. Queue gives it scans, and Run sends them on its own
+// goroutine. So a slow or unreachable service never delays a scan.
 //
-// Scans still waiting when the server stops are not sent.
+// The notifier does not send scans that still wait when the server stops.
 type Notifier struct {
 	conn         *sql.DB
 	q            *models.Queries
@@ -36,14 +36,14 @@ type Notifier struct {
 	last map[string]Result
 }
 
-// Result is how the last message to one destination went.
+// Result is the outcome of the last message to one destination.
 type Result struct {
 	At  time.Time
 	Err error // nil when it was delivered
 }
 
-// New returns a notifier that reads each scan's changes from store, and keeps
-// each destination's chosen kinds in conn.
+// New returns a notifier that reads the changes of each scan from store. It
+// keeps the chosen kinds of each destination in conn.
 func New(conn *sql.DB, store *inventory.Store, log *slog.Logger, destinations ...*Destination) *Notifier {
 	return &Notifier{
 		conn:         conn,
@@ -56,7 +56,7 @@ func New(conn *sql.DB, store *inventory.Store, log *slog.Logger, destinations ..
 	}
 }
 
-// Queue hands a finished scan to Run. It never blocks.
+// Queue gives a finished scan to Run. It never blocks.
 func (n *Notifier) Queue(ctx context.Context, scanID int64) {
 	select {
 	case n.queue <- scanID:
@@ -82,8 +82,8 @@ func (n *Notifier) Destinations() []*Destination {
 	return n.destinations
 }
 
-// Destination returns the destination with the given name, and false when
-// none has it.
+// Destination returns the destination with the given name. It returns false
+// when no destination has it.
 func (n *Notifier) Destination(name string) (*Destination, bool) {
 	for _, d := range n.destinations {
 		if d.Name() == name {
@@ -94,8 +94,8 @@ func (n *Notifier) Destination(name string) (*Destination, bool) {
 	return nil, false
 }
 
-// Last returns how the last message to a destination went, and false when
-// none has been sent since the server started.
+// Last returns the outcome of the last message to a destination. It returns
+// false when the notifier sent none since the server started.
 func (n *Notifier) Last(name string) (Result, bool) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
@@ -105,7 +105,7 @@ func (n *Notifier) Last(name string) (Result, bool) {
 	return r, ok
 }
 
-// Rules returns the kinds of change the named destination is sent, in name
+// Rules returns the kinds of change that the named destination gets, in name
 // order.
 func (n *Notifier) Rules(ctx context.Context, name string) ([]dbtype.EventKind, error) {
 	kinds, err := n.q.NotifyRules(ctx, name)
@@ -116,8 +116,8 @@ func (n *Notifier) Rules(ctx context.Context, name string) ([]dbtype.EventKind, 
 	return kinds, nil
 }
 
-// SetRules replaces the kinds of change the named destination is sent. No
-// kinds sends it nothing.
+// SetRules replaces the kinds of change that the named destination gets. With
+// no kinds, it gets nothing.
 func (n *Notifier) SetRules(ctx context.Context, name string, kinds []dbtype.EventKind) error {
 	tx, err := n.conn.BeginTx(ctx, nil)
 	if err != nil {
@@ -145,13 +145,15 @@ func (n *Notifier) SetRules(ctx context.Context, name string, kinds []dbtype.Eve
 	return nil
 }
 
-// SendTest sends d a test message, recorded as its last result.
+// SendTest sends d a test message. It records the outcome as the last result
+// of d.
 func (n *Notifier) SendTest(ctx context.Context, d *Destination) error {
 	return n.send(ctx, d, Test())
 }
 
-// sendScan sends one scan's changes to every destination that chose any of
-// them. A destination that fails is logged and the others are still sent.
+// sendScan sends the changes of one scan to every destination that chose one
+// of them. If a destination fails, sendScan logs it and still sends to the
+// others.
 func (n *Notifier) sendScan(ctx context.Context, scanID int64) {
 	changes, err := n.store.ScanChanges(ctx, scanID)
 	if err != nil {
