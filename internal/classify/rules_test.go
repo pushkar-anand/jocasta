@@ -10,8 +10,8 @@ import (
 
 func addr(s string) []netip.Addr { return []netip.Addr{netip.MustParseAddr(s)} }
 
-// TestRulesetIsWellFormed checks the invariants a rule has to hold, so a
-// malformed entry fails here before it can misclassify quietly.
+// TestRulesetIsWellFormed checks the invariants of each rule. So a malformed
+// entry fails here, before it can give a wrong class with no warning.
 func TestRulesetIsWellFormed(t *testing.T) {
 	t.Parallel()
 
@@ -29,8 +29,8 @@ func TestRulesetIsWellFormed(t *testing.T) {
 	}
 }
 
-// TestNoDuplicateConditions catches a rule pasted twice: the later copy can
-// never win, since the earlier one matches the same inputs and is listed first.
+// TestNoDuplicateConditions finds a rule pasted twice. The later copy can never
+// win, because the earlier copy matches the same inputs and is listed first.
 func TestNoDuplicateConditions(t *testing.T) {
 	t.Parallel()
 
@@ -61,8 +61,8 @@ func TestNoDuplicateConditions(t *testing.T) {
 			key += "|first"
 		}
 
-		// two port rules for one port that vote different classes are allowed
-		// (7000 and 5555 do this on purpose); tag the class in only that case.
+		// Two port rules for one port can give different classes. 7000 and
+		// 5555 do this on purpose. Add the class to the key only in that case.
 		if r.Port != 0 && positiveConds(r.Cond) == 1 {
 			key += "|" + string(r.Class)
 		}
@@ -75,8 +75,8 @@ func TestNoDuplicateConditions(t *testing.T) {
 	}
 }
 
-// positiveConds counts the condition fields set on c, ignoring the HostNot
-// veto. It mirrors what match reports for a rule that fires.
+// positiveConds counts the condition fields set on c. It does not count the
+// HostNot veto. It gives the same count as match for a rule that matches.
 func positiveConds(c Cond) int {
 	n := 0
 
@@ -104,8 +104,9 @@ func TestFirstMatchAndSpecificity(t *testing.T) {
 	}{
 		{
 			name: "a pickier rule beats a broad one regardless of order",
-			// Espressif alone is smart_home; the ESP name is too. A server VLAN
-			// would drag a lone weak signal, but the specific name holds.
+			// Espressif alone is smart_home, and the ESP name is too. A server
+			// VLAN would change a single weak signal. But the specific name
+			// wins.
 			in:   Input{Vendor: "Espressif Inc.", Hostname: "esp-a1b2c3", NetworkName: "lab-servers"},
 			want: SmartHome,
 		},

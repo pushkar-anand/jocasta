@@ -28,8 +28,8 @@ func TestListDevices(t *testing.T) {
 	device, ok := devices[0].(map[string]any)
 	require.True(t, ok)
 
-	// The flattened view is what reaches the wire, so an absent column is left
-	// out entirely. The raw row would send {"String":"","Valid":false}.
+	// The flattened view is what the client gets. So an absent column is not
+	// in it. The raw row would send {"String":"","Valid":false}.
 	assert.Contains(t, device, "id")
 	assert.Contains(t, device, "online")
 	assert.Contains(t, device, "current_addresses")
@@ -67,8 +67,8 @@ func TestListDevicesFilters(t *testing.T) {
 	}
 }
 
-// A filter that cannot be honoured is reported, since returning the unfiltered
-// list would look like the filter matched everything.
+// The handler reports a filter that it cannot apply. The full list would look
+// like a filter that matched everything.
 func TestListDevicesRejectsUnknownFilterValues(t *testing.T) {
 	t.Parallel()
 
@@ -83,13 +83,13 @@ func TestListDevicesRejectsUnknownFilterValues(t *testing.T) {
 		t.Run(tc.target, func(t *testing.T) {
 			status, _, body := get(t, h, tc.target)
 
-			// The request parsed and was understood, so it is unprocessable
-			// (422). A malformed request would be a 400.
+			// The request parsed and the handler understood it. So it is
+			// unprocessable (422). A malformed request would be a 400.
 			require.Equal(t, http.StatusUnprocessableEntity, status)
 			assert.Equal(t, float64(http.StatusUnprocessableEntity), body["status"])
 
-			// The problem names the parameter it is about, so a client is told
-			// which one to fix.
+			// The problem names its parameter. So the client knows which one
+			// to fix.
 			assert.Contains(t, problemContext(t, body), tc.field)
 		})
 	}
@@ -114,11 +114,11 @@ func TestGetDevice(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 	assert.Equal(t, id, body["id"])
 
-	// Only the detail response carries the address history.
+	// Only the detail response has the address history.
 	assert.NotEmpty(t, list(t, body, "addresses"))
 }
 
-// The detail response carries the open ports a scan has recorded; the list does
+// The detail response has the open ports that a scan recorded. The list does
 // not.
 func TestGetDeviceCarriesOpenPorts(t *testing.T) {
 	t.Parallel()
@@ -148,15 +148,15 @@ func TestGetDeviceCarriesOpenPorts(t *testing.T) {
 	assert.Equal(t, "ssh", port["service"])
 	assert.Equal(t, "open", port["state"])
 
-	// The list carries no ports.
+	// The list has no ports.
 	_, _, listed := get(t, h, "/devices")
 	first, ok := list(t, listed, "devices")[0].(map[string]any)
 	require.True(t, ok)
 	assert.NotContains(t, first, "ports")
 }
 
-// A device that advertised services over DNS-SD carries them, and the list
-// leaves them out as it does ports.
+// A device that advertised services over DNS-SD has them. The list leaves them
+// out, as it does ports.
 func TestGetDeviceCarriesServices(t *testing.T) {
 	t.Parallel()
 
@@ -230,8 +230,8 @@ func TestDeviceEvents(t *testing.T) {
 	assert.NotEmpty(t, list(t, body, "events"))
 }
 
-// The device is looked up first, so history for a device that does not exist is
-// a 404. An empty list would read as "nothing ever happened".
+// The handler looks up the device first. So the history of a device that does
+// not exist is a 404. An empty list would mean "nothing ever happened".
 func TestDeviceEventsUnknownIDIsNotFound(t *testing.T) {
 	t.Parallel()
 
@@ -253,7 +253,7 @@ func TestStatsAndGroups(t *testing.T) {
 	status, _, body = get(t, h, "/groups")
 	require.Equal(t, http.StatusOK, status)
 
-	// Nothing has been grouped, so the key is present and holds nothing.
+	// No device has a group. So the key is present, but empty.
 	require.Contains(t, body, "groups")
 	assert.Empty(t, body["groups"])
 }
@@ -276,13 +276,13 @@ func TestUpdateDevice(t *testing.T) {
 	assert.Equal(t, "printer", body["type"])
 	assert.Equal(t, false, body["ignored"])
 
-	// The device carries its addresses, as it does from every other read.
+	// The device has its addresses, as in every other read.
 	assert.NotEmpty(t, body["current_addresses"])
 
-	// What the sweep found is untouched.
+	// What the sweep found does not change.
 	assert.Equal(t, macA, body["mac"])
 
-	// The change is stored as well as returned.
+	// The handler stores the change and also returns it.
 	_, _, reread := get(t, h, "/devices/1")
 	assert.Equal(t, "Office printer", reread["label"])
 }
@@ -309,7 +309,7 @@ func TestUpdateDeviceKeepsOmittedFields(t *testing.T) {
 	assert.Equal(t, true, body["ignored"])
 }
 
-// A field sent empty is cleared, and only that field.
+// The handler clears a field sent empty, and only that field.
 func TestUpdateDeviceClearsAFieldSentEmpty(t *testing.T) {
 	t.Parallel()
 
@@ -372,8 +372,8 @@ func TestUpdateDeviceRejectsInvalidType(t *testing.T) {
 	assert.Contains(t, problemContext(t, body), "type")
 }
 
-// The body's validate tags spell out inventory's limits, since a tag cannot
-// name a constant; a field exactly at its limit is accepted.
+// The validate tags of the body copy the limits of inventory, because a tag
+// cannot name a constant. The handler accepts a field at exactly its limit.
 func TestUpdateDeviceAcceptsFieldsAtTheirLimit(t *testing.T) {
 	t.Parallel()
 
@@ -441,8 +441,8 @@ func TestDeviceTraffic(t *testing.T) {
 	status, _, body := get(t, h, "/devices/1/traffic?days=7")
 	require.Equal(t, http.StatusOK, status)
 
-	// Nothing collects traffic in this test, and the answer says so, which
-	// tells it apart from a silent device.
+	// No source collects traffic in this test, and the answer tells this. So
+	// a client can tell it from a silent device.
 	assert.Equal(t, false, body["recorded"])
 	assert.Empty(t, list(t, body, "local"))
 	assert.Empty(t, list(t, body, "internet"))
@@ -462,8 +462,8 @@ func TestDeviceDNS(t *testing.T) {
 	status, _, body := get(t, h, "/devices/1/dns?days=7")
 	require.Equal(t, http.StatusOK, status)
 
-	// Nothing reads a resolver in this test, and the answer says so, which
-	// tells it apart from a device that looked nothing up.
+	// No source reads a resolver in this test, and the answer tells this. So
+	// a client can tell it from a device that looked up nothing.
 	assert.Equal(t, false, body["recorded"])
 	assert.Empty(t, list(t, body, "names"))
 
@@ -483,15 +483,16 @@ func TestWatchDevice(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 	assert.Equal(t, true, body["watched"])
 
-	// Curation replaces every field it carries, and watching is not one.
+	// Curation replaces every field in its body. The watch flag is not one of
+	// them.
 	_, _, body = patchJSON(t, h, "/devices/1", `{"label": "Office printer"}`)
 	assert.Equal(t, true, body["watched"])
 
 	_, _, listed := get(t, h, "/devices?watched=true")
 	assert.Len(t, list(t, listed, "devices"), 1)
 
-	// A body that does not say which way is refused, since reading it as
-	// false would stop watching.
+	// The handler refuses a body without the value. If it read the value as
+	// false, the watch would stop.
 	status, _, _ = patchJSON(t, h, "/devices/1/watch", `{}`)
 	assert.Equal(t, http.StatusUnprocessableEntity, status)
 

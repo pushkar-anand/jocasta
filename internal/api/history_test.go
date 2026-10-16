@@ -33,8 +33,8 @@ func TestListEventsAndScans(t *testing.T) {
 	assert.Equal(t, "OK", scan["status"])
 }
 
-// A client walks the log by handing back the token the last page gave it, and
-// sees every row exactly once.
+// A client walks the log with the token from the last page. It sees every row
+// exactly once.
 func TestPagingWalksTheLogWithCursors(t *testing.T) {
 	t.Parallel()
 
@@ -75,7 +75,8 @@ func TestPagingWalksTheLogWithCursors(t *testing.T) {
 	assert.Equal(t, list(t, whole, "events"), seen)
 }
 
-// The token is opaque: a client that did not get it from a page cannot make one.
+// The token is opaque. A client that did not get it from a page cannot make
+// one.
 func TestPagingRejectsAMalformedCursor(t *testing.T) {
 	t.Parallel()
 
@@ -89,8 +90,8 @@ func TestPagingRejectsAMalformedCursor(t *testing.T) {
 	}
 }
 
-// The limit tags on both logs spell out inventory.MaxPageSize, since a tag
-// cannot name a constant; this holds them to it.
+// The limit tags on both logs copy inventory.MaxPageSize, because a tag cannot
+// name a constant. This test keeps them equal.
 func TestPagingCeilingIsTheInventoryMax(t *testing.T) {
 	t.Parallel()
 
@@ -107,8 +108,8 @@ func TestPagingCeilingIsTheInventoryMax(t *testing.T) {
 	}
 }
 
-// An empty cursor is the first page, so a client need not leave the parameter
-// off to start.
+// An empty cursor is the first page. So a client can send the parameter empty
+// to start.
 func TestEmptyCursorIsTheFirstPage(t *testing.T) {
 	t.Parallel()
 
@@ -136,8 +137,8 @@ func TestPageSizeIsBounded(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 	assert.Len(t, list(t, body, "events"), 1)
 
-	// A limit that is not a number never becomes one, so it is malformed;
-	// a limit that is a number but out of range is understood and refused.
+	// A limit that is not a number is malformed. A limit that is a number,
+	// but out of range, is understood and refused.
 	status, _, _ = get(t, h, "/events?limit=0.5")
 	assert.Equal(t, http.StatusBadRequest, status)
 

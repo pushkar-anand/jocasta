@@ -1,19 +1,18 @@
-// Package classify guesses what kind of device a record describes (a phone, a
-// printer, a camera) from what a scan already knows about it: its vendor, its
-// name, the TCP ports it answers on, and the services it advertises.
+// Package classify guesses the kind of device that a record describes, such as
+// a phone, a printer or a camera. It uses what a scan already knows: the
+// vendor, the name, the TCP ports that answer, and the advertised services.
 //
-// The guess is advisory. Every rule here is a heuristic a determined device can
-// defeat, so a [Result] carries the confidence behind it and the reasons that
-// led to it, and the caller is expected to let a person override it. Nothing in
-// this package touches the database or the network: it is a pure function over
-// facts gathered elsewhere, which is what makes it cheap to re-run after every
-// scan and simple to test.
+// The guess is only advice. A device can defeat every rule here. So a
+// [Result] has its confidence and its reasons, and a person must be able to
+// override it. This package does not use the database or the network. It is a
+// pure function over facts from elsewhere. So it is cheap to run again after
+// every scan, and easy to test.
 //
-// The rules live in [ruleset] as one ordered list. Every rule names a class and
-// the conditions that point at it; [Device] picks the matching rule with the
-// most conditions, and on a tie the one listed first. The list therefore runs
-// from the most definitive rules to the weakest, and that order is the only
-// tie-breaker. There are no weights to balance.
+// The rules are in [ruleset], as one ordered list. Every rule names a class
+// and the conditions for it. [Device] picks the matching rule with the most
+// conditions. If two rules have the same number, the rule listed first wins.
+// So the list goes from the strongest rules to the weakest. This order is the
+// only tie-breaker. There are no weights.
 package classify
 
 import (
@@ -22,50 +21,51 @@ import (
 	"strings"
 )
 
-// Input is what the classifier reasons over. A caller fills it from the
-// inventory; an empty field is one less signal.
+// Input is the data of the classifier. A caller fills it from the inventory.
+// An empty field is one signal less.
 type Input struct {
-	// Vendor is the OUI short name, or "" when the address is randomised or
-	// registered to nobody the table knows.
+	// Vendor is the OUI short name. It is "" when the address is random, or
+	// when the table knows no owner for it.
 	Vendor string
 
-	// Hostname is the elected name from any source. Matching is case-insensitive
-	// and substring, so a fully-qualified name works as well as a bare label.
+	// Hostname is the elected name from any source. A match ignores case and
+	// finds substrings. So a fully-qualified name works as well as a label.
 	Hostname string
 
-	// Randomised reports a locally administered hardware address. Such a device
-	// generated its own address, which on a home network almost always means a
-	// phone or a laptop.
+	// Randomised reports a locally administered hardware address. Such a
+	// device made up its own address. On a home network, this almost always
+	// means a phone or a laptop.
 	Randomised bool
 
-	// OpenPorts is the set of TCP ports a scan currently finds answering. Order
-	// and duplicates do not matter; [Device] sorts and dedupes a copy.
+	// OpenPorts is the set of TCP ports that answer a scan now. Order and
+	// duplicates are not important. [Device] sorts a copy and removes
+	// duplicates.
 	OpenPorts []uint16
 
-	// NetworkName is what the segment the device sits on is called, when it is
-	// called anything. An "IoT" or "cameras" VLAN is itself a weak classifier.
+	// NetworkName is the name of the segment of the device, if it has one. An
+	// "IoT" or "cameras" VLAN is itself a weak signal.
 	NetworkName string
 
-	// Services are the DNS-SD service types the device advertises, such as
-	// "_googlecast._tcp". Order, case and duplicates do not matter.
+	// Services are the DNS-SD service types that the device advertises, such
+	// as "_googlecast._tcp". Order, case and duplicates are not important.
 	Services []string
 
-	// Models are the models the device gives in its service records, such as
-	// "Google Nest Mini". Only Google Cast gives one.
+	// Models are the models that the device gives in its service records,
+	// such as "Google Nest Mini". Only Google Cast gives a model.
 	Models []string
 
-	// Addresses are the IP addresses the device currently holds. One fact is
-	// read from them: whether any is the .1 of its subnet, the address a home
-	// gateway almost always answers on.
+	// Addresses are the IP addresses of the device now. The classifier reads
+	// one fact from them: whether one is the .1 of its subnet. A home gateway
+	// almost always answers on this address.
 	Addresses []netip.Addr
 }
 
-// Class is a device category. The set is closed: the UI keys an icon and a
-// filter off each value, so a class outside this list has nowhere to render.
+// Class is a device category. The set is closed. The UI gives each value an
+// icon and a filter. So a class outside this list cannot render.
 type Class string
 
-// Class values [Device] can return. Unknown is the zero value, returned when no
-// rule had anything to say.
+// Class values that [Device] can return. Unknown is the zero value. [Device]
+// returns it when no rule matched.
 const (
 	Unknown        Class = ""
 	Router         Class = "router"
@@ -92,9 +92,9 @@ const (
 	VoIP           Class = "voip"
 )
 
-// classes is every real class, in a stable order for a caller building an icon
-// map or a filter. It plays no part in classification, which the rule order
-// decides.
+// classes is every real class, in a stable order, for a caller that builds an
+// icon map or a filter. It has no effect on the classification. The rule order
+// decides that.
 var classes = []Class{
 	Router, Switch, AccessPoint, Firewall, Server, NAS, Hypervisor,
 	Desktop, Laptop, Phone, Tablet, Printer, Camera, TV, Streaming,
@@ -102,19 +102,19 @@ var classes = []Class{
 }
 
 // Classes returns the closed set of real classes, in a stable order, for a
-// caller building an icon map or a filter. Unknown is not among them.
+// caller that builds an icon map or a filter. Unknown is not in the set.
 func Classes() []Class { return slices.Clone(classes) }
 
 // Valid reports whether c is Unknown or one of the known classes.
 func (c Class) Valid() bool { return c == Unknown || c.Known() }
 
-// Known reports whether c is one of the real classes, which Unknown is not.
+// Known reports whether c is one of the real classes. Unknown is not.
 func (c Class) Known() bool { return slices.Contains(classes, c) }
 
-// Confidence is how strong a case the winning rule made.
+// Confidence is how strong the case of the winning rule is.
 type Confidence string
 
-// Confidence bands. NoConfidence accompanies an Unknown class.
+// Confidence bands. NoConfidence goes with an Unknown class.
 const (
 	NoConfidence Confidence = ""
 	Low          Confidence = "low"
@@ -122,19 +122,20 @@ const (
 	High         Confidence = "high"
 )
 
-// Result is a guess and the case for it.
+// Result is a guess, with the case for it.
 type Result struct {
 	Class      Class
 	Confidence Confidence
 
-	// Reasons are the winning rule's reason first, then the reason of every
-	// other rule that also pointed at the winning class. Empty when Class is
-	// Unknown.
+	// Reasons starts with the reason of the winning rule. Then it has the
+	// reason of every other rule for the winning class. It is empty when
+	// Class is Unknown.
 	Reasons []string
 }
 
-// Facts is [Input] normalised for the rules: the vendor reduced to letters and
-// digits, the strings lowercased and trimmed, the ports sorted and deduped.
+// Facts is [Input], normalised for the rules. The vendor has only letters and
+// digits. The strings are lowercase and trimmed. The ports are sorted, with no
+// duplicates.
 type Facts struct {
 	Vendor     string // letters and digits only, lowercased
 	Hostname   string // lowercased, trimmed
@@ -146,7 +147,7 @@ type Facts struct {
 	FirstHost  bool     // holds an address ending in .1
 }
 
-// facts normalises text and ports for rule matching without modifying in.
+// facts normalises text and ports for the rules. It does not change in.
 func facts(in Input) Facts {
 	ports := slices.Clone(in.OpenPorts)
 	slices.Sort(ports)
@@ -187,11 +188,11 @@ func (f Facts) hasPort(p uint16) bool { _, ok := slices.BinarySearch(f.Ports, p)
 
 func (f Facts) hasService(s string) bool { _, ok := slices.BinarySearch(f.Services, s); return ok }
 
-// Device guesses what kind of thing in describes.
+// Device guesses the kind of thing that in describes.
 //
-// Among the rules that match, the winner is the one
-// with the most conditions; a tie goes to whichever is listed first. The same
-// input therefore always gives the same answer.
+// Of the rules that match, the rule with the most conditions wins. If two
+// rules have the same number, the rule listed first wins. So the same input
+// always gives the same answer.
 func Device(in Input) Result {
 	f := facts(in)
 
@@ -240,9 +241,10 @@ func Device(in Input) Result {
 	}
 }
 
-// confidence bands a guess without any weights: a rule that needed more than
-// one fact to fire, or a class more than one rule agreed on, is High; a lone
-// weak fallback nothing corroborated is Low; everything else is Medium.
+// confidence gives a guess a band, without weights. A rule that needed more
+// than one fact, or a class that more than one rule agreed on, is High. A
+// single weak fallback with no other support is Low. All other cases are
+// Medium.
 func confidence(win Rule, conds, agree int) Confidence {
 	switch {
 	case conds >= 2 || agree >= 2:

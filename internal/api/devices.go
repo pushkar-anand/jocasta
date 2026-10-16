@@ -10,29 +10,28 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// DeviceClassRule is the validation rule behind the "deviceclass" tag. A type
-// must name a class the classifier knows (or be empty, so the guess stands);
-// one outside the closed set has nowhere to render and is refused. The tag is
-// registered on the validator the server wires in at startup.
+// DeviceClassRule is the validation rule of the "deviceclass" tag. A type must
+// name a class that the classifier knows, or be empty to keep the guess. A
+// type outside the closed set cannot render, so the rule refuses it. The
+// server registers the tag on its validator at startup.
 func DeviceClassRule(fl validator.FieldLevel) bool {
 	return classify.Class(fl.Field().String()).Valid()
 }
 
-// deviceEventLimit is how much of a device's history the detail response
-// carries. The full log is at /events.
+// deviceEventLimit is how much of the history of a device the detail response
+// has. The full log is at /events.
 const deviceEventLimit = 50
 
-// listDevices serves recorded devices matching the query filters. Ignored
-// devices are excluded unless include_ignored is set.
+// listDevices serves recorded devices that match the query filters. It leaves
+// out ignored devices, unless include_ignored is set.
 func (h *Handler) listDevices(store *inventory.Store) response.HandlerFunc {
 	type (
-		// devicesRequest narrows a device list. Fields are matched by their
-		// schema tag, so the names here are the ones the query string uses.
+		// devicesRequest limits a device list. Fields match by their schema
+		// tag. So the names here are the names in the query string.
 		//
-		// A misspelt filter is rejected: silently returning the unfiltered list
-		// would look like the filter matched everything. The
-		// values each rule admits are the ones inventory.Status and
-		// inventory.Sort name.
+		// The handler refuses a misspelt filter. The full list with no warning
+		// would look like a filter that matched everything. Each rule allows
+		// the values that inventory.Status and inventory.Sort name.
 		devicesRequest struct {
 			Q              string `schema:"q"`
 			Group          string `schema:"group"`
@@ -72,8 +71,8 @@ func (h *Handler) listDevices(store *inventory.Store) response.HandlerFunc {
 	}
 }
 
-// getDevice serves one device's identity, curation, addresses, ports and sources.
-// A missing device produces a not-found response.
+// getDevice serves the identity, curation, addresses, ports and sources of one
+// device. For a missing device, it returns not found.
 func (h *Handler) getDevice(store *inventory.Store) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		id, err := deviceID(r)
@@ -92,14 +91,14 @@ func (h *Handler) getDevice(store *inventory.Store) response.HandlerFunc {
 	}
 }
 
-// updateDevice changes the owner-controlled fields the body carries and
-// returns the updated device. Observed network facts are unchanged.
+// updateDevice changes the owner fields in the body, and returns the updated
+// device. It does not change the network facts that scans recorded.
 func (h *Handler) updateDevice(store *inventory.Store) response.HandlerFunc {
-	// curationRequest is what a caller may change on a device. A field left
-	// out of the body keeps its value, and one sent as "" is cleared.
+	// curationRequest is what a caller can change on a device. A field that
+	// is not in the body keeps its value. A field sent as "" is cleared.
 	//
-	// Nothing a scan writes appears here: an address, a vendor or a hardware
-	// address is what the network reported, and stays as reported.
+	// No field that a scan writes is here. An address, a vendor or a hardware
+	// address is what the network reported, and it stays as reported.
 	type curationRequest struct {
 		Label   *string `json:"label" validate:"omitempty,max=200"`
 		Notes   *string `json:"notes" validate:"omitempty,max=2000"`
@@ -130,13 +129,13 @@ func (h *Handler) updateDevice(store *inventory.Store) response.HandlerFunc {
 	}
 }
 
-// watchDevice sets whether the owner is told when a device goes quiet or comes
-// back, and returns the device. It is apart from updateDevice, which replaces
-// every field its body carries, so a client written before watching existed
+// watchDevice sets whether the owner gets told when a device goes quiet or
+// comes back. It returns the device. It is separate from updateDevice, which
+// replaces every field in its body. So a client from before the watch feature
 // cannot clear it.
 func (h *Handler) watchDevice(store *inventory.Store) response.HandlerFunc {
-	// watchRequest is required to say which way: a body that leaves it out is
-	// a mistake, and reading it as false would stop watching.
+	// watchRequest must give the value. A body without it is a mistake. If
+	// the handler read it as false, the watch would stop.
 	type watchRequest struct {
 		Watched *bool `json:"watched" validate:"required"`
 	}
@@ -164,7 +163,7 @@ func (h *Handler) watchDevice(store *inventory.Store) response.HandlerFunc {
 }
 
 // deviceEvents serves up to deviceEventLimit changes for an existing device.
-// A missing device produces a not-found response rather than an empty history.
+// For a missing device, it returns not found, not an empty history.
 func (h *Handler) deviceEvents(store *inventory.Store) response.HandlerFunc {
 	type eventsResponse struct {
 		Events []*inventory.Event `json:"events"`
@@ -177,7 +176,7 @@ func (h *Handler) deviceEvents(store *inventory.Store) response.HandlerFunc {
 			return err
 		}
 
-		// The device is read first so that asking for the history of a device
+		// Read the device first. Then a request for the history of a device
 		// that does not exist is a 404.
 		if err := store.RequireDevice(r.Context(), id); err != nil {
 			return err
@@ -194,7 +193,7 @@ func (h *Handler) deviceEvents(store *inventory.Store) response.HandlerFunc {
 	}
 }
 
-// groups serves the owner-assigned group names available for filtering devices.
+// groups serves the group names that the owner gave, for device filters.
 func (h *Handler) groups(store *inventory.Store) response.HandlerFunc {
 	type groupsResponse struct {
 		Groups []string `json:"groups"`
@@ -214,8 +213,8 @@ func (h *Handler) groups(store *inventory.Store) response.HandlerFunc {
 
 // stats serves inventory counts, including ignored devices.
 func (h *Handler) stats(store *inventory.Store) response.HandlerFunc {
-	// The counts are the whole response, so the wrapper only exists to name
-	// what this route returns; the fields are inlined by the embedding.
+	// The counts are the whole response. The wrapper only names what this
+	// route returns. The embedding inlines the fields.
 	type statsResponse struct {
 		*inventory.Stats
 	}
@@ -232,8 +231,8 @@ func (h *Handler) stats(store *inventory.Store) response.HandlerFunc {
 	}
 }
 
-// deviceID reads the id the route captured. The pattern admits any segment, so
-// the handler is where a non-numeric one is turned away.
+// deviceID reads the id that the route captured. The pattern allows any
+// segment. So the handler must refuse an id that is not a number.
 func deviceID(r *http.Request) (int64, error) {
 	raw := r.PathValue("id")
 

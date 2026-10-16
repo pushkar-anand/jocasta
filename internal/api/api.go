@@ -1,7 +1,7 @@
-// Package api serves the inventory as JSON, for anything that reads it without
-// a browser. It renders what internal/inventory returns and leaves shaping the
-// data to that package, so it and internal/web cannot come to disagree about
-// what a device is.
+// Package api serves the inventory as JSON, for clients that read it without a
+// browser. It renders what internal/inventory returns. That package shapes the
+// data. So this package and internal/web cannot disagree about what a device
+// is.
 package api
 
 import (
@@ -14,8 +14,8 @@ import (
 )
 
 // Handler holds what every handler needs to read a request and write a
-// response. The store a handler reads is passed to it when it is built, so a
-// route's dependencies are visible where the route is registered.
+// response. A handler gets its store when it is built. So the dependencies of
+// a route are visible where the route is registered.
 type Handler struct {
 	mux        *http.ServeMux
 	reader     *request.Reader
@@ -27,7 +27,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mux.ServeHTTP(w, r)
 }
 
-// NewHandler builds the JSON API routes over the given store.
+// NewHandler builds the JSON API routes over the store.
 func NewHandler(
 	_ *slog.Logger,
 	reader *request.Reader,
@@ -59,8 +59,8 @@ func NewHandler(
 	return h
 }
 
-// badRequest reports a request the router matched but the handler cannot use,
-// such as a path parameter that is not a number.
+// badRequest reports a request that the router matched, but that the handler
+// cannot use. An example is a path parameter that is not a number.
 func badRequest(detail string) error {
 	return &request.ReadError{
 		HTTPStatusCode: http.StatusBadRequest,

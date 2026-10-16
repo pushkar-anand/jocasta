@@ -9,8 +9,8 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// deviceTraffic answers who one device exchanged data with, the same shape
-// list_traffic gives an agent for one device.
+// deviceTraffic answers who one device exchanged data with. It has the same
+// shape that list_traffic gives an agent for one device.
 func (h *Handler) deviceTraffic(store *inventory.Store) response.HandlerFunc {
 	type (
 		// An unset days gets the default.
@@ -19,8 +19,9 @@ func (h *Handler) deviceTraffic(store *inventory.Store) response.HandlerFunc {
 		}
 
 		trafficResponse struct {
-			// Recorded is false when no traffic has ever been recorded,
-			// meaning nothing is collecting. A quiet device reports true.
+			// Recorded is false when Jocasta never recorded traffic. This
+			// means that no source collects traffic. A quiet device reports
+			// true.
 			Recorded bool `json:"recorded"`
 
 			*inventory.DeviceTraffic
@@ -61,8 +62,8 @@ func (h *Handler) deviceTraffic(store *inventory.Store) response.HandlerFunc {
 	}
 }
 
-// deviceDNS answers the names one device looked up, the same shape list_dns
-// gives an agent.
+// deviceDNS answers the names that one device looked up. It has the same shape
+// that list_dns gives an agent.
 func (h *Handler) deviceDNS(store *inventory.Store) response.HandlerFunc {
 	type (
 		// An unset days gets the default.
@@ -71,9 +72,9 @@ func (h *Handler) deviceDNS(store *inventory.Store) response.HandlerFunc {
 		}
 
 		dnsResponse struct {
-			// Recorded is false when no resolver's log has ever been read,
-			// meaning nothing is collecting lookups. A quiet device reports
-			// true.
+			// Recorded is false when Jocasta never read the log of a
+			// resolver. This means that no source collects lookups. A quiet
+			// device reports true.
 			Recorded bool                 `json:"recorded"`
 			Names    []*inventory.DNSName `json:"names"`
 		}

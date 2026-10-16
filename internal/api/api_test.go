@@ -22,12 +22,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The fixtures every test in the package shares live here, alongside the tests
-// for the router api.go builds. The handlers themselves are tested in the file
-// named after the one that defines them.
+// This file has the fixtures that all tests in the package share. It also has
+// the tests for the router that api.go builds. The tests of each handler are
+// in the file with the name of the file that defines the handler.
 
-// Addresses come from RFC 5737 and hardware addresses from RFC 7042, both
-// reserved for documentation, so nothing here names a real device.
+// Addresses come from RFC 5737, and hardware addresses from RFC 7042. Both are
+// for documentation. So nothing here names a real device.
 const (
 	prefix = "192.0.2.0/24"
 
@@ -39,8 +39,8 @@ func testLogger() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
 }
 
-// testReader builds the request reader the server wires in, so the tests read
-// and validate a query the way the running service does.
+// testReader builds the request reader that the server uses. So the tests read
+// and validate a query as the running service does.
 func testReader(t *testing.T) *request.Reader {
 	t.Helper()
 
@@ -54,14 +54,14 @@ func testReader(t *testing.T) *request.Reader {
 	return request.NewReader(testLogger(), v)
 }
 
-// testJSONWriter builds the response writer the way the server does, with the
-// same problem mapping, so handlers under test report errors the way the
-// running service does.
+// testJSONWriter builds the response writer as the server does, with the same
+// problem mapping. So the handlers in tests report errors as the running
+// service does.
 func testJSONWriter() *response.JSONWriter {
 	return response.NewJSONWriter(testLogger(), response.WithErrorProblemMapper(problem.For))
 }
 
-// testStore opens an inventory over a migrated database scoped to the test.
+// testStore opens an inventory over a migrated database for the test only.
 func testStore(t *testing.T) *inventory.Store {
 	t.Helper()
 
@@ -73,8 +73,8 @@ func testStore(t *testing.T) *inventory.Store {
 	return inventory.New(conn, testLogger())
 }
 
-// seeded returns a handler over an inventory holding two swept devices, which
-// is enough for every read the API offers.
+// seeded returns a handler over an inventory with two swept devices. This is
+// enough for every read of the API.
 func seeded(t *testing.T) http.Handler {
 	t.Helper()
 
@@ -91,8 +91,8 @@ func seeded(t *testing.T) http.Handler {
 	return NewHandler(testLogger(), testReader(t), store, testJSONWriter())
 }
 
-// get issues a request, decodes the response body, and closes it. It returns the
-// status, headers, and decoded body, so callers never hold an open response.
+// get sends a request, decodes the response body, and closes it. It returns the
+// status, headers, and decoded body. So callers never hold an open response.
 func get(t *testing.T, h http.Handler, target string) (int, http.Header, map[string]any) {
 	t.Helper()
 
@@ -108,7 +108,7 @@ func get(t *testing.T, h http.Handler, target string) (int, http.Header, map[str
 	return res.StatusCode, res.Header, body
 }
 
-// list pulls a named array out of a decoded response.
+// list gets a named array from a decoded response.
 func list(t *testing.T, body map[string]any, key string) []any {
 	t.Helper()
 
@@ -120,9 +120,9 @@ func list(t *testing.T, body map[string]any, key string) []any {
 	return items
 }
 
-// problemContext returns the per-field problems a validation failure carries.
-// They are nested inside the document, so a field named after a standard
-// member, such as "status", cannot overwrite it.
+// problemContext returns the problems for each field from a validation
+// failure. They are nested in the document. So a field with the name of a
+// standard member, such as "status", cannot overwrite it.
 func problemContext(t *testing.T, body map[string]any) map[string]any {
 	t.Helper()
 
@@ -143,8 +143,8 @@ func TestUnknownRouteIsNotFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 }
 
-// The routes name their method, so the router turns away a write to a
-// read-only resource before any handler runs.
+// The routes name their method. So the router refuses a write to a read-only
+// resource before a handler runs.
 func TestWriteMethodIsNotAllowed(t *testing.T) {
 	t.Parallel()
 
@@ -174,9 +174,9 @@ func patchJSON(t *testing.T, h http.Handler, target, body string) (int, http.Hea
 	return res.StatusCode, res.Header, decoded
 }
 
-// The read routes name their method, so a write to one is refused.
+// The read routes name their method, so the router refuses a write to them.
 //
-// The router refuses it before any handler runs, so the answer is plain text
+// The router refuses it before a handler runs. So the answer is plain text,
 // and this test does not decode it.
 func TestUpdateIsOnlyAllowedOnTheDeviceItself(t *testing.T) {
 	t.Parallel()
@@ -196,8 +196,8 @@ func TestUpdateIsOnlyAllowedOnTheDeviceItself(t *testing.T) {
 	}
 }
 
-// host builds a swept host the way a sweep does. A malformed argument is a
-// broken test.
+// host builds a swept host as a sweep does. A malformed argument means a broken
+// test.
 func host(ip, mac, hostname string) scanner.Host {
 	h, err := hosts.BuildHost(context.Background(), hosts.HostInput{IP: ip, MAC: mac, Hostname: hostname})
 	if err != nil {

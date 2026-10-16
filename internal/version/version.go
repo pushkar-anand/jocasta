@@ -1,8 +1,8 @@
 // Package version reports which build of jocasta is running.
 //
-// A release build has the tag, commit and date linked in with -ldflags -X. Any
-// other build has none of that, so the values come from the metadata the Go
-// toolchain stamps into every binary.
+// A release build has the tag, commit and date, linked in with -ldflags -X.
+// Other builds do not have them. So the values come from the metadata that
+// the Go toolchain puts into every binary.
 package version
 
 import (
@@ -21,10 +21,10 @@ var (
 
 // Info is the resolved build information for the running binary.
 type Info struct {
-	// Version is the release tag ("1.4.0"), the module version a `go install`
-	// recorded, or "dev" when neither is known.
+	// Version is the release tag ("1.4.0"), or the module version that
+	// `go install` recorded. If neither is known, it is "dev".
 	Version string
-	// Commit is the full revision the binary was built from, or "" if unknown.
+	// Commit is the full revision of the binary, or "" if unknown.
 	Commit string
 	// Date is when the binary was built, in RFC 3339, or "" if unknown.
 	Date string
@@ -32,8 +32,8 @@ type Info struct {
 	Modified bool
 }
 
-// Get resolves the build information, preferring what a release linked in and
-// falling back to the toolchain's own build metadata.
+// Get resolves the build information. It prefers the values that a release
+// linked in. If there are none, it uses the build metadata of the toolchain.
 func Get() Info {
 	i := Info{Version: tag, Commit: commit, Date: date}
 
@@ -47,8 +47,8 @@ func Get() Info {
 	}
 
 	if i.Version == "" {
-		// Since Go 1.24 a plain `go build` stamps a matching semver tag here;
-		// otherwise this is a pseudo-version or the literal "(devel)".
+		// Since Go 1.24, a plain `go build` puts a matching semver tag here.
+		// If not, this is a pseudo-version or the literal "(devel)".
 		if v := bi.Main.Version; v != "" && v != "(devel)" {
 			i.Version = v
 		} else {
@@ -96,8 +96,8 @@ func (i Info) String() string {
 	return s
 }
 
-// shortCommit trims a full revision to the first 12 characters, the length
-// git uses for an unambiguous abbreviation in most repositories.
+// shortCommit cuts a full revision to the first 12 characters. In most
+// repositories, git uses this length for a short form that is unique.
 func shortCommit(c string) string {
 	const n = 12
 	if len(c) <= n {

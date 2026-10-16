@@ -42,8 +42,8 @@ func TestResolve(t *testing.T) {
 	})
 }
 
-// Document lays a problem out the way response.JSONWriter does, so the API
-// and MCP send the same members.
+// Document lays out a problem as response.JSONWriter does. So the API and MCP
+// send the same members.
 func TestDocument(t *testing.T) {
 	t.Parallel()
 

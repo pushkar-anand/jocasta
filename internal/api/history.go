@@ -8,15 +8,15 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// listEvents serves one page of changes, newest first, with a cursor for the
-// next page when more remain.
+// listEvents serves one page of changes, newest first. If more changes remain,
+// it adds a cursor for the next page.
 func (h *Handler) listEvents(store *inventory.Store) response.HandlerFunc {
 	type (
-		// Cursor decodes itself out of the query string, so a client hands back
-		// the token the last page gave it and nothing here takes it apart. An
-		// unset limit gets the default, which is what omitempty buys; a limit
-		// that was asked for has to be usable. max is inventory.MaxPageSize,
-		// written out because a tag cannot name a constant.
+		// Cursor decodes itself from the query string. So a client sends back
+		// the token from the last page, and this code does not take it apart.
+		// An unset limit gets the default, because of omitempty. A limit that
+		// the client sets must be usable. max is inventory.MaxPageSize, as a
+		// number, because a tag cannot name a constant.
 		eventsRequest struct {
 			Limit  int              `schema:"limit" validate:"omitempty,min=1,max=500"`
 			Cursor inventory.Cursor `schema:"cursor"`
@@ -26,8 +26,8 @@ func (h *Handler) listEvents(store *inventory.Store) response.HandlerFunc {
 			Events []*inventory.Event `json:"events"`
 			Count  int                `json:"count"`
 
-			// NextCursor is what to ask for to get the window after this one,
-			// and is absent once the log has been read to the end.
+			// NextCursor is the cursor for the next window. It is absent when
+			// the client has read the log to the end.
 			NextCursor inventory.Cursor `json:"next_cursor,omitzero"`
 		}
 	)
@@ -56,8 +56,8 @@ func (h *Handler) listEvents(store *inventory.Store) response.HandlerFunc {
 	}
 }
 
-// listScans serves one page of recorded scans, newest first, with a cursor for
-// the next page when more remain. It does not start a scan.
+// listScans serves one page of recorded scans, newest first. If more scans
+// remain, it adds a cursor for the next page. It does not start a scan.
 func (h *Handler) listScans(store *inventory.Store) response.HandlerFunc {
 	type (
 		scansRequest struct {

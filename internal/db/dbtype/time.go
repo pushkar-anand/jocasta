@@ -6,19 +6,19 @@ import (
 	"time"
 )
 
-// Layout is the format the schema stores a timestamp in, matching the strftime
-// expression behind the column defaults.
+// Layout is the format of a stored timestamp. It matches the strftime
+// expression of the column defaults.
 //
-// Timestamps are TEXT and are compared as TEXT, so every writer has to render
-// them the same fixed width. That is what this package is for: the driver left
-// to itself stores a time.Time in Go's String form, whose ' ' separator sorts
-// before the 'T' of every value the defaults produce.
+// Timestamps are TEXT, and SQLite compares them as TEXT. So every writer must
+// render them with the same fixed width. This package exists for that reason.
+// The driver alone stores a time.Time in the String form of Go. Its ' '
+// separator sorts before the 'T' of every value from the defaults.
 //
-// The zeros keep the trailing digits, which is the whole point: time.RFC3339
-// carries no fraction at all, and time.RFC3339Nano's nines strip trailing
-// zeros, so a value landing on a whole second renders short and sorts before
-// every fractional value in the same second. Milliseconds are also as fine as
-// this can go, since strftime's %f is the widest SQLite offers.
+// The zeros keep the trailing digits, and this is their purpose.
+// time.RFC3339 has no fraction. The nines of time.RFC3339Nano remove trailing
+// zeros. So a value on a whole second renders short, and sorts before every
+// fractional value in the same second. Milliseconds are the finest
+// precision, because %f of strftime is the widest that SQLite offers.
 const Layout = "2006-01-02T15:04:05.000Z"
 
 // Time is a timestamp column.
@@ -26,8 +26,8 @@ type Time struct {
 	time.Time
 }
 
-// NewTime returns t as a timestamp, truncated to the precision the column keeps so
-// a value written and read back compares equal to the one held in memory.
+// NewTime returns t as a timestamp, truncated to the precision of the column.
+// So a value that you write and read back is equal to the value in memory.
 func NewTime(t time.Time) Time {
 	return Time{t.UTC().Truncate(time.Millisecond)}
 }
@@ -37,15 +37,15 @@ func Now() Time {
 	return NewTime(time.Now())
 }
 
-// Value takes a value receiver and Scan a pointer, as [sql.NullTime] and the
-// rest of the database/sql null types do: Scan has to mutate, while Value has
-// to be in the method set of a Time held by value, which is how generated code
-// hands one to the driver.
+// Value takes a value receiver and Scan takes a pointer, as [sql.NullTime] and
+// the other database/sql null types do. Scan must change the value. Value must
+// be in the method set of a Time held by value. Generated code gives a Time to
+// the driver in this way.
 func (t Time) Value() (driver.Value, error) {
 	return t.UTC().Format(Layout), nil
 }
 
-// Scan reads a stored timestamp back into t.
+// Scan reads a stored timestamp into t.
 func (t *Time) Scan(src any) error {
 	parsed, err := parseTime(src)
 	if err != nil {
@@ -57,10 +57,10 @@ func (t *Time) Scan(src any) error {
 	return nil
 }
 
-// NullTime is a Time for a column that may be null. [sql.NullTime] cannot stand
-// in for it: its Scan defers to convertAssign, which has no conversion from the
-// string a TEXT column yields, and its Value hands back a bare time.Time for
-// the driver to render however it chooses.
+// NullTime is a Time for a column that can be null. [sql.NullTime] cannot
+// replace it. Its Scan uses convertAssign, which cannot convert the string
+// from a TEXT column. Its Value returns a bare time.Time, and the driver
+// renders it in any form.
 type NullTime struct {
 	Time  Time
 	Valid bool
@@ -71,7 +71,7 @@ func NewNullTime(t time.Time) NullTime {
 	return NullTime{Time: NewTime(t), Valid: true}
 }
 
-// Value renders n for the driver, storing an invalid value as null.
+// Value renders n for the driver. It stores an invalid value as null.
 func (n NullTime) Value() (driver.Value, error) {
 	if !n.Valid {
 		return nil, nil
@@ -80,7 +80,7 @@ func (n NullTime) Value() (driver.Value, error) {
 	return n.Time.Value()
 }
 
-// Scan reads a stored timestamp back into n, treating null as invalid.
+// Scan reads a stored timestamp into n. It reads null as invalid.
 func (n *NullTime) Scan(src any) error {
 	if src == nil {
 		n.Time, n.Valid = Time{}, false
@@ -98,13 +98,13 @@ func (n *NullTime) Scan(src any) error {
 	return nil
 }
 
-// parseTime accepts only Layout, so a value that cannot be read is preferred to one
-// that reads but orders wrongly against its neighbours. Note that time.Parse
-// admits a fractional second the layout does not mention, which is the one
-// widening of that rule and costs nothing: the instant is still correct.
+// parseTime accepts only Layout. An error is better than a value that reads but
+// sorts in the wrong order against its neighbours. time.Parse also accepts a
+// fractional second that the layout does not include. This is the one
+// exception, and it is safe, because the instant is still correct.
 func parseTime(src any) (time.Time, error) {
-	// Reached only if a column is ever declared with a date affinity, which
-	// makes the driver parse the value before this sees it.
+	// This runs only if a column has a date affinity. Then the driver parses
+	// the value before this code sees it.
 	if v, ok := src.(time.Time); ok {
 		return v.UTC(), nil
 	}
