@@ -1,6 +1,6 @@
-// Package auth verifies who is asking: password credentials and first-account
-// setup, browser sessions, and API tokens, with the HTTP middleware that
-// enforces each.
+// Package auth verifies who asks. It covers password credentials, the setup of
+// the first account, browser sessions, and API tokens. It also has the HTTP
+// middleware that enforces each.
 package auth
 
 import (
@@ -16,34 +16,34 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 )
 
-// loginBurst and loginRefill set each account's allowance of password
-// attempts: loginBurst at once, then one more every loginRefill. That leaves
-// room for a few mistyped passwords and still holds a guesser to one try a
-// minute.
+// loginBurst and loginRefill set the password attempts of each account: first
+// loginBurst at once, then one more every loginRefill. This allows a few
+// mistyped passwords. It still limits a guesser to one try each minute.
 const (
 	loginBurst  = 10
 	loginRefill = time.Minute
 )
 
-// loginAddrBurst is each client address's allowance of password attempts at
-// once, across every account; it refills at loginRefill too. It is larger
-// than loginBurst because the people behind one NAT share an address. Once it
-// is spent, one address trying many accounts gets one password a minute.
+// loginAddrBurst is the number of password attempts at once for each client
+// address, across every account. It also refills at loginRefill. It is larger
+// than loginBurst, because the people behind one NAT share an address. When
+// it is used up, one address that tries many accounts gets one password each
+// minute.
 const loginAddrBurst = 30
 
-// unknownUserKey is the loginAttempts key every unknown username shares. No
-// account has ID 0, since users.id is AUTOINCREMENT and starts from 1.
+// unknownUserKey is the loginAttempts key that every unknown username shares.
+// No account has ID 0, because users.id is AUTOINCREMENT and starts from 1.
 const unknownUserKey int64 = 0
 
 type (
-	// hasher is what Auth needs from the password hashing library it uses.
+	// hasher is what Auth needs from its password hashing library.
 	hasher interface {
 		Hash(string) (string, error)
 		Compare(string, string) error
 	}
 
-	// userManager is what Auth needs from the generated store for everything
-	// account-related: verifying a credential, setup and admin management alike.
+	// userManager is what Auth needs from the generated store for accounts:
+	// credential checks, setup and admin management.
 	userManager interface {
 		GetUserByUsername(ctx context.Context, username string) (*models.User, error)
 		GetUserByID(ctx context.Context, id int64) (*models.User, error)
@@ -61,8 +61,8 @@ type (
 		DeleteAPIToken(ctx context.Context, arg models.DeleteAPITokenParams) error
 	}
 
-	// store is everything Auth needs from the generated store: accounts, API
-	// tokens and two-factor state.
+	// store is everything that Auth needs from the generated store: accounts,
+	// API tokens and two-factor state.
 	store interface {
 		userManager
 		tokenManager
@@ -70,53 +70,52 @@ type (
 	}
 )
 
-// Auth verifies a login attempt against stored credentials, and issues and
-// checks the API tokens that stand in for one where there is no session to
-// carry.
+// Auth verifies a login attempt against stored credentials. It also makes and
+// checks the API tokens that replace a login where there is no session.
 type Auth struct {
 	conn   *sql.DB
 	store  store
 	hasher hasher
 
-	// txStore returns the store bound to tx. It is a field so a test can make
-	// a write inside a transaction fail.
+	// txStore returns the store bound to tx. It is a field, so a test can
+	// make a write in a transaction fail.
 	txStore func(tx *sql.Tx) store
 
-	// now is a field so a test can pin the timestamps it asserts on.
+	// now is a field, so a test can fix the timestamps that it asserts on.
 	now func() time.Time
 
-	// unknownUserHash is compared against on a username miss, so that path
-	// costs the same derivation as a wrong password against a real
-	// user. Without it, Compare would reject an unknown user's missing hash
-	// at the format-parsing stage, well before deriving anything, and the
-	// timing gap between the two paths would answer "does this account
-	// exist?" for free.
+	// Verify compares against unknownUserHash when the username is not found.
+	// So that path costs the same derivation as a wrong password for a real
+	// user. Without it, Compare would reject the missing hash of an unknown
+	// user when it parses the format, long before a derivation. The timing
+	// difference between the two paths would then tell whether the account
+	// exists.
 	unknownUserHash string
 
-	// hasUsers caches whether an account exists at all, so SetupRequired costs
-	// a query only until the first one is confirmed. Nothing in this package
-	// removes the last account, so a true answer never goes stale.
+	// hasUsers caches whether an account exists. So SetupRequired costs a
+	// query only until the first account is confirmed. Nothing in this
+	// package removes the last account. So a true answer never gets old.
 	hasUsers atomic.Bool
 
-	// totpAttempts is each account's allowance of second-factor codes. It is
-	// keyed by user ID, and only after the password matched, so it holds at
-	// most one entry per account.
+	// totpAttempts is the number of second-factor codes for each account. Its
+	// key is the user ID. Auth writes it only after the password matched. So
+	// it holds at most one entry for each account.
 	totpAttempts *attemptLimiter[int64]
 
-	// totpSteps is each account's last accepted TOTP step. Like totpAttempts
-	// it is written only after the password matched, so it holds at most one
-	// entry per account.
+	// totpSteps is the last accepted TOTP step of each account. As for
+	// totpAttempts, Auth writes it only after the password matched. So it
+	// holds at most one entry for each account.
 	totpSteps totpSteps
 
-	// loginAttempts is each account's allowance of passwords, keyed by user
-	// ID. Every unknown username shares unknownUserKey, so the map holds at
-	// most one entry per account plus one, and a refusal for a made-up name
-	// looks the same as one for a real account.
+	// loginAttempts is the number of passwords for each account. Its key is
+	// the user ID. Every unknown username shares unknownUserKey. So the map
+	// holds at most one entry for each account, plus one. Also, a refusal for
+	// a made-up name looks the same as a refusal for a real account.
 	loginAttempts *attemptLimiter[int64]
 
-	// loginAddrAttempts is each client address's allowance of passwords,
-	// across every account. It is keyed by addrKey, so every address in one
-	// IPv6 /64 shares an allowance.
+	// loginAddrAttempts is the number of passwords for each client address,
+	// across every account. Its key is addrKey. So every address in one IPv6
+	// /64 shares one limit.
 	loginAddrAttempts *attemptLimiter[netip.Prefix]
 }
 
@@ -129,10 +128,10 @@ type config struct {
 }
 
 // WithLoginAllowance sets how many passwords an account, and a client address,
-// may try at once before Verify starts refusing them; the refill stays one a
-// minute. A non-positive burst is ignored, leaving loginBurst and
-// loginAddrBurst in place: zero would lock every account out. It exists for
-// tests that sign in more often than a person does.
+// can try at once before Verify refuses them. The refill stays one each
+// minute. New ignores a burst that is not positive, and keeps loginBurst and
+// loginAddrBurst. Zero would lock out every account. This option exists for
+// tests that sign in more often than a person.
 func WithLoginAllowance(burst int) Option {
 	return func(c *config) {
 		if burst > 0 {
@@ -142,9 +141,9 @@ func WithLoginAllowance(burst int) Option {
 	}
 }
 
-// New builds an Auth over s, the store for conn. Writes that have to land
-// together run in a transaction on conn. New hashes the placeholder password
-// Verify compares against on a username miss once, up front.
+// New builds an Auth over s, the store for conn. Writes that must go together
+// run in a transaction on conn. New hashes the placeholder password once, at
+// the start. Verify compares against it when the username is not found.
 func New(conn *sql.DB, s store, hasher hasher, opts ...Option) (*Auth, error) {
 	cfg := config{loginBurst: loginBurst, loginAddrBurst: loginAddrBurst}
 	for _, opt := range opts {
@@ -171,13 +170,13 @@ func New(conn *sql.DB, s store, hasher hasher, opts ...Option) (*Auth, error) {
 }
 
 // Verify checks username and password, sent from the client at addr, against
-// the stored credential and returns the matching user only once both hold.
+// the stored credential. It returns the matching user only when both match.
 //
-// Each password, right or wrong, spends one of addr's attempts (see
-// loginAddrBurst) and one of the account's (see loginBurst). With none left in
-// either, Verify returns ErrLoginLocked, even for the right password. An addr
-// that is not valid, as from a connection with no IP address, spends only the
-// account's.
+// Each password, right or wrong, uses one attempt of addr (see loginAddrBurst)
+// and one of the account (see loginBurst). If either has none left, Verify
+// returns ErrLoginLocked, even for the right password. An addr that is not
+// valid, as from a connection with no IP address, uses only an attempt of the
+// account.
 func (a *Auth) Verify(ctx context.Context, addr netip.Addr, username, password string) (*models.User, error) {
 	user, err := a.store.GetUserByUsername(ctx, username)
 
@@ -193,10 +192,11 @@ func (a *Auth) Verify(ctx context.Context, addr netip.Addr, username, password s
 		key, hash = user.ID, user.PasswordHash
 	}
 
-	// Spent before the compare, so passwords sent together cannot all be
-	// checked before any of them is counted. The address goes first, and one
-	// with nothing left spends nothing from the account, so a refused address
-	// cannot keep draining an account its owner is about to sign in to.
+	// Use the attempt before the compare. So passwords sent together cannot
+	// all be checked before one of them is counted. The address goes first.
+	// An address with nothing left uses nothing from the account. So a
+	// refused address cannot use up the attempts of an account while its
+	// owner signs in.
 	now, allowed := a.now(), true
 	if addr.IsValid() {
 		allowed, _ = a.loginAddrAttempts.spend(addrKey(addr), now)
@@ -206,8 +206,8 @@ func (a *Auth) Verify(ctx context.Context, addr netip.Addr, username, password s
 		allowed, _ = a.loginAttempts.spend(key, now)
 	}
 
-	// A refused attempt still pays for the compare, so its timing does not
-	// tell a locked account from an open one.
+	// A refused attempt still does the compare. So its timing does not tell a
+	// locked account from an open account.
 	matched := a.hasher.Compare(password, hash) == nil
 
 	switch {
@@ -220,9 +220,9 @@ func (a *Auth) Verify(ctx context.Context, addr netip.Addr, username, password s
 	return user, nil
 }
 
-// addrKey returns the prefix addr's attempts are counted under: the address
-// itself for IPv4, and its /64 for IPv6, since one host is routinely handed a
-// whole /64 and can send from any address in it.
+// addrKey returns the prefix under which Auth counts the attempts of addr. For
+// IPv4, it is the address itself. For IPv6, it is its /64, because one host
+// often gets a whole /64 and can send from any address in it.
 func addrKey(addr netip.Addr) netip.Prefix {
 	bits := 64
 	if addr.Is4() {
@@ -234,8 +234,8 @@ func addrKey(addr netip.Addr) netip.Prefix {
 	return p
 }
 
-// inTx runs fn against a store bound to one transaction, and commits only if
-// fn returns nil.
+// inTx runs fn against a store bound to one transaction. It commits only if fn
+// returns nil.
 func (a *Auth) inTx(ctx context.Context, fn func(q store) error) error {
 	tx, err := a.conn.BeginTx(ctx, nil)
 	if err != nil {
@@ -255,21 +255,21 @@ func (a *Auth) inTx(ctx context.Context, fn func(q store) error) error {
 	return nil
 }
 
-// LoginResult reports how a Login attempt landed. Exactly one of User and
-// TOTPPending is meaningful.
+// LoginResult reports the outcome of a Login attempt. Exactly one of User and
+// TOTPPending has a meaning.
 type LoginResult struct {
-	// User is set when a full session is established, which happens when the
+	// User is set when Login makes a full session. This happens when the
 	// account has 2FA off.
 	User *models.User
 
-	// TOTPPending is true when the password matched but the account has 2FA
-	// enabled: the caller sends the visitor to the second-factor page.
+	// TOTPPending is true when the password matched, but the account has 2FA
+	// on. The caller then sends the visitor to the second-factor page.
 	TOTPPending bool
 }
 
 // Login checks the credentials, sent from the client at addr, with
-// [Auth.Verify] and signs the visitor in, renewing the session token. For an
-// account with 2FA enabled it leaves the visitor signed out and pending on
+// [Auth.Verify]. It signs the visitor in, and renews the session token. For an
+// account with 2FA on, it leaves the visitor signed out, and waits for
 // [Auth.VerifyTOTP].
 func (a *Auth) Login(
 	ctx context.Context,
@@ -283,10 +283,10 @@ func (a *Auth) Login(
 		return LoginResult{}, err
 	}
 
-	// Set before either branch. RememberMe writes into the session's own
-	// persisted record, which survives the Renew a completed 2FA sign-in does
-	// later as well as establishSession's Renew below, so a choice made now
-	// still holds once the second factor succeeds.
+	// Set this before either branch. RememberMe writes into the stored record
+	// of the session. This record stays through the Renew of a later 2FA
+	// sign-in, and through the Renew of establishSession below. So a choice
+	// made now still applies after the second factor succeeds.
 	sm.s.RememberMe(ctx, rememberMe)
 
 	if user.TOTPEnabled {
@@ -309,12 +309,11 @@ func (a *Auth) Login(
 	return LoginResult{User: user}, nil
 }
 
-// establishSession renews the session token, so a token held while anonymous
-// cannot carry over into the authenticated session, then records who the
-// session belongs to. Both signing in and completing setup need this exact
-// sequence to leave a visitor signed in. It also clears any pending-2FA state,
-// so a session that arrives by way of VerifyTOTP carries no stale pending
-// fields.
+// establishSession renews the session token. So a token from the anonymous
+// session cannot go into the authenticated session. Then it records the owner
+// of the session. Both sign-in and the end of setup need exactly this sequence
+// to sign a visitor in. It also clears pending-2FA state. So a session that
+// comes through VerifyTOTP has no old pending fields.
 func (a *Auth) establishSession(ctx context.Context, sm *Session, user *models.User) error {
 	if err := sm.s.Renew(ctx); err != nil {
 		return err
@@ -331,8 +330,8 @@ func (a *Auth) establishSession(ctx context.Context, sm *Session, user *models.U
 	return nil
 }
 
-// SetupRequired reports whether no account exists yet, so a caller can tell
-// the one-time setup page from an ordinary sign-in.
+// SetupRequired reports whether no account exists yet. So a caller can tell
+// the one-time setup page from a normal sign-in.
 func (a *Auth) SetupRequired(ctx context.Context) (bool, error) {
 	if a.hasUsers.Load() {
 		return false, nil
@@ -350,12 +349,13 @@ func (a *Auth) SetupRequired(ctx context.Context) (bool, error) {
 	return n == 0, nil
 }
 
-// CreateFirstUser creates the one account setup exists to create, as admin,
-// and signs it straight in. It returns ErrSetupComplete once any account
-// exists, including one that another setup request made a moment earlier.
+// CreateFirstUser creates the one account that setup exists for, as admin, and
+// signs it in immediately. It returns ErrSetupComplete when an account exists.
+// This includes an account that a different setup request made a moment
+// before.
 func (a *Auth) CreateFirstUser(ctx context.Context, sm *Session, username, password string) (*models.User, error) {
-	// A cheap refusal before the slow hash. The insert below is what
-	// decides between setup requests that pass this together.
+	// A cheap refusal before the slow hash. If several setup requests pass
+	// this check together, the insert below decides between them.
 	required, err := a.SetupRequired(ctx)
 	if err != nil {
 		return nil, err
@@ -392,10 +392,9 @@ func (a *Auth) CreateFirstUser(ctx context.Context, sm *Session, username, passw
 	return user, nil
 }
 
-// CreateUser adds another account, for an admin already signed in to hand to
-// someone else. It leaves the acting admin's own session untouched. An
-// instance has one admin, so it refuses to make a second with
-// ErrSecondAdmin.
+// CreateUser adds another account, which a signed-in admin gives to a
+// different person. It does not change the session of the admin. An instance
+// has one admin. So it refuses a second admin with ErrSecondAdmin.
 func (a *Auth) CreateUser(ctx context.Context, username, password string, role dbtype.UserRole) (*models.User, error) {
 	if role == dbtype.RoleAdmin {
 		users, err := a.store.ListUsers(ctx)
@@ -413,13 +412,13 @@ func (a *Auth) CreateUser(ctx context.Context, username, password string, role d
 	return a.createUser(ctx, username, password, role)
 }
 
-// createUser looks the username up before the insert, so a duplicate is told
-// apart from every other way the write could fail, just as GetUserByUsername
-// tells a missing user apart from a lookup failure.
+// createUser looks up the username before the insert. So it can tell a
+// duplicate from all other write failures. GetUserByUsername also tells a
+// missing user from a lookup failure.
 func (a *Auth) createUser(ctx context.Context, username, password string, role dbtype.UserRole) (*models.User, error) {
 	switch _, err := a.store.GetUserByUsername(ctx, username); {
 	case errors.Is(err, sql.ErrNoRows):
-		// The one outcome that means the username is free.
+		// Only this outcome means that the username is free.
 	case err != nil:
 		return nil, fmt.Errorf("check username %q: %w", username, err)
 	default:
@@ -443,8 +442,7 @@ func (a *Auth) createUser(ctx context.Context, username, password string, role d
 	return user, nil
 }
 
-// ListUsers returns every account, oldest first, in the order the accounts
-// were made.
+// ListUsers returns every account, oldest first, in the order of creation.
 func (a *Auth) ListUsers(ctx context.Context) ([]*models.User, error) {
 	return a.store.ListUsers(ctx)
 }

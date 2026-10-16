@@ -17,9 +17,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestVerifyTOTPLimitRefills covers the second-factor allowance over time:
-// five codes at once, then one more each time the refill interval passes.
-// The clock is Auth's own, moved by hand.
+// TestVerifyTOTPLimitRefills covers the second-factor limit over time: five
+// codes at once, then one more after each refill interval. The clock is the
+// clock of Auth, which the test moves by hand.
 func TestVerifyTOTPLimitRefills(t *testing.T) {
 	t.Parallel()
 
@@ -42,7 +42,7 @@ func TestVerifyTOTPLimitRefills(t *testing.T) {
 	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	a.now = func() time.Time { return now }
 
-	// verify starts a fresh pending sign-in and tries code against it.
+	// verify starts a new pending sign-in, and tries code against it.
 	verify := func(code string) error {
 		t.Helper()
 
@@ -81,9 +81,9 @@ func TestVerifyTOTPLimitRefills(t *testing.T) {
 	assert.NoError(t, verify(valid), "one attempt is back after the refill interval")
 }
 
-// TestVerifyTOTPAcceptsEachStepOnce covers a code being replayed: once a code
-// has signed in, it and every older code are refused, even while they are
-// still inside the window an authenticator's clock is allowed to drift.
+// TestVerifyTOTPAcceptsEachStepOnce covers a replayed code. After a code signs
+// in, that code and every older code fail. This is true even while they are
+// still in the window for the clock drift of an authenticator.
 func TestVerifyTOTPAcceptsEachStepOnce(t *testing.T) {
 	t.Parallel()
 
@@ -106,8 +106,8 @@ func TestVerifyTOTPAcceptsEachStepOnce(t *testing.T) {
 	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	a.now = func() time.Time { return now }
 
-	// verify starts a fresh pending sign-in and tries the code for at
-	// against it.
+	// verify starts a new pending sign-in, and tries the code for at against
+	// it.
 	verify := func(at time.Time) error {
 		t.Helper()
 
@@ -135,8 +135,8 @@ func TestVerifyTOTPAcceptsEachStepOnce(t *testing.T) {
 	assert.ErrorIs(t, verify(now), ErrInvalidTOTPCode, "an older code after a newer one")
 }
 
-// newTOTPAuth returns an Auth holding one account, ada, with 2FA on, and the
-// account's TOTP secret.
+// newTOTPAuth returns an Auth with one account, ada, with 2FA on. It also
+// returns the TOTP secret of the account.
 func newTOTPAuth(t *testing.T) (*Auth, string) {
 	t.Helper()
 
@@ -157,8 +157,8 @@ func newTOTPAuth(t *testing.T) (*Auth, string) {
 	return a, key.Secret()
 }
 
-// verifyPending starts a fresh pending sign-in for ada and tries code
-// against it.
+// verifyPending starts a new pending sign-in for ada, and tries code against
+// it.
 func verifyPending(t *testing.T, a *Auth, code string) error {
 	t.Helper()
 
@@ -176,9 +176,9 @@ func verifyPending(t *testing.T, a *Auth, code string) error {
 	return err
 }
 
-// TestVerifyTOTPRecoveryCodeForms covers a recovery code typed the way a
-// person reads it off paper: in any case, with or without the dashes, or with
-// spaces in their place.
+// TestVerifyTOTPRecoveryCodeForms covers a recovery code typed as a person
+// reads it from paper: in any case, with or without the dashes, or with spaces
+// instead.
 func TestVerifyTOTPRecoveryCodeForms(t *testing.T) {
 	t.Parallel()
 
@@ -206,8 +206,8 @@ func TestVerifyTOTPRecoveryCodeForms(t *testing.T) {
 }
 
 // TestVerifyTOTPWrongShapeSpendsNoAttempt covers input that cannot be either
-// kind of code. It is refused without spending one of the account's attempts,
-// so a valid code still signs in after more of it than the allowance holds.
+// kind of code. VerifyTOTP refuses it, and uses no attempt of the account. So
+// a valid code still signs in after more such input than the limit.
 func TestVerifyTOTPWrongShapeSpendsNoAttempt(t *testing.T) {
 	t.Parallel()
 
@@ -216,8 +216,8 @@ func TestVerifyTOTPWrongShapeSpendsNoAttempt(t *testing.T) {
 	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	a.now = func() time.Time { return now }
 
-	// One pending sign-in takes every try, so the password's own allowance
-	// is spent once.
+	// One pending sign-in takes every try. So the password limit is used
+	// once.
 	sm := NewSession(testLogger())
 
 	ctx, err := sm.Load(t.Context(), "")
@@ -244,8 +244,8 @@ func TestVerifyTOTPWrongShapeSpendsNoAttempt(t *testing.T) {
 // errInsertFailed is the error failingInserts returns.
 var errInsertFailed = errors.New("insert failed")
 
-// failingInserts is a store whose failOn-th CreateRecoveryCode fails, so a
-// test can stop a batch of codes partway through.
+// failingInserts is a store whose failOn-th CreateRecoveryCode fails. So a test
+// can stop a batch of codes in the middle.
 type failingInserts struct {
 	store
 
@@ -262,8 +262,8 @@ func (f *failingInserts) CreateRecoveryCode(ctx context.Context, arg models.Crea
 	return f.store.CreateRecoveryCode(ctx, arg)
 }
 
-// newDBAuth returns an Auth over its own migrated database, holding one
-// account, ada, with 2FA off, and that account's ID.
+// newDBAuth returns an Auth over its own migrated database, with one account,
+// ada, with 2FA off. It also returns the ID of that account.
 func newDBAuth(t *testing.T) (*Auth, int64) {
 	t.Helper()
 
@@ -287,7 +287,7 @@ func newDBAuth(t *testing.T) (*Auth, int64) {
 	return a, user.ID
 }
 
-// confirmCode starts enrollment for ada and returns a code that confirms it.
+// confirmCode starts enrollment for ada, and returns a code that confirms it.
 func confirmCode(t *testing.T, a *Auth, userID int64) string {
 	t.Helper()
 
@@ -300,7 +300,8 @@ func confirmCode(t *testing.T, a *Auth, userID int64) string {
 	return code
 }
 
-// failFifthInsert makes the fifth recovery code a's transactions store fail.
+// failFifthInsert makes the transactions of a fail when they store the fifth
+// recovery code.
 func failFifthInsert(a *Auth) {
 	a.txStore = func(tx *sql.Tx) store {
 		return &failingInserts{store: models.New(tx), failOn: 5}
@@ -308,7 +309,8 @@ func failFifthInsert(a *Auth) {
 }
 
 // TestRegenerateRecoveryCodesFailureKeepsTheOldCodes covers a replacement batch
-// that fails partway: nothing of it is kept, and the old codes still work.
+// that fails in the middle. Nothing of it is kept, and the old codes still
+// work.
 func TestRegenerateRecoveryCodesFailureKeepsTheOldCodes(t *testing.T) {
 	t.Parallel()
 
@@ -329,8 +331,9 @@ func TestRegenerateRecoveryCodesFailureKeepsTheOldCodes(t *testing.T) {
 	assert.NoError(t, verifyPending(t, a, old[0]), "an old code still signs in")
 }
 
-// TestConfirmTOTPEnrollmentFailureLeavesTOTPOff covers the first batch of
-// recovery codes failing partway: 2FA stays off, with no codes stored.
+// TestConfirmTOTPEnrollmentFailureLeavesTOTPOff covers a first batch of
+// recovery codes that fails in the middle. 2FA stays off, with no codes
+// stored.
 func TestConfirmTOTPEnrollmentFailureLeavesTOTPOff(t *testing.T) {
 	t.Parallel()
 

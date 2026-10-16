@@ -12,38 +12,38 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
 
-// Data is the whole of what a session carries, as one typed document, so a
-// misspelled field is a compile error. A string-keyed read would silently
-// return the zero value.
+// Data is all that a session holds, as one typed document. So a misspelled
+// field is a compile error. A string-keyed read would return the zero value,
+// with no warning.
 type Data struct {
 	// UserID is the signed-in account, or 0 when nobody is signed in.
 	UserID int64
 
-	// Username is cached here so the topbar shows the signed-in account without
-	// a per-request lookup.
+	// Username is cached here. So the topbar shows the signed-in account
+	// without a lookup on each request.
 	Username string
 
-	// Role is what the account was allowed to do at the moment it signed in.
+	// Role is what the account could do when it signed in.
 	Role dbtype.UserRole
 
-	// Flash holds values a handler leaves for the GET it redirects to and
-	// that are read back exactly once, such as a message. nil until the first
-	// Flash call.
+	// Flash holds values that a handler leaves for the GET of its redirect,
+	// such as a message. The GET reads each value exactly once. It is nil
+	// until the first Flash call.
 	Flash map[string]string
 
-	// PendingUserID is set once Verify succeeds for an account with 2FA
-	// enabled, and cleared the moment a second factor also succeeds. A
-	// nonzero value here proves nothing on its own: every other check keys
-	// off UserID, which stays zero until then.
+	// PendingUserID is set when Verify succeeds for an account with 2FA on.
+	// It is cleared when a second factor also succeeds. A nonzero value here
+	// proves nothing alone. Every other check uses UserID, which stays zero
+	// until then.
 	PendingUserID int64
 
-	// PendingUsername mirrors PendingUserID the way Username mirrors UserID,
-	// so the second-factor page can address the account without a lookup.
+	// PendingUsername goes with PendingUserID, as Username goes with UserID.
+	// So the second-factor page can name the account without a lookup.
 	PendingUsername string
 }
 
-// Session adapts the generic typed session to jocasta's own vocabulary
-// (CurrentUserID, Flash, PopFlash, Logout), so callers in internal/web never
+// Session adapts the generic typed session to the words of jocasta
+// (CurrentUserID, Flash, PopFlash, Logout). So callers in internal/web never
 // import the session library or name its types.
 type Session struct {
 	s *session.Session[Data]
@@ -60,16 +60,16 @@ type sessionConfig struct {
 	cookieSecure bool
 }
 
-// WithSessionStore persists sessions in db (the jocasta SQLite database) so a
-// signed-in browser stays signed in across a restart. Without it, sessions
-// live only in memory, which is what the tests want and why this is opt-in.
+// WithSessionStore stores sessions in db, the jocasta SQLite database. So a
+// signed-in browser stays signed in after a restart. Without it, sessions are
+// only in memory. The tests need this, so the option is opt-in.
 func WithSessionStore(db *sql.DB) SessionOption {
 	return func(c *sessionConfig) { c.db = db }
 }
 
-// WithLifetime caps how long a session lasts from sign-in, regardless of
-// activity. A non-positive d is ignored, leaving the default in place: a zero
-// would expire every session at once.
+// WithLifetime limits how long a session lasts after sign-in, with or without
+// activity. NewSession ignores a d that is not positive, and keeps the
+// default. A zero would expire every session at once.
 func WithLifetime(d time.Duration) SessionOption {
 	return func(c *sessionConfig) {
 		if d > 0 {
@@ -78,8 +78,9 @@ func WithLifetime(d time.Duration) SessionOption {
 	}
 }
 
-// WithIdleTimeout sets how long a session survives without a request before it
-// is dropped. A non-positive d is ignored, leaving the default in place.
+// WithIdleTimeout sets how long a session stays without a request. Then the
+// session ends. NewSession ignores a d that is not positive, and keeps the
+// default.
 func WithIdleTimeout(d time.Duration) SessionOption {
 	return func(c *sessionConfig) {
 		if d > 0 {
@@ -88,18 +89,19 @@ func WithIdleTimeout(d time.Duration) SessionOption {
 	}
 }
 
-// WithCookieSecure sets whether the session cookie is restricted to HTTPS. It
-// is true in every real deployment; false exists only so a browser can sign in
-// over plain HTTP during local development.
+// WithCookieSecure sets whether the session cookie works only over HTTPS. It is
+// true in every real deployment. false exists only for sign-in over plain HTTP
+// during local development.
 func WithCookieSecure(secure bool) SessionOption {
 	return func(c *sessionConfig) { c.cookieSecure = secure }
 }
 
-// NewSession sets every cookie and lifetime option explicitly, so a change to
-// the library's defaults cannot quietly move jocasta's session semantics.
+// NewSession sets every cookie and lifetime option explicitly. So a change to
+// the defaults of the library cannot change the session behaviour of jocasta
+// without a warning.
 //
-// The lifetime, idle timeout, and cookie-secure flag start at the values a
-// deployment can override through config. jocasta fixes the cookie name, path,
+// The lifetime, idle timeout, and cookie-secure flag start at values that a
+// deployment can override in config. jocasta sets the cookie name, path,
 // SameSite and HttpOnly flags itself.
 func NewSession(log *slog.Logger, opts ...SessionOption) *Session {
 	cfg := sessionConfig{
@@ -130,19 +132,20 @@ func NewSession(log *slog.Logger, opts ...SessionOption) *Session {
 	return &Session{s: session.New[Data](sopts...)}
 }
 
-// LoadAndSave wraps next with the session middleware every request must pass
-// through before any code in this package can touch session data.
+// LoadAndSave wraps next with the session middleware. Every request must pass
+// through it before code in this package can use session data.
 func (s *Session) LoadAndSave(next http.Handler) http.Handler {
 	return s.s.LoadAndSave(next)
 }
 
-// Load returns a context carrying session data for token, so a test can get one
+// Load returns a context with session data for token. So a test can get one
 // without an HTTP round trip through the middleware.
 func (s *Session) Load(ctx context.Context, token string) (context.Context, error) {
 	return s.s.Manager().Load(ctx, token)
 }
 
-// CurrentUserID returns the id establishSession put in the session, if any.
+// CurrentUserID returns the id that establishSession put in the session, if
+// any.
 func (s *Session) CurrentUserID(ctx context.Context) (int64, bool) {
 	d, ok := s.s.Current(ctx)
 	if !ok || d.UserID == 0 {
@@ -152,7 +155,7 @@ func (s *Session) CurrentUserID(ctx context.Context) (int64, bool) {
 	return d.UserID, true
 }
 
-// CurrentUsername returns the signed-in account's name, or "".
+// CurrentUsername returns the name of the signed-in account, or "".
 func (s *Session) CurrentUsername(ctx context.Context) string {
 	d, ok := s.s.Current(ctx)
 	if !ok {
@@ -162,7 +165,7 @@ func (s *Session) CurrentUsername(ctx context.Context) string {
 	return d.Username
 }
 
-// CurrentRole returns the signed-in account's role, or "".
+// CurrentRole returns the role of the signed-in account, or "".
 func (s *Session) CurrentRole(ctx context.Context) dbtype.UserRole {
 	d, ok := s.s.Current(ctx)
 	if !ok {
@@ -172,11 +175,11 @@ func (s *Session) CurrentRole(ctx context.Context) dbtype.UserRole {
 	return d.Role
 }
 
-// Flash stores a value read back exactly once. It is how a handler carries a
-// result, such as a message, across the redirect it makes after a POST, so a
-// reload re-fetches the page without resending the form. The value is saved
-// with the session, in the database when [WithSessionStore] is set, so it must
-// not be a secret.
+// Flash stores a value that the next request reads exactly once. With it, a
+// handler keeps a result, such as a message, through the redirect after a
+// POST. So a reload gets the page again, and does not send the form again.
+// The value is saved with the session. With [WithSessionStore], it goes in the
+// database. So it must not be a secret.
 func (s *Session) Flash(ctx context.Context, key, value string) {
 	s.s.Update(ctx, func(d *Data) {
 		if d.Flash == nil {
@@ -187,8 +190,8 @@ func (s *Session) Flash(ctx context.Context, key, value string) {
 	})
 }
 
-// PopFlash returns the value Flash stored under key and removes it, or "" when
-// there is none.
+// PopFlash returns the value that Flash stored under key, and removes it. It
+// returns "" when there is none.
 func (s *Session) PopFlash(ctx context.Context, key string) string {
 	d, ok := s.s.Current(ctx)
 	if !ok {
@@ -212,7 +215,7 @@ func (s *Session) Logout(ctx context.Context) error {
 	return s.s.Destroy(ctx)
 }
 
-// HasPendingTOTP reports whether Login left this session waiting on a second
+// HasPendingTOTP reports whether Login left this session to wait for a second
 // factor.
 func (s *Session) HasPendingTOTP(ctx context.Context) bool {
 	d, ok := s.s.Current(ctx)

@@ -5,28 +5,29 @@ import (
 	"regexp"
 )
 
-// setupPath is the one route reachable only while SetupRequired holds, the
-// one place this middleware's usual requirement runs the other way around.
+// setupPath is the only route that a request can reach only while
+// SetupRequired is true. Only here does the usual rule of this middleware go
+// the other way.
 const setupPath = "/setup"
 
 type sessionMiddleware struct {
 	sm *Session
 	a  *Auth
 
-	// always exempts a path from every check this middleware makes, such as
-	// the static assets the setup and sign-in pages both need to render.
+	// always exempts a path from every check of this middleware. An example
+	// is the static assets that the setup and sign-in pages need.
 	always []*regexp.Regexp
 
-	// signIn exempts a path, typically /login, from needing a session while
-	// leaving it subject to the setup redirect like every other route.
+	// signIn exempts a path, usually /login, from the session check. The
+	// setup redirect still applies to it, as to every other route.
 	signIn []*regexp.Regexp
 
 	next http.Handler
 }
 
-// NewSessionMiddleware creates HTTP middleware to enforce session checks and
-// bypass certain request paths if matched. See sessionMiddleware's always and
-// signIn fields for what the two bypass lists exempt a path from.
+// NewSessionMiddleware creates HTTP middleware that enforces session checks,
+// and bypasses some request paths. The always and signIn fields of
+// sessionMiddleware tell what each bypass list exempts a path from.
 func NewSessionMiddleware(
 	sm *Session,
 	a *Auth,
@@ -38,8 +39,8 @@ func NewSessionMiddleware(
 	}
 }
 
-// ServeHTTP redirects requests to setup or sign-in when required, respecting
-// the configured exemptions. Setup is inaccessible after the first account.
+// ServeHTTP redirects requests to setup or sign-in when necessary, with the
+// configured exemptions. After the first account, nobody can reach setup.
 func (m *sessionMiddleware) ServeHTTP(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -65,7 +66,7 @@ func (m *sessionMiddleware) ServeHTTP(
 		m.next.ServeHTTP(w, r)
 		return
 	case path == setupPath:
-		// Setup already happened; this visitor signs in like anyone else.
+		// Setup already happened. This visitor signs in as everybody else.
 		http.Redirect(w, r, "/login", http.StatusFound)
 		return
 	case setupRequired:

@@ -25,7 +25,7 @@ func TestCreateAndVerifyToken(t *testing.T) {
 	assert.Equal(t, int64(7), token.UserID)
 	assert.Equal(t, dbtype.TokenRead, token.Scope)
 
-	// The plaintext is never stored: what CreateToken returned is the only
+	// The plaintext is never stored. The value from CreateToken is the only
 	// copy.
 	assert.NotEqual(t, plaintext, token.TokenHash)
 
@@ -77,8 +77,8 @@ func TestRevokeTokenIsScopedToItsOwner(t *testing.T) {
 	plaintext, token, err := a.CreateToken(t.Context(), 1, "mine", dbtype.TokenRead, time.Time{})
 	require.NoError(t, err)
 
-	// A different user's id names no row of this one's, so nothing happens
-	// and the token still checks out.
+	// The id of a different user names no row of this user. So nothing
+	// happens, and the token still works.
 	require.NoError(t, a.RevokeToken(t.Context(), 2, token.ID))
 
 	_, err = a.VerifyToken(t.Context(), plaintext)
@@ -111,9 +111,9 @@ func TestCreateTokenRejectsAnUnknownScope(t *testing.T) {
 	assert.ErrorIs(t, err, ErrInvalidToken)
 }
 
-// dbAuth builds an Auth over a migrated database holding one account, for a
-// test whose subject is a query's own WHERE clause, which the fake store
-// only imitates. It returns the account's id.
+// dbAuth builds an Auth over a migrated database with one account. Use it for a
+// test about the WHERE clause of a query, which the fake store only copies. It
+// returns the id of the account.
 func dbAuth(t *testing.T) (*Auth, int64) {
 	t.Helper()
 
@@ -131,8 +131,8 @@ func dbAuth(t *testing.T) (*Auth, int64) {
 	return a, user.ID
 }
 
-// An expired token is refused the way a revoked one is; a token with no
-// expiry, or one that has not reached it, works.
+// The middleware refuses an expired token, as it refuses a revoked token. A
+// token with no expiry, or before its expiry, works.
 func TestTokenMiddlewareRefusesAnExpiredToken(t *testing.T) {
 	t.Parallel()
 
