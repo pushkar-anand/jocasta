@@ -1,12 +1,15 @@
 {{- /*
-    The network map as a tree: the router in the middle, a hub for each
-    network and the internet around it, and what hangs off each hub around it.
-    Over the tree, a link joins each device to what it exchanged traffic with;
-    selecting a node lights its links and names their services.
-    Laid out by netmap.Place; every colour and motion comes from classes in
-    style.css, which the policy requires and which gives the dark theme for
-    free. netmap.js zooms, pans and searches, and restores all three after
-    each redraw.
+    The network map as a tree. The router is in the middle. A hub for each
+    network and for the internet surrounds it. The devices of each hub surround
+    that hub.
+
+    Over the tree, a link joins each device to each peer that it exchanged
+    traffic with. If the user selects a node, its links light and show their
+    services.
+
+    netmap.Place sets the layout. All colour and motion comes from classes in
+    style.css. The policy requires this, and it also gives the dark theme.
+    netmap.js zooms, pans and searches. It restores all three after each redraw.
 */ -}}
 {{ define "partial/map-body" }}
 {{- if not .Map.Devices }}

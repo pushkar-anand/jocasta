@@ -1,7 +1,8 @@
 {{- /*
-    What the world view's poll brings each minute: each country with traffic,
-    how dark to shade it and whether it is active, for netmap.js to apply to
-    the outline, and a card for each that selecting it opens.
+    The data that the poll of the world view brings each minute. For each
+    country with traffic, it gives the shade and whether the country is active.
+    netmap.js applies these to the outline. Each country also gets a card, which
+    opens when the user selects the country.
 */ -}}
 {{ define "partial/map-world-body" }}
 {{- with .World }}

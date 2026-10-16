@@ -4,7 +4,7 @@
 {{- if not .Recorded }}
 <section class="block">
     <div class="card empty">
-        <p>No traffic recorded yet. Once your router sends its flow records to
+        <p>No traffic recorded yet. When your router sends its flow records to
             Jocasta, this page shows the busiest devices, where they connect on
             the internet, and who they have started talking to.</p>
         <p>To set it up, see <a href="https://github.com/pushkar-anand/jocasta/blob/main/docs/plugins/netflow.md">Record who devices talk to</a>.</p>
@@ -15,9 +15,10 @@
 <div id="traffic-cards">
 <section class="block" aria-label="Which traffic">
 
-    {{- /* The form and the tabs swap everything under the heading and push their
-           own address, so the page can be reloaded or shared as it is shown.
-           Without htmx the form submits and the tabs are plain links. */}}
+    {{- /* The form and the tabs swap everything under the heading. They also
+           push their own address. So a user can reload or share the page as it
+           is shown. Without htmx, the form submits and the tabs are plain
+           links. */}}
     <form class="filters" role="search" action="/traffic" method="get"
           hx-get="/traffic"
           hx-select="#traffic-cards"
@@ -83,9 +84,9 @@
 
 <section class="block">
     <h2 class="section">Probing your network</h2>
-    <p class="note">Devices that, within an hour, tried many addresses or many
-        ports on one address without exchanging any data. A device you run scans
-        from shows up here too.</p>
+    <p class="note">Devices that tried many addresses, or many ports on one
+        address, within an hour, with no data. A device that you run scans from
+        also shows here.</p>
     {{- if .Probers }}
     <div class="card card--table">
         <div class="scroller">
@@ -127,15 +128,15 @@
     <div class="notice" role="note">
         <p><strong>Your router is behind another NAT.</strong>
             Its outside address, <span class="mono">{{ .Addr }}</span>, is
-            {{ if .CGNAT }}one your ISP shares between customers (carrier-grade NAT){{ else }}a private address, so something sits between it and the internet: usually your ISP's NAT, sometimes another router{{ end }}.
+            {{ if .CGNAT }}an address that your ISP shares between customers (carrier-grade NAT){{ else }}a private address. So something sits between it and the internet, usually the NAT of your ISP, sometimes another router{{ end }}.
             Nothing on the internet can connect in over IPv4 unless that NAT
-            forwards it, so this card and the next stay empty. IPv6 is not
-            affected.</p>
+            forwards the connection. So this card and the next stay empty. IPv6
+            is not affected.</p>
     </div>
     {{- end }}
-    <p class="note">Services on your devices that someone on the internet
-        connected to. A forwarded port missing from this list was not reached in
-        this period.</p>
+    <p class="note">Services on your devices that the internet connected to.
+        If a forwarded port is not in this list, nothing reached it in this
+        period.</p>
     {{- if .Incoming }}
     <div class="card card--table">
         <div class="scroller">
@@ -173,10 +174,10 @@
 
 <section class="block">
     <h2 class="section">Probed from the internet</h2>
-    <p class="note">Connections from the internet that carried no data: knocks on
-        a forwarded port, or on your router's outside address, which is counted
-        under the router. Most of this is routine internet scanning. Check the
-        answered ones.</p>
+    <p class="note">Connections from the internet that carried no data. They
+        knock on a forwarded port, or on the outside address of your router. The
+        router counts the second kind. Most of this is routine internet
+        scanning. Check the answered ones.</p>
     {{- if .Probed }}
     <div class="card card--table">
         <div class="scroller">
@@ -293,8 +294,8 @@
 <section class="block">
     <h2 class="section">New this week</h2>
     <p class="note">Organisations a device first exchanged data with in the last
-        7 days{{ if .First.Partial }}, the most data first{{ end }}.{{ if .First.Partial }} Traffic has only been recorded
-        since {{ stamp .First.Started "" }}, so for the first week
+        7 days{{ if .First.Partial }}, the most data first{{ end }}.{{ if .First.Partial }} Jocasta recorded traffic only
+        since {{ stamp .First.Started "" }}. So for the first week,
         everything counts as new.{{ end }}</p>
     {{- if .NewOrgs }}
     <div class="card card--table">

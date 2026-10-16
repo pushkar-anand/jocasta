@@ -4,7 +4,7 @@
 {{- if not .Recorded }}
 <section class="block">
     <div class="card empty">
-        <p>No traffic recorded yet. Once your router sends its flow records to
+        <p>No traffic recorded yet. When your router sends its flow records to
             Jocasta, this map shows which devices talk to each other and to the
             internet.</p>
         <p>To set it up, see <a href="https://github.com/pushkar-anand/jocasta/blob/main/docs/plugins/netflow.md">Record who devices talk to</a>.</p>
@@ -20,10 +20,10 @@
         <p class="block__aside">Last hour</p>
     </div>
 
-    {{- /* The search sits outside what the poll swaps, so what was typed
-           outlives each redraw; netmap.js applies it to the new map. The
-           wrapper polls and outlives every tick; the poll swaps only what is
-           inside it, which is what /map/live answers with. */}}
+    {{- /* The search is outside the part that the poll swaps. So the typed text
+           stays after each redraw. netmap.js applies it to the new map. The
+           wrapper polls and stays after every tick. The poll swaps only the
+           content of the wrapper, which is the answer of /map/live. */}}
     <div class="netmap-wrap">
         <label class="netmap__search">
             <span class="visually-hidden">Find {{ if .World }}a country{{ else }}a device or organisation{{ end }}</span>

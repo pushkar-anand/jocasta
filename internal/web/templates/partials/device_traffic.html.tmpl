@@ -1,25 +1,28 @@
 {{- /*
-    Takes a trafficSection. Who one device talked to over a period, from the
-    hourly totals the router's traffic exports add up to.
+    Takes a trafficSection. It shows who one device talked to over a period. The
+    data comes from the hourly totals of the traffic exports of the router.
 
     The filter form, the tabs and the tries switch all fetch this fragment and
-    swap it whole; htmx keeps focus in the search box across the swap because
-    it has an id, and search.js keeps what was typed in it. Without htmx they are plain links and a form submitting to
-    the device page, which renders the same section.
+    swap it whole. The search box has an id, so htmx keeps focus in it across
+    the swap. search.js keeps the typed text. Without htmx, they are plain links
+    and a form that submits to the device page. That page renders the same
+    section.
 
-    The figures at the top are the whole period, before any filter. Under them
-    one tab per network segment, and one for the internet: on a local tab each
-    peer is one row whatever services it was reached on, with unknown
-    addresses collapsed by subnet; on the Internet tab each organisation is one
-    row that opens to the addresses behind it. Each row says who opened its
-    connections, this device (→) or the peer (←), and the direction filter
-    keeps one side. Connections that carried no data are left out unless asked
-    for, and then sit on the row of the peer they went to.
+    The figures at the top cover the whole period, before any filter. Under them
+    is one tab for each network segment and one for the internet. On a local
+    tab, each peer is one row for all of its services. Unknown addresses
+    collapse by subnet. On the Internet tab, each organisation is one row that
+    opens to its addresses.
+
+    Each row shows who opened its connections: this device (→) or the peer (←).
+    The direction filter keeps one side. Connections with no data are hidden
+    unless the user asks for them. They then show on the row of the peer that
+    they went to.
 */ -}}
 {{ define "partial/device-traffic" }}
 <div id="device-traffic" class="traffic">
     {{- if not .Recorded }}
-    <p class="dim">Traffic collection is not set up, so who this device talks to is unknown.</p>
+    <p class="dim">Traffic collection is not set up. So it is unknown who this device talks to.</p>
     {{- else }}
     <form id="traffic-filters" class="filters" role="search" action="/devices/{{ .DeviceID }}#traffic" method="get"
           hx-get="/devices/{{ .DeviceID }}/traffic"
@@ -117,7 +120,7 @@
             {{- end }}
         </dl>
         {{- if .Tries }}
-        <p class="traffic__tried dim">Sent to {{ .TriedPeers }} {{ if eq .TriedPeers 1 }}peer{{ else }}peers{{ end }}; {{ if .Answered }}{{ count .Answered }}{{ else }}none{{ end }} answered.
+        <p class="traffic__tried dim">Sent to {{ .TriedPeers }} {{ if eq .TriedPeers 1 }}peer{{ else }}peers{{ end }}. {{ if .Answered }}{{ count .Answered }}{{ else }}None{{ end }} answered.
             <a href="{{ $.TriedPath }}#traffic"
                hx-get="{{ $.TriedFragment }}"
                hx-target="#device-traffic"
@@ -178,8 +181,8 @@
             </table>
         </div>
     </div>
-    <p class="note">Packets sent to a whole subnet or multicast group. Mostly the device announcing itself or looking for others.
-        Names are guessed from the port and group.</p>
+    <p class="note">Packets to a whole subnet or multicast group. Most are the device that announces itself, or looks for others.
+        Jocasta guesses the names from the port and group.</p>
 
     {{- else if .IsInternet }}
     <div class="card card--table">
@@ -306,17 +309,19 @@
 </div>
 {{ end }}
 
-{{- /* A byte count, or a dash when nothing moved: a peer that was only tried. */ -}}
+{{- /* A byte count, or a dash if no data moved. A dash marks a peer that the
+       device only tried. */ -}}
 {{ define "partial/traffic-bytes" }}{{ if . }}{{ bytes . }}{{ else }}<span class="dim">&ndash;</span>{{ end }}{{ end }}
 
-{{- /* The name beside a peer's address: what the device looked up for it, with
-       every such name on hover, or else its reverse DNS name. */ -}}
+{{- /* The name beside the address of a peer. This is the name that the device
+       looked up for it, with all such names on hover. If there is none, it is
+       the reverse DNS name. */ -}}
 {{ define "partial/traffic-peer-name" }}
 {{- with .ShownName }} <span class="dim"{{ with $.AllLookedUp }} title="{{ . }}"{{ end }}>{{ . }}</span>{{ end }}
 {{- end }}
 
-{{- /* One address inside a collapsed group: the address, its DNS name, what it
-       was reached on and how much moved, and what was tried there. */ -}}
+{{- /* One address inside a collapsed group. It shows the address, its DNS name,
+       its services, the data that moved and the tries to it. */ -}}
 {{ define "partial/traffic-peer" }}
 <span class="mono">{{ .IP }}</span>
 {{- template "partial/traffic-peer-name" . }}
@@ -331,8 +336,8 @@
 </span>
 {{ end }}
 
-{{- /* A peer's services: the busiest by name, and a breakdown per service when
-       there is more than one. */ -}}
+{{- /* The services of a peer. It names the busiest one. If there is more than
+       one, it also shows each service. */ -}}
 {{ define "partial/traffic-services" }}
 {{- if gt (len .Services) 1 -}}
 <details class="peers">
@@ -352,8 +357,8 @@
 {{- end -}}
 {{ end }}
 
-{{- /* Who opened a row's connections: this device (→) or the peer (←), with
-       how many. Takes anything with Outgoing and Incoming counts. */ -}}
+{{- /* Who opened the connections of a row: this device (→) or the peer (←),
+       with the counts. Takes any value with Outgoing and Incoming counts. */ -}}
 {{ define "partial/traffic-conns" -}}
 {{- if or .Outgoing .Incoming -}}
 <span class="conns">
