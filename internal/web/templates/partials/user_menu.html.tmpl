@@ -1,8 +1,8 @@
 {{- /*
-    One topbar control for the signed-in identity and the account actions.
-    Native <details> so it opens without script; settings.js only adds
-    Escape/outside-click close. Users is admin-only.
-    Takes view: SignedInAs, Role, Section.
+    One topbar control for the signed-in identity and the account actions. It is
+    a native <details>, so it opens without script. settings.js only adds close
+    on Escape and on an outside click. Only an admin sees Users. Takes view:
+    SignedInAs, Role, Section.
 */ -}}
 {{ define "partial/user-menu" }}
     <details class="usermenu">

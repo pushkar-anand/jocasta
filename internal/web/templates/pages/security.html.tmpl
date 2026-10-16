@@ -2,14 +2,14 @@
     {{- template "layout/head" . }}
 
     <section class="block">
-        <p class="note">Signing in as {{ .SignedInAs }} can ask for a code from your phone
-            as well as your password.</p>
+        <p class="note">When {{ .SignedInAs }} signs in, Jocasta can ask for a code from
+            your phone as well as your password.</p>
 
         {{- with .RecoveryCodes }}
             <div class="tokenreveal">
                 <p class="tokenreveal__label">Recovery codes</p>
-                <p class="tokenreveal__hint">Save these now. They will not be shown again. If you lose your
-                    phone, each code signs you in once in place of an app code.</p>
+                <p class="tokenreveal__hint">Save these now. Jocasta shows them only once. If you lose your
+                    phone, each code signs you in once, in place of an app code.</p>
 
                 <pre class="reccodes" id="recovery-codes">{{ range . }}{{ . }}
 {{ end -}}</pre>
@@ -24,8 +24,8 @@
 
         <div class="card panel">
             {{- if .Enrolling }}
-                <p>Scan this code with your authenticator app, then enter the
-                    6-digit code it shows.</p>
+                <p>Scan this code with your authenticator app. Then enter the
+                    6-digit code that it shows.</p>
 
                 <img src="/settings/security/totp-qr.png" width="256" height="256"
                      alt="QR code for two-factor authentication setup">
@@ -85,8 +85,8 @@
                             {{- if eq .ErrorAction "regenerate" }}
                             <p class="failure" id="regenerate-error" role="alert">{{ .Error }}</p>
                             {{- end }}
-                            {{- /* Names the account, so a password manager fills
-                                   the password for this login. */}}
+                            {{- /* Names the account. So a password manager
+                                   fills the password for this login. */}}
                             <input type="text" id="regenerate-username" name="username" autocomplete="username"
                                    value="{{ $.SignedInAs }}" hidden>
                             <label class="stack" for="regenerate-password">
@@ -107,7 +107,7 @@
                     <div class="modal__head">
                         <div>
                             <h2 class="modal__title" id="disable-dialog-title">Turn off two-factor authentication</h2>
-                            <p class="modal__sub">Signing in will ask for your password only.</p>
+                            <p class="modal__sub">Sign-in then asks for your password only.</p>
                         </div>
                         <button type="button" class="modal__close" data-close aria-label="Close">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -122,8 +122,8 @@
                             {{- if eq .ErrorAction "disable" }}
                             <p class="failure" id="disable-error" role="alert">{{ .Error }}</p>
                             {{- end }}
-                            {{- /* Names the account, so a password manager fills
-                                   the password for this login. */}}
+                            {{- /* Names the account. So a password manager
+                                   fills the password for this login. */}}
                             <input type="text" id="disable-username" name="username" autocomplete="username"
                                    value="{{ $.SignedInAs }}" hidden>
                             <label class="stack" for="disable-password">

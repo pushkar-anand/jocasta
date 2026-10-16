@@ -1,11 +1,10 @@
 {{- /*
-    Everything on the overview that goes stale on its own, in one element, so
-    the periodic refresh is one request against one target.
-
-    The refresh swaps this element's contents: #live and its timer outlive every
-    tick, so a background refresh leaves the panel itself standing. The fragment
-    endpoint answers with partial/live-body alone, since a second copy of this
-    wrapper would nest one #live inside another.
+    All parts of the overview that go out of date, in one element. So the
+    periodic refresh is one request to one target. The refresh swaps only the
+    content of this element. #live and its timer stay after every tick. So a
+    background refresh keeps the panel itself. The fragment endpoint returns
+    only partial/live-body. A second copy of this wrapper would put one #live
+    inside another.
 */ -}}
 {{ define "partial/live" }}
 <div id="live" hx-get="/overview/live" hx-trigger="every 30s" hx-swap="innerHTML">

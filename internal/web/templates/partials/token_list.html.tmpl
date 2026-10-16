@@ -1,13 +1,14 @@
 {{- /*
-    The token completion state and the list, in one wrapper the revoke button
-    swaps whole (hx-target="#token-list"). Rendered inline by page/tokens on
-    first paint, returned on its own by revokeToken. Swapping the whole wrapper
-    means the last revoke lands on the "none yet" line and drops a plaintext
-    still shown from a create just before it.
+    The token completion state and the list, in one wrapper. The revoke button
+    swaps the whole wrapper (hx-target="#token-list"). page/tokens renders it
+    inline on first paint. revokeToken returns it alone.
 
-    Takes tokensData: PlaintextToken / NewName / NewScope are set only on the GET
-    a create redirects to; Revoked is set only on the revoke response; Tokens is
-    the caller's list, newest first.
+    The swap replaces the whole wrapper. So the last revoke shows the "none yet"
+    line. It also removes a plaintext that a create showed just before it.
+
+    Takes tokensData. PlaintextToken, NewName and NewScope are set only on the
+    GET that a create redirects to. Revoked is set only on the revoke response.
+    Tokens is the list of the caller, newest first.
 */ -}}
 {{ define "partial/token-list" }}
 <div id="token-list" tabindex="-1">
@@ -16,7 +17,7 @@
             <p class="tokenreveal__label">
                 {{ $.NewName }} created{{ with $.NewScope }} ({{ scopedisplay . }}){{ end }}
             </p>
-            <p class="tokenreveal__hint">Copy it now. It will not be shown again. If you lose it, revoke it
+            <p class="tokenreveal__hint">Copy it now. Jocasta shows it only once. If you lose it, revoke it
                 and create a new one.</p>
 
             <div class="tokenreveal__row">
@@ -90,7 +91,7 @@
             <div class="modal__head">
                 <div>
                     <h2 class="modal__title" id="revoke-dialog-{{ .ID }}-title">Revoke &ldquo;{{ .Name }}&rdquo;</h2>
-                    <p class="modal__sub">Anything using this token stops working immediately.</p>
+                    <p class="modal__sub">Anything that uses this token stops working immediately.</p>
                 </div>
                 <button type="button" class="modal__close" data-close aria-label="Close">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"

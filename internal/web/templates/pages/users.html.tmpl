@@ -3,7 +3,7 @@
 
     <section class="block">
         <div class="block__head">
-            <p class="note">One admin per instance. Accounts you add are Viewer or Editor.</p>
+            <p class="note">Each instance has one admin. Accounts that you add are Viewer or Editor.</p>
             <div class="block__headend">
                 <p class="block__aside">{{ len .Users }} account{{ if ne (len .Users) 1 }}s{{ end }}</p>
                 <button type="button" class="btn btn--sm" data-open="user-dialog">
@@ -66,7 +66,7 @@
             <p class="dim">No users yet.</p>
         {{- end }}
 
-        {{- /* open on error so the round-trip works without settings.js; the
+        {{- /* Open on error, so the round trip works without settings.js. The
                script upgrades it to a real modal. */}}
         <dialog class="modal" id="user-dialog" aria-labelledby="user-dialog-title"{{ if .Error }} open{{ end }}>
             <div class="modal__head">

@@ -1,8 +1,8 @@
 {{- /*
-    Viewer/Editor picker shared by the create-user and create-token forms.
-    Built by the permchoice func. Takes permChoiceView. With only one option,
-    as for a viewer's token, there is nothing to pick: it is stated, and sent
-    in a hidden field.
+    The Viewer/Editor picker of the create-user and create-token forms. The
+    permchoice func builds it. Takes permChoiceView. If there is only one
+    option, as for the token of a viewer, the user has nothing to pick. The
+    picker then states the option and sends it in a hidden field.
 */ -}}
 {{ define "partial/permission-choice" }}
     {{- if eq (len .Options) 1 }}
