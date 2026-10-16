@@ -14,8 +14,8 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// listEventsInput narrows and pages the change log. Every field is optional;
-// an empty call is the first page of the whole log.
+// listEventsInput limits and pages the change log. Every field is optional. An
+// empty call is the first page of the whole log.
 type listEventsInput struct {
 	DeviceID       int64    `json:"device_id,omitempty" jsonschema:"Only this device's events, by the id list_devices reports."`
 	Kinds          []string `json:"kinds,omitempty" jsonschema:"Only events of these kinds. Omit for every kind."`
@@ -24,18 +24,18 @@ type listEventsInput struct {
 	Cursor         string   `json:"cursor,omitempty" jsonschema:"The next_cursor a previous list_events call returned, to read the page after it. Pass the other filters unchanged."`
 }
 
-// listEventsOutput is one page of the change log, the same shape
-// GET /api/events answers with.
+// listEventsOutput is one page of the change log. It has the same shape as
+// the answer of GET /api/events.
 type listEventsOutput struct {
 	Events []*inventory.Event `json:"events"`
 	Count  int                `json:"count"`
 
-	// NextCursor is what to pass as cursor for the page after this one, and is
-	// absent once the log has been read to the end.
+	// NextCursor is the cursor for the next page. It is absent when the
+	// client read the log to the end.
 	NextCursor inventory.Cursor `json:"next_cursor,omitzero"`
 }
 
-// listEvents is inventory.Store.ListEvents, offered as a tool.
+// listEvents is inventory.Store.ListEvents, as a tool.
 func listEvents(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	t := &mcpsdk.Tool{
 		Name:  "list_events",
@@ -61,8 +61,8 @@ func listEvents(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 			return nil, listEventsOutput{}, badCursor("list_events")
 		}
 
-		// Asking for a device that does not exist is a 404, as it is for the
-		// API. An empty page would read as "nothing changed".
+		// A request for a device that does not exist is a 404, as in the API.
+		// An empty page would mean "nothing changed".
 		if in.DeviceID != 0 {
 			if err := store.RequireDevice(ctx, in.DeviceID); err != nil {
 				return nil, listEventsOutput{}, err
@@ -91,9 +91,9 @@ func listEvents(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	return func(s *mcpsdk.Server, log *slog.Logger) { addTool(s, log, t, handler) }
 }
 
-// badCursor is the problem a cursor this server did not issue gets, from the
-// paged tool named. It is a Problem already, so addTool passes it to the agent
-// as it stands.
+// badCursor is the problem for a cursor that this server did not give, from
+// the named paged tool. It is already a Problem. So addTool passes it to the
+// agent as it is.
 func badCursor(tool string) response.Problem {
 	return response.NewProblem().
 		WithStatus(http.StatusBadRequest).
@@ -101,8 +101,8 @@ func badCursor(tool string) response.Problem {
 		Build()
 }
 
-// listEventsSchema is the schema inferred from listEventsInput, with the event
-// kinds spelled out and the numbers held to what the log can serve.
+// listEventsSchema is the schema inferred from listEventsInput. It lists the
+// event kinds, and limits the numbers to what the log can serve.
 func listEventsSchema() *jsonschema.Schema {
 	s := schemaFor[listEventsInput]()
 
@@ -115,7 +115,7 @@ func listEventsSchema() *jsonschema.Schema {
 	return s
 }
 
-// eventKindList names every event kind, for the tool's description.
+// eventKindList names every event kind, for the description of the tool.
 func eventKindList() string {
 	names := make([]string, 0, len(dbtype.EventKinds()))
 	for _, k := range dbtype.EventKinds() {

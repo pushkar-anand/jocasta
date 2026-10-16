@@ -14,9 +14,9 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/plugin"
 )
 
-// recordRouter records a router read that learned the printer on ether4 in
-// VLAN 10, on a gigabit link that came up at 100 Mbps, and the nas on its
-// radio.
+// recordRouter records a router read. The read learned the printer on ether4 in
+// VLAN 10, on a gigabit link that came up at 100 Mbps. It learned the nas on
+// its radio.
 func recordRouter(t *testing.T, store *inventory.Store) {
 	t.Helper()
 
@@ -107,8 +107,8 @@ func TestGetDeviceLeavesTheConnectionOut(t *testing.T) {
 		assert.Nil(t, out.Connection)
 	})
 
-	// The tree leaves ignored devices out, so saying the device was never
-	// seen on a port would be wrong.
+	// The tree leaves out ignored devices. So it would be wrong to say that no
+	// source saw the device on a port.
 	t.Run("for an ignored device", func(t *testing.T) {
 		t.Parallel()
 
@@ -129,8 +129,8 @@ func TestGetDeviceLeavesTheConnectionOut(t *testing.T) {
 	})
 }
 
-// A device the router has not seen on any port is reported as not placed,
-// which is different from nothing being read.
+// The tool reports a device that the router did not see on a port as not
+// placed. This is different from a state where nothing was read.
 func TestGetDeviceSaysWhenNoPortHasSeenTheDevice(t *testing.T) {
 	t.Parallel()
 
@@ -167,8 +167,8 @@ func TestGetTopology(t *testing.T) {
 		assert.NotNil(t, out.Devices, "an empty list should still be a list, not null")
 	})
 
-	// The router learned the printer on ether4 and the nas behind the switch
-	// that announced itself on sfp1, so the nas hangs from the switch.
+	// The router learned the printer on ether4. It learned the nas behind the
+	// switch that announced itself on sfp1. So the nas hangs from the switch.
 	t.Run("each node after its parent, with the devices on it", func(t *testing.T) {
 		t.Parallel()
 

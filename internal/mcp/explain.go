@@ -14,7 +14,7 @@ type explainDeviceInput struct {
 	ID int64 `json:"id" jsonschema:"The device's id, as list_devices reports it."`
 }
 
-// explainDevice is inventory.Store.ExplainClass, offered as a tool.
+// explainDevice is inventory.Store.ExplainClass, as a tool.
 func explainDevice(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	t := &mcpsdk.Tool{
 		Name:  "explain_device",
@@ -51,8 +51,8 @@ func explainDevice(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	return func(s *mcpsdk.Server, log *slog.Logger) { addTool(s, log, t, handler) }
 }
 
-// explainDeviceSchema is the schema inferred from explainDeviceInput, with ids
-// held to the positive numbers the inventory issues.
+// explainDeviceSchema is the schema inferred from explainDeviceInput. It limits
+// ids to the positive numbers that the inventory gives.
 func explainDeviceSchema() *jsonschema.Schema {
 	s := schemaFor[explainDeviceInput]()
 	s.Properties["id"].Minimum = new(1.0)

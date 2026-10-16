@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// curation is a full set of the five fields, for the device named.
+// curation is a full set of the five fields, for the named device.
 func curation(id int64) map[string]any {
 	return map[string]any{
 		"id":      id,
@@ -65,8 +65,8 @@ func TestUpdateDeviceCuration(t *testing.T) {
 		assert.Equal(t, "update_device_curation", doc["instance"])
 	})
 
-	// Every field is replaced, so one left out would be cleared without the
-	// agent meaning to, and the call is refused.
+	// The call replaces every field. So a missing field would be cleared by
+	// mistake, and the SDK refuses the call.
 	for _, field := range []string{"id", "label", "group", "type", "notes", "ignored"} {
 		t.Run("without "+field+" is refused", func(t *testing.T) {
 			t.Parallel()
@@ -98,8 +98,8 @@ func TestUpdateDeviceCuration(t *testing.T) {
 	}
 }
 
-// Empty strings clear the fields, and an empty type hands the device back to
-// the classifier.
+// Empty strings clear the fields. An empty type gives the device back to the
+// classifier.
 func TestUpdateDeviceCurationClears(t *testing.T) {
 	t.Parallel()
 
@@ -123,8 +123,8 @@ func TestUpdateDeviceCurationClears(t *testing.T) {
 	assert.True(t, out.Device.Ignored)
 }
 
-// The tool tells a client it changes things, so a client that asks before
-// such a tool runs asks before this one.
+// The tool tells a client that it changes things. So a client that asks before
+// such a tool runs also asks before this tool.
 func TestUpdateDeviceCurationIsNotReadOnly(t *testing.T) {
 	t.Parallel()
 
@@ -157,17 +157,17 @@ func TestWatchDevice(t *testing.T) {
 	require.NotNil(t, out.Device)
 	assert.True(t, out.Device.Watched)
 
-	// The list narrows to watched devices.
+	// The list shows only watched devices.
 	listed := decodeAs[listDevicesOutput](t, callTool(t, cs, "list_devices", map[string]any{"watched": true}))
 	require.Len(t, listed.Devices, 1)
 	assert.Equal(t, id, listed.Devices[0].ID)
 
-	// Curating the device, which replaces every field it carries, leaves
-	// watching alone.
+	// Curation replaces every field in its call, but does not change the
+	// watch.
 	cur := decodeAs[updateDeviceCurationOutput](t, callTool(t, cs, "update_device_curation", curation(id)))
 	assert.True(t, cur.Device.Watched)
 
-	// Leaving watched out would otherwise stop watching, so it is refused.
+	// A call without watched would stop the watch. So the SDK refuses it.
 	doc := problemOf(t, callTool(t, cs, "watch_device", map[string]any{"id": id}))
 	assert.Equal(t, float64(http.StatusBadRequest), doc["status"])
 

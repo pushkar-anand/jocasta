@@ -87,7 +87,7 @@ func TestListScans(t *testing.T) {
 	}
 }
 
-// A store with no scans answers an empty page.
+// A store with no scans returns an empty page.
 func TestListScansWithNone(t *testing.T) {
 	t.Parallel()
 

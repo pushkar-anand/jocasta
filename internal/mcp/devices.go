@@ -10,7 +10,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// listDevicesInput narrows a device list. Every field is optional; an empty
+// listDevicesInput limits a device list. Every field is optional. An empty
 // call lists every device that is not ignored.
 type listDevicesInput struct {
 	Q              string `json:"q,omitempty" jsonschema:"Case-insensitive substring matched against each device's label, hostname, vendor, hardware (MAC) address and current IP addresses."`
@@ -23,14 +23,14 @@ type listDevicesInput struct {
 	Watched        bool   `json:"watched,omitempty" jsonschema:"Only the devices the owner watches. With status offline, the watched devices that are quiet now."`
 }
 
-// listDevicesOutput is the same shape GET /api/devices answers with, so an
-// agent and a script reading the inventory see one vocabulary.
+// listDevicesOutput has the same shape as the answer of GET /api/devices. So
+// an agent and a script that read the inventory see the same words.
 type listDevicesOutput struct {
 	Devices []*inventory.Device `json:"devices"`
 	Count   int                 `json:"count"`
 }
 
-// listDevices is inventory.Store.ListDevices, offered as a tool.
+// listDevices is inventory.Store.ListDevices, as a tool.
 func listDevices(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	t := &mcpsdk.Tool{
 		Name:  "list_devices",
@@ -72,13 +72,13 @@ func listDevices(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	return func(s *mcpsdk.Server, log *slog.Logger) { addTool(s, log, t, handler) }
 }
 
-// listDevicesSchema is the schema inferred from listDevicesInput, with the
-// closed sets its string filters admit spelled out, so the model is shown the
-// choices and the SDK turns away anything else before the handler runs.
+// listDevicesSchema is the schema inferred from listDevicesInput. It lists the
+// closed sets that its string filters allow. So the model sees the choices,
+// and the SDK refuses all other values before the handler runs.
 //
-// The values are the ones inventory.Status, inventory.Sort and the classifier
-// name, less the empty string each uses for "unset", which here is a field
-// left out.
+// The values are the ones that inventory.Status, inventory.Sort and the
+// classifier name. They do not include the empty string that each uses for
+// "unset". Here, "unset" is a missing field.
 func listDevicesSchema() *jsonschema.Schema {
 	s := schemaFor[listDevicesInput]()
 
@@ -103,21 +103,22 @@ type getDeviceInput struct {
 	ID int64 `json:"id" jsonschema:"The device's id, as list_devices reports it."`
 }
 
-// getDeviceOutput is one device in full, with what each source that reported it
-// claims. The two are kept apart, as the device page shows them: the device is
-// the settled picture, and the sources are the evidence behind it, which can
+// getDeviceOutput is one full device, with the claims of each source that
+// reported it. The two stay separate, as on the device page. The device is the
+// settled result. The sources are the evidence for it, and they can
 // disagree.
 type getDeviceOutput struct {
 	Device  *inventory.Device  `json:"device"`
 	Sources []*inventory.Claim `json:"sources"`
 
-	// Connection is absent when no router, switch or access point has been
-	// read, and for an ignored device, which the tree leaves out.
+	// Connection is absent when no router, switch or access point was read.
+	// It is also absent for an ignored device, because the tree leaves it
+	// out.
 	Connection *connection `json:"connection,omitempty" jsonschema:"Where the device is plugged in and how fast its connection runs, from the tables of the routers, switches and access points Jocasta reads. Absent when none has been read, and for an ignored device."`
 }
 
-// getDevice is inventory.Store.Device and DeviceSources, and the device's place
-// in inventory.Store.Topology, offered as one tool.
+// getDevice is inventory.Store.Device and DeviceSources, with the place of the
+// device in inventory.Store.Topology, as one tool.
 func getDevice(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	t := &mcpsdk.Tool{
 		Name:  "get_device",
@@ -172,8 +173,8 @@ func getDevice(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	return func(s *mcpsdk.Server, log *slog.Logger) { addTool(s, log, t, handler) }
 }
 
-// getDeviceSchema is the schema inferred from getDeviceInput, with ids held to
-// the positive numbers the inventory issues.
+// getDeviceSchema is the schema inferred from getDeviceInput. It limits ids
+// to the positive numbers that the inventory gives.
 func getDeviceSchema() *jsonschema.Schema {
 	s := schemaFor[getDeviceInput]()
 	s.Properties["id"].Minimum = new(1.0)

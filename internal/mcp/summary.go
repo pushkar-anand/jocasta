@@ -8,12 +8,12 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// getStatsOutput is the same shape GET /api/stats answers with.
+// getStatsOutput has the same shape as the answer of GET /api/stats.
 type getStatsOutput struct {
 	*inventory.Stats
 }
 
-// getStats is inventory.Store.Stats, offered as a tool.
+// getStats is inventory.Store.Stats, as a tool.
 func getStats(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	t := &mcpsdk.Tool{
 		Name:  "get_stats",
@@ -43,12 +43,12 @@ func getStats(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	return func(s *mcpsdk.Server, log *slog.Logger) { addTool(s, log, t, handler) }
 }
 
-// listGroupsOutput is the same shape GET /api/groups answers with.
+// listGroupsOutput has the same shape as the answer of GET /api/groups.
 type listGroupsOutput struct {
 	Groups []string `json:"groups"`
 }
 
-// listGroups is inventory.Store.Groups, offered as a tool.
+// listGroups is inventory.Store.Groups, as a tool.
 func listGroups(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	t := &mcpsdk.Tool{
 		Name:  "list_groups",
@@ -71,7 +71,7 @@ func listGroups(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 			return nil, listGroupsOutput{}, err
 		}
 
-		// No group assigned yet is an empty list, so the result matches its
+		// With no group yet, the list is empty. So the result matches its
 		// schema.
 		if groups == nil {
 			groups = []string{}

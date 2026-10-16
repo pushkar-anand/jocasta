@@ -13,19 +13,19 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// tool is one entry in what the server offers.
+// tool is one entry of the server.
 type tool struct {
 	// writes marks a tool that changes the inventory. Only a read_write token
-	// is shown one.
+	// sees such a tool.
 	writes bool
 
-	// register adds the tool to a server, usually through addTool. It is
-	// called once per server the tool belongs on.
+	// register adds the tool to a server, usually through addTool. It runs
+	// once for each server of the tool.
 	register func(*mcpsdk.Server, *slog.Logger)
 }
 
-// tools is every tool the server offers. A new tool is a file defining it and
-// one line here.
+// tools is every tool of the server. A new tool needs a file that defines it,
+// and one line here.
 func tools(store *inventory.Store) []tool {
 	return []tool{
 		{register: listDevices(store)},
@@ -46,9 +46,9 @@ func tools(store *inventory.Store) []tool {
 	}
 }
 
-// addTool is mcpsdk.AddTool with the handler's errors answered the way the
-// JSON API answers them: as a problem document, and with the cause of an
-// unexpected one kept to the server log.
+// addTool is mcpsdk.AddTool, with the errors of the handler answered as the
+// JSON API answers them. The answer is a problem document. The cause of an
+// unexpected error stays in the server log.
 func addTool[In, Out any](s *mcpsdk.Server, log *slog.Logger, t *mcpsdk.Tool, h mcpsdk.ToolHandlerFor[In, Out]) {
 	mcpsdk.AddTool(s, t, func(ctx context.Context, req *mcpsdk.CallToolRequest, in In) (*mcpsdk.CallToolResult, Out, error) {
 		res, out, err := h(ctx, req, in)
@@ -60,21 +60,22 @@ func addTool[In, Out any](s *mcpsdk.Server, log *slog.Logger, t *mcpsdk.Tool, h 
 	})
 }
 
-// schemaTypes overrides what schema inference makes of a type whose JSON is
-// not its Go shape. An IP address is a struct in Go and a string on the wire,
-// and the SDK validates every result against the schema before sending it.
+// schemaTypes overrides the schema inference for a type whose JSON shape is not
+// its Go shape. An IP address is a struct in Go and a string in JSON. The SDK
+// validates every result against the schema before it sends it.
 var schemaTypes = map[reflect.Type]*jsonschema.Schema{
 	reflect.TypeFor[netip.Addr](): {Type: "string", Description: "An IPv4 or IPv6 address."},
 
-	// A cursor travels as the opaque token it encodes itself to.
+	// A cursor goes as the opaque token that it encodes itself to.
 	reflect.TypeFor[inventory.Cursor](): {Type: "string", Description: "An opaque page cursor."},
 }
 
-// schemaFor infers the schema of T, a tool's input or output, with the
-// overrides in schemaTypes applied.
+// schemaFor infers the schema of T, the input or output of a tool. It applies
+// the overrides in schemaTypes.
 //
-// A tool's types are fixed structs, so a failure here happens on every start
-// or never; mcpsdk.AddTool panics on a bad schema for the same reason.
+// The types of a tool are fixed structs. So a failure here happens on every
+// start, or never. For the same reason, mcpsdk.AddTool panics on a bad
+// schema.
 func schemaFor[T any]() *jsonschema.Schema {
 	s, err := jsonschema.For[T](&jsonschema.ForOptions{TypeSchemas: schemaTypes})
 	if err != nil {
@@ -84,8 +85,8 @@ func schemaFor[T any]() *jsonschema.Schema {
 	return s
 }
 
-// readOnly is the annotation every tool that only reads the inventory carries:
-// it changes nothing and reaches nothing outside the recorded inventory.
+// readOnly is the annotation of every tool that only reads the inventory. The
+// tool changes nothing, and reaches nothing outside the recorded inventory.
 func readOnly() *mcpsdk.ToolAnnotations {
 	return &mcpsdk.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: new(false)}
 }

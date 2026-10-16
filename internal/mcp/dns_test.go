@@ -17,7 +17,8 @@ func TestListDNS(t *testing.T) {
 	store := seededStore(t)
 	cs := connect(t, listDNS(store, time.Now))
 
-	// Before any resolver is read, the answer says nothing collects lookups.
+	// Before a resolver is read, the answer tells that no source collects
+	// lookups.
 	out := decodeAs[listDNSOutput](t, callTool(t, cs, "list_dns", map[string]any{"device_id": 1}))
 	assert.False(t, out.Recorded)
 	assert.NotNil(t, out.Names, "empty, not absent")

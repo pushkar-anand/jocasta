@@ -14,7 +14,8 @@ func TestGetStats(t *testing.T) {
 	store := seededStore(t)
 	cs := connect(t, getStats(store))
 
-	// An ignored device is still counted, and counted again as ignored.
+	// The total still counts an ignored device. The ignored count also counts
+	// it.
 	devices, err := store.ListDevices(t.Context(), inventory.DeviceFilter{Query: "nas"})
 	require.NoError(t, err)
 	require.Len(t, devices, 1)

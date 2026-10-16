@@ -61,8 +61,8 @@ func TestListEvents(t *testing.T) {
 		}
 	})
 
-	// Following next_cursor one event at a time reads the same log, in the same
-	// order, as reading it in one go.
+	// A walk with next_cursor, one event at a time, reads the same log in the
+	// same order as one read.
 	t.Run("paging walks the whole log", func(t *testing.T) {
 		t.Parallel()
 
@@ -120,8 +120,8 @@ func TestListEvents(t *testing.T) {
 	})
 }
 
-// The description names every event kind, so an agent can filter without
-// guessing; a kind added to dbtype reaches it without an edit here.
+// The description names every event kind. So an agent can filter without a
+// guess. A new kind in dbtype reaches it without an edit here.
 func TestListEventsDescribesEveryKind(t *testing.T) {
 	t.Parallel()
 

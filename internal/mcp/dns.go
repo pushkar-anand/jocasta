@@ -20,15 +20,15 @@ type listDNSInput struct {
 
 // listDNSOutput is the names one device looked up.
 type listDNSOutput struct {
-	// Recorded is false when no resolver's log has ever been read, meaning
-	// nothing is collecting lookups. A device that looked nothing up reports
-	// true.
+	// Recorded is false when Jocasta never read the log of a resolver. This
+	// means that no source collects lookups. A device that looked up nothing
+	// reports true.
 	Recorded bool                 `json:"recorded"`
 	Since    time.Time            `json:"since"`
 	Names    []*inventory.DNSName `json:"names"`
 }
 
-// listDNS offers one device's lookups.
+// listDNS gives the lookups of one device.
 func listDNS(store *inventory.Store, now func() time.Time) func(*mcpsdk.Server, *slog.Logger) {
 	t := &mcpsdk.Tool{
 		Name:  "list_dns",
@@ -78,7 +78,7 @@ func listDNS(store *inventory.Store, now func() time.Time) func(*mcpsdk.Server, 
 	return func(s *mcpsdk.Server, log *slog.Logger) { addTool(s, log, t, handler) }
 }
 
-// listDNSSchema is the schema inferred from listDNSInput, with its bounds.
+// listDNSSchema is the schema inferred from listDNSInput, with its limits.
 func listDNSSchema() *jsonschema.Schema {
 	s := schemaFor[listDNSInput]()
 

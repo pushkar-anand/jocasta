@@ -15,7 +15,7 @@ func TestGetPortOverview(t *testing.T) {
 
 	store := seededStore(t)
 
-	// Both devices answer ssh; only the first answers http.
+	// Both devices answer ssh. Only the first answers http.
 	_, err := store.RecordPorts(t.Context(), "test-sweep", []scanner.PortScan{
 		{Addr: netip.MustParseAddr("192.0.2.10"), Open: []uint16{22, 80}, Scanned: []uint16{22, 80}},
 		{Addr: netip.MustParseAddr("192.0.2.11"), Open: []uint16{22}, Scanned: []uint16{22, 80}},

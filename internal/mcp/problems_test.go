@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// problemOf decodes the problem document a failed tool call carries as its
+// problemOf decodes the problem document that a failed tool call has as its
 // text.
 func problemOf(t *testing.T, res *mcpsdk.CallToolResult) map[string]any {
 	t.Helper()
@@ -33,7 +33,7 @@ func problemOf(t *testing.T, res *mcpsdk.CallToolResult) map[string]any {
 	return doc
 }
 
-// failingTool registers a tool, through addTool, whose handler returns err.
+// failingTool registers a tool through addTool. Its handler returns err.
 func failingTool(name string, err error) func(*mcpsdk.Server, *slog.Logger) {
 	return func(s *mcpsdk.Server, log *slog.Logger) {
 		addTool(s, log, &mcpsdk.Tool{Name: name}, func(
@@ -53,8 +53,8 @@ func callFailing(t *testing.T, cs *mcpsdk.ClientSession, name string) map[string
 	return problemOf(t, res)
 }
 
-// An error the API maps to a problem of its own is described the same way
-// here, with the tool standing where the API puts the request path.
+// If the API maps an error to its own problem, the description here is the
+// same. The tool replaces the request path of the API.
 func TestToolErrorTheAPIRecognisesIsItsProblem(t *testing.T) {
 	t.Parallel()
 
@@ -71,8 +71,8 @@ func TestToolErrorTheAPIRecognisesIsItsProblem(t *testing.T) {
 	}, doc)
 }
 
-// An unexpected error is logged and answered with a bare 500: its text can
-// name storage internals, which belong in the server log.
+// The handler logs an unexpected error and answers with a bare 500. Its text
+// can name storage internals, which belong only in the server log.
 func TestToolErrorThatIsUnexpectedIsLoggedNotShown(t *testing.T) {
 	t.Parallel()
 

@@ -27,10 +27,10 @@ func tcp(src, dst string, dstPort uint16, bytes uint64) plugin.Flow {
 	}
 }
 
-// trafficStore is seededStore with traffic recorded: the printer (1) reaches
-// the NAS (2) and two public resolvers of one organisation, the NAS reaches
-// another. The public addresses are the ones the asn tests use. The printer
-// looked up one name, answered with the first resolver.
+// trafficStore is seededStore with recorded traffic. The printer (1) reaches
+// the NAS (2) and two public resolvers of one organisation. The NAS reaches a
+// different one. The public addresses are the ones that the asn tests use. The
+// printer looked up one name, and the answer was the first resolver.
 func trafficStore(t *testing.T) *inventory.Store {
 	t.Helper()
 
@@ -136,7 +136,7 @@ func TestListTraffic(t *testing.T) {
 	})
 }
 
-// A group narrows the summary to its devices and the organisations they
+// A group limits the summary to its devices and the organisations that they
 // reached.
 func TestListTrafficNarrowsToAGroup(t *testing.T) {
 	t.Parallel()
@@ -161,7 +161,7 @@ func TestListTrafficReportsProbingAndAttempts(t *testing.T) {
 
 	store := trafficStore(t)
 
-	// The printer pings 25 addresses nobody answers from.
+	// The printer pings 25 addresses that do not answer.
 	var flows []plugin.Flow
 	for i := 1; i <= 25; i++ {
 		flows = append(flows, plugin.Flow{
@@ -189,8 +189,8 @@ func TestListTrafficReportsProbingAndAttempts(t *testing.T) {
 	assert.Empty(t, out.Attempts, "the NAS tried nothing")
 }
 
-// Nothing collecting reads differently from a quiet network, and the lists
-// are empty arrays.
+// The answer when no source collects is different from a quiet network. The
+// lists are empty arrays.
 func TestListTrafficWithNothingRecorded(t *testing.T) {
 	t.Parallel()
 
@@ -203,8 +203,8 @@ func TestListTrafficWithNothingRecorded(t *testing.T) {
 	assert.NotNil(t, out.Device.Internet)
 }
 
-// The network summary says what the internet reached and what it tried: the
-// NAS's 443 opened from outside, and a knock on its 22 that carried nothing.
+// The network summary tells what the internet reached and what it tried. Port
+// 443 of the NAS opened from outside. A knock on its 22 carried nothing.
 func TestListTrafficReportsIncomingAndProbes(t *testing.T) {
 	t.Parallel()
 
