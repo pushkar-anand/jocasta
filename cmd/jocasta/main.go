@@ -47,7 +47,7 @@ func run(args []string) error {
 
 	var cli CLI
 
-	parser, err := newParser(&cli, kong.BindTo(ctx, (*context.Context)(nil)))
+	parser, err := buildCLIParser(&cli, kong.BindTo(ctx, (*context.Context)(nil)))
 	if err != nil {
 		return fmt.Errorf("init cli: %w", err)
 	}
