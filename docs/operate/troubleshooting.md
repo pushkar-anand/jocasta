@@ -1,46 +1,48 @@
 # Fix common problems
 
-Not listed here? Ask in
-[GitHub issues](https://github.com/pushkar-anand/jocasta/issues) with the log
-lines around the problem.
+If your problem is not on this page, ask in
+[GitHub issues](https://github.com/pushkar-anand/jocasta/issues). Include the
+log lines around the problem.
 
 ## Devices have no hardware address or vendor
 
-On a bridge network, the container reads its own neighbour table, which holds
-none of your devices. Use `--network host`.
+On a bridge network, the container reads its own neighbour table. This
+table contains none of your devices. Use `--network host`.
 
-Devices on other segments need a [router plugin](../plugins/index.md).
+For devices on other segments, add a [router plugin](../plugins/index.md).
 
 ## One phone shows up as several devices
 
-It makes up a new hardware address now and then, and each one is a new
-device. Untouched ones are deleted after 90 days. On your own phone, turn off
-the private address for your home Wi-Fi.
+The phone makes up a new hardware address from time to time. Each address
+is a new device. Jocasta deletes the devices that you did not edit after 90
+days. On your own phone, turn off the private address for your home Wi-Fi.
 
 ## A device is missing
 
-The sweep finds devices that answer ping. Windows drops ping by default. A
-[router plugin](../plugins/index.md) lists such devices from the router's
-tables.
+The sweep finds only devices that answer ping. By default, Windows does not
+answer ping. A [router plugin](../plugins/index.md) finds such devices in the
+tables of the router.
 
 ## "no usable ICMP socket"
 
-A binary run without root needs unprivileged ICMP for its group:
+If you run the binary without root, its group must be allowed to use
+unprivileged ICMP. To see the allowed groups, run:
 
 ```bash
 sysctl net.ipv4.ping_group_range
 ```
 
-Widen the range to cover Jocasta's group, or use the container image.
+Make the range include the group of Jocasta, or use the container image.
 
 ## No mDNS, DNS-SD or SSDP names
 
-These reach Jocasta's own segment only, and DNS-SD and SSDP need multicast.
-Use `--network host`. See [How names are chosen](../naming.md).
+These lookups reach only the segment of Jocasta. DNS-SD and SSDP also need
+multicast. Use `--network host`. See [How names are chosen](../naming.md).
 
 ## The sign-in page keeps coming back
 
-The session cookie is HTTPS-only. See [Serve over HTTPS](https.md).
+By default, the session cookie works only over HTTPS. See
+[Serve over HTTPS](https.md).
 
 ## A form shows "Cross-origin request refused"
 
@@ -49,26 +51,27 @@ Your reverse proxy changes the `Host` header. See
 
 ## A plugin reads as "source rejected credentials"
 
-Test it alone: `jocasta plugin run gateway`.
+Test the plugin alone: `jocasta plugin run gateway`.
 
-- RouterOS: the user needs read access, and the `www-ssl` service on, or
-  `www` with `ssl: false`.
+- RouterOS: the user needs read access. The `www-ssl` service must be on. Or
+  the `www` service must be on, with `ssl: false`.
 - OpenWrt: the login needs the [ACL file](../plugins/openwrt.md).
-- Technitium: the token's user needs View on Logs.
-- An environment variable beats the file. Check both.
+- Technitium: the user of the token needs View on Logs.
+- An environment variable wins over the file. Check both.
 
 ## The Traffic page stays empty
 
-- `exporters` must list the address the exports come from. The log warns
-  "dropping datagrams from a sender not listed in exporters" with that
-  address.
+- `exporters` must list the address that the exports come from. If it does
+  not, the log shows the warning "dropping datagrams from a sender not listed
+  in exporters", with that address.
 - On a bridge network, publish the port as UDP: `-p 2055:2055/udp`.
-- Open the listen port in the host's firewall.
+- Open the listen port in the firewall of the host.
 
 ## Every DNS lookup is counted against the router
 
-The router forwards its clients' lookups. Hand out the resolver's address in
-the router's DHCP settings. See [Record what devices look up](../plugins/dns.md).
+The router forwards the lookups of its clients. In the DHCP settings of the
+router, give out the address of the resolver. See
+[Record what devices look up](../plugins/dns.md).
 
 ## Times are hours off
 
@@ -77,9 +80,10 @@ The container runs in UTC. Set `location.timezone`, such as
 
 ## A notification did not arrive
 
-The account menu's **Notifications** page shows the last error under the
-destination. **Send test** tries again. Failed messages are not resent.
+In the account menu, the **Notifications** page shows the last error under
+the destination. To try again, select **Send test**. Jocasta does not send a
+failed message again.
 
 ## An MCP client gets a 404
 
-Set `server.mcp.enabled: true` and restart.
+Set `server.mcp.enabled: true`, then restart Jocasta.

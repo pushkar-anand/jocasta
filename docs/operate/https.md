@@ -1,15 +1,16 @@
 # Serve over HTTPS
 
-Jocasta speaks plain HTTP. Put a reverse proxy with a certificate in front of
-it.
+Jocasta serves only plain HTTP. Put a reverse proxy with a certificate in
+front of it.
 
-The session cookie is HTTPS-only by default, so plain HTTP sign-in from any
-address but `localhost` needs `server.auth.cookie_secure: false`. Remove it
-once the proxy is up.
+By default, the session cookie works only over HTTPS. So to sign in over
+plain HTTP from an address other than `localhost`, set
+`server.auth.cookie_secure: false`. When the proxy works, remove this
+setting.
 
 ## Caddy
 
-[Caddy](https://caddyserver.com) fetches and renews the certificate. On the
+[Caddy](https://caddyserver.com) gets and renews the certificate. On the
 same machine:
 
 ```
@@ -18,20 +19,21 @@ jocasta.example.com {
 }
 ```
 
-For a name only your network resolves, add `tls internal`. Caddy then signs
-the certificate itself, and each browser has to trust it once.
+If only your network resolves the name, add `tls internal`. Caddy then
+signs the certificate itself. Each browser must trust it once.
 
 ## Other proxies
 
-Pass the `Host` header through unchanged. Jocasta checks it against `Origin`
-to refuse cross-site form posts from browsers that send no `Sec-Fetch-Site`.
-In nginx: `proxy_set_header Host $host;`.
+Pass the `Host` header through without a change. Jocasta compares it with
+`Origin`. This lets Jocasta refuse cross-site form posts from browsers that
+do not send `Sec-Fetch-Site`. In nginx, use `proxy_set_header Host $host;`.
 
 ## Name the proxy
 
-Sign-in attempts are limited per client address. Behind a proxy every request
-comes from the proxy's address, so all clients share one allowance until
-Jocasta knows to read the client from `X-Forwarded-For`:
+Jocasta limits sign-in attempts for each client address. Behind a proxy,
+every request comes from the address of the proxy. So all clients share one
+limit. To prevent this, tell Jocasta to read the client address from
+`X-Forwarded-For`:
 
 ```yaml
 server:
@@ -39,16 +41,18 @@ server:
     - "127.0.0.1"
 ```
 
-List each proxy's address or range. Caddy, nginx and Traefik set the header.
+List the address or range of each proxy. Caddy, nginx and Traefik set the
+header.
 
 ## Close the plain port
 
-With the proxy on the same machine, listen on loopback only:
+If the proxy is on the same machine, listen only on loopback:
 
 ```yaml
 server:
   host: "127.0.0.1"
 ```
 
-The container image sets `JOCASTA_SERVER__HOST=0.0.0.0`, which wins over the
-file. Pass `-e JOCASTA_SERVER__HOST=127.0.0.1` to `docker run` instead.
+The container image sets `JOCASTA_SERVER__HOST=0.0.0.0`, and this value wins
+over the file. So in a container, pass `-e JOCASTA_SERVER__HOST=127.0.0.1` to
+`docker run` instead.
