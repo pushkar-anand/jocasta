@@ -1,8 +1,10 @@
 # Plugins
 
-Plugins read what a sweep cannot reach: routers for devices on every segment
-and what is plugged in where, flow exports for who talks to whom, and DNS
-resolvers for what devices look up.
+Plugins read what a sweep cannot reach:
+
+- A router gives the devices on every segment, and what is connected where.
+- A flow export gives who talks to whom.
+- A DNS resolver gives what devices look up.
 
 | Plugin | Devices and networks | Topology | Traffic | DNS lookups |
 |---|---|---|---|---|
@@ -15,8 +17,8 @@ resolvers for what devices look up.
 
 ## Configure a plugin
 
-Each plugin is a block under `plugins`, keyed by kind, then by an instance
-name you choose:
+Each plugin is a block under `plugins`. The first key is the plugin kind.
+The second key is an instance name that you choose:
 
 ```yaml
 plugins:
@@ -27,18 +29,19 @@ plugins:
       # ...
 ```
 
-The instance name is the [source](../concepts.md#sources) its facts are filed
-under. Router and DNS resolver names share one namespace: a `routeros` and a
-`technitium` instance cannot both be `gateway`. A `netflow` listener can share
-its router's name.
+The instance name is the [source](../concepts.md#sources) of the facts that
+the plugin records. Routers and DNS resolvers share one set of names. For
+example, a `routeros` instance and a `technitium` instance cannot both be
+`gateway`. A `netflow` listener can have the same name as its router.
 
 Put passwords in the environment, such as
-`JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD`; see
-[Configure](../configuration.md). Every setting is in the
-[configuration reference](../reference/configuration.md#plugins).
+`JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD`. See
+[Configure](../configuration.md). The
+[configuration reference](../reference/configuration.md#plugins) lists every
+setting.
 
-A source with `ssl: false` sends its password in the clear, and Jocasta warns
-at startup.
+A source with `ssl: false` sends its password as plain text. Jocasta shows a
+warning when it starts.
 
 ## Check a plugin
 
@@ -46,16 +49,16 @@ at startup.
 jocasta plugin run gateway
 ```
 
-reads the source once and prints what it claims. It changes nothing. See
-[CLI](../cli.md#plugin-run).
+This command reads the source once and prints what the source reports. It
+changes nothing. See [CLI](../cli.md#plugin-run).
 
 ## Topology
 
-A MikroTik or OpenWrt router draws the Topology page. Read its switches and
-access points too for each device's port. See
+The Topology page comes from a MikroTik or OpenWrt router. To see the port
+of each device, also read the switches and access points. See
 [Show what is plugged in where](topology.md).
 
 ## DNS resolvers
 
-Technitium, Pi-hole and AdGuard Home give each device's lookups. See
+Technitium, Pi-hole and AdGuard Home give the lookups of each device. See
 [Record what devices look up](dns.md).

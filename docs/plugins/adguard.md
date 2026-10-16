@@ -2,8 +2,8 @@
 
 Jocasta reads the query log of an
 [AdGuard Home](https://adguard.com/adguard-home/overview.html) over its API.
-What is recorded, and how to route lookups so each device asks AdGuard Home
-directly, is in [Record what devices look up](dns.md).
+[Record what devices look up](dns.md) tells what Jocasta records. It also
+tells how to make each device ask AdGuard Home directly.
 
 ```yaml
 plugins:
@@ -17,19 +17,19 @@ plugins:
       password: "change-me"
 ```
 
-Put the web interface login in `user` and `password`, or the password in
-`JOCASTA_PLUGINS__ADGUARD__RESOLVER__PASSWORD`. AdGuard Home has no read-only
-users, so the login can change settings too. On a server with no login set,
-leave `user` empty.
+Put the web interface login in `user` and `password`. You can also put the
+password in `JOCASTA_PLUGINS__ADGUARD__RESOLVER__PASSWORD`. AdGuard Home has
+no read-only users, so the login can also change settings. If the server has
+no login, leave `user` empty.
 
-In AdGuard Home's settings, keep the query log on and client address
-anonymisation off. An anonymised address names no device, so its lookups
-count against none.
+In the settings of AdGuard Home, keep the query log on. Keep client address
+anonymisation off. An anonymised address names no device, so Jocasta counts
+its lookups against no device.
 
-Each read takes at most 20,000 lookups. If more pile up while Jocasta is
-stopped, it keeps the newest and logs that it skipped the rest.
+Each read takes at most 20,000 lookups. If more lookups collect while Jocasta
+is stopped, it keeps the newest. It logs that it skipped the rest.
 
 ## All settings
 
-Every `plugins.adguard` setting, with its default and allowed values, is in the
-[configuration reference](../reference/configuration.md#pluginsadguard).
+The [configuration reference](../reference/configuration.md#pluginsadguard)
+lists every `plugins.adguard` setting, with its default and allowed values.
