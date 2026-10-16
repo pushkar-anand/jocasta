@@ -22,7 +22,7 @@ import (
 )
 
 type PluginCmd struct {
-	Run PluginRunCmd `cmd:"" help:"Read one configured source and print what it claims."`
+	Run PluginRunCmd `cmd:"" help:"Read and print the result from the configured source."`
 }
 
 type PluginRunCmd struct {
