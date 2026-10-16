@@ -8,31 +8,32 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// errNotReady is a task reporting it is blocked on another task's output. The
-// poller retries it after notReadyRetry.
+// errNotReady means that a task waits for the output of a different task. The
+// poller tries it again after notReadyRetry.
 var errNotReady = errors.New("task has nothing to work on yet")
 
-// notReadyRetry replaces a task's own interval for the one cycle after it
-// returns errNotReady. Short, because whatever it waits on is produced by a
-// task that runs far more often than it does.
+// notReadyRetry replaces the interval of a task for one cycle after it returns
+// errNotReady. It is short, because the task that it waits for runs much more
+// often.
 const notReadyRetry = time.Minute
 
 type task interface {
-	// Name identifies the task in logs, and is the key its last run is stored
-	// under: renaming a task loses its schedule once.
+	// Name identifies the task in logs. It is also the key of its last run.
+	// So a new name loses its schedule one time.
 	Name() string
 	Interval() time.Duration
 	Run(ctx context.Context) error
 }
 
-// History is where the poller keeps when each task last finished a run, so
-// that a restart resumes every schedule instead of running everything at once.
+// History is where the poller keeps the time when each task last finished a
+// run. So a restart continues every schedule, and does not run everything at
+// once.
 type History interface {
-	// LastRun returns when task last finished a run, or an error wrapping
-	// [inventory.ErrNotFound] when it never has.
+	// LastRun returns when task last finished a run. If it never did, it
+	// returns an error that wraps [inventory.ErrNotFound].
 	LastRun(ctx context.Context, task string) (time.Time, error)
-	// RecordRun stores at as when task last finished a run, and runErr as why
-	// it failed, nil when it did not.
+	// RecordRun stores at as the time when task last finished a run. It
+	// stores runErr as the reason of a failure, or nil.
 	RecordRun(ctx context.Context, task string, at time.Time, runErr error) error
 }
 

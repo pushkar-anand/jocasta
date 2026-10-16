@@ -10,11 +10,11 @@ import (
 )
 
 // pruneInterval is how often the prune runs. The delete is an indexed range
-// scan, so running hourly costs little and keeps the logs within an hour of
+// scan. So an hourly run costs little, and keeps the logs within an hour of
 // the window.
 const pruneInterval = time.Hour
 
-// Prune deletes the records and uncurated devices that have aged past their
+// Prune deletes the records and uncurated devices that are older than their
 // retention windows.
 type Prune struct {
 	store     *inventory.Store
@@ -35,13 +35,13 @@ func NewPrune(log *slog.Logger, store *inventory.Store, r inventory.Retention) *
 	}
 }
 
-// Name returns the identifier used in logs and scheduling.
+// Name returns the identifier for logs and scheduling.
 func (p *Prune) Name() string { return "pruner" }
 
 // Interval returns how often the prune runs.
 func (p *Prune) Interval() time.Duration { return pruneInterval }
 
-// Run deletes whatever has aged past the retention window.
+// Run deletes everything that is older than the retention window.
 func (p *Prune) Run(ctx context.Context) error {
 	res, err := p.store.Prune(ctx, p.retention)
 	if err != nil {

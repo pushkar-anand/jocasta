@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// stubDiscoverer is a source that answers with whatever it was given.
+// stubDiscoverer is a source that answers with what it got.
 type stubDiscoverer struct {
 	name  string
 	facts []plugin.Fact
@@ -36,7 +36,7 @@ func (s *stubDiscoverer) Discover(context.Context) ([]plugin.Fact, error) {
 	return s.facts, s.err
 }
 
-// discoveredFact is what a router claims about one device.
+// discoveredFact is what a router says about one device.
 func discoveredFact(t *testing.T, ip, mac string) plugin.Fact {
 	t.Helper()
 
@@ -46,7 +46,7 @@ func discoveredFact(t *testing.T, ip, mac string) plugin.Fact {
 	return plugin.Fact{Host: h, Present: true}
 }
 
-// newDiscoveryTask builds a device task with no networks to sweep, so Run
+// newDiscoveryTask builds a device task with no networks to sweep. So Run
 // exercises only the sources.
 func newDiscoveryTask(t *testing.T, ds ...plugin.HostDiscoverer) (*Device, *sql.DB) {
 	t.Helper()
@@ -83,13 +83,13 @@ func TestRunRecordsWhatEachSourceKnows(t *testing.T) {
 	assert.Equal(t, 1, one.calls)
 	assert.Equal(t, 1, two.calls)
 
-	// Each source files its own row, so the two stay distinguishable.
+	// Each source has its own row, so the two stay separate.
 	assert.Equal(t, []string{"routeros:gateway", "routeros:rack"}, sourceNames(t, conn))
 	assert.Equal(t, 2, countRows(t, conn, `SELECT count(*) FROM devices`))
 }
 
-// A source that cannot be read must not cost the sweep or the other sources
-// their readings.
+// If a source cannot be read, the sweep and the other sources must keep their
+// readings.
 func TestRunIsolatesAFailedSource(t *testing.T) {
 	t.Parallel()
 
@@ -106,8 +106,8 @@ func TestRunIsolatesAFailedSource(t *testing.T) {
 	assert.Equal(t, 1, countRows(t, conn, `SELECT count(*) FROM devices`))
 }
 
-// A source that returns facts beside an error breaks the contract; the facts
-// are not recorded.
+// A source that returns facts with an error breaks the contract. The task does
+// not record the facts.
 func TestRunRecordsNothingFromAFailedRead(t *testing.T) {
 	t.Parallel()
 
@@ -123,7 +123,8 @@ func TestRunRecordsNothingFromAFailedRead(t *testing.T) {
 	assert.Zero(t, countRows(t, conn, `SELECT count(*) FROM devices`))
 }
 
-// segmentDiscoverer is a source that also describes the segments it serves.
+// segmentDiscoverer is a source that also describes the segments that it
+// serves.
 type segmentDiscoverer struct {
 	stubDiscoverer
 
@@ -161,14 +162,14 @@ func TestRunRecordsTheSegmentsASourceServes(t *testing.T) {
 	assert.Equal(t, 1, src.netCalls)
 	assert.Equal(t, 1, countRows(t, conn, `SELECT count(*) FROM networks WHERE name = 'Home' AND vlan_id = 10`))
 
-	// The segment was recorded before the facts were, so the address landed on
+	// The task recorded the segment before the facts. So the address went to
 	// it.
 	assert.Equal(t, 1, countRows(t, conn,
 		`SELECT count(*) FROM addresses WHERE network_id IS NOT NULL`))
 }
 
-// The segments only decorate the devices, so a source that will not describe
-// them is still read for what it knows.
+// The segments only add names to the devices. So the task still reads a source
+// that does not describe them.
 func TestRunKeepsTheDevicesWhenTheSegmentsCannotBeRead(t *testing.T) {
 	t.Parallel()
 
@@ -188,7 +189,7 @@ func TestRunKeepsTheDevicesWhenTheSegmentsCannotBeRead(t *testing.T) {
 	assert.Zero(t, countRows(t, conn, `SELECT count(*) FROM networks`))
 }
 
-// Only a source that can describe its segments is asked for them.
+// The task asks only a source that can describe its segments for them.
 func TestRunAsksOnlyTheSourcesThatKnowTheirSegments(t *testing.T) {
 	t.Parallel()
 
@@ -205,8 +206,8 @@ func TestRunAsksOnlyTheSourcesThatKnowTheirSegments(t *testing.T) {
 	assert.Zero(t, countRows(t, conn, `SELECT count(*) FROM networks`))
 }
 
-// A device the run discovers has its ports scanned in the same run; one it
-// already knew waits for the full port scan.
+// The run scans the ports of a device that it finds in the same run. A device
+// that it already knew waits for the full port scan.
 func TestRunPortScansTheDevicesItDiscovered(t *testing.T) {
 	t.Parallel()
 

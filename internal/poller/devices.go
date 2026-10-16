@@ -15,14 +15,14 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 )
 
-// Device sweeps networks and asks every configured source which devices it
-// knows about, recording both.
+// Device sweeps networks, and asks every configured source which devices it
+// knows. It records both.
 //
-// One task and one schedule for both, because they answer the same question and
-// are judged by the same online window. Two intervals would give the operator
-// two knobs for "which devices are here now" and assemble the device list from
-// readings taken at unrelated moments. A capability that answers a different
-// question, such as which port a device is plugged into, gets its own task.
+// Both share one task and one schedule, because they answer the same question
+// and use the same online window. Two intervals would give the operator two
+// settings for "which devices are here now". The device list would then come
+// from readings at unrelated times. A capability that answers a different
+// question gets its own task, such as the port that a device connects to.
 type Device struct {
 	scanner     *scanner.Scanner
 	store       *inventory.Store
@@ -37,15 +37,16 @@ type Device struct {
 // DeviceOption configures a Device.
 type DeviceOption func(*Device)
 
-// WithDiscoverers adds the sources asked for devices after each sweep.
+// WithDiscoverers adds the sources that the task asks for devices after each
+// sweep.
 func WithDiscoverers(ds ...plugin.HostDiscoverer) DeviceOption {
 	return func(d *Device) {
 		d.discoverers = append(d.discoverers, ds...)
 	}
 }
 
-// WithPortScan has each run port-scan the devices it discovered, through the
-// port-scan task, instead of leaving them to its next full scan.
+// WithPortScan makes each run port-scan the devices that it found, through the
+// port-scan task. Without it, they wait for the next full scan.
 func WithPortScan(p *Ports) DeviceOption {
 	return func(d *Device) {
 		d.ports = p
@@ -54,9 +55,9 @@ func WithPortScan(p *Ports) DeviceOption {
 
 // NewDevice builds the task that sweeps networks and records what answered.
 //
-// source names the vantage point the sweep is taken from and is resolved by the
-// caller: what a deployment calls itself is a wiring question, and the task
-// stays testable without one.
+// source names the place from which the sweep runs. The caller resolves it.
+// The name of a deployment is a question for the wiring code. So the task
+// stays testable without a name.
 func NewDevice(
 	log *slog.Logger,
 	sc *scanner.Scanner,
@@ -97,22 +98,22 @@ func NewDevice(
 	return d, nil
 }
 
-// Interval returns the polling period configured for this device task.
+// Interval returns the configured polling period of this device task.
 func (d *Device) Interval() time.Duration {
 	return d.interval
 }
 
-// Name returns the identifier used in logs and scheduling.
+// Name returns the identifier for logs and scheduling.
 func (d *Device) Name() string {
 	return "device_scanner"
 }
 
-// Run sweeps every configured network, then asks every source what it knows,
-// and persists both.
+// Run sweeps every configured network, then asks every source what it knows.
+// It stores both.
 //
-// Sources are isolated from each other and from the sweep the same way the
-// networks already are: an expired router credential contributes no facts and
-// leaves everything else recorded.
+// Sources are separate from each other and from the sweep, as the networks
+// are. An expired router credential gives no facts, but everything else is
+// still recorded.
 func (d *Device) Run(ctx context.Context) error {
 	var (
 		errs  []error
@@ -137,8 +138,8 @@ func (d *Device) Run(ctx context.Context) error {
 		fresh = append(fresh, found...)
 	}
 
-	// The next full port scan covers them anyway, so a failure here is not the
-	// run's.
+	// The next full port scan also covers them. So a failure here is not a
+	// failure of the run.
 	if d.ports != nil && len(fresh) > 0 {
 		if err := d.ports.ScanNew(ctx, fresh); err != nil {
 			d.logger.WarnContext(ctx, "could not port-scan the new devices; the next full port scan will", logger.Err(err))
@@ -153,8 +154,8 @@ func (d *Device) Run(ctx context.Context) error {
 }
 
 // scanAndSaveNetwork sweeps network, records the result, and returns the
-// addresses of the devices it discovered. A failed sweep returns without
-// recording a successful inventory update.
+// addresses of the devices that it found. A failed sweep returns, and records
+// no successful inventory update.
 func (d *Device) scanAndSaveNetwork(ctx context.Context, network *netip.Prefix) ([]netip.Addr, error) {
 	result, err := d.scanner.Scan(ctx, *network)
 	if err != nil {
@@ -172,16 +173,14 @@ func (d *Device) scanAndSaveNetwork(ctx context.Context, network *netip.Prefix) 
 }
 
 // discoverAndSave asks one source what it knows, records the answer, and
-// returns the addresses of the devices it discovered.
+// returns the addresses of the devices that it found.
 //
-// Facts and an error together are a source half-read, with one table
-// answering while another timed out. The facts that arrived are true, so they
-// are recorded and the failure is logged. Only a read that returned nothing is
-// a failure worth propagating.
+// If the source returns an error, discoverAndSave records nothing from it and
+// returns the error.
 func (d *Device) discoverAndSave(ctx context.Context, p plugin.HostDiscoverer) ([]netip.Addr, error) {
-	// Segments before devices: ingest matches each address to a recorded
-	// network, so a VLAN the sweep list omits must exist before the facts that
-	// belong to it land.
+	// Segments come before devices. Ingest matches each address to a recorded
+	// network. So a VLAN that is not in the sweep list must exist before its
+	// facts arrive.
 	if np, ok := p.(plugin.NetworkDiscoverer); ok {
 		d.recordNetworks(ctx, np)
 	}
@@ -202,11 +201,12 @@ func (d *Device) discoverAndSave(ctx context.Context, p plugin.HostDiscoverer) (
 	return saved.New, nil
 }
 
-// recordNetworks learns what the source calls the segments it serves.
+// recordNetworks learns the names that the source gives the segments that it
+// serves.
 //
-// Failing costs the segments their names and nothing else, so it is only
-// logged: a router that will not list its addresses can still say which
-// devices are on them.
+// A failure loses only the names of the segments. So recordNetworks only logs
+// it. A router that does not list its addresses can still tell which devices
+// are on them.
 func (d *Device) recordNetworks(ctx context.Context, p plugin.NetworkDiscoverer) {
 	nets, err := p.Networks(ctx)
 	if err != nil {

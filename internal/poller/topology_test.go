@@ -52,8 +52,8 @@ func TestTopologyName(t *testing.T) {
 	assert.Equal(t, "topology_reader", task.Name())
 }
 
-// One source failing leaves the others recorded. A source that returns ports
-// beside an error has failed, and nothing it returned is recorded.
+// If one source fails, the task still records the others. A source that
+// returns ports with an error has failed. The task records nothing from it.
 func TestTopologyRunRecordsWhatAnswered(t *testing.T) {
 	t.Parallel()
 
