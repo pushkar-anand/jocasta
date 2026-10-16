@@ -28,9 +28,8 @@ type switchTables struct {
 	links     []routeros.Link
 }
 
-// Topology reads what is plugged into the router. A table that fails is
-// reported in the error alongside what the other tables returned. The
-// Topology is empty only when no table said anything about a port.
+// Topology reads what is plugged into the router. Every table that fails is
+// named in the error.
 func (r *RouterOS) Topology(ctx context.Context) (Topology, error) {
 	var (
 		t    switchTables
@@ -71,11 +70,11 @@ func (r *RouterOS) Topology(ctx context.Context) (Topology, error) {
 	t.regs, err = r.client.Registrations(ctx)
 	read("wifi clients", err)
 
-	if len(t.hosts) == 0 && len(t.neighbors) == 0 && len(t.regs) == 0 && len(errs) > 0 {
-		return Topology{}, errors.Join(errs...)
+	if err := errors.Join(errs...); err != nil {
+		return Topology{}, err
 	}
 
-	return r.buildTopology(ctx, t), errors.Join(errs...)
+	return r.buildTopology(ctx, t), nil
 }
 
 // buildTopology maps the tables onto a Topology.

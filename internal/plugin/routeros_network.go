@@ -3,7 +3,6 @@ package plugin
 import (
 	"cmp"
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/netip"
@@ -16,22 +15,19 @@ import (
 //
 // Two tables again: /ip/address knows every prefix and the interface behind
 // it, and /interface/vlan is the only place the interface name resolves to a
-// tag. The addresses are the answer and the tags decorate it, so losing the
-// second costs only the tags.
+// tag. The addresses are the answer and the tags decorate it.
 func (r *RouterOS) Networks(ctx context.Context) ([]Network, error) {
 	addrs, err := r.client.Addresses(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("read addresses: %w", classifyRouterOS(err))
 	}
 
-	var errs []error
-
 	vlans, err := r.client.VLANs(ctx)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("read vlans: %w", classifyRouterOS(err)))
+		return nil, fmt.Errorf("read vlans: %w", classifyRouterOS(err))
 	}
 
-	return r.buildNetworks(ctx, addrs, byInterface(vlans)), errors.Join(errs...)
+	return r.buildNetworks(ctx, addrs, byInterface(vlans)), nil
 }
 
 // byInterface keys the VLAN table the way an address refers to it. A row whose

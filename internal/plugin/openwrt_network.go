@@ -3,7 +3,6 @@ package plugin
 import (
 	"cmp"
 	"context"
-	"errors"
 	"fmt"
 	"net/netip"
 	"slices"
@@ -15,22 +14,19 @@ import (
 // Networks reads the segments the router serves.
 //
 // The interfaces netifd reports are the answer, and the VLAN devices in the
-// network configuration decorate them with tags, so losing the second costs
-// only the tags.
+// network configuration decorate them with tags.
 func (o *OpenWrt) Networks(ctx context.Context) ([]Network, error) {
 	ifaces, err := o.client.Interfaces(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("read interfaces: %w", classifyOpenWrt(err))
 	}
 
-	var errs []error
-
 	vlans, err := o.client.VLANs(ctx)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("read vlans: %w", classifyOpenWrt(err)))
+		return nil, fmt.Errorf("read vlans: %w", classifyOpenWrt(err))
 	}
 
-	return buildOpenWrtNetworks(ifaces, vlans), errors.Join(errs...)
+	return buildOpenWrtNetworks(ifaces, vlans), nil
 }
 
 // buildOpenWrtNetworks turns the interfaces into segments.

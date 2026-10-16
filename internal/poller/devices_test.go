@@ -106,21 +106,21 @@ func TestRunIsolatesAFailedSource(t *testing.T) {
 	assert.Equal(t, 1, countRows(t, conn, `SELECT count(*) FROM devices`))
 }
 
-// Facts and an error together are one table answering while another timed out.
-// The half that arrived is true, so it is recorded.
-func TestRunRecordsAPartialRead(t *testing.T) {
+// A source that returns facts beside an error breaks the contract; the facts
+// are not recorded.
+func TestRunRecordsNothingFromAFailedRead(t *testing.T) {
 	t.Parallel()
 
-	partial := &stubDiscoverer{
+	failed := &stubDiscoverer{
 		name:  "routeros:gateway",
 		facts: []plugin.Fact{discoveredFact(t, "192.0.2.10", "00:00:5e:00:53:01")},
 		err:   plugin.ErrUnreachable,
 	}
 
-	d, conn := newDiscoveryTask(t, partial)
+	d, conn := newDiscoveryTask(t, failed)
 
-	require.NoError(t, d.Run(t.Context()), "a source that answered in part has not failed")
-	assert.Equal(t, 1, countRows(t, conn, `SELECT count(*) FROM devices`))
+	require.ErrorIs(t, d.Run(t.Context()), plugin.ErrUnreachable)
+	assert.Zero(t, countRows(t, conn, `SELECT count(*) FROM devices`))
 }
 
 // segmentDiscoverer is a source that also describes the segments it serves.

@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/plugin"
 )
@@ -64,19 +63,11 @@ func (t *Topology) Run(ctx context.Context) error {
 	return errors.Join(errs...)
 }
 
-// readAndSave reads one source and records the answer. A partial read is
-// recorded and logged; only a read that returned nothing is an error.
+// readAndSave reads one source and records the answer.
 func (t *Topology) readAndSave(ctx context.Context, r plugin.TopologyReader) error {
 	topo, err := r.Topology(ctx)
-
-	switch {
-	case err != nil && topo.Empty():
+	if err != nil {
 		return fmt.Errorf("read topology from %s: %w", r.Name(), err)
-	case err != nil:
-		t.logger.WarnContext(ctx, "source described its ports in part",
-			slog.String("src", r.Name()),
-			logger.Err(err),
-		)
 	}
 
 	return SaveTopology(ctx, t.store, t.logger, r, topo)

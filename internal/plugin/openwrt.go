@@ -98,48 +98,37 @@ func (o *OpenWrt) Name() string { return o.name }
 func (o *OpenWrt) Kind() dbtype.SourceKind { return dbtype.SourceRouter }
 
 // Discover merges the three tables and the router's own addresses into one
-// fact per device per address. One table failing does not cost the others, so
-// a partial read returns its facts alongside the error.
+// fact per device per address.
 func (o *OpenWrt) Discover(ctx context.Context) ([]Fact, error) {
-	var errs []error
-
 	// The static hosts are read first, since they decide the standing of the
 	// names the leases carry.
 	static, err := o.client.StaticHosts(ctx)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("read static hosts: %w", classifyOpenWrt(err)))
+		return nil, fmt.Errorf("read static hosts: %w", classifyOpenWrt(err))
 	}
 
 	neigh, err := o.client.Neighbours(ctx)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("read neighbours: %w", classifyOpenWrt(err)))
+		return nil, fmt.Errorf("read neighbours: %w", classifyOpenWrt(err))
 	}
 
 	leases, err := o.client.DHCPLeases(ctx)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("read dhcp leases: %w", classifyOpenWrt(err)))
+		return nil, fmt.Errorf("read dhcp leases: %w", classifyOpenWrt(err))
 	}
 
 	// The router's own addresses: its interfaces and the devices under them.
-	// Either read failing costs only those.
-	var (
-		ifaces  []openwrt.Interface
-		devices map[string]openwrt.NetDevice
-	)
-
-	ifaces, err = o.client.Interfaces(ctx)
+	ifaces, err := o.client.Interfaces(ctx)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("read interfaces: %w", classifyOpenWrt(err)))
-	} else if devices, err = o.client.NetworkDevices(ctx); err != nil {
-		errs = append(errs, fmt.Errorf("read network devices: %w", classifyOpenWrt(err)))
+		return nil, fmt.Errorf("read interfaces: %w", classifyOpenWrt(err))
 	}
 
-	facts, err := o.facts(ctx, static, neigh, leases, ifaces, devices)
+	devices, err := o.client.NetworkDevices(ctx)
 	if err != nil {
-		errs = append(errs, err)
+		return nil, fmt.Errorf("read network devices: %w", classifyOpenWrt(err))
 	}
 
-	return facts, errors.Join(errs...)
+	return o.facts(ctx, static, neigh, leases, ifaces, devices)
 }
 
 // facts merges what the three tables said, and the router's own addresses,

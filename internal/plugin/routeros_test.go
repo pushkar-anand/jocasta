@@ -548,19 +548,14 @@ func TestDiscoverMergesBothTables(t *testing.T) {
 	assert.Equal(t, "Server, rack 4U", out[0].Detail["dhcp_comment"])
 }
 
-// Half a router is worth ingesting. The facts that arrived are true whatever
-// happened to the rest, so they come back beside the error.
-func TestDiscoverReturnsWhatItGotWhenOneTableFails(t *testing.T) {
+func TestDiscoverFailsWhenOneTableFails(t *testing.T) {
 	t.Parallel()
 
 	out, err := routerFor(t, liveARP, "").Discover(t.Context())
 
-	require.Error(t, err, "the lease table failed and must say so")
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "dhcp")
-
-	require.Len(t, out, 1, "the arp table answered and its rows stand")
-	assert.Equal(t, "192.0.2.12", out[0].Host.IP)
-	assert.Empty(t, out[0].Host.Hostname(), "the names were in the table that failed")
+	assert.Empty(t, out)
 }
 
 func TestDiscoverReturnsNothingWhenBothTablesFail(t *testing.T) {
@@ -682,8 +677,7 @@ func TestOwnAddressesSkipWhatIsNotASegmentTheRouterServes(t *testing.T) {
 	assert.Empty(t, own(t, addrs, ifaces))
 }
 
-// The address table failing costs only the router's own addresses.
-func TestDiscoverKeepsTheTablesWhenTheOwnAddressesFail(t *testing.T) {
+func TestDiscoverFailsWhenTheOwnAddressesFail(t *testing.T) {
 	t.Parallel()
 
 	out, err := routerAnswering(t, map[string]string{
@@ -694,9 +688,7 @@ func TestDiscoverKeepsTheTablesWhenTheOwnAddressesFail(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "read addresses")
-
-	require.Len(t, out, 1)
-	assert.Equal(t, "host-a", out[0].Host.Hostname())
+	assert.Empty(t, out)
 }
 
 func TestDiscoverReportsTheRoutersOwnAddresses(t *testing.T) {

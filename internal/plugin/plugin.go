@@ -36,9 +36,8 @@ type (
 	HostDiscoverer interface {
 		Plugin
 
-		// Discover reads the source once. Facts and an error can both be
-		// non-empty: one table answering while another times out is half a
-		// router, and the half that arrived is true.
+		// Discover reads the source once. On error the facts are nil: a
+		// source that could not read every table returns none of them.
 		Discover(ctx context.Context) ([]Fact, error)
 	}
 
@@ -46,8 +45,8 @@ type (
 	NetworkDiscoverer interface {
 		Plugin
 
-		// Networks reads the source's segments once. Partial answers come back
-		// the same way [HostDiscoverer.Discover] returns them.
+		// Networks reads the source's segments once. On error the networks
+		// are nil.
 		Networks(ctx context.Context) ([]Network, error)
 	}
 
@@ -55,8 +54,8 @@ type (
 	TopologyReader interface {
 		Plugin
 
-		// Topology reads the source's switching tables once. Partial answers
-		// come back the same way [HostDiscoverer.Discover] returns them.
+		// Topology reads the source's switching tables once. On error the
+		// Topology is empty.
 		Topology(ctx context.Context) (Topology, error)
 	}
 

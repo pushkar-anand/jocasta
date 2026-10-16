@@ -60,16 +60,12 @@ type present struct {
 // source that reads every network could have seen the devices it holds a
 // claim for.
 //
-// Absence counts only where a reading looked, and only when it finished, so a device on a network no
+// Absence counts only where a reading looked, so a device on a network no
 // reading covers stays present, and a restart after downtime turns quiet only
 // the devices that are still not answering once their network is read again.
 // The window is judged against last_seen, which every source touches, so a
 // device the router saw a minute ago stays present when a sweep misses it.
 func (s *Store) depart(ctx context.Context, p *pass, r reading) error {
-	if r.partial {
-		return nil
-	}
-
 	candidates, err := s.couldHaveSeen(ctx, p, r)
 	if err != nil {
 		return err

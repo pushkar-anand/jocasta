@@ -98,38 +98,29 @@ func (r *RouterOS) Name() string { return r.name }
 // Kind identifies this plugin as a RouterOS source.
 func (r *RouterOS) Kind() dbtype.SourceKind { return dbtype.SourceRouter }
 
-// Discover merges the tables into one fact per device per address. One table
-// failing does not cost the others, so a partial read returns its facts
-// alongside the error.
+// Discover merges the tables into one fact per device per address.
 func (r *RouterOS) Discover(ctx context.Context) ([]Fact, error) {
-	var errs []error
-
 	c := make(claims)
 
 	arp, err := r.client.ARP(ctx)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("read arp table: %w", classifyRouterOS(err)))
-	} else {
-		r.collectARP(ctx, c, arp)
+		return nil, fmt.Errorf("read arp table: %w", classifyRouterOS(err))
 	}
+
+	r.collectARP(ctx, c, arp)
 
 	leases, err := r.client.DHCPLeases(ctx)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("read dhcp leases: %w", classifyRouterOS(err)))
-	} else {
-		r.collectLeases(ctx, c, leases)
+		return nil, fmt.Errorf("read dhcp leases: %w", classifyRouterOS(err))
 	}
+
+	r.collectLeases(ctx, c, leases)
 
 	if err := r.readOwn(ctx, c); err != nil {
-		errs = append(errs, err)
+		return nil, err
 	}
 
-	facts, err := buildFacts(ctx, r.logger, r.now(), c)
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	return facts, errors.Join(errs...)
+	return buildFacts(ctx, r.logger, r.now(), c)
 }
 
 // collectARP reads the ARP table into c.
