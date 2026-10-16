@@ -28,9 +28,8 @@ type PortsCmd struct {
 }
 
 // Run probes an address, a prefix, or every address the inventory holds, and
-// prints what answered. It is the way a port scan is checked against real
-// hardware without starting the server, the same affordance scan and plugin
-// provide.
+// prints what answered. Use it to check a port scan against real hardware
+// without starting the server, like scan and plugin run.
 func (p *PortsCmd) Run(ctx context.Context, cfg *config.Config, log *slog.Logger, store *inventory.Store) error {
 	targets, err := p.targets(ctx, store)
 	if err != nil {
@@ -64,9 +63,9 @@ func (p *PortsCmd) Run(ctx context.Context, cfg *config.Config, log *slog.Logger
 	return p.save(ctx, cfg, log, store, results)
 }
 
-// targets resolves what to scan: an explicit address or prefix, or every
-// current address the inventory holds on a recorded network when none was
-// given. An explicit target is scanned as given, since the operator named it.
+// targets returns what to scan: the address or prefix given, or else every
+// current address the inventory holds on a recorded network. A given target is
+// scanned as is, since the operator named it.
 func (p *PortsCmd) targets(ctx context.Context, store *inventory.Store) ([]scanner.PortTarget, error) {
 	if p.Target == "" {
 		targets, err := store.PortScanTargets(ctx)
@@ -89,9 +88,8 @@ func (p *PortsCmd) targets(ctx context.Context, store *inventory.Store) ([]scann
 	return scanner.Targets(addrs), nil
 }
 
-// save records the scan in the inventory. It runs after the results are printed
-// so a database that will not open still leaves the operator with the scan they
-// asked for.
+// save records the scan in the inventory. It runs after the results are
+// printed, so the operator still sees them when the database will not open.
 func (p *PortsCmd) save(
 	ctx context.Context,
 	cfg *config.Config,
@@ -136,8 +134,8 @@ func portTargets(target string) ([]netip.Addr, error) {
 	return slices.Collect(seq), nil
 }
 
-// outputPortScans writes results as JSON or a table of open ports. An empty
-// table is replaced by a message that no open ports were found.
+// outputPortScans writes results as JSON or a table of open ports. With no open
+// ports, it prints a message instead of the table.
 func outputPortScans(w io.Writer, results []scanner.PortScan, asJSON bool) error {
 	if asJSON {
 		return writeJSON(w, results)

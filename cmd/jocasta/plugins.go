@@ -18,24 +18,22 @@ import (
 )
 
 // routerSources builds every enabled router, switch and access point, of every
-// kind. They are one list, which hostDiscoverers and topologyReaders each take
-// their share of.
+// kind. hostDiscoverers and topologyReaders each take their share of this list.
 //
-// They are built here because internal/plugin would have to import
-// internal/config and every implementation to do it, turning a near-leaf
-// package into a hub.
+// They are built here, not in internal/plugin. There, the package would import
+// internal/config and every implementation, and turn from a near-leaf into a
+// hub.
 //
-// Construction performs no I/O, so a router that is down at boot is retried
-// later and the server still starts. A source that cannot be
-// constructed at all is a config error and is reported: a misconfigured entry
-// that silently discovered nothing would look exactly like a quiet network.
+// Building does no I/O. A router that is down at boot is retried later, and the
+// server still starts. A source that cannot be built at all is a config error.
+// Otherwise a broken entry that found nothing would look like a quiet network.
 //
-// An instance is off unless it says enabled, since a map-keyed block has no
-// static key path and so cannot carry a default.
+// An instance is off unless it says enabled. A map-keyed block has no static
+// key path, so it cannot carry a default.
 //
-// Instances are returned in name order because map iteration is not ordered,
-// and a poller that reads its sources in a different order every cycle is
-// harder to read in a log than one that does not.
+// Instances come back in name order, because map order is random. A poller that
+// reads its sources in the same order every cycle leaves a log that is easier
+// to read.
 func routerSources(ctx context.Context, cfg *config.Config, log *slog.Logger) ([]plugin.Plugin, error) {
 	instances, err := routerInstances(cfg)
 	if err != nil {
@@ -91,9 +89,8 @@ type routerConfig interface {
 }
 
 // routerInstances returns every configured router source by name, of every
-// kind. A new kind needs only its line here: whether it is enabled, and
-// whether it is reached over plain HTTP, come from the blocks its config
-// embeds.
+// kind. A new kind needs only its line here. Whether it is enabled, and whether
+// it uses plain HTTP, come from the blocks its config embeds.
 //
 // A name used under two kinds is refused, resolver kinds included.
 // `jocasta plugin run` takes the bare name, which would then name two sources.
@@ -169,9 +166,9 @@ func newRouterSource(cfg *config.Config, name string, log *slog.Logger) (plugin.
 	return in.build(log)
 }
 
-// hostDiscoverers returns the sources that can be asked which devices they
-// know about. A source marked topology_only is a switch or access point, and
-// is left out: the router above it lists the devices.
+// hostDiscoverers returns the sources that can list the devices they know. A
+// source marked topology_only is a switch or access point. It is left out,
+// because the router above it lists the devices.
 func hostDiscoverers(sources []plugin.Plugin) []plugin.HostDiscoverer {
 	out := make([]plugin.HostDiscoverer, 0, len(sources))
 
@@ -188,8 +185,8 @@ func hostDiscoverers(sources []plugin.Plugin) []plugin.HostDiscoverer {
 	return out
 }
 
-// topologyReaders returns the sources that can say what is plugged into them:
-// the router and each switch or access point alike.
+// topologyReaders returns the sources that can say what is connected to them:
+// routers, switches and access points alike.
 func topologyReaders(sources []plugin.Plugin) []plugin.TopologyReader {
 	out := make([]plugin.TopologyReader, 0, len(sources))
 
@@ -259,8 +256,8 @@ func newOpenWrt(name string, cfg config.OpenWrt, log *slog.Logger) (plugin.Plugi
 }
 
 // queryReaders builds every enabled source whose query log is read, of every
-// kind, under the same rules as routerSources: off unless enabled, name order,
-// and an entry that cannot be built is a config error.
+// kind. The rules match routerSources: off unless enabled, name order, and an
+// entry that cannot be built is a config error.
 func queryReaders(ctx context.Context, cfg *config.Config, log *slog.Logger) ([]plugin.QueryReader, error) {
 	instances, err := resolverInstances(cfg)
 	if err != nil {
@@ -435,8 +432,8 @@ func newAdGuard(name string, cfg config.AdGuard, log *slog.Logger) (*plugin.AdGu
 }
 
 // trafficReporters builds every enabled source that receives the flows a router
-// exports, under the same rules as routerSources: off unless enabled, name
-// order, and an entry that cannot be built is a config error.
+// exports. The rules match routerSources: off unless enabled, name order, and
+// an entry that cannot be built is a config error.
 func trafficReporters(ctx context.Context, cfg *config.Config, log *slog.Logger) ([]plugin.TrafficReporter, error) {
 	names := slices.Sorted(maps.Keys(cfg.Plugins.NetFlow))
 	out := make([]plugin.TrafficReporter, 0, len(names))

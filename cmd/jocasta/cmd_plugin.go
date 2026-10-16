@@ -31,12 +31,12 @@ type PluginRunCmd struct {
 	Save bool   `name:"save" help:"Record the facts in the device inventory."`
 }
 
-// Run reads one source without starting the server, which is how a credential
-// or a firewall rule is checked against the real thing.
+// Run reads one source without starting the server. Use it to check a
+// credential or a firewall rule against the real device.
 //
-// It reads the source even when it is disabled in config: an operator naming an
-// instance explicitly is asking about that instance, and having to enable it
-// first would mean editing config to find out whether the config is right.
+// It reads the source even when config disables it. An operator who names an
+// instance is asking about that instance. Making them enable it first would
+// mean editing config to test the config.
 func (p *PluginRunCmd) Run(
 	ctx context.Context,
 	cfg *config.Config,
@@ -118,10 +118,10 @@ func (p *PluginRunCmd) Run(
 	return poller.SaveTopology(ctx, store, log, reader, *topo)
 }
 
-// runQueries reads one batch of a resolver's query log, the share one poll
-// takes, and prints who looked up what. It reads from an hour back. With
-// --save it reads from where the last recorded read left off instead, and
-// records the batch, so nothing is counted twice.
+// runQueries reads one batch of a resolver's query log, the amount one poll
+// takes, and prints who looked up what. It starts an hour back. With --save it
+// starts where the last saved read stopped and saves the batch. That way
+// nothing is counted twice.
 func (p *PluginRunCmd) runQueries(
 	ctx context.Context,
 	cfg *config.Config,
@@ -129,7 +129,7 @@ func (p *PluginRunCmd) runQueries(
 	store *inventory.Store,
 	in resolverInstance,
 ) error {
-	// The names of every kind are checked against each other, as the server
+	// The names of every kind are checked against each other, as the web server
 	// does at boot.
 	if _, err := routerInstances(cfg); err != nil {
 		return err
@@ -175,15 +175,15 @@ func (p *PluginRunCmd) runQueries(
 	return nil
 }
 
-// routerReader is a source that lists the devices it knows and the segments
-// it serves, as every router kind does.
+// routerReader is a source that can both list the devices and network segments
+// it serves. All routers have this capability.
 type routerReader interface {
 	plugin.HostDiscoverer
 	plugin.NetworkDiscoverer
 }
 
-// runTopology reads a switch or access point, which has no devices or
-// segments of its own to report.
+// runTopology reads which devices are connected to a switch or access point,
+// for the topology map.
 func (p *PluginRunCmd) runTopology(
 	ctx context.Context,
 	log *slog.Logger,
@@ -206,10 +206,9 @@ func (p *PluginRunCmd) runTopology(
 	return poller.SaveTopology(ctx, store, log, src, topo)
 }
 
-// printTopology reads and prints what is plugged into a router read for its
-// devices as well, returning it for the save. The devices are the point of
-// that read, so a topology that does not come back is logged, and the result
-// is nil.
+// printTopology reads which devices are connected to a router and prints them.
+// It returns the topology for the save. A failed read is only logged, and the
+// result is nil with no error: the devices already read matter more.
 func (p *PluginRunCmd) printTopology(
 	ctx context.Context,
 	log *slog.Logger,
@@ -232,8 +231,8 @@ func (p *PluginRunCmd) printTopology(
 	return &topo, nil
 }
 
-// save records the reading. It runs after the facts are printed so a database
-// that will not open still leaves the operator with the read they asked for.
+// save records the discovered results in the database. It runs after they are
+// printed, so the operator still sees them when the database will not open.
 func (p *PluginRunCmd) save(
 	ctx context.Context,
 	log *slog.Logger,
@@ -268,9 +267,9 @@ func (p *PluginRunCmd) save(
 	return nil
 }
 
-// outputNetworks prints the segments the source described. Under --json the
-// two tables are separate documents, so a reader piping this to jq gets the
-// networks and the facts with no wrapper around them.
+// outputNetworks prints the segments the source described. Under --json,
+// networks and facts are separate documents. That way jq gets each one with no
+// wrapper.
 func outputNetworks(w io.Writer, nets []plugin.Network, asJSON bool) error {
 	if asJSON {
 		return writeJSON(w, nets)
@@ -303,9 +302,8 @@ func outputNetworks(w io.Writer, nets []plugin.Network, asJSON bool) error {
 	return err
 }
 
-// outputFacts writes source claims as JSON or a table, including their
-// presence claims. An empty table is replaced by a message that no devices
-// were reported.
+// outputFacts writes results as JSON or a table. With no results, it prints a
+// message instead of the table.
 func outputFacts(w io.Writer, facts []plugin.Fact, asJSON bool) error {
 	if asJSON {
 		return writeJSON(w, facts)
@@ -337,8 +335,8 @@ func outputFacts(w io.Writer, facts []plugin.Fact, asJSON bool) error {
 }
 
 // outputQueries prints the lookups a resolver logged. Under --json it writes
-// each lookup; otherwise one row per client and name, saying how often it was
-// looked up, blocked and failed, with each client's busiest names first.
+// each lookup. Otherwise it prints one row per client and name, with how often
+// it was looked up, blocked and failed. Each client's busiest names come first.
 func outputQueries(w io.Writer, queries []plugin.Query, asJSON bool) error {
 	if asJSON {
 		return writeJSON(w, queries)
@@ -398,8 +396,8 @@ func outputQueries(w io.Writer, queries []plugin.Query, asJSON bool) error {
 	return tw.Flush()
 }
 
-// outputTopology prints what a source said is plugged into it: its ports, the
-// addresses learned on each, and its neighbours.
+// outputTopology prints what is connected to a source: its ports, the addresses
+// learned on each, and its neighbours.
 func outputTopology(w io.Writer, t plugin.Topology, asJSON bool) error {
 	if asJSON {
 		return writeJSON(w, t)
@@ -445,7 +443,7 @@ func outputTopology(w io.Writer, t plugin.Topology, asJSON bool) error {
 	return tw.Flush()
 }
 
-// orDash renders a VLAN, showing none as a dash.
+// orDash renders a VLAN, or a dash for none.
 func orDash(n int) string {
 	if n == 0 {
 		return "-"

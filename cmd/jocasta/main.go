@@ -175,10 +175,10 @@ func loadConfig(cli *CLI) (*config.Config, error) {
 	return cfg, nil
 }
 
-// timezone resolves location.timezone, the zone times are shown in; a
-// container's is otherwise UTC whatever the network's is. Empty returns nil,
-// leaving the TZ variable and the system to decide. A name that does not
-// resolve fails startup; unchecked, it would quietly show UTC.
+// timezone resolves location.timezone, the zone times are shown in. Without it,
+// a container uses UTC whatever the network's zone is. Empty returns nil, which
+// leaves the choice to TZ and the system. A name that does not resolve fails
+// startup; otherwise times would quietly show in UTC.
 func timezone(name string) (*time.Location, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
