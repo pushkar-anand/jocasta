@@ -166,17 +166,7 @@ func (d *Device) scanAndSaveNetwork(ctx context.Context, network *netip.Prefix) 
 		return nil, fmt.Errorf("record sweep %s: %w", network, err)
 	}
 
-	d.logger.InfoContext(ctx,
-		"recorded sweep",
-		slog.Int64("scan", saved.ScanID),
-		slog.Int("seen", saved.Seen),
-		slog.Int("discovered", saved.Discovered),
-		slog.Int("identified", saved.Identified),
-		slog.Int("merged", saved.Merged),
-		slog.Int("released", saved.Released),
-		slog.Int("back", saved.Back),
-		slog.Int("quiet", saved.Quiet),
-	)
+	d.logger.InfoContext(ctx, "recorded sweep", resultArgs(saved)...)
 
 	return saved.New, nil
 }
@@ -206,18 +196,8 @@ func (d *Device) discoverAndSave(ctx context.Context, p plugin.HostDiscoverer) (
 		return nil, fmt.Errorf("record facts from %s: %w", p.Name(), err)
 	}
 
-	d.logger.InfoContext(ctx,
-		"recorded source",
-		slog.String("src", p.Name()),
-		slog.Int64("scan", saved.ScanID),
-		slog.Int("seen", saved.Seen),
-		slog.Int("discovered", saved.Discovered),
-		slog.Int("identified", saved.Identified),
-		slog.Int("merged", saved.Merged),
-		slog.Int("dropped", saved.Dropped),
-		slog.Int("back", saved.Back),
-		slog.Int("quiet", saved.Quiet),
-	)
+	d.logger.With(slog.String("src", p.Name())).
+		InfoContext(ctx, "recorded source", resultArgs(saved)...)
 
 	return saved.New, nil
 }
@@ -251,6 +231,21 @@ func (d *Device) recordNetworks(ctx context.Context, p plugin.NetworkDiscoverer)
 		slog.String("src", p.Name()),
 		slog.Int("networks", len(nets)),
 	)
+}
+
+// resultArgs returns the counts in result as log arguments.
+func resultArgs(result *inventory.Result) []any {
+	return []any{
+		slog.Int64("scan", result.ScanID),
+		slog.Int("seen", result.Seen),
+		slog.Int("discovered", result.Discovered),
+		slog.Int("identified", result.Identified),
+		slog.Int("merged", result.Merged),
+		slog.Int("released", result.Released),
+		slog.Int("dropped", result.Dropped),
+		slog.Int("back", result.Back),
+		slog.Int("quiet", result.Quiet),
+	}
 }
 
 var _ task = (*Device)(nil)
