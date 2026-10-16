@@ -17,9 +17,8 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/routeros"
 )
 
-// networkRouter answers the two tables Networks reads. A body left empty
-// answers 500, which is how one table failing while the other succeeds is
-// arranged.
+// networkRouter answers the two tables that Networks reads. An empty body
+// answers 500. So one table can fail while the other succeeds.
 func networkRouter(t *testing.T, addressBody, vlanBody string) *RouterOS {
 	t.Helper()
 
@@ -85,9 +84,8 @@ func TestNetworksJoinTheAddressTableToTheTags(t *testing.T) {
 	assert.Equal(t, "IoT", out[1].Name)
 }
 
-// The router reports the address it holds, and the prefix a sweep recorded is
-// the base of it. They have to meet at one value or a segment is recorded
-// twice.
+// The router reports its address. The prefix that a sweep recorded is the base
+// of it. They must give one value. If not, the segment is recorded twice.
 func TestNetworkPrefixIsMasked(t *testing.T) {
 	t.Parallel()
 
@@ -110,8 +108,8 @@ func TestNetworksFailWithoutTheVLANTable(t *testing.T) {
 	assert.Empty(t, out)
 }
 
-// Without the address table there are no segments at all, so nothing comes
-// back. The tags alone cannot fill in a list.
+// Without the address table, there are no segments. So nothing returns. The
+// tags alone cannot fill a list.
 func TestNetworksAreNothingWithoutTheAddressTable(t *testing.T) {
 	t.Parallel()
 
@@ -130,8 +128,8 @@ func TestNetworksAcceptEmptyTables(t *testing.T) {
 	assert.Empty(t, out)
 }
 
-// The WAN is a link the router sits on, and listing it beside the segments
-// would report the ISP's prefix as somewhere devices are inventoried.
+// The WAN is a link of the router. In the list of segments, it would report
+// the prefix of the ISP as a place of inventory devices.
 func TestNetworksLeaveOutWhatTheRouterDoesNotServe(t *testing.T) {
 	t.Parallel()
 
@@ -150,8 +148,8 @@ func TestNetworksLeaveOutWhatTheRouterDoesNotServe(t *testing.T) {
 	assert.Equal(t, netip.MustParsePrefix("192.0.2.0/25"), out[0].Prefix)
 }
 
-// A segment reached on two addresses is one segment, and which of them names
-// it must not depend on the order the router listed them.
+// A segment on two addresses is one segment. The address that names it must
+// not depend on the order of the list of the router.
 func TestOnePrefixIsRecordedOnce(t *testing.T) {
 	t.Parallel()
 
@@ -165,7 +163,7 @@ func TestOnePrefixIsRecordedOnce(t *testing.T) {
 	assert.Equal(t, "first", out[0].Name)
 }
 
-// A note on the address describes that prefix; a note on the VLAN describes
+// A note on the address describes that prefix. A note on the VLAN describes
 // every prefix on it.
 func TestTheMostSpecificNoteNamesTheSegment(t *testing.T) {
 	t.Parallel()
@@ -181,7 +179,8 @@ func TestTheMostSpecificNoteNamesTheSegment(t *testing.T) {
 	assert.Equal(t, 10, out[0].VLAN, "the tag still comes from the vlan table")
 }
 
-// A segment on an untagged interface is a segment. Nothing about it is missing.
+// A segment on an untagged interface is a segment. Nothing about it is
+// missing.
 func TestAnUntaggedSegmentIsStillASegment(t *testing.T) {
 	t.Parallel()
 
@@ -195,8 +194,8 @@ func TestAnUntaggedSegmentIsStillASegment(t *testing.T) {
 	assert.Equal(t, "bridge", out[0].Name)
 }
 
-// An address configured on a bridge port resolves to the VLAN carrying it, so
-// the tag is reachable through the name the router settled on.
+// An address on a bridge port resolves to the VLAN that carries it. So the tag
+// is available through the resolved name of the router.
 func TestTheResolvedInterfaceIsTriedWhenTheConfiguredOneMisses(t *testing.T) {
 	t.Parallel()
 
@@ -210,8 +209,8 @@ func TestTheResolvedInterfaceIsTriedWhenTheConfiguredOneMisses(t *testing.T) {
 	assert.Equal(t, "Home", out[0].Name)
 }
 
-// A tag that does not read as a number is left out of the lookup entirely, so
-// the segment reports no tag. VLAN 0 would claim it is untagged.
+// The lookup leaves out a tag that is not a number. So the segment reports no
+// tag. VLAN 0 would claim that it is untagged.
 func TestAnUnreadableTagLeavesTheSegmentUntagged(t *testing.T) {
 	t.Parallel()
 

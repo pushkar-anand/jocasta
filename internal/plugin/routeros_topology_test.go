@@ -18,10 +18,10 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/routeros"
 )
 
-// switchA is a switch as its tables describe it: an uplink trunk on sfp1, a
-// desktop on ether4 in VLAN 10 whose gigabit link came up at 100 Mbps, a
-// radio with one client in VLAN 20, and the router it hangs from announcing
-// itself on the uplink.
+// switchA is a switch as its tables describe it. It has an uplink trunk on
+// sfp1, and a desktop on ether4 in VLAN 10. The gigabit link of the desktop
+// came up at 100 Mbps. It has a radio with one client in VLAN 20. The router
+// above it announces itself on the uplink.
 var switchA = switchTables{
 	identity: "switch-a",
 	ifaces: []routeros.Interface{
@@ -58,7 +58,7 @@ var switchA = switchTables{
 	regs: []routeros.Registration{
 		{Interface: "wifi1", MACAddress: "00:00:5E:00:53:20", SSID: "iot", Band: "2ghz-ax",
 			Signal: "-55", TxRate: 28_900_000, RxRate: 54_000_000},
-		// Joined, but has sent nothing the bridge learned.
+		// Joined, but sent nothing that the bridge learned.
 		{Interface: "wifi1", MACAddress: "00:00:5E:00:53:21", SSID: "iot", Band: "2ghz-ax"},
 	},
 	links: []routeros.Link{
@@ -140,8 +140,8 @@ func TestBuildTopologyListsNeighbours(t *testing.T) {
 	}}, got.Neighbours)
 }
 
-// A radio's address the bridge learned before the client list was read is
-// still Wi-Fi, though nothing says which network it joined.
+// The bridge can learn the address of a radio before the read of the client
+// list. That address is still Wi-Fi, although nothing tells its network.
 func TestBuildTopologyTakesARadioPortAsWiFi(t *testing.T) {
 	t.Parallel()
 
@@ -200,8 +200,8 @@ func TestTopologyReturnsNothingWhenEveryTableFails(t *testing.T) {
 	assert.Empty(t, got.Identity)
 }
 
-// switchServing stands up a router answering each path in bodies. Any other
-// path answers 500, which is how a failing table is arranged.
+// switchServing starts a router that answers each path in bodies. Any other
+// path answers 500. So a table can fail.
 func switchServing(t *testing.T, bodies map[string]string) *RouterOS {
 	t.Helper()
 
@@ -235,10 +235,10 @@ func switchServing(t *testing.T, bodies map[string]string) *RouterOS {
 	return ros
 }
 
-// A router managing access points (CAPsMAN) lists their clients against the
-// access point's radio, and learns them on the port the access point hangs
-// from. The client is placed on that port and marked as Wi-Fi, and the radio
-// is left out of the ports.
+// A router that manages access points (CAPsMAN) lists their clients on the
+// radio of the access point. It learns them on the port from which the access
+// point hangs. The client goes on that port, marked as Wi-Fi. The radio is not
+// in the ports.
 func TestBuildTopologyPlacesAManagedAccessPointsClientsOnItsPort(t *testing.T) {
 	t.Parallel()
 
@@ -257,8 +257,9 @@ func TestBuildTopologyPlacesAManagedAccessPointsClientsOnItsPort(t *testing.T) {
 	assert.Equal(t, []TopologyPort{{Name: "ether2", Kind: PortWired, Running: true}}, got.Ports)
 }
 
-// A neighbour heard on its port and again on a VLAN interface is one
-// neighbour, on the port, with the IPv4 address it advertised on the VLAN.
+// A neighbour that the router hears on its port and on a VLAN interface is one
+// neighbour. It is on the port, with the IPv4 address that it advertised on
+// the VLAN.
 func TestBuildTopologyMergesANeighbourHeardTwice(t *testing.T) {
 	t.Parallel()
 

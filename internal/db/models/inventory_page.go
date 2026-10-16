@@ -1,4 +1,4 @@
-// Package models holds the query helpers backed by the generated SQL code.
+// Package models holds the query helpers over the generated SQL code.
 package models
 
 import (
@@ -12,38 +12,39 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/cursor"
 )
 
-// The two logs are paged by seeking past the row the last page ended on, which
-// makes the WHERE clause a thing that is there or is not. sqlc has no shape for
-// that: a nullable cursor parameter is typed as an interface{}, which would
-// take a timestamp rendered in any format at all, and the alternative is the
-// same SELECT written twice. So the paged queries are built here, and
-// everything whose shape is fixed stays in queries/inventory.sql.
+// The two logs page by a seek past the row on which the last page ended. So the
+// WHERE clause is there, or it is not. sqlc has no shape for that. It gives a
+// nullable cursor parameter the type interface{}. That type would take a
+// timestamp in any format. The alternative is the same SELECT written twice.
+// So the paged queries are built here. Everything with a fixed shape stays in
+// queries/inventory.sql.
 
-// PageParams is one window onto a log.
+// PageParams is one window of a log.
 type PageParams struct {
-	// Cursor is the row to resume after. The zero cursor starts at the top.
+	// Cursor is the row after which to continue. The zero cursor starts at
+	// the top.
 	Cursor cursor.Cursor
 
 	// Limit is how many rows to read.
 	Limit int64
 
-	// DeviceID narrows the change log to one device. Zero adds no clause, which
-	// is the whole log. Only ListEvents honours it.
+	// DeviceID limits the change log to one device. Zero adds no clause, so
+	// the result is the whole log. Only ListEvents uses it.
 	DeviceID int64
 
-	// EventKinds, ExcludeIgnored, ScanKind and ScanScope optionally narrow
-	// their respective logs.
+	// EventKinds, ExcludeIgnored, ScanKind and ScanScope can limit their
+	// logs.
 	EventKinds     []dbtype.EventKind
 	ExcludeIgnored bool
 	ScanKind       dbtype.ScanKind
 	ScanScope      dbtype.ScanScope
 }
 
-// ListEventsRow is one entry of the change log with the device it named.
+// ListEventsRow is one entry of the change log, with the device that it named.
 //
-// The device columns come from a LEFT JOIN because an event outlives the device
-// it described: deleting one sets events.device_id to NULL and keeps the
-// record.
+// The device columns come from a LEFT JOIN, because an event can stay after
+// its device. A delete of a device sets events.device_id to NULL, and keeps
+// the record.
 type ListEventsRow struct {
 	Event          Event          `json:"event"`
 	DeviceLabel    sql.NullString `json:"device_label"`
@@ -64,9 +65,9 @@ func (q *Queries) ListEvents(ctx context.Context, arg PageParams) ([]*ListEvents
 		OrderBy("e.occurred_at DESC", "e.id DESC").
 		Limit(pageLimit(arg.Limit))
 
-	// A device-scoped log is the same read with one more clause. An event whose
-	// device was deleted has a NULL device_id and so never matches, which is
-	// right: there is no device page to have come from.
+	// A log for one device is the same read with one more clause. An event
+	// whose device was deleted has a NULL device_id. So it never matches. This
+	// is right, because no device page for it can exist.
 	if arg.DeviceID != 0 {
 		sb = sb.Where(squirrel.Eq{"e.device_id": arg.DeviceID})
 	}
@@ -79,10 +80,10 @@ func (q *Queries) ListEvents(ctx context.Context, arg PageParams) ([]*ListEvents
 		sb = sb.Where(squirrel.Eq{"d.is_ignored": false})
 	}
 
-	// The cursor's timestamp is bound as a dbtype.Time so that it renders in
-	// the one format the column is written in: occurred_at is TEXT and is
-	// compared as TEXT, so a value spelled any other way would compare wrong
-	// without failing.
+	// Bind the timestamp of the cursor as a dbtype.Time. So it renders in the
+	// one format of the column. occurred_at is TEXT, and SQLite compares it as
+	// TEXT. So a value in a different form would compare wrong, with no
+	// error.
 	sb = arg.Cursor.WithValue(cursorTime(arg.Cursor)).Where(sb, "e.occurred_at", "e.id")
 
 	rows, err := q.selectRows(ctx, sb)
@@ -121,9 +122,9 @@ func (q *Queries) ListEvents(ctx context.Context, arg PageParams) ([]*ListEvents
 
 // ListScansRow is one run of one source.
 //
-// network_cidr is cast and coalesced: the column override types it as a
-// non-null Prefix, which cannot scan the NULL that a scan with no network, or
-// one whose network was deleted, produces here.
+// network_cidr is cast and coalesced. The column override gives it the type
+// non-null Prefix. That type cannot scan the NULL that a scan with no network
+// gives here. A scan whose network was deleted also gives NULL.
 type ListScansRow struct {
 	Scan        Scan   `json:"scan"`
 	SourceName  string `json:"source_name"`
@@ -191,8 +192,8 @@ func (q *Queries) ListScans(ctx context.Context, arg PageParams) ([]*ListScansRo
 }
 
 // pageLimit converts a row count for the query builder, which counts rows as
-// unsigned. Converted as is, a limit below one would wrap to an enormous page,
-// so it is read as the empty page it was asking for.
+// unsigned. A direct conversion of a limit below one would wrap to a very
+// large page. So pageLimit reads it as the empty page that it asks for.
 func pageLimit(n int64) uint64 {
 	if n < 1 {
 		return 0
@@ -201,21 +202,23 @@ func pageLimit(n int64) uint64 {
 	return uint64(n)
 }
 
-// selectRows renders the built query and runs it through the same connection
-// the generated queries use, so a page read inside a transaction sees it.
+// selectRows renders the built query, and runs it through the same connection
+// as the generated queries. So a page read in a transaction sees the
+// transaction.
 func (q *Queries) selectRows(ctx context.Context, sb squirrel.SelectBuilder) (*sql.Rows, error) {
 	query, args, err := sb.ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("build query: %w", err)
 	}
 
-	// A built query has no prepared statement to reuse, so it is passed with a
-	// nil one and runs against the connection or transaction directly.
+	// A built query has no prepared statement. So pass it with a nil
+	// statement. It runs directly against the connection or transaction.
 	return q.query(ctx, nil, query, args...)
 }
 
-// cursorTime re-binds a cursor's timestamp as the column's own type. A cursor
-// that holds anything else is left alone, and a zero one adds no clause at all.
+// cursorTime binds the timestamp of a cursor again, as the type of the column.
+// It does not change a cursor that holds a different value. A zero cursor adds
+// no clause.
 func cursorTime(c cursor.Cursor) any {
 	t, ok := c.Value.(time.Time)
 	if !ok {

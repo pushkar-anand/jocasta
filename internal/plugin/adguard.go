@@ -14,8 +14,8 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/adguard"
 )
 
-// adguardPrefix namespaces an instance key so it cannot collide with another
-// source kind's.
+// adguardPrefix puts an instance key in a namespace. So it cannot collide
+// with the key of a different source kind.
 const adguardPrefix = "adguard:"
 
 // AdGuard reads the query log of one AdGuard Home.
@@ -24,19 +24,19 @@ type AdGuard struct {
 	client *adguard.AdGuard
 	logger *slog.Logger
 
-	// now is a field so tests can pin where a first read starts.
+	// now is a field, so tests can fix where a first read starts.
 	now func() time.Time
 }
 
-// ErrNoAdGuardName refuses a missing name: the name is a database key, and
-// one default would file two servers' lookups under one source.
+// ErrNoAdGuardName refuses a missing name. The name is a database key. With
+// one default, the lookups of two servers would go under one source.
 var ErrNoAdGuardName = errors.New("plugin: adguard instance has no name")
 
 // NewAdGuard builds the plugin for one AdGuard Home. name is the instance key
 // from config, such as "resolver".
 //
-// It performs no I/O, so a server that is down at startup is retried later
-// while the server still starts.
+// It does no I/O. So if the server is down at startup, the server still starts
+// and tries again later.
 func NewAdGuard(name string, client *adguard.AdGuard, log *slog.Logger) (*AdGuard, error) {
 	if name == "" {
 		return nil, ErrNoAdGuardName
@@ -58,25 +58,26 @@ func NewAdGuard(name string, client *adguard.AdGuard, log *slog.Logger) (*AdGuar
 	}, nil
 }
 
-// Name returns the plugin's configured name.
+// Name returns the configured name of the plugin.
 func (a *AdGuard) Name() string { return a.name }
 
 // Kind identifies this plugin as a DNS source.
 func (a *AdGuard) Kind() dbtype.SourceKind { return dbtype.SourceDNS }
 
-// Queries reads the log from cursor, which is the time of the newest entry
-// read. AdGuard Home pages its log newest first, so a read that reaches its
-// page cap before the cursor keeps the newest lookups and skips the older
-// ones. A page that fails returns nothing and the cursor it was given: what
-// came before it sits above lookups no read has reached.
+// Queries reads the log from cursor. The cursor is the time of the newest entry
+// that a read took. AdGuard Home pages its log newest first. So if a read
+// reaches its page limit before the cursor, it keeps the newest lookups and
+// skips the older ones. A page that fails returns nothing, with the cursor
+// that the read got. The pages before it are above lookups that no read
+// reached.
 //
-// Two lookups logged in the same nanosecond, one before a read and one
-// after, count once.
+// Two lookups logged in the same nanosecond, one before a read and one after,
+// count once.
 func (a *AdGuard) Queries(ctx context.Context, cursor string) ([]Query, string, error) {
 	after, err := parseTimeCursor(cursor)
 	if err != nil {
-		// A cursor that does not parse would refuse every read from here on,
-		// so the read starts afresh, at the cost of an hour counted twice.
+		// A cursor that does not parse would refuse every later read. So the
+		// read starts again, and one hour can count twice.
 		a.logger.WarnContext(ctx, "stored cursor does not parse; reading the last hour", logger.Err(err))
 
 		after = time.Time{}
@@ -98,8 +99,8 @@ func (a *AdGuard) Queries(ctx context.Context, cursor string) ([]Query, string, 
 			return nil, cursor, fmt.Errorf("read query log page %d: %w", page+1, classifyAdGuard(err))
 		}
 
-		// The server may page by fewer entries than asked for, so only an
-		// empty page says the log is done.
+		// The server can send fewer entries than asked for. So only an empty
+		// page means that the log is done.
 		if len(res.Data) == 0 {
 			return oldestFirst(out), formatTimeCursor(newest), nil
 		}
@@ -138,8 +139,8 @@ func (a *AdGuard) Queries(ctx context.Context, cursor string) ([]Query, string, 
 	return oldestFirst(out), formatTimeCursor(newest), nil
 }
 
-// adguardQuery maps one log entry, and reports false for an entry that names
-// no client or no name.
+// adguardQuery maps one log entry. It reports false for an entry that names no
+// client or no name.
 func adguardQuery(e adguard.LogEntry, at time.Time) (Query, bool) {
 	client, err := netip.ParseAddr(e.Client)
 	if err != nil {
@@ -204,9 +205,9 @@ func parseTimeCursor(cursor string) (time.Time, error) {
 	return at.UTC(), nil
 }
 
-// classifyAdGuard maps the client's errors onto this package's, so nothing
-// above has to import pkg/adguard to tell a retryable failure from one that
-// needs a human.
+// classifyAdGuard maps the errors of the client to the errors of this
+// package. So no caller needs to import pkg/adguard to tell a failure that a
+// retry can fix from one that needs a person.
 func classifyAdGuard(err error) error {
 	switch {
 	case errors.Is(err, adguard.ErrUnauthorized):

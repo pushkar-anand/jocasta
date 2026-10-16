@@ -11,11 +11,11 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/routeros"
 )
 
-// Networks reads the segments the router serves.
+// Networks reads the segments that the router serves.
 //
-// Two tables again: /ip/address knows every prefix and the interface behind
-// it, and /interface/vlan is the only place the interface name resolves to a
-// tag. The addresses are the answer and the tags decorate it.
+// It also reads two tables. /ip/address knows every prefix and the interface
+// behind it. Only /interface/vlan resolves the interface name to a tag. The
+// addresses are the answer, and the tags add to it.
 func (r *RouterOS) Networks(ctx context.Context) ([]Network, error) {
 	addrs, err := r.client.Addresses(ctx)
 	if err != nil {
@@ -30,8 +30,9 @@ func (r *RouterOS) Networks(ctx context.Context) ([]Network, error) {
 	return r.buildNetworks(ctx, addrs, byInterface(vlans)), nil
 }
 
-// byInterface keys the VLAN table the way an address refers to it. A row whose
-// tag does not parse is left out, so a lookup that misses reports no tag.
+// byInterface keys the VLAN table in the same way as an address refers to it.
+// It leaves out a row whose tag does not parse. So a lookup that misses
+// reports no tag.
 func byInterface(vlans []routeros.VLAN) map[string]routeros.VLAN {
 	out := make(map[string]routeros.VLAN, len(vlans))
 
@@ -52,8 +53,8 @@ func (r *RouterOS) buildNetworks(
 	addrs []routeros.IPAddress,
 	vlans map[string]routeros.VLAN,
 ) []Network {
-	// Sorted before the walk, so which of two addresses on one prefix names it
-	// is the same answer every run.
+	// Sort before the walk. So if two addresses are on one prefix, the same
+	// address names it on every run.
 	slices.SortFunc(addrs, func(a, b routeros.IPAddress) int {
 		return cmp.Or(
 			cmp.Compare(a.Address, b.Address),
@@ -92,9 +93,9 @@ func (r *RouterOS) buildNetworks(
 			n.VLAN, _ = v.Tag()
 		}
 
-		// Most specific first: a note on the address describes that prefix, a
-		// note on the VLAN describes every prefix on it, and the interface name
-		// is what the router calls it when nobody has said anything.
+		// Most specific first. A note on the address describes that prefix. A
+		// note on the VLAN describes every prefix on it. The interface name is
+		// the name in the router when nobody gave a name.
 		n.Name = cmp.Or(a.Comment, v.Comment, a.Interface, a.ActualInterface)
 
 		out = append(out, n)
@@ -103,9 +104,9 @@ func (r *RouterOS) buildNetworks(
 	return out
 }
 
-// lookupVLAN finds the tagged interface an address sits on. The configured
-// name is tried before the resolved one because that is the name an operator
-// wrote, and the resolved one can be the bridge underneath every VLAN.
+// lookupVLAN finds the tagged interface of an address. It tries the configured
+// name before the resolved name, because an operator wrote it. The resolved
+// name can be the bridge under every VLAN.
 func lookupVLAN(vlans map[string]routeros.VLAN, a routeros.IPAddress) (routeros.VLAN, bool) {
 	for _, name := range []string{a.Interface, a.ActualInterface} {
 		if v, ok := vlans[name]; ok {

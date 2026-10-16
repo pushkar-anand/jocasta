@@ -15,7 +15,7 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/routeros"
 )
 
-// The same variables pkg/routeros's live test reads, so one shell runs both.
+// The same variables as the live test of pkg/routeros. So one shell runs both.
 const (
 	liveHostEnv     = "JOCASTA_PLUGINS__ROUTEROS__HOST"
 	livePortEnv     = "JOCASTA_PLUGINS__ROUTEROS__PORT"
@@ -25,11 +25,11 @@ const (
 	liveInsecureEnv = "JOCASTA_PLUGINS__ROUTEROS__INSECURE"
 )
 
-// TestDiscoverLive runs the mapping over a live router's tables and prints the
-// facts. pkg/routeros's live test shows what the wire returned; this one
-// shows what ingest would be handed.
+// TestDiscoverLive runs the mapping over the tables of a live router, and
+// prints the facts. The live test of pkg/routeros shows what the router
+// returned. This test shows what ingest would get.
 //
-// It is skipped without a host: the rest of the suite must stay hermetic.
+// Without a host, it skips. The rest of the suite must stay hermetic.
 //
 //	JOCASTA_PLUGINS__ROUTEROS__HOST=192.0.2.1 \
 //	JOCASTA_PLUGINS__ROUTEROS__SSL=true \
@@ -63,8 +63,9 @@ func TestDiscoverLive(t *testing.T) {
 	client, err := routeros.New(cfg, log)
 	require.NoError(t, err)
 
-	// Verify separately: a router that refuses here refuses everything, and its
-	// error says which of reachability, TLS and credentials was the problem.
+	// Verify as a separate step. A router that refuses here refuses
+	// everything. Its error tells whether reachability, TLS or credentials
+	// caused the problem.
 	res, err := client.Verify(t.Context())
 	require.NoError(t, err)
 
@@ -75,7 +76,7 @@ func TestDiscoverLive(t *testing.T) {
 
 	assert.Equal(t, "routeros:gateway", p.Name())
 
-	// The raw tables, to compare the mapping against.
+	// The raw tables, for comparison with the mapping.
 	arp, err := client.ARP(t.Context())
 	require.NoError(t, err)
 
@@ -138,8 +139,8 @@ func TestDiscoverLive(t *testing.T) {
 
 	_ = w.Flush()
 
-	// The invariants the mapping is responsible for, checked against whatever
-	// the router actually holds.
+	// The invariants of the mapping, checked against what the router really
+	// has.
 	assert.LessOrEqual(t, len(facts), len(arp)+len(leases)+usableOwn, "no fact is invented")
 	assert.LessOrEqual(t, present, usableARP+len(leases)+usableOwn, "presence needs a row that says so")
 
@@ -147,8 +148,8 @@ func TestDiscoverLive(t *testing.T) {
 		assert.True(t, f.Host.Address().IsValid(), "every fact carries a parsed address")
 		assert.NotEqual(t, "00:00:00:00:00:00", f.Host.MAC, "the zero address identifies nothing")
 
-		// A name and its standing travel together: one without the other means
-		// either an unattributed name or a standing for nothing.
+		// A name and its standing go together. One without the other means a
+		// name with no origin, or a standing for nothing.
 		assert.Equal(t, f.Host.Hostname() != "", f.HostnameSource != "",
 			"hostname %q and standing %q disagree", f.Host.Hostname(), f.HostnameSource)
 

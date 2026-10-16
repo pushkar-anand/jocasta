@@ -15,8 +15,8 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/routeros"
 )
 
-// switchTables is every table Topology reads, gathered before any of it is
-// mapped, so the mapping can be tested without a router.
+// switchTables is every table that Topology reads. Topology collects them
+// before it maps them. So a test of the mapping needs no router.
 type switchTables struct {
 	identity  string
 	ifaces    []routeros.Interface
@@ -28,8 +28,8 @@ type switchTables struct {
 	links     []routeros.Link
 }
 
-// Topology reads what is plugged into the router. Every table that fails is
-// named in the error.
+// Topology reads what is connected to the router. The error names every table
+// that fails.
 func (r *RouterOS) Topology(ctx context.Context) (Topology, error) {
 	var (
 		t    switchTables
@@ -77,7 +77,7 @@ func (r *RouterOS) Topology(ctx context.Context) (Topology, error) {
 	return r.buildTopology(ctx, t), nil
 }
 
-// buildTopology maps the tables onto a Topology.
+// buildTopology maps the tables to a Topology.
 func (r *RouterOS) buildTopology(ctx context.Context, t switchTables) Topology {
 	kinds := make(map[string]PortKind, len(t.ifaces))
 	for _, i := range t.ifaces {
@@ -95,7 +95,7 @@ func (r *RouterOS) buildTopology(ctx context.Context, t switchTables) Topology {
 	}
 }
 
-// portKind sorts an interface type into the three kinds a port is drawn as.
+// portKind sorts an interface type into the three kinds of drawn port.
 func portKind(typ string) PortKind {
 	switch typ {
 	case "ether":
@@ -107,8 +107,8 @@ func portKind(typ string) PortKind {
 	}
 }
 
-// ownMACs returns the router's own hardware addresses: every interface's, and
-// every one the bridge marks as local.
+// ownMACs returns the hardware addresses of the router: the address of every
+// interface, and every address that the bridge marks as local.
 func ownMACs(t switchTables) []string {
 	var out []string
 
@@ -133,8 +133,8 @@ func ownMACs(t switchTables) []string {
 	return slices.Compact(out)
 }
 
-// buildPorts returns the router's wired ports and bridge members, each with
-// the VLANs it carries.
+// buildPorts returns the wired ports and bridge members of the router, each
+// with its VLANs.
 func buildPorts(t switchTables, kinds map[string]PortKind) []TopologyPort {
 	byName := make(map[string]*TopologyPort)
 
@@ -148,9 +148,10 @@ func buildPorts(t switchTables, kinds map[string]PortKind) []TopologyPort {
 		return p
 	}
 
-	// A radio counts as a port only once it is a bridge member. A router
-	// managing access points (CAPsMAN) lists their radios as its own
-	// interfaces, but reaches their clients through the access point's port.
+	// A radio counts as a port only when it is a bridge member. A router that
+	// manages access points (CAPsMAN) lists their radios as its own
+	// interfaces. But it reaches their clients through the port of the access
+	// point.
 	for _, i := range t.ifaces {
 		if i.Disabled || kinds[i.Name] != PortWired {
 			continue
@@ -212,10 +213,10 @@ func buildPorts(t switchTables, kinds map[string]PortKind) []TopologyPort {
 	return out
 }
 
-// sightings returns every hardware address the bridge learned on a port and
-// every Wi-Fi client, with the Wi-Fi clients marked. A client the bridge has
-// not learned, such as one that has sent nothing since it joined, is placed
-// on its radio.
+// sightings returns every hardware address that the bridge learned on a port,
+// and every Wi-Fi client. It marks the Wi-Fi clients. A client that the bridge
+// did not learn goes on its radio. An example is a client that sent nothing
+// since it joined.
 func (r *RouterOS) sightings(ctx context.Context, t switchTables, kinds map[string]PortKind) []Sighting {
 	type key struct {
 		port, mac string
@@ -261,10 +262,10 @@ func (r *RouterOS) sightings(ctx context.Context, t switchTables, kinds map[stri
 		learned[mac] = append(learned[mac], key{s.Port, s.MAC, s.VLAN})
 	}
 
-	// A client is placed where the bridge learned it, and the radio says it is
-	// on Wi-Fi. On a router managing access points the radio is the access
-	// point's, and the bridge learned the client on the port the access point
-	// hangs from, which is where it belongs.
+	// A client goes where the bridge learned it. The radio says that it is on
+	// Wi-Fi. On a router that manages access points, the radio belongs to the
+	// access point. The bridge learned the client on the port from which the
+	// access point hangs. This is the right place.
 	for mac, g := range regs {
 		keys := learned[mac]
 
@@ -289,7 +290,7 @@ func (r *RouterOS) sightings(ctx context.Context, t switchTables, kinds map[stri
 	})
 }
 
-// onWiFi marks s as a client of the radio g describes.
+// onWiFi marks s as a client of the radio that g describes.
 func onWiFi(s Sighting, g routeros.Registration) Sighting {
 	s.WiFi, s.SSID, s.Band = true, g.SSID, g.Band
 	s.TxRate, s.RxRate = int64(g.TxRate), int64(g.RxRate)
@@ -298,13 +299,13 @@ func onWiFi(s Sighting, g routeros.Registration) Sighting {
 	return s
 }
 
-// neighbours returns the devices that announced themselves, one per hardware
-// address, each on the port it is plugged into and with its IPv4 management
-// address when it advertised one.
+// neighbours returns the devices that announced themselves, one for each
+// hardware address. Each is on the port that it connects to. Each has its IPv4
+// management address, if it advertised one.
 func (r *RouterOS) neighbours(ctx context.Context, ns []routeros.Neighbor, kinds map[string]PortKind) []Neighbour {
-	// A neighbour is heard on every interface its announcement crossed: the
-	// port, and the VLAN interface on top of it. Rows are merged per address,
-	// and a wired port or radio replaces a VLAN interface.
+	// The router hears a neighbour on every interface of its announcement:
+	// the port, and the VLAN interface on top of it. Rows merge by address. A
+	// wired port or radio replaces a VLAN interface.
 	byMAC := make(map[string]*Neighbour, len(ns))
 
 	for _, n := range ns {
@@ -346,8 +347,8 @@ func (r *RouterOS) neighbours(ctx context.Context, ns []routeros.Neighbor, kinds
 		out = append(out, *nb)
 	}
 
-	// A neighbour that announced no address is keyed by its identity, so the
-	// identity breaks the tie between two of them on one port.
+	// The key of a neighbour with no address is its identity. So the identity
+	// breaks the tie between two such neighbours on one port.
 	slices.SortFunc(out, func(a, b Neighbour) int {
 		return cmp.Or(strings.Compare(a.Port, b.Port), strings.Compare(a.MAC, b.MAC), strings.Compare(a.Identity, b.Identity))
 	})
@@ -355,8 +356,8 @@ func (r *RouterOS) neighbours(ctx context.Context, ns []routeros.Neighbor, kinds
 	return out
 }
 
-// physicalPort returns the wired port or radio among the interfaces a
-// neighbour's announcement crossed, or the first of them when none is one.
+// physicalPort returns the wired port or radio among the interfaces of the
+// announcement of a neighbour. If none is, it returns the first interface.
 func physicalPort(n routeros.Neighbor, kinds map[string]PortKind) string {
 	for name := range strings.SplitSeq(n.Interface, ",") {
 		if k := kinds[strings.TrimSpace(name)]; k == PortWired || k == PortWiFi {
