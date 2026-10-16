@@ -23,8 +23,8 @@ func TestProjectMapsTheCorners(t *testing.T) {
 	assert.InDelta(t, WorldHeight, y, 1e-9, "the far south is held to the bottom edge")
 }
 
-// Every country the map draws has a name, an outline and a marker on the
-// canvas, and the ones traffic most often goes to are there.
+// Every country that the map draws has a name, an outline and a marker on the
+// canvas. The countries that traffic goes to most are on the map.
 func TestWorldDrawsEveryCountry(t *testing.T) {
 	t.Parallel()
 
@@ -48,8 +48,8 @@ func TestWorldDrawsEveryCountry(t *testing.T) {
 	assert.False(t, ok, "Antarctica is left off")
 }
 
-// A country sharing its code with small territories is named and marked after
-// the country, whichever territory the source listed last.
+// Some countries share their code with small territories. The name and marker
+// come from the country, not from the territory that the source lists last.
 func TestCountryOfNamesTheCountryNotATerritory(t *testing.T) {
 	t.Parallel()
 

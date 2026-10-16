@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The environment this test reads is the one koanf binds a technitium
-// instance named "resolver" to, so a shell that configures jocasta can run
-// this without restating anything.
+// This test reads the environment that koanf binds to a technitium instance
+// named "resolver". So a shell that configures jocasta can run this test
+// without more variables.
 const (
 	hostEnv     = "JOCASTA_PLUGINS__TECHNITIUM__RESOLVER__HOST"
 	portEnv     = "JOCASTA_PLUGINS__TECHNITIUM__RESOLVER__PORT"
@@ -21,8 +21,9 @@ const (
 	insecureEnv = "JOCASTA_PLUGINS__TECHNITIUM__RESOLVER__INSECURE"
 )
 
-// liveClient builds a client for the server the environment names, and skips
-// the test when it names none: the rest of the suite must stay hermetic.
+// liveClient builds a client for the server that the environment names. If
+// the environment names no server, it skips the test. The rest of the suite
+// must stay hermetic.
 func liveClient(t *testing.T) *Technitium {
 	t.Helper()
 
@@ -65,9 +66,9 @@ func envBool(t *testing.T, name string) bool {
 	return v
 }
 
-// TestReadLive reads a real server and prints what came back. In a cluster,
-// run it once per node with HOST set to that node's own address: each node
-// keeps its own log, and the token and log app reach it from the primary.
+// TestReadLive reads a real server and prints the result. In a cluster, run
+// it once for each node, with HOST set to the address of that node. Each node
+// keeps its own log. The primary copies the token and log app to each node.
 //
 //	JOCASTA_PLUGINS__TECHNITIUM__RESOLVER__HOST=192.0.2.53 \
 //	JOCASTA_PLUGINS__TECHNITIUM__RESOLVER__TOKEN=... \
@@ -113,9 +114,9 @@ func TestReadLive(t *testing.T) {
 		t.Skip("nothing logged in the last 10 minutes")
 	}
 
-	// A start equal to an entry's own timestamp, sent in UTC, returns that
-	// entry first: the server reads start as UTC, inclusive, to the 100ns
-	// it stores.
+	// If start is equal to the timestamp of an entry, sent in UTC, the server
+	// returns that entry first. The server reads start as UTC and inclusive,
+	// to the 100ns that it stores.
 	first := page.Entries[0]
 
 	at, err := time.Parse(time.RFC3339Nano, first.Timestamp)

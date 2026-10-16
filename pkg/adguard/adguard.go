@@ -1,12 +1,12 @@
-// Package adguard reads an AdGuard Home query log over the API its web
-// interface serves.
+// Package adguard reads the query log of an AdGuard Home, over the API of its
+// web interface.
 //
-// The API takes the web interface login over HTTP Basic authentication.
-// AdGuard Home has no read-only users: any login that reads the log can
-// change settings too.
+// The API accepts the web interface login over HTTP Basic authentication.
+// AdGuard Home has no read-only users. Any login that reads the log can also
+// change settings.
 //
-// Everything here reads; nothing writes. Values arrive as the server renders
-// them and stay strings, so a malformed row costs the caller only that row.
+// The package only reads. It never writes. Values stay strings, as the server
+// renders them. So if a row is malformed, the caller loses only that row.
 package adguard
 
 import (
@@ -29,12 +29,13 @@ const (
 	defaultSSLPort = 443
 	defaultTimeout = 10 * time.Second
 
-	// maxBody caps a response. A page of a thousand log entries is under a
-	// megabyte, and a device answering on this port that is not AdGuard Home
-	// can stream forever.
+	// maxBody limits the size of a response. A page of a thousand log entries
+	// is less than a megabyte. A device on this port that is not AdGuard Home
+	// can send data forever.
 	maxBody = 8 << 20
 
-	// maxReason caps how much of a refusal's body is kept for its message.
+	// maxReason limits how much of the body of a refusal the client keeps as
+	// its message.
 	maxReason = 512
 )
 
@@ -47,19 +48,19 @@ type (
 		// Port defaults to 80, or 443 when SSL is set.
 		Port int
 
-		// User and Password are the web interface login. An empty User reads
-		// a server with no login set.
+		// User and Password are the web interface login. Leave User empty for
+		// a server with no login.
 		User     string
 		Password string
 
-		// SSL selects https, which the server serves once encryption is set
-		// up in its settings. Insecure skips certificate verification, for a
-		// self-signed certificate.
+		// SSL selects https. The server serves https after you set up
+		// encryption in its settings. Insecure skips certificate verification.
+		// Use it for a self-signed certificate.
 		SSL      bool
 		Insecure bool
 
-		// Timeout bounds each request on its own, defaulting to 10s, so a
-		// caller's context stays the only thing that bounds a whole read.
+		// Timeout limits each request on its own. The default is 10s. Only the
+		// context of the caller limits a whole read.
 		Timeout time.Duration
 	}
 
@@ -74,11 +75,12 @@ type (
 
 	// LogRequest picks a page of the query log, newest first.
 	LogRequest struct {
-		// OlderThan drops entries logged at or after it, which pages past the
-		// last entry of the page before. Zero starts at the newest.
+		// OlderThan leaves out entries logged at or after it. Set it to the
+		// last entry of the page before, to get the next page. Zero starts at
+		// the newest entry.
 		OlderThan time.Time
 
-		// Limit is the server's default page size when zero.
+		// If Limit is zero, the server uses its default page size.
 		Limit int
 	}
 
@@ -87,21 +89,21 @@ type (
 		Data []LogEntry `json:"data"`
 	}
 
-	// LogEntry is one logged query and how the server answered it.
+	// LogEntry is one logged query, and how the server answered it.
 	LogEntry struct {
 		// Time is when the query arrived, in RFC 3339 with nanoseconds.
 		Time string `json:"time"`
 
-		// Client is the address that asked, anonymised when the server is set
-		// to anonymise client addresses.
+		// Client is the address that asked. If the server anonymises client
+		// addresses, this address is anonymised.
 		Client string `json:"client"`
 
 		Question Question `json:"question"`
 
-		// Answer is the answer section the client got.
+		// Answer is the answer section that the client got.
 		Answer []Answer `json:"answer"`
 
-		// Reason is why the server answered as it did, such as
+		// Reason is why the server gave this answer, such as
 		// NotFilteredNotFound, FilteredBlackList or Rewrite.
 		Reason string `json:"reason"`
 
@@ -109,26 +111,26 @@ type (
 		Status string `json:"status"`
 	}
 
-	// Question is the name and record type a query asked for.
+	// Question is the name and record type that a query asked for.
 	Question struct {
 		Name string `json:"name"`
 		Type string `json:"type"`
 	}
 
-	// Answer is one record of an answer section. Value is the record's data,
-	// which for A and AAAA is the address.
+	// Answer is one record of an answer section. Value is the data of the
+	// record. For A and AAAA, it is the address.
 	Answer struct {
 		Type  string `json:"type"`
 		Value string `json:"value"`
 	}
 )
 
-// ErrNoHost is a config naming no server.
+// ErrNoHost is a config that names no server.
 var ErrNoHost = errors.New("adguard: no host configured")
 
-// New builds a client for the server cfg names. It performs no I/O, so a
-// server that is down at startup is retried later and the caller still
-// starts.
+// New builds a client for the server that cfg names. It does no I/O. So if
+// the server is down at startup, the caller still starts and tries again
+// later.
 func New(cfg *Config) (*AdGuard, error) {
 	if cfg == nil || cfg.Host == "" {
 		return nil, ErrNoHost
@@ -149,8 +151,8 @@ func New(cfg *Config) (*AdGuard, error) {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 
 	if cfg.Insecure {
-		// Clone carries the default TLS settings over, but not necessarily a
-		// config to hang this on.
+		// Clone copies the default TLS settings, but it can leave the TLS
+		// config nil.
 		if transport.TLSClientConfig == nil {
 			transport.TLSClientConfig = &tls.Config{} //nolint:gosec // the next line is the point.
 		}
@@ -173,8 +175,8 @@ func New(cfg *Config) (*AdGuard, error) {
 	}, nil
 }
 
-// Addr is the URL this client calls, useful in a log line naming which server
-// answered.
+// Addr is the URL that this client calls. Use it in a log line to name the
+// server that answered.
 func (a *AdGuard) Addr() string { return a.base }
 
 // QueryLog returns one page of the query log.
@@ -194,9 +196,10 @@ func (a *AdGuard) QueryLog(ctx context.Context, q LogRequest) (*LogPage, error) 
 
 // get calls path with query and decodes the answer into T.
 //
-// A server that cannot be reached at all is [ErrUnreachable], one whose
-// certificate does not verify is [ErrTLS], and a 401 is [ErrUnauthorized].
-// Any other refusal is an [*APIError] carrying the server's reason.
+// If the client cannot reach the server at all, the error is
+// [ErrUnreachable]. If the certificate does not verify, it is [ErrTLS]. A 401
+// is [ErrUnauthorized]. Any other refusal is an [*APIError] with the reason
+// of the server.
 func get[T any](ctx context.Context, a *AdGuard, path string, query url.Values) (*T, error) {
 	u := a.base + path
 	if len(query) > 0 {
@@ -216,8 +219,8 @@ func get[T any](ctx context.Context, a *AdGuard, path string, query url.Values) 
 
 	resp, err := a.client.Do(req)
 	if err != nil {
-		// A cancelled context is the caller giving up. Calling it unreachable
-		// would have the poller retry during a shutdown.
+		// A cancelled context means that the caller stopped. If the client
+		// called it unreachable, the poller would try again during a shutdown.
 		if ctx.Err() != nil {
 			return nil, fmt.Errorf("request send: %w", err)
 		}
@@ -238,7 +241,8 @@ func get[T any](ctx context.Context, a *AdGuard, path string, query url.Values) 
 	case http.StatusNotFound:
 		return nil, fmt.Errorf("%w: %s: status %d", ErrUnexpected, path, resp.StatusCode)
 	default:
-		// A refusal's body is kept as its message, whatever its format.
+		// The client keeps the body of a refusal as its message, in any
+		// format.
 		reason, _ := io.ReadAll(io.LimitReader(resp.Body, maxReason))
 
 		return nil, &APIError{Path: path, Status: resp.StatusCode, Message: strings.TrimSpace(string(reason))}

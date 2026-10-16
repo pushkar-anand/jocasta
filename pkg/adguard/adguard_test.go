@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// logAnswer is a page in the shape AdGuard Home returns it, with
+// logAnswer is a page with the shape that AdGuard Home returns, with
 // documentation addresses and names.
 const logAnswer = `{"data":[
 	{"answer":[{"type":"CNAME","value":"edge.example.net.","ttl":300},{"type":"A","value":"203.0.113.5","ttl":300}],
@@ -25,8 +25,8 @@ const logAnswer = `{"data":[
 	 "reason":"FilteredBlackList","rules":[{"filter_list_id":1,"text":"||ads.example.net^"}],"status":"NOERROR","time":"2026-10-11T08:59:59Z"}
 ],"oldest":"2026-10-11T08:59:59Z"}`
 
-// fakeServer answers the query log for user and password, and records the
-// last request so a test can check what was asked.
+// fakeServer answers the query log for user and password. It records the
+// last request, so a test can check what the client asked.
 type fakeServer struct {
 	user, password string
 	last           *http.Request
@@ -52,7 +52,7 @@ func (f *fakeServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(logAnswer))
 }
 
-// clientFor returns a client for srv logging in as user with password.
+// clientFor returns a client for srv that logs in as user with password.
 func clientFor(t *testing.T, srv *httptest.Server, user, password string) *AdGuard {
 	t.Helper()
 
@@ -89,7 +89,7 @@ func TestNewPicksPortFromSSL(t *testing.T) {
 	assert.Equal(t, "https://192.0.2.53:443", secure.Addr())
 }
 
-// A page decodes, and the request carries the login and what it asks for.
+// A page decodes. The request has the login and what it asks for.
 func TestQueryLogDecodesAPage(t *testing.T) {
 	t.Parallel()
 
@@ -115,7 +115,7 @@ func TestQueryLogDecodesAPage(t *testing.T) {
 	assert.Equal(t, "FilteredBlackList", page.Data[1].Reason)
 }
 
-// A server with no login set is read without one.
+// The client reads a server with no login, and sends no login.
 func TestQueryLogWithoutALogin(t *testing.T) {
 	t.Parallel()
 
@@ -138,7 +138,8 @@ func TestQueryLogRefusedLogin(t *testing.T) {
 	require.ErrorIs(t, err, ErrUnauthorized)
 }
 
-// A refusal the server words itself keeps its wording.
+// If the server gives its own text for a refusal, the error keeps that
+// text.
 func TestQueryLogRefused(t *testing.T) {
 	t.Parallel()
 
@@ -154,7 +155,7 @@ func TestQueryLogRefused(t *testing.T) {
 	assert.Equal(t, "reading query log", apiErr.Message)
 }
 
-// Something else on the port is unexpected.
+// A different service on the port is unexpected.
 func TestQueryLogSomethingElseOnThePort(t *testing.T) {
 	t.Parallel()
 

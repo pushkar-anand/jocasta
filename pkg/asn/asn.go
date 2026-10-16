@@ -1,15 +1,15 @@
 // Package asn resolves an internet address to the organisation that announces
-// it, so an address can be shown as "Amazon".
+// it. So the UI can show an address as "Amazon".
 //
-// The tables are built from DB-IP's IP to ASN Lite database, which is licensed
-// under CC BY 4.0 and must be credited wherever its names are shown:
-// [Attribution] is the line to use. They are embedded, so a lookup needs no
-// network access and no external database.
+// The tables come from the IP to ASN Lite database of DB-IP. Its licence is
+// CC BY 4.0, which requires a credit wherever its names show. Use the line in
+// [Attribution]. The tables are embedded. So a lookup needs no network access
+// and no external database.
 //
-// An ASN names the network that routes an address. A site hosted on a cloud
-// provider resolves to the provider, and a CDN edge resolves to the CDN. That
-// still answers "who is this device talking to", one level up from the answer
-// a person might guess.
+// An ASN names the network that routes an address. A site on a cloud provider
+// resolves to the provider, and a CDN edge resolves to the CDN. This still
+// tells who the device talks to, but one level above the answer that a person
+// can expect.
 package asn
 
 import (
@@ -23,8 +23,8 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/internal/rangetable"
 )
 
-// Attribution is the credit DB-IP's licence requires wherever these names are
-// shown.
+// Attribution is the credit that the licence of DB-IP requires wherever these
+// names show.
 const Attribution = "IP to ASN data by DB-IP (db-ip.com), CC BY 4.0"
 
 //go:embed ranges.gz
@@ -35,20 +35,21 @@ var orgsData []byte
 
 // Org is an organisation that announces addresses.
 type Org struct {
-	// ASN is the autonomous system number, the stable identity of the network.
+	// ASN is the autonomous system number. It is the stable identity of the
+	// network.
 	ASN uint32
 
 	// Name is the organisation as registered, such as "Amazon.com, Inc.".
 	Name string
 
-	// Short is an abbreviated form suitable for display, such as "Amazon".
-	// It falls back to Name where nothing could be dropped.
+	// Short is a short form for display, such as "Amazon". If no part of Name
+	// can be removed, Short is Name.
 	Short string
 }
 
-// tables are parsed on first use. Decompressing and indexing half a million
-// ranges takes a noticeable fraction of a second, which a caller that never
-// looks up an address should not pay.
+// tables are parsed on first use. To decompress and index half a million
+// ranges takes a large part of a second. A caller that never looks up an
+// address must not pay this cost.
 var tables = sync.OnceValue(load)
 
 type index struct {
@@ -56,8 +57,8 @@ type index struct {
 	orgs   map[uint32]Org
 }
 
-// load builds the embedded address and organisation index, skipping rows whose
-// fields cannot be parsed.
+// load builds the embedded address and organisation index. It skips rows with
+// fields that do not parse.
 func load() *index {
 	ix := &index{orgs: make(map[uint32]Org, 90_000)}
 
@@ -100,9 +101,10 @@ func load() *index {
 
 // Lookup returns the organisation that announces addr.
 //
-// It reports false for an address that is not on the public internet
-// (private, loopback, link-local, shared, documentation and multicast
-// ranges), and for a public address no organisation announces.
+// It reports false for an address that is not on the public internet. These
+// are the private, loopback, link-local, shared, documentation and multicast
+// ranges. It also reports false for a public address that no organisation
+// announces.
 func Lookup(addr netip.Addr) (Org, bool) {
 	addr = addr.Unmap()
 	if !IsPublic(addr) {
@@ -121,13 +123,16 @@ func Lookup(addr netip.Addr) (Org, bool) {
 		return org, true
 	}
 
-	// Announced, but by a network the source gave no name.
+	// A network announces the address, but the source gives the network no
+	// name.
 	return Org{ASN: asn, Name: "AS" + strconv.FormatUint(uint64(asn), 10), Short: "AS" + strconv.FormatUint(uint64(asn), 10)}, true
 }
 
-// nonPublic are the special-purpose ranges that netip does not already
-// classify: shared address space for carrier-grade NAT, benchmarking, the
-// documentation ranges, and the IPv4 block reserved for future use.
+// nonPublic are the special-purpose ranges that netip does not classify:
+//   - shared address space for carrier-grade NAT
+//   - benchmarking
+//   - the documentation ranges
+//   - the IPv4 block reserved for future use
 var nonPublic = []netip.Prefix{
 	netip.MustParsePrefix("100.64.0.0/10"),
 	netip.MustParsePrefix("192.0.0.0/24"),
@@ -139,8 +144,9 @@ var nonPublic = []netip.Prefix{
 	netip.MustParsePrefix("2001:db8::/32"),
 }
 
-// IsPublic reports whether addr is an address on the public internet, the only
-// kind worth looking up. No organisation announces a private address.
+// IsPublic reports whether addr is an address on the public internet. Only
+// these addresses are worth a lookup. No organisation announces a private
+// address.
 func IsPublic(addr netip.Addr) bool {
 	addr = addr.Unmap()
 

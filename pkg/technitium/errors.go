@@ -5,23 +5,23 @@ import (
 	"fmt"
 )
 
-// Sentinels a caller acts on differently. The distinction that matters is
-// whether the next attempt could go better: a server behind a firewall may
-// come back, a token that is wrong is wrong until someone edits the config.
+// A caller acts differently on each of these sentinels. The question is
+// whether the next attempt can go better. A server behind a firewall can come
+// back. A wrong token stays wrong until someone edits the config.
 var (
-	// ErrUnreachable is a server that could not be contacted at all: a
-	// refused connection, a timeout, a name that does not resolve. Worth
-	// retrying.
+	// ErrUnreachable is a server that the client cannot contact at all. For
+	// example, the connection is refused, it times out, or the name does not
+	// resolve. A retry can help.
 	ErrUnreachable = errors.New("technitium: server unreachable")
 
 	// ErrUnauthorized is a server that refused the token as expired or
-	// unknown. Retrying will not fix it.
+	// unknown. A retry does not help.
 	ErrUnauthorized = errors.New("technitium: token rejected")
 
-	// ErrTLS is a server whose certificate could not be verified. It is told
-	// apart from ErrUnreachable because the server is plainly there and no
-	// number of retries will change its certificate: it wants Insecure set,
-	// or a certificate installed.
+	// ErrTLS is a server whose certificate does not verify. It is separate
+	// from ErrUnreachable, because the server is clearly there. Retries do not
+	// change its certificate. The fix is to set Insecure, or to install a
+	// certificate.
 	ErrTLS = errors.New("technitium: certificate not verified")
 
 	// ErrUnexpected is an answer that is not the Technitium API, such as
@@ -29,9 +29,10 @@ var (
 	ErrUnexpected = errors.New("technitium: unexpected answer")
 )
 
-// APIError is a call the server answered with status "error", such as a user
-// without the permission the call needs, or an app name it does not know.
-// Message is the server's errorMessage, which says which.
+// APIError is a call that the server answered with status "error". For
+// example, the user does not have the permission that the call needs, or the
+// server does not know the app name. Message is the errorMessage of the
+// server, which tells the cause.
 type APIError struct {
 	Path    string
 	Message string

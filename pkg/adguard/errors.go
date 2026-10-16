@@ -5,32 +5,32 @@ import (
 	"fmt"
 )
 
-// Sentinels a caller acts on differently. The distinction that matters is
-// whether the next attempt could go better: a server behind a firewall may
-// come back, a login that is wrong is wrong until someone edits the config.
+// A caller acts differently on each of these sentinels. The question is
+// whether the next attempt can go better. A server behind a firewall can come
+// back. A wrong login stays wrong until someone edits the config.
 var (
-	// ErrUnreachable is a server that could not be contacted at all: a
-	// refused connection, a timeout, a name that does not resolve. Worth
-	// retrying.
+	// ErrUnreachable is a server that the client cannot contact at all. For
+	// example, the connection is refused, it times out, or the name does not
+	// resolve. A retry can help.
 	ErrUnreachable = errors.New("adguard: server unreachable")
 
-	// ErrUnauthorized is a server that refused the login, or wants one and
-	// was given none. Retrying will not fix it.
+	// ErrUnauthorized is a server that refused the login, or that needs a
+	// login and got none. A retry does not help.
 	ErrUnauthorized = errors.New("adguard: login rejected")
 
-	// ErrTLS is a server whose certificate could not be verified. It is told
-	// apart from ErrUnreachable because the server is plainly there and no
-	// number of retries will change its certificate: it wants Insecure set,
-	// or a certificate installed.
+	// ErrTLS is a server whose certificate does not verify. It is separate
+	// from ErrUnreachable, because the server is clearly there. Retries do not
+	// change its certificate. The fix is to set Insecure, or to install a
+	// certificate.
 	ErrTLS = errors.New("adguard: certificate not verified")
 
-	// ErrUnexpected is an answer that is not the AdGuard Home API, such as
-	// something else listening on the port.
+	// ErrUnexpected is an answer that is not the AdGuard Home API. For
+	// example, a different service listens on the port.
 	ErrUnexpected = errors.New("adguard: unexpected answer")
 )
 
-// APIError is a call the server refused for a reason of its own. Message is
-// the server's wording, empty when it gave none.
+// APIError is a call that the server refused for its own reason. Message is
+// the text of the server. It is empty when the server gave no text.
 type APIError struct {
 	Path    string
 	Status  int

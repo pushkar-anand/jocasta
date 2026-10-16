@@ -1,11 +1,11 @@
-// Package cursor pages a sorted query by remembering the row the last page
-// ended on.
+// Package cursor pages a sorted query. It remembers the row on which the last
+// page ended.
 //
-// A log is written while it is being read, and an offset counts from the top of
-// a list the next insert has already shifted: a client walking one page at a
-// time sees the row on the boundary twice, and the row after it not at all. A
-// cursor names a row, so the page after it is the same page whatever arrived
-// in the meantime.
+// Jocasta writes to a log while clients read it. An offset counts from the top
+// of the list, and each insert moves the rows down. So a client that reads one
+// page at a time sees the row on the boundary twice, and misses the next row.
+// A cursor names a row. So the next page is the same, even when new rows
+// arrive.
 package cursor
 
 import (
@@ -31,8 +31,8 @@ const (
 // Valid reports whether o is one of the known directions.
 func (o Order) Valid() bool { return o == Asc || o == Desc }
 
-// Kind names the type of the sort column's value, so that Decode can parse back
-// what Encode wrote without being told which query the token came from.
+// Kind names the type of the value in the sort column. With it, Decode can
+// parse what Encode wrote without knowing the query of the token.
 type Kind string
 
 // The kinds of value a sort column can hold.
@@ -53,15 +53,15 @@ func (k Kind) Valid() bool {
 	return false
 }
 
-// Errors returned by Encode and Decode when a request asks for something a
-// cursor cannot represent.
+// Encode and Decode return these errors when a request asks for something
+// that a cursor cannot represent.
 var (
-	// ErrUnsortableValue reports a cursor Value of a type Encode cannot
+	// ErrUnsortableValue reports a cursor Value of a type that Encode cannot
 	// render.
 	ErrUnsortableValue = errors.New("cursor: value cannot be sorted")
 
-	// ErrMalformed is a token that is not base64 of the expected four parts,
-	// or whose value does not parse as the kind it names.
+	// ErrMalformed is a token that is not base64 of the four expected parts.
+	// It is also a token whose value does not parse as the kind it names.
 	ErrMalformed = errors.New("cursor: malformed")
 
 	// ErrOrder is a token whose order field is neither ASC nor DESC.
@@ -71,50 +71,51 @@ var (
 	ErrKind = errors.New("cursor: unknown value kind")
 )
 
-// separator splits the parts of a decoded token. It is three characters so that
-// a string sort column carrying one character of it does not split the token.
+// separator splits the parts of a decoded token. It has three characters. So
+// if a string sort column contains one of them, the token does not split.
 const separator = ":::"
 
-// Cursor marks the row a page ended on.
+// Cursor marks the row on which a page ended.
 //
-// It carries the whole sort key: the sort column's value and the row's id. A
-// query ordered by a column several rows can share, such as a timestamp,
-// cannot resume from the value alone, so the id breaks the tie.
+// It holds the whole sort key: the value of the sort column and the id of the
+// row. Several rows can share a value in a sort column, such as a timestamp.
+// A query cannot continue from the value alone, so the id breaks the tie.
 //
-// The token a client sees is base64 of
-// <order>:::<kind>:::<value>:::<id>, which is opaque enough to say that
-// taking it apart means depending on an ordering that is the server's to
-// change. Cursor marshals to and from that token as both text and JSON, so a
-// request struct can decode one straight out of a query string and a response
-// can carry one back without either naming the encoding.
+// The token that a client sees is base64 of
+// <order>:::<kind>:::<value>:::<id>. The base64 tells the client not to take
+// the token apart. The server can change the order. Cursor marshals to and
+// from the token as text and as JSON. So a request struct can decode it from
+// a query string, and a response can return it. Neither needs to know the
+// encoding.
 type Cursor struct {
-	// Value is the sort column's value in the row the page ended on.
+	// Value is the value of the sort column in the row on which the page
+	// ended.
 	Value any
 
-	// ID breaks the tie when Value does not identify one row. It is the row's
-	// auto-incrementing key.
+	// ID breaks the tie when Value does not identify one row. It is the
+	// auto-incrementing key of the row.
 	ID int64
 
-	// Order is the direction the query sorts in, and so which side of Value
-	// the next page lies on.
+	// Order is the direction of the sort. It tells on which side of Value the
+	// next page is.
 	Order Order
 }
 
 // IsZero reports whether c marks no row. The zero cursor is the first page.
 func (c Cursor) IsZero() bool { return c.Value == nil }
 
-// WithValue returns a copy of c holding v, for handing the query a value that
-// renders itself the way its column stores it. A timestamp kept as text has to
-// be compared in the format it was written in, which the bare time.Time that
-// Decode produces does not know about.
+// WithValue returns a copy of c with the value v. Use it to give the query a
+// value that renders in the same format as its column. A query must compare a
+// text timestamp in the format of the column. The time.Time from Decode does
+// not know that format.
 func (c Cursor) WithValue(v any) Cursor {
 	c.Value = v
 
 	return c
 }
 
-// Encode renders the token. The zero cursor has no token: there is no page
-// after the end of a list.
+// Encode renders the token. The zero cursor has no token, because there is no
+// page after the end of a list.
 func (c Cursor) Encode() (string, error) {
 	if c.IsZero() {
 		return "", nil
@@ -137,8 +138,8 @@ func (c Cursor) Encode() (string, error) {
 	return base64.URLEncoding.EncodeToString([]byte(raw)), nil
 }
 
-// Decode reads a token back. An empty token leaves the cursor zero, so a client
-// asking for the first page need not leave the parameter off.
+// Decode reads a token. An empty token leaves the cursor zero. So a client
+// that asks for the first page can send the parameter empty.
 func (c *Cursor) Decode(token string) error {
 	if token == "" {
 		*c = Cursor{}
@@ -193,14 +194,14 @@ func (c Cursor) MarshalText() ([]byte, error) {
 	return []byte(token), nil
 }
 
-// UnmarshalText implements encoding.TextUnmarshaler, which is what lets a query
-// string decode into a Cursor field without the handler unpacking it.
+// UnmarshalText implements encoding.TextUnmarshaler. With it, a query string
+// decodes into a Cursor field, and the handler does not unpack it.
 func (c *Cursor) UnmarshalText(text []byte) error {
 	return c.Decode(strings.Trim(string(text), `"`))
 }
 
-// MarshalJSON implements json.Marshaler, rendering the token as a string and
-// the zero cursor as null.
+// MarshalJSON implements json.Marshaler. It renders the token as a string,
+// and the zero cursor as null.
 func (c Cursor) MarshalJSON() ([]byte, error) {
 	token, err := c.Encode()
 	if err != nil {
@@ -230,11 +231,12 @@ func (c *Cursor) UnmarshalJSON(data []byte) error {
 	return c.Decode(token)
 }
 
-// Where adds the seek to a query: the rows lying past the one c marks, in the
-// order c was taken in. A zero cursor adds nothing, which is the first page.
+// Where adds the seek to a query. The seek selects the rows after the row
+// that c marks, in the order of c. A zero cursor adds nothing, so the query
+// returns the first page.
 //
-// The comparison is written as a bound on the sort column and then the pair
-// that breaks its ties, so that an index on the sort column still answers it.
+// The comparison is a bound on the sort column, then the pair that breaks
+// ties. So an index on the sort column can still answer it.
 func (c Cursor) Where(sb squirrel.SelectBuilder, valueColumn, idColumn string) squirrel.SelectBuilder {
 	if c.IsZero() {
 		return sb
@@ -257,8 +259,8 @@ func (c Cursor) Where(sb squirrel.SelectBuilder, valueColumn, idColumn string) s
 		})
 }
 
-// encodeValue returns a cursor value's text and kind. Unsupported types return
-// an error wrapping ErrUnsortableValue.
+// encodeValue returns the text and kind of a cursor value. For a type that it
+// does not support, it returns an error that wraps ErrUnsortableValue.
 func encodeValue(v any) (string, Kind, error) {
 	switch t := v.(type) {
 	case string:
