@@ -1,12 +1,14 @@
 # Notifications
 
-Jocasta can send what each scan changed to an [ntfy](https://ntfy.sh) topic,
-as a signed JSON POST to a URL of your own, or to any service that takes an
-HTTP request, such as Discord, Slack or Telegram. See
-[Send to another service](other-services.md).
+Jocasta can send the changes from each scan to these destinations:
 
-1. Under `notify` in the config file, add each destination by name, with one
-   service block:
+- an [ntfy](https://ntfy.sh) topic
+- your own URL, as a signed JSON POST
+- any service that accepts an HTTP request, such as Discord, Slack or
+  Telegram. See [Send to another service](other-services.md).
+
+1. Under `notify` in the config file, add each destination by name. Give
+   each destination one service block:
 
    ```yaml
    notify:
@@ -20,20 +22,20 @@ HTTP request, such as Discord, Slack or Telegram. See
          secret: "change-me"                       # required; signs each request
    ```
 
-   A destination is on unless it says `enabled: false`.
-2. Restart Jocasta so it reads the change.
+   A destination is on, unless it has `enabled: false`.
+2. Restart Jocasta, so that it reads the change.
 3. Open the account menu at the top right, and select **Notifications**.
-4. For each destination, tick the kinds of change it is sent, then select
-   **Save**.
-5. Optional: select **Send test**. A message titled "Jocasta test" arrives at
-   the destination.
+4. For each destination, tick the kinds of change to send to it.
+5. Select **Save**.
+6. Optional: select **Send test**. The destination gets a message with the
+   title "Jocasta test".
 
-Each scan that changes something is sent as one message, such as
-"2 new devices on 192.0.2.0/24". The first scan of a network, when every
-device it finds is new, is sent as a count ("Found 42 devices"). Changes to
-devices you ignore, and your own edits, are left out. A message that cannot
-be delivered is logged and shown on the Notifications page, and is not sent
-again.
+Jocasta sends one message for each scan that changes something, such as
+"2 new devices on 192.0.2.0/24". In the first scan of a network, every device
+is new. So Jocasta sends only a count for that scan ("Found 42 devices").
+Jocasta does not send changes to devices that you ignore, or your own edits.
+If Jocasta cannot deliver a message, it logs the failure and shows it on the
+Notifications page. It does not send the message again.
 
-Every `notify` setting, with its default and allowed values, is in the
-[configuration reference](../reference/configuration.md#notify).
+The [configuration reference](../reference/configuration.md#notify) lists
+every `notify` setting, with its default and allowed values.

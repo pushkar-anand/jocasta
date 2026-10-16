@@ -1,15 +1,16 @@
 # Check a webhook's signature
 
-A webhook request is a POST whose JSON body has `title`, `message`,
-`scan_id` and `events`. Two headers come with it:
+A webhook request is a POST. Its JSON body has `title`, `message`,
+`scan_id` and `events`. The request has two headers:
 
-- `X-Jocasta-Signature-256`: `sha256=` and the hex HMAC-SHA256 of the raw
-  body, keyed with the destination's `secret`.
-- `X-Jocasta-Delivery`: a random id for this request. Log it, and drop a
-  delivery you have already handled.
+- `X-Jocasta-Signature-256`: `sha256=`, then the hex HMAC-SHA256 of the raw
+  body. The key is the `secret` of the destination.
+- `X-Jocasta-Delivery`: a random ID for this request. Log it. If you already
+  handled a delivery with this ID, discard the request.
 
-To check a request, compute the HMAC over the body exactly as received, before
-parsing it, and compare it with the header in constant time. In Go:
+To check a request, compute the HMAC over the body exactly as you got it.
+Do this before you parse the body. Then compare the result with the header in
+constant time. In Go:
 
 ```go
 mac := hmac.New(sha256.New, []byte(secret))
