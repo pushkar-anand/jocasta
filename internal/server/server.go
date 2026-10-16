@@ -1,4 +1,4 @@
-// Package server wires the API and web handlers into one HTTP server.
+// Package server joins the API and web handlers into one HTTP server.
 package server
 
 import (
@@ -30,55 +30,58 @@ import (
 )
 
 type (
-	// Config controls how the server binds and what it logs to.
+	// Config controls how the server binds, and where it logs.
 	Config struct {
 		Port   int
 		Addr   string
 		Logger *slog.Logger
 
-		// CORSAllowedOrigins lists the origins (scheme://host[:port]) a browser
-		// may read this server's responses from cross-origin. Empty sends no
-		// CORS headers, so only the server's own pages can read them. CORS
-		// matters only once something at another address needs in.
+		// CORSAllowedOrigins lists the origins (scheme://host[:port]) from
+		// which a browser can read the responses of this server cross-origin.
+		// If it is empty, the server sends no CORS headers. Then only the
+		// pages of the server can read them. CORS is important only when a
+		// page at a different address needs access.
 		CORSAllowedOrigins []string
 
-		// SessionLifetime caps how long a signed-in browser stays signed in
-		// from sign-in; SessionIdleTimeout drops it after that long without a
-		// request. SessionCookieSecure confines the session cookie to HTTPS and
-		// is false only to allow signing in over plain HTTP in development.
+		// SessionLifetime limits how long a browser stays signed in after
+		// sign-in. SessionIdleTimeout ends the session after that time without
+		// a request. SessionCookieSecure limits the session cookie to HTTPS.
+		// It is false only for sign-in over plain HTTP during development.
 		SessionLifetime     time.Duration
 		SessionIdleTimeout  time.Duration
 		SessionCookieSecure bool
 
-		// MCPEnabled serves the Model Context Protocol endpoint at /mcp. Off,
-		// the path answers that it is off.
+		// MCPEnabled serves the Model Context Protocol endpoint at /mcp. When
+		// it is off, the path answers that it is off.
 		MCPEnabled bool
 
-		// RecentTraffic is what the traffic recorder saw lately, for the map
-		// to mark what is active. Nil when no traffic source is configured.
+		// RecentTraffic is what the traffic recorder saw recently. The map
+		// uses it to mark what is active. It is nil when no traffic source is
+		// configured.
 		RecentTraffic web.RecentTraffic
 
-		// HomeCountry is where the world map draws its lines from when the
-		// router's outside address cannot place it; empty when not set.
+		// HomeCountry is where the world map starts its lines, when the
+		// outside address of the router cannot give the country. It is empty
+		// when not set.
 		HomeCountry string
 
 		// Notifier sends changes to the configured destinations, for the
-		// notifications page. Nil when none is enabled.
+		// notifications page. It is nil when no destination is enabled.
 		Notifier *notify.Notifier
 
 		// TrustedProxies lists the reverse proxy addresses or CIDR prefixes
-		// whose forwarding headers are trusted. When empty, the client address
-		// is always the connection address.
+		// whose forwarding headers the server trusts. When it is empty, the
+		// client address is always the connection address.
 		TrustedProxies []netip.Prefix
 	}
 )
 
 // Start runs the HTTP server for the API and web UI until ctx is cancelled.
 //
-// The caller builds the store and passes it in: the poller writes through
-// the same one, and how the inventory is read must not depend on which caller
-// constructed it. conn is the same database, handed on to back the session
-// store so a sign-in outlives a restart.
+// The caller builds the store and gives it to Start. The poller writes through
+// the same store. How the inventory is read must not depend on the caller
+// that built it. conn is the same database. The session store uses it, so a
+// sign-in stays after a restart.
 func Start(
 	ctx context.Context,
 	cfg *Config,
@@ -96,8 +99,8 @@ func Start(
 	return srv.Serve(ctx)
 }
 
-// Handler is everything Start serves, without the listener, so a browser test
-// can drive the same routes and headers a deployment does.
+// Handler is everything that Start serves, without the listener. So a browser
+// test can use the same routes and headers as a deployment.
 func Handler(
 	cfg *Config,
 	conn *sql.DB,
@@ -123,7 +126,7 @@ func Handler(
 		response.WithErrorProblemMapper(problem.For),
 	)
 
-	// The templates are set up in the web handler, passing nil here.
+	// The web handler sets up the templates, so this passes nil.
 	hw := response.NewHTMLWriter(
 		cfg.Logger,
 		nil,
@@ -144,16 +147,16 @@ func Handler(
 				return http.StatusNotFound
 			case errors.Is(err, auth.ErrInvalidCredentials):
 				return http.StatusUnauthorized
-			// ErrInvalidTOTPCode is the one failure that needs its own page,
-			// TemplateTOTP, with status 428. Nothing else in the app uses 428,
-			// and browsers and proxies give it none of the special handling
+			// ErrInvalidTOTPCode is the only failure that needs its own page,
+			// TemplateTOTP, with status 428. Nothing else in the app uses 428.
+			// Browsers and proxies do not give it the special handling that
 			// they give 401 and 407.
 			case errors.Is(err, auth.ErrInvalidTOTPCode):
 				return http.StatusPreconditionRequired
 			case errors.Is(err, auth.ErrLoginLocked), errors.Is(err, auth.ErrTOTPLocked):
 				return http.StatusTooManyRequests
-			// Settings handlers render these beside the failed field. Keep the
-			// status mapping for errors returned outside those handlers too.
+			// Settings handlers render these next to the failed field. Also
+			// keep the status mapping for errors from other handlers.
 			case errors.Is(err, auth.ErrInvalidEnrollmentCode), errors.Is(err, auth.ErrInvalidPassword):
 				return http.StatusUnprocessableEntity
 			case errors.Is(err, auth.ErrSetupComplete):
@@ -162,10 +165,10 @@ func Handler(
 				return http.StatusForbidden
 			}
 
-			// Zero leaves the status to the writer. An error that describes its
-			// own status, as the request package's parse and validation
-			// failures do, has it read off, and only a truly unmapped error
-			// becomes a 500.
+			// With zero, the writer sets the status. Some errors describe
+			// their own status, as the parse and validation failures of the
+			// request package do. The writer reads that status. Only an
+			// error with no mapping becomes a 500.
 			return 0
 		}),
 		response.WithErrorDataFunc(web.ErrorPageData(sm)),
@@ -200,16 +203,16 @@ func Handler(
 
 	mux := http.NewServeMux()
 
-	// A script authenticates with a bearer token and carries no session
-	// cookie; a browser tab carries a session cookie and never attaches a
-	// bearer token on its own. Gating each mount with only the check its
-	// caller can actually satisfy keeps that distinction enforced.
+	// A script authenticates with a bearer token and has no session cookie.
+	// A browser tab has a session cookie, and never adds a bearer token by
+	// itself. Each mount has only the check that its caller can pass. This
+	// keeps the two separate.
 	mux.Handle("/api/", http.StripPrefix("/api", tokenMiddleware(ap)))
 	mux.Handle("/", sessionMiddleware(wh))
 
-	// An agent is a script by that reasoning: /mcp takes the same bearer
-	// tokens, checked by the MCP handler itself because a token's scope there
-	// decides which tools are offered.
+	// For this reason, an agent is a script. /mcp accepts the same bearer
+	// tokens. The MCP handler checks them itself, because the scope of a token
+	// decides which tools the agent gets.
 	if cfg.MCPEnabled {
 		mux.Handle("/mcp", mcp.NewHandler(cfg.Logger, jw, a, store))
 	} else {
@@ -218,57 +221,58 @@ func Handler(
 
 	h := logger.NewHTTPLogger(cfg.Logger)(mux)
 
-	// The client address goes into every request's context, read from the
-	// connection or from a trusted proxy's forwarding header. It runs outside
-	// the access logger so the log line shows the resolved address.
+	// The client address goes into the context of every request. It comes
+	// from the connection, or from the forwarding header of a trusted proxy.
+	// It runs outside the access logger. So the log line shows the resolved
+	// address.
 	h = clientip.New(
 		clientip.WithTrustedProxies(cfg.TrustedProxies...),
 		clientip.WithLogger(cfg.Logger),
 	).Middleware(h)
 
-	// rs/cors reads an empty AllowedOrigins as every origin, so with none
-	// configured the middleware is left out and no response carries CORS
-	// headers.
+	// rs/cors reads an empty AllowedOrigins as every origin. So if none is
+	// configured, the server leaves out the middleware. Then no response has
+	// CORS headers.
 	if len(cfg.CORSAllowedOrigins) > 0 {
 		h = cors.New(cors.Options{
 			AllowedOrigins: cfg.CORSAllowedOrigins,
 			AllowedMethods: []string{http.MethodGet, http.MethodHead, http.MethodPatch},
-			// Content-Type is covered by the library's own defaults; nothing
-			// here asks for a header beyond what those already allow.
+			// The defaults of the library cover Content-Type. This code needs
+			// no header beyond what they already allow.
 			ExposedHeaders: []string{"X-Request-Id"},
 			MaxAge:         300,
 		}).Handler(h)
 	}
 
-	// secureHeaders sits outside both gates so every response carries them,
-	// including the static files the renderer never sees and the redirect an
-	// unauthenticated request gets in place of a page. CORS sits inside
-	// sameOrigin: it only adds Access-Control-* headers or answers a
-	// preflight, and sameOrigin alone decides who may make a state-changing
-	// request.
+	// secureHeaders is outside both gates, so every response has them. This
+	// includes the static files that the renderer never sees. It also
+	// includes the redirect that an unauthenticated request gets instead of a
+	// page. CORS is inside sameOrigin. It only adds Access-Control-* headers
+	// or answers a preflight. Only sameOrigin decides who can make a
+	// state-changing request.
 	h = secureHeaders(sameOrigin(h))
 	h = middleware.RequestID(h)
 
 	return sm.LoadAndSave(h)
 }
 
-// maxRequestBodyBytes caps a PATCH body the reader will decode.
+// maxRequestBodyBytes limits the size of a PATCH body that the reader decodes.
 //
-// The largest curationRequest/deviceEdit a caller can legitimately send is
-// label(200) + notes(2000) + group(100) + a short type name: a couple of KB
-// even accounting for JSON or form-encoding overhead. 16KiB leaves an order of
-// magnitude of headroom over that while still refusing an unbounded body.
+// The largest valid curationRequest or deviceEdit is label(200) + notes(2000)
+// + group(100) + a short type name. With JSON or form encoding, this is a few
+// KB. 16KiB is ten times more than that. It still refuses a body with no
+// limit.
 const maxRequestBodyBytes = 16 << 10
 
-// csp is the content security policy every response carries.
+// csp is the content security policy of every response.
 //
-// Everything the pages load is served from this origin: the stylesheet, and the
-// vendored htmx. That is why htmx is committed to the repository, and why no
-// markup here carries an inline style or an inline script. This policy refuses
-// both, and htmx needs neither as long as hx-on attributes stay unused.
+// This origin serves everything that the pages load: the stylesheet, and the
+// vendored htmx. For this reason, htmx is in the repository, and no markup here
+// has an inline style or an inline script. This policy refuses both. htmx
+// needs neither, while no hx-on attributes are in use.
 const csp = "default-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
 
-// secureHeaders sets the response headers that are the same for every response.
+// secureHeaders sets the headers that are the same for every response.
 func secureHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
@@ -281,19 +285,18 @@ func secureHeaders(next http.Handler) http.Handler {
 	})
 }
 
-// sameOrigin turns away a state-changing request that a browser has marked as
-// coming from another site.
+// sameOrigin refuses a state-changing request that a browser marked as coming
+// from a different site.
 //
-// This stands in for a CSRF token. The web UI's session rides along on a
-// cookie, which a browser attaches to a request regardless of which site asked
-// for it, and this is what stops another site's page from spending that
-// cookie's authority. The API's bearer token needs no such guard: a browser
-// never attaches an Authorization header on its own, so a cross-site page has
-// nothing to ride along on.
+// This replaces a CSRF token. The session of the web UI is in a cookie. A
+// browser adds the cookie to a request from any site. This check stops the
+// page of a different site from using the authority of that cookie. The
+// bearer token of the API needs no such guard. A browser never adds an
+// Authorization header by itself. So a cross-site page cannot use it.
 //
-// The headers are only trusted when present. A browser always sends them; curl
-// and the like send neither, and refusing those would break every script the
-// JSON API exists for.
+// The check trusts the headers only when they are present. A browser always
+// sends them. curl and similar tools send neither. If the check refused those
+// requests, every script for the JSON API would break.
 func sameOrigin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !safeMethod(r.Method) && !fromSameOrigin(r) {
@@ -316,22 +319,22 @@ func safeMethod(method string) bool {
 	return false
 }
 
-// fromSameOrigin reports whether the request's browser headers allow a write.
-// Requests with neither fetch metadata nor Origin are allowed; an Origin
-// fallback must name the request's host.
+// fromSameOrigin reports whether the browser headers of the request allow a
+// write. It allows a request with no fetch metadata and no Origin. If it uses
+// Origin, Origin must name the host of the request.
 func fromSameOrigin(r *http.Request) bool {
-	// Sec-Fetch-Site is the browser's own account of where the request came
-	// from, and cannot be set by the page making it.
+	// Sec-Fetch-Site is where the browser says that the request came from.
+	// The page that makes the request cannot set it.
 	switch r.Header.Get("Sec-Fetch-Site") {
 	case "same-origin", "none":
 		return true
 	case "":
-		// Not a browser, or one too old to say. Origin is the older signal;
-		// where it is absent too, there is nothing to check.
+		// Not a browser, or a browser that is too old. Origin is the older
+		// signal. If it is also absent, there is nothing to check.
 		break
 	default:
-		// cross-site or same-site: another origin, or another host on the same
-		// registrable domain.
+		// cross-site or same-site: a different origin, or a different host on
+		// the same registrable domain.
 		return false
 	}
 
@@ -348,9 +351,9 @@ func fromSameOrigin(r *http.Request) bool {
 	return u.Host == r.Host
 }
 
-// mcpDisabled answers /mcp while the endpoint is switched off. Left unmounted,
-// the path would fall through to the web UI and an agent would be handed the
-// sign-in page, which says nothing about why.
+// mcpDisabled answers /mcp while the endpoint is off. Without it, the path
+// would go to the web UI. An agent would then get the sign-in page, which does
+// not tell why.
 func mcpDisabled(jw *response.JSONWriter) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		jw.WriteProblem(w, r, response.NewProblem().
