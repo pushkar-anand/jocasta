@@ -56,7 +56,7 @@ func (m *sessionMiddleware) ServeHTTP(
 
 	setupRequired, err := m.a.SetupRequired(ctx)
 	if err != nil {
-		http.Error(w, "Could not check account setup. Try again; if this continues, ask an admin to check the server log.", http.StatusInternalServerError)
+		http.Error(w, "Jocasta could not check the account setup. Try again. If this happens again, ask an admin to check the server log.", http.StatusInternalServerError)
 		return
 	}
 

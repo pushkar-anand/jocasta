@@ -124,7 +124,7 @@ func TestSaveNotifications(t *testing.T) {
 	rec := follow(t, h, cookies, requestAs(t, h, cookies, http.MethodPost, "/settings/notifications/phone", form.Encode()))
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Saved: phone is sent 2 kinds of change.")
+	assert.Contains(t, rec.Body.String(), "Saved. phone now gets 2 kinds of change.")
 
 	kinds, err := n.Rules(t.Context(), "phone")
 	require.NoError(t, err)
@@ -133,7 +133,7 @@ func TestSaveNotifications(t *testing.T) {
 
 	// Nothing ticked clears them.
 	rec = requestAs(t, h, cookies, http.MethodPost, "/settings/notifications/phone", url.Values{"kind": {"NOT_A_KIND"}}.Encode())
-	assert.Contains(t, follow(t, h, cookies, rec).Body.String(), "Saved: phone is sent nothing.")
+	assert.Contains(t, follow(t, h, cookies, rec).Body.String(), "Saved. phone now gets nothing.")
 
 	kinds, err = n.Rules(t.Context(), "phone")
 	require.NoError(t, err)
@@ -186,9 +186,9 @@ func TestATestNotificationThatFailsSaysWhy(t *testing.T) {
 func TestSavedMessageCountsAgree(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "Saved: phone is sent nothing.", savedMessage("phone", 0))
-	assert.Equal(t, "Saved: phone is sent 1 kind of change.", savedMessage("phone", 1))
-	assert.Equal(t, "Saved: phone is sent 3 kinds of change.", savedMessage("phone", 3))
+	assert.Equal(t, "Saved. phone now gets nothing.", savedMessage("phone", 0))
+	assert.Equal(t, "Saved. phone now gets 1 kind of change.", savedMessage("phone", 1))
+	assert.Equal(t, "Saved. phone now gets 3 kinds of change.", savedMessage("phone", 3))
 }
 
 // A failed test names the settings its kind of destination has.

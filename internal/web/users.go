@@ -124,7 +124,7 @@ func (h *Handler) createUser(sm *auth.Session, a *auth.Auth) response.HandlerFun
 
 		switch {
 		case errors.Is(createErr, auth.ErrUsernameTaken):
-			sm.Flash(ctx, flashUserError, "That username is taken. Choose another.")
+			sm.Flash(ctx, flashUserError, "That username is already in use. Choose a different username.")
 			sm.Flash(ctx, flashUserUsername, input.Username)
 			sm.Flash(ctx, flashUserRole, input.Role)
 		default:

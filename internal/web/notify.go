@@ -204,12 +204,12 @@ func (h *Handler) destination(name string) (*notify.Destination, bool) {
 func savedMessage(name string, kinds int) string {
 	switch kinds {
 	case 0:
-		return "Saved: " + name + " is sent nothing."
+		return "Saved. " + name + " now gets nothing."
 	case 1:
-		return "Saved: " + name + " is sent 1 kind of change."
+		return "Saved. " + name + " now gets 1 kind of change."
 	}
 
-	return fmt.Sprintf("Saved: %s is sent %d kinds of change.", name, kinds)
+	return fmt.Sprintf("Saved. %s now gets %d kinds of change.", name, kinds)
 }
 
 // failedTestMessage says what the service answered and which settings to
