@@ -20,9 +20,9 @@ type CLI struct {
 	Version VersionCmd `cmd:"" help:"Print build information."`
 }
 
-// newParser builds the parser for cli. Tests call it too, so the grammar they
-// assert against is the one main actually runs.
-func newParser(cli *CLI, opts ...kong.Option) (*kong.Kong, error) {
+// buildCLIParser builds the parser for cli. Tests use it too, so they check the
+// same grammar main runs.
+func buildCLIParser(cli *CLI, opts ...kong.Option) (*kong.Kong, error) {
 	return kong.New(cli, append([]kong.Option{
 		kong.Name("jocasta"),
 		kong.Description("Network discovery and homelab device inventory tool."),

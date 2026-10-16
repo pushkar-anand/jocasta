@@ -28,7 +28,7 @@ func parseCLI(t *testing.T, args []string) (*CLI, *kong.Context, error) {
 
 	var cli CLI
 
-	parser, err := newParser(&cli,
+	parser, err := buildCLIParser(&cli,
 		kong.Exit(func(int) {}),
 		kong.Writers(io.Discard, io.Discard),
 	)
