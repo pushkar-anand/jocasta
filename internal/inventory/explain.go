@@ -11,49 +11,50 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
 
-// ClassExplanation is the case behind a device's class: the facts the
-// classifier was given, the rule it chose, and every other rule that matched.
+// ClassExplanation is the case of the class of a device: the facts of the
+// classifier, the rule that it chose, and every other rule that matched.
 type ClassExplanation struct {
-	// Class is the device's effective class: Type when the owner set one, and
-	// Guess otherwise.
+	// Class is the effective class of the device. It is Type when the owner set
+	// one. Else, it is Guess.
 	Class classify.Class `json:"class,omitempty"`
 
-	// Type is the class the owner set, and Overridden reports whether they set
-	// one. Guess and the rules are what the classifier says either way.
+	// Type is the class that the owner set. Overridden reports whether the
+	// owner set one. Guess and the rules are what the classifier says in both
+	// cases.
 	Type       classify.Class `json:"type,omitempty"`
 	Overridden bool           `json:"overridden"`
 
-	// Guess and Confidence are the classifier's answer, both empty when no
-	// rule matched.
+	// Guess and Confidence are the answer of the classifier. Both are empty
+	// when no rule matched.
 	Guess      classify.Class      `json:"guess,omitempty"`
 	Confidence classify.Confidence `json:"confidence,omitempty"`
 
 	Facts ClassFacts `json:"facts"`
 
-	// Rule is the rule that decided Guess, or nil when no rule matched.
+	// Rule is the rule that decided Guess. It is nil when no rule matched.
 	Rule *ClassRule `json:"rule,omitempty"`
 
 	// OtherRules are the rules that matched and lost, the most specific first.
-	// One naming the class Rule names is what raises the confidence.
+	// A rule for the same class as Rule raises the confidence.
 	OtherRules []ClassRule `json:"other_rules"`
 }
 
-// ClassFacts are the facts the classifier reasons over, as the inventory
-// records them. An empty field is a fact the inventory does not have.
+// ClassFacts are the facts of the classifier, as the inventory records them. An
+// empty field is a fact that the inventory does not have.
 type ClassFacts struct {
 	VendorShort    string                `json:"vendor_short,omitempty"`
 	Hostname       string                `json:"hostname,omitempty"`
 	HostnameSource dbtype.HostnameSource `json:"hostname_source,omitempty"`
 	Randomised     bool                  `json:"randomised"`
 
-	// Network is the name of one network the device holds an address on.
+	// Network is the name of one network where the device has an address.
 	Network string `json:"network,omitempty"`
 
 	Addresses []netip.Addr `json:"addresses"`  // held now
 	OpenPorts []uint16     `json:"open_ports"` // open now, in number order
 
-	// Services are the DNS-SD service types the device advertised within the
-	// history window, lowercased and sorted, and Models the models they give.
+	// Services are the DNS-SD service types that the device advertised within
+	// the history window, lowercase and sorted. Models are their models.
 	Services []string `json:"services"`
 	Models   []string `json:"models,omitempty"`
 }
@@ -63,20 +64,21 @@ type ClassRule struct {
 	Class  classify.Class `json:"class"`
 	Reason string         `json:"reason"`
 
-	// Conditions is how many facts the rule tested. The rule testing the most
-	// wins, and a tie goes to the rule listed first.
+	// Conditions is how many facts the rule tested. The rule that tests the
+	// most wins. A tie goes to the rule listed first.
 	Conditions int `json:"conditions"`
 
 	// Weak marks a loose fallback, such as a vendor that makes many kinds of
-	// device. A weak rule that matches alone gives a low-confidence guess.
+	// device. A weak rule that matches alone gives a guess with low
+	// confidence.
 	Weak bool `json:"weak"`
 }
 
-// ExplainClass returns the case behind the class of device id. It runs the
-// classifier over what the inventory records now, so the guess matches the
-// device's recorded one unless something changed since a scan last touched it.
+// ExplainClass returns the case of the class of device id. It runs the
+// classifier over what the inventory records now. So the guess matches the
+// recorded guess, unless something changed after the last scan of the device.
 //
-// A device that does not exist is an error wrapping [ErrNotFound].
+// A device that does not exist is an error that wraps [ErrNotFound].
 func (s *Store) ExplainClass(ctx context.Context, id int64) (*ClassExplanation, error) {
 	row, err := s.q.GetDevice(ctx, id)
 
@@ -111,7 +113,7 @@ func (s *Store) ExplainClass(ctx context.Context, id int64) (*ClassExplanation, 
 		OtherRules: []ClassRule{},
 	}
 
-	// A type this build does not know is no override, as newDevice reads it.
+	// A type that this build does not know is no override, as for newDevice.
 	out.Class = out.Guess
 	if override := classify.Class(row.DeviceType.String); override.Known() {
 		out.Class, out.Type, out.Overridden = override, override, true

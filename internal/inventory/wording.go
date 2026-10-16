@@ -8,8 +8,9 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
 
-// wording is how each kind of event reads to a person, kept in one table so
-// a new kind is worded for the log and for notification settings together.
+// wording is the text of each kind of event for a person. It is in one table.
+// So a new kind gets text for the log and for notification settings at the
+// same time.
 var wording = map[dbtype.EventKind]struct {
 	// phrase is what the event says a device did.
 	phrase string
@@ -31,21 +32,21 @@ var wording = map[dbtype.EventKind]struct {
 	dbtype.EventDeviceClassified: {"was reclassified", "Type changed"},
 }
 
-// Phrase returns what an event of kind k says a device did, such as "was
-// discovered". A line of the log reads as the device's name followed by it.
-// A kind with no wording of its own is returned in lower case with spaces.
+// Phrase returns what an event of kind k says that a device did, such as "was
+// discovered". A line of the log is the name of the device, then the phrase.
+// For a kind with no text, it returns the kind in lower case with spaces.
 func Phrase(k dbtype.EventKind) string {
 	if w, ok := wording[k]; ok {
 		return w.phrase
 	}
 
-	// A kind added in Go and not yet worded here still has to render as
-	// something, and its own name is the most truthful fallback.
+	// A kind added in Go with no text here yet must still render. Its own
+	// name is the most true fallback.
 	return strings.ToLower(strings.ReplaceAll(string(k), "_", " "))
 }
 
 // Label returns the name of kind k as a thing to be told about, such as "New
-// device". A kind with no wording of its own falls back to its [Phrase].
+// device". For a kind with no text, it uses its [Phrase].
 func Label(k dbtype.EventKind) string {
 	if w, ok := wording[k]; ok {
 		return w.label
@@ -54,16 +55,16 @@ func Label(k dbtype.EventKind) string {
 	return Phrase(k)
 }
 
-// Change describes what an event changed, where it changed a value. An event
-// that changed nothing, such as a discovery, has nothing to show here.
+// Change describes what an event changed, if it changed a value. An event that
+// changed nothing, such as a discovery, has nothing to show here.
 func (e *Event) Change() string {
 	if e == nil {
 		return ""
 	}
 
-	// A port event carries the number in whichever value changed and the
-	// service name, where the port has a familiar one, in the detail. Neither
-	// reads as a before and after, so it is worded here.
+	// A port event has the number in the value that changed. If the port has
+	// a known service, the detail has its name. Neither is a before and
+	// after. So the text comes from here.
 	if e.Kind == dbtype.EventPortOpened || e.Kind == dbtype.EventPortClosed {
 		port := cmp.Or(e.NewValue, e.OldValue)
 		switch {
@@ -80,14 +81,14 @@ func (e *Event) Change() string {
 		return presenceChange(e)
 	}
 
-	// A released address has nothing after it, and "→ cleared" would read as
-	// though the user emptied a field.
+	// A released address has nothing after it. "→ cleared" would look as if
+	// the user emptied a field.
 	if e.Kind == dbtype.EventAddressReleased {
 		return e.OldValue
 	}
 
-	// A class is stored as its identifier; the log shows the name the device
-	// page uses for it.
+	// A class is stored as its identifier. The log shows the name from the
+	// device page.
 	if e.Kind == dbtype.EventDeviceClassified {
 		return (&Event{
 			OldValue: classify.Class(e.OldValue).Label(),
@@ -95,13 +96,13 @@ func (e *Event) Change() string {
 		}).Change()
 	}
 
-	// So is a type the user set, under the field's name.
+	// The same for a type that the user set, under the name of the field.
 	if e.Kind == dbtype.EventDeviceEdited && e.Detail == "type" {
 		return "type: " + (&Event{OldValue: classLabel(e.OldValue), NewValue: classLabel(e.NewValue)}).Change()
 	}
 
-	// An edit says which field it was about, since the user owns several. A
-	// scan's event is about the one thing that kind of event can change.
+	// An edit tells its field, because the user owns several. The event of a
+	// scan is about the one thing that its kind can change.
 	var field string
 	if e.Kind == dbtype.EventDeviceEdited && e.Detail != "" {
 		field = e.Detail + ": "
@@ -113,8 +114,8 @@ func (e *Event) Change() string {
 	case e.NewValue != "":
 		return field + e.NewValue
 
-	// Emptying a field is a change, and the log would otherwise show the value
-	// that went away as though it had just been set.
+	// To empty a field is a change. If not, the log would show the removed
+	// value as if it was just set.
 	case e.OldValue != "":
 		return field + e.OldValue + " → cleared"
 
@@ -125,7 +126,8 @@ func (e *Event) Change() string {
 	return ""
 }
 
-// classLabel is a class identifier's name, and nothing for nothing.
+// classLabel is the name of a class identifier. It is empty for an empty
+// identifier.
 func classLabel(id string) string {
 	if id == "" {
 		return ""

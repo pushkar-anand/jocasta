@@ -5,68 +5,70 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/cursor"
 )
 
-// Cursor marks the row a page of a log ended on. It is pkg/cursor's, named here
-// so that a caller reading the inventory needs nothing from the database layer.
+// Cursor marks the row on which a page of a log ended. It is the type of
+// pkg/cursor, with a name here. So a caller of the inventory needs nothing
+// from the database layer.
 type Cursor = cursor.Cursor
 
-// DefaultPageSize is the page a caller that names no limit gets, and
-// MaxPageSize the most one may ask for. The API and the MCP tools both page the
-// event and scan logs by these.
+// DefaultPageSize is the page size for a caller that names no limit.
+// MaxPageSize is the largest page that a caller can ask for. The API and the
+// MCP tools both page the event and scan logs by these.
 const (
 	DefaultPageSize = 50
 	MaxPageSize     = 500
 )
 
-// Page is one window onto a log: at most Limit rows, starting after Cursor.
+// Page is one window of a log: at most Limit rows, after Cursor.
 type Page struct {
 	Limit int
 
-	// Cursor is where to resume. The zero cursor starts at the top of the log.
+	// Cursor is where to continue. The zero cursor starts at the top of the
+	// log.
 	Cursor Cursor
 
-	// Device narrows the change log to one device's own entries. Zero is every
-	// device, which is what the full log shows. Only ListEvents reads it.
+	// Device limits the change log to the entries of one device. Zero is every
+	// device, as the full log shows. Only ListEvents reads it.
 	Device int64
 
-	// EventKinds narrows the change log to these kinds. Empty is every kind.
+	// EventKinds limits the change log to these kinds. Empty is every kind.
 	// Only ListEvents reads it.
 	EventKinds []dbtype.EventKind
 
-	// ExcludeIgnored leaves out events belonging to ignored devices. Only
-	// ListEvents reads it; the full log deliberately includes their history.
+	// ExcludeIgnored leaves out the events of ignored devices. Only ListEvents
+	// reads it. The full log includes their history on purpose.
 	ExcludeIgnored bool
 
-	// ScanKind narrows scan history to one kind. Empty is every kind. Only
+	// ScanKind limits the scan history to one kind. Empty is every kind. Only
 	// ListScans reads it.
 	ScanKind dbtype.ScanKind
 
-	// ScanScope narrows scan history to one scope. Empty is every scope. Only
-	// ListScans reads it.
+	// ScanScope limits the scan history to one scope. Empty is every scope.
+	// Only ListScans reads it.
 	ScanScope dbtype.ScanScope
 }
 
-// EventPage is one window onto the change log.
+// EventPage is one window of the change log.
 type EventPage struct {
 	Events []*Event
 
-	// Next is the window after this one, and is the zero cursor when this one
-	// reached the end of the log.
+	// Next is the next window. It is the zero cursor when this window reached
+	// the end of the log.
 	Next Cursor
 }
 
-// ScanPage is one window onto the scan history.
+// ScanPage is one window of the scan history.
 type ScanPage struct {
 	Scans []*Scan
 	Next  Cursor
 }
 
-// seek is how many rows to ask for: one more than the page holds, so that the
-// same read answers whether another page exists. A separate count could
+// seek is how many rows to ask for. This is one more than the page holds. So
+// the same read answers whether another page exists. A separate count could
 // disagree with it.
 func (p Page) seek() int64 { return int64(p.Limit) + 1 }
 
-// trim cuts the extra row off and reports where the next page resumes. Reading
-// fewer rows than were asked for is what says the log ended.
+// trim removes the extra row, and reports where the next page starts. Fewer
+// rows than asked for mean that the log ended.
 func trim[T any](rows []T, limit int, at func(T) Cursor) ([]T, Cursor) {
 	if limit < 1 || len(rows) <= limit {
 		return rows, Cursor{}

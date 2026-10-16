@@ -13,8 +13,8 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/topology"
 )
 
-// switchRead is one read of a switch: a trunk to the router, a desktop on
-// ether4 with a gigabit link, a Wi-Fi client, and the router announcing
+// switchRead is one read of a switch. It has a trunk to the router, a desktop
+// on ether4 with a gigabit link, a Wi-Fi client, and the router that announces
 // itself on the trunk.
 func switchRead(at time.Time) plugin.Topology {
 	return plugin.Topology{
@@ -78,8 +78,8 @@ func TestRecordTopologyFilesEveryTable(t *testing.T) {
 	assert.Equal(t, "ether3", ns[0].TheirPort.String)
 }
 
-// A second read replaces the ports and neighbours, moves the sightings it
-// repeats on, and keeps the one it no longer lists.
+// A second read replaces the ports and neighbours. It updates the sightings
+// that it repeats, and keeps the sighting that it no longer lists.
 func TestRecordTopologyReplacesPortsAndKeepsSightings(t *testing.T) {
 	t.Parallel()
 
@@ -115,7 +115,8 @@ func TestRecordTopologyReplacesPortsAndKeepsSightings(t *testing.T) {
 	}
 }
 
-// A sighting older than the history window goes; the node that made it stays.
+// A sighting older than the history window goes. The node that made it
+// stays.
 func TestPruneDeletesSightingsPastRetention(t *testing.T) {
 	t.Parallel()
 
@@ -133,8 +134,8 @@ func TestPruneDeletesSightingsPastRetention(t *testing.T) {
 	assert.Equal(t, int64(1), countRows(t, conn, `SELECT COUNT(*) FROM topology_nodes`))
 }
 
-// A recorded read comes back as a tree, with a swept device placed on the port
-// the read learned it on.
+// A recorded read comes back as a tree. A swept device is on the port where the
+// read learned it.
 func TestTopologyPlacesARecordedDevice(t *testing.T) {
 	t.Parallel()
 
@@ -163,7 +164,7 @@ func TestTopologyPlacesARecordedDevice(t *testing.T) {
 	assert.Equal(t, topology.Speed{Rate: 1_000_000_000, Capable: 1_000_000_000, FullDuplex: true}, leaf.Speed)
 }
 
-// A Wi-Fi client's rates and signal come back as its speed.
+// The rates and signal of a Wi-Fi client come back as its speed.
 func TestTopologyKeepsAWiFiClientsRates(t *testing.T) {
 	t.Parallel()
 

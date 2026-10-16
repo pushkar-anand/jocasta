@@ -1,9 +1,9 @@
-// Package inventory folds what a source reports into the device records it
-// belongs to.
+// Package inventory merges what a source reports into the device records that
+// it belongs to.
 //
-// A device is identified by its hardware address, or by the address it answered
-// on while that is all that is known. Every change the fold makes is written to
-// the event log.
+// The hardware address identifies a device. If only the answering address is
+// known, that address identifies it. Every change of the merge goes into the
+// event log.
 package inventory
 
 import (
@@ -28,31 +28,32 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 )
 
-// DefaultOnlineWindow is how recently a device must have answered to count as
-// online when no window is configured.
+// DefaultOnlineWindow is how recently a device must answer to count as online,
+// when no window is configured.
 const DefaultOnlineWindow = 15 * time.Minute
 
-// DefaultAddressGrace is how long an address inside a swept prefix may go
-// unanswered, while its device answers elsewhere in that prefix, before the
-// sweep concludes the lease is gone and retires it.
+// DefaultAddressGrace is how long an address in a swept prefix can stay
+// without an answer while its device answers elsewhere in that prefix. After
+// it, the sweep decides that the lease is gone, and retires the address.
 const DefaultAddressGrace = 6 * time.Hour
 
-// DefaultRetention is how long events and scans are kept when no retention is
-// configured.
+// DefaultRetention is how long the store keeps events and scans, when no
+// retention is configured.
 const DefaultRetention = 90 * 24 * time.Hour
 
-// DefaultTrafficRetention is how long hourly traffic totals are kept when no
-// retention is configured. Shorter than the event log's, because traffic grows
-// with how busy the network is.
+// DefaultTrafficRetention is how long the store keeps hourly traffic totals,
+// when no retention is configured. It is shorter than for the event log,
+// because traffic grows with the activity of the network.
 const DefaultTrafficRetention = 30 * 24 * time.Hour
 
-// DefaultDNSRetention is how long hourly lookup counts are kept when no
-// retention is configured. Like traffic, they grow with how busy the network
-// is.
+// DefaultDNSRetention is how long the store keeps hourly lookup counts, when no
+// retention is configured. As traffic, they grow with the activity of the
+// network.
 const DefaultDNSRetention = 30 * 24 * time.Hour
 
-// DefaultDeviceRetention is how long a device its owner never curated is kept
-// after it was last seen, when no retention is configured.
+// DefaultDeviceRetention is how long the store keeps a device that its owner
+// never curated, after it was last seen. It applies when no retention is
+// configured.
 const DefaultDeviceRetention = 90 * 24 * time.Hour
 
 // Store reads the inventory and writes scan results into it.
@@ -61,33 +62,35 @@ type Store struct {
 	q    *models.Queries
 	log  *slog.Logger
 
-	// now is a field so tests can pin the timestamps they assert on.
+	// now is a field, so tests can fix the timestamps that they assert on.
 	now func() time.Time
 
-	// onlineWindow is how long after a device was last seen it still counts as
-	// online. Nothing reports a device leaving, so presence is a question about
-	// how stale the last sighting is, and how stale is too stale depends on how
-	// often the sweeps run.
+	// onlineWindow is how long a device counts as online after it was last
+	// seen. No source reports that a device left. So presence depends on the
+	// age of the last sighting. The age that is too old depends on how often
+	// the sweeps run.
 	onlineWindow time.Duration
 
-	// addressGrace is how long an address a swept device stopped answering on is
-	// kept before the sweep retires it. The sweep having answered for the device
-	// elsewhere in the prefix is the evidence it moved; this window only absorbs
-	// a second interface whose replies were dropped for one whole sweep.
+	// addressGrace is how long the store keeps an address on which a swept
+	// device stopped answering. After it, the sweep retires the address. An
+	// answer of the device elsewhere in the prefix proves that it moved. This
+	// window only covers a second interface whose replies were lost for one
+	// whole sweep.
 	addressGrace time.Duration
 
-	// onScan is told each scan that finished; nil tells no one.
+	// onScan gets each finished scan. If it is nil, nobody gets them.
 	onScan func(ctx context.Context, scanID int64)
 }
 
-// OnlineWindow is how recently a device must have been seen to count as online.
-// The web layer shows it so "seen recently" is not an unexplained threshold.
+// OnlineWindow is how recently a device must be seen to count as online. The
+// web layer shows it. So "seen recently" is not a limit with no explanation.
 func (s *Store) OnlineWindow() time.Duration {
 	return s.onlineWindow
 }
 
-// Now reads the clock the store judges presence by, so a page can say how long
-// ago something happened against the same moment the store's queries use.
+// Now reads the clock that the store uses for presence. So a page can tell how
+// long ago something happened, from the same time as the queries of the
+// store.
 func (s *Store) Now() time.Time {
 	return s.now()
 }
@@ -95,8 +98,8 @@ func (s *Store) Now() time.Time {
 // Option configures a Store.
 type Option func(*Store)
 
-// WithOnlineWindow sets how recently a device must have been seen to count as
-// online. A window of zero or less leaves the default in place.
+// WithOnlineWindow sets how recently a device must be seen to count as online.
+// A window of zero or less keeps the default.
 func WithOnlineWindow(d time.Duration) Option {
 	return func(s *Store) {
 		if d > 0 {
@@ -105,9 +108,9 @@ func WithOnlineWindow(d time.Duration) Option {
 	}
 }
 
-// WithAddressGrace sets how long a swept device may go unanswered on an address
-// before a later sweep that finds it elsewhere in the prefix retires that
-// address. A window of zero or less leaves the default in place.
+// WithAddressGrace sets how long a swept device can stay without an answer on
+// an address. After it, a later sweep that finds the device elsewhere in the
+// prefix retires that address. A window of zero or less keeps the default.
 func WithAddressGrace(d time.Duration) Option {
 	return func(s *Store) {
 		if d > 0 {
@@ -116,7 +119,7 @@ func WithAddressGrace(d time.Duration) Option {
 	}
 }
 
-// WithClock replaces the clock the store stamps writes and judges presence by.
+// WithClock replaces the clock that the store uses for writes and presence.
 func WithClock(now func() time.Time) Option {
 	return func(s *Store) {
 		if now != nil {
@@ -125,7 +128,7 @@ func WithClock(now func() time.Time) Option {
 	}
 }
 
-// New returns a store over conn that can be configured through opts.
+// New returns a store over conn, with the options in opts.
 func New(conn *sql.DB, log *slog.Logger, opts ...Option) *Store {
 	s := &Store{
 		conn:         conn,
@@ -143,9 +146,9 @@ func New(conn *sql.DB, log *slog.Logger, opts ...Option) *Store {
 	return s
 }
 
-// Result counts what a single reading changed. Seen counts the facts that were
-// recorded. For a sweep that equals the addresses that answered, since
-// everything a sweep returns answered a probe.
+// Result counts what a single reading changed. Seen counts the recorded facts.
+// For a sweep, this is the number of addresses that answered, because
+// everything that a sweep returns answered a probe.
 type Result struct {
 	ScanID     int64
 	Discovered int
@@ -153,69 +156,70 @@ type Result struct {
 	Merged     int
 	Seen       int
 
-	// Released counts addresses a swept device was found to have moved off: it
-	// answered elsewhere in the prefix while these stayed silent past the grace
-	// window. The rows are kept with is_current cleared.
+	// Released counts the addresses that a swept device left. It answered
+	// elsewhere in the prefix, while these addresses were silent for longer
+	// than the grace window. The rows stay, with is_current cleared.
 	Released int
 
-	// Back and Quiet count devices that crossed the online window: seen again
-	// after longer than the window, or found gone longer than it by a reading
-	// that could have seen them. Both count every device; only a watched one
-	// logs an event.
+	// Back and Quiet count the devices that crossed the online window. Back
+	// is a device seen again after longer than the window. Quiet is a device
+	// gone for longer than the window, for a reading that could see it. Both
+	// count every device. Only a watched device logs an event.
 	Back  int
 	Quiet int
 
-	// Dropped counts facts there was nothing to record against: no hardware
-	// address and no address any device holds, so believing them would invent a
-	// device with nothing to tell it apart.
+	// Dropped counts the facts that had no device to record against. They had
+	// no hardware address, and no address of a device. If the store trusted
+	// them, it would make up a device that nothing identifies.
 	Dropped int
 
-	// New holds the address each device this reading discovered was found at,
-	// so its ports can be scanned without waiting for the next full port scan.
+	// New holds the address of each device that this reading found. So a scan
+	// of its ports does not need to wait for the next full port scan.
 	New []netip.Addr
 }
 
-// reading is what one source read: who read it, what they claim, and the
-// network the reading covered when it covered exactly one.
+// reading is what one source read: who read it, what it claims, and the
+// network of the reading, if it covered exactly one.
 type reading struct {
 	source string
 	kind   dbtype.SourceKind
 
-	// network is the prefix a sweep covered. A source that reads every network
-	// at once bounds its reading by none, and leaves this nil.
+	// network is the prefix of a sweep. A source that reads every network at
+	// once has no limit, and leaves this nil.
 	network *netip.Prefix
 
 	facts []plugin.Fact
 }
 
-// pass carries what every write in one ingest shares, including the single
-// timestamp they are all stamped with.
+// pass holds what every write in one ingest shares. This includes the single
+// timestamp of all of them.
 type pass struct {
 	q      *models.Queries
 	scanID int64
 
-	// sourceID files every claim this reading writes under the source that made
-	// it.
+	// sourceID puts every claim that this reading writes under the source of
+	// the reading.
 	sourceID int64
 
 	networks networks
 	at       dbtype.Time
 	res      Result
 
-	// seen and answered record what this pass had contact with, so the retire
-	// step afterwards can tell an address a device moved off from one it still
-	// holds: a device that answered somewhere, holding an address that did not.
+	// seen and answered record what this pass reached. So the retire step
+	// after it can tell an address that a device left from an address that it
+	// still has. A device that left an address answered somewhere, but the
+	// address did not.
 	seen     map[int64]struct{}
 	answered map[netip.Addr]struct{}
 
-	// touched is every device a fact resolved to, present or not: the classify
-	// pass that runs after the ingest commits re-reads each of these.
+	// touched is every device of a fact, present or not. The classify pass,
+	// after the ingest commits, reads each of these again.
 	touched map[int64]struct{}
 }
 
-// networks matches an address to the recorded network containing it. A sweep
-// knows the prefix it swept, but a source that reads every VLAN at once knows
-// only addresses, so the network is looked up per address.
+// networks matches an address to the recorded network that contains it. A
+// sweep knows its prefix. A source that reads every VLAN at once knows only
+// addresses. So the store looks up the network for each address.
 type networks []recordedNetwork
 
 type recordedNetwork struct {
@@ -223,9 +227,9 @@ type recordedNetwork struct {
 	prefix netip.Prefix
 }
 
-// find returns the network holding addr, and false when no recorded network
-// does. The most specific match wins: a supernet and a subnet of it can both be
-// recorded, and the narrower one is the better answer.
+// find returns the network that contains addr. It returns false when no
+// recorded network does. The most specific match wins. A supernet and its
+// subnet can both be recorded. The narrower network is the better answer.
 func (ns networks) find(addr netip.Addr) (int64, bool) {
 	var (
 		id   int64
@@ -242,8 +246,8 @@ func (ns networks) find(addr netip.Addr) (int64, bool) {
 }
 
 // broadcast reports whether addr is the broadcast address of a recorded IPv4
-// network: its last address, on a prefix long enough to have one. A /31 or
-// /32 has no broadcast address, and IPv6 has none at all.
+// network. This is its last address, on a prefix long enough to have one. A
+// /31 or /32 has no broadcast address. IPv6 has none.
 func (ns networks) broadcast(addr netip.Addr) bool {
 	if !addr.Is4() {
 		return false
@@ -265,7 +269,7 @@ func (ns networks) broadcast(addr netip.Addr) bool {
 	return false
 }
 
-// networkID renders what find returns as the nullable column it is written to.
+// networkID renders the result of find as its nullable column.
 func (ns networks) networkID(addr netip.Addr) sql.NullInt64 {
 	id, ok := ns.find(addr)
 
@@ -286,13 +290,13 @@ func loadNetworks(ctx context.Context, q *models.Queries) (networks, error) {
 	return ns, nil
 }
 
-// RecordSweep stores the results of one sweep of prefix, attributing them to
-// the named source.
+// RecordSweep stores the results of one sweep of prefix, under the named
+// source.
 //
-// A sweep is one source among several. What makes it particular is only that
-// everything it returns answered a probe, and that any name it carries came
-// from a lookup it performed, so it states those two things and hands the
-// facts to the same path every source uses.
+// A sweep is one of several sources. It is different only in two ways.
+// Everything that it returns answered a probe. Any name that it has came from
+// its own lookup. So it states these two things, and gives the facts to the
+// same path as every other source.
 func (s *Store) RecordSweep(
 	ctx context.Context,
 	source string,
@@ -307,25 +311,25 @@ func (s *Store) RecordSweep(
 	})
 }
 
-// sweptFacts says what a sweep result claims: the address answered, so the
-// device is here now, and a name it carries has the standing the sweep gave it.
+// sweptFacts tells what a sweep result claims. The address answered, so the
+// device is here now. Its name has the standing that the sweep gave it.
 func sweptFacts(hosts []scanner.Host) []plugin.Fact {
 	facts := make([]plugin.Fact, len(hosts))
 
 	for i, h := range hosts {
 		f := plugin.Fact{Host: h.Host, Present: true, Services: h.Services, SeenAt: h.SeenAt}
 
-		// The standing travels with the name: a fact carrying a source for a
-		// name it does not have is a standing for nothing.
-		// A name with no stated standing is taken as reverse DNS, the lookup
-		// [hosts.BuildHost] performs for a sweep.
+		// The standing goes with the name. A fact with a source for a name
+		// that it does not have is a standing for nothing. A name with no
+		// standing counts as reverse DNS, the lookup that [hosts.BuildHost]
+		// does for a sweep.
 		if h.Hostname() != "" {
 			f.HostnameSource = cmp.Or(h.NameSource, dbtype.HostnameFromDNS)
 		}
 
-		// An address with several reverse names keeps the first as its name,
-		// and the claim lists them all, so the device page shows the ones
-		// that were passed over.
+		// An address with several reverse names keeps the first as its name.
+		// The claim lists all of them. So the device page shows the names
+		// that the store did not use.
 		if names := h.ReverseNames(); len(names) > 1 && f.HostnameSource == dbtype.HostnameFromDNS {
 			f.Detail = map[string]string{"reverse_dns": strings.Join(names, ", ")}
 		}
@@ -336,15 +340,15 @@ func sweptFacts(hosts []scanner.Host) []plugin.Fact {
 	return facts
 }
 
-// RecordFacts stores what one source claims about the devices it knows of.
+// RecordFacts stores what one source claims about the devices that it knows.
 //
-// A source is asked what it knows and probes no prefix, so the reading is
-// bounded by no network and each address is matched to the network
-// containing it. Its facts need not assert presence: a lease can name a device
-// that is configured and not answering.
+// The store asks a source what it knows. The source probes no prefix. So the
+// reading has no network limit, and the store matches each address to its
+// network. Its facts do not need to assert presence. A lease can name a device
+// that is configured and does not answer.
 //
-// The kind is a parameter here and fixed inside RecordSweep, so a sweep's
-// callers cannot pass the wrong one.
+// The kind is a parameter here, and fixed in RecordSweep. So the callers of a
+// sweep cannot give the wrong kind.
 func (s *Store) RecordFacts(
 	ctx context.Context,
 	source string,
@@ -354,14 +358,14 @@ func (s *Store) RecordFacts(
 	return s.report(ctx, reading{source: source, kind: kind, facts: facts})
 }
 
-// RecordNetworks stores the segments a source says it serves.
+// RecordNetworks stores the segments that a source says that it serves.
 //
-// It writes no scan row. A scan is a reading of devices and is counted and
-// timed as one; learning what a prefix is called changes no device and would
-// close a scan that found nothing.
+// It writes no scan row. A scan is a reading of devices, with its own count
+// and time. The name of a prefix changes no device. It would close a scan
+// that found nothing.
 //
-// The whole set lands as one transaction, so a run that fails halfway leaves
-// the segments as the last good reading described them.
+// The whole set goes in one transaction. So a run that fails in the middle
+// leaves the segments as the last good reading described them.
 func (s *Store) RecordNetworks(ctx context.Context, nets []plugin.Network) error {
 	if len(nets) == 0 {
 		return nil
@@ -400,14 +404,14 @@ func (s *Store) RecordNetworks(ctx context.Context, nets []plugin.Network) error
 	return nil
 }
 
-// nullInt64 renders zero as null: an untagged segment, since zero is not a
-// usable 802.1Q tag, or no device, since ids start at one.
+// nullInt64 renders zero as null. This is an untagged segment, because zero is
+// not a usable 802.1Q tag. Or it is no device, because ids start at one.
 func nullInt64[T int | int64](n T) sql.NullInt64 {
 	return sql.NullInt64{Int64: int64(n), Valid: n != 0}
 }
 
-// report records one source's reading: it opens a scan row, ingests the facts
-// as one transaction, and closes the scan with whatever happened.
+// report records the reading of one source. It opens a scan row, ingests the
+// facts as one transaction, and closes the scan with the outcome.
 func (s *Store) report(ctx context.Context, r reading) (*Result, error) {
 	scanID, sourceID, err := s.openScan(ctx, r.source, r.kind, dbtype.ScanDiscovery, dbtype.ScopeFull, r.network)
 	if err != nil {
@@ -416,28 +420,27 @@ func (s *Store) report(ctx context.Context, r reading) (*Result, error) {
 
 	res, touched, ingestErr := s.ingest(ctx, scanID, sourceID, r)
 
-	// res is nil unless the ingest committed, so the count a failed scan
-	// records is the only one true of the table: none.
+	// res is nil unless the ingest committed. So a failed scan records the
+	// only true count for the table: none.
 	found := 0
 	if ingestErr == nil {
 		found = res.Seen
 	}
 
-	// The scan row is closed in its own transaction, so a failure is still
-	// recorded when the work it describes rolls back.
+	// The scan row closes in its own transaction. So the store still records
+	// a failure when its work rolls back.
 	closeErr := s.close(ctx, scanID, found, ingestErr)
 
-	// The scan id goes in the error and the Result stays nil, so a caller
-	// never has to know which fields survive a failure.
+	// The scan id goes in the error, and the Result stays nil. So a caller
+	// never needs to know which fields stay after a failure.
 	if err := errors.Join(ingestErr, closeErr); err != nil {
 		return nil, fmt.Errorf("scan %d: %w", scanID, err)
 	}
 
 	res.ScanID = scanID
 
-	// The classify pass is best-effort: a guess that failed to update is worth
-	// a log line, and the scan that folded its devices correctly still
-	// succeeds.
+	// The classify pass is best-effort. A failed update of a guess gets a log
+	// line. The scan that merged its devices correctly still succeeds.
 	if err := s.reclassify(ctx, scanID, touched); err != nil {
 		s.log.WarnContext(ctx, "classify pass after discovery failed", slog.Int64("scan", scanID), logger.Err(err))
 	}
@@ -447,9 +450,9 @@ func (s *Store) report(ctx context.Context, r reading) (*Result, error) {
 	return res, nil
 }
 
-// openScan is the first of the three phases every recorded reading shares: it
-// registers the source and opens a running scan row of the given kind and
-// scope, recording the network when the reading covered exactly one.
+// openScan is the first of the three phases of every recorded reading. It
+// registers the source, and opens a running scan row of the given kind and
+// scope. If the reading covered exactly one network, it records the network.
 func (s *Store) openScan(
 	ctx context.Context,
 	source string,
@@ -473,9 +476,9 @@ func (s *Store) openScan(
 		return 0, 0, fmt.Errorf("upsert source %q: %w", source, err)
 	}
 
-	// Recording the network here is also what lets the addresses in this
-	// reading be matched to it: a prefix nothing has swept before is not in the
-	// table until the scan that covers it opens.
+	// The record of the network here also lets the addresses in this reading
+	// match it. A prefix that nothing swept before is not in the table until
+	// the scan that covers it opens.
 	var networkID sql.NullInt64
 
 	if network != nil {
@@ -505,9 +508,9 @@ func (s *Store) openScan(
 	return sc.ID, src.ID, nil
 }
 
-// ingest applies every fact as one transaction: a reading either lands whole
-// or not at all, so a partial run cannot leave a device holding an address it
-// was about to lose.
+// ingest applies every fact as one transaction. A reading goes in whole, or not
+// at all. So a partial run cannot leave a device with an address that it was
+// about to lose.
 func (s *Store) ingest(ctx context.Context, scanID, sourceID int64, r reading) (*Result, []int64, error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
@@ -523,9 +526,9 @@ func (s *Store) ingest(ctx context.Context, scanID, sourceID int64, r reading) (
 		return nil, nil, err
 	}
 
-	// One timestamp for the whole reading. Every row it writes describes the
-	// same observation, and taking the clock per row would stamp a device as
-	// last seen before it was first seen.
+	// One timestamp for the whole reading. Every row that it writes describes
+	// the same observation. A clock read for each row could make the last seen
+	// time of a device earlier than its first seen time.
 	p := &pass{
 		q:        q,
 		scanID:   scanID,
@@ -543,9 +546,9 @@ func (s *Store) ingest(ctx context.Context, scanID, sourceID int64, r reading) (
 		}
 	}
 
-	// A sweep is the only reading bounded by a prefix, so the only one that can
-	// say an address inside it is absent. A router read covering every VLAN
-	// leaves r.network nil and retires nothing.
+	// A sweep is the only reading with a prefix limit. So only a sweep can say
+	// that an address in it is absent. A router read that covers every VLAN
+	// leaves r.network nil, and retires nothing.
 	if r.network != nil {
 		if err := s.retire(ctx, p, *r.network); err != nil {
 			return nil, nil, err
@@ -563,7 +566,7 @@ func (s *Store) ingest(ctx context.Context, scanID, sourceID int64, r reading) (
 	return &p.res, slices.Sorted(maps.Keys(p.touched)), nil
 }
 
-// close marks the scan finished, carrying the ingest failure if there was one.
+// close marks the scan as finished, with the ingest failure if there was one.
 func (s *Store) close(ctx context.Context, scanID int64, found int, cause error) error {
 	p := models.FinishScanParams{
 		Status:     dbtype.StatusOK,
@@ -584,17 +587,18 @@ func (s *Store) close(ctx context.Context, scanID int64, found int, cause error)
 	return nil
 }
 
-// record applies one source fact within p's transaction and updates its counts
-// and touched devices. Facts without presence cannot take an address from its
-// current holder; facts identifying no device are counted as dropped.
+// record applies one source fact in the transaction of p. It updates the counts
+// and touched devices of p. A fact without presence cannot take an address
+// from its current holder. A fact that identifies no device counts as
+// dropped.
 func (s *Store) record(ctx context.Context, p *pass, f plugin.Fact) error {
 	ip := dbtype.NewAddr(f.Host.Address())
 	mac := s.hardware(ctx, f)
 
-	// A fact that does not assert presence says nothing about who holds the
-	// address now, so it never reaches for the current holder. A static lease
-	// for something unplugged must not identify, fold or take an address from
-	// whatever is answering on that address today.
+	// A fact that does not assert presence tells nothing about the holder of
+	// the address now. So it never looks for the current holder. A static
+	// lease for a disconnected device must not identify, merge or take an
+	// address from the device that answers on that address today.
 	var (
 		holder *models.Device
 		err    error
@@ -621,13 +625,13 @@ func (s *Store) record(ctx context.Context, p *pass, f plugin.Fact) error {
 		return nil
 	}
 
-	// Every device a fact resolved to is re-classified once the ingest commits.
-	// target is the surviving row (a fold below merges the ghost holder into
-	// it), so its id stays valid through the rest of record.
+	// After the ingest commits, the store classifies every device of a fact
+	// again. target is the row that stays. A merge below puts the ghost holder
+	// into it. So its id stays valid through the rest of record.
 	p.touched[target.ID] = struct{}{}
 
-	// A row that only ever stood for this address is the same device under a
-	// weaker name once a hardware address claims it.
+	// A row that only ever stood for this address is the same device, with a
+	// weaker name, when a hardware address claims it.
 	if holder != nil && holder.ID != target.ID && holder.IdentitySource == dbtype.IdentityIP {
 		if err := s.fold(ctx, p, holder, target); err != nil {
 			return err
@@ -636,8 +640,8 @@ func (s *Store) record(ctx context.Context, p *pass, f plugin.Fact) error {
 		p.res.Merged++
 	}
 
-	// Holding an address and having been seen are both presence claims, and a
-	// source that is not making one may still say what a device is called.
+	// An address and a sighting are both presence claims. A source that does
+	// not make one can still say the name of a device.
 	if f.Present {
 		if err := s.claim(ctx, p, target.ID, ip); err != nil {
 			return err
@@ -653,7 +657,7 @@ func (s *Store) record(ctx context.Context, p *pass, f plugin.Fact) error {
 	}
 
 	if f.Present {
-		// Before the touch, so arrive still reads the previous sighting.
+		// Before the touch, so arrive still reads the last sighting.
 		if err := s.arrive(ctx, p, target); err != nil {
 			return err
 		}
@@ -668,9 +672,9 @@ func (s *Store) record(ctx context.Context, p *pass, f plugin.Fact) error {
 			return fmt.Errorf("touch device %d: %w", target.ID, err)
 		}
 
-		// This device answered, on this address. The retire step reads both: an
-		// address a device holds that is not in here, while the device is, is
-		// one the device has moved off.
+		// This device answered, on this address. The retire step reads both.
+		// The device is in here. If an address of the device is not, the
+		// device left that address.
 		p.seen[target.ID] = struct{}{}
 
 		if addr := ip.Addr; addr.IsValid() {
@@ -683,19 +687,18 @@ func (s *Store) record(ctx context.Context, p *pass, f plugin.Fact) error {
 	return nil
 }
 
-// retire releases the addresses a swept device has moved off. An address is one
-// of those when its device answered this sweep, the address sits inside the
-// swept prefix, it did not itself answer, and it last answered longer ago than
-// the grace window.
+// retire releases the addresses that a swept device left. An address is one of
+// these in this case. Its device answered this sweep. The address is in the
+// swept prefix. It did not answer itself. Its last answer is older than the
+// grace window.
 //
-// The device having answered elsewhere in the prefix is what separates a move
-// from an absence: a device that answered nowhere is offline, and nothing in
-// a silent sweep says its lease changed. The grace window then
-// covers a second interface on the prefix whose replies were all dropped for
-// one sweep.
+// An answer of the device elsewhere in the prefix separates a move from an
+// absence. A device that answered nowhere is offline. A silent sweep tells
+// nothing about a change of its lease. The grace window then covers a second
+// interface on the prefix whose replies were all lost for one sweep.
 //
-// The released row is kept with is_current cleared, so "where did this used to
-// live" stays a read, and last_seen is left at the last real sighting.
+// The released row stays, with is_current cleared. So "where was this before"
+// is still a read. last_seen stays at the last real sighting.
 func (s *Store) retire(ctx context.Context, p *pass, prefix netip.Prefix) error {
 	cutoff := p.at.Add(-s.addressGrace)
 
@@ -733,9 +736,9 @@ func (s *Store) retire(ctx context.Context, p *pass, prefix netip.Prefix) error 
 	return nil
 }
 
-// hardware parses the hardware address a fact carries. Anything that is not a
-// 6-byte address identifies nothing, so the fact keeps everything else it says
-// and the device stays known by the address it answered on.
+// hardware parses the hardware address of a fact. A value that is not a 6-byte
+// address identifies nothing. So the fact keeps everything else, and the
+// answering address still identifies the device.
 func (s *Store) hardware(ctx context.Context, f plugin.Fact) dbtype.MAC {
 	if f.Host.MAC == "" {
 		return dbtype.MAC{}
@@ -752,16 +755,16 @@ func (s *Store) hardware(ctx context.Context, f plugin.Fact) dbtype.MAC {
 	return mac
 }
 
-// resolve finds the device a fact belongs to, creating or identifying one where
-// none is known yet. A nil holder means nothing currently claims the address,
-// which is a state to act on.
+// resolve finds the device of a fact. If no device is known yet, it creates or
+// identifies one. A nil holder means that nothing claims the address now. The
+// store must act on this state.
 //
-// It returns a nil device and no error for a fact there is nothing to record
-// against. That is a fact which neither identifies a device nor says the
-// address is answering: an incomplete neighbour entry names nothing, and a
-// source reporting a device it has not seen may enrich a device already known
-// but may not create one. A new row would put a device nothing has ever met
-// into the inventory, counted among the online.
+// It returns a nil device and no error for a fact with no device to record
+// against. Such a fact identifies no device, and does not say that the
+// address answers. An incomplete neighbour entry names nothing. A source that
+// reports a device that it did not see can enrich a known device, but cannot
+// create one. A new row would put a device that nothing ever saw into the
+// inventory, counted as online.
 func (s *Store) resolve(
 	ctx context.Context,
 	p *pass,
@@ -790,8 +793,8 @@ func (s *Store) resolve(
 		return nil, fmt.Errorf("device by mac %s: %w", mac, err)
 	}
 
-	// The address answered before its hardware was visible, so the row already
-	// standing for it becomes the identified device.
+	// The address answered before its hardware was visible. So the row that
+	// already stands for it becomes the identified device.
 	if holder != nil && holder.IdentitySource == dbtype.IdentityIP {
 		params := models.IdentifyDeviceParams{
 			MAC:          mac,
@@ -826,7 +829,7 @@ func (s *Store) resolve(
 	return s.create(ctx, p, mac, f)
 }
 
-// create records a new device and its discovery event within p's transaction.
+// create records a new device and its discovery event in the transaction of p.
 // Without a hardware address, the device has only an IP identity.
 func (s *Store) create(ctx context.Context, p *pass, mac dbtype.MAC, f plugin.Fact) (*models.Device, error) {
 	source := dbtype.IdentityIP
@@ -862,11 +865,11 @@ func (s *Store) create(ctx context.Context, p *pass, mac dbtype.MAC, f plugin.Fa
 	return d, nil
 }
 
-// fold merges a device only ever known by its address into the one
-// its hardware address identifies. Curation the user applied to the weaker row
-// is carried over, since they had no way to know it was a duplicate, and
-// everything recorded against the weaker row moves with it. into is updated
-// in place to the merged row.
+// fold merges a device that only its address identified into the device that
+// its hardware address identifies. The curation of the user on the weaker row
+// goes with it, because the user could not know that it was a duplicate.
+// Everything recorded against the weaker row also moves. fold updates into to
+// the merged row.
 func (s *Store) fold(ctx context.Context, p *pass, ghost, into *models.Device) error {
 	merged, err := p.q.AdoptCuration(ctx, models.AdoptCurationParams{
 		FoldedLabel:      ghost.Label,
@@ -890,15 +893,15 @@ func (s *Store) fold(ctx context.Context, p *pass, ghost, into *models.Device) e
 		return fmt.Errorf("move addresses of device %d: %w", ghost.ID, err)
 	}
 
-	// A source that filed against both rows would otherwise lose its claim to
+	// Without this, a source with claims on both rows would lose its claim to
 	// the CASCADE when the ghost is deleted.
 	err = p.q.MoveDeviceSources(ctx, models.MoveDeviceSourcesParams{IntoID: into.ID, FromID: ghost.ID})
 	if err != nil {
 		return fmt.Errorf("move claims about device %d: %w", ghost.ID, err)
 	}
 
-	// The ports, services and hourly rows recorded against the ghost, and other
-	// devices' rows naming it as their peer, would go to the CASCADE as well.
+	// The CASCADE would also delete the ports, services and hourly rows of the
+	// ghost, and the rows of other devices that name it as their peer.
 	intoID := sql.NullInt64{Int64: into.ID, Valid: true}
 	fromID := sql.NullInt64{Int64: ghost.ID, Valid: true}
 
@@ -966,8 +969,8 @@ func (s *Store) fold(ctx context.Context, p *pass, ghost, into *models.Device) e
 	return nil
 }
 
-// claim makes the address current for the device, taking it off whoever else
-// was holding it.
+// claim makes the address current for the device. It takes it from any other
+// holder.
 func (s *Store) claim(ctx context.Context, p *pass, deviceID int64, ip dbtype.Addr) error {
 	if err := p.q.ReleaseAddress(ctx, models.ReleaseAddressParams{IP: ip, DeviceID: deviceID}); err != nil {
 		return fmt.Errorf("release %s: %w", ip, err)
@@ -1005,18 +1008,18 @@ func (s *Store) claim(ctx context.Context, p *pass, deviceID int64, ip dbtype.Ad
 	return nil
 }
 
-// applyClaim files this source's reading against the device, then re-elects the
-// name the device row carries from every source's claim.
+// applyClaim records the reading of this source against the device. Then it
+// elects the name of the device row again, from the claims of every source.
 //
-// The row holds one name because the device list shows one per row and searches
-// one column; the claims behind it are kept so the device page can show a source
-// that was outranked.
+// The row holds one name, because the device list shows one for each row and
+// searches one column. The claims behind it stay. So the device page can show
+// a source with a lower rank.
 //
-// Re-deriving from every claim on each pass is what lets a name that a source
-// has renamed, or that a higher source now contradicts, be picked up. A source
-// that stops reporting a name keeps the last one it gave (see
-// UpsertDeviceSource), and a device whose claims carry no name keeps the one it
-// has, so a device going quiet does not lose its name.
+// Each pass elects from every claim again. So the store sees a new name from a
+// source, or a contradiction from a higher source. A source that stops
+// reporting a name keeps the last name that it gave (see UpsertDeviceSource).
+// A device whose claims have no name keeps its name. So a device that goes
+// quiet does not lose its name.
 func (s *Store) applyClaim(ctx context.Context, p *pass, d *models.Device, f plugin.Fact) error {
 	if err := s.recordClaim(ctx, p, d.ID, f); err != nil {
 		return err
@@ -1050,13 +1053,13 @@ func (s *Store) applyClaim(ctx context.Context, p *pass, d *models.Device, f plu
 		return fmt.Errorf("set hostname of device %d: %w", d.ID, err)
 	}
 
-	// A first name is part of discovering the device.
+	// A first name is part of the discovery of the device.
 	if !d.Hostname.Valid {
 		return nil
 	}
 
-	// Two spellings of one name count as one, or a device whose PTR and lease
-	// label differ by a domain would log a rename every cycle.
+	// Two spellings of one name count as one. If not, a device whose PTR and
+	// lease label differ by a domain would log a rename every cycle.
 	if sameName(won.name, d.Hostname.String) {
 		return nil
 	}
@@ -1064,14 +1067,14 @@ func (s *Store) applyClaim(ctx context.Context, p *pass, d *models.Device, f plu
 	return s.event(ctx, p, d.ID, dbtype.EventHostnameChanged, d.Hostname.String, won.name, "")
 }
 
-// recordClaim files this source's reading over what the same source said
-// before about the same address, except that a reading with no name leaves the
-// last name in place (see UpsertDeviceSource). A swept name that ranks below
-// the one the claim holds leaves that name in place too (see yieldsToHeldName).
+// recordClaim writes the reading of this source over what the same source said
+// before about the same address. A reading with no name keeps the last name
+// (see UpsertDeviceSource). A swept name that ranks below the name of the
+// claim also keeps that name (see yieldsToHeldName).
 //
-// last_seen advances whenever the source still reports the device, presence or
-// not: a router still holds a static lease with nothing plugged in. Whether
-// anything answered is devices.last_seen's question.
+// last_seen moves forward whenever the source still reports the device, with
+// or without presence. A router still has a static lease with nothing
+// connected. devices.last_seen answers whether something answered.
 func (s *Store) recordClaim(ctx context.Context, p *pass, deviceID int64, f plugin.Fact) error {
 	detail, err := claimDetail(f.Detail)
 	if err != nil {
@@ -1106,22 +1109,22 @@ func (s *Store) recordClaim(ctx context.Context, p *pass, deviceID int64, f plug
 	return nil
 }
 
-// yieldsToHeldName reports whether the name f carries must leave this source's
-// claim at f's address alone: both names were learned by a sweep, and the one
-// the claim holds ranks higher.
+// yieldsToHeldName reports whether the name of f must not change the claim of
+// this source at the address of f. This is true when a sweep learned both
+// names, and the name of the claim ranks higher.
 //
-// A sweep asks each lookup in turn, from the highest standing down, and asks
+// A sweep asks each lookup in order, from the highest standing down. It asks
 // the next only when the one before gave no name. A lookup that runs past its
-// timeout gives none too. Letting the next lookup's answer replace the held
-// name would rename the device, and the next sweep's answer would rename it
-// back. The claims of every other source hold no swept name, so they take
-// each new name they are given.
+// timeout also gives none. If the answer of the next lookup replaced the held
+// name, the device would get a new name. The next sweep would then change it
+// back. The claims of every other source hold no swept name. So they take
+// each new name that they get.
 //
-// The held name has no expiry. A device that stops answering the higher
-// lookup for good, such as a NAS with Avahi turned off, keeps that name until
-// the lookup, or a higher one, gives another. This is accepted: a sweep's
-// empty lookup has always left the last name in place, and a label on the
-// device is shown in place of the name either way.
+// The held name does not expire. A device can stop answering the higher lookup
+// for good, such as a NAS with Avahi off. It keeps that name until that lookup,
+// or a higher one, gives a different name. This is accepted. An empty lookup
+// of a sweep always kept the last name. In both cases, a label on the device
+// shows instead of the name.
 func yieldsToHeldName(ctx context.Context, p *pass, deviceID int64, f plugin.Fact) (bool, error) {
 	if f.Host.Hostname() == "" || !f.HostnameSource.Swept() {
 		return false, nil
@@ -1145,9 +1148,10 @@ func yieldsToHeldName(ctx context.Context, p *pass, deviceID int64, f plugin.Fac
 		held.HostnameSource.Rank() > f.HostnameSource.Rank(), nil
 }
 
-// claimDetail renders what only this source knows as the column's JSON, null
-// when it knows nothing extra. encoding/json sorts map keys, so an unchanged
-// reading re-marshals identically and the row does not churn.
+// claimDetail renders what only this source knows as the JSON of the column. It
+// is null when the source knows nothing more. encoding/json sorts map keys. So
+// an unchanged reading marshals in the same way, and the row does not
+// change.
 func claimDetail(detail map[string]string) (sql.NullString, error) {
 	if len(detail) == 0 {
 		return sql.NullString{}, nil
@@ -1172,8 +1176,8 @@ func (s *Store) event(
 }
 
 // writeEvent appends one row to the change log. It takes the queries, scan id
-// and timestamp as separate arguments, so a reading that builds no pass, such
-// as a port scan, can log the same way.
+// and timestamp as separate arguments. So a reading that builds no pass, such
+// as a port scan, can log in the same way.
 func (s *Store) writeEvent(
 	ctx context.Context,
 	q *models.Queries,
@@ -1199,14 +1203,14 @@ func (s *Store) writeEvent(
 	return nil
 }
 
-// stamp reads the clock as the schema stores it.
+// stamp reads the clock in the form that the schema stores.
 func (s *Store) stamp() dbtype.Time {
 	return dbtype.NewTime(s.now())
 }
 
-// currentHolder returns the device holding ip right now, and nil when the
-// address is free. Nothing holding an address is an answer, so it is reported
-// as a nil device with a nil error.
+// currentHolder returns the device that holds ip now. It returns nil when the
+// address is free. A free address is an answer. So it is a nil device with a
+// nil error.
 func currentHolder(ctx context.Context, q *models.Queries, ip dbtype.Addr) (*models.Device, error) {
 	row, err := q.GetDeviceByCurrentIP(ctx, ip)
 
@@ -1220,8 +1224,8 @@ func currentHolder(ctx context.Context, q *models.Queries, ip dbtype.Addr) (*mod
 	return &row.Device, nil
 }
 
-// earlier returns whichever of the two timestamps came first. A folded device
-// was seen from the moment either of its rows was.
+// earlier returns the first of the two timestamps. A merged device was seen
+// from the time when either of its rows was seen.
 func earlier(a, b dbtype.Time) dbtype.Time {
 	if b.Before(a.Time) {
 		return b
@@ -1230,7 +1234,7 @@ func earlier(a, b dbtype.Time) dbtype.Time {
 	return a
 }
 
-// later returns whichever of the two timestamps came last.
+// later returns the last of the two timestamps.
 func later(a, b dbtype.Time) dbtype.Time {
 	if b.After(a.Time) {
 		return b
@@ -1239,8 +1243,8 @@ func later(a, b dbtype.Time) dbtype.Time {
 	return a
 }
 
-// earlierRun returns whichever of two present runs began first, or the one
-// that is set when the other device is quiet.
+// earlierRun returns the present run that began first. If the other device is
+// quiet, it returns the run that is set.
 func earlierRun(a, b dbtype.NullTime) dbtype.NullTime {
 	switch {
 	case !a.Valid:
@@ -1256,8 +1260,8 @@ func nullString(s string) sql.NullString {
 	return sql.NullString{String: s, Valid: s != ""}
 }
 
-// scanFinished tells the scan listener, if there is one, that a scan's
-// changes are all committed.
+// scanFinished tells the scan listener, if there is one, that all changes of a
+// scan are committed.
 func (s *Store) scanFinished(ctx context.Context, scanID int64) {
 	if s.onScan != nil {
 		s.onScan(ctx, scanID)

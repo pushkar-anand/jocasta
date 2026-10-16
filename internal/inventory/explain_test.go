@@ -47,8 +47,9 @@ func TestExplainClassGivesTheFactsAndTheRules(t *testing.T) {
 	assert.Equal(t, "port 515 (LPD print service)", got.OtherRules[0].Reason)
 }
 
-// Vendor rules match the start of the OUI table's short name. The registered
-// name often leads with a city, so the classifier is given the short one.
+// Vendor rules match the start of the short name of the OUI table. The
+// registered name often starts with a city. So the classifier gets the short
+// name.
 func TestExplainClassMatchesTheShortVendorName(t *testing.T) {
 	t.Parallel()
 

@@ -13,13 +13,13 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 )
 
-// reclassify re-runs the device-type classifier over the devices a reading
-// touched and records the guess where it moved.
+// reclassify runs the device-type classifier again over the devices that a
+// reading changed. It records the guess where the guess changed.
 //
-// It runs after the ingest it follows has committed, in its own transaction: a
-// guess is advisory, so a failure here must not roll back the scan that
-// prompted it. The caller logs the error and moves on. The user's own answer
-// in device_type is never read or written here; only device_class is.
+// It runs after its ingest committed, in its own transaction. A guess is only
+// advice. So a failure here must not roll back the scan. The caller logs the
+// error and continues. This code never reads or writes the answer of the user
+// in device_type. It uses only device_class.
 func (s *Store) reclassify(ctx context.Context, scanID int64, ids []int64) error {
 	if len(ids) == 0 {
 		return nil
@@ -48,11 +48,11 @@ func (s *Store) reclassify(ctx context.Context, scanID int64, ids []int64) error
 	return nil
 }
 
-// classifyOne reads what the inventory knows about one device, runs the
-// classifier, and writes the guess back when it changed.
+// classifyOne reads what the inventory knows about one device, and runs the
+// classifier. It writes the guess back when the guess changed.
 //
-// A device folded or deleted between the ingest and here is skipped: the
-// reading that touched it is what removed it.
+// It skips a device that was merged or deleted between the ingest and here.
+// The reading that changed it removed it.
 func (s *Store) classifyOne(
 	ctx context.Context,
 	q *models.Queries,
@@ -90,10 +90,11 @@ func (s *Store) classifyOne(
 		return fmt.Errorf("reclassify: set class of device %d: %w", id, err)
 	}
 
-	// The log records a guess moving between two settled classes. A first guess
-	// is part of discovering the device, and a guess lapsing to nothing is the
-	// classifier going quiet while the device stays the same. Neither is an
-	// event, the same call applyClaim makes for a first or retracted name.
+	// The log records a guess that changes between two settled classes. A
+	// first guess is part of the discovery of the device. A guess that changes
+	// to nothing means that the classifier is silent, but the device is the
+	// same. Neither is an event. applyClaim decides in the same way for a
+	// first or removed name.
 	if prev == "" || got.Class == classify.Unknown || string(got.Class) == prev {
 		return nil
 	}
@@ -103,13 +104,14 @@ func (s *Store) classifyOne(
 	return s.writeEvent(ctx, q, scanID, at, id, dbtype.EventDeviceClassified, prev, string(got.Class), detail)
 }
 
-// classifyInput gathers what the classifier reasons over for the stored device
-// d: its vendor, name and hardware address kind, the ports a scan currently
-// finds open, the services it advertises and the models they give, the
-// addresses it holds now, and the name of a network one of them sits on.
+// classifyInput collects the data of the classifier for the stored device d:
+//   - its vendor, name and hardware address kind
+//   - the ports that a scan finds open now
+//   - the services that it advertises, and their models
+//   - its current addresses, and the name of the network of one of them
 //
-// Reclassifying and explaining a guess both read the device through here, so
-// an explanation is always the case the classifier itself was given.
+// A new classification and an explanation both read the device through here.
+// So an explanation always shows the case that the classifier itself got.
 func classifyInput(ctx context.Context, q *models.Queries, d *models.Device) (classify.Input, error) {
 	ports, err := q.ListDeviceOpenPorts(ctx, d.ID)
 	if err != nil {
@@ -118,7 +120,7 @@ func classifyInput(ctx context.Context, q *models.Queries, d *models.Device) (cl
 
 	open := make([]uint16, 0, len(ports))
 	for _, p := range ports {
-		// device_ports.port is CHECK-constrained to 1-65535, so it fits.
+		// A CHECK limits device_ports.port to 1-65535, so it fits.
 		open = append(open, uint16(p.Port)) //nolint:gosec // range enforced by the column CHECK.
 	}
 

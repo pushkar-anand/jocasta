@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// curated returns a store holding one swept device, and its id.
+// curated returns a store with one swept device, and its id.
 func curated(t *testing.T) (*Store, int64) {
 	t.Helper()
 
@@ -37,18 +37,18 @@ func TestUpdateCurationApplies(t *testing.T) {
 	assert.Equal(t, "printer", got.Type)
 	assert.False(t, got.Ignored)
 
-	// The label is what the device is called once it has one.
+	// When the device has a label, the label is its name.
 	assert.Equal(t, "Office printer", got.Name())
 
-	// The value was stored as well as returned.
+	// The store kept the value, and also returned it.
 	reread, err := s.Device(t.Context(), id)
 	require.NoError(t, err)
 	assert.Equal(t, "Office printer", reread.Label)
 	assert.Equal(t, "office", reread.Group)
 }
 
-// Nothing a scan writes is the user's to change, so curating must not disturb
-// the identity the network reported.
+// The user cannot change what a scan writes. So curation must not change the
+// identity that the network reported.
 func TestUpdateCurationLeavesTheScannedFieldsAlone(t *testing.T) {
 	t.Parallel()
 
@@ -80,15 +80,15 @@ func TestUpdateCurationTrims(t *testing.T) {
 	assert.Equal(t, "Office printer", got.Label)
 	assert.Equal(t, "office", got.Group)
 
-	// A label of only spaces clears the label. Kept, it would be a name that
-	// renders as nothing.
+	// A label of only spaces clears the label. If kept, it would be a name
+	// that renders as nothing.
 	got, err = s.UpdateCuration(t.Context(), id, Curation{Label: "   "})
 	require.NoError(t, err)
 	assert.Empty(t, got.Label)
 	assert.Equal(t, "printer.local", got.Name(), "it falls back to what the network reported")
 }
 
-// A form submits every field, so one left empty means cleared.
+// A form sends every field. So an empty field means cleared.
 func TestUpdateCurationClearsOmittedFields(t *testing.T) {
 	t.Parallel()
 
@@ -104,7 +104,7 @@ func TestUpdateCurationClearsOmittedFields(t *testing.T) {
 	assert.Empty(t, got.Group)
 }
 
-// A patch changes the fields it carries and keeps the rest.
+// A patch changes its fields, and keeps the rest.
 func TestPatchCurationKeepsWhatItLeavesOut(t *testing.T) {
 	t.Parallel()
 
@@ -125,7 +125,7 @@ func TestPatchCurationKeepsWhatItLeavesOut(t *testing.T) {
 	assert.True(t, got.Ignored)
 }
 
-// A field sent empty is cleared, and only that field.
+// The store clears a field sent empty, and only that field.
 func TestPatchCurationClearsAFieldSentEmpty(t *testing.T) {
 	t.Parallel()
 
@@ -142,7 +142,7 @@ func TestPatchCurationClearsAFieldSentEmpty(t *testing.T) {
 	assert.Equal(t, "office", got.Group)
 }
 
-// A patch is cleaned as a full edit is, and records only what moved.
+// The store cleans a patch as a full edit, and records only what changed.
 func TestPatchCurationTrimsAndRecordsWhatChanged(t *testing.T) {
 	t.Parallel()
 
@@ -166,7 +166,7 @@ func TestPatchCurationTrimsAndRecordsWhatChanged(t *testing.T) {
 		}
 	}
 
-	// The label the patch sent unchanged is not an edit.
+	// A label that the patch sent without a change is not an edit.
 	assert.Equal(t, map[string]int{"label": 1, "group": 1}, edits)
 }
 
@@ -187,8 +187,8 @@ func TestUpdateCurationIgnores(t *testing.T) {
 	_, err := s.UpdateCuration(t.Context(), id, Curation{Ignored: true})
 	require.NoError(t, err)
 
-	// An ignored device is left out of a list unless it is asked for, and is
-	// still counted.
+	// A list leaves out an ignored device, unless the caller asks for it. The
+	// count still includes it.
 	devices, err := s.ListDevices(t.Context(), DeviceFilter{})
 	require.NoError(t, err)
 	assert.Empty(t, devices)
@@ -228,7 +228,7 @@ func TestUpdateCurationRecordsWhatChanged(t *testing.T) {
 	assert.Empty(t, edited["label"].OldValue, "it had no label before")
 	assert.Equal(t, "office", edited["group"].NewValue)
 
-	// A second edit records the value it replaced.
+	// A second edit records the value that it replaced.
 	_, err = s.UpdateCuration(t.Context(), id, Curation{Label: "Hallway printer", Group: "office"})
 	require.NoError(t, err)
 
@@ -242,8 +242,8 @@ func TestUpdateCurationRecordsWhatChanged(t *testing.T) {
 	assert.Equal(t, "Hallway printer", events[0].NewValue)
 }
 
-// An edit that changed nothing is not a change, and should not fill the log
-// with entries saying so.
+// An edit that changed nothing is not a change. It must not fill the log with
+// such entries.
 func TestUpdateCurationWithoutAChangeRecordsNothing(t *testing.T) {
 	t.Parallel()
 

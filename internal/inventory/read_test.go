@@ -14,19 +14,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// curate sets one user-owned column directly, so a read test does not depend
+// curate sets one column of the user directly. So a read test does not depend
 // on UpdateCuration.
 func curate(t *testing.T, conn *sql.DB, id int64, column string, value any) {
 	t.Helper()
 
-	// The column name is one of a fixed set chosen by the calling test, never
-	// user input, so the interpolation is safe.
+	// The column name is from a fixed set that the calling test chooses. It is
+	// never user input. So the interpolation is safe.
 	_, err := conn.ExecContext(t.Context(), fmt.Sprintf(`UPDATE devices SET %s = ? WHERE id = ?`, column), value, id) // #nosec G202
 	require.NoError(t, err)
 }
 
-// names returns what each device would be called, which is the one value that
-// says which rows came back without depending on their order.
+// names returns the name of each device. Only this value tells which rows came
+// back, without a dependency on their order.
 func names(devices []*Device) []string {
 	out := make([]string, 0, len(devices))
 	for _, d := range devices {
@@ -54,14 +54,13 @@ func TestListDevicesReturnsWhatWasSwept(t *testing.T) {
 	for _, d := range devices {
 		assert.True(t, d.Online, "just swept, so inside the online window")
 		assert.Len(t, d.Current, 1)
-		// A list reports the current addresses but not their history.
+		// A list reports the current addresses, but not their history.
 		assert.Empty(t, d.Addresses)
 	}
 }
 
-// The flattened view is the reason these types exist: an absent column has to
-// arrive as an empty string. A sql.NullString would have to be unwrapped in
-// every template.
+// These types exist for the flattened view. An absent column must arrive as an
+// empty string. Every template would have to unwrap a sql.NullString.
 func TestListDevicesFlattensAbsentColumns(t *testing.T) {
 	t.Parallel()
 
@@ -79,7 +78,7 @@ func TestListDevicesFlattensAbsentColumns(t *testing.T) {
 	assert.Empty(t, d.Label)
 	assert.Equal(t, dbtype.IdentityIP, d.IdentitySource)
 
-	// With nothing else known, the address it answered on names it.
+	// With nothing else known, the answering address names it.
 	assert.Equal(t, "192.0.2.10", d.Name())
 }
 
@@ -108,8 +107,8 @@ func TestListDevicesSearch(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		// Not parallel: the subtests share one store, whose test clock advances
-		// on every read.
+		// Not parallel. The subtests share one store, whose test clock moves on
+		// every read.
 		t.Run(tc.name, func(t *testing.T) {
 			devices, err := s.ListDevices(t.Context(), DeviceFilter{Query: tc.query})
 			require.NoError(t, err)
@@ -118,8 +117,8 @@ func TestListDevicesSearch(t *testing.T) {
 	}
 }
 
-// The search text is matched as typed: % and _ are characters a label can
-// hold, not wildcards.
+// The search matches the text as typed. % and _ are characters that a label
+// can contain. They are not wildcards.
 func TestListDevicesSearchMatchesWildcardsLiterally(t *testing.T) {
 	t.Parallel()
 
@@ -142,8 +141,8 @@ func TestListDevicesSearchMatchesWildcardsLiterally(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		// Not parallel: the subtests share one store, whose test clock advances
-		// on every read.
+		// Not parallel. The subtests share one store, whose test clock moves on
+		// every read.
 		t.Run(tc.name, func(t *testing.T) {
 			devices, err := s.ListDevices(t.Context(), DeviceFilter{Query: tc.query})
 			require.NoError(t, err)
@@ -206,8 +205,8 @@ func TestListDevicesStatusFollowsTheOnlineWindow(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, offline)
 
-	// The same sighting, judged against a window narrower than the clock's own
-	// tick, is now too stale to count.
+	// With a window narrower than the tick of the clock, the same sighting is
+	// now too old to count.
 	s.onlineWindow = time.Nanosecond
 
 	online, err = s.ListDevices(t.Context(), DeviceFilter{Status: StatusOnline})
@@ -220,7 +219,7 @@ func TestListDevicesStatusFollowsTheOnlineWindow(t *testing.T) {
 	assert.False(t, offline[0].Online)
 }
 
-// The column is TEXT, so this ordering is exactly the one SQL cannot do.
+// The column is TEXT. So SQL cannot do exactly this order.
 func TestListDevicesSortsAddressesNumerically(t *testing.T) {
 	t.Parallel()
 
@@ -252,8 +251,8 @@ func TestListDevicesSortsByName(t *testing.T) {
 	assert.Equal(t, []string{"nas.local", "printer.local"}, names(devices))
 }
 
-// The type filter narrows to the effective class, the same one the icon
-// column shows, so a name the classifier reads is enough to be found by it.
+// The type filter uses the effective class, as the icon column does. So a name
+// that the classifier reads is enough for the filter to find the device.
 func TestListDevicesFiltersByType(t *testing.T) {
 	t.Parallel()
 
@@ -272,7 +271,8 @@ func TestListDevicesFiltersByType(t *testing.T) {
 	assert.Empty(t, none)
 }
 
-// Sorting by type keeps like with like and puts the devices with no class last.
+// A sort by type keeps the same types together, and puts the devices with no
+// class last.
 func TestListDevicesSortsByType(t *testing.T) {
 	t.Parallel()
 
@@ -310,10 +310,10 @@ func TestGetDeviceCarriesAddressHistory(t *testing.T) {
 		assert.False(t, a.LastSeen.IsZero())
 	}
 
-	// A sweep only reports what answered, so an address a device answered on
-	// before is not released the moment another appears: within the grace
-	// window (these two sweeps are a clock tick apart) both stay current.
-	// Retirement past the window is TestRetiresAnAddressADeviceMovedOff.
+	// A sweep reports only what answered. So when a device gets a new
+	// address, its old address is not released at once. Within the grace
+	// window, both stay current. These two sweeps are one clock tick apart.
+	// TestRetiresAnAddressADeviceMovedOff covers retirement after the window.
 	assert.Equal(t, []netip.Addr{
 		netip.MustParseAddr("192.0.2.10"),
 		netip.MustParseAddr("192.0.2.11"),
@@ -339,8 +339,8 @@ func TestRequireDevice(t *testing.T) {
 	require.ErrorIs(t, s.RequireDevice(t.Context(), 404), ErrNotFound)
 }
 
-// A sweep records the prefix it swept, so an address it found sits on a known
-// network and the detail page can name it.
+// A sweep records its prefix. So an address that it found is on a known
+// network, and the detail page can name it.
 func TestGetDeviceCarriesEachAddressNetwork(t *testing.T) {
 	t.Parallel()
 
@@ -357,8 +357,8 @@ func TestGetDeviceCarriesEachAddressNetwork(t *testing.T) {
 	assert.Equal(t, prefix, d.Addresses[0].Network.CIDR)
 }
 
-// The device read carries the ports a scan has found, still-open ones first,
-// and only the detail read fills them.
+// The device read has the ports that a scan found, open ports first. Only the
+// detail read fills them.
 func TestGetDeviceCarriesOpenPorts(t *testing.T) {
 	t.Parallel()
 
@@ -381,8 +381,8 @@ func TestGetDeviceCarriesOpenPorts(t *testing.T) {
 	assert.Equal(t, uint16(443), d.Ports[1].Number)
 	assert.False(t, d.Ports[1].Open(), "the port that stopped answering keeps its row, closed")
 
-	// A list read does not pay for the full port history, but it does carry the
-	// numbers of the open ones so a row can show what the device exposes.
+	// A list read does not pay for the full port history. But it has the
+	// numbers of the open ports. So a row can show what the device exposes.
 	list, err := s.ListDevices(t.Context(), DeviceFilter{})
 	require.NoError(t, err)
 	require.NotEmpty(t, list)
@@ -390,8 +390,8 @@ func TestGetDeviceCarriesOpenPorts(t *testing.T) {
 	assert.Equal(t, []uint16{22}, list[0].OpenPorts, "the closed port is not one it exposes now")
 }
 
-// The list read carries the prefixes a device currently sits on, so a row can
-// name and link the network without a query of its own.
+// The list read has the current prefixes of a device. So a row can name and
+// link the network without its own query.
 func TestListDevicesCarriesNetworks(t *testing.T) {
 	t.Parallel()
 
@@ -423,8 +423,8 @@ func TestDeviceEventsAreMostRecentFirst(t *testing.T) {
 	assert.Equal(t, "printer.local", events[0].OldValue)
 	assert.Equal(t, "renamed.local", events[0].NewValue)
 
-	// The two the discovery wrote share a timestamp, so only the pair is
-	// ordered against the change; the two have no order between them.
+	// The two events of the discovery share a timestamp. So only the pair has
+	// an order against the change. The two have no order between them.
 	assert.ElementsMatch(t,
 		[]dbtype.EventKind{dbtype.EventDeviceDiscovered, dbtype.EventAddressAdded},
 		[]dbtype.EventKind{events[1].Kind, events[2].Kind},
@@ -445,7 +445,7 @@ func TestListEventsNamesTheDevice(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, page.Events)
 
-	// The whole log fits in one page, so there is nothing after it.
+	// The whole log fits in one page. So there is nothing after it.
 	assert.True(t, page.Next.IsZero())
 
 	for _, e := range page.Events {
@@ -455,8 +455,8 @@ func TestListEventsNamesTheDevice(t *testing.T) {
 	}
 }
 
-// A device-scoped page of the log holds only that device's entries, and walks
-// the same way the full log does.
+// A page of the log for one device has only the entries of that device. It
+// walks in the same way as the full log.
 func TestListEventsNarrowsToOneDevice(t *testing.T) {
 	t.Parallel()
 
@@ -475,7 +475,8 @@ func TestListEventsNarrowsToOneDevice(t *testing.T) {
 		assert.Equal(t, "printer.local", e.DeviceName)
 	}
 
-	// The full log holds both devices' events, so scoping it drops some.
+	// The full log has the events of both devices. So a limit to one device
+	// drops some.
 	full, err := s.ListEvents(t.Context(), Page{Limit: 10})
 	require.NoError(t, err)
 	assert.Greater(t, len(full.Events), len(page.Events))
@@ -506,8 +507,8 @@ func TestListScansDescribesTheRun(t *testing.T) {
 	assert.Equal(t, sc.ID, latest.ID)
 }
 
-// A port scan of only the new devices is listed, but is not the latest port
-// scan: it says nothing about every other device.
+// The list includes a port scan of only the new devices. But it is not the
+// latest port scan, because it tells nothing about every other device.
 func TestLatestScanOfKindSkipsNewDeviceScans(t *testing.T) {
 	t.Parallel()
 
@@ -555,8 +556,9 @@ func TestLastSuccessfulScanAtReportsWhenTheScanFinished(t *testing.T) {
 	assert.Equal(t, latest.FinishedAt, at, "the schedule is anchored on the finish, not the start")
 }
 
-// A scan whose process died mid-run never finished, so the work never landed.
-// Counting it would hold the next sweep off for an interval it was never owed.
+// A scan whose process stopped during the run never finished. So its work never
+// arrived. If it counted, the next sweep would wait an interval for no
+// reason.
 func TestLastSuccessfulScanAtIgnoresAnUnfinishedScan(t *testing.T) {
 	t.Parallel()
 
@@ -573,8 +575,8 @@ func TestLastSuccessfulScanAtIgnoresAnUnfinishedScan(t *testing.T) {
 	require.ErrorIs(t, err, ErrNotFound)
 }
 
-// A sweep in progress must not mask the last completed one: answering
-// ErrNotFound here would report "never swept" mid-sweep and start a second.
+// A sweep in progress must not hide the last completed sweep. ErrNotFound here
+// would report "never swept" during a sweep, and start a second sweep.
 func TestLastSuccessfulScanAtSkipsPastAnUnfinishedScan(t *testing.T) {
 	t.Parallel()
 
@@ -595,9 +597,9 @@ func TestLastSuccessfulScanAtSkipsPastAnUnfinishedScan(t *testing.T) {
 	assert.Equal(t, time.Date(2026, 1, 1, 0, 0, 5, 0, time.UTC), at)
 }
 
-// A scan that finished but failed gathered nothing. Crediting it would hold the
-// next run off for an interval that produced no data, which is the staleness
-// the interval is there to bound.
+// A scan that finished but failed collected nothing. If it counted, the next
+// run would wait an interval with no data. The interval exists to limit
+// exactly this age.
 func TestLastSuccessfulScanAtIgnoresAFailedScan(t *testing.T) {
 	t.Parallel()
 
@@ -614,8 +616,8 @@ func TestLastSuccessfulScanAtIgnoresAFailedScan(t *testing.T) {
 	require.ErrorIs(t, err, ErrNotFound)
 }
 
-// A failed scan must not mask the successful one before it either: the schedule
-// still resumes from the last run that actually gathered something.
+// A failed scan must also not hide the successful scan before it. The schedule
+// still continues from the last run that really collected something.
 func TestLastSuccessfulScanAtSkipsPastAFailedScan(t *testing.T) {
 	t.Parallel()
 
@@ -645,9 +647,9 @@ func TestLastSuccessfulScanAtWithoutAnyIsNotFound(t *testing.T) {
 	require.ErrorIs(t, err, ErrNotFound)
 }
 
-// The kind is the point of the query: a port scan says nothing about whether
-// the devices are due to be swept again, and answering with one would hold the
-// sweep off for an interval it was owed.
+// The kind is the purpose of the query. A port scan tells nothing about whether
+// the devices are due for a sweep. An answer with a port scan would make the
+// sweep wait for no reason.
 func TestLastSuccessfulScanAtIgnoresOtherKinds(t *testing.T) {
 	t.Parallel()
 
@@ -710,7 +712,7 @@ func TestListNetworksCountsWhatIsOnEachPrefix(t *testing.T) {
 		[]scanner.Host{host("198.51.100.5", "00:00:5e:00:53:03", "camera.local")})
 	require.NoError(t, err)
 
-	// Named directly with SQL, so this test covers only the read.
+	// Set the name directly with SQL. So this test covers only the read.
 	_, err = conn.ExecContext(t.Context(),
 		`UPDATE networks SET name = ?, vlan_id = ? WHERE cidr = ?`, "Home", 10, prefix)
 	require.NoError(t, err)
@@ -732,7 +734,7 @@ func TestListNetworksCountsWhatIsOnEachPrefix(t *testing.T) {
 	assert.Equal(t, 2, home.Online)
 	assert.Equal(t, 0, home.Offline)
 
-	// A network nobody has named is still a network, and reads as one.
+	// A network with no name is still a network, and reads as one.
 	other := byCIDR["198.51.100.0/24"]
 	require.NotNil(t, other)
 	assert.Empty(t, other.Name)
@@ -740,8 +742,8 @@ func TestListNetworksCountsWhatIsOnEachPrefix(t *testing.T) {
 	assert.Equal(t, 1, other.Total)
 	assert.Equal(t, 1, other.Online)
 
-	// The counts follow the same window a device list is judged by, so the two
-	// surfaces cannot disagree about who is answering.
+	// The counts use the same window as a device list. So the two surfaces
+	// cannot disagree about who answers.
 	s.onlineWindow = time.Nanosecond
 
 	networks, err = s.ListNetworks(t.Context())
@@ -786,8 +788,8 @@ func TestWithOnlineWindow(t *testing.T) {
 	assert.Equal(t, DefaultOnlineWindow, New(nil, nil).onlineWindow)
 	assert.Equal(t, time.Hour, New(nil, nil, WithOnlineWindow(time.Hour)).onlineWindow)
 
-	// A window has to be positive to mean anything, and a zero one would
-	// otherwise report every device offline.
+	// A window must be positive to have a meaning. A zero window would report
+	// every device as offline.
 	assert.Equal(t, DefaultOnlineWindow, New(nil, nil, WithOnlineWindow(0)).onlineWindow)
 	assert.Equal(t, DefaultOnlineWindow, New(nil, nil, WithOnlineWindow(-time.Hour)).onlineWindow)
 }
@@ -801,7 +803,8 @@ func TestWithClock(t *testing.T) {
 	assert.Equal(t, pinned, s.now())
 	assert.Equal(t, pinned.Add(-DefaultOnlineWindow), s.onlineCutoff())
 
-	// A nil clock is ignored; used, it would panic on the first write.
+	// The store ignores a nil clock. If it used it, it would panic on the
+	// first write.
 	assert.NotNil(t, New(nil, nil, WithClock(nil)).now)
 }
 
@@ -842,8 +845,8 @@ func TestParseAddrs(t *testing.T) {
 		netip.MustParseAddr("192.0.2.100"),
 	}, parseAddrs("192.0.2.100 192.0.2.9"))
 
-	// Nothing reaches the column except through dbtype.Addr, so unparseable
-	// text is dropped and the other devices still read.
+	// Only dbtype.Addr writes the column. So the read drops text that does not
+	// parse, and still reads the other devices.
 	assert.Equal(t, []netip.Addr{netip.MustParseAddr("192.0.2.9")}, parseAddrs("not-an-address 192.0.2.9"))
 }
 
@@ -852,11 +855,11 @@ func TestParsePorts(t *testing.T) {
 
 	assert.Nil(t, parsePorts(""))
 
-	// The aggregate has no order worth keeping, so the numbers come back sorted.
+	// The aggregate has no useful order. So the numbers come back sorted.
 	assert.Equal(t, []uint16{22, 80, 443}, parsePorts("443 22 80"))
 
-	// The column is written from a CHECK-constrained one, so anything that is not
-	// a port is a row written around the application and is dropped.
+	// The column comes from a column with a CHECK. So a value that is not a
+	// port is a row written outside the application. The read drops it.
 	assert.Equal(t, []uint16{443}, parsePorts("nope 443 0 99999"))
 }
 
@@ -870,6 +873,6 @@ func TestStatusAdmits(t *testing.T) {
 	assert.False(t, StatusOffline.admits(true))
 	assert.True(t, StatusOffline.admits(false))
 
-	// An unrecognised filter widens the list.
+	// An unknown filter makes the list wider.
 	assert.True(t, Status("nonsense").admits(false))
 }

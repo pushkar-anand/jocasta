@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A device that moves to a new address must not keep the old one marked
-// current. A sweep that finds the device elsewhere in the prefix, once the old
-// address has been silent past the grace window, retires it.
+// A device that moves to a new address must not keep the old address as
+// current. The old address can be silent for longer than the grace window.
+// Then a sweep that finds the device elsewhere in the prefix retires it.
 func TestRetiresAnAddressADeviceMovedOff(t *testing.T) {
 	t.Parallel()
 
@@ -40,8 +40,8 @@ func TestRetiresAnAddressADeviceMovedOff(t *testing.T) {
 	assert.Equal(t, "192.0.2.10", old)
 }
 
-// Within the grace window a device holding two addresses in the prefix keeps
-// both: one silent sweep is not evidence a lease is gone.
+// Within the grace window, a device with two addresses in the prefix keeps
+// both. One silent sweep does not prove that a lease is gone.
 func TestKeepsAnAddressSilentOnlyBrieflyWithinGrace(t *testing.T) {
 	t.Parallel()
 
@@ -57,9 +57,9 @@ func TestKeepsAnAddressSilentOnlyBrieflyWithinGrace(t *testing.T) {
 		currentIPs(t, conn, deviceIDByMAC(t, conn, macA)))
 }
 
-// A device that answered nowhere this sweep is offline. Nothing
-// in a silent sweep says its lease moved, so its address is left alone however
-// stale it is.
+// A device that answered nowhere in this sweep is offline. A silent sweep tells
+// nothing about a move of its lease. So its address does not change, at any
+// age.
 func TestDoesNotRetireAnAddressOfADeviceItDidNotSee(t *testing.T) {
 	t.Parallel()
 
@@ -74,8 +74,8 @@ func TestDoesNotRetireAnAddressOfADeviceItDidNotSee(t *testing.T) {
 	assert.Equal(t, []string{"192.0.2.10"}, currentIPs(t, conn, deviceIDByMAC(t, conn, macA)))
 }
 
-// An address on another prefix was not probed by this sweep, so its silence
-// says nothing. Only addresses inside the swept prefix are eligible.
+// This sweep did not probe an address on a different prefix. So its silence
+// tells nothing. Only addresses in the swept prefix can retire.
 func TestRetiresOnlyWithinTheSweptPrefix(t *testing.T) {
 	t.Parallel()
 
@@ -96,8 +96,8 @@ func TestRetiresOnlyWithinTheSweptPrefix(t *testing.T) {
 		"the address on the unswept prefix is untouched")
 }
 
-// A genuinely multi-homed host answers on every interface each sweep, so both
-// addresses refresh and neither is ever eligible for retirement.
+// A real host with several addresses answers on every interface in each sweep.
+// So both addresses refresh, and neither can retire.
 func TestKeepsBothAddressesOfALiveMultiHomedHost(t *testing.T) {
 	t.Parallel()
 
@@ -119,8 +119,8 @@ func TestKeepsBothAddressesOfALiveMultiHomedHost(t *testing.T) {
 		currentIPs(t, conn, deviceIDByMAC(t, conn, macA)))
 }
 
-// One interface of a multi-homed host going quiet past the window retires that
-// address and leaves the one still answering.
+// If one interface of a host with several addresses is quiet for longer than
+// the window, its address retires. The address that still answers stays.
 func TestRetiresTheDeadInterfaceOfAMultiHomedHost(t *testing.T) {
 	t.Parallel()
 
@@ -135,8 +135,8 @@ func TestRetiresTheDeadInterfaceOfAMultiHomedHost(t *testing.T) {
 	assert.Equal(t, []string{"192.0.2.10"}, currentIPs(t, conn, deviceIDByMAC(t, conn, macA)))
 }
 
-// A router read covers every VLAN at once and bounds itself by no prefix, so it
-// can never conclude an address inside one is absent.
+// A router read covers every VLAN at once, with no prefix limit. So it can
+// never decide that an address in one is absent.
 func TestARouterReadRetiresNothing(t *testing.T) {
 	t.Parallel()
 

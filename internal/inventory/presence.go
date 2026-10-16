@@ -12,12 +12,12 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 )
 
-// arrive marks a device that answered this reading as present. A device that
-// was quiet comes back from this sighting, and a watched one logs it with the
-// sighting before, which is when it went quiet.
+// arrive marks a device that answered this reading as present. A quiet device
+// comes back with this sighting. A watched device logs it with the sighting
+// before, which is when it went quiet.
 //
-// d is the row as it stood before this reading touched it, so its last_seen is
-// still the previous sighting.
+// d is the row from before this reading changed it. So its last_seen is still
+// the last sighting.
 func (s *Store) arrive(ctx context.Context, p *pass, d *models.Device) error {
 	if d.PresentSince.Valid {
 		return nil
@@ -29,10 +29,10 @@ func (s *Store) arrive(ctx context.Context, p *pass, d *models.Device) error {
 
 	d.PresentSince = dbtype.NullTime{Time: p.at, Valid: true}
 
-	// Only a sighting older than the window ends a quiet spell, the same test
-	// depart makes. A device created by this reading was last seen now, and
-	// one recorded before presence was tracked may have been seen minutes ago:
-	// neither was quiet.
+	// Only a sighting older than the window ends a quiet period. depart uses
+	// the same test. A device that this reading created was last seen now. A
+	// device recorded before presence tracking can have a sighting minutes
+	// ago. Neither was quiet.
 	if !d.LastSeen.Before(p.at.Add(-s.onlineWindow)) {
 		return nil
 	}
@@ -46,25 +46,24 @@ func (s *Store) arrive(ctx context.Context, p *pass, d *models.Device) error {
 	return s.event(ctx, p, d.ID, dbtype.EventDeviceBack, d.LastSeen.Format(time.RFC3339), "", "")
 }
 
-// present is one present device a reading could have seen, with where to test
-// it against a sweep's prefix.
+// present is one present device that a reading could see, with its address for
+// the test against the prefix of a sweep.
 type present struct {
 	id       int64
 	lastSeen dbtype.Time
 	watched  bool
 }
 
-// depart marks quiet every present device this reading could have seen, did
-// not see, and nothing has seen for longer than the online window. A sweep
-// could have seen the devices holding a current address inside its prefix; a
-// source that reads every network could have seen the devices it holds a
-// claim for.
+// depart marks as quiet every present device that this reading could see, but
+// did not see. Also, no source saw it for longer than the online window. A
+// sweep could see the devices with a current address in its prefix. A source
+// that reads every network could see the devices of its claims.
 //
-// Absence counts only where a reading looked, so a device on a network no
-// reading covers stays present, and a restart after downtime turns quiet only
-// the devices that are still not answering once their network is read again.
-// The window is judged against last_seen, which every source touches, so a
-// device the router saw a minute ago stays present when a sweep misses it.
+// Absence counts only where a reading looked. So a device on a network that no
+// reading covers stays present. After downtime, a restart marks as quiet only
+// the devices that still do not answer when their network is read again. The
+// window uses last_seen, which every source updates. So a device that the
+// router saw a minute ago stays present when a sweep misses it.
 func (s *Store) depart(ctx context.Context, p *pass, r reading) error {
 	candidates, err := s.couldHaveSeen(ctx, p, r)
 	if err != nil {
@@ -96,8 +95,8 @@ func (s *Store) depart(ctx context.Context, p *pass, r reading) error {
 	return nil
 }
 
-// couldHaveSeen returns the present devices r was in a position to see, each
-// once, in id order.
+// couldHaveSeen returns the present devices that r could see, each once, in id
+// order.
 func (s *Store) couldHaveSeen(ctx context.Context, p *pass, r reading) ([]present, error) {
 	if r.network == nil {
 		rows, err := p.q.PresentOfSource(ctx, p.sourceID)
@@ -118,8 +117,8 @@ func (s *Store) couldHaveSeen(ctx context.Context, p *pass, r reading) ([]presen
 		return nil, fmt.Errorf("present devices: %w", err)
 	}
 
-	// Rows come a device at a time, one per current address, so a device
-	// with two addresses in the prefix is kept once.
+	// Rows come one device at a time, one row for each current address. So a
+	// device with two addresses in the prefix stays once.
 	var out []present
 
 	for _, row := range rows {
@@ -137,12 +136,12 @@ func (s *Store) couldHaveSeen(ctx context.Context, p *pass, r reading) ([]presen
 	return out, nil
 }
 
-// Watch sets whether the owner is told when a device goes quiet or comes back,
-// and records the change in the log as an edit. Watching is the owner's, like
-// a label, and no scan changes it.
+// Watch sets whether the owner gets told when a device goes quiet or comes
+// back. It records the change in the log as an edit. The watch belongs to the
+// owner, as a label does. No scan changes it.
 //
-// It is set on its own, outside [Curation]: every field of a curation is
-// replaced, and a form or tool that predates watching would clear it.
+// It is set alone, outside [Curation]. A curation replaces every field. A form
+// or tool from before the watch feature would clear it.
 func (s *Store) Watch(ctx context.Context, id int64, watched bool) (*Device, error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
@@ -188,9 +187,10 @@ func (s *Store) Watch(ctx context.Context, id int64, watched bool) (*Device, err
 	return s.Device(ctx, id)
 }
 
-// presenceChange words a presence event: how long the device had gone
-// unanswered when it went quiet, or how long it was quiet when it came back.
-// Both are measured from the sighting the event stores, to when it was logged.
+// presenceChange writes the text of a presence event. This is how long the
+// device was without an answer when it went quiet. Or it is how long it was
+// quiet when it came back. Both start at the sighting of the event, and end
+// when the event was logged.
 func presenceChange(e *Event) string {
 	last, err := time.Parse(time.RFC3339, e.OldValue)
 	if err != nil {
@@ -206,8 +206,8 @@ func presenceChange(e *Event) string {
 	return "after " + span + " quiet"
 }
 
-// spanWords says a length of time at the precision a person would: minutes
-// under an hour, hours under two days, days after that.
+// spanWords writes a length of time with the precision of a person: minutes
+// below an hour, hours below two days, and days after that.
 func spanWords(d time.Duration) string {
 	switch {
 	case d < time.Hour:
@@ -219,7 +219,7 @@ func spanWords(d time.Duration) string {
 	return count(int(d.Hours()/24), "day")
 }
 
-// count says n of unit, in the singular for one.
+// count writes n of unit, in the singular for one.
 func count(n int, unit string) string {
 	if n == 1 {
 		return "1 " + unit

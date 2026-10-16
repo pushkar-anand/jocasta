@@ -19,7 +19,7 @@ func TestLastRunWithoutAnyIsNotFound(t *testing.T) {
 	require.ErrorIs(t, err, ErrNotFound)
 }
 
-// Each task keeps one row, and a later run replaces it.
+// Each task keeps one row. A later run replaces it.
 func TestRecordRunKeepsTheLatestRunPerTask(t *testing.T) {
 	t.Parallel()
 
@@ -42,7 +42,7 @@ func TestRecordRunKeepsTheLatestRunPerTask(t *testing.T) {
 	assert.True(t, other.Equal(got), got)
 }
 
-// A failed run stores why, and the next run that succeeds clears it.
+// A failed run stores the reason. The next successful run clears it.
 func TestRecordRunKeepsTheLatestRunsError(t *testing.T) {
 	t.Parallel()
 

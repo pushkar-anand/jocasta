@@ -12,9 +12,9 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/topology"
 )
 
-// RecordTopology files what one source says is plugged into it, in one
-// transaction. The source's ports and neighbours are replaced; its sightings
-// are added to, so an address the source no longer lists keeps its last
+// RecordTopology records what one source says is connected to it, in one
+// transaction. It replaces the ports and neighbours of the source. It adds to
+// its sightings. So an address that the source no longer lists keeps its last
 // sighting until the prune.
 func (s *Store) RecordTopology(ctx context.Context, source string, kind dbtype.SourceKind, t plugin.Topology) error {
 	tx, err := s.conn.BeginTx(ctx, nil)
@@ -82,7 +82,7 @@ func (s *Store) RecordTopology(ctx context.Context, source string, kind dbtype.S
 	return nil
 }
 
-// replaceTopologyPorts replaces a source's ports.
+// replaceTopologyPorts replaces the ports of a source.
 func replaceTopologyPorts(ctx context.Context, q *models.Queries, sourceID int64, ports []plugin.TopologyPort) error {
 	if err := q.DeleteTopologyPorts(ctx, sourceID); err != nil {
 		return fmt.Errorf("clear ports: %w", err)
@@ -109,7 +109,7 @@ func replaceTopologyPorts(ctx context.Context, q *models.Queries, sourceID int64
 	return nil
 }
 
-// replaceNeighbours replaces a source's neighbours.
+// replaceNeighbours replaces the neighbours of a source.
 func replaceNeighbours(ctx context.Context, q *models.Queries, sourceID int64, ns []plugin.Neighbour) error {
 	if err := q.DeleteTopologyNeighbours(ctx, sourceID); err != nil {
 		return fmt.Errorf("clear neighbours: %w", err)
@@ -139,8 +139,8 @@ func replaceNeighbours(ctx context.Context, q *models.Queries, sourceID int64, n
 	return nil
 }
 
-// joinVLANs renders a set of VLANs as the comma-separated list the ports table
-// stores.
+// joinVLANs renders a set of VLANs as the comma-separated list of the ports
+// table.
 func joinVLANs(vlans []int) string {
 	parts := make([]string, len(vlans))
 	for i, v := range vlans {
@@ -150,8 +150,8 @@ func joinVLANs(vlans []int) string {
 	return strings.Join(parts, ",")
 }
 
-// Topology returns the network's tree as each source last described it, with
-// the devices that are not ignored placed in it.
+// Topology returns the tree of the network, as each source last described it.
+// It places the devices that are not ignored in it.
 func (s *Store) Topology(ctx context.Context) (*topology.Tree, error) {
 	nodes, err := s.q.ListTopologyNodes(ctx)
 	if err != nil {
@@ -246,7 +246,7 @@ func (s *Store) Topology(ctx context.Context) (*topology.Tree, error) {
 }
 
 // placeable turns the devices with a hardware address into what the tree
-// places. A device's VLAN is its first network's.
+// places. The VLAN of a device is the VLAN of its first network.
 func placeable(devices []*Device) []topology.Device {
 	out := make([]topology.Device, 0, len(devices))
 
@@ -271,7 +271,7 @@ func placeable(devices []*Device) []topology.Device {
 	return out
 }
 
-// splitVLANs reads a list joinVLANs wrote.
+// splitVLANs reads a list that joinVLANs wrote.
 func splitVLANs(s string) []int {
 	var out []int
 
