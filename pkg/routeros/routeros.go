@@ -1,22 +1,21 @@
-// Package routeros reads a MikroTik router's state over the RouterOS v7 REST
-// API.
+// Package routeros reads the state of a MikroTik router over the RouterOS v7
+// REST API.
 //
-// The REST service speaks JSON over HTTP on 80/443, so the standard library is
-// all a client needs; the binary API on 8728/8729 would need a dependency. It
-// exists only from RouterOS 7, and only when /ip/service has www or www-ssl
-// enabled, so a router that answers a ping and refuses this is a router that
-// has not been told to serve it.
+// The REST service sends JSON over HTTP on 80/443. So a client needs only the
+// standard library. The binary API on 8728/8729 would need a dependency. The
+// REST API exists only from RouterOS 7, and only when /ip/service has www or
+// www-ssl enabled. So if a router answers a ping but refuses this API, nobody
+// told it to serve the API.
 //
-// Everything here reads; nothing writes. The router is a source of facts about
-// the network, and a client that cannot change its configuration cannot break
-// the network by being wrong. A POST here runs a console command that only
+// The package only reads. It never writes. The router is a source of facts
+// about the network. A client that cannot change its configuration cannot
+// break the network by a mistake. A POST here runs a console command that only
 // reports, such as the Ethernet monitor.
 //
-// Values arrive as the router renders them. RouterOS returns most fields as
-// strings, including its booleans, which [Bool] absorbs. Addresses and
-// hardware addresses stay strings on purpose: a router with one malformed row
-// should cost the caller only that row, and the caller decides what to do
-// with it.
+// Values stay as the router renders them. RouterOS returns most fields as
+// strings, also its booleans. [Bool] decodes these. Addresses and hardware
+// addresses stay strings on purpose. If one row is malformed, the caller loses
+// only that row. The caller decides what to do with it.
 package routeros
 
 import (
@@ -36,18 +35,18 @@ import (
 )
 
 const (
-	// basePath prefixes every REST endpoint. The router serves the binary API
-	// and the REST API on different ports, so this never collides with
-	// anything else the host runs.
+	// basePath is the start of every REST endpoint. The router serves the
+	// binary API and the REST API on different ports. So this path never
+	// collides with other services on the host.
 	basePath = "/rest"
 
 	defaultPort    = 80
 	defaultSSLPort = 443
 	defaultTimeout = 10 * time.Second
 
-	// maxBody caps a response. A router will not send more than a few hundred
-	// kilobytes of ARP table, and a device answering on this port that is not
-	// a router can stream forever.
+	// maxBody limits the size of a response. A router does not send more than
+	// a few hundred kilobytes of ARP table. A device on this port that is not
+	// a router can send data forever.
 	maxBody = 8 << 20
 )
 
@@ -63,16 +62,16 @@ type (
 		User     string
 		Password string
 
-		// SSL selects https, which the router serves as the www-ssl service.
+		// SSL selects https. The router serves https as the www-ssl service.
 		SSL bool
 
-		// Insecure skips certificate verification. RouterOS generates a
-		// self-signed certificate for www-ssl unless one is imported, so
-		// without this the common setup cannot connect at all.
+		// Insecure skips certificate verification. RouterOS makes a
+		// self-signed certificate for www-ssl, unless you import one. So the
+		// usual setup cannot connect without this setting.
 		Insecure bool
 
-		// Timeout bounds each request on its own, defaulting to 10s, so a
-		// caller's context stays the only thing that bounds a whole read.
+		// Timeout limits each request on its own. The default is 10s. Only the
+		// context of the caller limits a whole read.
 		Timeout time.Duration
 	}
 
@@ -86,14 +85,14 @@ type (
 	}
 )
 
-// ErrNoHost is a config naming no router.
+// ErrNoHost is a config that names no router.
 var ErrNoHost = errors.New("routeros: no host configured")
 
-// New builds a client for the router cfg names.
+// New builds a client for the router that cfg names.
 //
-// It performs no I/O, so a router that is down at startup is retried later
-// and the server still starts. Call [RouterOS.Verify] to find out whether the
-// credentials and the service are actually good.
+// It does no I/O. So if the router is down at startup, the server still starts
+// and tries again later. To find out whether the credentials and the service
+// work, call [RouterOS.Verify].
 func New(
 	cfg *Config,
 	log *slog.Logger,
@@ -123,8 +122,8 @@ func New(
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 
 	if c.Insecure {
-		// Clone carries the default TLS settings over, but not necessarily a
-		// config to hang this on.
+		// Clone copies the default TLS settings, but it can leave the TLS
+		// config nil.
 		if transport.TLSClientConfig == nil {
 			transport.TLSClientConfig = &tls.Config{} //nolint:gosec // the next line is the point.
 		}
@@ -149,21 +148,21 @@ func New(
 	return r, nil
 }
 
-// Addr is the base URL this client reads, useful in a log line naming which
-// router answered.
+// Addr is the base URL that this client reads. Use it in a log line to name
+// the router that answered.
 func (r *RouterOS) Addr() string { return r.url.String() }
 
 // get reads path and decodes the body into T.
 //
-// A router that cannot be reached at all is [ErrUnreachable], one whose
-// certificate does not verify is [ErrTLS], and one that answers with a status
-// is an [Error] carrying whatever the router said about why.
+// If get cannot reach the router at all, it returns [ErrUnreachable]. If the
+// certificate does not verify, it returns [ErrTLS]. If the router answers with
+// a status, get returns an [Error] with the reason from the router.
 func (r *RouterOS) get[T any](ctx context.Context, path string) (*T, error) {
 	return r.do[T](ctx, http.MethodGet, path, nil)
 }
 
-// post runs a console command that takes arguments, which the REST API
-// addresses with a POST carrying them as a JSON object. It answers the way
+// post runs a console command with arguments. The REST API takes such a
+// command as a POST, with the arguments as a JSON object. It returns errors as
 // [RouterOS.get] does.
 func (r *RouterOS) post[T any](ctx context.Context, path string, args map[string]string) (*T, error) {
 	body, err := json.Marshal(args)
@@ -192,8 +191,8 @@ func (r *RouterOS) do[T any](ctx context.Context, method, path string, payload i
 
 	resp, err := r.client.Do(req)
 	if err != nil {
-		// A cancelled context is the caller giving up. Calling it unreachable
-		// would have the poller retry during a shutdown.
+		// A cancelled context means that the caller stopped. If the client
+		// called it unreachable, the poller would try again during a shutdown.
 		if ctx.Err() != nil {
 			return nil, fmt.Errorf("request send: %w", err)
 		}
@@ -224,7 +223,7 @@ func (r *RouterOS) do[T any](ctx context.Context, method, path string, payload i
 }
 
 // list reads a collection endpoint. RouterOS renders an empty table as an
-// empty array, so an empty result with a nil error means the table is empty.
+// empty array. So an empty result with a nil error means an empty table.
 func list[T any](ctx context.Context, r *RouterOS, path string) ([]T, error) {
 	rows, err := r.get[[]T](ctx, path)
 	if err != nil {

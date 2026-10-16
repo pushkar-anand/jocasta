@@ -6,13 +6,13 @@ import (
 	"log/slog"
 )
 
-// Verify reads /system/resource to prove the router is reachable, the REST
-// service is enabled, and the credentials are accepted, returning what it
-// learned about the router on the way.
+// Verify reads /system/resource. This proves that the router is reachable,
+// the REST service is enabled, and the router accepts the credentials. Verify
+// returns what it learned about the router.
 //
-// It is the one call worth making before trusting anything else here, and its
-// error says which of the three failed: [ErrUnreachable] for a router that did
-// not answer, [ErrUnauthorized] for one that refused the credentials.
+// Make this call before you trust other calls in this package. Its error tells
+// which of the three checks failed. [ErrUnreachable] is a router that did not
+// answer. [ErrUnauthorized] is a router that refused the credentials.
 func (r *RouterOS) Verify(ctx context.Context) (*Resource, error) {
 	res, err := r.Resource(ctx)
 	if err != nil {

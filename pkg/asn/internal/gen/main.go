@@ -1,13 +1,13 @@
 // Command gen builds the ASN tables embedded by package asn.
 //
-// The tables are generated and committed so that lookups work on an isolated
-// network, and so a build never depends on DB-IP being reachable.
+// The tables are generated and committed. So lookups work on an isolated
+// network, and a build never depends on access to DB-IP.
 //
-// Unlike the OUI table they are written compressed. The source is thirty
-// megabytes of CSV and even compacted the text is over thirteen; embedded as
-// is, it would triple the size of the binary for a lookup most installs make
-// only when traffic collection is on. A refresh therefore lands as an opaque
-// blob, and the workflow that proposes it reports the counts.
+// Unlike the OUI table, they are compressed. The source is thirty megabytes of
+// CSV. Even in a compact form, the text is more than thirteen. Embedded as
+// text, it would triple the size of the binary. Most installs use the lookup
+// only when traffic collection is on. So a refresh arrives as an opaque blob,
+// and the workflow that proposes it reports the counts.
 package main
 
 import (
@@ -29,16 +29,16 @@ import (
 	"time"
 )
 
-// sourceURL is DB-IP's free IP-to-ASN table, published monthly under CC BY
-// 4.0. The month is filled in by run.
+// sourceURL is the free IP-to-ASN table of DB-IP. DB-IP publishes it each
+// month under CC BY 4.0. run fills in the month.
 const sourceURL = "https://download.db-ip.com/free/dbip-asn-lite-%s.csv.gz"
 
-// minRanges guards against a fetch that succeeds but returns an error page:
-// without it a truncated table would be committed and silently degrade every
-// lookup. The real count is over 450,000.
+// minRanges guards against a fetch that succeeds but returns an error page.
+// Without it, a truncated table could go into a commit, and every lookup
+// would get worse without a warning. The real count is over 450,000.
 const minRanges = 400_000
 
-// userAgent identifies this generator to the source it fetches from.
+// userAgent identifies this generator to its source.
 const userAgent = "jocasta-asn-generator/1 (+https://github.com/pushkar-anand/jocasta)"
 
 type span struct {
@@ -52,14 +52,15 @@ func main() {
 	}
 }
 
-// run downloads this month's ASN data, falling back to last month's, and
-// replaces the embedded tables only after the minimum range count is met.
+// run downloads the ASN data of this month, or of last month if this month
+// has none. It replaces the embedded tables only if the data has the minimum
+// range count.
 func run() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	// A month's file appears some days into the month, so a run early in one
-	// falls back to the last.
+	// The file of a month appears some days after the month starts. So a run
+	// early in a month uses the file of the last month.
 	now := time.Now().UTC()
 
 	var (
@@ -96,7 +97,8 @@ func run() error {
 	return writeOrgs(orgs)
 }
 
-// load reads the source, which lists ranges in address order with IPv4 first.
+// load reads the source. The source lists ranges in address order, with IPv4
+// first.
 func load(ctx context.Context, url string) ([]span, map[uint32]string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -163,10 +165,10 @@ func load(ctx context.Context, url string) ([]span, map[uint32]string, error) {
 
 // writeRanges writes one line per range start, "address<TAB>asn", sorted.
 //
-// Only starts are stored: a lookup takes the last start at or below the
-// address. Where the source leaves a gap, the address after a range's end is
-// written with ASN 0, so an address nobody announces is not attributed to the
-// range before it.
+// The table stores only starts. A lookup takes the last start at or below the
+// address. If the source has a gap, writeRanges writes the address after the
+// end of a range with ASN 0. So an address that nobody announces does not go
+// to the range before it.
 func writeRanges(spans []span) error {
 	slices.SortFunc(spans, func(a, b span) int { return a.start.Compare(b.start) })
 
@@ -198,8 +200,9 @@ func writeRanges(spans []span) error {
 	})
 }
 
-// writeOrgs writes one line per ASN, "asn<TAB>short<TAB>name". A short name
-// identical to the full one is left empty; the reader restores it.
+// writeOrgs writes one line per ASN, "asn<TAB>short<TAB>name". If the short
+// name is the same as the full name, writeOrgs leaves it empty. The reader
+// restores it.
 func writeOrgs(orgs map[uint32]string) error {
 	return writeGz("orgs.gz", func(w *bufio.Writer) (int, error) {
 		n := 0
@@ -223,8 +226,8 @@ func writeOrgs(orgs map[uint32]string) error {
 	})
 }
 
-// writeGz replaces name with gzip data supplied by fill and logs its entry
-// count. A write failure can leave a partial file.
+// writeGz replaces name with gzip data from fill, and logs its entry count. If
+// a write fails, it can leave a partial file.
 func writeGz(name string, fill func(*bufio.Writer) (int, error)) error {
 	f, err := os.Create(name) //nolint:gosec // one of two constant names in this file.
 	if err != nil {
@@ -262,9 +265,9 @@ func clean(name string) string {
 	return strings.Join(strings.Fields(name), " ")
 }
 
-// legalSuffixes are trailing words that say what sort of company an
-// organisation is. Checked case-insensitively, repeatedly, so
-// "Example Holdings, Inc." loses both.
+// legalSuffixes are words at the end of a name that tell the kind of company.
+// shorten checks them without case, again and again. So
+// "Example Holdings, Inc." loses both suffixes.
 var legalSuffixes = []string{
 	"inc.", "inc", "llc", "l.l.c.", "ltd.", "ltd", "limited", "corporation",
 	"corp.", "corp", "co.", "gmbh", "ag", "s.a.", "sa", "b.v.", "bv", "plc",
@@ -273,9 +276,9 @@ var legalSuffixes = []string{
 	"ltda.", "ltda",
 }
 
-// shorten derives the name worth showing in a table cell: "Amazon.com, Inc."
-// becomes "Amazon", "Google LLC" becomes "Google". It never shortens a name to
-// nothing; a name made only of suffixes is kept whole.
+// shorten makes the name to show in a table cell. "Amazon.com, Inc." becomes
+// "Amazon", and "Google LLC" becomes "Google". It never shortens a name to
+// nothing. It keeps a name that has only suffixes.
 func shorten(name string) string {
 	s := strings.TrimSpace(name)
 

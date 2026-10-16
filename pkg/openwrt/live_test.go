@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The environment this test reads is the one koanf binds an openwrt instance
-// named "gateway" to, so a shell that configures jocasta can run this without
-// restating anything.
+// This test reads the environment that koanf binds to an openwrt instance
+// named "gateway". So a shell that configures jocasta can run this test
+// without more variables.
 const (
 	hostEnv     = "JOCASTA_PLUGINS__OPENWRT__GATEWAY__HOST"
 	portEnv     = "JOCASTA_PLUGINS__OPENWRT__GATEWAY__PORT"
@@ -23,8 +23,9 @@ const (
 	insecureEnv = "JOCASTA_PLUGINS__OPENWRT__GATEWAY__INSECURE"
 )
 
-// liveClient builds a client for the router the environment names, and skips
-// the test when it names none: the rest of the suite must stay hermetic.
+// liveClient builds a client for the router that the environment names. If
+// the environment names no router, it skips the test. The rest of the suite
+// must stay hermetic.
 func liveClient(t *testing.T) *OpenWrt {
 	t.Helper()
 
@@ -68,9 +69,9 @@ func envBool(t *testing.T, name string) bool {
 	return v
 }
 
-// TestReadLive reads a real router and prints what came back. It exists to
-// produce field data to design the mapping against, so it asserts almost
-// nothing beyond the reads succeeding.
+// TestReadLive reads a real router and prints the result. Its purpose is to
+// give field data for the design of the mapping. So it asserts almost nothing,
+// only that the reads succeed.
 //
 //	JOCASTA_PLUGINS__OPENWRT__GATEWAY__HOST=192.0.2.1 \
 //	JOCASTA_PLUGINS__OPENWRT__GATEWAY__USER=jocasta \

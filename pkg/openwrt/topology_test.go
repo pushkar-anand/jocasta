@@ -38,8 +38,8 @@ func fdbTable(t *testing.T, entries ...RawFDBEntry) []byte {
 func TestParseFDB(t *testing.T) {
 	t.Parallel()
 
-	// Laid out as the test router's bridge wrote its table: a wired client on
-	// port 1 with an ageing timer running, then the bridge's own address.
+	// This is the layout from the bridge of the test router: a wired client
+	// on port 1 with an ageing timer, then the own address of the bridge.
 	raw := []byte{
 		0x00, 0x00, 0x5e, 0x00, 0x53, 0x01, // address
 		0x01,                   // port number, low byte
@@ -66,7 +66,7 @@ func TestParseFDB(t *testing.T) {
 	}, got)
 }
 
-// A port number past 255 carries its high byte in port_hi.
+// A port number above 255 has its high byte in port_hi.
 func TestParseFDBReadsTheHighPortByte(t *testing.T) {
 	t.Parallel()
 
@@ -129,8 +129,8 @@ func TestBridgeFDBNamesEachPort(t *testing.T) {
 	}, got)
 }
 
-// A member whose number cannot be read leaves its entries with no port, and
-// the rest still come back.
+// If the number of a member cannot be read, its entries have no port. The
+// other entries still return.
 func TestBridgeFDBKeepsTheTableWhenAPortNumberFails(t *testing.T) {
 	t.Parallel()
 
@@ -145,8 +145,9 @@ func TestBridgeFDBKeepsTheTableWhenAPortNumberFails(t *testing.T) {
 	assert.Equal(t, []FDBEntry{{MAC: "00:00:5e:00:53:01"}}, got)
 }
 
-// rpcd reads at most 4096 bytes of the table, 256 entries. A table that fills
-// the read may have been cut short, and says so beside the entries it has.
+// rpcd reads at most 4096 bytes of the table, which is 256 entries. If a table
+// fills the read, it can be incomplete. The result tells this, with the
+// entries that it has.
 func TestBridgeFDBReportsATableThatFillsTheRead(t *testing.T) {
 	t.Parallel()
 
@@ -180,7 +181,8 @@ func TestBridgeFDBReportsATableThatFillsTheRead(t *testing.T) {
 	}
 }
 
-// The ACL file grants the bridge table; without it the read is refused.
+// The ACL file allows reads of the bridge table. Without it, rpcd refuses the
+// read.
 func TestBridgeFDBWithoutTheACLIsUnauthorized(t *testing.T) {
 	t.Parallel()
 
@@ -193,8 +195,8 @@ func TestBridgeFDBWithoutTheACLIsUnauthorized(t *testing.T) {
 func TestNetworkDevices(t *testing.T) {
 	t.Parallel()
 
-	// Trimmed from the test router's answer, with a DSA switch's user port and
-	// its conduit, and a radio.
+	// A shorter copy of the answer of the test router. It has the user port
+	// of a DSA switch, its conduit, and a radio.
 	_, o, _ := newFakeRouter(t, map[string]string{
 		"luci-rpc getNetworkDevices": `[0,{` +
 			`"br-lan":{"name":"br-lan","bridge":true,"ports":["lan1","phy0-ap0"],"devtype":"bridge","type":1,"up":true,"mac":"00:00:5E:00:53:F0","link":{"speed":1000,"duplex":"unknown","carrier":true}},` +
@@ -252,7 +254,7 @@ func TestWirelessDevices(t *testing.T) {
 	}, got)
 }
 
-// A router with no radio answers with the status alone.
+// A router with no radio returns only the status.
 func TestWirelessDevicesWithNoRadio(t *testing.T) {
 	t.Parallel()
 
@@ -263,7 +265,7 @@ func TestWirelessDevicesWithNoRadio(t *testing.T) {
 	assert.Empty(t, got)
 }
 
-// iwinfo gives rates in kbit/s, which are converted to bits per second.
+// iwinfo gives rates in kbit/s. The client converts them to bits per second.
 func TestStations(t *testing.T) {
 	t.Parallel()
 

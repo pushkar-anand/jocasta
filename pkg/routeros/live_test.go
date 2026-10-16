@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The environment this test reads is the one koanf already binds the running
-// application's routeros settings to, so a shell that can configure jocasta
-// can run this without restating anything.
+// This test reads the environment that koanf binds to the routeros settings
+// of the application. So a shell that configures jocasta can run this test
+// without more variables.
 const (
 	hostEnv     = "JOCASTA_PLUGINS__ROUTEROS__HOST"
 	portEnv     = "JOCASTA_PLUGINS__ROUTEROS__PORT"
@@ -23,12 +23,12 @@ const (
 	insecureEnv = "JOCASTA_PLUGINS__ROUTEROS__INSECURE"
 )
 
-// TestReadLive reads a real router and prints what came back. It exists to
-// produce field data to design the mapping against, so it asserts almost
-// nothing beyond the reads succeeding.
+// TestReadLive reads a real router and prints the result. Its purpose is to
+// give field data for the design of the mapping. So it asserts almost nothing,
+// only that the reads succeed.
 //
-// It is skipped without a host: the rest of the suite must stay hermetic, and
-// this one talks to hardware.
+// Without a host, the test skips. The rest of the suite must stay hermetic,
+// and this test talks to hardware.
 //
 //	JOCASTA_PLUGINS__ROUTEROS__HOST=192.0.2.1 \
 //	JOCASTA_PLUGINS__ROUTEROS__SSL=true \
@@ -62,9 +62,9 @@ func TestReadLive(t *testing.T) {
 
 	t.Logf("reading %s", r.Addr())
 
-	// Verify first and separately: a router that refuses here refuses
-	// everything, and its error says which of reachability, TLS and
-	// credentials was the problem.
+	// Verify first, as a separate step. A router that refuses here refuses
+	// everything. Its error tells whether reachability, TLS or credentials
+	// caused the problem.
 	res, err := r.Verify(t.Context())
 	require.NoError(t, err)
 
@@ -282,8 +282,8 @@ func envBool(t *testing.T, key string) bool {
 	return b
 }
 
-// row renders one tab-separated line, showing an empty field as a dash so a
-// column that is blank everywhere is visible as such.
+// row renders one tab-separated line. It shows an empty field as a dash. So a
+// column that is blank in all rows is easy to see.
 func row(fields ...string) string {
 	out := ""
 

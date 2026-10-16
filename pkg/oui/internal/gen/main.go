@@ -1,11 +1,11 @@
 // Command gen builds the OUI table embedded by package oui.
 //
-// The table is generated and committed so that lookups work on an isolated
-// network, and so a build never depends on IEEE or Wireshark being reachable.
+// The table is generated and committed. So lookups work on an isolated
+// network, and a build never depends on access to IEEE or Wireshark.
 //
-// It is written uncompressed. Git deltas successive versions of a text file
-// against each other and stores a compressed one whole every time, and a
-// refresh lands as a reviewable diff.
+// The table is not compressed. Git stores each version of a text file as a
+// delta to the version before. It stores a compressed file whole every time.
+// Also, a refresh arrives as a diff that a person can review.
 package main
 
 import (
@@ -24,9 +24,9 @@ import (
 	"time"
 )
 
-// ieeeRegistries are the assignment registries, in the order they are merged.
-// The width of an assignment is implied by its length, so the registry name
-// itself is not needed once parsed.
+// ieeeRegistries are the assignment registries, in the order of the merge. The
+// length of an assignment gives its width. So after the parse, the registry
+// name is not necessary.
 var ieeeRegistries = []string{
 	"https://standards-oui.ieee.org/oui/oui.csv",     // MA-L, 24-bit
 	"https://standards-oui.ieee.org/oui28/mam.csv",   // MA-M, 28-bit
@@ -34,17 +34,17 @@ var ieeeRegistries = []string{
 	"https://standards-oui.ieee.org/cid/cid.csv",     // CID, 24-bit, not for globally unique use
 }
 
-// manufURL is Wireshark's curated table. IEEE publishes only legal entity
-// names ("Apple, Inc."); this is the one public source of the abbreviated
-// forms that belong in a table cell.
+// manufURL is the curated table of Wireshark. IEEE publishes only legal entity
+// names ("Apple, Inc."). This table is the only public source of the short
+// forms for a table cell.
 const manufURL = "https://www.wireshark.org/download/automated/data/manuf"
 
-// minEntries guards against a fetch that succeeds but returns an error page:
-// without it a truncated table would be committed and silently degrade every
-// lookup. The real count is over 58,000.
+// minEntries guards against a fetch that succeeds but returns an error page.
+// Without it, a truncated table could go into a commit, and every lookup
+// would get worse without a warning. The real count is over 58,000.
 const minEntries = 50_000
 
-// userAgent identifies this generator to the registries it fetches from.
+// userAgent identifies this generator to its registries.
 const userAgent = "jocasta-oui-generator/1 (+https://github.com/pushkar-anand/jocasta)"
 
 type entry struct {
@@ -58,23 +58,23 @@ func main() {
 	}
 }
 
-// run downloads vendor assignments and short names, then replaces data.txt
-// after checking the minimum entry count.
+// run downloads vendor assignments and short names. It then checks the
+// minimum entry count, and replaces data.txt.
 func run() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
 	table := make(map[string]*entry, 64_000)
 
-	// IEEE is authoritative for which prefixes exist and for the full name.
+	// IEEE is the authority for which prefixes exist, and for the full name.
 	for _, u := range ieeeRegistries {
 		if err := loadIEEE(ctx, u, table); err != nil {
 			return fmt.Errorf("load %s: %w", u, err)
 		}
 	}
 
-	// Wireshark then supplies short names, and any prefix IEEE has retired but
-	// which is still seen in the wild.
+	// Wireshark then gives short names. It also gives prefixes that IEEE
+	// retired, but that devices still use.
 	if err := loadManuf(ctx, table); err != nil {
 		return fmt.Errorf("load %s: %w", manufURL, err)
 	}
@@ -86,14 +86,15 @@ func run() error {
 	return write(table)
 }
 
-// fetch streams a URL to fn, which must consume the body before returning.
+// fetch streams a URL to fn. fn must read the whole body before it returns.
 func fetch(ctx context.Context, url string, fn func(io.Reader) error) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return err
 	}
 
-	// IEEE answers Go's default User-Agent with 418, so identify the tool.
+	// IEEE answers 418 to the default User-Agent of Go. So identify the
+	// tool.
 	req.Header.Set("User-Agent", userAgent)
 
 	resp, err := http.DefaultClient.Do(req)
@@ -109,13 +110,13 @@ func fetch(ctx context.Context, url string, fn func(io.Reader) error) error {
 	return fn(resp.Body)
 }
 
-// loadIEEE adds registered prefixes and names to table, replacing duplicate
-// prefixes. Rows without a usable prefix or name are skipped.
+// loadIEEE adds registered prefixes and names to table. It replaces duplicate
+// prefixes. It skips rows without a usable prefix or name.
 func loadIEEE(ctx context.Context, url string, table map[string]*entry) error {
 	return fetch(ctx, url, func(body io.Reader) error {
 		r := csv.NewReader(body)
-		// The address column is free text and contains stray quotes in a
-		// handful of records, which a strict reader rejects.
+		// The address column is free text. Some records have stray quotes in
+		// it. A strict reader rejects these records.
 		r.LazyQuotes = true
 		r.FieldsPerRecord = -1
 
@@ -149,8 +150,8 @@ func loadIEEE(ctx context.Context, url string, table map[string]*entry) error {
 	})
 }
 
-// loadManuf adds Wireshark's short names and missing prefixes to table while
-// preserving registered names already supplied by IEEE.
+// loadManuf adds the short names and missing prefixes of Wireshark to table.
+// It keeps the registered names from IEEE.
 func loadManuf(ctx context.Context, table map[string]*entry) error {
 	return fetch(ctx, manufURL, func(body io.Reader) error {
 		raw, err := io.ReadAll(body)
@@ -178,9 +179,8 @@ func loadManuf(ctx context.Context, table map[string]*entry) error {
 				long = strings.TrimSpace(strings.ReplaceAll(fields[2], "\t", " "))
 			}
 
-			// A few records carry the prefix itself in the short column;
-			// it is not a name, and displaying it would be worse than the
-			// registered one.
+			// Some records have the prefix itself in the short column. It is
+			// not a name. The registered name is better to display.
 			if strings.Contains(short, ":") {
 				short = ""
 			}
@@ -201,11 +201,11 @@ func loadManuf(ctx context.Context, table map[string]*entry) error {
 	})
 }
 
-// normalise reduces an assignment or a manuf prefix to bare uppercase hex,
-// truncated to the width the record declares.
+// normalise changes an assignment or a manuf prefix to bare uppercase hex. It
+// cuts it to the width that the record gives.
 //
-// IEEE states the width by the length of the assignment; manuf states it with
-// an explicit /bits suffix on anything longer than 24 bits.
+// IEEE gives the width by the length of the assignment. manuf gives it with
+// a /bits suffix on each prefix longer than 24 bits.
 func normalise(field string) (string, bool) {
 	field = strings.TrimSpace(field)
 
@@ -252,8 +252,8 @@ func normalise(field string) (string, bool) {
 	}
 }
 
-// write replaces data.txt with vendor records in prefix order. A write failure
-// can leave a partial file.
+// write replaces data.txt with vendor records in prefix order. If a write
+// fails, it can leave a partial file.
 func write(table map[string]*entry) error {
 	const out = "data.txt"
 
@@ -268,8 +268,8 @@ func write(table map[string]*entry) error {
 	for _, key := range slices.Sorted(maps.Keys(table)) {
 		e := table[key]
 
-		// A short name identical to the full one is dropped; the reader
-		// restores it, and the table is smaller for it.
+		// If the short name is the same as the full name, drop it. The reader
+		// restores it, and the table is smaller.
 		short := e.short
 		if short == e.long {
 			short = ""

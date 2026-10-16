@@ -1,13 +1,13 @@
-// Command world builds the world outline embedded by package geo from Natural
-// Earth's countries, which are in the public domain.
+// Command world builds the world outline that package geo embeds. It uses the
+// countries of Natural Earth, which are in the public domain.
 //
-// Natural Earth publishes the edition used here only at 1:10m, so the outline
-// is simplified to what a map the width of a screen can show.
+// Natural Earth publishes this edition only at 1:10m. So world simplifies the
+// outline to what a map with the width of a screen can show.
 //
-// Borders move rarely, so this is run by hand. Each country becomes one line,
-// "code<TAB>name<TAB>x<TAB>y<TAB>path": its ISO code, its name, where its
-// marker goes, and its outline as SVG path data, already projected, so the map
-// draws it as is.
+// Borders move rarely, so you run this command by hand. Each country becomes
+// one line, "code<TAB>name<TAB>x<TAB>y<TAB>path". The fields are its ISO code,
+// its name, the position of its marker, and its outline as SVG path data. The
+// outline is already projected, so the map draws it as it is.
 package main
 
 import (
@@ -36,22 +36,23 @@ const userAgent = "jocasta-world-generator/1 (+https://github.com/pushkar-anand/
 // minCountries guards against a truncated or changed source.
 const minCountries = 150
 
-// tolerance is how far, in canvas units, simplifying may move an outline:
-// detail finer than the map can show. minRing drops an island whose outline
-// is smaller than this across, unless it is all a country has.
+// tolerance is how far, in canvas units, the simplification can move an
+// outline. Detail finer than this does not show on the map. minRing removes an
+// island whose outline is smaller than this across, unless it is the only land
+// of a country.
 const (
 	tolerance = 0.35
 	minRing   = 1.2
 )
 
-// folded are the territories Natural Earth draws on their own, with no code,
-// that address registries file under a country: their outline joins it.
+// folded are territories that Natural Earth draws alone, with no code. Address
+// registries put them under a country. Their outline joins that country.
 var folded = map[string]string{
 	"N. Cyprus":  "CY",
 	"Somaliland": "SO",
 }
 
-// skipped are drawn by Natural Earth but left off the map.
+// skipped are features that Natural Earth draws, but the map leaves out.
 var skipped = map[string]bool{"AQ": true}
 
 type feature struct {
@@ -72,7 +73,7 @@ type country struct {
 	x, y       float64
 	path       strings.Builder
 
-	// area is the size of the feature the name and marker came from.
+	// area is the size of the feature that gave the name and marker.
 	area float64
 }
 
@@ -82,8 +83,8 @@ func main() {
 	}
 }
 
-// run downloads country outlines and rebuilds world.gz after checking the
-// minimum country count. Network work has a five-minute deadline.
+// run downloads country outlines. It checks the minimum country count, then
+// builds world.gz again. Network work has a five-minute deadline.
 func run() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
@@ -125,7 +126,7 @@ func run() error {
 	return write(countries)
 }
 
-// build projects every feature and gathers them by country.
+// build projects every feature and groups the features by country.
 func build(features []feature) ([]*country, error) {
 	byCode := make(map[string]*country)
 
@@ -152,10 +153,10 @@ func build(features []feature) ([]*country, error) {
 			return nil, fmt.Errorf("%s: %w", p.Name, err)
 		}
 
-		// A folded territory lends only its outline, and so does any smaller
-		// feature sharing a country's code: Natural Earth
-		// files territories such as Ashmore and Cartier Is. under AU, and the
-		// country is the biggest of them whatever order they come in.
+		// A folded territory gives only its outline. A smaller feature with
+		// the code of a country also gives only its outline. Natural Earth
+		// puts territories such as Ashmore and Cartier Is. under AU. The
+		// country is the biggest feature, in any order.
 		if a := area(polygons); !isFold && a > c.area {
 			c.name = p.Name
 			c.x, c.y = geo.Project(p.LabelX, p.LabelY)
@@ -180,7 +181,7 @@ func build(features []feature) ([]*country, error) {
 	return out, nil
 }
 
-// polygonsOf reads a Polygon or MultiPolygon's coordinates as polygons of
+// polygonsOf reads the coordinates of a Polygon or MultiPolygon as polygons of
 // rings of [longitude, latitude] points.
 func polygonsOf(kind string, raw json.RawMessage) ([][][][2]float64, error) {
 	switch kind {
@@ -203,8 +204,8 @@ func polygonsOf(kind string, raw json.RawMessage) ([][][][2]float64, error) {
 	}
 }
 
-// area is the size of the polygons' outer rings in square degrees, which is
-// enough to tell a country from an island filed under its code.
+// area is the size of the outer rings of the polygons, in square degrees. This
+// is enough to tell a country from an island under its code.
 func area(polygons [][][][2]float64) float64 {
 	var total float64
 
@@ -226,8 +227,9 @@ func area(polygons [][][][2]float64) float64 {
 	return total
 }
 
-// keptRings is every ring of the polygons big enough to see, or the biggest
-// alone when none is, so a small island nation still has a shape.
+// keptRings is every ring of the polygons that is big enough to see. If no
+// ring is, it is only the biggest ring. So a small island nation still has a
+// shape.
 func keptRings(polygons [][][][2]float64) [][][2]float64 {
 	var (
 		kept    [][][2]float64
@@ -255,7 +257,7 @@ func keptRings(polygons [][][][2]float64) [][][2]float64 {
 	return kept
 }
 
-// extent is how far a ring reaches across the canvas, its wider side.
+// extent is the wider side of a ring on the canvas.
 func extent(ring [][2]float64) float64 {
 	minX, minY := math.Inf(1), math.Inf(1)
 	maxX, maxY := math.Inf(-1), math.Inf(-1)
@@ -269,8 +271,9 @@ func extent(ring [][2]float64) float64 {
 	return math.Max(maxX-minX, maxY-minY)
 }
 
-// writeRing appends one closed ring as projected path data, simplified so no
-// point it drops moved the outline by more than tolerance.
+// writeRing appends one closed ring as projected path data. It simplifies the
+// ring, so no point that it removes moves the outline by more than
+// tolerance.
 func writeRing(b *strings.Builder, ring [][2]float64) {
 	pts := make([][2]float64, len(ring))
 	for i, pt := range ring {
@@ -278,8 +281,8 @@ func writeRing(b *strings.Builder, ring [][2]float64) {
 		pts[i] = [2]float64{x, y}
 	}
 
-	// A small island simplifies to nothing; it is tried again finer, so a
-	// country whose only land it is still has a shape.
+	// A small island can simplify to nothing. Then writeRing tries again with
+	// more detail. So a country with only that land still has a shape.
 	var kept [][2]float64
 	for tol := tolerance; len(kept) < 4 && tol > 0.01; tol /= 4 {
 		kept = simplify(pts, tol)
@@ -304,8 +307,9 @@ func writeRing(b *strings.Builder, ring [][2]float64) {
 	b.WriteString("Z")
 }
 
-// simplify is Douglas-Peucker: keep the ends, and the point furthest from the
-// line between them if it is further than tol, then the same on each side.
+// simplify is Douglas-Peucker. It keeps the ends. It also keeps the point
+// furthest from the line between them, if that point is further than tol. It
+// then does the same on each side.
 func simplify(pts [][2]float64, tol float64) [][2]float64 {
 	if len(pts) < 3 {
 		return pts
@@ -329,7 +333,7 @@ func simplify(pts [][2]float64, tol float64) [][2]float64 {
 	return append(left[:len(left)-1], right...)
 }
 
-// offLine is how far p is from the segment a-b.
+// offLine is the distance from p to the segment a-b.
 func offLine(p, a, b [2]float64) float64 {
 	dx, dy := b[0]-a[0], b[1]-a[1]
 
@@ -345,8 +349,8 @@ func offLine(p, a, b [2]float64) float64 {
 
 func num(f float64) string { return strconv.FormatFloat(math.Round(f*10)/10, 'f', -1, 64) }
 
-// write replaces world.gz with country outlines and label positions. A write
-// failure can leave a partial file.
+// write replaces world.gz with country outlines and label positions. If a
+// write fails, it can leave a partial file.
 func write(countries []*country) error {
 	f, err := os.Create("world.gz")
 	if err != nil {

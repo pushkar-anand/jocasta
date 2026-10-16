@@ -1,9 +1,9 @@
 // Command gen builds the IP-to-country table embedded by package geo.
 //
-// Like the ASN tables it is generated and committed, so that lookups work on
-// an isolated network and a build never depends on DB-IP being reachable. It
-// is written compressed like them too, so a refresh lands as an opaque blob
-// and the workflow that proposes it reports the counts.
+// As the ASN tables, it is generated and committed. So lookups work on an
+// isolated network, and a build never depends on access to DB-IP. It is also
+// compressed, as they are. So a refresh arrives as an opaque blob, and the
+// workflow that proposes it reports the counts.
 package main
 
 import (
@@ -23,16 +23,16 @@ import (
 	"time"
 )
 
-// sourceURL is DB-IP's free IP-to-country table, published monthly under CC
-// BY 4.0. The month is filled in by run.
+// sourceURL is the free IP-to-country table of DB-IP. DB-IP publishes it each
+// month under CC BY 4.0. run fills in the month.
 const sourceURL = "https://download.db-ip.com/free/dbip-country-lite-%s.csv.gz"
 
-// minRanges guards against a fetch that succeeds but returns an error page:
-// without it a truncated table would be committed and silently degrade every
-// lookup. The real count is over 700,000.
+// minRanges guards against a fetch that succeeds but returns an error page.
+// Without it, a truncated table could go into a commit, and every lookup
+// would get worse without a warning. The real count is over 700,000.
 const minRanges = 600_000
 
-// userAgent identifies this generator to the source it fetches from.
+// userAgent identifies this generator to its source.
 const userAgent = "jocasta-geo-generator/1 (+https://github.com/pushkar-anand/jocasta)"
 
 type span struct {
@@ -46,14 +46,15 @@ func main() {
 	}
 }
 
-// run downloads this month's country data, falling back to last month's, and
-// replaces the embedded table only after the minimum range count is met.
+// run downloads the country data of this month, or of last month if this
+// month has none. It replaces the embedded table only if the data has the
+// minimum range count.
 func run() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	// A month's file appears some days into the month, so a run early in one
-	// falls back to the last.
+	// The file of a month appears some days after the month starts. So a run
+	// early in a month uses the file of the last month.
 	now := time.Now().UTC()
 
 	var (
@@ -85,7 +86,8 @@ func run() error {
 	return writeRanges(spans)
 }
 
-// load reads the source, which lists ranges in address order with IPv4 first.
+// load reads the source. The source lists ranges in address order, with IPv4
+// first.
 func load(ctx context.Context, url string) ([]span, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -112,9 +114,9 @@ func load(ctx context.Context, url string) ([]span, error) {
 	return parse(zr)
 }
 
-// parse reads "start,end,country" lines. ZZ is DB-IP's code for reserved and
-// unallocated space, which no country holds. It is kept so that a lookup in
-// that space misses; dropping it would file the address under the range
+// parse reads "start,end,country" lines. ZZ is the DB-IP code for reserved
+// and unallocated space, which no country holds. parse keeps it, so a lookup
+// in that space misses. Without it, the address would go to the range
 // before.
 func parse(r io.Reader) ([]span, error) {
 	cr := csv.NewReader(r)
@@ -152,9 +154,9 @@ func parse(r io.Reader) ([]span, error) {
 }
 
 // writeRanges writes one line per range start, "address<TAB>country", sorted.
-// Only starts are stored: a lookup takes the last start at or below the
-// address. Where the source leaves a gap, the address after a range's end is
-// written as ZZ, and a run of ranges in one country is written once.
+// The table stores only starts. A lookup takes the last start at or below the
+// address. If the source has a gap, writeRanges writes the address after the
+// end of a range as ZZ. It writes a series of ranges in one country once.
 func writeRanges(spans []span) error {
 	slices.SortFunc(spans, func(a, b span) int { return a.start.Compare(b.start) })
 

@@ -22,7 +22,7 @@ func TestShortenDropsLegalSuffixes(t *testing.T) {
 		{"Example Pte Ltd", "Example"},
 		{"Example Telephone Co INC", "Example Telephone"},
 		{"Example Sdn Bhd", "Example"},
-		// Nothing but suffixes: keep the whole name.
+		// The name has only suffixes, so keep the whole name.
 		{"Inc.", "Inc."},
 	}
 

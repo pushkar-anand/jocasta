@@ -78,7 +78,7 @@ func TestBridgeVLANsPreferWhatTheRouterIsDoing(t *testing.T) {
 	assert.Equal(t, []string{"bridge", "ether3", "ether5"}, vlans[0].TaggedPorts())
 	assert.Equal(t, []string{"ether2"}, vlans[0].UntaggedPorts())
 
-	// Nothing current falls back to the configuration.
+	// With no current columns, the client uses the configuration.
 	assert.Equal(t, []int{20, 30}, vlans[1].VLANs())
 	assert.Equal(t, []string{"bridge", "ether3"}, vlans[1].TaggedPorts())
 	assert.Empty(t, vlans[1].UntaggedPorts())
@@ -129,7 +129,7 @@ func TestBridgeHostsReadThePortAndVLAN(t *testing.T) {
 
 	assert.True(t, bool(hosts[1].Local))
 
-	// A release that names the port "interface" still says where.
+	// A release that names the port "interface" still gives the port.
 	assert.Equal(t, "ether3", hosts[2].Port())
 	_, ok = hosts[2].VLAN()
 	assert.False(t, ok, "no vid without VLAN filtering")
@@ -178,7 +178,7 @@ func TestRegistrationsReadTheWifiPackage(t *testing.T) {
 }
 
 // A router on the wireless package has no wifi menu. Its registration table
-// names neither the SSID nor the band, so they come off the interface.
+// does not name the SSID or the band. So these come from the interface.
 func TestRegistrationsFallBackToTheWirelessPackage(t *testing.T) {
 	t.Parallel()
 
@@ -240,9 +240,9 @@ func TestRegistrationsPassOnARefusal(t *testing.T) {
 	require.ErrorIs(t, err, ErrUnauthorized)
 }
 
-// The monitor is a command: the Ethernet and SFP ports go in a POST, and once
-// makes it answer a single time. A port with no link has no rate, and an SFP
-// module does not report the other end's modes. The rows are in the shape
+// The monitor is a command. The Ethernet and SFP ports go in a POST, and once
+// makes it answer one time. A port with no link has no rate. An SFP module
+// does not report the modes of the other end. The rows have the shape that
 // RouterOS returns.
 func TestLinksRunTheMonitorOnce(t *testing.T) {
 	t.Parallel()

@@ -5,26 +5,28 @@ import (
 	"strings"
 )
 
-// Link is how one Ethernet or SFP port's link came up, as the Ethernet
+// Link is how the link of one Ethernet or SFP port came up, as the Ethernet
 // monitor reports it.
 type Link struct {
 	Name string `json:"name"`
 
-	// Rate is the speed the two ends agreed on, zero without a link.
+	// Rate is the speed that the two ends agreed on. It is zero without a
+	// link.
 	Rate       Rate `json:"rate"`
 	FullDuplex Bool `json:"full-duplex"`
 
-	// Advertising lists the modes this port offers and PartnerAdvertising the
-	// modes the other end offers, as "1G-baseT-full,2.5G-baseT". The
-	// partner's list is empty on a port that does not auto-negotiate, which
-	// includes most SFP modules.
+	// Advertising lists the modes that this port offers, as
+	// "1G-baseT-full,2.5G-baseT". PartnerAdvertising lists the modes that the
+	// other end offers. The partner list is empty on a port that does not
+	// auto-negotiate, such as most SFP modules.
 	Advertising        string `json:"advertising"`
 	PartnerAdvertising string `json:"link-partner-advertising"`
 }
 
-// Capable returns the fastest rate both ends advertise, and zero when either
-// end advertises nothing. A link whose Rate is below it came up slower than
-// both ends support, which a worn cable or a loose plug usually causes.
+// Capable returns the fastest rate that both ends advertise. It returns zero
+// when one end advertises nothing. If Rate is below it, the link came up
+// slower than both ends support. A worn cable or a loose plug usually causes
+// this.
 func (l Link) Capable() Rate {
 	return min(fastest(l.Advertising), fastest(l.PartnerAdvertising))
 }
@@ -41,8 +43,8 @@ func fastest(modes string) Rate {
 	return best
 }
 
-// Links reads the link on each enabled Ethernet and SFP port among ifaces,
-// the kinds of interface the Ethernet monitor reports on.
+// Links reads the link on each enabled Ethernet and SFP port in ifaces. The
+// Ethernet monitor reports only on these kinds of interface.
 func (r *RouterOS) Links(ctx context.Context, ifaces []Interface) ([]Link, error) {
 	var ports []string
 
@@ -56,8 +58,8 @@ func (r *RouterOS) Links(ctx context.Context, ifaces []Interface) ([]Link, error
 		return nil, nil
 	}
 
-	// once makes the monitor answer a single time, where the console would
-	// keep printing until interrupted.
+	// once makes the monitor answer one time. Without it, the console prints
+	// until it is interrupted.
 	rows, err := r.post[[]Link](ctx, ethernetMonitorAPI, map[string]string{
 		"numbers": strings.Join(ports, ","),
 		"once":    "",

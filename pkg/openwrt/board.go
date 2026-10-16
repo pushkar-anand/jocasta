@@ -6,12 +6,12 @@ import (
 	"log/slog"
 )
 
-// Board is what `system board` says about the router.
+// Board is what `system board` tells about the router.
 type Board struct {
-	// Hostname is the router's own name, from System → Hostname.
+	// Hostname is the name of the router, from System → Hostname.
 	Hostname string `json:"hostname"`
 
-	// Model is the hardware, such as "GL.iNet GL-MT6000", and is empty on a
+	// Model is the hardware, such as "GL.iNet GL-MT6000". It is empty on a
 	// virtual machine.
 	Model string `json:"model"`
 
@@ -25,18 +25,18 @@ type Board struct {
 	} `json:"release"`
 }
 
-// Board reads what the router says about itself.
+// Board reads what the router tells about itself.
 func (o *OpenWrt) Board(ctx context.Context) (*Board, error) {
 	return call[Board](ctx, o, "system", "board", nil)
 }
 
-// Verify reads the board to prove the router is reachable, ubus is served, and
-// the login is accepted, returning what it learned on the way.
+// Verify reads the board. This proves that the router is reachable, it serves
+// ubus, and it accepts the login. Verify returns what it learned.
 //
-// It is the one call worth making before trusting anything else here, and its
-// error says which failed: [ErrUnreachable] for a router that did not answer,
-// [ErrNotFound] for one that does not serve ubus, [ErrUnauthorized] for one
-// that refused the login.
+// Make this call before you trust other calls in this package. Its error tells
+// which check failed. [ErrUnreachable] is a router that did not answer.
+// [ErrNotFound] is a router that does not serve ubus. [ErrUnauthorized] is a
+// router that refused the login.
 func (o *OpenWrt) Verify(ctx context.Context) (*Board, error) {
 	b, err := o.Board(ctx)
 	if err != nil {

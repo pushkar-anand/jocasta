@@ -12,27 +12,29 @@ import (
 
 // Lease is one active DHCP lease, from dnsmasq for IPv4 or odhcpd for IPv6.
 //
-// A lease carries a name, which the neighbour table never does, and it
-// outlives the device's presence by up to its lease time.
+// A lease has a name, which the neighbour table never has. It can stay for
+// up to its lease time after the device goes.
 type Lease struct {
-	// Address is the leased address. An IPv6 lease can hold several, and
-	// each is a lease of its own here.
+	// Address is the leased address. An IPv6 lease can hold several. Here,
+	// each address is a separate lease.
 	Address string
 
-	// MAC is the client's hardware address. An IPv6 lease carries one only
-	// when the client's DUID is built from it.
+	// MAC is the hardware address of the client. An IPv6 lease has it only
+	// when the DUID of the client comes from it.
 	MAC string
 
-	// Hostname is what the client called itself in its request, or the name
-	// a static host gives it. It is empty when the client sent none.
+	// Hostname is the name that the client gave itself in its request, or
+	// the name from a static host. It is empty when the client sent no
+	// name.
 	Hostname string
 
 	// IPv6 marks a lease from DHCPv6.
 	IPv6 bool
 }
 
-// rawLease is a lease as luci-rpc renders it. IPv4 leases carry ipaddr; IPv6
-// leases carry ip6addr and, when they hold more than one, ip6addrs.
+// rawLease is a lease as luci-rpc renders it. IPv4 leases have ipaddr. IPv6
+// leases have ip6addr. If they hold more than one address, they also have
+// ip6addrs.
 type rawLease struct {
 	Hostname string   `json:"hostname"`
 	MAC      string   `json:"macaddr"`
@@ -41,7 +43,7 @@ type rawLease struct {
 	IP6Addrs []string `json:"ip6addrs"`
 }
 
-// addresses returns every address the lease holds, each once.
+// addresses returns each address of the lease once.
 func (r rawLease) addresses() []string {
 	out := slices.Clone(r.IP6Addrs)
 
@@ -55,8 +57,9 @@ func (r rawLease) addresses() []string {
 }
 
 // DHCPLeases returns the active IPv4 and IPv6 leases. A router without odhcpd
-// has no IPv6 leases and says so with an empty list. One family failing does
-// not cost the other, so a partial read returns its rows alongside the error.
+// has no IPv6 leases, and returns an empty list for them. If one family
+// fails, the other family still returns. So a partial read returns its rows
+// with the error.
 func (o *OpenWrt) DHCPLeases(ctx context.Context) ([]Lease, error) {
 	var (
 		out  []Lease
@@ -90,24 +93,24 @@ func (o *OpenWrt) DHCPLeases(ctx context.Context) ([]Lease, error) {
 	return out, errors.Join(errs...)
 }
 
-// StaticHost is one host section of /etc/config/dhcp: an address and a name an
-// operator bound to a hardware address.
+// StaticHost is one host section of /etc/config/dhcp. It is an address and a
+// name that an operator bound to a hardware address.
 type StaticHost struct {
-	// Name is the name the operator gave the host, and is empty when the
-	// section binds an address alone.
+	// Name is the name that the operator gave the host. It is empty when the
+	// section binds only an address.
 	Name string
 
-	// MACs are the hardware addresses the section matches. One section can
-	// list several, for a device with a wired and a wireless interface.
+	// MACs are the hardware addresses that the section matches. One section
+	// can list several, for a device with a wired and a wireless interface.
 	MACs []string
 
-	// Address is the IPv4 address the section reserves, and is empty when it
-	// reserves none, as a section that only names a host does.
+	// Address is the IPv4 address that the section reserves. It is empty when
+	// the section reserves no address and only names a host.
 	Address string
 }
 
 // StaticHosts returns the host sections of the DHCP configuration, in the
-// order the file lists them.
+// order of the file.
 func (o *OpenWrt) StaticHosts(ctx context.Context) ([]StaticHost, error) {
 	sections, err := uciSections(ctx, o, "dhcp", "host")
 	if err != nil {
@@ -134,8 +137,8 @@ func (o *OpenWrt) StaticHosts(ctx context.Context) ([]StaticHost, error) {
 }
 
 // uciValue reads an option as uci renders it: a string for an option, an
-// array for a list. An option written as one string can still hold several
-// values separated by spaces, as a host's mac often does.
+// array for a list. An option as one string can still hold several values,
+// separated by spaces. The mac of a host often does this.
 func uciValue(v jsontext.Value) []string {
 	if len(v) == 0 {
 		return nil
