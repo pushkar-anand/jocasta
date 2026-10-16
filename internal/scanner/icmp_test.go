@@ -49,8 +49,8 @@ func TestParseReply(t *testing.T) {
 	assert.Equal(t, sent.UnixNano(), gotSent.UnixNano())
 }
 
-// TestParseReplyFromUDPSocket covers the unprivileged socket, which reports the
-// peer as a UDPAddr.
+// TestParseReplyFromUDPSocket covers the socket without privileges, which
+// reports the peer as a UDPAddr.
 func TestParseReplyFromUDPSocket(t *testing.T) {
 	t.Parallel()
 
@@ -118,8 +118,8 @@ func TestParseReplyRejects(t *testing.T) {
 }
 
 // TestSweepLoopback exercises the whole send/read path against an address that
-// is guaranteed to answer, so a green run means the socket, the payload token
-// and the reply matching all agree.
+// always answers. So a green run means that the socket, the payload token and
+// the reply match all agree.
 func TestSweepLoopback(t *testing.T) {
 	t.Parallel()
 

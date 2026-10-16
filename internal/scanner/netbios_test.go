@@ -10,22 +10,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// nbName is one entry in a node status response's name list.
+// nbName is one entry in the name list of a node status response.
 type nbName struct {
 	name   string
 	suffix byte
 	group  bool
 }
 
-// nodeStatusResponse builds a node status response listing names, in the
-// shape Windows and Samba send: the full encoded name, then the name list,
-// then 46 bytes of statistics.
+// nodeStatusResponse builds a node status response that lists names, in the
+// shape that Windows and Samba send. It has the full encoded name, then the
+// name list, then 46 bytes of statistics.
 func nodeStatusResponse(names ...nbName) []byte {
 	return nodeStatusResponseNamed(nodeStatusQuery[nbHeaderLen:nbHeaderLen+34], names...)
 }
 
-// nodeStatusResponseNamed builds a node status response whose answer carries
-// the encoded name rrName.
+// nodeStatusResponseNamed builds a node status response whose answer has the
+// encoded name rrName.
 func nodeStatusResponseNamed(rrName []byte, names ...nbName) []byte {
 	data := []byte{byte(len(names))} //nolint:gosec // G115: a test lists a handful of names.
 
@@ -65,7 +65,7 @@ func TestNodeStatusQueryAsksForEveryName(t *testing.T) {
 	require.Len(t, nodeStatusQuery, 50)
 
 	// First-level encoding writes each byte as two letters, 'A' plus each
-	// half. The asked name is "*" padded with 15 zero bytes.
+	// half. The asked name is "*", with 15 zero bytes of padding.
 	label := nodeStatusQuery[nbHeaderLen+1 : nbHeaderLen+33]
 
 	decoded := make([]byte, 16)
@@ -93,7 +93,7 @@ func TestParseNodeStatus(t *testing.T) {
 	wrongType := nodeStatusResponse(machine)
 	wrongType[nbHeaderLen+34+1] = 0x20
 
-	// Past the one real entry, the parser reads the statistics as names, and
+	// After the one real entry, the parser reads the statistics as names.
 	// cleanName refuses the first one.
 	overCount := nodeStatusResponse(workgroup)
 	overCount[nbHeaderLen+34+10] = 200
@@ -131,8 +131,8 @@ func TestParseNodeStatus(t *testing.T) {
 	}
 }
 
-// A host writes its own answer, so a response cut short anywhere must be
-// refused, never read past its end.
+// A host writes its own answer. So the parser must refuse a response that is
+// cut at any point. It must never read past its end.
 func TestParseNodeStatusRefusesEveryTruncation(t *testing.T) {
 	t.Parallel()
 

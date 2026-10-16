@@ -41,8 +41,8 @@ func TestParseARPEmpty(t *testing.T) {
 	assert.Empty(t, got)
 }
 
-// TestNeighboursOnAnyPlatform covers the path where there is no neighbour table
-// to read: no MAC is a normal outcome of a scan.
+// TestNeighboursOnAnyPlatform covers the path with no neighbour table. No MAC
+// is a normal result of a scan.
 func TestNeighboursOnAnyPlatform(t *testing.T) {
 	t.Parallel()
 

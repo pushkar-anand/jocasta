@@ -12,17 +12,18 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/hosts"
 )
 
-// procNetARP is the kernel's IPv4 neighbour table. Reading it is free and needs
-// no privileges; sending ARP requests directly would.
+// procNetARP is the IPv4 neighbour table of the kernel. A read of it costs
+// nothing and needs no privileges. To send ARP requests directly would need
+// privileges.
 const procNetARP = "/proc/net/arp"
 
-// arpFlagComplete (ATF_COM) marks an entry whose hardware address is actually
-// resolved. Incomplete entries carry an all-zero MAC and mean nothing.
+// arpFlagComplete (ATF_COM) marks an entry whose hardware address is really
+// resolved. Incomplete entries have an all-zero MAC and mean nothing.
 const arpFlagComplete = 0x2
 
 // neighbours maps on-link IPv4 addresses to their hardware addresses. On a
-// system without a neighbour table to read it returns an empty map and a nil
-// error, because a host with no MAC is a normal outcome of a scan.
+// system without a neighbour table, it returns an empty map and a nil error.
+// A host with no MAC is a normal result of a scan.
 func neighbours() (map[netip.Addr]string, error) {
 	f, err := os.Open(procNetARP)
 	if err != nil {
@@ -37,8 +38,9 @@ func neighbours() (map[netip.Addr]string, error) {
 	return parseARP(f)
 }
 
-// parseARP reads the neighbour table format: an address, a hardware type, flags,
-// a MAC, a mask and a device, one host per line under a single header line.
+// parseARP reads the neighbour table format. Each line is one host: an
+// address, a hardware type, flags, a MAC, a mask and a device. One header
+// line is at the top.
 func parseARP(r io.Reader) (map[netip.Addr]string, error) {
 	out := make(map[netip.Addr]string)
 
@@ -58,7 +60,7 @@ func parseARP(r io.Reader) (map[netip.Addr]string, error) {
 			continue
 		}
 
-		// Base 0 reads the 0x prefix the table writes these in.
+		// Base 0 reads the 0x prefix of these values in the table.
 		flags, err := strconv.ParseUint(fields[2], 0, 32)
 		if err != nil || flags&arpFlagComplete == 0 {
 			continue

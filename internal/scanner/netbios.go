@@ -6,11 +6,11 @@ import (
 	"strings"
 )
 
-// standardNetBIOSPort is where a NetBIOS name service listens.
+// standardNetBIOSPort is the port of a NetBIOS name service.
 const standardNetBIOSPort = 137
 
 // netbios asks a host for its name with a NetBIOS node status request (RFC
-// 1002, section 4.2.17), which Windows and Samba answer.
+// 1002, section 4.2.17). Windows and Samba answer it.
 var netbios = nameProtocol{
 	query:  func(netip.Addr) ([]byte, error) { return nodeStatusQuery, nil },
 	answer: func(b []byte, _ netip.Addr) (string, bool) { return parseNodeStatus(b) },
@@ -27,10 +27,10 @@ const (
 	nbSuffixMachine = 0x00
 )
 
-// nodeStatusQuery asks a host for every name it holds. It asks about the name
-// "*", as nbtstat -A does, first-level encoded as CK and 30 As. Its
-// transaction ID is 0, and parseNodeStatus ignores the ID, because only the
-// asked host can answer from the port it was asked on.
+// nodeStatusQuery asks a host for all its names. It asks about the name "*",
+// as nbtstat -A does. The first-level encoding of "*" is CK and 30 As. Its
+// transaction ID is 0. parseNodeStatus ignores the ID, because only the asked
+// host can answer from the port of the query.
 var nodeStatusQuery = []byte{
 	0x00, 0x00, // transaction ID
 	0x00, 0x00, // flags: a query
@@ -44,10 +44,10 @@ var nodeStatusQuery = []byte{
 	0x00, 0x01, // class IN
 }
 
-// parseNodeStatus returns the host's own name from the node status response
-// in b: the first unique name with suffix 0x00, with its padding trimmed. It
-// returns false when b is not a node status response, lists no such name, or
-// the name is one cleanName refuses.
+// parseNodeStatus returns the name of the host from the node status response
+// in b. This is the first unique name with suffix 0x00, without its padding.
+// It returns false when b is not a node status response, or lists no such
+// name. It also returns false when cleanName refuses the name.
 func parseNodeStatus(b []byte) (string, bool) {
 	if len(b) < nbHeaderLen || binary.BigEndian.Uint16(b[2:])&nbFlagResponse == 0 {
 		return "", false
@@ -85,7 +85,7 @@ func parseNodeStatus(b []byte) (string, bool) {
 		}
 
 		// A host also lists its workgroup with suffix 0x00, marked as a group
-		// name, so the group flag tells the two apart.
+		// name. So the group flag separates the two.
 		e := entries[start : start+nbNameEntryLen]
 		if e[nbNameLen] != nbSuffixMachine || binary.BigEndian.Uint16(e[nbNameLen+1:])&nbNameGroup != 0 {
 			continue
@@ -97,8 +97,8 @@ func parseNodeStatus(b []byte) (string, bool) {
 	return "", false
 }
 
-// skipName returns the offset just past the encoded name that starts at off
-// in b, and false when the name runs past b.
+// skipName returns the offset just after the encoded name that starts at off
+// in b. It returns false when the name goes past the end of b.
 func skipName(b []byte, off int) (int, bool) {
 	for off < len(b) {
 		n := int(b[off])

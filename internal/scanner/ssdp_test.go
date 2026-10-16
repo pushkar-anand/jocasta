@@ -17,8 +17,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// deviceDescription returns a UPnP description in the shape a TV sends, whose
-// root device is named friendlyName.
+// deviceDescription returns a UPnP description in the shape that a TV sends.
+// The name of its root device is friendlyName.
 func deviceDescription(friendlyName string) string {
 	return `<?xml version="1.0"?>
 <root xmlns="urn:schemas-upnp-org:device-1-0">
@@ -31,7 +31,7 @@ func deviceDescription(friendlyName string) string {
 </root>`
 }
 
-// ssdpReply answers an SSDP search with a response pointing at location.
+// ssdpReply answers an SSDP search with a response that points at location.
 func ssdpReply(location string) func([]byte) ([]byte, bool) {
 	return func(query []byte) ([]byte, bool) {
 		if !strings.HasPrefix(string(query), "M-SEARCH * HTTP/1.1\r\n") {
@@ -236,7 +236,7 @@ func TestFetchFriendlyName(t *testing.T) {
 func TestFetchFriendlyNameStopsWhenCancelled(t *testing.T) {
 	t.Parallel()
 
-	// The handler holds the request until the client gives up on it.
+	// The handler holds the request until the client stops.
 	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		<-r.Context().Done()
 	}))
@@ -271,8 +271,8 @@ func TestAskSSDPNamesTheHostsThatAnswer(t *testing.T) {
 	assert.Equal(t, map[netip.Addr]string{netip.MustParseAddr("127.0.0.1"): "Living Room TV"}, names)
 }
 
-// Every device on the segment answers a search, so a host the sweep did not
-// leave nameless is not fetched from.
+// Every device on the segment answers a search. So the search does not fetch
+// from a host that already has a name.
 func TestAskSSDPIgnoresAHostItWasNotAskedAbout(t *testing.T) {
 	t.Parallel()
 
@@ -287,8 +287,8 @@ func TestAskSSDPIgnoresAHostItWasNotAskedAbout(t *testing.T) {
 	assert.Empty(t, names)
 }
 
-// A description URL on another address than the one that answered is not
-// fetched, so a device cannot point the fetch elsewhere.
+// The search does not fetch a description URL on an address other than the
+// address that answered. So a device cannot point the fetch elsewhere.
 func TestAskSSDPRefusesALocationOnAnotherAddress(t *testing.T) {
 	t.Parallel()
 
@@ -301,7 +301,8 @@ func TestAskSSDPRefusesALocationOnAnotherAddress(t *testing.T) {
 	}))
 	t.Cleanup(desc.Close)
 
-	// The description is on 127.0.0.1, and the answer comes from 127.0.0.4.
+	// The description is on 127.0.0.1, and the answer comes from
+	// 127.0.0.4.
 	group := newResponder(t, "127.0.0.4:0", nil, ssdpReply(desc.URL+"/description.xml"))
 	target := netip.AddrPortFrom(netip.MustParseAddr("127.0.0.4"), group.port())
 
@@ -312,8 +313,8 @@ func TestAskSSDPRefusesALocationOnAnotherAddress(t *testing.T) {
 	assert.False(t, fetched.Load())
 }
 
-// A host that cannot send the search fails it on every sweep, so only the
-// first failure in a run reaches the caller.
+// A host that cannot send the search fails on every sweep. So only the first
+// failure in a series reaches the caller.
 func TestScannerReturnsOnlyTheFirstSSDPFailure(t *testing.T) {
 	t.Parallel()
 
@@ -331,8 +332,8 @@ func TestScannerReturnsOnlyTheFirstSSDPFailure(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// A search that works ends a run of failures, so the next failure is the
-// first of a new run and reaches the caller.
+// A search that works ends a series of failures. So the next failure is the
+// first of a new series, and reaches the caller.
 func TestScannerReturnsTheFirstSSDPFailureAfterASearchThatWorked(t *testing.T) {
 	t.Parallel()
 
@@ -356,9 +357,9 @@ func TestScannerReturnsTheFirstSSDPFailureAfterASearchThatWorked(t *testing.T) {
 	require.Error(t, err)
 }
 
-// newSSDPResponder starts a responder on 127.0.0.1 that answers each search
-// with one answer for each of locations, in the order given, and returns
-// where to send the search.
+// newSSDPResponder starts a responder on 127.0.0.1. It answers each search with
+// one answer for each of locations, in the given order. It returns where to
+// send the search.
 func newSSDPResponder(t *testing.T, locations ...string) netip.AddrPort {
 	t.Helper()
 
@@ -391,8 +392,9 @@ func newSSDPResponder(t *testing.T, locations ...string) netip.AddrPort {
 	return conn.LocalAddr().(*net.UDPAddr).AddrPort()
 }
 
-// A host with two root devices answers twice, in no set order. Its URLs are
-// fetched in sorted order, so it gets the same name on every search.
+// A host with two root devices answers twice, in no fixed order. The search
+// fetches its URLs in sorted order. So it gets the same name on every
+// search.
 func TestAskSSDPNamesAHostWithTwoRootDevicesTheSameEachTime(t *testing.T) {
 	t.Parallel()
 
@@ -421,13 +423,14 @@ func TestAskSSDPNamesAHostWithTwoRootDevicesTheSameEachTime(t *testing.T) {
 	}
 }
 
-// When the first description does not fetch, the next one is tried.
+// When the fetch of the first description fails, the search tries the next.
 func TestAskSSDPTriesTheNextDescriptionWhenOneFails(t *testing.T) {
 	t.Parallel()
 
 	desc := descriptionServer(t, deviceDescription("Router"))
 
-	// /a.xml sorts before /description.xml, and the server answers it 404.
+	// /a.xml sorts before /description.xml, and the server answers it with
+	// 404.
 	missing := desc.URL + "/a.xml"
 	found := desc.URL + "/description.xml"
 

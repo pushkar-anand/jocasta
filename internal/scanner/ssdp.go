@@ -22,12 +22,12 @@ import (
 	"golang.org/x/text/encoding/charmap"
 )
 
-// standardSSDPGroup is the multicast group and port an SSDP search is sent to,
-// which the UPnP Device Architecture fixes.
+// standardSSDPGroup is the multicast group and port of an SSDP search. The UPnP
+// Device Architecture sets them.
 var standardSSDPGroup = netip.MustParseAddrPort("239.255.255.250:1900")
 
 // ssdpSearch asks every UPnP root device on the segment to answer. MX gives a
-// device up to one second to do so.
+// device up to one second for the answer.
 var ssdpSearch = []byte("M-SEARCH * HTTP/1.1\r\n" +
 	"HOST: 239.255.255.250:1900\r\n" +
 	"MAN: \"ssdp:discover\"\r\n" +
@@ -35,32 +35,33 @@ var ssdpSearch = []byte("M-SEARCH * HTTP/1.1\r\n" +
 	"ST: upnp:rootdevice\r\n" +
 	"\r\n")
 
-// ssdpWait is how long to read answers to a search: the one second MX allows,
-// and askWait for the answer to arrive.
+// ssdpWait is how long to read answers to a search. It is the one second of
+// MX, plus askWait for the arrival of the answer.
 const ssdpWait = time.Second + askWait
 
-// Limits on fetching a device description. The fetch is an HTTP request to an
-// address a device named, so each one is bounded in size and time, and only a
-// few run at once.
+// Limits on the fetch of a device description. The fetch is an HTTP request to
+// an address that a device named. So each fetch has a size and time limit,
+// and only a few run at once.
 const (
 	maxDescriptionSize = 64 << 10
 	descriptionTimeout = 2 * time.Second
 	descriptionFetches = 8
 )
 
-// maxLocationsPerHost caps how many description URLs are kept from one
-// address. A host answers once for each UPnP root device it runs, such as a
-// router with a gateway device and a media server, and a few is all a real
-// host has.
+// maxLocationsPerHost limits how many description URLs the search keeps from
+// one address. A host answers once for each UPnP root device that it runs,
+// such as a router with a gateway device and a media server. A real host has
+// only a few.
 const maxLocationsPerHost = 4
 
-// maxLabelLength is the most characters a friendlyName may have. The UPnP
-// Device Architecture asks for fewer than 64, and one more is let through.
+// maxLabelLength is the maximum number of characters in a friendlyName. The
+// UPnP Device Architecture asks for fewer than 64. This limit allows one
+// more.
 const maxLabelLength = 64
 
-// descriptionClient fetches device descriptions. It never uses a proxy, since
-// the device is on the local network, and never follows a redirect, which
-// could point anywhere.
+// descriptionClient fetches device descriptions. It never uses a proxy,
+// because the device is on the local network. It never follows a redirect,
+// which could point anywhere.
 var descriptionClient = &http.Client{
 	Transport: &http.Transport{
 		Proxy:                  nil,
@@ -70,12 +71,12 @@ var descriptionClient = &http.Client{
 	CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 }
 
-// askSSDP sends one SSDP search to group and returns the friendlyName of each
+// askSSDP sends one SSDP search to group. It returns the friendlyName of each
 // address in addrs that answered with a description that has one. An address
-// that did not answer, or answered with something unusable, is absent.
+// that did not answer, or gave an unusable answer, is absent.
 //
-// It returns an error only when the search cannot be sent. When ctx ends
-// first, it returns the names that arrived before then, with ctx's error.
+// It returns an error only when the search cannot be sent. If ctx ends first,
+// it returns the names that arrived before, with the error of ctx.
 func askSSDP(
 	ctx context.Context,
 	group netip.AddrPort,
@@ -97,9 +98,9 @@ func askSSDP(
 
 	for addr, locs := range locations {
 		g.Go(func() error {
-			// The URLs come sorted, so a host with more than one root device
-			// is named after the same one on every sweep, and one that fails
-			// to fetch falls through to the next.
+			// The URLs are sorted. So a host with more than one root device
+			// gets the name of the same device on every sweep. If a fetch
+			// fails, the next URL is tried.
 			for _, loc := range locs {
 				name, ok := fetchFriendlyName(ctx, loc)
 				if !ok {
@@ -117,18 +118,18 @@ func askSSDP(
 		})
 	}
 
-	// Each fetch records its own outcome and returns nil, so Wait has nothing
+	// Each fetch records its own outcome and returns nil. So Wait has nothing
 	// to report.
 	_ = g.Wait()
 
 	return names, ctx.Err()
 }
 
-// searchSSDP sends one search to group and returns, for each IPv4 address in
-// addrs that answered, the usable description URLs its answers gave: at most
-// maxLocationsPerHost, each once, sorted. It reads answers for the whole of
-// wait, since a host answers once for each root device it runs, and returns
-// an error only when the search cannot be sent.
+// searchSSDP sends one search to group. For each IPv4 address in addrs that
+// answered, it returns the usable description URLs from its answers. These are
+// at most maxLocationsPerHost, each once, sorted. It reads answers for all of
+// wait, because a host answers once for each root device that it runs. It
+// returns an error only when the search cannot be sent.
 func searchSSDP(
 	ctx context.Context,
 	group netip.AddrPort,
@@ -174,7 +175,7 @@ func searchSSDP(
 	buf := make([]byte, 2048)
 
 	for {
-		// The read deadline is what fails this read once the wait is over or
+		// The read deadline fails this read when the wait is over, or when
 		// ctx ends.
 		n, from, err := pc.ReadFrom(buf)
 		if err != nil {
@@ -186,8 +187,8 @@ func searchSSDP(
 			continue
 		}
 
-		// Every device on the segment answers a search, so only the hosts
-		// still without a name are kept.
+		// Every device on the segment answers a search. So keep only the hosts
+		// that still have no name.
 		addr := udp.AddrPort().Addr().Unmap()
 		if !asked[addr] {
 			continue
@@ -218,7 +219,7 @@ func searchSSDP(
 }
 
 // parseSearchResponse returns the LOCATION header of the SSDP search response
-// in b, and false when b is not a 200 response or has no LOCATION.
+// in b. It returns false when b is not a 200 response, or has no LOCATION.
 func parseSearchResponse(b []byte) (string, bool) {
 	resp, err := http.ReadResponse(bufio.NewReader(bytes.NewReader(b)), nil)
 	if err != nil {
@@ -234,10 +235,10 @@ func parseSearchResponse(b []byte) (string, bool) {
 	return loc, true
 }
 
-// descriptionURL parses loc, the description URL a device at from gave, and
-// reports whether it is an http URL on from's own address, with no user info.
-// A device writes its own answer, so a URL on any other host is refused: a
-// fetch goes only to the device that answered.
+// descriptionURL parses loc, the description URL from a device at from. It
+// reports whether it is an http URL on the address of from, with no user info.
+// A device writes its own answer. So descriptionURL refuses a URL on any other
+// host. A fetch goes only to the device that answered.
 func descriptionURL(from netip.Addr, loc string) (*url.URL, bool) {
 	u, err := url.Parse(loc)
 	if err != nil || u.Scheme != "http" || u.User != nil {
@@ -252,10 +253,10 @@ func descriptionURL(from netip.Addr, loc string) (*url.URL, bool) {
 	return u, true
 }
 
-// fetchFriendlyName fetches the device description at u and returns its
-// friendlyName, and false when the fetch fails, is not a 200, runs past
-// maxDescriptionSize or descriptionTimeout, or the description has no name
-// cleanLabel passes.
+// fetchFriendlyName fetches the device description at u, and returns its
+// friendlyName. It returns false when the fetch fails, or is not a 200. It
+// also returns false when the fetch goes past maxDescriptionSize or
+// descriptionTimeout, or the description has no name that cleanLabel passes.
 func fetchFriendlyName(ctx context.Context, u *url.URL) (string, bool) {
 	ctx, cancel := context.WithTimeout(ctx, descriptionTimeout)
 	defer cancel()
@@ -275,8 +276,8 @@ func fetchFriendlyName(ctx context.Context, u *url.URL) (string, bool) {
 		return "", false
 	}
 
-	// One byte past the limit tells a description that fills it from one that
-	// runs over.
+	// One byte more than the limit separates a description that fills the
+	// limit from one that goes over it.
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxDescriptionSize+1))
 	if err != nil || len(body) > maxDescriptionSize {
 		return "", false
@@ -285,19 +286,20 @@ func fetchFriendlyName(ctx context.Context, u *url.URL) (string, bool) {
 	return parseDescription(body)
 }
 
-// description is the part of a UPnP device description a name is read from.
-// The tags carry no namespace, so they match the device-1-0 namespace a
-// description declares, or none.
+// description is the part of a UPnP device description that has the name. The
+// tags have no namespace. So they match the device-1-0 namespace of a
+// description, or no namespace.
 type description struct {
 	Device struct {
 		FriendlyName string `xml:"friendlyName"`
 	} `xml:"device"`
 }
 
-// parseDescription returns the root device's friendlyName from the
-// description in b, and false when b does not parse or the name is one
-// cleanLabel refuses. A description is read as UTF-8, or as ISO-8859-1 or
-// windows-1252 when it declares one of those (see legacyCharset).
+// parseDescription returns the friendlyName of the root device from the
+// description in b. It returns false when b does not parse, or cleanLabel
+// refuses the name. It reads a description as UTF-8. If the description
+// declares ISO-8859-1 or windows-1252, it reads that encoding (see
+// legacyCharset).
 func parseDescription(b []byte) (string, bool) {
 	var d description
 
@@ -311,11 +313,11 @@ func parseDescription(b []byte) (string, bool) {
 	return cleanLabel(d.Device.FriendlyName)
 }
 
-// legacyCharset returns a reader that decodes input from the encoding label
-// names. The UPnP Device Architecture asks for UTF-8, and the older devices
-// that do not follow it declare ISO-8859-1 or windows-1252, so only those two
-// are read. Any other label is an error, which fails the parse. Reading only
-// these two keeps the tables for most other encodings out of the binary.
+// legacyCharset returns a reader that decodes input from the encoding that
+// label names. The UPnP Device Architecture asks for UTF-8. Older devices that
+// do not follow it declare ISO-8859-1 or windows-1252. So only those two are
+// read. Any other label is an error, which fails the parse. With only these
+// two, the tables for most other encodings stay out of the binary.
 func legacyCharset(label string, input io.Reader) (io.Reader, error) {
 	switch strings.ToLower(label) {
 	case "iso-8859-1", "iso8859-1", "latin1":
@@ -327,12 +329,12 @@ func legacyCharset(label string, input io.Reader) (io.Reader, error) {
 	}
 }
 
-// cleanLabel collapses each run of white space in s to one space, trims the
-// ends, and reports whether what is left is valid UTF-8 of 1 to 64 printable
-// characters. A label is shown to a person, so it may hold spaces where a
-// host name may not. A label it passes holds no control or format character,
-// so a device cannot reverse how its label reads, as U+202E does, or hide
-// characters in it to look like another device's.
+// cleanLabel changes each series of white space in s to one space, and trims
+// the ends. It reports whether the rest is valid UTF-8 of 1 to 64 printable
+// characters. A person sees a label, so it can contain spaces. A host name
+// cannot. A label that passes has no control or format character. So a device
+// cannot reverse how its label reads, as U+202E does. It also cannot hide
+// characters in it to look like a different device.
 func cleanLabel(s string) (string, bool) {
 	if !utf8.ValidString(s) {
 		return "", false
@@ -344,7 +346,7 @@ func cleanLabel(s string) (string, bool) {
 		return "", false
 	}
 
-	// IsPrint allows the ASCII space, which is the only space left.
+	// IsPrint allows the ASCII space, which is the only space that is left.
 	if strings.IndexFunc(s, func(r rune) bool { return !unicode.IsPrint(r) }) >= 0 {
 		return "", false
 	}
