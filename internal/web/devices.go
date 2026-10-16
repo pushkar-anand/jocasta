@@ -9,11 +9,11 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// deviceQuery is every value the filter form puts in the query string. The
-// validate tags turn away a query string that is the wrong shape, such as an
-// over-long term or a page that is not a positive number, before it reaches the
-// store. schema decoding fails on a key that is not listed here, so a field is
-// added for every control the form carries even where nothing constrains it.
+// deviceQuery is every value that the filter form puts in the query string. The
+// validate tags refuse a query string with the wrong shape before it reaches
+// the store. Examples are a term that is too long, or a page that is not a
+// positive number. Schema decoding fails on a key that is not listed here. So
+// there is a field for every control of the form, also with no constraint.
 type deviceQuery struct {
 	Query          string `schema:"q" validate:"omitempty,max=255"`
 	Group          string `schema:"group" validate:"omitempty,max=100"`
@@ -26,8 +26,8 @@ type deviceQuery struct {
 	Page           int    `schema:"page" validate:"omitempty,min=1"`
 }
 
-// listDevices serves the Devices page, or with rows the table on its own,
-// which is what the filter form fetches as it is filled in.
+// listDevices serves the Devices page. With rows, it serves only the table,
+// which the filter form fetches while a person fills it.
 func (h *Handler) listDevices(sm *auth.Session, rows bool) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		q, err := h.reader.ReadAndValidateQueryParams[deviceQuery](r)
@@ -42,8 +42,8 @@ func (h *Handler) listDevices(sm *auth.Session, rows bool) response.HandlerFunc 
 			return err
 		}
 
-		// The rows carry the Edit button too, so they still need to know
-		// whether this account may use it.
+		// The rows also have the Edit button. So they still need to know
+		// whether this account can use it.
 		data.Role = sm.CurrentRole(r.Context())
 
 		if rows {
@@ -60,11 +60,11 @@ func (h *Handler) listDevices(sm *auth.Session, rows bool) response.HandlerFunc 
 	}
 }
 
-// device serves one device's details and history. A malformed or missing id
-// produces a not-found page.
+// device serves the details and history of one device. A malformed or missing
+// id gives a not-found page.
 func (h *Handler) device(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		// A device that is not there is a page that is not there: a 404.
+		// A missing device is a missing page: a 404.
 		id, ok := pathID(r)
 		if !ok {
 			return inventory.ErrNotFound

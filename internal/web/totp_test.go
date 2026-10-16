@@ -16,9 +16,10 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/auth"
 )
 
-// enrollTOTP drives Auth's enrollment methods directly, skipping the HTTP
-// layer, to leave username enrolled in 2FA. It returns the secret, so a test
-// can compute a valid code, and the recovery codes the confirmation minted.
+// enrollTOTP calls the enrollment methods of Auth directly, without the HTTP
+// layer. It leaves username enrolled in 2FA. It returns the secret, so a test
+// can compute a valid code. It also returns the recovery codes of the
+// confirmation.
 func enrollTOTP(t *testing.T, a *auth.Auth, username string) (secret string, recoveryCodes []string) {
 	t.Helper()
 
@@ -49,8 +50,8 @@ func enrollTOTP(t *testing.T, a *auth.Auth, username string) (secret string, rec
 	return key.Secret(), codes
 }
 
-// loginWith posts the sign-in form and hands back the response, so a test can
-// tell a straight sign-in (redirects to /) from a pending one (redirects to
+// loginWith posts the sign-in form, and returns the response. So a test can
+// tell a direct sign-in (redirects to /) from a pending sign-in (redirects to
 // /login/totp) by its Location.
 func loginWith(t *testing.T, h http.Handler, username, password string) *httptest.ResponseRecorder {
 	t.Helper()
@@ -68,9 +69,9 @@ func loginWith(t *testing.T, h http.Handler, username, password string) *httptes
 	return rec
 }
 
-// signInWithCode carries a 2FA-enabled account through both steps of sign-in
-// (password, then the current TOTP code for secret) and hands back the
-// cookies a fully signed-in session needs.
+// signInWithCode takes an account with 2FA through both steps of sign-in
+// (password, then the current TOTP code for secret). It returns the cookies
+// that a fully signed-in session needs.
 func signInWithCode(t *testing.T, h http.Handler, secret string) []*http.Cookie {
 	t.Helper()
 
@@ -87,8 +88,8 @@ func signInWithCode(t *testing.T, h http.Handler, secret string) []*http.Cookie 
 	verify := requestAs(t, h, cookies, http.MethodPost, "/login/totp", form.Encode())
 	require.Equal(t, http.StatusFound, verify.Code)
 
-	// establishSession renews the token, so the cookie the pending step set is
-	// stale now, and sending both would let the request pick the wrong one.
+	// establishSession renews the token. So the cookie of the pending step is
+	// now old. If the test sent both, the request could pick the wrong one.
 	return verify.Result().Cookies()
 }
 
@@ -105,9 +106,9 @@ func TestLoginRedirectsToTOTPWhenEnabled(t *testing.T) {
 	assert.Equal(t, "/login/totp", rec.Header().Get("Location"))
 }
 
-// TestLoginTOTPWithNoPendingSessionBehavesLikeLogin covers a direct GET (or a
-// stale/expired one) reaching /login/totp with nothing pending: it looks
-// exactly like a bad /login attempt, the same error and page.
+// TestLoginTOTPWithNoPendingSessionBehavesLikeLogin covers a direct GET (or an
+// old or expired GET) to /login/totp with nothing pending. It looks exactly
+// like a bad /login attempt, with the same error and page.
 func TestLoginTOTPWithNoPendingSessionBehavesLikeLogin(t *testing.T) {
 	t.Parallel()
 
@@ -144,8 +145,8 @@ func TestLoginTOTPAcceptsCorrectCode(t *testing.T) {
 
 	cookies := signInWithCode(t, h, secret)
 
-	// The second-factor cookie now carries a full session: a route behind it
-	// is reachable without going through /login again.
+	// The second-factor cookie now has a full session. A route behind it is
+	// reachable without /login again.
 	after := requestAs(t, h, cookies, http.MethodGet, "/settings/tokens", "")
 	assert.Equal(t, http.StatusOK, after.Code)
 }
@@ -165,15 +166,16 @@ func TestLoginTOTPAcceptsRecoveryCodeOnce(t *testing.T) {
 	require.Equal(t, http.StatusFound, rec.Code)
 	assert.Equal(t, "/", rec.Header().Get("Location"))
 
-	// Replaying the same code against a fresh pending sign-in is refused.
+	// The handler refuses the same code again on a new pending sign-in.
 	cookies = loginWith(t, h, testUsername, testPassword).Result().Cookies()
 	replay := requestAs(t, h, cookies, http.MethodPost, "/login/totp", form.Encode())
 	assert.Equal(t, http.StatusPreconditionRequired, replay.Code)
 }
 
 // TestLoginTOTPPageOffersBothCodeKinds covers the two forms of the
-// second-factor page: the default asks phones for a numeric keypad, and the
-// recovery form drops it so a code with letters and dashes is typeable.
+// second-factor page. The default asks phones for a numeric keypad. The
+// recovery form drops it, so a person can type a code with letters and
+// dashes.
 func TestLoginTOTPPageOffersBothCodeKinds(t *testing.T) {
 	t.Parallel()
 
@@ -199,9 +201,9 @@ func TestLoginTOTPPageOffersBothCodeKinds(t *testing.T) {
 	assert.Contains(t, recovery.Body.String(), `href="/login/totp"`)
 }
 
-// TestLoginTOTPRecoveryFormKeepsItsModeOnError covers a recovery code that
-// did not work: the page comes back in its recovery form, so the visitor
-// keeps the full keyboard for the next try.
+// TestLoginTOTPRecoveryFormKeepsItsModeOnError covers a recovery code that did
+// not work. The page comes back in its recovery form. So the visitor keeps the
+// full keyboard for the next try.
 func TestLoginTOTPRecoveryFormKeepsItsModeOnError(t *testing.T) {
 	t.Parallel()
 
@@ -221,7 +223,7 @@ func TestLoginTOTPRecoveryFormKeepsItsModeOnError(t *testing.T) {
 }
 
 // TestLoginTOTPRecoveryFormAcceptsRecoveryCode covers a recovery code posted
-// from the recovery form, method field and all.
+// from the recovery form, with its method field.
 func TestLoginTOTPRecoveryFormAcceptsRecoveryCode(t *testing.T) {
 	t.Parallel()
 
@@ -239,9 +241,9 @@ func TestLoginTOTPRecoveryFormAcceptsRecoveryCode(t *testing.T) {
 	assert.Equal(t, "/", rec.Header().Get("Location"))
 }
 
-// TestLoginTOTPExhaustedAttemptsEndsTheSession covers the narrow rate limit
-// VerifyTOTP applies to a pending sign-in: repeated wrong codes destroy the
-// session, so it cannot be guessed at indefinitely.
+// TestLoginTOTPExhaustedAttemptsEndsTheSession covers the strict rate limit of
+// VerifyTOTP on a pending sign-in. Repeated wrong codes end the session. So
+// nobody can guess at it without end.
 func TestLoginTOTPExhaustedAttemptsEndsTheSession(t *testing.T) {
 	t.Parallel()
 
@@ -262,16 +264,16 @@ func TestLoginTOTPExhaustedAttemptsEndsTheSession(t *testing.T) {
 	require.Equal(t, http.StatusTooManyRequests, last.Code, "the fifth wrong code ends the pending session")
 	assert.Contains(t, last.Body.String(), "Too many codes did not work. Wait a few minutes, then try again.")
 
-	// Nothing is pending any more, so the second-factor page itself now
-	// behaves like a bad /login attempt.
+	// Nothing is pending now. So the second-factor page itself now works as a
+	// bad /login attempt.
 	after := requestAs(t, h, cookies, http.MethodGet, "/login/totp", "")
 	assert.Equal(t, http.StatusUnauthorized, after.Code)
 }
 
-// TestLoginTOTPParallelGuessesShareOneLimit covers wrong codes sent all at
-// once against one pending sign-in. They draw on the same allowance as codes
-// sent one after another, so no more than four get another try, and the
-// correct code is refused afterwards.
+// TestLoginTOTPParallelGuessesShareOneLimit covers wrong codes, all sent at
+// once against one pending sign-in. They use the same limit as codes sent one
+// after another. So no more than four get another try. The handler then
+// refuses the correct code.
 func TestLoginTOTPParallelGuessesShareOneLimit(t *testing.T) {
 	t.Parallel()
 
@@ -323,8 +325,8 @@ func TestLoginTOTPParallelGuessesShareOneLimit(t *testing.T) {
 	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
 }
 
-// TestLoginTOTPFreshSignInKeepsTheLimit covers starting over with the
-// password: the wrong codes already spent still count against the account.
+// TestLoginTOTPFreshSignInKeepsTheLimit covers a new start with the password.
+// The wrong codes from before still count against the account.
 func TestLoginTOTPFreshSignInKeepsTheLimit(t *testing.T) {
 	t.Parallel()
 

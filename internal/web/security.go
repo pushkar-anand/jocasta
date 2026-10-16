@@ -10,40 +10,40 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/auth"
 )
 
-// securityData is the settings page for the signed-in account's own 2FA
-// state.
+// securityData is the settings page for the 2FA state of the signed-in
+// account.
 type securityData struct {
 	view
 
 	TOTPEnabled bool
-	// Enrolling is true once a secret has been generated but not yet
-	// confirmed. The page then shows the QR/manual key and a confirm form
-	// in place of the enable button.
+	// Enrolling is true when a secret exists but is not confirmed yet. The
+	// page then shows the QR/manual key and a confirm form, instead of the
+	// enable button.
 	Enrolling bool
 	Secret    string
 
 	RecoveryCodesRemaining int64
 
-	// RecoveryCodes are the plaintext codes a confirm or regenerate just
-	// made, set only on the page that answers that POST. They are never
-	// stored, so that page is the only one they appear on.
+	// RecoveryCodes are the plaintext codes from a confirm or regenerate. They
+	// are set only on the page that answers that POST. They are never stored.
+	// So only that page shows them.
 	RecoveryCodes []string
 
-	// Error and ErrorAction keep a failed confirmation beside its field.
+	// Error and ErrorAction keep a failed confirmation next to its field.
 	Error       string
 	ErrorAction string
 }
 
-// security serves the account's two-factor settings.
+// security serves the two-factor settings of the account.
 func (h *Handler) security(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		return h.renderSecurity(w, r, sm, a, nil, "", "")
 	}
 }
 
-// renderSecurity shows security settings, with the recovery codes a confirm or
-// regenerate just made, or with a failed confirmation's message beside the
-// form named by action.
+// renderSecurity shows security settings. It shows the recovery codes from a
+// confirm or regenerate. Or it shows the message of a failed confirmation next
+// to the form that action names.
 func (h *Handler) renderSecurity(w http.ResponseWriter, r *http.Request, sm *auth.Session, a *auth.Auth, codes []string, action, message string) error {
 	ctx := r.Context()
 
@@ -91,10 +91,11 @@ func (h *Handler) renderSecurity(w http.ResponseWriter, r *http.Request, sm *aut
 	return nil
 }
 
-// securityEnroll starts (or restarts) enrollment and sends the visitor back
-// to the GET, which now finds a pending secret and shows the QR/confirm
-// form. With 2FA already on, as from a stale tab, it changes nothing and
-// sends the visitor to the same page, which says 2FA is on.
+// securityEnroll starts (or starts again) enrollment, and sends the visitor
+// back to the GET. The GET now finds a pending secret, and shows the
+// QR/confirm form. If 2FA is already on, as from an old tab, it changes
+// nothing. It then sends the visitor to the same page, which says that 2FA is
+// on.
 func (h *Handler) securityEnroll(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
@@ -114,11 +115,11 @@ func (h *Handler) securityEnroll(sm *auth.Session, a *auth.Auth) response.Handle
 	}
 }
 
-// securityConfirm enables two-factor authentication after checking the pending
-// authenticator's code, then answers with the page showing the recovery codes.
-// The page is the POST's own response, not a redirect, so the codes are never
-// stored, not even in the session. With 2FA already on it redirects without
-// minting codes.
+// securityConfirm turns on two-factor authentication after it checks the code
+// of the pending authenticator. It then answers with the page of the recovery
+// codes. The page is the response of the POST, not a redirect. So the codes
+// are never stored, also not in the session. If 2FA is already on, it
+// redirects and makes no codes.
 func (h *Handler) securityConfirm(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	type confirmForm struct {
 		Code string `schema:"code" validate:"required,min=6,max=6"`
@@ -157,12 +158,13 @@ func (h *Handler) securityConfirm(sm *auth.Session, a *auth.Auth) response.Handl
 	}
 }
 
-// securityDisable turns off two-factor authentication after checking the
-// account's password, then redirects to its security settings.
+// securityDisable turns off two-factor authentication after it checks the
+// password of the account. It then redirects to its security settings.
 func (h *Handler) securityDisable(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	type disableForm struct {
 		// Username is the hidden field that tells a password manager which
-		// login to fill. It is ignored: the session says whose account this is.
+		// login to fill. The handler ignores it. The session tells whose
+		// account this is.
 		Username string `schema:"username"`
 		Password string `schema:"password" validate:"required,min=8,max=1000"`
 	}
@@ -199,10 +201,11 @@ func (h *Handler) securityDisable(sm *auth.Session, a *auth.Auth) response.Handl
 }
 
 // securityRegenerateRecoveryCodes checks the password and replaces the recovery
-// codes, then answers with the page showing them, as securityConfirm does.
+// codes. It then answers with the page of the codes, as securityConfirm
+// does.
 func (h *Handler) securityRegenerateRecoveryCodes(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	type regenerateForm struct {
-		// Username is ignored, as for disabling two-factor.
+		// The handler ignores Username, as when it turns off two-factor.
 		Username string `schema:"username"`
 		Password string `schema:"password" validate:"required,min=8,max=1000"`
 	}
@@ -237,10 +240,10 @@ func (h *Handler) securityRegenerateRecoveryCodes(sm *auth.Session, a *auth.Auth
 	}
 }
 
-// totpQR serves the pending enrollment's QR code as a same-origin image, so
-// the CSP's default-src 'self' (no img-src override) never has to admit a
-// data: URI. It writes the image bytes straight to the response, with no
-// template.
+// totpQR serves the QR code of the pending enrollment as a same-origin image.
+// So the default-src 'self' of the CSP (no img-src override) never needs to
+// allow a data: URI. It writes the image bytes directly to the response, with
+// no template.
 func (h *Handler) totpQR(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		userID, err := currentUserID(sm, r)

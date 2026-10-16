@@ -13,8 +13,8 @@ import (
 )
 
 // roleClient returns a handler over an inventory of one device, signed in as an
-// account with the given role. RoleAdmin uses the seeded test account; the
-// others are created for the test.
+// account with the given role. RoleAdmin uses the seeded test account. The
+// test creates the others.
 func roleClient(t *testing.T, role dbtype.UserRole) (http.Handler, []*http.Cookie) {
 	t.Helper()
 
@@ -36,9 +36,9 @@ func roleClient(t *testing.T, role dbtype.UserRole) (http.Handler, []*http.Cooki
 	return h, signInAs(t, h, "member", "member-password-1")
 }
 
-// The curate routes (the PATCH endpoints and the edit form that leads to them)
-// turn away an account that may not write, with the same forbidden page
-// the Users page gives a non-admin.
+// The curate routes (the PATCH endpoints, and their edit form) refuse an
+// account that cannot write. They give the same forbidden page that the Users
+// page gives a non-admin.
 func TestCurateRoutesRequireAWriter(t *testing.T) {
 	t.Parallel()
 
@@ -85,8 +85,8 @@ func TestCurateRoutesRequireAWriter(t *testing.T) {
 	})
 }
 
-// A read user browses the inventory but is shown nothing that leads to an edit:
-// no Edit button in the list, and the device panel renders the curation values
+// A read user browses the inventory, but sees nothing that leads to an edit.
+// The list has no Edit button. The device panel renders the curation values
 // read-only.
 func TestReadUserSeesNoEditAffordances(t *testing.T) {
 	t.Parallel()
@@ -108,8 +108,9 @@ func TestReadUserSeesNoEditAffordances(t *testing.T) {
 	assert.Contains(t, writePanel, `class="curation"`)
 }
 
-// A token cannot out-reach the account that mints it: the read_write scope is
-// off the form for a read user, and a crafted request for it is refused.
+// A token cannot do more than the account that makes it. The form of a read
+// user has no read_write scope. The handler refuses a crafted request for
+// it.
 func TestReadUserCannotMintAWriteToken(t *testing.T) {
 	t.Parallel()
 
@@ -130,8 +131,8 @@ func TestReadUserCannotMintAWriteToken(t *testing.T) {
 	assert.Equal(t, http.StatusOK, ok.Code, "a writer's read_write token still issues")
 }
 
-// A read user has one permission to give a token, so the form states it
-// rather than offering a group of one radio button, and still sends it.
+// A read user has one permission to give a token. So the form states it, and
+// does not offer a group of one radio button. It still sends it.
 func TestReadUserIsToldTheTokenPermission(t *testing.T) {
 	t.Parallel()
 
@@ -147,8 +148,8 @@ func TestReadUserIsToldTheTokenPermission(t *testing.T) {
 		`type="radio" name="scope"`, "a writer still chooses")
 }
 
-// The error pages a signed-in account reaches are drawn inside the shell, so
-// they name the account in the user menu as every other page does.
+// The error pages of a signed-in account are inside the shell. So they name the
+// account in the user menu, as every other page does.
 func TestErrorPagesNameTheAccount(t *testing.T) {
 	t.Parallel()
 

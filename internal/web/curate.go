@@ -9,73 +9,74 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// rowForm is one device as an editable row, with the groups already in use so
-// the group field can suggest them.
+// rowForm is one device as an editable row, with the groups in use. So the
+// group field can suggest them.
 type rowForm struct {
 	Device *inventory.Device
 	Groups []string
 }
 
-// curationForm is the device panel: its identity, and the form that curates it.
+// curationForm is the device panel: its identity, and the form for its
+// curation.
 type curationForm struct {
 	view
 	Device *inventory.Device
 	Groups []string
 	Events []*inventory.Event
 
-	// LastChecked is when a sweep last ran, whether or not it found this
-	// device. Read beside the device's own last_seen it says whether a stale
-	// sighting means the device has gone or the sweeps have. Zero before the
-	// first sweep.
+	// LastChecked is when a sweep last ran, whether it found this device or
+	// not. With the last_seen of the device, it tells whether an old sighting
+	// means that the device left, or that the sweeps stopped. It is zero
+	// before the first sweep.
 	LastChecked time.Time
 
 	// Claims is what each source says about the device. Only the full page
-	// fills it: curating a device changes nothing any source claims, so the
-	// panel swap has nothing to say about them.
+	// fills it. A curation changes nothing that a source claims. So the panel
+	// swap has nothing to show about them.
 	Claims []*inventory.Claim
 
-	// Ports are the rows of the Ports section: the ports a scan recorded and
-	// the services the device advertised, merged by port. Only the full page
-	// fills it.
+	// Ports are the rows of the Ports section: the ports that a scan recorded,
+	// and the services that the device advertised, merged by port. Only the
+	// full page fills it.
 	Ports []*portRow
 
-	// PortScanConfigured is whether any port scan has ever finished, which is
-	// how the Ports section tells "nothing is open" from "nothing has looked".
-	// Only the full page fills it.
+	// PortScanConfigured tells whether a port scan ever finished. So the
+	// Ports section can tell "nothing is open" from "nothing checked". Only
+	// the full page fills it.
 	PortScanConfigured bool
 
-	// Traffic is who the device talked to over the period the page asked for.
-	// Only the full page fills it.
+	// Traffic is who the device talked to over the period of the page. Only
+	// the full page fills it.
 	Traffic *trafficSection
 
-	// DNS is what the device looked up over the period the page asked for.
-	// Only the full page fills it.
+	// DNS is what the device looked up over the period of the page. Only the
+	// full page fills it.
 	DNS *dnsSection
 
-	// Connection is where the device sits in the network's tree. Only the
-	// full page fills it, and only once a source has been read.
+	// Connection is where the device is in the tree of the network. Only the
+	// full page fills it, and only after the read of a source.
 	Connection *connection
 
-	// Saved marks the panel as having just been saved, which is the only way a
-	// swapped-in fragment can say that anything happened.
+	// Saved marks the panel as just saved. Only in this way can a swapped-in
+	// fragment tell that something happened.
 	Saved bool
 
-	// Notice is what the saved message says when the save was not an edit of
-	// the details, such as watching the device. Empty says the details saved.
+	// Notice is the saved message when the save was not an edit of the
+	// details, such as a watch of the device. Empty means that the details
+	// saved.
 	Notice string
 }
 
-// watchForm is whether the device should be watched, from the panel's Watch
-// and Stop watching buttons.
+// watchForm tells whether to watch the device, from the Watch and Stop
+// watching buttons of the panel.
 type watchForm struct {
 	Watched bool `schema:"watched"`
 }
 
-// deviceEdit is what a caller may change on a device through the row or panel
-// form: the same shape curationRequest takes as JSON, carried in form fields.
-// Every field is applied, so a form that does not carry one clears
-// it; the row form carries the fields it does not show as hidden inputs for
-// exactly this reason.
+// deviceEdit is what a caller can change on a device through the row or panel
+// form. It has the same shape as the JSON of curationRequest, in form fields.
+// Every field applies. So a form without a field clears it. For this reason,
+// the row form has the fields that it does not show as hidden inputs.
 type deviceEdit struct {
 	Label   string `schema:"label" validate:"omitempty,max=200"`
 	Notes   string `schema:"notes" validate:"omitempty,max=2000"`
@@ -86,8 +87,7 @@ type deviceEdit struct {
 
 func (e deviceEdit) toCuration() inventory.Curation { return inventory.Curation(e) }
 
-// deviceRow serves one row as it is displayed, which is how an edit is
-// cancelled.
+// deviceRow serves one row, as it is displayed. This cancels an edit.
 func (h *Handler) deviceRow(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		id, ok := pathID(r)
@@ -133,9 +133,9 @@ func (h *Handler) deviceRowForm() response.HandlerFunc {
 	}
 }
 
-// updateDeviceRow applies an edit made from the list and answers with the row.
-// The route is gated to a writer, so the row it answers with always carries the
-// Edit button.
+// updateDeviceRow applies an edit from the list, and answers with the row. Only
+// a writer can use the route. So the row in the answer always has the Edit
+// button.
 func (h *Handler) updateDeviceRow(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		id, ok := pathID(r)
@@ -162,8 +162,8 @@ func (h *Handler) updateDeviceRow(sm *auth.Session) response.HandlerFunc {
 	}
 }
 
-// updateDevice applies an edit made on the device's own page and answers with
-// the panel, which carries the heading a new label changes.
+// updateDevice applies an edit from the page of the device, and answers with
+// the panel. The panel has the heading that a new label changes.
 func (h *Handler) updateDevice(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		id, ok := pathID(r)
@@ -185,8 +185,9 @@ func (h *Handler) updateDevice(sm *auth.Session) response.HandlerFunc {
 	}
 }
 
-// watchDevice watches a device, or stops, from its own page, and answers with
-// the panel, which shows the change and carries the button that undoes it.
+// watchDevice starts or stops the watch of a device, from its own page. It
+// answers with the panel. The panel shows the change, and has the button that
+// undoes it.
 func (h *Handler) watchDevice(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		id, ok := pathID(r)
@@ -213,8 +214,8 @@ func (h *Handler) watchDevice(sm *auth.Session) response.HandlerFunc {
 	}
 }
 
-// savedPanel answers a change made on the device's page with the panel, marked
-// saved, and the log that now includes the change.
+// savedPanel answers a change on the page of the device with the panel, marked
+// as saved. It also answers with the log, which now includes the change.
 func (h *Handler) savedPanel(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -229,8 +230,8 @@ func (h *Handler) savedPanel(
 		return err
 	}
 
-	// Read after the write, so the log the response carries includes the edit
-	// that was just made.
+	// Read after the write. So the log in the response includes the new
+	// edit.
 	events, err := h.store.DeviceEvents(ctx, device.ID, deviceHistoryLimit)
 	if err != nil {
 		return err

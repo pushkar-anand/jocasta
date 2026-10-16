@@ -30,24 +30,24 @@ func newUserRow(u *models.User) userRow {
 	}
 }
 
-// usersData is the settings page listing every account.
+// usersData is the settings page that lists every account.
 type usersData struct {
 	view
 	Users []userRow
 
-	// CurrentUserID marks the signed-in admin's own row.
+	// CurrentUserID marks the row of the signed-in admin.
 	CurrentUserID int64
 
-	// Created and Error are one-shot flashes from the createUser POST, read and
-	// cleared by the GET it redirects to. Username and SelectedRole preserve the
-	// non-secret form values alongside Error.
+	// Created and Error are one-shot flashes from the createUser POST. The GET
+	// of its redirect reads and clears them. Username and SelectedRole keep
+	// the form values that are not secret, with Error.
 	Created      string
 	Error        string
 	Username     string
 	SelectedRole string
 }
 
-// userList reads every account as the view the template renders.
+// userList reads every account as the view that the template renders.
 func userList(ctx context.Context, a *auth.Auth) ([]userRow, error) {
 	rows, err := a.ListUsers(ctx)
 	if err != nil {
@@ -62,8 +62,8 @@ func userList(ctx context.Context, a *auth.Auth) ([]userRow, error) {
 	return list, nil
 }
 
-// One-shot flashes createUser leaves for the GET it redirects to. Only
-// non-secret form values are carried back.
+// One-shot flashes that createUser leaves for the GET of its redirect. Only
+// form values that are not secret come back.
 const (
 	flashUserError    = "flash.user_error"
 	flashUserCreated  = "flash.user_created"
@@ -71,7 +71,7 @@ const (
 	flashUserRole     = "flash.user_role"
 )
 
-// users serves the user management page. The route is gated to an admin, so
+// users serves the user management page. Only an admin can use the route. So
 // the page always renders in the admin view.
 func (h *Handler) users(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
@@ -99,10 +99,10 @@ func (h *Handler) users(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	}
 }
 
-// createUser adds an account under the role the admin picked.
+// createUser adds an account with the role that the admin picked.
 func (h *Handler) createUser(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
-	// oneof excludes admin: the account setup creates is the only admin this
-	// instance ever has, so there's no second admin for this form to hand out.
+	// oneof leaves out admin. The account from setup is the only admin of this
+	// instance. So this form cannot give a second admin.
 	type createUserForm struct {
 		Username string `schema:"username" validate:"required,min=3,max=100"`
 		Password string `schema:"password" validate:"required,min=8,max=1000"`
@@ -128,7 +128,7 @@ func (h *Handler) createUser(sm *auth.Session, a *auth.Auth) response.HandlerFun
 			sm.Flash(ctx, flashUserUsername, input.Username)
 			sm.Flash(ctx, flashUserRole, input.Role)
 		default:
-			// No invite flow, so the confirmation points at sign-in.
+			// There is no invite flow. So the confirmation points at sign-in.
 			sm.Flash(ctx, flashUserCreated, fmt.Sprintf(
 				"%s added as %s. They sign in at /login.",
 				input.Username, roleDisplay(dbtype.UserRole(input.Role)),

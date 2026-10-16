@@ -33,7 +33,7 @@ func TestSetupFormCreatesTheFirstAdminAndSignsIn(t *testing.T) {
 	require.Equal(t, http.StatusFound, rec.Code)
 	assert.Equal(t, "/", rec.Header().Get("Location"))
 
-	// Signed in already, with no separate sign-in step.
+	// Already signed in, with no separate sign-in step.
 	cookies := rec.Result().Cookies()
 	require.NotEmpty(t, cookies)
 
@@ -41,8 +41,8 @@ func TestSetupFormCreatesTheFirstAdminAndSignsIn(t *testing.T) {
 	require.Equal(t, http.StatusOK, overview.Code)
 }
 
-// A form that does not validate is the visitor's to fix, so it comes back as
-// the request package's own 422 rendered on a page.
+// The visitor must fix a form that does not validate. So it comes back as the
+// 422 of the request package, rendered on a page.
 func TestSetupFormRejectsTooShortInput(t *testing.T) {
 	t.Parallel()
 
@@ -57,9 +57,9 @@ func TestSetupFormRejectsTooShortInput(t *testing.T) {
 	assert.NotContains(t, rec.Body.String(), "Internal Server Error")
 }
 
-// TestSetupFormCreatesOneAdminUnderParallelPosts covers setup submitted from
+// TestSetupFormCreatesOneAdminUnderParallelPosts covers a setup sent from
 // several places at once, each with its own username. Exactly one becomes the
-// admin; the others are told setup is done.
+// admin. The others get told that setup is done.
 func TestSetupFormCreatesOneAdminUnderParallelPosts(t *testing.T) {
 	t.Parallel()
 

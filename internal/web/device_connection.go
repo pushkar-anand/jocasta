@@ -10,33 +10,33 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/web/topomap"
 )
 
-// connection is where a device sits in the network's tree, for the device
-// page: the path down from the router, and how the device hangs from the end
-// of it.
+// connection is where a device is in the tree of the network, for the device
+// page: the path down from the router, and how the device hangs from its
+// end.
 type connection struct {
-	// Placed is whether any source has seen the device on a port. The rest
-	// is empty when it is not.
+	// Placed tells whether a source saw the device on a port. If not, the rest
+	// is empty.
 	Placed bool
 
-	// Hops runs from the router down to what the device hangs from.
+	// Hops goes from the router down to what the device hangs from.
 	Hops []connectionHop
 
 	// Last is how the device hangs from the last hop: its port, or its Wi-Fi
 	// network and band, and its VLAN.
 	Last string
 
-	// Current is whether the latest reads saw the device there. A device
-	// placed from an older read is where it was last seen.
+	// Current tells whether the latest reads saw the device there. A device
+	// placed from an older read is where a source last saw it.
 	Current bool
 
-	// Speed is how fast the device's own connection runs, empty when that is
-	// unknown or the connection is another device's. Capable is set only on a
-	// wired link that came up below the rate both ends can run at, and is
-	// that rate.
+	// Speed is how fast the own connection of the device runs. It is empty
+	// when that is unknown, or when the connection belongs to a different
+	// device. Capable is set only on a wired link that came up below the rate
+	// that both ends can run at. It is that rate.
 	Speed   string
 	Capable string
 
-	// Focus is the key the topology page opens on.
+	// Focus is the key on which the topology page opens.
 	Focus string
 }
 
@@ -45,12 +45,13 @@ type connectionHop struct {
 	Name     string
 	DeviceID int64
 
-	// Via is how the hop hangs from the one before it, empty on the router.
+	// Via is how the hop hangs from the hop before it. It is empty on the
+	// router.
 	Via string
 }
 
-// deviceConnection returns where device id sits in the tree. It returns nil
-// when no source has been read, so the page leaves the section out.
+// deviceConnection returns where device id is in the tree. It returns nil when
+// no source was read. So the page leaves out the section.
 func deviceConnection(ctx context.Context, store *inventory.Store, id int64) (*connection, error) {
 	tree, err := store.Topology(ctx)
 	if err != nil {
@@ -90,8 +91,9 @@ func deviceConnection(ctx context.Context, store *inventory.Store, id int64) (*c
 	return c, nil
 }
 
-// setSpeed sets Speed from the device's wired link s or its Wi-Fi connection
-// r, and sets Capable when s came up below the rate both ends can run at.
+// setSpeed sets Speed from the wired link s of the device, or its Wi-Fi
+// connection r. It sets Capable when s came up below the rate that both ends
+// can run at.
 func (c *connection) setSpeed(s topology.Speed, r topology.Radio) {
 	c.Speed = cmp.Or(topomap.SpeedLabel(s), topomap.RadioLabel(r))
 
@@ -100,7 +102,7 @@ func (c *connection) setSpeed(s topology.Speed, r topology.Radio) {
 	}
 }
 
-// hops names each node on a path and how it hangs from the one before.
+// hops names each node on a path, and how it hangs from the node before.
 func hops(path []*topology.Node) []connectionHop {
 	out := make([]connectionHop, len(path))
 

@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// scanned builds a store holding one discovery sweep and one port scan, the two
-// scan kinds that otherwise sit in the same log with the same "Found" number.
+// scanned builds a store with one discovery sweep and one port scan. These two
+// scan kinds are in the same log, with the same "Found" number.
 func scanned(t *testing.T) http.Handler {
 	t.Helper()
 
@@ -34,12 +34,12 @@ func TestScansPageNamesTheKindAndUnits(t *testing.T) {
 
 	body := get(t, scanned(t), "/scans").Body.String()
 
-	// The kind has a column of its own.
+	// The kind has its own column.
 	assert.Contains(t, body, `<th scope="col">Kind</th>`)
 	assert.Contains(t, body, "DISCOVERY")
 	assert.Contains(t, body, "PORTS")
 
-	// The count says what it counts.
+	// The count tells what it counts.
 	assert.Regexp(t, `\d+ devices?\b`, body)
 	assert.Regexp(t, `\d+ open ports?\b`, body)
 }
@@ -54,7 +54,7 @@ func TestScansPageFiltersByKind(t *testing.T) {
 	assert.NotContains(t, ports, "DISCOVERY")
 	assert.NotRegexp(t, `\d+ devices?\b`, ports, "the discovery row is gone, and with it its units")
 
-	// The filter row marks where you are, and the pager would carry it.
+	// The filter row marks the current place. The pager would keep it.
 	assert.Contains(t, ports, `href="/scans?kind=ports"`)
 	assert.Contains(t, ports, `aria-current="page"`)
 
@@ -69,7 +69,7 @@ func TestScansPageRejectsAnUnknownKind(t *testing.T) {
 	assert.NotEqual(t, http.StatusOK, get(t, scanned(t), "/scans?kind=bogus").Code)
 }
 
-// An empty kind-filtered log names the kind that found nothing.
+// An empty log with a kind filter names the kind that found nothing.
 func TestScansPageEmptyKindReadsRight(t *testing.T) {
 	t.Parallel()
 
@@ -77,11 +77,11 @@ func TestScansPageEmptyKindReadsRight(t *testing.T) {
 
 	assert.Contains(t, get(t, h, "/scans?kind=ports").Body.String(), "No port scans recorded yet.")
 
-	// A log with nothing in it at all says how scans come to be.
+	// A log with nothing in it tells how scans come.
 	assert.Contains(t, get(t, empty(t), "/scans").Body.String(), "No scans recorded yet.")
 }
 
-// A port scan of only the new devices is tagged; the full one is not.
+// A port scan of only the new devices has a tag. The full scan does not.
 func TestScansPageTagsANewDeviceScan(t *testing.T) {
 	t.Parallel()
 

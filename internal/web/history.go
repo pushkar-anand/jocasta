@@ -15,43 +15,42 @@ import (
 // logPageSize is how many entries a page of either log shows.
 const logPageSize = 50
 
-// logData is one page of a log that grows without bound.
+// logData is one page of a log that grows with no limit.
 type logData struct {
 	view
 	Events []*inventory.Event
 	Scans  []*inventory.Scan
 
-	// Path is the log's own address, before any narrowing: /events or /scans.
+	// Path is the address of the log, before a filter: /events or /scans.
 	Path string
 
-	// Device is the one device the change log is narrowed to, and nil for the
-	// full log. Only the event log is ever narrowed.
+	// Device is the one device of the change log filter. It is nil for the
+	// full log. Only the event log has this filter.
 	Device *inventory.Device
 
-	// Kind narrows the scan log to one kind ("discovery", "ports"),
-	// and is empty for every kind. Only the scan log is ever narrowed this way.
+	// Kind limits the scan log to one kind ("discovery", "ports"). It is empty
+	// for every kind. Only the scan log has this filter.
 	Kind string
 
-	// Cursor is the token this page was reached by, and is empty at the top of
-	// the log.
+	// Cursor is the token of this page. It is empty at the top of the log.
 	Cursor string
 
-	// Next is the token for the page behind this one, and is empty once the
-	// log has been read to the end.
+	// Next is the token for the next page. It is empty when the reader
+	// reached the end of the log.
 	Next string
 }
 
 // AtTop reports whether this is the first page.
 func (d logData) AtTop() bool { return d.Cursor == "" }
 
-// HasOlder reports whether there is another page behind this one.
+// HasOlder reports whether there is a next page.
 func (d logData) HasOlder() bool { return d.Next != "" }
 
-// Top is the address of the first page of this log, carrying whatever narrows
-// it so walking back to the top does not widen the log.
+// Top is the address of the first page of this log, with its filter. So a walk
+// back to the top does not make the log wider.
 func (d logData) Top() string { return withQuery(d.Path, d.narrowing()) }
 
-// Older is the address of the page behind this one, keeping the filter.
+// Older is the address of the next page, with the filter.
 func (d logData) Older() string {
 	q := d.narrowing()
 	q.Set("cursor", d.Next)
@@ -59,7 +58,7 @@ func (d logData) Older() string {
 	return withQuery(d.Path, q)
 }
 
-// narrowing is what narrows this log, as query parameters.
+// narrowing is the filter of this log, as query parameters.
 func (d logData) narrowing() url.Values {
 	q := url.Values{}
 
@@ -74,20 +73,20 @@ func (d logData) narrowing() url.Values {
 	return q
 }
 
-// logQuery is the cursor a log page continues from.
+// logQuery is the cursor from which a log page continues.
 type logQuery struct {
 	Cursor string `schema:"cursor" validate:"omitempty,max=512"`
 }
 
-// scansQuery is the scan log's own query string: its cursor, plus the kind it
-// narrows to when there is one.
+// scansQuery is the query string of the scan log: its cursor, and its kind
+// filter, if there is one.
 type scansQuery struct {
 	logQuery
 	Kind string `schema:"kind" validate:"omitempty,oneof=discovery ports"`
 }
 
-// scanKind maps the query-string spelling to the stored value; an empty or
-// unrecognised value means every kind.
+// scanKind maps the query-string spelling to the stored value. An empty or
+// unknown value means every kind.
 func scanKind(s string) dbtype.ScanKind {
 	switch s {
 	case "discovery":
@@ -99,23 +98,22 @@ func scanKind(s string) dbtype.ScanKind {
 	return ""
 }
 
-// eventsQuery is the events log's own query string: its cursor, plus the
-// device it narrows to when there is one.
+// eventsQuery is the query string of the events log: its cursor, and its device
+// filter, if there is one.
 //
-// Device is kept as a string: a value that names no device is a page that is
-// not there, so the handler turns it into inventory.ErrNotFound itself.
+// Device stays a string. A value that names no device is a missing page. So
+// the handler turns it into inventory.ErrNotFound itself.
 type eventsQuery struct {
 	logQuery
 	Device string `schema:"device" validate:"omitempty,max=20"`
 }
 
-// logCursor decodes the position in the log out of an already-validated query,
-// and reports the token that is actually in effect.
+// logCursor decodes the position in the log from a validated query. It reports
+// the token that really applies.
 //
-// A cursor walks forwards only, so anything that is not a position starts at
-// the top: that is where a reader who edited the address by hand is best
-// served, and a page has nowhere to report a bad token that a reader could act
-// on.
+// A cursor walks only forward. So a value that is not a position starts at the
+// top. This is best for a reader who edited the address by hand. Also, a page
+// has no place to report a bad token in a useful way.
 func logCursor(raw string) (inventory.Cursor, string) {
 	if raw == "" {
 		return inventory.Cursor{}, ""
@@ -129,8 +127,8 @@ func logCursor(raw string) (inventory.Cursor, string) {
 	return c, raw
 }
 
-// events serves a page of changes, optionally for one existing device.
-// An unreadable cursor falls back to the newest page.
+// events serves a page of changes, for one existing device if asked. An
+// unreadable cursor gives the newest page.
 func (h *Handler) events(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
@@ -151,9 +149,9 @@ func (h *Handler) events(sm *auth.Session) response.HandlerFunc {
 
 		window := inventory.Page{Limit: logPageSize, Cursor: from}
 
-		// ?device= narrows the log to one device: the way the device page's
-		// history reaches the rest of itself. An id that names no device is a
-		// page that is not there, the same as /devices/{id}.
+		// ?device= limits the log to one device. So the history of the device
+		// page reaches the rest of the history. An id that names no device is
+		// a missing page, as for /devices/{id}.
 		if q.Device != "" {
 			id, err := strconv.ParseInt(q.Device, 10, 64)
 			if err != nil || id < 1 {
@@ -188,8 +186,8 @@ func (h *Handler) events(sm *auth.Session) response.HandlerFunc {
 	}
 }
 
-// scans serves a page of recorded scans, optionally filtered by kind.
-// An unreadable cursor falls back to the newest page.
+// scans serves a page of recorded scans, filtered by kind if asked. An
+// unreadable cursor gives the newest page.
 func (h *Handler) scans(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
@@ -229,9 +227,9 @@ func (h *Handler) scans(sm *auth.Session) response.HandlerFunc {
 	}
 }
 
-// nextToken renders the cursor a page ended on. A cursor that will not encode
-// is treated as the end of the log: the page a reader is looking at is still
-// right, and the alternative is a link that cannot be followed.
+// nextToken renders the cursor on which a page ended. A cursor that does not
+// encode counts as the end of the log. The current page is still right. The
+// alternative is a link that does not work.
 func nextToken(c inventory.Cursor) string {
 	token, err := c.Encode()
 	if err != nil {

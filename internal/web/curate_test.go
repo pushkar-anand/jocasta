@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// editor is a handler over the seeded inventory plus the cookies of a signed-in
-// admin. Every route these tests exercise (the PATCH curate endpoints and the
-// edit form) is gated to an account that may write, so an unauthenticated
+// editor is a handler over the seeded inventory, with the cookies of a
+// signed-in admin. Only an account that can write can use the routes of these
+// tests: the PATCH curate endpoints and the edit form. So an unauthenticated
 // request gets the forbidden page.
 func editor(t *testing.T) (http.Handler, []*http.Cookie) {
 	t.Helper()
@@ -24,7 +24,7 @@ func editor(t *testing.T) (http.Handler, []*http.Cookie) {
 	return h, signIn(t, h)
 }
 
-// patch submits a form the way htmx does, carrying the signed-in cookies.
+// patch sends a form as htmx does, with the signed-in cookies.
 func patch(t *testing.T, h http.Handler, cookies []*http.Cookie, target string, form url.Values) *httptest.ResponseRecorder {
 	t.Helper()
 
@@ -58,17 +58,17 @@ func TestDeviceRowEditServesTheRowAsAForm(t *testing.T) {
 	assert.Contains(t, body, `name="label"`)
 	assert.Contains(t, body, `name="group"`)
 
-	// Cancelling asks for the row back.
+	// A cancel asks for the row back.
 	assert.Contains(t, body, `hx-get="/devices/1/row"`)
 
-	// The identity cell stays, so the row being edited is still recognisable.
+	// The identity cell stays. So the edited row is still easy to see.
 	assert.Contains(t, body, `class="editing__id"`)
 	assert.Contains(t, body, "printer.local")
 	assert.Contains(t, body, `class="dot `)
 }
 
-// A form that shows only two fields still applies all of them, so the ones it
-// does not show have to travel with it or the edit would clear them.
+// A form that shows only two fields still applies all of them. So the hidden
+// fields must go with it. If not, the edit would clear them.
 func TestDeviceRowFormCarriesTheFieldsItDoesNotShow(t *testing.T) {
 	t.Parallel()
 
@@ -88,7 +88,7 @@ func TestDeviceRowFormCarriesTheFieldsItDoesNotShow(t *testing.T) {
 	assert.Contains(t, form, `name="type" value="printer"`)
 	assert.Contains(t, form, `name="ignored" value="1"`)
 
-	// And submitting it unchanged leaves them as they were.
+	// A send without changes leaves them as they were.
 	rec := patch(t, h, cookies, "/devices/1/row", url.Values{
 		"label":   {"Office printer"},
 		"group":   {""},
@@ -114,18 +114,18 @@ func TestUpdateDeviceRowAnswersWithTheRow(t *testing.T) {
 
 	body := rec.Body.String()
 
-	// The response is the row alone.
+	// The response is only the row.
 	assert.NotContains(t, body, "<!DOCTYPE html>")
 	assert.NotContains(t, body, "hx-patch")
 	assert.Contains(t, body, `id="device-row-1"`)
 	assert.Contains(t, body, "Office printer")
 
-	// The row a swap puts back has to be able to be edited again, and to hand
-	// focus back to its Edit button when the inline form closes.
+	// The row that a swap puts back must be editable again. It must give focus
+	// back to its Edit button when the inline form closes.
 	assert.Contains(t, body, `hx-get="/devices/1/edit"`)
 	assert.Contains(t, body, `data-focus-after-swap=".btn--icon"`)
 
-	// And it still shows what the sweep found, which an edit does not touch.
+	// It still shows what the sweep found. An edit does not change it.
 	assert.Contains(t, body, "192.0.2.10")
 	assert.Contains(t, body, macA)
 }
@@ -148,20 +148,20 @@ func TestUpdateDeviceAnswersWithThePanel(t *testing.T) {
 	assert.NotContains(t, body, "<!DOCTYPE html>")
 	assert.Contains(t, body, `id="device-panel"`)
 
-	// The "Details saved." status takes a tabindex so the swap can land focus on the
-	// outcome.
+	// The "Details saved." status has a tabindex. So the swap can put focus on
+	// the outcome.
 	assert.Contains(t, body, `<p class="saved" role="status" tabindex="-1">Details saved.</p>`)
 
-	// The edit form is folded away again after a save: the facts lead.
+	// After a save, the edit form closes again. The facts come first.
 	assert.Contains(t, body, `<details class="editpanel">`)
 
-	// The heading is drawn by the layout, outside this swap, so the panel
-	// updates it out of band: a new label shows up where the device is named
-	// as well as in the field.
+	// The layout draws the heading, outside this swap. So the panel updates it
+	// out of band. A new label shows where the device is named, and in the
+	// field.
 	assert.Contains(t, body, `<h1 id="page-title" title="Office printer" hx-swap-oob="true">Office printer</h1>`)
 	assert.Contains(t, body, "Hallway.")
 
-	// A swapped fragment is the only thing that can report the save.
+	// Only a swapped fragment can report the save.
 	assert.Contains(t, body, "Details saved.")
 }
 
@@ -182,10 +182,10 @@ func TestCurationSurvivesInTheList(t *testing.T) {
 	assert.Contains(t, list, "Office printer")
 	assert.Contains(t, list, "office")
 
-	// The group is now one the group field can suggest.
+	// The group field can now suggest the group.
 	assert.Contains(t, list, `<option value="office">`)
 
-	// And it can be filtered on.
+	// The list can also filter on it.
 	filtered := get(t, h, "/devices?group=office").Body.String()
 	assert.Contains(t, filtered, "Office printer")
 	assert.NotContains(t, filtered, "nas.local")
@@ -236,9 +236,9 @@ func TestCurationFromForm(t *testing.T) {
 	assert.True(t, got.Ignored)
 }
 
-// The checkbox is read through the same validated form as every other field:
-// unchecked (absent) and explicitly "0" both mean false, and "1", the value
-// the template emits when checked, means true.
+// The handler reads the checkbox through the same validated form as every
+// other field. Unchecked (absent) and an explicit "0" both mean false. "1",
+// the value of the template when checked, means true.
 func TestDeviceEditIgnoredCheckbox(t *testing.T) {
 	t.Parallel()
 
@@ -251,10 +251,9 @@ func TestDeviceEditIgnoredCheckbox(t *testing.T) {
 		{"unchecked, absent", url.Values{}, false},
 		{"explicit 0", url.Values{"ignored": {"0"}}, false},
 
-		// "on" is the value a bare <input type=checkbox> submits when it
-		// carries no value attribute. This app's template sends "1", and a
-		// schema decoder that understands HTML forms reads "on" as checked
-		// too.
+		// "on" is the value of a bare <input type=checkbox> with no value
+		// attribute. The template of this app sends "1". A schema decoder that
+		// knows HTML forms also reads "on" as checked.
 		{"on", url.Values{"ignored": {"on"}}, true},
 	}
 
@@ -272,8 +271,8 @@ func TestDeviceEditIgnoredCheckbox(t *testing.T) {
 	}
 }
 
-// A value that is not any recognised spelling of a checkbox's state fails the
-// same way any other malformed field would.
+// A value that is no known spelling of the state of a checkbox fails, as any
+// other malformed field does.
 func TestDeviceEditRejectsAMalformedCheckbox(t *testing.T) {
 	t.Parallel()
 
@@ -284,8 +283,8 @@ func TestDeviceEditRejectsAMalformedCheckbox(t *testing.T) {
 	assert.NotEqual(t, http.StatusOK, rec.Code)
 }
 
-// The form's validate tags spell out inventory's limits, since a tag cannot
-// name a constant; this holds each one to exactly its limit.
+// The validate tags of the form copy the limits of inventory, because a tag
+// cannot name a constant. This test keeps each one at exactly its limit.
 func TestDeviceEditHoldsToTheCurationLimits(t *testing.T) {
 	t.Parallel()
 
@@ -304,8 +303,8 @@ func TestDeviceEditHoldsToTheCurationLimits(t *testing.T) {
 	}
 }
 
-// The user's fields are rendered through html/template, so a label carrying
-// markup is escaped and shown as text.
+// html/template renders the fields of the user. So a label with markup is
+// escaped, and shows as text.
 func TestCurationIsEscaped(t *testing.T) {
 	t.Parallel()
 
@@ -323,8 +322,7 @@ func TestCurationIsEscaped(t *testing.T) {
 	}
 }
 
-// post submits a form the way htmx does for a POST, carrying the signed-in
-// cookies.
+// post sends a form as htmx does for a POST, with the signed-in cookies.
 func post(t *testing.T, h http.Handler, cookies []*http.Cookie, target string, form url.Values) *httptest.ResponseRecorder {
 	t.Helper()
 
@@ -341,9 +339,9 @@ func post(t *testing.T, h http.Handler, cookies []*http.Cookie, target string, f
 	return rec
 }
 
-// Watching answers with the panel, which says what changed and offers the
-// button that undoes it, and the list then marks the device and can narrow to
-// it.
+// A watch answers with the panel. The panel tells what changed, and has the
+// button that undoes it. The list then marks the device, and can show only
+// watched devices.
 func TestWatchingADevice(t *testing.T) {
 	t.Parallel()
 
@@ -372,7 +370,7 @@ func TestWatchingADevice(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "Stopped watching printer.local.")
 }
 
-// A read-only account sees whether a device is watched and cannot change it.
+// A read-only account sees whether a device is watched, but cannot change it.
 func TestWatchingIsForWriters(t *testing.T) {
 	t.Parallel()
 

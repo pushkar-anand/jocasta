@@ -9,9 +9,8 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/auth"
 )
 
-// loginData is what the login page needs to render standalone. It carries no
-// view, since that struct is what the signed-in shell needs and this page has
-// none of it.
+// loginData is what the login page needs to render alone. It has no view. That
+// struct is for the signed-in shell, and this page has no shell.
 type loginData struct {
 	Title      string
 	Error      string
@@ -19,9 +18,9 @@ type loginData struct {
 	RememberMe bool
 }
 
-// login serves the sign-in page. /login has to stay reachable without a
-// session, so auth.Middleware does not gate it, and checking for one already
-// held is this handler's own job.
+// login serves the sign-in page. /login must stay reachable without a session.
+// So auth.Middleware does not gate it. This handler must check for an existing
+// session itself.
 func (h *Handler) login(
 	sm *auth.Session,
 ) response.HandlerFunc {
@@ -37,8 +36,9 @@ func (h *Handler) login(
 	}
 }
 
-// loginForm verifies credentials and redirects to the overview or the second
-// authentication step. Authentication failures use the shared error renderer.
+// loginForm verifies credentials. It redirects to the overview, or to the
+// second authentication step. Authentication failures use the shared error
+// renderer.
 func (h *Handler) loginForm(
 	sm *auth.Session,
 	a *auth.Auth,
@@ -57,10 +57,10 @@ func (h *Handler) loginForm(
 			return err
 		}
 
-		// auth.ErrInvalidCredentials reaches the client the same way any other
-		// handler error does: the status mapper and error-page data configured
-		// on htmlWriter turn it into the sign-in page with its message.
-		// No address, as over a Unix socket, leaves only the account's limit.
+		// auth.ErrInvalidCredentials reaches the client as any other handler
+		// error does. The status mapper and error-page data of htmlWriter turn
+		// it into the sign-in page with its message. With no address, as over
+		// a Unix socket, only the limit of the account applies.
 		addr, _ := ctxval.ClientAddrFromContext(ctx)
 
 		result, err := a.Login(ctx, sm, addr, input.Username, input.Password, input.RememberMe)
