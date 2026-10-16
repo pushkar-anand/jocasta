@@ -10,9 +10,9 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/notify"
 )
 
-// notifyDestinations builds every enabled place changes are sent, in name
-// order. A destination is on unless it says enabled: false, and one that
-// cannot be built is a config error, the same as a plugin that cannot.
+// notifyDestinations builds every enabled destination for change notices, in
+// name order. A destination is on unless it says enabled: false. One that
+// cannot be built is a config error, like a plugin that cannot.
 func notifyDestinations(ctx context.Context, cfg *config.Config, log *slog.Logger) ([]*notify.Destination, error) {
 	names := slices.Sorted(maps.Keys(cfg.Notify))
 	out := make([]*notify.Destination, 0, len(names))

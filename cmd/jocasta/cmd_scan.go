@@ -34,8 +34,8 @@ type ScanCmd struct {
 	Source         string        `name:"source" help:"Name recorded as the origin of these results. Defaults to scan.source, then this host's name."`
 }
 
-// Run sweeps Target and prints the hosts that answered. Save also records them
-// in the inventory after printing the results.
+// Run sweeps Target and prints the hosts that answered. With Save, it then
+// records them in the inventory.
 func (s *ScanCmd) Run(
 	ctx context.Context,
 	cfg *config.Config,
@@ -79,8 +79,7 @@ func (s *ScanCmd) Run(
 }
 
 // save records the sweep in the inventory. It runs after the results are
-// printed so a database that will not open still leaves the operator with the
-// scan they asked for.
+// printed, so the operator still sees them when the database will not open.
 func (s *ScanCmd) save(
 	ctx context.Context,
 	cfg *config.Config,
@@ -109,7 +108,7 @@ func (s *ScanCmd) save(
 }
 
 // outputScanResults writes hosts as JSON or a table with identity and response
-// times. An empty table is replaced by a message that no hosts answered.
+// times. With no hosts, it prints a message instead of the table.
 func outputScanResults(w io.Writer, hosts []scanner.Host, asJSON bool) error {
 	if asJSON {
 		return writeJSON(w, hosts)

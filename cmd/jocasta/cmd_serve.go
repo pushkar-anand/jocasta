@@ -204,9 +204,9 @@ func (s *ServeCmd) Run(
 	return nil
 }
 
-// portsPoller builds the port-scan task, resolving the port set from config: a
-// blank scan.ports.custom leaves the curated preset, a spec replaces it. A spec
-// that will not parse fails startup, before any scan runs.
+// portsPoller builds the port-scan task. A blank scan.ports.custom keeps the
+// curated preset, and a spec replaces it. A spec that will not parse fails
+// startup, before any scan runs.
 func portsPoller(cfg *config.Config, log *slog.Logger, store *inventory.Store) (*poller.Ports, error) {
 	opts := []scanner.PortOption{
 		scanner.WithConcurrency(cfg.Scan.Ports.Concurrency),
@@ -227,8 +227,8 @@ func portsPoller(cfg *config.Config, log *slog.Logger, store *inventory.Store) (
 }
 
 // homeCountry checks location.country against the countries the world map
-// draws, so a typo fails startup. Unchecked, it would quietly draw no lines.
-// Case does not matter; empty is fine.
+// draws. A typo fails startup; otherwise the map would quietly draw no lines.
+// Case does not matter, and empty is fine.
 func homeCountry(code string) (string, error) {
 	code = strings.ToUpper(strings.TrimSpace(code))
 	if code == "" {
@@ -242,11 +242,10 @@ func homeCountry(code string) (string, error) {
 	return code, nil
 }
 
-// startTraffic runs every traffic source's listener and the recorder they feed,
-// and returns the recorder for the map to read what is active from.
-// A listener that cannot bind fails startup through the group, the same as a
-// server that cannot: a configured source that silently received nothing would
-// read as a network with no traffic.
+// startTraffic runs each traffic source's listener and the recorder they feed.
+// It returns the recorder, which the map reads for active traffic. A listener
+// that cannot bind fails startup, like a server that cannot. Otherwise a source
+// that received nothing would look like a network with no traffic.
 func startTraffic(
 	ctx context.Context,
 	grp *errgroup.Group,
@@ -267,9 +266,8 @@ func startTraffic(
 	return rec
 }
 
-// parseTrustedProxies converts a list of proxy addresses or CIDR prefixes from
-// config to parsed netip.Prefix values. A bare address becomes a prefix covering
-// that single address.
+// parseTrustedProxies parses the proxy addresses and CIDR prefixes from config.
+// A bare address becomes a prefix covering just that address.
 func parseTrustedProxies(raw []string) ([]netip.Prefix, error) {
 	var prefixes []netip.Prefix
 

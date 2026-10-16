@@ -13,8 +13,8 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/config"
 )
 
-// A router read over plain HTTP gets the password in the clear, so startup
-// warns about each one that has ssl off, of either kind.
+// A router read over plain HTTP gets the password in the clear. So startup
+// warns about each one with ssl off, of either kind.
 func TestRouterSourcesWarnAboutPlainHTTP(t *testing.T) {
 	t.Parallel()
 

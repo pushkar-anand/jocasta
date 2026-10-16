@@ -7,8 +7,8 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/version"
 )
 
-// VersionCmd prints the build information and exits. main dispatches it before
-// it loads the configuration or opens the database, neither of which it needs.
+// VersionCmd prints the build information and exits. main runs it before
+// loading config or opening the database, since it needs neither.
 type VersionCmd struct{}
 
 func (c *VersionCmd) Run() error {

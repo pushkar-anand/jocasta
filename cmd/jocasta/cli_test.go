@@ -205,8 +205,8 @@ func TestPortsCmdInvalidPortSpec(t *testing.T) {
 	assert.ErrorContains(t, err, "not a number")
 }
 
-// The save path opens a scan, folds the results and closes it, even when
-// nothing the scan touched is a device the inventory holds.
+// The save path opens a scan, records the results and closes it. It does this
+// even when the scan touched no device the inventory holds.
 func TestPortsCmdSaveRecordsAScan(t *testing.T) {
 	t.Parallel()
 
@@ -403,9 +403,9 @@ func TestScanCmdInvalidTarget(t *testing.T) {
 	assert.ErrorContains(t, err, "use an address and prefix length, such as 192.0.2.0/24")
 }
 
-// A successful run of the scan command needs an ICMP socket, which CI does not
-// grant, so run is covered through the failure paths that stop before the
-// sweep. internal/scanner's TestSweepLive is the opt-in live sweep.
+// A successful scan needs an ICMP socket, which CI does not grant. So run is
+// tested through the failure paths that stop before the sweep.
+// internal/scanner's TestSweepLive is the opt-in live sweep.
 func TestRunRejectsMissingExplicitConfigFile(t *testing.T) {
 	t.Parallel()
 
@@ -469,8 +469,8 @@ func TestCLIPluginRunNeedsAName(t *testing.T) {
 	require.Error(t, err)
 }
 
-// The builder skips a disabled instance and orders what is left, so a poller
-// reads its sources the same way on every cycle.
+// The builder skips a disabled instance and sorts the rest. That way a poller
+// reads its sources in the same order every cycle.
 func TestRouterOSSourcesSkipDisabledInstances(t *testing.T) {
 	t.Parallel()
 
@@ -494,8 +494,8 @@ func TestRouterOSSourcesSkipDisabledInstances(t *testing.T) {
 	assert.Equal(t, []string{"routeros:gateway", "routeros:rack"}, names)
 }
 
-// A switch or access point is read for the topology page alone: the router
-// above it lists the devices.
+// A switch or access point is read only for the topology page. The router above
+// it lists the devices.
 func TestHostDiscoverersLeavesOutTopologyOnlySources(t *testing.T) {
 	t.Parallel()
 
@@ -577,8 +577,8 @@ func TestRouterSourcesRefusesANameUnderTwoKinds(t *testing.T) {
 	require.ErrorContains(t, err, `"gateway" is configured under both`)
 }
 
-// An OpenWrt access point marked topology_only is read for what is plugged
-// into it, and left out of device discovery like a RouterOS one.
+// An OpenWrt access point marked topology_only is read only for what is
+// connected to it. Like a RouterOS one, it is left out of device discovery.
 func TestOpenWrtTopologyOnlyIsReadForTopologyAlone(t *testing.T) {
 	t.Parallel()
 
@@ -745,8 +745,8 @@ func TestQueryReadersBuildsEveryKind(t *testing.T) {
 	assert.Equal(t, []string{"pihole:a", "technitium:b", "adguard:d"}, names)
 }
 
-// The lookups table has one row per client and name, clients in address
-// order and each client's busiest names first.
+// The lookups table has one row per client and name. Clients are in address
+// order, and each client's busiest names come first.
 func TestOutputQueriesTable(t *testing.T) {
 	t.Parallel()
 
