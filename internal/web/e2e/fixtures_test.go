@@ -21,13 +21,13 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 )
 
-// anchor is the moment every fixture is built back from and every page is
-// served at, so a golden shows the same "4m ago" on every run.
+// anchor is the time from which every fixture is built back, and at which
+// every page is served. So a golden shows the same "4m ago" on every run.
 var anchor = time.Date(2026, time.June, 15, 14, 30, 0, 0, time.UTC)
 
-// Addresses come from RFC 5737 and RFC 3849, hardware addresses from RFC 7042.
-// Internet peers have to be public for their organisation and country to
-// resolve, so they are public DNS resolvers and root servers, which anyone can
+// Addresses come from RFC 5737 and RFC 3849, and hardware addresses from RFC
+// 7042. Internet peers must be public, so their organisation and country
+// resolve. So they are public DNS resolvers and root servers, which anyone can
 // look up.
 const (
 	router   = "gateway"
@@ -59,17 +59,18 @@ const (
 	rootM       = "202.12.27.33"
 )
 
-// probers knock on the outside address carrying nothing.
+// probers knock on the outside address, with no data.
 var probers = []string{rootC, rootF, rootI, rootM}
 
-// fixture is one state of the inventory a page can be shown in.
+// fixture is one state of the inventory in which a page can show.
 type fixture struct {
 	name string
 
-	// seed fills the inventory; nil leaves it empty.
+	// seed fills the inventory. Nil leaves it empty.
 	seed func(ctx context.Context, store *inventory.Store, conn *sql.DB, log *slog.Logger) (*inventory.TrafficRecorder, error)
 
-	// noUsers leaves the account table empty, for the first-run setup page.
+	// noUsers leaves the account table empty, for the first-run setup
+	// page.
 	noUsers bool
 }
 
@@ -86,19 +87,20 @@ type device struct {
 	kind          string
 	notes         string
 
-	// firstDay is the day, counted back from the anchor, the device first
-	// appeared; lastDay the day it was last seen (0 = still here).
+	// firstDay is the day of the first sighting of the device, counted back
+	// from the anchor. lastDay is the day of the last sighting (0 = still
+	// here).
 	firstDay, lastDay int
 
 	ports    []uint16
 	services []hosts.Service
 
-	// movedTo is an address the device took from DHCP movedDay days ago.
+	// movedTo is an address that the device got from DHCP movedDay days ago.
 	movedTo  string
 	movedDay int
 
-	// own is a router's addresses on segments other than ip's, each with
-	// the interface it sits on.
+	// own is the addresses of a router on segments other than the segment of
+	// ip, each with its interface.
 	own []ownAddr
 
 	watched bool
@@ -110,8 +112,8 @@ type device struct {
 
 type ownAddr struct{ ip, iface string }
 
-// look is a name a device asks the resolver for, perHr times an hour. It
-// answers with peer, or with nothing when the lookup is blocked or fails.
+// look is a name that a device asks the resolver for, perHr times an hour. The
+// answer is peer, or nothing when the lookup is blocked or fails.
 type look struct {
 	name            string
 	peer            string
@@ -146,7 +148,7 @@ type sim struct {
 	topology func(ctx context.Context, store *inventory.Store, devs []*device) error
 
 	// scanFrom is the device that ran a port scan of a segment a few hours
-	// back; empty for none.
+	// ago. It is empty for none.
 	scanFrom string
 	scanOf   netip.Prefix
 }
@@ -251,9 +253,12 @@ func normalDevices() []*device {
 	}
 }
 
-// seedWeird is the inventory a layout has to survive: names at their length
-// limits and in every script, markup in user text, a device with every port
-// open, more devices and groups than a page holds, and absurd traffic.
+// seedWeird is the inventory that a layout must survive:
+//   - names at their length limits, and in every script
+//   - markup in user text
+//   - a device with every port open
+//   - more devices and groups than a page holds
+//   - absurd traffic
 func seedWeird(ctx context.Context, store *inventory.Store, conn *sql.DB, log *slog.Logger) (*inventory.TrafficRecorder, error) {
 	main := netip.MustParsePrefix("192.0.2.0/24")
 	iot := netip.MustParsePrefix("198.51.100.0/24")
@@ -323,8 +328,8 @@ func weirdDevices() []*device {
 		}
 	}
 
-	// More names than a page holds, one at a name's length limit and one in
-	// punycode, all answered by the one peer.
+	// More names than a page holds. One is at the length limit of a name, and
+	// one is in punycode. The one peer answers all of them.
 	manyLooks := []look{{name: longName, peer: cloudflare, perHr: 1}, {name: "xn--bcher-kva.example", peer: cloudflare, perHr: 2}}
 	for i := range 300 {
 		manyLooks = append(manyLooks, look{name: fmt.Sprintf("edge-%03d.cdn.example.com", i), peer: cloudflare, perHr: 1})
@@ -349,8 +354,8 @@ func weirdDevices() []*device {
 			looks: manyLooks},
 	}
 
-	// Enough of the rest to page the device list, spread over more groups
-	// than any filter list is drawn for.
+	// Enough of the rest for pages in the device list, across more groups
+	// than any filter list expects.
 	for i := 13; len(devs) < 240; i++ {
 		ip := fmt.Sprintf("192.0.2.%d", i)
 		if i > 200 {
@@ -370,9 +375,10 @@ func weirdDevices() []*device {
 
 var allPeers = []string{cloudflare, cloudflare2, google, google2, quad9, opendns, adguard, rootA, rootC, rootD, rootF, rootI, rootJ, rootK, rootL, rootM}
 
-// simulate walks the network's days an hour at a time: a router read every
-// six hours, a sweep of the one segment the sweeper sits on every six hours
-// offset by three, traffic every hour for the last fortnight.
+// simulate walks the days of the network, an hour at a time. It does a router
+// read every six hours. It does a sweep of the segment of the sweeper every
+// six hours, three hours later. It adds traffic every hour for the last two
+// weeks.
 func simulate(ctx context.Context, store *inventory.Store, log *slog.Logger, n *sim) (*inventory.TrafficRecorder, error) {
 	if err := store.RecordNetworks(ctx, n.nets); err != nil {
 		return nil, err
@@ -447,8 +453,8 @@ func simulate(ctx context.Context, store *inventory.Store, log *slog.Logger, n *
 		}
 	}
 
-	// Today's port scan, then a last sweep and router read a minute before
-	// the anchor, so the present devices read as seen recently.
+	// The port scan of today, then a last sweep and router read a minute
+	// before the anchor. So the present devices show as seen recently.
 	setClock(anchor.Add(-40 * time.Minute))
 
 	if err := portScan(ctx, store, n.devs, anchor.Add(-40*time.Minute), true); err != nil {
@@ -553,7 +559,7 @@ func sweep(ctx context.Context, store *inventory.Store, n *sim, present func(*de
 	return err
 }
 
-// lookups records an hour of the resolver's query log, starting at at.
+// lookups records an hour of the query log of the resolver, from at.
 func lookups(ctx context.Context, store *inventory.Store, devs []*device, present func(*device) bool, at time.Time) error {
 	var qs []plugin.Query
 
@@ -584,8 +590,8 @@ func lookups(ctx context.Context, store *inventory.Store, devs []*device, presen
 	return err
 }
 
-// newDeviceScan records the port scan run on ip just after the router first
-// listed it, 20 hours back, and puts the clock back where simulate left it.
+// newDeviceScan records the port scan on ip just after the router first listed
+// it, 20 hours ago. It then puts the clock back where simulate left it.
 func newDeviceScan(ctx context.Context, store *inventory.Store, ip string, open ...uint16) error {
 	at := anchor.Add(-20*time.Hour + 2*time.Minute)
 	setClock(at)
@@ -604,8 +610,8 @@ func newDeviceScan(ctx context.Context, store *inventory.Store, ip string, open 
 	return err
 }
 
-// portScan records the open ports; the earlier scan predates the last port
-// of each device, so today's reads as having opened it.
+// portScan records the open ports. The earlier scan is before the last port of
+// each device. So the scan of today shows that it opened the port.
 func portScan(ctx context.Context, store *inventory.Store, devs []*device, at time.Time, today bool) error {
 	var scans []scanner.PortScan
 
@@ -701,8 +707,8 @@ func watch(ctx context.Context, store *inventory.Store, devs []*device) error {
 	return nil
 }
 
-// diurnal scales traffic by the hour before the anchor rather than the hour
-// of day, so the charts have the same shape whatever zone the test runs in.
+// diurnal scales traffic by the hour before the anchor, not the hour of day.
+// So the charts have the same shape in any time zone of the test.
 func diurnal(ago time.Duration) float64 {
 	h := math.Mod(24-ago.Hours(), 24)
 
@@ -778,7 +784,7 @@ func hourOfTraffic(rng *rand.Rand, n *sim, local func(netip.Addr) bool, present 
 		}
 	}
 
-	// A few hours back, one device probed a whole segment.
+	// A few hours ago, one device probed a whole segment.
 	if n.scanFrom != "" && ago > 5*time.Hour && ago <= 6*time.Hour {
 		from := netip.MustParseAddr(n.scanFrom)
 		dst := n.scanOf.Addr()
@@ -795,8 +801,8 @@ func hourOfTraffic(rng *rand.Rand, n *sim, local func(netip.Addr) bool, present 
 	return flows
 }
 
-// failedScan records a run of source that failed ago before the anchor, which
-// the inventory API has no way to report.
+// failedScan records a run of source that failed ago before the anchor. The
+// inventory API cannot report this.
 func failedScan(ctx context.Context, conn *sql.DB, source, msg string, ago time.Duration) error {
 	at := anchor.Add(-ago)
 
@@ -919,8 +925,8 @@ func normalTopology(ctx context.Context, store *inventory.Store, devs []*device)
 	return nil
 }
 
-// weirdTopology is a 48-port switch with long port names hanging off the
-// gateway, every remaining device on one access point.
+// weirdTopology is a 48-port switch with long port names, below the gateway.
+// Every other device is on one access point.
 func weirdTopology(ctx context.Context, store *inventory.Store, devs []*device) error {
 	at := anchor.Add(-time.Minute)
 	setClock(at)

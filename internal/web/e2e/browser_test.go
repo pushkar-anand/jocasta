@@ -32,8 +32,8 @@ var (
 	axeJS string
 )
 
-// viewport is a screen a page is drawn on. The sizes sit either side of the
-// stylesheet's breakpoints (34rem, 40rem, 60rem, 700px).
+// viewport is a screen on which a page is drawn. The sizes are on each side of
+// the breakpoints of the stylesheet (34rem, 40rem, 60rem, 700px).
 type viewport struct {
 	name  string
 	w, h  int64
@@ -68,19 +68,20 @@ type shot struct {
 
 	png []byte
 
-	// golden is the first screen at 1x, for comparing against the stored
-	// picture; nil when this shot has none.
+	// golden is the first screen at 1x, for comparison with the stored
+	// picture. It is nil when this shot has none.
 	golden []byte
 }
 
-// problem is one fault a check found.
+// problem is one fault that a check found.
 type problem struct {
 	Check  string `json:"check"`
 	El     string `json:"el"`
 	Detail string `json:"detail"`
 }
 
-// browser is one Chrome, either started here or reached at E2E_CHROME_URL.
+// browser is one Chrome. Either this code started it, or it is at
+// E2E_CHROME_URL.
 type browser struct {
 	ctx    context.Context
 	cancel func()
@@ -118,8 +119,8 @@ func newBrowser(ctx context.Context) (*browser, error) {
 	return &browser{ctx: bctx, cancel: func() { bcancel(); cancel() }}, nil
 }
 
-// quietErrorf logs chromedp's errors except the events it has no handler
-// for yet, which newer Chrome sends for every open dialog.
+// quietErrorf logs the errors of chromedp, except the events that it has no
+// handler for yet. Newer Chrome sends these for every open dialog.
 func quietErrorf(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if strings.Contains(msg, "unhandled node event") {
@@ -129,7 +130,7 @@ func quietErrorf(format string, args ...any) {
 	log.Print(msg)
 }
 
-// tab is one page load's worth of listening: everything the console and the
+// tab is the listening for one page load: everything that the console and the
 // network said while it ran.
 type tab struct {
 	ctx    context.Context
@@ -175,8 +176,8 @@ func (b *browser) newTab(cookies []*http.Cookie, origin string) (*tab, func(), e
 	err := chromedp.Run(ctx,
 		network.Enable(),
 		cdplog.Enable(),
-		// Tabs in one Chrome share its cookies, so a signed-out page drawn
-		// after a signed-in one would find the session still there.
+		// Tabs in one Chrome share its cookies. So a signed-out page drawn
+		// after a signed-in page would still find the session.
 		network.ClearBrowserCookies(),
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			for _, c := range cookies {
@@ -208,8 +209,8 @@ func (t *tab) drain() []problem {
 	return out
 }
 
-// emulate sets the screen and the colour scheme, with motion reduced so a
-// screenshot never catches a transition halfway.
+// emulate sets the screen and the colour scheme, with reduced motion. So a
+// screenshot never catches a transition in the middle.
 func emulate(v viewport, theme string) chromedp.Action {
 	opts := []chromedp.EmulateViewportOption{chromedp.EmulateScale(v.dpr)}
 	if v.touch {
@@ -225,7 +226,7 @@ func emulate(v viewport, theme string) chromedp.Action {
 	}
 }
 
-// settle waits for the fonts and for htmx to finish what the page load
+// settle waits for the fonts, and for htmx to finish what the page load
 // started.
 func settle() chromedp.Action {
 	return chromedp.ActionFunc(func(ctx context.Context) error {
@@ -252,8 +253,8 @@ func settle() chromedp.Action {
 	})
 }
 
-// check runs the layout checks and axe's WCAG AA rules against the page as it
-// stands.
+// check runs the layout checks and the WCAG AA rules of axe against the
+// current page.
 func check(v viewport, out *[]problem) chromedp.Action {
 	return chromedp.ActionFunc(func(ctx context.Context) error {
 		var layout []problem
@@ -293,7 +294,7 @@ func check(v viewport, out *[]problem) chromedp.Action {
 	})
 }
 
-// capture loads one page in one state, checks it, and screenshots it.
+// capture loads one page in one state, checks it, and takes a screenshot.
 func capture(b *browser, a *app, r role, cookies []*http.Cookie, v viewport, theme string, p page, s state, golden bool) (*shot, error) {
 	t, cancel, err := b.newTab(cookies, a.srv.URL)
 	if err != nil {
@@ -310,7 +311,7 @@ func capture(b *browser, a *app, r role, cookies []*http.Cookie, v viewport, the
 	}
 
 	tasks := chromedp.Tasks{
-		// A background tab gets no frames, and a screenshot waits for one.
+		// A background tab gets no frames. A screenshot waits for one.
 		cdppage.BringToFront(),
 		emulate(v, theme),
 		chromedp.Navigate(a.srv.URL + p.path),
@@ -350,9 +351,9 @@ func capture(b *browser, a *app, r role, cookies []*http.Cookie, v viewport, the
 		return nil, fmt.Errorf("%s %s: %w", p.name, s.name, err)
 	}
 
-	// An error page by design answers with its status, which the console
-	// reports too: a state that ends on one, and an admin page drawn for an
-	// account that is not.
+	// An error page answers with its status on purpose. The console also
+	// reports it. This is a state that ends on an error page, and an admin
+	// page drawn for an account that is not admin.
 	status := s.status
 	if p.admin && r.role != dbtype.RoleAdmin {
 		status = http.StatusForbidden
@@ -369,9 +370,9 @@ func capture(b *browser, a *app, r role, cookies []*http.Cookie, v viewport, the
 	return sh, nil
 }
 
-// maxShotPixels caps a screenshot's height in device pixels. A full page of
-// the weird fixture's device list runs past 150,000 at 3x, which crashes
-// Chrome's compositor.
+// maxShotPixels limits the height of a screenshot in device pixels. A full page
+// of the device list of the weird fixture is more than 150,000 at 3x. This
+// crashes the compositor of Chrome.
 const maxShotPixels = 16000
 
 // screenshot captures the page from the top, as far down as maxShotPixels
@@ -387,8 +388,8 @@ func screenshot(v viewport, out *[]byte) chromedp.Action {
 			return chromedp.FullScreenshot(out, 100).Do(ctx)
 		}
 
-		// Too tall at this density: drawn again at 1x, which keeps the whole
-		// page on more pages than not.
+		// Too tall at this density. Draw it again at 1x. This keeps the whole
+		// page on most pages.
 		if err := chromedp.EmulateViewport(v.w, v.h, chromedp.EmulateScale(1)).Do(ctx); err != nil {
 			return err
 		}
@@ -408,8 +409,8 @@ func screenshot(v viewport, out *[]byte) chromedp.Action {
 	})
 }
 
-// firstScreen captures what a reader sees before scrolling, at 1x so a
-// stored picture stays small, with the text caret hidden: it blinks.
+// firstScreen captures what a reader sees before a scroll, at 1x. So a stored
+// picture stays small. It hides the text caret, because the caret blinks.
 func firstScreen(v viewport, out *[]byte) chromedp.Action {
 	return chromedp.ActionFunc(func(ctx context.Context) error {
 		opts := []chromedp.EmulateViewportOption{chromedp.EmulateScale(1)}
@@ -419,8 +420,8 @@ func firstScreen(v viewport, out *[]byte) chromedp.Action {
 
 		err := chromedp.Tasks{
 			chromedp.EmulateViewport(v.w, v.h, opts...),
-			// Through the CSSOM: the content security policy refuses a
-			// <style> element, and a test must not need it lifted.
+			// Through the CSSOM. The content security policy refuses a
+			// <style> element, and a test must not need to remove it.
 			chromedp.Evaluate(`(() => {
 				if (document.activeElement) document.activeElement.style.caretColor = 'transparent';
 				window.scrollTo(0, 0);

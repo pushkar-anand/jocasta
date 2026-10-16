@@ -17,10 +17,10 @@ import (
 
 const goldenDir = "testdata/golden"
 
-// A pixel counts as changed when any channel moves by more than
-// goldenChannel, which absorbs anti-aliasing that differs between runs. A
-// picture fails when more than goldenPixels changed: a single short word
-// added or lost, such as a name in the top bar, changes several hundred.
+// A pixel counts as changed when a channel moves by more than goldenChannel.
+// This allows anti-aliasing that differs between runs. A picture fails when
+// more than goldenPixels changed. A single short word added or removed, such
+// as a name in the top bar, changes several hundred.
 const (
 	goldenChannel = 40
 	goldenPixels  = 64
@@ -48,10 +48,9 @@ func (s *shot) goldenFile() string {
 	return filepath.Join(goldenDir, strings.Join([]string{s.Page, s.State, s.Viewport, s.Theme}, "_")+".png")
 }
 
-// compareGolden checks s against its stored picture, or, when update is
-// set, stores it if it is new or no longer matches. On a mismatch it writes
-// the picture taken and a map of what changed under artifacts, when that is
-// set.
+// compareGolden checks s against its stored picture. When update is set, it
+// stores s if it is new or no longer matches. On a mismatch, it writes the new
+// picture and a map of the changes under artifacts, when that is set.
 func compareGolden(s *shot, update bool, artifacts string) error {
 	name := s.goldenFile()
 
@@ -73,8 +72,8 @@ func compareGolden(s *shot, update bool, artifacts string) error {
 		return fmt.Errorf("%s: %w", name, err)
 	}
 
-	// A picture within tolerance is kept as stored even when updating, so a
-	// change rewrites only the pictures it actually moved.
+	// A picture within the tolerance stays as stored, also during an update.
+	// So a change writes again only the pictures that it really changed.
 	if err == nil && changed <= goldenPixels {
 		return nil
 	}
@@ -96,8 +95,8 @@ func compareGolden(s *shot, update bool, artifacts string) error {
 	return fmt.Errorf("%s: %d pixels changed; if the change is meant, run with E2E_UPDATE=1", name, changed)
 }
 
-// pixelDiff returns how many pixels changed between two pictures, and the
-// new picture with changed pixels painted red.
+// pixelDiff returns how many pixels changed between two pictures. It also
+// returns the new picture, with the changed pixels in red.
 func pixelDiff(a, b []byte) (int, image.Image, error) {
 	ia, err := png.Decode(bytes.NewReader(a))
 	if err != nil {

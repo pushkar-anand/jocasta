@@ -16,22 +16,22 @@ import (
 //go:embed testdata/known.json
 var knownJSON []byte
 
-// known is a fault the checks find today and an open issue covers. A fix
-// deletes its entries, so the gate holds the line from then on.
+// known is a fault that the checks find today, and that an open issue covers.
+// A fix deletes its entries. So the gate holds the line from then on.
 type known struct {
 	// Issue names the write-up that covers it, such as "C3".
 	Issue string `json:"issue"`
 	Check string `json:"check"`
 
-	// El, when set, must appear in the element's description once
-	// normalised (see norm).
+	// El, when set, must be in the normalised description of the element
+	// (see norm).
 	El string `json:"el,omitempty"`
 
-	// Detail, when set, must appear in the finding's detail.
+	// Detail, when set, must be in the detail of the finding.
 	Detail string `json:"detail,omitempty"`
 
-	// Page and Viewport are globs over "fixture/page/state" and the
-	// viewport name; empty matches any.
+	// Page and Viewport are globs over "fixture/page/state" and the viewport
+	// name. Empty matches any.
 	Page     string `json:"page,omitempty"`
 	Viewport string `json:"viewport,omitempty"`
 }
@@ -41,8 +41,8 @@ var (
 	digits = regexp.MustCompile(`\d+`)
 )
 
-// norm drops what varies between runs and fixtures from an element's
-// description: its text and any numbers, such as a row id.
+// norm drops what changes between runs and fixtures from the description of an
+// element: its text and any numbers, such as a row id.
 func norm(el string) string {
 	return strings.TrimSpace(digits.ReplaceAllString(quoted.ReplaceAllString(el, ""), "N"))
 }
@@ -75,13 +75,13 @@ func (k known) covers(s *shot, p problem) bool {
 	return true
 }
 
-// TestE2E draws every page in every state and fails on any finding the known
-// list does not cover, and on a first screen that no longer matches its
-// stored picture (see isGolden). By default it draws what a pull request
-// needs: every fixture as admin on a phone, a tablet and a laptop, in both
-// themes. E2E_FULL=1 draws every screen and every account, and also fails on
-// a known entry that matched nothing, so a fix cannot leave its entry behind.
-// E2E_UPDATE=1 stores the pictures taken instead of comparing them, and
+// TestE2E draws every page in every state. It fails on any finding that the
+// known list does not cover. It also fails on a first screen that no longer
+// matches its stored picture (see isGolden). By default, it draws what a pull
+// request needs: every fixture as admin on a phone, a tablet and a laptop, in
+// both themes. E2E_FULL=1 draws every screen and every account. It also fails
+// on a known entry that matched nothing. So a fix cannot leave its entry
+// behind. E2E_UPDATE=1 stores the new pictures, and does not compare them.
 // E2E_ARTIFACTS names a directory for the pictures that differ.
 func TestE2E(t *testing.T) {
 	var list []known

@@ -15,16 +15,16 @@ import (
 
 var allFixtures = []fixture{fixtureEmpty, fixtureNormal, fixtureWeird, fixtureFresh}
 
-// matrix is every combination of fixture, account, screen and theme a run
-// draws each page in.
+// matrix is every combination of fixture, account, screen and theme in which a
+// run draws each page.
 type matrix struct {
 	fixtures  []fixture
 	roles     []role
 	viewports []viewport
 	themes    []string
 
-	// golden picks the jobs whose first screen is compared against a
-	// stored picture; nil picks none.
+	// golden picks the jobs whose first screen is compared with a stored
+	// picture. Nil picks none.
 	golden func(job) bool
 }
 
@@ -38,7 +38,7 @@ type job struct {
 	s       state
 }
 
-// jobs starts an app over each fixture and lists every page state to draw.
+// jobs starts an app over each fixture, and lists every page state to draw.
 // The apps stop when t ends.
 func (m matrix) jobs(t *testing.T) []job {
 	t.Helper()
@@ -93,9 +93,9 @@ func (m matrix) jobs(t *testing.T) []job {
 	return jobs
 }
 
-// run draws every job on E2E_PARALLEL workers (6 by default) and hands each
-// shot to done, one at a time. A state with nothing to act on in its
-// fixture is skipped.
+// run draws every job on E2E_PARALLEL workers (6 by default). It gives each
+// shot to done, one at a time. It skips a state with nothing to act on in its
+// fixture.
 func (m matrix) run(t *testing.T, done func(*shot)) {
 	t.Helper()
 
@@ -112,8 +112,8 @@ func (m matrix) run(t *testing.T, done func(*shot)) {
 		queue = make(chan job)
 	)
 
-	// Each worker has a Chrome of its own, so one that falls over takes only
-	// its own page with it; the worker starts another and tries once more.
+	// Each worker has its own Chrome. So a Chrome that crashes loses only its
+	// own page. The worker starts a new Chrome and tries once more.
 	for range workers {
 		wg.Go(func() {
 			var b *browser
@@ -124,8 +124,8 @@ func (m matrix) run(t *testing.T, done func(*shot)) {
 				}
 			}()
 
-			// Draining the queue even when Chrome will not start keeps the
-			// sender below from blocking on a worker that gave up.
+			// Empty the queue, also when Chrome does not start. So the sender
+			// below does not block on a worker that stopped.
 			for j := range queue {
 				golden := m.golden != nil && m.golden(j)
 
@@ -161,9 +161,9 @@ func (m matrix) run(t *testing.T, done func(*shot)) {
 	wg.Wait()
 }
 
-// retry runs capture on *b, starting a Chrome when there is none, and once
-// more on a fresh one when the first attempt fails: a Chrome that fell over
-// fails every page after it.
+// retry runs capture on *b. It starts a Chrome when there is none. When the
+// first attempt fails, it tries once more on a new Chrome. A Chrome that
+// crashed fails every page after it.
 func retry(t *testing.T, b **browser, capture func(*browser) (*shot, error)) (*shot, error) {
 	t.Helper()
 
@@ -195,8 +195,8 @@ func retry(t *testing.T, b **browser, capture func(*browser) (*shot, error)) (*s
 	return nil, lastErr
 }
 
-// pick narrows all to the names listed in env, or keeps def when env is
-// unset. extra are further choices env may name that def leaves out.
+// pick limits all to the names in env. When env is unset, it keeps def. extra
+// are more choices that env can name, and that def leaves out.
 func pick[T any](env string, def []T, name func(T) string, extra ...T) []T {
 	want := os.Getenv(env)
 	if want == "" {
