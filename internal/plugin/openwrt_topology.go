@@ -34,10 +34,8 @@ type openWrtTables struct {
 }
 
 // Topology reads what is plugged into the router: its ports, the hardware
-// addresses each bridge learned on them, and the clients of each radio. A
-// table that fails is reported in the error alongside what the other tables
-// returned. The Topology is empty only when no table said anything about a
-// port.
+// addresses each bridge learned on them, and the clients of each radio. Every
+// table that fails is named in the error.
 //
 // OpenWrt runs no neighbour discovery protocol by default, so the Topology
 // carries no neighbours.
@@ -69,8 +67,7 @@ func (o *OpenWrt) Topology(ctx context.Context) (Topology, error) {
 			continue
 		}
 
-		// Entries come back even when a member's port number does not, so
-		// both are kept. The error already names the bridge.
+		// The error already names the bridge.
 		t.fdb[name], err = o.client.BridgeFDB(ctx, name, d.Ports)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("read %w", classifyOpenWrt(err)))
@@ -96,21 +93,11 @@ func (o *OpenWrt) Topology(ctx context.Context) (Topology, error) {
 		}
 	}
 
-	learned := false
-
-	for _, entries := range t.fdb {
-		learned = learned || len(entries) > 0
+	if err := errors.Join(errs...); err != nil {
+		return Topology{}, err
 	}
 
-	for _, st := range t.stations {
-		learned = learned || len(st) > 0
-	}
-
-	if !learned && len(errs) > 0 {
-		return Topology{}, errors.Join(errs...)
-	}
-
-	return o.buildTopology(ctx, t), errors.Join(errs...)
+	return o.buildTopology(ctx, t), nil
 }
 
 // buildTopology maps the tables onto a Topology.

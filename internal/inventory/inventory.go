@@ -186,10 +186,6 @@ type reading struct {
 	network *netip.Prefix
 
 	facts []plugin.Fact
-
-	// partial marks a reading the source could not finish, which says what it
-	// saw and nothing about what it did not.
-	partial bool
 }
 
 // pass carries what every write in one ingest shares, including the single
@@ -356,19 +352,6 @@ func (s *Store) RecordFacts(
 	facts []plugin.Fact,
 ) (*Result, error) {
 	return s.report(ctx, reading{source: source, kind: kind, facts: facts})
-}
-
-// RecordPartialFacts stores what a source said when part of its read failed,
-// such as one table answering while another timed out. The facts are recorded
-// as [Store.RecordFacts] records them, and no device is judged gone for being
-// missing from them: it may be missing from the part that failed.
-func (s *Store) RecordPartialFacts(
-	ctx context.Context,
-	source string,
-	kind dbtype.SourceKind,
-	facts []plugin.Fact,
-) (*Result, error) {
-	return s.report(ctx, reading{source: source, kind: kind, facts: facts, partial: true})
 }
 
 // RecordNetworks stores the segments a source says it serves.

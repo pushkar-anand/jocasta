@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 	"github.com/pushkar-anand/jocasta/internal/plugin"
 )
@@ -65,12 +64,8 @@ func ReadQueries(ctx context.Context, store *inventory.Store, log *slog.Logger, 
 	}
 
 	queries, next, err := src.Queries(ctx, cursor)
-
-	switch {
-	case err != nil && len(queries) == 0:
+	if err != nil {
 		return fmt.Errorf("read query log from %s: %w", src.Name(), err)
-	case err != nil:
-		log.WarnContext(ctx, "source answered in part", slog.String("src", src.Name()), logger.Err(err))
 	}
 
 	res, err := store.RecordQueries(ctx, src.Name(), src.Kind(), queries, next)

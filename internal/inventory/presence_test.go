@@ -174,23 +174,6 @@ func TestARouterReadJudgesOnlyDevicesItClaims(t *testing.T) {
 	assert.Empty(t, presentSince(t, conn, deviceIDByMAC(t, conn, macB)))
 }
 
-// A source that could not finish its read says nothing about what it did not
-// return.
-func TestAPartialReadJudgesNothing(t *testing.T) {
-	t.Parallel()
-
-	s, conn, advance := clockStore(t)
-
-	report(t, s, fact("192.0.2.11", macB, "", true, ""))
-	advance(20 * time.Minute)
-
-	res, err := s.RecordPartialFacts(t.Context(), "test-router", dbtype.SourceRouter, nil)
-	require.NoError(t, err)
-
-	assert.Zero(t, res.Quiet)
-	assert.NotEmpty(t, presentSince(t, conn, deviceIDByMAC(t, conn, macB)))
-}
-
 // After downtime nothing judged the devices, so one still answering on the
 // first sweep back never went quiet and does not come back.
 func TestARestartLogsNothingForDevicesStillAnswering(t *testing.T) {

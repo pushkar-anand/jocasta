@@ -179,9 +179,7 @@ func TestTopologyReadsEveryTable(t *testing.T) {
 	assert.Equal(t, []Sighting{{Port: "ether4", MAC: "00:00:5e:00:53:10", VLAN: 10}}, got.Seen)
 }
 
-// The host table is the answer and the rest decorates it, so losing the
-// decoration returns what arrived alongside the error.
-func TestTopologyReturnsWhatItGotWhenATableFails(t *testing.T) {
+func TestTopologyFailsWhenATableFails(t *testing.T) {
 	t.Parallel()
 
 	r := switchServing(t, map[string]string{
@@ -190,7 +188,7 @@ func TestTopologyReturnsWhatItGotWhenATableFails(t *testing.T) {
 
 	got, err := r.Topology(t.Context())
 	require.Error(t, err)
-	assert.Equal(t, []Sighting{{Port: "ether4", MAC: "00:00:5e:00:53:10"}}, got.Seen)
+	assert.True(t, got.Empty())
 }
 
 func TestTopologyReturnsNothingWhenEveryTableFails(t *testing.T) {

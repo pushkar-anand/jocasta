@@ -445,8 +445,7 @@ func TestOpenWrtOwnAddressesSkipWhatIsNotASegmentTheRouterServes(t *testing.T) {
 	assert.Empty(t, ownFacts(t, ifaces, devices))
 }
 
-// The device list failing costs only the router's own addresses.
-func TestOpenWrtDiscoverKeepsTheTablesWhenTheOwnAddressesFail(t *testing.T) {
+func TestOpenWrtDiscoverFailsWhenTheOwnAddressesFail(t *testing.T) {
 	t.Parallel()
 
 	answers := maps.Clone(openWrtAnswers)
@@ -455,12 +454,12 @@ func TestOpenWrtDiscoverKeepsTheTablesWhenTheOwnAddressesFail(t *testing.T) {
 	facts, err := testOpenWrtWith(t, answers).Discover(t.Context())
 	require.ErrorIs(t, err, ErrAuth)
 	assert.Contains(t, err.Error(), "read network devices")
-	assert.Len(t, facts, 2)
+	assert.Empty(t, facts)
 }
 
-// One table refused costs that table alone: the facts the others gave come
-// back beside an error that says the login lacks a grant.
-func TestOpenWrtDiscoverKeepsWhatAPartialReadGave(t *testing.T) {
+// One table refused fails the read with an error that says the login lacks a
+// grant.
+func TestOpenWrtDiscoverFailsWhenOneTableIsRefused(t *testing.T) {
 	t.Parallel()
 
 	answers := maps.Clone(openWrtAnswers)
@@ -469,7 +468,7 @@ func TestOpenWrtDiscoverKeepsWhatAPartialReadGave(t *testing.T) {
 
 	facts, err := testOpenWrtWith(t, answers).Discover(t.Context())
 	require.ErrorIs(t, err, ErrAuth)
-	assert.Len(t, facts, 3, "the two leases and the router")
+	assert.Empty(t, facts)
 }
 
 func TestOpenWrtNetworksReadsVLANs(t *testing.T) {
@@ -481,8 +480,7 @@ func TestOpenWrtNetworksReadsVLANs(t *testing.T) {
 	assert.Equal(t, []Network{{Prefix: netip.MustParsePrefix("192.0.2.0/24"), Name: "lan", VLAN: 10}}, nets)
 }
 
-// The VLANs only decorate the segments, so losing them costs only the tags.
-func TestOpenWrtNetworksWithoutVLANsKeepsTheSegments(t *testing.T) {
+func TestOpenWrtNetworksFailsWithoutVLANs(t *testing.T) {
 	t.Parallel()
 
 	answers := maps.Clone(openWrtAnswers)
@@ -491,8 +489,7 @@ func TestOpenWrtNetworksWithoutVLANsKeepsTheSegments(t *testing.T) {
 
 	nets, err := testOpenWrtWith(t, answers).Networks(t.Context())
 	require.ErrorIs(t, err, ErrAuth)
-
-	assert.Equal(t, []Network{{Prefix: netip.MustParsePrefix("192.0.2.0/24"), Name: "lan"}}, nets)
+	assert.Empty(t, nets)
 }
 
 func TestOpenWrtNetworksFailsWithoutInterfaces(t *testing.T) {

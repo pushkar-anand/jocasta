@@ -100,18 +100,14 @@ func TestNetworkPrefixIsMasked(t *testing.T) {
 	assert.Equal(t, netip.MustParsePrefix("192.0.2.0/24"), out[0].Prefix)
 }
 
-// Losing the tags costs the segments only their numbers.
-func TestNetworksSurviveTheVLANTableFailing(t *testing.T) {
+func TestNetworksFailWithoutTheVLANTable(t *testing.T) {
 	t.Parallel()
 
 	out, err := networkRouter(t, liveAddresses, "").Networks(t.Context())
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "vlan")
-
-	require.Len(t, out, 2)
-	assert.Zero(t, out[0].VLAN)
-	assert.Equal(t, "vlan10", out[0].Name, "the interface name is what is left to call it")
+	assert.Empty(t, out)
 }
 
 // Without the address table there are no segments at all, so nothing comes

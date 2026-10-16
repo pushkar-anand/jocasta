@@ -52,25 +52,23 @@ func TestTopologyName(t *testing.T) {
 	assert.Equal(t, "topology_reader", task.Name())
 }
 
-// One source failing leaves the others recorded, and a partial read is
-// recorded with what it had.
+// One source failing leaves the others recorded. A source that returns ports
+// beside an error has failed, and nothing it returned is recorded.
 func TestTopologyRunRecordsWhatAnswered(t *testing.T) {
 	t.Parallel()
-
-	partial := seenOnce("ether2", "00:00:5e:00:53:02")
 
 	task, conn := newTopologyTask(t,
 		&fakeReader{name: "routeros:switch_a", topo: seenOnce("ether4", "00:00:5e:00:53:01")},
 		&fakeReader{name: "routeros:ap", err: errors.New("unreachable")},
-		&fakeReader{name: "routeros:gateway", topo: partial, err: errors.New("neighbours timed out")},
+		&fakeReader{name: "routeros:gateway", topo: seenOnce("ether2", "00:00:5e:00:53:02"), err: errors.New("neighbours timed out")},
 	)
 
 	err := task.Run(t.Context())
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "routeros:ap")
-	assert.NotContains(t, err.Error(), "routeros:gateway")
+	assert.ErrorContains(t, err, "routeros:gateway")
 
 	var n int
 	require.NoError(t, conn.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM topology_nodes`).Scan(&n))
-	assert.Equal(t, 2, n)
+	assert.Equal(t, 1, n)
 }
