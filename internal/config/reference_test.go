@@ -19,7 +19,8 @@ import (
 var referenceRow = regexp.MustCompile("(?m)^\\| `([a-z_.<>]+)` \\|")
 
 // TestReferenceDocumentsEveryKey fails when a setting in Config has no row in
-// the configuration reference, or a row names a setting Config no longer has.
+// the configuration reference. It also fails when a row names a setting that
+// Config no longer has.
 func TestReferenceDocumentsEveryKey(t *testing.T) {
 	raw, err := os.ReadFile("../../docs/reference/configuration.md")
 	require.NoError(t, err)
@@ -40,9 +41,9 @@ func TestReferenceDocumentsEveryKey(t *testing.T) {
 	}
 }
 
-// settingKeys returns the dotted koanf path of every leaf setting under t.
-// A map of structs is keyed by a name the user chooses, written as <instance>
-// under plugins and <name> under notify; any other map is a leaf.
+// settingKeys returns the dotted koanf path of every leaf setting under t. The
+// key of a map of structs is a name that the user chooses. It is <instance>
+// under plugins and <name> under notify. Any other map is a leaf.
 func settingKeys(t reflect.Type, prefix string) []string {
 	var keys []string
 
