@@ -2028,44 +2028,49 @@
 </tr>
 </tbody>
 </table>
-<p>The account created on first run is the only admin.</p>
+<p>The account that you create on the first run is the only admin.</p>
 <h2 id="add-a-user">Add a user<a class="headerlink" href="#add-a-user" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Open the account menu, top right, and select <strong>Users</strong>.</li>
 <li>Select <strong>Add user</strong>.</li>
 <li>Enter a username (3 to 100 characters), a first password (8 or more), and
    a role.</li>
-<li>Select <strong>Create user</strong>, and give the person the password.</li>
+<li>Select <strong>Create user</strong>.</li>
+<li>Give the password to the person.</li>
 </ol>
-<p>The web UI cannot change a password or role, remove an account, or reset a
-forgotten password yet.</p>
+<p>The web UI cannot yet change a password or role, remove an account, or reset
+a forgotten password.</p>
 <h2 id="sessions">Sessions<a class="headerlink" href="#sessions" title="Permanent link">&para;</a></h2>
-<p>A sign-in lasts up to 7 days, or 24 hours without use. Without
-<strong>Remember me</strong>, it also ends when the browser closes. Set the limits with
-<code>server.auth.session_lifetime</code> and <code>server.auth.idle_timeout</code>.</p>
-<p>After 10 wrong passwords, an account gets one try a minute.</p>
+<p>A sign-in lasts up to 7 days, or 24 hours without use. If you do not tick
+<strong>Remember me</strong>, it also ends when the browser closes. To change the limits,
+set <code>server.auth.session_lifetime</code> and <code>server.auth.idle_timeout</code>.</p>
+<p>After 10 wrong passwords, an account gets one try each minute.</p>
 <h2 id="two-factor-authentication">Two-factor authentication<a class="headerlink" href="#two-factor-authentication" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Open the account menu and select <strong>Security</strong>.</li>
 <li>Select <strong>Turn on two-factor authentication</strong>.</li>
 <li>Scan the QR code with an authenticator app.</li>
-<li>Enter its 6-digit code and select <strong>Turn on</strong>.</li>
-<li>Save the 10 recovery codes. They are shown once. Each one signs you in
-   once without the app.</li>
+<li>Enter the 6-digit code from the app.</li>
+<li>Select <strong>Turn on</strong>.</li>
+<li>Save the 10 recovery codes. Jocasta shows them only once. Each code signs
+   you in once without the app.</li>
 </ol>
-<p>The same page regenerates the recovery codes or turns two-factor off. Both ask
-for your password.</p>
+<p>On the same page, you can make new recovery codes or turn two-factor off.
+Both actions ask for your password.</p>
 <h2 id="api-tokens">API tokens<a class="headerlink" href="#api-tokens" title="Permanent link">&para;</a></h2>
 <p>Scripts and agents use a token to reach the
 <a href="../../integrations/api/">JSON API</a> and the <a href="../../integrations/mcp/">MCP server</a>.</p>
 <ol>
 <li>Open the account menu and select <strong>API tokens</strong>.</li>
 <li>Select <strong>Create a token</strong>.</li>
-<li>Name it, and pick <strong>Viewer</strong> (<code>read</code>) or <strong>Editor</strong> (<code>read_write</code>) and an
-   expiry. The default never expires.</li>
-<li>Select <strong>Create token</strong> and copy it. It is shown once.</li>
+<li>Enter a name.</li>
+<li>Select <strong>Viewer</strong> (<code>read</code>) or <strong>Editor</strong> (<code>read_write</code>).</li>
+<li>Select an expiry. By default, a token never expires.</li>
+<li>Select <strong>Create token</strong>.</li>
+<li>Copy the token. Jocasta shows it only once.</li>
 </ol>
-<p>A token can do no more than its account. Revoking it takes effect at once.</p>
+<p>A token cannot do more than its account. When you revoke a token, it stops
+working immediately.</p>
 
 
 

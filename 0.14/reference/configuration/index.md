@@ -1,12 +1,12 @@
 # Configuration reference
 
-Every setting Jocasta reads, with its type, default and the values it takes. [Configure](<https://pushkar-anand.github.io/jocasta/0.14/configuration/index.md>) explains how settings are read and overridden. [`jocasta.example.yaml`](<https://github.com/pushkar-anand/jocasta/blob/main/jocasta.example.yaml>) holds the same settings as a file to copy from.
+This page lists every setting that Jocasta reads, with its type, default and allowed values. [Configure](<https://pushkar-anand.github.io/jocasta/0.14/configuration/index.md>) tells how Jocasta reads and overrides settings. [`jocasta.example.yaml`](<https://github.com/pushkar-anand/jocasta/blob/main/jocasta.example.yaml>) has the same settings, in a file that you can copy.
 
-Each setting can also come from an environment variable: `JOCASTA_`, then the setting's path in capitals with a double underscore between levels. A single underscore stays part of the key, so `scan.devices.resolve_mdns` is `JOCASTA_SCAN__DEVICES__RESOLVE_MDNS`. For a plugin or notification setting, the instance or destination name is one level of the path: `plugins.routeros.gateway.password` is `JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD`.
+Each setting can also come from an environment variable. The name is `JOCASTA_`, then the path of the setting in capitals, with a double underscore between levels. A single underscore stays part of the key. For example, `scan.devices.resolve_mdns` is `JOCASTA_SCAN__DEVICES__RESOLVE_MDNS`. For a plugin or notification setting, the instance or destination name is one level of the path. For example, `plugins.routeros.gateway.password` is `JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD`.
 
 Types:
 
-- **duration**: a number and a unit, such as `90s`, `15m` or `6h`. The units are `s`, `m` and `h`; there is no unit for days, so 30 days is `720h`.
+- **duration**: a number and a unit, such as `90s`, `15m` or `6h`. The units are `s`, `m` and `h`. There is no unit for days, so 30 days is `720h`.
 - **list**: a YAML list.
 - **map**: YAML keys and values.
 
@@ -46,52 +46,52 @@ Types:
 
 ## retention
 
-Records older than their window are deleted once an hour. `0s` keeps that kind of record forever.
+Once an hour, Jocasta deletes the records that are older than their window. `0s` keeps that kind of record forever.
 
 | Key | Type | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
-| `retention.history` | duration | `2160h` (90 days) | A duration; `0s` keeps forever | How long the change log and the scan log are kept. |
-| `retention.traffic` | duration | `720h` (30 days) | A duration; `0s` keeps forever | How long hourly traffic totals are kept. |
-| `retention.dns` | duration | `720h` (30 days) | A duration; `0s` keeps forever | How long hourly lookup counts, and the addresses lookups were answered with, are kept. |
-| `retention.devices` | duration | `2160h` (90 days) | A duration; `0s` keeps forever | How long a device nobody labelled, grouped, typed, noted or ignored is kept after a scan last saw it. |
+| `retention.history` | duration | `2160h` (90 days) | A duration; `0s` keeps forever | How long Jocasta keeps the change log and the scan log. |
+| `retention.traffic` | duration | `720h` (30 days) | A duration; `0s` keeps forever | How long Jocasta keeps the hourly traffic totals. |
+| `retention.dns` | duration | `720h` (30 days) | A duration; `0s` keeps forever | How long Jocasta keeps the hourly lookup counts, and the addresses in the answers to lookups. |
+| `retention.devices` | duration | `2160h` (90 days) | A duration; `0s` keeps forever | How long Jocasta keeps a device after a scan last saw it. Jocasta keeps a device that you labelled, grouped, typed, noted, ignored or watched. |
 
 ## location
 
 | Key | Type | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
-| `location.country` | string | empty | A two-letter country code, such as `AU` | The country the world map draws its lines from. Empty uses the router's outside address, which cannot place a network behind carrier-grade NAT. See [NetFlow](<https://pushkar-anand.github.io/jocasta/0.14/plugins/netflow/index.md>). |
-| `location.timezone` | string | empty | An IANA zone name, such as `Australia/Sydney` | The zone times are shown in. Empty uses `TZ` or the system's zone, which is UTC in a container. Times are stored in UTC either way. |
+| `location.country` | string | empty | A two-letter country code, such as `AU` | The country from which the world map draws its lines. If empty, Jocasta uses the outside address of the router. This address cannot find the country of a network behind carrier-grade NAT. See [NetFlow](<https://pushkar-anand.github.io/jocasta/0.14/plugins/netflow/index.md>). |
+| `location.timezone` | string | empty | An IANA zone name, such as `Australia/Sydney` | The zone in which Jocasta shows times. If empty, Jocasta uses `TZ` or the zone of the system, which is UTC in a container. Jocasta always stores times in UTC. |
 
 ## networks
 
 | Key | Type | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
-| `networks` | list | empty | Prefixes, such as `192.0.2.0/24` | The prefixes the sweep covers on a timer. Each address found is filed under the network that contains it. |
+| `networks` | list | empty | Prefixes, such as `192.0.2.0/24` | The prefixes that the sweep covers at each interval. Jocasta records each address that it finds under the network that contains it. |
 
 ## scan
 
 | Key | Type | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
-| `scan.source` | string | `sweep:<hostname>` | Any name | The origin recorded for timed sweeps. Set it in a container, where the host name changes on every run. A new name starts a new source and leaves past scans under the old one. |
+| `scan.source` | string | `sweep:<hostname>` | Any name | The source name of the sweeps that run at each interval. Set it in a container, where the host name changes on every run. A new name starts a new source. Past scans stay under the old name. |
 | `scan.devices.enabled` | bool | `true` | `true`, `false` | Sweeps `networks` on a timer. |
 | `scan.devices.interval` | duration | `5m` | A duration | How often the sweep runs. |
 | `scan.devices.rate` | int | `1000` | A whole number | The most ICMP probes sent per second. |
-| `scan.devices.rounds` | int | `2` | A whole number | Probes sent to each address before it counts as down. |
+| `scan.devices.rounds` | int | `2` | A whole number | The number of probes to each address before Jocasta counts the address as down. |
 | `scan.devices.wait` | duration | `2s` | A duration | How long to wait for replies after the last probe. |
 | `scan.devices.resolve_names` | bool | `true` | `true`, `false` | Looks up reverse DNS for each address that answered. See [Name devices](<https://pushkar-anand.github.io/jocasta/0.14/naming/index.md>). |
 | `scan.devices.resolve_macs` | bool | `true` | `true`, `false` | Reads the neighbour table for hardware addresses. |
 | `scan.devices.resolve_mdns` | bool | `true` | `true`, `false` | Asks each device without a reverse DNS name for its name over mDNS. |
 | `scan.devices.resolve_netbios` | bool | `true` | `true`, `false` | Asks each device still without a name over NetBIOS. |
-| `scan.devices.resolve_dnssd` | bool | `true` | `true`, `false` | Browses the services devices advertise, and names the rest after the name they give them. Needs host networking. |
-| `scan.devices.resolve_ssdp` | bool | `true` | `true`, `false` | Searches over SSDP, and names the rest after their UPnP `friendlyName`. Needs host networking. |
+| `scan.devices.resolve_dnssd` | bool | `true` | `true`, `false` | Asks for the services that devices advertise. Names each device that still has no name after the name that it gives its services. Needs host networking. |
+| `scan.devices.resolve_ssdp` | bool | `true` | `true`, `false` | Searches over SSDP. Names each device that still has no name after its UPnP `friendlyName`. Needs host networking. |
 | `scan.ports.enabled` | bool | `false` | `true`, `false` | Probes every known address for open TCP ports on a timer. |
 | `scan.ports.interval` | duration | `6h` | A duration | How often the port scan runs. |
-| `scan.ports.custom` | string | empty | Ports and ranges, such as `22,80,443,8000-8100`; `1-65535` for every port | The ports to probe. Empty uses a curated preset. Each address is also probed on the ports its device advertises. |
+| `scan.ports.custom` | string | empty | Ports and ranges, such as `22,80,443,8000-8100`; `1-65535` for every port | The ports to probe. If empty, Jocasta uses a preset. Jocasta also probes each address on the ports that its device advertises. |
 | `scan.ports.concurrency` | int | `64` | A whole number | The most connections a scan opens at once. Lower it on a router with a small connection table. |
 
 ## plugins
 
-Plugins are off by default. Each instance sits under its kind, keyed by a name you choose, and is off unless it says `enabled: true`. See [Plugins](<https://pushkar-anand.github.io/jocasta/0.14/plugins/index.md>).
+By default, plugins are off. Each instance is under its kind, with a name that you choose as its key. An instance is off, unless it has `enabled: true`. See [Plugins](<https://pushkar-anand.github.io/jocasta/0.14/plugins/index.md>).
 
 ### plugins.routeros
 
@@ -104,10 +104,10 @@ A [MikroTik RouterOS](<https://pushkar-anand.github.io/jocasta/0.14/plugins/rout
 | `plugins.routeros.<instance>.port` | int | `80`, or `443` with `ssl` | 1 to 65535 | The REST API's port. |
 | `plugins.routeros.<instance>.user` | string | empty | A RouterOS user | A read-only user is enough. |
 | `plugins.routeros.<instance>.password` | string | empty | Any | The user's password. |
-| `plugins.routeros.<instance>.ssl` | bool | `false` | `true`, `false` | Uses HTTPS. Without it, the password crosses the network unencrypted and Jocasta logs a warning. |
+| `plugins.routeros.<instance>.ssl` | bool | `false` | `true`, `false` | Uses HTTPS. Without it, the password goes over the network as plain text, and Jocasta logs a warning. |
 | `plugins.routeros.<instance>.insecure` | bool | `false` | `true`, `false` | Skips certificate checks, for RouterOS's self-signed certificate. |
 | `plugins.routeros.<instance>.timeout` | duration | `10s` | A duration | The longest one read may take. |
-| `plugins.routeros.<instance>.topology_only` | bool | `false` | `true`, `false` | Reads only what is plugged into this switch or access point, and leaves its devices to the router. See [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/0.14/plugins/topology/index.md>). |
+| `plugins.routeros.<instance>.topology_only` | bool | `false` | `true`, `false` | Reads only what is connected to this switch or access point. The router lists its devices. See [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/0.14/plugins/topology/index.md>). |
 
 ### plugins.openwrt
 
@@ -120,10 +120,10 @@ An [OpenWrt](<https://pushkar-anand.github.io/jocasta/0.14/plugins/openwrt/index
 | `plugins.openwrt.<instance>.port` | int | `80`, or `443` with `ssl` | 1 to 65535 | uhttpd's port. |
 | `plugins.openwrt.<instance>.user` | string | empty | An rpcd login | A login with the Jocasta ACL. |
 | `plugins.openwrt.<instance>.password` | string | empty | Any | The login's password. |
-| `plugins.openwrt.<instance>.ssl` | bool | `false` | `true`, `false` | Uses HTTPS, once `luci-ssl` is installed. Without it, the password crosses the network unencrypted and Jocasta logs a warning. |
+| `plugins.openwrt.<instance>.ssl` | bool | `false` | `true`, `false` | Uses HTTPS. Needs `luci-ssl`. Without it, the password goes over the network as plain text, and Jocasta logs a warning. |
 | `plugins.openwrt.<instance>.insecure` | bool | `false` | `true`, `false` | Skips certificate checks, for uhttpd's self-signed certificate. |
 | `plugins.openwrt.<instance>.timeout` | duration | `10s` | A duration | The longest one read may take. |
-| `plugins.openwrt.<instance>.topology_only` | bool | `false` | `true`, `false` | Reads only what is plugged into this access point, and leaves its devices to the router. See [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/0.14/plugins/topology/index.md>). |
+| `plugins.openwrt.<instance>.topology_only` | bool | `false` | `true`, `false` | Reads only what is connected to this access point. The router lists its devices. See [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/0.14/plugins/topology/index.md>). |
 
 ### plugins.netflow
 
@@ -133,7 +133,7 @@ A [NetFlow](<https://pushkar-anand.github.io/jocasta/0.14/plugins/netflow/index.
 | --- | --- | --- | --- | --- |
 | `plugins.netflow.<instance>.enabled` | bool | `false` | `true`, `false` | Runs this listener. |
 | `plugins.netflow.<instance>.listen` | string | `:2055` | A UDP address, such as `:2055` or `192.0.2.10:2055` | Where the listener binds. |
-| `plugins.netflow.<instance>.exporters` | list | none, required | IP addresses | The routers allowed to send. Datagrams from any other address are dropped. |
+| `plugins.netflow.<instance>.exporters` | list | none, required | IP addresses | The routers that can send. Jocasta discards datagrams from all other addresses. |
 
 ### plugins.technitium
 
@@ -142,12 +142,12 @@ A [Technitium DNS Server](<https://pushkar-anand.github.io/jocasta/0.14/plugins/
 | Key | Type | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
 | `plugins.technitium.<instance>.enabled` | bool | `false` | `true`, `false` | Reads this server's query log. |
-| `plugins.technitium.<instance>.host` | string | none, required | An address or host name, without a port | The node's own address. A virtual address shared between nodes reaches one node at a time. |
+| `plugins.technitium.<instance>.host` | string | none, required | An address or host name, without a port | The address of this node. Do not use a virtual address that the nodes share. It reaches only one node at a time. |
 | `plugins.technitium.<instance>.port` | int | `5380`, or `53443` with `ssl` | 1 to 65535 | The web service's port. |
 | `plugins.technitium.<instance>.token` | string | empty | An API token | A token for a user granted Logs: View. |
-| `plugins.technitium.<instance>.ssl` | bool | `false` | `true`, `false` | Uses HTTPS. Without it, the token crosses the network unencrypted and Jocasta logs a warning. |
+| `plugins.technitium.<instance>.ssl` | bool | `false` | `true`, `false` | Uses HTTPS. Without it, the token goes over the network as plain text, and Jocasta logs a warning. |
 | `plugins.technitium.<instance>.insecure` | bool | `false` | `true`, `false` | Skips certificate checks, for a self-signed certificate. |
-| `plugins.technitium.<instance>.log_app` | string | empty | An app name, as the Apps page lists it | The app whose log is read. Needed only when more than one installed app logs queries. |
+| `plugins.technitium.<instance>.log_app` | string | empty | An app name, as the Apps page lists it | The app whose log Jocasta reads. Necessary only if more than one installed app logs queries. |
 | `plugins.technitium.<instance>.timeout` | duration | `10s` | A duration | The longest one read may take. |
 
 ### plugins.pihole
@@ -160,7 +160,7 @@ A [Pi-hole](<https://pushkar-anand.github.io/jocasta/0.14/plugins/pihole/index.m
 | `plugins.pihole.<instance>.host` | string | none, required | An address or host name, without a port | Where Pi-hole's web server is. |
 | `plugins.pihole.<instance>.port` | int | `80`, or `443` with `ssl` | 1 to 65535 | The web server's port. |
 | `plugins.pihole.<instance>.password` | string | empty | An app password | Empty reads a Pi-hole with no password set. |
-| `plugins.pihole.<instance>.ssl` | bool | `false` | `true`, `false` | Uses HTTPS. Without it, the password crosses the network unencrypted and Jocasta logs a warning. |
+| `plugins.pihole.<instance>.ssl` | bool | `false` | `true`, `false` | Uses HTTPS. Without it, the password goes over the network as plain text, and Jocasta logs a warning. |
 | `plugins.pihole.<instance>.insecure` | bool | `false` | `true`, `false` | Skips certificate checks, for Pi-hole's self-signed certificate. |
 | `plugins.pihole.<instance>.timeout` | duration | `10s` | A duration | The longest one read may take. |
 
@@ -175,13 +175,13 @@ An [AdGuard Home](<https://pushkar-anand.github.io/jocasta/0.14/plugins/adguard/
 | `plugins.adguard.<instance>.port` | int | `80`, or `443` with `ssl` | 1 to 65535 | The web interface's port. |
 | `plugins.adguard.<instance>.user` | string | empty | The web interface login | Empty reads a server with no login set. |
 | `plugins.adguard.<instance>.password` | string | empty | Any | The login's password. |
-| `plugins.adguard.<instance>.ssl` | bool | `false` | `true`, `false` | Uses HTTPS. Without it, the password crosses the network unencrypted and Jocasta logs a warning. |
+| `plugins.adguard.<instance>.ssl` | bool | `false` | `true`, `false` | Uses HTTPS. Without it, the password goes over the network as plain text, and Jocasta logs a warning. |
 | `plugins.adguard.<instance>.insecure` | bool | `false` | `true`, `false` | Skips certificate checks, for a self-signed certificate. |
 | `plugins.adguard.<instance>.timeout` | duration | `10s` | A duration | The longest one read may take. |
 
 ## notify
 
-Each destination sits under `notify`, keyed by a name you choose, and holds exactly one service block: `ntfy`, `webhook` or `http`. Which changes it is sent is picked on the account menu's Notifications page. See [Notifications](<https://pushkar-anand.github.io/jocasta/0.14/notifications/index.md>).
+Each destination is under `notify`, with a name that you choose as its key. It has exactly one service block: `ntfy`, `webhook` or `http`. To select the changes that a destination gets, use the Notifications page in the account menu. See [Notifications](<https://pushkar-anand.github.io/jocasta/0.14/notifications/index.md>).
 
 | Key | Type | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
@@ -192,7 +192,7 @@ Each destination sits under `notify`, keyed by a name you choose, and holds exac
 
 | Key | Type | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
-| `notify.<name>.ntfy.url` | string | none, required | The topic's URL, as ntfy shows it | Where messages are published, such as `https://ntfy.example.com/jocasta`. |
+| `notify.<name>.ntfy.url` | string | none, required | The topic's URL, as ntfy shows it | Where Jocasta publishes messages, such as `https://ntfy.example.com/jocasta`. |
 | `notify.<name>.ntfy.token` | string | empty | An ntfy access token | For a server that requires one. |
 | `notify.<name>.ntfy.priority` | int | `0` | `0` to `5` | ntfy's priority, from 1 (min) to 5 (max). `0` leaves it to the server. |
 
@@ -207,6 +207,6 @@ Each destination sits under `notify`, keyed by a name you choose, and holds exac
 
 | Key | Type | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
-| `notify.<name>.http.url` | string | none, required | An HTTP or HTTPS URL | Where the request goes. It can hold the service's token; it is never logged or shown. |
+| `notify.<name>.http.url` | string | none, required | An HTTP or HTTPS URL | Where the request goes. It can contain the token of the service. Jocasta never logs or shows it. |
 | `notify.<name>.http.headers` | map | empty | Header names and values | Sent with every request, such as `Authorization`. A `Content-Type` here replaces `application/json`. |
 | `notify.<name>.http.body` | string | none, required | A Go template | The request body. See [Send to another service](<https://pushkar-anand.github.io/jocasta/0.14/notifications/other-services/index.md>) for recipes. |

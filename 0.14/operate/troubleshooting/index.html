@@ -2181,62 +2181,66 @@
 
 
 <h1 id="fix-common-problems">Fix common problems<a class="headerlink" href="#fix-common-problems" title="Permanent link">&para;</a></h1>
-<p>Not listed here? Ask in
-<a href="https://github.com/pushkar-anand/jocasta/issues">GitHub issues</a> with the log
-lines around the problem.</p>
+<p>If your problem is not on this page, ask in
+<a href="https://github.com/pushkar-anand/jocasta/issues">GitHub issues</a>. Include the
+log lines around the problem.</p>
 <h2 id="devices-have-no-hardware-address-or-vendor">Devices have no hardware address or vendor<a class="headerlink" href="#devices-have-no-hardware-address-or-vendor" title="Permanent link">&para;</a></h2>
-<p>On a bridge network, the container reads its own neighbour table, which holds
-none of your devices. Use <code>--network host</code>.</p>
-<p>Devices on other segments need a <a href="../../plugins/">router plugin</a>.</p>
+<p>On a bridge network, the container reads its own neighbour table. This
+table contains none of your devices. Use <code>--network host</code>.</p>
+<p>For devices on other segments, add a <a href="../../plugins/">router plugin</a>.</p>
 <h2 id="one-phone-shows-up-as-several-devices">One phone shows up as several devices<a class="headerlink" href="#one-phone-shows-up-as-several-devices" title="Permanent link">&para;</a></h2>
-<p>It makes up a new hardware address now and then, and each one is a new
-device. Untouched ones are deleted after 90 days. On your own phone, turn off
-the private address for your home Wi-Fi.</p>
+<p>The phone makes up a new hardware address from time to time. Each address
+is a new device. Jocasta deletes the devices that you did not edit after 90
+days. On your own phone, turn off the private address for your home Wi-Fi.</p>
 <h2 id="a-device-is-missing">A device is missing<a class="headerlink" href="#a-device-is-missing" title="Permanent link">&para;</a></h2>
-<p>The sweep finds devices that answer ping. Windows drops ping by default. A
-<a href="../../plugins/">router plugin</a> lists such devices from the router's
-tables.</p>
+<p>The sweep finds only devices that answer ping. By default, Windows does not
+answer ping. A <a href="../../plugins/">router plugin</a> finds such devices in the
+tables of the router.</p>
 <h2 id="no-usable-icmp-socket">"no usable ICMP socket"<a class="headerlink" href="#no-usable-icmp-socket" title="Permanent link">&para;</a></h2>
-<p>A binary run without root needs unprivileged ICMP for its group:</p>
+<p>If you run the binary without root, its group must be allowed to use
+unprivileged ICMP. To see the allowed groups, run:</p>
 <div class="highlight"><pre><span></span><code>sysctl<span class="w"> </span>net.ipv4.ping_group_range
 </code></pre></div>
-<p>Widen the range to cover Jocasta's group, or use the container image.</p>
+<p>Make the range include the group of Jocasta, or use the container image.</p>
 <h2 id="no-mdns-dns-sd-or-ssdp-names">No mDNS, DNS-SD or SSDP names<a class="headerlink" href="#no-mdns-dns-sd-or-ssdp-names" title="Permanent link">&para;</a></h2>
-<p>These reach Jocasta's own segment only, and DNS-SD and SSDP need multicast.
-Use <code>--network host</code>. See <a href="../../naming/">How names are chosen</a>.</p>
+<p>These lookups reach only the segment of Jocasta. DNS-SD and SSDP also need
+multicast. Use <code>--network host</code>. See <a href="../../naming/">How names are chosen</a>.</p>
 <h2 id="the-sign-in-page-keeps-coming-back">The sign-in page keeps coming back<a class="headerlink" href="#the-sign-in-page-keeps-coming-back" title="Permanent link">&para;</a></h2>
-<p>The session cookie is HTTPS-only. See <a href="../https/">Serve over HTTPS</a>.</p>
+<p>By default, the session cookie works only over HTTPS. See
+<a href="../https/">Serve over HTTPS</a>.</p>
 <h2 id="a-form-shows-cross-origin-request-refused">A form shows "Cross-origin request refused"<a class="headerlink" href="#a-form-shows-cross-origin-request-refused" title="Permanent link">&para;</a></h2>
 <p>Your reverse proxy changes the <code>Host</code> header. See
 <a href="../https/#other-proxies">Serve over HTTPS</a>.</p>
 <h2 id="a-plugin-reads-as-source-rejected-credentials">A plugin reads as "source rejected credentials"<a class="headerlink" href="#a-plugin-reads-as-source-rejected-credentials" title="Permanent link">&para;</a></h2>
-<p>Test it alone: <code>jocasta plugin run gateway</code>.</p>
+<p>Test the plugin alone: <code>jocasta plugin run gateway</code>.</p>
 <ul>
-<li>RouterOS: the user needs read access, and the <code>www-ssl</code> service on, or
-  <code>www</code> with <code>ssl: false</code>.</li>
+<li>RouterOS: the user needs read access. The <code>www-ssl</code> service must be on. Or
+  the <code>www</code> service must be on, with <code>ssl: false</code>.</li>
 <li>OpenWrt: the login needs the <a href="../../plugins/openwrt/">ACL file</a>.</li>
-<li>Technitium: the token's user needs View on Logs.</li>
-<li>An environment variable beats the file. Check both.</li>
+<li>Technitium: the user of the token needs View on Logs.</li>
+<li>An environment variable wins over the file. Check both.</li>
 </ul>
 <h2 id="the-traffic-page-stays-empty">The Traffic page stays empty<a class="headerlink" href="#the-traffic-page-stays-empty" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>exporters</code> must list the address the exports come from. The log warns
-  "dropping datagrams from a sender not listed in exporters" with that
-  address.</li>
+<li><code>exporters</code> must list the address that the exports come from. If it does
+  not, the log shows the warning "dropping datagrams from a sender not listed
+  in exporters", with that address.</li>
 <li>On a bridge network, publish the port as UDP: <code>-p 2055:2055/udp</code>.</li>
-<li>Open the listen port in the host's firewall.</li>
+<li>Open the listen port in the firewall of the host.</li>
 </ul>
 <h2 id="every-dns-lookup-is-counted-against-the-router">Every DNS lookup is counted against the router<a class="headerlink" href="#every-dns-lookup-is-counted-against-the-router" title="Permanent link">&para;</a></h2>
-<p>The router forwards its clients' lookups. Hand out the resolver's address in
-the router's DHCP settings. See <a href="../../plugins/dns/">Record what devices look up</a>.</p>
+<p>The router forwards the lookups of its clients. In the DHCP settings of the
+router, give out the address of the resolver. See
+<a href="../../plugins/dns/">Record what devices look up</a>.</p>
 <h2 id="times-are-hours-off">Times are hours off<a class="headerlink" href="#times-are-hours-off" title="Permanent link">&para;</a></h2>
 <p>The container runs in UTC. Set <code>location.timezone</code>, such as
 <code>Australia/Sydney</code>.</p>
 <h2 id="a-notification-did-not-arrive">A notification did not arrive<a class="headerlink" href="#a-notification-did-not-arrive" title="Permanent link">&para;</a></h2>
-<p>The account menu's <strong>Notifications</strong> page shows the last error under the
-destination. <strong>Send test</strong> tries again. Failed messages are not resent.</p>
+<p>In the account menu, the <strong>Notifications</strong> page shows the last error under
+the destination. To try again, select <strong>Send test</strong>. Jocasta does not send a
+failed message again.</p>
 <h2 id="an-mcp-client-gets-a-404">An MCP client gets a 404<a class="headerlink" href="#an-mcp-client-gets-a-404" title="Permanent link">&para;</a></h2>
-<p>Set <code>server.mcp.enabled: true</code> and restart.</p>
+<p>Set <code>server.mcp.enabled: true</code>, then restart Jocasta.</p>
 
 
 

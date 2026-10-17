@@ -1952,9 +1952,9 @@
 
 <h1 id="pi-hole">Pi-hole<a class="headerlink" href="#pi-hole" title="Permanent link">&para;</a></h1>
 <p>Jocasta reads the query log of a <a href="https://pi-hole.net">Pi-hole</a> v6 over its
-API. What is recorded, and how to route lookups so each device asks Pi-hole
-directly, is in <a href="../dns/">Record what devices look up</a>. Pi-hole logs no
-answer addresses, so its lookups name no traffic.</p>
+API. <a href="../dns/">Record what devices look up</a> tells what Jocasta records. It
+also tells how to make each device ask Pi-hole directly. Pi-hole does not log
+answer addresses, so its lookups do not name traffic.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">plugins</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">pihole</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">resolver</span><span class="p">:</span>
@@ -1970,17 +1970,17 @@ answer addresses, so its lookups name no traffic.</p>
 <li>In Pi-hole's web interface, create an app password.</li>
 <li>Put it in <code>password</code>, or in <code>JOCASTA_PLUGINS__PIHOLE__RESOLVER__PASSWORD</code>.</li>
 </ol>
-<p>Pi-hole has no read-only login, so the app password can change settings too.
-Making a new app password signs out every session, Jocasta's included, and
-Jocasta signs in again on its next read. On a Pi-hole with no password set,
-leave <code>password</code> empty.</p>
-<p>Keep Pi-hole's privacy level at the one that shows everything. A level that
-hides domains or clients hides them from Jocasta too.</p>
-<p>Each read takes at most 20,000 lookups. If more pile up while Jocasta is
-stopped, it keeps the newest and logs that it skipped the rest.</p>
+<p>Pi-hole has no read-only login, so the app password can also change
+settings. A new app password signs out every session. This includes the session of
+Jocasta. Jocasta signs in again on its next read. If the Pi-hole has no
+password, leave <code>password</code> empty.</p>
+<p>Keep the privacy level of Pi-hole at the level that shows everything. A level
+that hides domains or clients also hides them from Jocasta.</p>
+<p>Each read takes at most 20,000 lookups. If more lookups collect while Jocasta
+is stopped, it keeps the newest. It logs that it skipped the rest.</p>
 <h2 id="all-settings">All settings<a class="headerlink" href="#all-settings" title="Permanent link">&para;</a></h2>
-<p>Every <code>plugins.pihole</code> setting, with its default and allowed values, is in the
-<a href="../../reference/configuration/#pluginspihole">configuration reference</a>.</p>
+<p>The <a href="../../reference/configuration/#pluginspihole">configuration reference</a>
+lists every <code>plugins.pihole</code> setting, with its default and allowed values.</p>
 
 
 

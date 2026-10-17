@@ -1,24 +1,26 @@
 # Jocasta
 
-Jocasta keeps an inventory of the devices on your network and logs every change. One binary, with a web UI, a JSON API and an MCP server.
+Jocasta keeps an inventory of the devices on your network. It logs every change. It is one binary, with a web UI, a JSON API and an MCP server.
 
 > [!WARNING]
 >
 > **Pre-1.0**
 >
-> A release can change the config format, the database schema or the API with no upgrade path. Pin a version and read the [upgrade notes](<https://pushkar-anand.github.io/jocasta/0.14/operate/upgrading/index.md>) before moving on. The version menu at the top picks the docs for your release.
+> A release can change the config format, the database schema or the API with no upgrade path. Pin a version. Before you move to a new version, read the [upgrade notes](<https://pushkar-anand.github.io/jocasta/0.14/operate/upgrading/index.md>). To read the docs for your release, select it in the version menu at the top.
 
 ## How it works
 
-1. Sweep the networks you list, every 5 minutes.
-2. File each device under its hardware address. Its IP is a lease.
-3. Log what changed. Add your router, flow exports and DNS resolver for other VLANs, traffic and lookups.
+1. Jocasta sweeps the networks you list, every 5 minutes.
+2. It records each device under its hardware address, because an IP address is only a lease.
+3. It logs what changed.
+
+To see other VLANs, add your router. To see traffic, add flow exports. To see lookups, add your DNS resolver.
 
 ## Start here
 
 - **[Your first inventory](<https://pushkar-anand.github.io/jocasta/0.14/tutorial/index.md>)**
 
-  Run it, sweep, name a device, get a message when it goes quiet. 10 minutes.
+  Run Jocasta, sweep your network, name a device, and get a message when it goes quiet. 10 minutes.
 - **[How Jocasta works](<https://pushkar-anand.github.io/jocasta/0.14/concepts/index.md>)**
 
   Devices, scans, sources and presence.

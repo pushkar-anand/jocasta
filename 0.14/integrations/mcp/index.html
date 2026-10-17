@@ -1999,9 +1999,9 @@
 
 
 <h1 id="mcp-server">MCP server<a class="headerlink" href="#mcp-server" title="Permanent link">&para;</a></h1>
-<p>Jocasta can serve the inventory to AI agents such as Claude Code over the
-<a href="https://modelcontextprotocol.io">Model Context Protocol</a>. It is off by
-default.</p>
+<p>Jocasta can serve the inventory to AI agents, such as Claude Code, over the
+<a href="https://modelcontextprotocol.io">Model Context Protocol</a>. By default, the
+MCP server is off.</p>
 <p>An agent connected this way can answer questions such as:</p>
 <ul>
 <li>What joined the network this week?</li>
@@ -2009,52 +2009,59 @@ default.</p>
 <li>What is 192.0.2.47, and when was it first seen?</li>
 <li>Which devices talked to a new organisation today?</li>
 </ul>
-<p>With a <code>read_write</code> token it can also label and group devices. It reads what
-past scans recorded and never starts a scan.</p>
+<p>With a <code>read_write</code> token, the agent can also label and group devices. It
+reads what past scans recorded. It never starts a scan.</p>
 <h2 id="turn-it-on">Turn it on<a class="headerlink" href="#turn-it-on" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Set <code>server.mcp.enabled: true</code> in the config file, or
    <code>JOCASTA_SERVER__MCP__ENABLED=true</code>.
-   While it is off, <code>/mcp</code> answers 404.</li>
-<li>Create an API token; see
-   <a href="../../operate/users/#api-tokens">API tokens</a>. A <code>read</code>
-   token is offered only the tools that read the inventory. A <code>read_write</code>
-   token is also offered the tools that change it.</li>
+   While the MCP server is off, <code>/mcp</code> answers 404.</li>
+<li>Create an API token. See <a href="../../operate/users/#api-tokens">API tokens</a>. A
+   <code>read</code> token gets only the tools that read the inventory. A <code>read_write</code>
+   token also gets the tools that change it.</li>
 </ol>
-<p>The endpoint is <code>/mcp</code>, using the Streamable HTTP transport, with the token
-sent as <code>Authorization: Bearer &lt;token&gt;</code>. Clients discover the available tools
-and <a href="#prompts">prompts</a> when they connect.</p>
-<p>Device hostnames and vendor names are reported by the devices themselves, so
-anything on your network can choose what an agent reads there. Give an agent
-a <code>read</code> token unless it needs to change something.</p>
+<p>The endpoint is <code>/mcp</code>. It uses the Streamable HTTP transport. Send the token
+as <code>Authorization: Bearer &lt;token&gt;</code>. When a client connects, it finds the
+available tools and <a href="#prompts">prompts</a>.</p>
+<p>The devices themselves report their hostnames and vendor names. So any
+device on your network can choose what an agent reads in these fields. Give
+an agent a <code>read</code> token, unless it must change something.</p>
 <h2 id="connect-a-client">Connect a client<a class="headerlink" href="#connect-a-client" title="Permanent link">&para;</a></h2>
-<p>The examples use <code>https://jocasta.example.test/mcp</code>; replace it with your
-server's address.</p>
+<p>The examples use <code>https://jocasta.example.test/mcp</code>. Replace it with the
+address of your server.</p>
 <p><strong>Claude Code</strong></p>
 <div class="highlight"><pre><span></span><code>claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>--transport<span class="w"> </span>http<span class="w"> </span>jocasta<span class="w"> </span>https://jocasta.example.test/mcp<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--header<span class="w"> </span><span class="s2">"Authorization: Bearer &lt;token&gt;"</span>
 </code></pre></div>
 <p><strong>Codex</strong></p>
-<p>Codex reads the token from an environment variable, which keeps it out of
+<p>Codex reads the token from an environment variable. So the token is not in
 its config file:</p>
 <div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">JOCASTA_TOKEN</span><span class="o">=</span>&lt;token&gt;
 codex<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>jocasta<span class="w"> </span>--url<span class="w"> </span>https://jocasta.example.test/mcp<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--bearer-token-env-var<span class="w"> </span>JOCASTA_TOKEN
 </code></pre></div>
 <p><strong>Hermes Agent</strong></p>
-<p>Put <code>JOCASTA_TOKEN=&lt;token&gt;</code> in <code>~/.hermes/.env</code>, add the server to
-<code>~/.hermes/config.yaml</code>, then run <code>/reload-mcp</code> in a running session:</p>
+<ol>
+<li>Put <code>JOCASTA_TOKEN=&lt;token&gt;</code> in <code>~/.hermes/.env</code>.</li>
+<li>
+<p>Add the server to <code>~/.hermes/config.yaml</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">mcp_servers</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">jocasta</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="s">"https://jocasta.example.test/mcp"</span>
 <span class="w">    </span><span class="nt">headers</span><span class="p">:</span>
 <span class="w">      </span><span class="nt">Authorization</span><span class="p">:</span><span class="w"> </span><span class="s">"Bearer</span><span class="nv"> </span><span class="s">${JOCASTA_TOKEN}"</span>
 </code></pre></div>
+</li>
+<li>
+<p>In a running session, run <code>/reload-mcp</code>.</p>
+</li>
+</ol>
 <p><strong>Other clients</strong></p>
-<p>Any client that supports Streamable HTTP and lets you set a request header
-works. For clients that can only launch a local server over stdio, a bridge
-such as <a href="https://www.npmjs.com/package/mcp-remote"><code>mcp-remote</code></a> can forward to
-the endpoint.</p>
+<p>Any client works if it supports Streamable HTTP and lets you set a request
+header. Some clients can only start a local server over stdio. For these
+clients, a bridge such as
+<a href="https://www.npmjs.com/package/mcp-remote"><code>mcp-remote</code></a> can forward to the
+endpoint.</p>
 <h2 id="tools">Tools<a class="headerlink" href="#tools" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -2123,9 +2130,9 @@ the endpoint.</p>
 </tbody>
 </table>
 <h2 id="prompts">Prompts<a class="headerlink" href="#prompts" title="Permanent link">&para;</a></h2>
-<p>Prompts are saved procedures you start yourself; the agent then carries them
-out with the tools. In Claude Code they appear as slash commands, such as
-<code>/mcp__jocasta__weekly_report</code>.</p>
+<p>A prompt is a saved procedure that you start yourself. The agent then does
+the procedure with the tools. In Claude Code, prompts show as slash
+commands, such as <code>/mcp__jocasta__weekly_report</code>.</p>
 <table>
 <thead>
 <tr>
@@ -2145,10 +2152,10 @@ out with the tools. In Claude Code they appear as slash commands, such as
 </tbody>
 </table>
 <h2 id="errors">Errors<a class="headerlink" href="#errors" title="Permanent link">&para;</a></h2>
-<p>Errors are <a href="https://www.rfc-editor.org/rfc/rfc9457">RFC 9457</a> problem
-documents, as in the HTTP API. A failed tool call returns one as the text of an
-error result, with the tool name as <code>instance</code>. The cause of a 500 stays in
-the server log.</p>
+<p>An error is an <a href="https://www.rfc-editor.org/rfc/rfc9457">RFC 9457</a> problem
+document, as in the HTTP API. A failed tool call returns this document as the
+text of an error result. The <code>instance</code> field has the tool name. Jocasta
+writes the cause of a 500 only to the server log.</p>
 
 
 

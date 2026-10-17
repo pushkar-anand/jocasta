@@ -1,6 +1,6 @@
 # NetFlow
 
-Jocasta can record which devices talk to which, and to where on the internet, from the flow records your router exports (NetFlow v5, v9 or IPFIX). It keeps hourly totals per device for `retention.traffic` (30 days by default). Individual connections are not stored.
+Jocasta can record which devices talk to each other, and to where on the internet. It reads the flow records that your router exports (NetFlow v5, v9 or IPFIX). It keeps hourly totals for each device for `retention.traffic`, which is 30 days by default. It does not store single connections.
 
 ```
 plugins:
@@ -12,30 +12,30 @@ plugins:
         - "192.0.2.1"        # the router's address; anything else is dropped
 ```
 
-`exporters` is required. Only datagrams from the listed addresses are read. A device on the same network can forge that address, so bind `listen` to an address only the router reaches, or allow the port only from the router in your firewall.
+You must set `exporters`. Jocasta reads only datagrams from the listed addresses. A device on the same network can forge such an address. So bind `listen` to an address that only the router reaches. Or, in your firewall, allow the port only from the router.
 
-With host networking the listener is reachable as it is. On a bridge network, publish the port as UDP: `-p 2055:2055/udp`.
+With host networking, no more setup is necessary. On a bridge network, publish the port as UDP: `-p 2055:2055/udp`.
 
 ## Set up the router
 
-Point the router's flow export at the Jocasta host and port:
+Send the flow export of the router to the Jocasta host and port:
 
 - [MikroTik RouterOS](<https://pushkar-anand.github.io/jocasta/0.14/plugins/routeros/#export-traffic-flows>): Traffic Flow, as IPFIX.
 - [OpenWrt](<https://pushkar-anand.github.io/jocasta/0.14/plugins/openwrt/#export-traffic-flows>): softflowd, as NetFlow v9.
 
-Export from one router only. Two routers that both see a conversation both report it, and it is counted twice.
+Export from one router only. If two routers see the same conversation, both report it, and Jocasta counts it twice.
 
-Internet addresses are shown by the organisation that announces them, and placed on the map by the country they are registered in, using [IP to ASN data](<https://db-ip.com/db/download/ip-to-asn-lite>) and [IP to Country data](<https://db-ip.com/db/download/ip-to-country-lite>) by [DB-IP](<https://db-ip.com>), licensed under [CC BY 4.0](<https://creativecommons.org/licenses/by/4.0/>).
+Jocasta shows an internet address by the organisation that announces it. It puts the address on the map by the country where it is registered. For this, it uses [IP to ASN data](<https://db-ip.com/db/download/ip-to-asn-lite>) and [IP to Country data](<https://db-ip.com/db/download/ip-to-country-lite>) by [DB-IP](<https://db-ip.com>), licensed under [CC BY 4.0](<https://creativecommons.org/licenses/by/4.0/>).
 
-The world map draws a line from the network's country to each country it talked to. Jocasta finds its country from the router's outside address. When that address is private, because the ISP puts the router behind carrier-grade NAT, name the country yourself, by its two-letter code. A country named here is used whatever the outside address says:
+The world map draws a line from the country of the network to each country that it talked to. Jocasta finds the country of the network from the outside address of the router. This address is private if the ISP puts the router behind carrier-grade NAT. In that case, set the country yourself, by its two-letter code. Jocasta then uses this country, whatever the outside address is:
 
 ```
 location:
   country: "AU"
 ```
 
-Only the country is used, to start the lines from its middle; nothing finer is asked for or stored.
+Jocasta uses only the country, to start the lines from its middle. It does not ask for or store a more exact location.
 
 ## All settings
 
-Every `plugins.netflow` setting, with its default and allowed values, is in the [configuration reference](<https://pushkar-anand.github.io/jocasta/0.14/reference/configuration/#pluginsnetflow>).
+The [configuration reference](<https://pushkar-anand.github.io/jocasta/0.14/reference/configuration/#pluginsnetflow>) lists every `plugins.netflow` setting, with its default and allowed values.

@@ -1,6 +1,6 @@
 # MCP server
 
-Jocasta can serve the inventory to AI agents such as Claude Code over the [Model Context Protocol](<https://modelcontextprotocol.io>). It is off by default.
+Jocasta can serve the inventory to AI agents, such as Claude Code, over the [Model Context Protocol](<https://modelcontextprotocol.io>). By default, the MCP server is off.
 
 An agent connected this way can answer questions such as:
 
@@ -9,20 +9,20 @@ An agent connected this way can answer questions such as:
 - What is 192.0.2.47, and when was it first seen?
 - Which devices talked to a new organisation today?
 
-With a `read_write` token it can also label and group devices. It reads what past scans recorded and never starts a scan.
+With a `read_write` token, the agent can also label and group devices. It reads what past scans recorded. It never starts a scan.
 
 ## Turn it on
 
-1. Set `server.mcp.enabled: true` in the config file, or `JOCASTA_SERVER__MCP__ENABLED=true`. While it is off, `/mcp` answers 404.
-2. Create an API token; see [API tokens](<https://pushkar-anand.github.io/jocasta/0.14/operate/users/#api-tokens>). A `read` token is offered only the tools that read the inventory. A `read_write` token is also offered the tools that change it.
+1. Set `server.mcp.enabled: true` in the config file, or `JOCASTA_SERVER__MCP__ENABLED=true`. While the MCP server is off, `/mcp` answers 404.
+2. Create an API token. See [API tokens](<https://pushkar-anand.github.io/jocasta/0.14/operate/users/#api-tokens>). A `read` token gets only the tools that read the inventory. A `read_write` token also gets the tools that change it.
 
-The endpoint is `/mcp`, using the Streamable HTTP transport, with the token sent as `Authorization: Bearer <token>`. Clients discover the available tools and [prompts](<#prompts>) when they connect.
+The endpoint is `/mcp`. It uses the Streamable HTTP transport. Send the token as `Authorization: Bearer <token>`. When a client connects, it finds the available tools and [prompts](<#prompts>).
 
-Device hostnames and vendor names are reported by the devices themselves, so anything on your network can choose what an agent reads there. Give an agent a `read` token unless it needs to change something.
+The devices themselves report their hostnames and vendor names. So any device on your network can choose what an agent reads in these fields. Give an agent a `read` token, unless it must change something.
 
 ## Connect a client
 
-The examples use `https://jocasta.example.test/mcp`; replace it with your server's address.
+The examples use `https://jocasta.example.test/mcp`. Replace it with the address of your server.
 
 **Claude Code**
 
@@ -33,7 +33,7 @@ claude mcp add --transport http jocasta https://jocasta.example.test/mcp \
 
 **Codex**
 
-Codex reads the token from an environment variable, which keeps it out of its config file:
+Codex reads the token from an environment variable. So the token is not in its config file:
 
 ```
 export JOCASTA_TOKEN=<token>
@@ -43,19 +43,21 @@ codex mcp add jocasta --url https://jocasta.example.test/mcp \
 
 **Hermes Agent**
 
-Put `JOCASTA_TOKEN=<token>` in `~/.hermes/.env`, add the server to `~/.hermes/config.yaml`, then run `/reload-mcp` in a running session:
+1. Put `JOCASTA_TOKEN=<token>` in `~/.hermes/.env`.
+2. Add the server to `~/.hermes/config.yaml`:
 
-```
-mcp_servers:
-  jocasta:
-    url: "https://jocasta.example.test/mcp"
-    headers:
-      Authorization: "Bearer ${JOCASTA_TOKEN}"
-```
+   ```
+   mcp_servers:
+     jocasta:
+       url: "https://jocasta.example.test/mcp"
+       headers:
+         Authorization: "Bearer ${JOCASTA_TOKEN}"
+   ```
+3. In a running session, run `/reload-mcp`.
 
 **Other clients**
 
-Any client that supports Streamable HTTP and lets you set a request header works. For clients that can only launch a local server over stdio, a bridge such as [`mcp-remote`](<https://www.npmjs.com/package/mcp-remote>) can forward to the endpoint.
+Any client works if it supports Streamable HTTP and lets you set a request header. Some clients can only start a local server over stdio. For these clients, a bridge such as [`mcp-remote`](<https://www.npmjs.com/package/mcp-remote>) can forward to the endpoint.
 
 ## Tools
 
@@ -78,7 +80,7 @@ Any client that supports Streamable HTTP and lets you set a request header works
 
 ## Prompts
 
-Prompts are saved procedures you start yourself; the agent then carries them out with the tools. In Claude Code they appear as slash commands, such as `/mcp__jocasta__weekly_report`.
+A prompt is a saved procedure that you start yourself. The agent then does the procedure with the tools. In Claude Code, prompts show as slash commands, such as `/mcp__jocasta__weekly_report`.
 
 | Prompt | What it does |
 | --- | --- |
@@ -87,4 +89,4 @@ Prompts are saved procedures you start yourself; the agent then carries them out
 
 ## Errors
 
-Errors are [RFC 9457](<https://www.rfc-editor.org/rfc/rfc9457>) problem documents, as in the HTTP API. A failed tool call returns one as the text of an error result, with the tool name as `instance`. The cause of a 500 stays in the server log.
+An error is an [RFC 9457](<https://www.rfc-editor.org/rfc/rfc9457>) problem document, as in the HTTP API. A failed tool call returns this document as the text of an error result. The `instance` field has the tool name. Jocasta writes the cause of a 500 only to the server log.

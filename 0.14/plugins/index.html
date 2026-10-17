@@ -1892,9 +1892,12 @@
 
 
 <h1 id="plugins">Plugins<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h1>
-<p>Plugins read what a sweep cannot reach: routers for devices on every segment
-and what is plugged in where, flow exports for who talks to whom, and DNS
-resolvers for what devices look up.</p>
+<p>Plugins read what a sweep cannot reach:</p>
+<ul>
+<li>A router gives the devices on every segment, and what is connected where.</li>
+<li>A flow export gives who talks to whom.</li>
+<li>A DNS resolver gives what devices look up.</li>
+</ul>
 <table>
 <thead>
 <tr>
@@ -1951,8 +1954,8 @@ resolvers for what devices look up.</p>
 </tbody>
 </table>
 <h2 id="configure-a-plugin">Configure a plugin<a class="headerlink" href="#configure-a-plugin" title="Permanent link">&para;</a></h2>
-<p>Each plugin is a block under <code>plugins</code>, keyed by kind, then by an instance
-name you choose:</p>
+<p>Each plugin is a block under <code>plugins</code>. The first key is the plugin kind.
+The second key is an instance name that you choose:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">plugins</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">routeros</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">gateway</span><span class="p">:</span><span class="w">                 </span><span class="c1"># instance name, shown as the source</span>
@@ -1960,27 +1963,28 @@ name you choose:</p>
 <span class="w">      </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="s">"192.0.2.1"</span>
 <span class="w">      </span><span class="c1"># ...</span>
 </code></pre></div>
-<p>The instance name is the <a href="../concepts/#sources">source</a> its facts are filed
-under. Router and DNS resolver names share one namespace: a <code>routeros</code> and a
-<code>technitium</code> instance cannot both be <code>gateway</code>. A <code>netflow</code> listener can share
-its router's name.</p>
+<p>The instance name is the <a href="../concepts/#sources">source</a> of the facts that
+the plugin records. Routers and DNS resolvers share one set of names. For
+example, a <code>routeros</code> instance and a <code>technitium</code> instance cannot both be
+<code>gateway</code>. A <code>netflow</code> listener can have the same name as its router.</p>
 <p>Put passwords in the environment, such as
-<code>JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD</code>; see
-<a href="../configuration/">Configure</a>. Every setting is in the
-<a href="../reference/configuration/#plugins">configuration reference</a>.</p>
-<p>A source with <code>ssl: false</code> sends its password in the clear, and Jocasta warns
-at startup.</p>
+<code>JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD</code>. See
+<a href="../configuration/">Configure</a>. The
+<a href="../reference/configuration/#plugins">configuration reference</a> lists every
+setting.</p>
+<p>A source with <code>ssl: false</code> sends its password as plain text. Jocasta shows a
+warning when it starts.</p>
 <h2 id="check-a-plugin">Check a plugin<a class="headerlink" href="#check-a-plugin" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>jocasta<span class="w"> </span>plugin<span class="w"> </span>run<span class="w"> </span>gateway
 </code></pre></div>
-<p>reads the source once and prints what it claims. It changes nothing. See
-<a href="../cli/#plugin-run">CLI</a>.</p>
+<p>This command reads the source once and prints what the source reports. It
+changes nothing. See <a href="../cli/#plugin-run">CLI</a>.</p>
 <h2 id="topology">Topology<a class="headerlink" href="#topology" title="Permanent link">&para;</a></h2>
-<p>A MikroTik or OpenWrt router draws the Topology page. Read its switches and
-access points too for each device's port. See
+<p>The Topology page comes from a MikroTik or OpenWrt router. To see the port
+of each device, also read the switches and access points. See
 <a href="topology/">Show what is plugged in where</a>.</p>
 <h2 id="dns-resolvers">DNS resolvers<a class="headerlink" href="#dns-resolvers" title="Permanent link">&para;</a></h2>
-<p>Technitium, Pi-hole and AdGuard Home give each device's lookups. See
+<p>Technitium, Pi-hole and AdGuard Home give the lookups of each device. See
 <a href="dns/">Record what devices look up</a>.</p>
 
 

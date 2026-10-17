@@ -1953,8 +1953,8 @@
 <h1 id="adguard-home">AdGuard Home<a class="headerlink" href="#adguard-home" title="Permanent link">&para;</a></h1>
 <p>Jocasta reads the query log of an
 <a href="https://adguard.com/adguard-home/overview.html">AdGuard Home</a> over its API.
-What is recorded, and how to route lookups so each device asks AdGuard Home
-directly, is in <a href="../dns/">Record what devices look up</a>.</p>
+<a href="../dns/">Record what devices look up</a> tells what Jocasta records. It also
+tells how to make each device ask AdGuard Home directly.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">plugins</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">adguard</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">resolver</span><span class="p">:</span>
@@ -1965,18 +1965,18 @@ directly, is in <a href="../dns/">Record what devices look up</a>.</p>
 <span class="w">      </span><span class="nt">user</span><span class="p">:</span><span class="w"> </span><span class="s">"jocasta"</span>
 <span class="w">      </span><span class="nt">password</span><span class="p">:</span><span class="w"> </span><span class="s">"change-me"</span>
 </code></pre></div>
-<p>Put the web interface login in <code>user</code> and <code>password</code>, or the password in
-<code>JOCASTA_PLUGINS__ADGUARD__RESOLVER__PASSWORD</code>. AdGuard Home has no read-only
-users, so the login can change settings too. On a server with no login set,
-leave <code>user</code> empty.</p>
-<p>In AdGuard Home's settings, keep the query log on and client address
-anonymisation off. An anonymised address names no device, so its lookups
-count against none.</p>
-<p>Each read takes at most 20,000 lookups. If more pile up while Jocasta is
-stopped, it keeps the newest and logs that it skipped the rest.</p>
+<p>Put the web interface login in <code>user</code> and <code>password</code>. You can also put the
+password in <code>JOCASTA_PLUGINS__ADGUARD__RESOLVER__PASSWORD</code>. AdGuard Home has
+no read-only users, so the login can also change settings. If the server has
+no login, leave <code>user</code> empty.</p>
+<p>In the settings of AdGuard Home, keep the query log on. Keep client address
+anonymisation off. An anonymised address names no device, so Jocasta counts
+its lookups against no device.</p>
+<p>Each read takes at most 20,000 lookups. If more lookups collect while Jocasta
+is stopped, it keeps the newest. It logs that it skipped the rest.</p>
 <h2 id="all-settings">All settings<a class="headerlink" href="#all-settings" title="Permanent link">&para;</a></h2>
-<p>Every <code>plugins.adguard</code> setting, with its default and allowed values, is in the
-<a href="../../reference/configuration/#pluginsadguard">configuration reference</a>.</p>
+<p>The <a href="../../reference/configuration/#pluginsadguard">configuration reference</a>
+lists every <code>plugins.adguard</code> setting, with its default and allowed values.</p>
 
 
 

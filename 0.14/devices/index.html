@@ -1957,36 +1957,45 @@
 
 
 <h1 id="label-group-and-ignore-devices">Label, group and ignore devices<a class="headerlink" href="#label-group-and-ignore-devices" title="Permanent link">&para;</a></h1>
-<p>These fields are yours. Scans never write them, and they stay with the device
-when its address or name changes. Editing needs an Admin or Editor account.</p>
+<p>These fields are yours. Scans never change them. They stay with the device
+when its address or name changes. To edit them, you need an Admin or Editor
+account.</p>
 <ul>
-<li><strong>Label</strong>: the name shown everywhere. Up to 200 characters.</li>
-<li><strong>Group</strong>: files devices together, such as <code>Office</code>. The device list filters
-  by it. Up to 100 characters.</li>
-<li><strong>Type</strong>: sets the icon. <strong>Auto</strong> keeps Jocasta's guess; see
+<li><strong>Label</strong>: the name that Jocasta shows everywhere. Up to 200 characters.</li>
+<li><strong>Group</strong>: puts devices together, such as <code>Office</code>. You can filter the
+  device list by group. Up to 100 characters.</li>
+<li><strong>Type</strong>: sets the icon. <strong>Auto</strong> keeps Jocasta's guess. See
   <a href="../classification/">How a device gets its type</a>.</li>
 <li><strong>Notes</strong>: free text. Up to 2,000 characters.</li>
 <li><strong>Ignored</strong>: hides the device from lists and counts.</li>
-<li><strong>Watched</strong>: logs when it goes quiet or comes back; see
+<li><strong>Watched</strong>: logs an event when the device goes quiet or comes back. See
   <a href="../notifications/watch/">Get told when a device goes quiet</a>.</li>
 </ul>
 <h2 id="edit-a-device">Edit a device<a class="headerlink" href="#edit-a-device" title="Permanent link">&para;</a></h2>
 <ol>
 <li>In <strong>Devices</strong>, select the device.</li>
-<li>Select <strong>Edit details</strong>, change the fields, and select <strong>Save</strong>.</li>
+<li>Select <strong>Edit details</strong>.</li>
+<li>Change the fields.</li>
+<li>Select <strong>Save</strong>.</li>
 </ol>
-<p>An empty field is cleared. Each edit goes in the change log.</p>
+<p>If you leave a field empty, Jocasta clears it. The change log records each
+edit.</p>
 <p>To change only the label and group, select the pencil at the end of the row in
 the device list.</p>
 <h2 id="ignore-a-device">Ignore a device<a class="headerlink" href="#ignore-a-device" title="Permanent link">&para;</a></h2>
-<p>For a device you know and never want to see, such as a neighbour's printer:
-in <strong>Edit details</strong>, tick <strong>Ignore this device</strong> and select <strong>Save</strong>.</p>
-<p>The sweep still records it. The port scan skips it, and notifications leave it
-out. <strong>Show ignored</strong> in the device list filters brings it back into view.</p>
+<p>Ignore a device that you know and never want to see, such as a neighbour's
+printer:</p>
+<ol>
+<li>In <strong>Edit details</strong>, tick <strong>Ignore this device</strong>.</li>
+<li>Select <strong>Save</strong>.</li>
+</ol>
+<p>The sweep still records the device. The port scan skips it, and
+notifications leave it out. To see it again, select <strong>Show ignored</strong> in the
+device list filters.</p>
 <h2 id="from-a-script-or-an-agent">From a script or an agent<a class="headerlink" href="#from-a-script-or-an-agent" title="Permanent link">&para;</a></h2>
-<p><code>PATCH /api/devices/{id}</code> in the <a href="../integrations/api/">JSON API</a>, or the
+<p>Use <code>PATCH /api/devices/{id}</code> in the <a href="../integrations/api/">JSON API</a>, or the
 <code>update_device_curation</code> tool in the <a href="../integrations/mcp/">MCP server</a>. Both
-need a <code>read_write</code> token. The MCP prompt <code>triage_devices</code> proposes a label,
+need a <code>read_write</code> token. The MCP prompt <code>triage_devices</code> suggests a label,
 group and type for each device that has none.</p>
 
 

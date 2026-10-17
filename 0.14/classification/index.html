@@ -1979,31 +1979,40 @@
 
 
 <h1 id="how-a-device-gets-its-type">How a device gets its type<a class="headerlink" href="#how-a-device-gets-its-type" title="Permanent link">&para;</a></h1>
-<p>After each scan, Jocasta guesses each device's type from:</p>
+<p>After each scan, Jocasta guesses the type of each device from these facts:</p>
 <ul>
 <li>the vendor of its hardware address</li>
 <li>its name</li>
 <li>its open TCP ports</li>
-<li>the DNS-SD services it advertises, and a Google Cast device's model</li>
+<li>the DNS-SD services it advertises, and the model of a Google Cast device</li>
 <li>whether it made up its hardware address</li>
 <li>the name of its network, such as <code>IoT</code></li>
-<li>whether it holds the <code>.1</code> of its subnet</li>
+<li>whether it has the <code>.1</code> address of its subnet</li>
 </ul>
 <h2 id="rules">Rules<a class="headerlink" href="#rules" title="Permanent link">&para;</a></h2>
-<p>Each rule names a type and the facts it needs, such as vendor Brother for a
-printer, or port 8123 for a Home Assistant hub. The matching rule with the
-most facts wins. On a tie, the rule listed first wins.</p>
-<p>The device page shows the guess as <strong>auto</strong> with a confidence. High: the rule
-needed two or more facts, or two rules agree. Low: one weak fact, such as the
-network's name, and nothing else. Medium: anything between.</p>
-<p>When a later scan changes the guess, the change log records <strong>Type changed</strong>.</p>
+<p>Each rule names a type and the facts it needs. For example, vendor Brother
+means a printer, and port 8123 means a Home Assistant hub. Of the rules that
+match, the rule with the most facts wins. If two rules have the same number
+of facts, the rule listed first wins.</p>
+<p>The device page shows the guess as <strong>auto</strong>, with a confidence:</p>
+<ul>
+<li><strong>High</strong>: the rule needs two or more facts, or two rules agree.</li>
+<li><strong>Low</strong>: the guess comes from one weak fact, such as the network's name,
+  and nothing else.</li>
+<li><strong>Medium</strong>: all other cases.</li>
+</ul>
+<p>If a later scan changes the guess, the change log records <strong>Type changed</strong>.</p>
 <h2 id="set-the-type-yourself">Set the type yourself<a class="headerlink" href="#set-the-type-yourself" title="Permanent link">&para;</a></h2>
-<p>Open the device, select <strong>Edit details</strong>, pick a type, and select <strong>Save</strong>.
-Scans never change it. The device page still shows the guess. <strong>Auto</strong> goes
-back to it.</p>
+<ol>
+<li>Open the device and select <strong>Edit details</strong>.</li>
+<li>Select a type.</li>
+<li>Select <strong>Save</strong>.</li>
+</ol>
+<p>Scans never change a type that you set. The device page still shows the
+guess. To use the guess again, select <strong>Auto</strong>.</p>
 <h2 id="ask-why">Ask why<a class="headerlink" href="#ask-why" title="Permanent link">&para;</a></h2>
-<p>The <a href="../integrations/mcp/">MCP server</a>'s <code>explain_device</code> tool returns the
-facts, the winning rule, and every other rule that matched.</p>
+<p>The <code>explain_device</code> tool of the <a href="../integrations/mcp/">MCP server</a> returns the
+facts, the rule that won, and every other rule that matched.</p>
 <h2 id="types">Types<a class="headerlink" href="#types" title="Permanent link">&para;</a></h2>
 <p>Router, switch, access point, firewall, server, NAS, hypervisor, desktop,
 laptop, phone, tablet, printer, camera, TV, media player, speaker, voice

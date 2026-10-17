@@ -1835,14 +1835,19 @@
 
 
 <h1 id="notifications">Notifications<a class="headerlink" href="#notifications" title="Permanent link">&para;</a></h1>
-<p>Jocasta can send what each scan changed to an <a href="https://ntfy.sh">ntfy</a> topic,
-as a signed JSON POST to a URL of your own, or to any service that takes an
-HTTP request, such as Discord, Slack or Telegram. See
-<a href="other-services/">Send to another service</a>.</p>
-<ol>
-<li>Under <code>notify</code> in the config file, add each destination by name, with one
-   service block:</li>
-</ol>
+<p>Jocasta can send the changes from each scan to these destinations:</p>
+<ul>
+<li>an <a href="https://ntfy.sh">ntfy</a> topic</li>
+<li>your own URL, as a signed JSON POST</li>
+<li>
+<p>any service that accepts an HTTP request, such as Discord, Slack or
+  Telegram. See <a href="other-services/">Send to another service</a>.</p>
+</li>
+<li>
+<p>Under <code>notify</code> in the config file, add each destination by name. Give
+   each destination one service block:</p>
+</li>
+</ul>
 <div class="highlight"><pre><span></span><code><span class="nt">notify</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">phone</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">ntfy</span><span class="p">:</span>
@@ -1853,21 +1858,21 @@ HTTP request, such as Discord, Slack or Telegram. See
 <span class="w">      </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="s">"https://hooks.example.com/jocasta"</span>
 <span class="w">      </span><span class="nt">secret</span><span class="p">:</span><span class="w"> </span><span class="s">"change-me"</span><span class="w">                       </span><span class="c1"># required; signs each request</span>
 </code></pre></div>
-<p>A destination is on unless it says <code>enabled: false</code>.
-2. Restart Jocasta so it reads the change.
+<p>A destination is on, unless it has <code>enabled: false</code>.
+2. Restart Jocasta, so that it reads the change.
 3. Open the account menu at the top right, and select <strong>Notifications</strong>.
-4. For each destination, tick the kinds of change it is sent, then select
-   <strong>Save</strong>.
-5. Optional: select <strong>Send test</strong>. A message titled "Jocasta test" arrives at
-   the destination.</p>
-<p>Each scan that changes something is sent as one message, such as
-"2 new devices on 192.0.2.0/24". The first scan of a network, when every
-device it finds is new, is sent as a count ("Found 42 devices"). Changes to
-devices you ignore, and your own edits, are left out. A message that cannot
-be delivered is logged and shown on the Notifications page, and is not sent
-again.</p>
-<p>Every <code>notify</code> setting, with its default and allowed values, is in the
-<a href="../reference/configuration/#notify">configuration reference</a>.</p>
+4. For each destination, tick the kinds of change to send to it.
+5. Select <strong>Save</strong>.
+6. Optional: select <strong>Send test</strong>. The destination gets a message with the
+   title "Jocasta test".</p>
+<p>Jocasta sends one message for each scan that changes something, such as
+"2 new devices on 192.0.2.0/24". In the first scan of a network, every device
+is new. So Jocasta sends only a count for that scan ("Found 42 devices").
+Jocasta does not send changes to devices that you ignore, or your own edits.
+If Jocasta cannot deliver a message, it logs the failure and shows it on the
+Notifications page. It does not send the message again.</p>
+<p>The <a href="../reference/configuration/#notify">configuration reference</a> lists
+every <code>notify</code> setting, with its default and allowed values.</p>
 
 
 

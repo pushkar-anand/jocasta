@@ -1,8 +1,8 @@
 # Your first inventory
 
-Run Jocasta in a container, sweep your network, name a device, and get a message on your phone when it goes quiet. About 10 minutes.
+In this tutorial, you run Jocasta in a container and sweep your network. Then you name a device and get a message on your phone when it goes quiet. It takes about 10 minutes.
 
-You need a Linux machine on the network with Docker, and the network's prefix. `ip -4 addr` shows it: `inet 192.0.2.20/24` means `192.0.2.0/24`.
+You need a Linux machine with Docker on the network. You also need the network's prefix. To find it, run `ip -4 addr`. For example, `inet 192.0.2.20/24` means `192.0.2.0/24`.
 
 ## 1\. Write the config
 
@@ -26,19 +26,19 @@ docker run -d --name jocasta --network host \
   ghcr.io/pushkar-anand/jocasta:latest
 ```
 
-Host networking lets the sweep read hardware addresses.
+With host networking, the sweep can read hardware addresses.
 
 ## 3\. Create the admin account
 
 Open `http://<host>:8080`. Enter a username and a password of 8 or more characters, and select **Create admin account**.
 
-Until this account exists, anyone who reaches the page can create it.
+Until this account exists, anyone who reaches the page can create it. So do this step immediately.
 
 ## 4\. Look at the first sweep
 
-The first sweep runs at startup. Open **Devices**: one row per device, with its addresses, vendor and name.
+The first sweep runs when Jocasta starts. Open **Devices**. Each row is one device, with its addresses, vendor and name.
 
-Rows with no vendor are usually phones and laptops, which make up their hardware address. Rows with no name belong to devices that did not answer a name lookup.
+A row with no vendor is usually a phone or a laptop. These devices make up their hardware address. A row with no name is a device that did not answer a name lookup.
 
 ## 5\. Name a device
 
@@ -53,11 +53,11 @@ The device list shows the new label.
 
 On the device's page, select **Watch**.
 
-A watched device goes quiet 15 minutes after the last scan that saw it. To try it, turn the device off for 20 minutes and open **Events**.
+A watched device goes quiet 15 minutes after the last scan that saw it. To test this, turn the device off for 20 minutes. Then open **Events**.
 
 ## 7\. Get a message on your phone
 
-1. Install [ntfy](<https://ntfy.sh>) on your phone and subscribe to a topic. Topics are public, so pick a name nobody would guess, such as `jocasta-k3v9q2`.
+1. Install [ntfy](<https://ntfy.sh>) on your phone and subscribe to a topic. Topics are public. So use a name that nobody can guess, such as `jocasta-k3v9q2`.
 2. Add it to `jocasta.yaml`:
 
    ```
@@ -66,10 +66,11 @@ A watched device goes quiet 15 minutes after the last scan that saw it. To try i
        ntfy:
          url: "https://ntfy.sh/jocasta-k3v9q2"
    ```
-3. Restart: `docker restart jocasta`.
+3. Restart Jocasta: `docker restart jocasta`.
 4. Open the account menu, top right, and select **Notifications**.
-5. Under `phone`, tick **Watched device went quiet** and **Watched device came back**. Select **Save**.
-6. Select **Send test**. "Jocasta test" arrives on your phone.
+5. Under `phone`, tick **Watched device went quiet** and **Watched device came back**.
+6. Select **Save**.
+7. Select **Send test**. Your phone gets the message "Jocasta test".
 
 ## Next
 

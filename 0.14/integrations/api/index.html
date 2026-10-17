@@ -1956,17 +1956,18 @@
 
 <h1 id="json-api">JSON API<a class="headerlink" href="#json-api" title="Permanent link">&para;</a></h1>
 <p>Jocasta serves its inventory as JSON under <code>/api</code>, for scripts and
-dashboards. It takes the same API tokens as the <a href="../mcp/">MCP server</a>.</p>
+dashboards. The API uses the same API tokens as the <a href="../mcp/">MCP server</a>.</p>
 <h2 id="authenticate">Authenticate<a class="headerlink" href="#authenticate" title="Permanent link">&para;</a></h2>
 <p>Create an <a href="../../operate/users/#api-tokens">API token</a> and send it with each
 request:</p>
 <div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-H<span class="w"> </span><span class="s2">"Authorization: Bearer &lt;token&gt;"</span><span class="w"> </span>http://&lt;host&gt;:8080/api/devices
 </code></pre></div>
-<p>A <code>read</code> token can make <code>GET</code> requests only. A <code>read_write</code> token can also
-change devices. A token never expires unless you chose 30 days, 90 days or 1
-year when you created it. An expired token is refused like a revoked one, and
-stays listed until you revoke it.</p>
-<p><code>GET /api/livez</code> answers without a token, for health checks.</p>
+<p>A <code>read</code> token can make only <code>GET</code> requests. A <code>read_write</code> token can also
+change devices. A token never expires, unless you selected 30 days, 90 days
+or 1 year when you created it. Jocasta refuses an expired token, as it
+refuses a revoked token. The expired token stays in the list until you revoke
+it.</p>
+<p>For health checks, <code>GET /api/livez</code> answers without a token.</p>
 <h2 id="endpoints">Endpoints<a class="headerlink" href="#endpoints" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -2026,11 +2027,12 @@ stays listed until you revoke it.</p>
 </tr>
 </tbody>
 </table>
-<p>An error comes back as an <a href="https://www.rfc-editor.org/rfc/rfc9457">RFC 9457</a>
-problem document, with a <code>title</code> and a <code>detail</code> saying what to change.</p>
+<p>Jocasta returns an error as an
+<a href="https://www.rfc-editor.org/rfc/rfc9457">RFC 9457</a> problem document. Its
+<code>title</code> and <code>detail</code> tell you what to change.</p>
 <h2 id="browser-access">Browser access<a class="headerlink" href="#browser-access" title="Permanent link">&para;</a></h2>
-<p>A page on another origin can read <code>/api</code> only when its origin is listed in
-<code>server.cors.allowed_origins</code>. See the
+<p>A page on another origin can read <code>/api</code> only if
+<code>server.cors.allowed_origins</code> lists its origin. See the
 <a href="../../reference/configuration/#server">configuration reference</a>.</p>
 
 

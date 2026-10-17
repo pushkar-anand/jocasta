@@ -1,17 +1,17 @@
 # Record what devices look up
 
-Jocasta reads the query log of [Technitium](<https://pushkar-anand.github.io/jocasta/0.14/plugins/technitium/index.md>), [Pi-hole](<https://pushkar-anand.github.io/jocasta/0.14/plugins/pihole/index.md>) v6 or [AdGuard Home](<https://pushkar-anand.github.io/jocasta/0.14/plugins/adguard/index.md>), and keeps hourly counts of each name each device looked up, blocked or not. With traffic collection on, a device's traffic names each address after the names it looked up.
+Jocasta reads the query log of [Technitium](<https://pushkar-anand.github.io/jocasta/0.14/plugins/technitium/index.md>), [Pi-hole](<https://pushkar-anand.github.io/jocasta/0.14/plugins/pihole/index.md>) v6 or [AdGuard Home](<https://pushkar-anand.github.io/jocasta/0.14/plugins/adguard/index.md>). For each device, it keeps hourly counts of each name that the device looked up, blocked or not. If traffic collection is on, the traffic of a device names each address after the names that the device looked up.
 
 |  | Technitium | Pi-hole | AdGuard Home |
 | --- | --- | --- | --- |
 | Answer addresses, to name traffic | Yes | No | Yes |
 | Read-only login | Yes | No | No |
 
-Each resolver is read every minute, up to 20,000 lookups a read. Counts are kept for `retention.dns`, 30 days by default.
+Jocasta reads each resolver every minute, up to 20,000 lookups each time. It keeps the counts for `retention.dns`, which is 30 days by default.
 
 ## Point devices at the resolver
 
-A lookup counts against the address that asked. If the router forwards its clients' lookups, they all count against the router. Hand out the resolver's address as the DNS server in the router's DHCP settings.
+Jocasta counts a lookup against the address that asked. If the router forwards the lookups of its clients, Jocasta counts them all against the router. So in the DHCP settings of the router, give out the address of the resolver as the DNS server.
 
 ## Check it
 
@@ -19,4 +19,4 @@ A lookup counts against the address that asked. If the router forwards its clien
 jocasta plugin run resolver
 ```
 
-prints the last hour's lookups per device and name.
+This command prints the lookups of the last hour, for each device and name.

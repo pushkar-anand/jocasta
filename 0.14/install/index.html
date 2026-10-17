@@ -1985,10 +1985,10 @@
 <h1 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h1>
 <p>For a guided first run, see <a href="../tutorial/">Your first inventory</a>.</p>
 <h2 id="container-image">Container image<a class="headerlink" href="#container-image" title="Permanent link">&para;</a></h2>
-<p>Images for amd64 and arm64 are on the GitHub Container Registry, tagged
-<code>latest</code> and per release, such as <code>:v0.11.1</code>. The image is distroless and runs
-as non-root. It listens on <code>0.0.0.0:8080</code>, keeps its database in <code>/data</code>, and
-reads <code>/data/jocasta.yaml</code>.</p>
+<p>Images for amd64 and arm64 are on the GitHub Container Registry. Each image
+has the tag <code>latest</code> and a release tag, such as <code>:v0.11.1</code>. The image is
+distroless and does not run as root. It listens on <code>0.0.0.0:8080</code>, keeps its
+database in <code>/data</code>, and reads <code>/data/jocasta.yaml</code>.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">docker run</label><label for="__tabbed_1_2">Compose</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
@@ -2014,34 +2014,35 @@ reads <code>/data/jocasta.yaml</code>.</p>
 </div>
 </div>
 </div>
-<p>Use host networking. On a bridge network (<code>-p 8080:8080</code>) the sweep finds
-hosts but no hardware addresses, and mDNS, DNS-SD and SSDP names never arrive.
-A <a href="../plugins/">router plugin</a> fills the first gap. Neither mode needs
-extra capabilities.</p>
+<p>Use host networking. On a bridge network (<code>-p 8080:8080</code>), the sweep finds
+hosts but not their hardware addresses. Also, mDNS, DNS-SD and SSDP names do
+not arrive. A <a href="../plugins/">router plugin</a> can supply the hardware
+addresses. Neither mode needs extra capabilities.</p>
 <h2 id="prebuilt-binaries">Prebuilt binaries<a class="headerlink" href="#prebuilt-binaries" title="Permanent link">&para;</a></h2>
 <p>Archives for Linux, macOS and Windows, on amd64 and arm64, are on the
-<a href="https://github.com/pushkar-anand/jocasta/releases">releases page</a>, with a <code>checksums.txt</code>.</p>
+<a href="https://github.com/pushkar-anand/jocasta/releases">releases page</a>. A <code>checksums.txt</code> file is with them.</p>
 <ol>
 <li>Extract <code>jocasta</code> from the archive for your system.</li>
 <li>Put a <code>jocasta.yaml</code> next to it.</li>
-<li>From that directory, run <code>jocasta serve</code>. No root needed.</li>
+<li>From that directory, run <code>jocasta serve</code>. It does not need root.</li>
 </ol>
-<p>It listens on <code>localhost:8080</code>. Set <code>server.host: 0.0.0.0</code> to reach it from
-other machines.</p>
+<p>It listens on <code>localhost:8080</code>. To reach it from other machines, set
+<code>server.host: 0.0.0.0</code>.</p>
 <h2 id="from-source">From source<a class="headerlink" href="#from-source" title="Permanent link">&para;</a></h2>
-<p>Needs Go 1.27 or newer.</p>
+<p>You need Go 1.27 or newer.</p>
 <div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/pushkar-anand/jocasta.git
 <span class="nb">cd</span><span class="w"> </span>jocasta
 make<span class="w"> </span>build<span class="w">            </span><span class="c1"># -&gt; bin/jocasta</span>
 make<span class="w"> </span>docker<span class="w">           </span><span class="c1"># -&gt; jocasta:latest</span>
 </code></pre></div>
 <h2 id="first-run">First run<a class="headerlink" href="#first-run" title="Permanent link">&para;</a></h2>
-<p>The first visit asks for the admin account. Until it exists, anyone who
-reaches the page can create it, so do it straight away. More users:
+<p>On the first visit, Jocasta asks you to create the admin account. Until
+this account exists, anyone who reaches the page can create it. So create it
+immediately. To add more users, see
 <a href="../operate/users/">Manage users and sign-in</a>.</p>
-<p>Over plain HTTP, sign-in needs <code>server.auth.cookie_secure: false</code>; see
+<p>To sign in over plain HTTP, set <code>server.auth.cookie_secure: false</code>. See
 <a href="../operate/https/">Serve over HTTPS</a>.</p>
-<p>Migrations run at startup. Before upgrading, see
+<p>Jocasta runs database migrations when it starts. Before you upgrade, see
 <a href="../operate/backup/">Back up and upgrade</a>.</p>
 
 

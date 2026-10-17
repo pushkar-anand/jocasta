@@ -1,10 +1,10 @@
 # Back up and upgrade
 
-Everything lives in one SQLite database: inventory, change log, traffic, accounts, tokens and notification choices. Keep it and your config file.
+Jocasta keeps all its data in one SQLite database: inventory, change log, traffic, accounts, tokens and notification choices. Back up this database and your config file.
 
 ## Back up
 
-The database is `/data/jocasta.db` in the container. Recent writes can sit in `jocasta.db-wal` beside it, so stop Jocasta and copy the whole directory:
+In the container, the database is `/data/jocasta.db`. Recent writes can be in `jocasta.db-wal`, next to it. So stop Jocasta and copy the whole directory:
 
 ```
 docker stop jocasta
@@ -13,9 +13,13 @@ docker run --rm -v jocasta-data:/data -v "$PWD":/backup alpine \
 docker start jocasta
 ```
 
-The copy holds password hashes and two-factor secrets.
+The copy contains password hashes and two-factor secrets. Keep it safe.
 
-To restore, stop Jocasta, put the files back, and start it.
+To restore:
+
+1. Stop Jocasta.
+2. Put the files back.
+3. Start Jocasta.
 
 ## Upgrade
 
@@ -23,10 +27,11 @@ Jocasta is pre-1.0. A release can change the config format or the schema with no
 
 1. Read the [upgrade notes](<https://pushkar-anand.github.io/jocasta/0.14/operate/upgrading/index.md>) for every release after yours.
 2. Back up.
-3. Pull the new tag, such as `:v0.11.1`, and recreate the container.
+3. Pull the new tag, such as `:v0.11.1`.
+4. Recreate the container.
 
-The schema updates at startup.
+Jocasta updates the schema when it starts.
 
 ## Downgrade
 
-Restore the backup from before the upgrade. An older release started on a newer database migrates the schema down and drops the newer data.
+Restore the backup from before the upgrade. If you start an older release on a newer database, it migrates the schema down. This deletes the newer data.

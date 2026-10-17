@@ -1993,24 +1993,24 @@
 
 
 <h1 id="openwrt">OpenWrt<a class="headerlink" href="#openwrt" title="Permanent link">&para;</a></h1>
-<p>Jocasta reads OpenWrt over ubus, the JSON-RPC endpoint LuCI uses, at
-<code>http://&lt;router&gt;/ubus</code>. Any router with LuCI installed serves it, so there is
-nothing to install. Jocasta reads the neighbour table, the DHCP leases and the
-static leases, and the interfaces with their VLANs. For the Topology page it
-also reads the ports, the bridge table and the Wi-Fi clients. It changes
-nothing on the router.</p>
-<p>Give Jocasta a login of its own that can only read. On the router:</p>
+<p>Jocasta reads OpenWrt over ubus, at <code>http://&lt;router&gt;/ubus</code>. ubus is the
+JSON-RPC endpoint that LuCI uses. Every router with LuCI serves it, so you do
+not need to install anything. Jocasta reads the neighbour table, the DHCP
+leases, the static leases, and the interfaces with their VLANs. For the
+Topology page, it also reads the ports, the bridge table and the Wi-Fi
+clients. It changes nothing on the router.</p>
+<p>Give Jocasta its own login, which can only read. On the router:</p>
 <ol>
 <li>Copy <a href="../../openwrt/jocasta.json"><code>openwrt/jocasta.json</code></a> to
-   <code>/usr/share/rpcd/acl.d/jocasta.json</code>. It grants the reads Jocasta makes and
-   nothing else. LuCI's own groups do not grant the bridge table, so root
-   cannot read it without this file either.</li>
+   <code>/usr/share/rpcd/acl.d/jocasta.json</code>. This file allows the reads that
+   Jocasta makes and nothing else. The groups of LuCI do not allow reads of
+   the bridge table. So without this file, root also cannot read it.</li>
 <li>Hash a password for the login:</li>
 </ol>
 <div class="highlight"><pre><span></span><code>uhttpd<span class="w"> </span>-m<span class="w"> </span><span class="s1">'change-me'</span>
 </code></pre></div>
 <ol>
-<li>Add the login to <code>/etc/config/rpcd</code>, with the hash the last step printed:</li>
+<li>Add the login to <code>/etc/config/rpcd</code>, with the hash from the last step:</li>
 </ol>
 <div class="highlight"><pre><span></span><code>config login
  option username 'jocasta'
@@ -2033,36 +2033,38 @@ nothing on the router.</p>
 <span class="w">      </span><span class="nt">ssl</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span><span class="w">             </span><span class="c1"># true once luci-ssl is installed</span>
 <span class="w">      </span><span class="nt">insecure</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span><span class="w">        </span><span class="c1"># true for uhttpd's self-signed cert</span>
 </code></pre></div>
-<p>Check it with <code>jocasta plugin run gateway</code>. A login rpcd refuses, or one
-missing the ACL file, reads as credentials rejected.</p>
-<p>A name you set under Network → DHCP and DNS → Static Leases ranks above the
-name a device asks for, as a static lease does on RouterOS. A network is named
-after its OpenWrt interface, such as <code>lan</code> or <code>iot</code>, and an interface on a VLAN
-device carries its tag.</p>
+<p>Test the source with <code>jocasta plugin run gateway</code>. If rpcd refuses the
+login, or the ACL file is missing, Jocasta reports rejected credentials.</p>
+<p>A name that you set under Network → DHCP and DNS → Static Leases ranks above
+the name that a device asks for. A static lease on RouterOS works the same
+way. Jocasta names a network after its OpenWrt interface, such as <code>lan</code> or
+<code>iot</code>. An interface on a VLAN device has the VLAN tag.</p>
 <h2 id="topology">Topology<a class="headerlink" href="#topology" title="Permanent link">&para;</a></h2>
-<p>What each OpenWrt table adds to the <a href="../topology/">Topology page</a>:</p>
+<p>Each OpenWrt table adds this to the <a href="../topology/">Topology page</a>:</p>
 <ul>
-<li>The kernel's bridge table says which port each hardware address is behind.
-  On a router with a DSA switch, as most current ones have, each switch port
-  is a device of its own, so the table names the port. On an older router
-  with a swconfig switch, every switch port is one device, so the table names
-  only that device. rpcd reads at most 256 entries of the table. A bridge that
-  holds more shows the first 256, and the read logs a warning saying so.</li>
-<li>The bridge-vlan sections of the network configuration say which VLANs each
-  port carries.</li>
-<li>iwinfo's station list marks Wi-Fi clients and names their network and
-  band, with the rate each way and the signal.</li>
-<li>LuCI's device list gives the rate each port's link runs at.</li>
+<li><strong>Bridge table of the kernel</strong>: the port behind which each hardware address
+  is. Most current routers have a DSA switch. On a DSA switch, each switch
+  port is a separate device, so the table names the port. An older router has
+  a swconfig switch. On a swconfig switch, all switch ports are one device, so
+  the table names only that device. rpcd reads at most 256 entries of the
+  table. If a bridge has more, Jocasta shows the first 256 and logs a
+  warning.</li>
+<li><strong>bridge-vlan sections</strong> of the network configuration: the VLANs on each
+  port.</li>
+<li><strong>Station list of iwinfo</strong>: which devices are Wi-Fi clients, with their
+  network, band, signal and rate in each direction.</li>
+<li><strong>Device list of LuCI</strong>: the link rate of each port.</li>
 </ul>
-<p>OpenWrt runs no neighbour discovery by default, so an OpenWrt source names no
-neighbours. The router still finds an OpenWrt access point among the
-addresses on its ports when the access point is read too.</p>
-<p>To read an OpenWrt access point for its ports, add it as another instance
-with <code>topology_only: true</code>. See
+<p>By default, OpenWrt runs no neighbour discovery. So an OpenWrt source names
+no neighbours. But if Jocasta also reads an OpenWrt access point, the router
+finds the access point among the addresses on its ports.</p>
+<p>To read the ports of an OpenWrt access point, add it as another instance with
+<code>topology_only: true</code>. See
 <a href="../topology/">Show what is plugged in where</a>.</p>
 <h2 id="export-traffic-flows">Export traffic flows<a class="headerlink" href="#export-traffic-flows" title="Permanent link">&para;</a></h2>
-<p>To record who devices talk to, install softflowd and point it at the Jocasta
-host (here <code>192.0.2.10</code>), then set up the <a href="../netflow/">NetFlow listener</a>:</p>
+<p>To record who devices talk to, install softflowd and send its exports to the
+Jocasta host. Then set up the <a href="../netflow/">NetFlow listener</a>. In this example,
+the Jocasta host is <code>192.0.2.10</code>:</p>
 <div class="highlight"><pre><span></span><code>opkg<span class="w"> </span>update<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>opkg<span class="w"> </span>install<span class="w"> </span>softflowd<span class="w">    </span><span class="c1"># OpenWrt 24.10 and older</span>
 apk<span class="w"> </span>update<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>apk<span class="w"> </span>add<span class="w"> </span>softflowd<span class="w">          </span><span class="c1"># OpenWrt 25.12 and newer</span>
 uci<span class="w"> </span><span class="nb">set</span><span class="w"> </span>softflowd.@softflowd<span class="o">[</span><span class="m">0</span><span class="o">]</span>.enabled<span class="o">=</span><span class="s1">'1'</span>
@@ -2075,26 +2077,27 @@ uci<span class="w"> </span>commit<span class="w"> </span>softflowd
 /etc/init.d/softflowd<span class="w"> </span><span class="nb">enable</span>
 /etc/init.d/softflowd<span class="w"> </span>start
 </code></pre></div>
-<p>Each line changes a default that would cost you traffic:</p>
+<p>Each line changes a default. With the defaults, Jocasta does not see some of
+the traffic:</p>
 <ul>
-<li><code>export_version</code> 9 carries IPv6, which the default, 5, cannot. IPFIX (<code>10</code>)
-  works too.</li>
-<li><code>track_ipv6</code> records IPv6 conversations as well as IPv4.</li>
-<li><code>maxlife=300</code> reports a long download every five minutes. Without it, a
-  conversation is reported only when it ends, so a stream that runs all
-  evening lands in the hour it stopped.</li>
-<li>Deleting <code>sampling_rate</code> counts every packet. The default, <code>100</code>, counts one
-  in 100. Jocasta scales sampled counts back up, but a conversation of a few
-  packets may not be counted at all.</li>
+<li><code>export_version</code> 9 carries IPv6. The default, 5, cannot. IPFIX (<code>10</code>) also
+  works.</li>
+<li><code>track_ipv6</code> records IPv6 conversations, not only IPv4.</li>
+<li><code>maxlife=300</code> reports a long download every five minutes. Without it,
+  softflowd reports a conversation only when it ends. So a stream that runs
+  all evening shows in the hour when it stopped.</li>
+<li>When you delete <code>sampling_rate</code>, softflowd counts every packet. The default,
+  <code>100</code>, counts one packet in 100. Jocasta scales sampled counts back up. But
+  it can miss a conversation of only a few packets.</li>
 </ul>
 <p>softflowd watches <code>br-lan</code>, the default LAN bridge. To record another
 segment, such as a VLAN on <code>br-lan.20</code>, add a softflowd section for its
-interface, with a <code>pid_file</code> and <code>control_socket</code> of its own. List the
-router's LAN address in <code>exporters</code>: that is the address the exports come
-from.</p>
+interface. Give that section its own <code>pid_file</code> and <code>control_socket</code>. In
+<code>exporters</code>, list the LAN address of the router, because the exports come
+from that address.</p>
 <h2 id="all-settings">All settings<a class="headerlink" href="#all-settings" title="Permanent link">&para;</a></h2>
-<p>Every <code>plugins.openwrt</code> setting, with its default and allowed values, is in the
-<a href="../../reference/configuration/#pluginsopenwrt">configuration reference</a>.</p>
+<p>The <a href="../../reference/configuration/#pluginsopenwrt">configuration reference</a>
+lists every <code>plugins.openwrt</code> setting, with its default and allowed values.</p>
 
 
 
