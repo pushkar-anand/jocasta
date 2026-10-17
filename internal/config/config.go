@@ -1,5 +1,5 @@
-// Package config reads jocasta's runtime settings from defaults, a YAML file,
-// and the environment.
+// Package config reads the runtime settings of jocasta from defaults, a YAML
+// file, and the environment.
 package config
 
 import (
@@ -14,12 +14,13 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/notify"
 )
 
-// DefaultConfigFile is the path used when --config is not given. A missing file
-// here is not an error: defaults and the environment can supply everything.
+// DefaultConfigFile is the path when --config is not given. A missing file at
+// this path is not an error. Defaults and the environment can give all
+// settings.
 const DefaultConfigFile = "jocasta.yaml"
 
 type (
-	// Server says where the HTTP server listens, and how it treats the
+	// Server tells where the HTTP server listens, and how it treats the
 	// browsers and agents that reach it.
 	Server struct {
 		Host string `koanf:"host"`
@@ -30,90 +31,96 @@ type (
 
 		// TrustedProxies lists the reverse proxy addresses or CIDR prefixes
 		// whose forwarding headers the server trusts to identify the client.
-		// Empty means the server reads the client address from the connection
-		// directly, ignoring any forwarding headers.
+		// If it is empty, the server reads the client address from the
+		// connection, and ignores forwarding headers.
 		TrustedProxies []string `koanf:"trusted_proxies"`
 	}
 
-	// CORS says which origins outside the server's own may read its responses
+	// CORS tells which other origins can read the responses of the server
 	// from a browser.
 	CORS struct {
-		// AllowedOrigins lists the origins (scheme://host[:port]) permitted to
-		// make cross-origin requests, such as a dashboard hosted elsewhere that
-		// calls the JSON API from the browser. Empty sends no CORS headers,
-		// so only the server's own pages can read its responses.
+		// AllowedOrigins lists the origins (scheme://host[:port]) that can
+		// make cross-origin requests. An example is a dashboard on a different
+		// host that calls the JSON API from the browser. If it is empty, the
+		// server sends no CORS headers. Then only the pages of the server can
+		// read its responses.
 		AllowedOrigins []string `koanf:"allowed_origins"`
 	}
 
-	// DB says where the SQLite database lives.
+	// DB tells the location of the SQLite database.
 	DB struct {
 		Path string `koanf:"path"`
 		Name string `koanf:"name"`
 	}
 
-	// Logger says how logs are filtered and rendered.
+	// Logger tells how to filter and render logs.
 	Logger struct {
 		Level  string `koanf:"level"`
 		Format string `koanf:"format"`
 	}
 
-	// Inventory holds the knobs that change how the inventory is read.
+	// Inventory holds the settings that change how the inventory is read.
 	Inventory struct {
-		// OnlineWindow is how long after a device was last seen it still counts
-		// as online. Nothing announces a device leaving, so this belongs in
-		// config: how stale a sighting may be depends on how often sweeps run.
+		// OnlineWindow is how long a device counts as online after it was last
+		// seen. No source announces that a device left. So this is a setting.
+		// The age at which a sighting is too old depends on how often sweeps
+		// run.
 		OnlineWindow time.Duration `koanf:"online_window"`
 
-		// AddressGrace is how long an address a swept device stopped answering
-		// on is kept before a later sweep that finds the device elsewhere in
-		// the prefix retires it. Raise it on a network with long DHCP leases
-		// and hosts that hold an address without using it.
+		// AddressGrace is how long Jocasta keeps an address on which a swept
+		// device stopped answering. After it, a sweep that finds the device on
+		// a different address in the prefix retires the old address. Raise it
+		// on a network with long DHCP leases, and hosts that hold an address
+		// but do not use it.
 		AddressGrace time.Duration `koanf:"address_grace"`
 	}
 
-	// Retention says how long each kind of record is kept. Rows older than
-	// their window are deleted on an hourly prune; zero keeps that kind
-	// forever.
+	// Retention tells how long Jocasta keeps each kind of record. An hourly
+	// prune deletes rows that are older than their window. Zero keeps that
+	// kind forever.
 	Retention struct {
-		// History is how long the event log and the scan log are kept.
+		// History is how long Jocasta keeps the event log and the scan log.
 		History time.Duration `koanf:"history"`
 
-		// Traffic is how long hourly traffic totals are kept.
+		// Traffic is how long Jocasta keeps hourly traffic totals.
 		Traffic time.Duration `koanf:"traffic"`
 
-		// DNS is how long hourly lookup counts are kept.
+		// DNS is how long Jocasta keeps hourly lookup counts.
 		DNS time.Duration `koanf:"dns"`
 
-		// Devices is how long a device nobody labelled, grouped, typed,
-		// noted or ignored is kept after a scan last saw it.
+		// Devices is how long Jocasta keeps a device after a scan last saw
+		// it. It keeps a device that the owner labelled, grouped, typed,
+		// noted, ignored or watched.
 		Devices time.Duration `koanf:"devices"`
 	}
 
-	// Location says where the network is.
+	// Location tells where the network is.
 	Location struct {
-		// Country is the two-letter code of the country the network is in,
-		// which the world map draws its lines from. Empty leaves it to the
-		// router's outside address, which cannot place the network when it
-		// is private, as it is behind an ISP's carrier-grade NAT.
+		// Country is the two-letter code of the country of the network. The
+		// world map draws its lines from this country. If it is empty, the
+		// outside address of the router sets it. A private outside address
+		// cannot give the country. This is the case behind the carrier-grade
+		// NAT of an ISP.
 		Country string `koanf:"country"`
 
-		// Timezone is the IANA name of the zone times are shown in, such as
-		// "Europe/Berlin". Empty leaves it to the TZ variable or the system,
-		// which in a container is usually UTC.
+		// Timezone is the IANA name of the zone in which Jocasta shows times,
+		// such as "Europe/Berlin". If it is empty, the TZ variable or the
+		// system sets it. In a container, this is usually UTC.
 		Timezone string `koanf:"timezone"`
 	}
 
-	// Scan holds settings for how and when the poller sweeps the network.
+	// Scan holds the settings for how and when the poller sweeps the
+	// network.
 	Scan struct {
-		// Source names the vantage point these sweeps are taken from, which is
-		// what the inventory records as their provenance. It defaults to this
-		// host's name, which is enough on a host that keeps one and wrong in a
-		// container, where the hostname is the container ID and changes on every
-		// run.
+		// Source names the place from which these sweeps run. The inventory
+		// records it as their origin. The default is the name of this host.
+		// This is enough on a host with a fixed name. It is wrong in a
+		// container, where the hostname is the container ID and changes on
+		// every run.
 		//
-		// Renaming does not rename the source: the existing row is matched by
-		// name, so a new name starts a new one and leaves the old scan history
-		// filed under the old.
+		// A new name does not rename the source. The inventory matches the
+		// existing row by name. So a new name starts a new source, and the old
+		// scan history stays under the old name.
 		Source string `koanf:"source"`
 
 		Devices struct {
@@ -125,23 +132,24 @@ type (
 			ResolveNames bool          `koanf:"resolve_names"`
 			ResolveMACs  bool          `koanf:"resolve_macs"`
 
-			// ResolveMDNS turns on asking each host that answered, and has no
-			// reverse DNS name, for its name over mDNS. With ResolveNames off,
-			// that is every host that answered.
+			// ResolveMDNS makes the sweep ask for a name over mDNS. It asks
+			// each host that answered and has no reverse DNS name. With
+			// ResolveNames off, that is every host that answered.
 			ResolveMDNS bool `koanf:"resolve_mdns"`
 
-			// ResolveNetBIOS turns on asking each host that answered, and has
-			// no name from reverse DNS or mDNS, for its name over NetBIOS.
+			// ResolveNetBIOS makes the sweep ask for a name over NetBIOS. It
+			// asks each host that answered and has no name from reverse DNS or
+			// mDNS.
 			ResolveNetBIOS bool `koanf:"resolve_netbios"`
 
-			// ResolveDNSSD turns on browsing the services hosts advertise over
-			// DNS-SD, and naming each host still without a name after the
-			// name it gives them.
+			// ResolveDNSSD makes the sweep browse the services that hosts
+			// advertise over DNS-SD. A host that still has no name gets the
+			// name that it gives its services.
 			ResolveDNSSD bool `koanf:"resolve_dnssd"`
 
-			// ResolveSSDP turns on taking the name of each host still without
-			// one from the friendlyName in its UPnP description, found with one
-			// SSDP search.
+			// ResolveSSDP makes the sweep send one SSDP search. A host that
+			// still has no name gets the friendlyName from its UPnP
+			// description.
 			ResolveSSDP bool `koanf:"resolve_ssdp"`
 		} `koanf:"devices"`
 
@@ -149,38 +157,39 @@ type (
 			Enabled  bool          `koanf:"enabled"`
 			Interval time.Duration `koanf:"interval"`
 
-			// Custom is the ports the scan probes, as a spec like
-			// "22,80,443,8000-8100" (see scanner.ParsePortSpec). Blank leaves
-			// the curated preset in place.
+			// Custom is the ports that the scan probes, as a spec such as
+			// "22,80,443,8000-8100". See scanner.ParsePortSpec. If it is
+			// blank, the scan uses the preset.
 			Custom string `koanf:"custom"`
 
-			// Concurrency caps the connections a scan opens at once. The whole
-			// probe of every address is one burst of new flows, and a cheap
-			// router's connection table is what that strains first, so lower it
-			// on modest gear and raise it only on real switching.
+			// Concurrency limits the connections that a scan opens at once.
+			// The probe of every address is one burst of new flows. This
+			// burst first fills the connection table of a cheap router. So
+			// lower it on small equipment. Raise it only on real switches.
 			Concurrency int `koanf:"concurrency"`
 		} `koanf:"ports"`
 	}
 
-	// Source is what every router source has, whatever it is reached over.
-	// Each kind's config embeds it, so a check that holds for every kind reads
-	// it the same way.
+	// Source is what every router source has, for any transport. The config
+	// of each kind embeds it. So a check for every kind reads it in the same
+	// way.
 	Source struct {
 		Enabled bool          `koanf:"enabled"`
 		Timeout time.Duration `koanf:"timeout"`
 
-		// TopologyOnly marks a switch or access point read only for what is
-		// plugged into it. Its devices and segments are left to the router:
-		// a switch's management address would rename a segment, and its
-		// near-empty ARP table would read as devices leaving.
+		// TopologyOnly marks a switch or access point that Jocasta reads only
+		// for what is connected to it. The router gives its devices and
+		// segments. The management address of a switch would rename a
+		// segment. Its almost empty ARP table would look like devices that
+		// left.
 		TopologyOnly bool `koanf:"topology_only"`
 	}
 
-	// HTTPLogin is where a source reached over HTTP is and how to sign in to
-	// it. A kind reached some other way does not embed it.
+	// HTTPLogin tells where a source over HTTP is, and how to sign in to it.
+	// A kind with a different transport does not embed it.
 	//
-	// The credentials stay here and never reach the store, which only ever sees
-	// the instance name and the facts.
+	// The credentials stay here and never reach the store. The store sees
+	// only the instance name and the facts.
 	HTTPLogin struct {
 		// Host is the router's address or name, without a port.
 		Host string `koanf:"host"`
@@ -189,49 +198,49 @@ type (
 		User     string `koanf:"user"`
 		Password string `koanf:"password"`
 
-		// SSL selects https. Insecure skips certificate verification, which
-		// the common setup needs, since routers serve a self-signed
-		// certificate until one is installed.
+		// SSL selects https. Insecure skips certificate verification. The
+		// usual setup needs it, because routers serve a self-signed
+		// certificate until you install one.
 		SSL      bool `koanf:"ssl"`
 		Insecure bool `koanf:"insecure"`
 	}
 
-	// RouterOS names one MikroTik router to read devices from, over the REST
-	// API that the www or www-ssl service serves.
+	// RouterOS names one MikroTik router to read devices from. Jocasta reads
+	// it over the REST API of the www or www-ssl service.
 	RouterOS struct {
 		Source    `koanf:",squash"`
 		HTTPLogin `koanf:",squash"`
 	}
 
-	// OpenWrt names one OpenWrt router to read devices from, over the ubus
-	// JSON-RPC endpoint uhttpd serves at /ubus. User and Password are an rpcd
-	// login, from /etc/config/rpcd.
+	// OpenWrt names one OpenWrt router to read devices from. Jocasta reads it
+	// over the ubus JSON-RPC endpoint that uhttpd serves at /ubus. User and
+	// Password are an rpcd login, from /etc/config/rpcd.
 	OpenWrt struct {
 		Source    `koanf:",squash"`
 		HTTPLogin `koanf:",squash"`
 	}
 
-	// NetFlow names one UDP listener that receives the flows a router exports
-	// over NetFlow v5, v9 or IPFIX.
+	// NetFlow names one UDP listener for the flows that a router exports over
+	// NetFlow v5, v9 or IPFIX.
 	NetFlow struct {
 		Enabled bool `koanf:"enabled"`
 
-		// Listen is the UDP address to bind, such as ":2055". Empty means
-		// DefaultNetFlowListen.
+		// Listen is the UDP address to bind, such as ":2055". If it is empty,
+		// the listener uses DefaultNetFlowListen.
 		Listen string `koanf:"listen"`
 
-		// Exporters are the addresses of the routers allowed to send. UDP
-		// carries no authentication, so a datagram from anywhere else is
-		// dropped unread, and an empty list is a config error.
+		// Exporters are the addresses of the routers that can send. UDP has
+		// no authentication. So the listener discards a datagram from any
+		// other address without a read. An empty list is a config error.
 		Exporters []string `koanf:"exporters"`
 	}
 
-	// Technitium names one Technitium DNS Server to read the query log of,
-	// over the HTTP API its web service serves.
+	// Technitium names one Technitium DNS Server whose query log Jocasta
+	// reads. Jocasta reads it over the HTTP API of its web service.
 	//
-	// A cluster is one entry per node, each at the node's own address: each
-	// node logs the lookups it answered to its own disk, and a virtual
-	// address shared between nodes reaches one of them at a time.
+	// For a cluster, add one entry for each node, at the address of that
+	// node. Each node logs the lookups that it answered to its own disk. A
+	// virtual address that the nodes share reaches only one node at a time.
 	Technitium struct {
 		Enabled bool          `koanf:"enabled"`
 		Timeout time.Duration `koanf:"timeout"`
@@ -240,7 +249,7 @@ type (
 		Host string `koanf:"host"`
 		Port int    `koanf:"port"`
 
-		// Token is an API token. A user granted Logs: View alone is enough.
+		// Token is an API token. A user with only Logs: View is enough.
 		Token string `koanf:"token"`
 
 		// SSL selects https. Insecure skips certificate verification, for a
@@ -248,13 +257,14 @@ type (
 		SSL      bool `koanf:"ssl"`
 		Insecure bool `koanf:"insecure"`
 
-		// LogApp names the installed app whose log is read, as the Apps page
-		// lists it. Empty reads the only app that logs queries.
+		// LogApp names the installed app whose log Jocasta reads, as the Apps
+		// page shows it. If it is empty, Jocasta reads the only app that logs
+		// queries.
 		LogApp string `koanf:"log_app"`
 	}
 
-	// PiHole names one Pi-hole v6 to read the query log of, over the API its
-	// web server serves.
+	// PiHole names one Pi-hole v6 whose query log Jocasta reads. Jocasta
+	// reads it over the API of its web server.
 	PiHole struct {
 		Enabled bool          `koanf:"enabled"`
 		Timeout time.Duration `koanf:"timeout"`
@@ -263,19 +273,20 @@ type (
 		Host string `koanf:"host"`
 		Port int    `koanf:"port"`
 
-		// Password is an app password, made in Pi-hole's web interface. It
-		// can do anything the web interface can: Pi-hole has no read-only
-		// login. Empty reads a Pi-hole that has no password set.
+		// Password is an app password, from the web interface of Pi-hole. It
+		// can do everything that the web interface can, because Pi-hole has
+		// no read-only login. Leave it empty for a Pi-hole with no
+		// password.
 		Password string `koanf:"password"`
 
-		// SSL selects https. Insecure skips certificate verification, for the
-		// self-signed certificate Pi-hole serves until one is installed.
+		// SSL selects https. Insecure skips certificate verification. Use it
+		// for the self-signed certificate that Pi-hole serves by default.
 		SSL      bool `koanf:"ssl"`
 		Insecure bool `koanf:"insecure"`
 	}
 
-	// AdGuard names one AdGuard Home to read the query log of, over the API
-	// its web interface serves.
+	// AdGuard names one AdGuard Home whose query log Jocasta reads. Jocasta
+	// reads it over the API of its web interface.
 	AdGuard struct {
 		Enabled bool          `koanf:"enabled"`
 		Timeout time.Duration `koanf:"timeout"`
@@ -284,9 +295,9 @@ type (
 		Host string `koanf:"host"`
 		Port int    `koanf:"port"`
 
-		// User and Password are the web interface login. It can do anything
-		// the web interface can: AdGuard Home has no read-only users. An
-		// empty User reads a server with no login set.
+		// User and Password are the web interface login. It can do everything
+		// that the web interface can, because AdGuard Home has no read-only
+		// users. Leave User empty for a server with no login.
 		User     string `koanf:"user"`
 		Password string `koanf:"password"`
 
@@ -296,39 +307,38 @@ type (
 		Insecure bool `koanf:"insecure"`
 	}
 
-	// Auth controls how long a signed-in browser stays signed in and whether
-	// its cookie is confined to HTTPS. jocasta sets the cookie's name, path and
-	// other flags itself.
+	// Auth sets how long a browser stays signed in, and whether its cookie
+	// works only over HTTPS. jocasta sets the name, path and other flags of
+	// the cookie itself.
 	Auth struct {
-		// SessionLifetime is the longest a session lasts from sign-in,
-		// regardless of activity.
+		// SessionLifetime is the longest time that a session lasts after
+		// sign-in, with or without activity.
 		SessionLifetime time.Duration `koanf:"session_lifetime"`
 
-		// IdleTimeout is how long a session survives without a request before
-		// it is dropped.
+		// IdleTimeout is how long a session stays without a request. Then the
+		// server ends it.
 		IdleTimeout time.Duration `koanf:"idle_timeout"`
 
-		// CookieSecure confines the session cookie to HTTPS. It defaults on;
-		// set it false only to sign in over plain HTTP on a trusted network
-		// during development.
+		// CookieSecure limits the session cookie to HTTPS. It is on by
+		// default. Set it to false only to sign in over plain HTTP on a
+		// trusted network during development.
 		CookieSecure bool `koanf:"cookie_secure"`
 	}
 
-	// MCP controls the Model Context Protocol endpoint AI agents connect to.
+	// MCP controls the Model Context Protocol endpoint for AI agents.
 	MCP struct {
-		// Enabled serves /mcp. It is off by default: the endpoint needs an API
-		// token either way, and handing the inventory to an agent should be a
-		// choice the owner makes.
+		// Enabled serves /mcp. It is off by default. The endpoint always needs
+		// an API token. Also, the owner must choose to give the inventory to an
+		// agent.
 		Enabled bool `koanf:"enabled"`
 	}
 
-	// Plugins holds the sources beyond the sweep, each block keyed by an
-	// instance name that becomes the source these facts are filed under.
+	// Plugins holds the sources other than the sweep. The key of each block
+	// is an instance name. This name becomes the source of its facts.
 	//
-	// Each block is a map so an environment override addresses one instance
-	// by name. A list decodes an override into a single zero-valued
-	// element and reports no error, which loses every configured instance
-	// silently.
+	// Each block is a map. So an environment override can name one instance.
+	// A list would decode an override into one zero-valued element, with no
+	// error. Then every configured instance would be lost, with no warning.
 	Plugins struct {
 		RouterOS map[string]RouterOS `koanf:"routeros"`
 		OpenWrt  map[string]OpenWrt  `koanf:"openwrt"`
@@ -351,22 +361,22 @@ type (
 		Scan      Scan      `koanf:"scan"`
 		Plugins   Plugins   `koanf:"plugins"`
 
-		// Notify is where changes are sent: one entry per destination, keyed
-		// by its name. The credentials it holds are read from here only and
-		// never stored in the database.
+		// Notify is where Jocasta sends changes. It has one entry for each
+		// destination, with its name as key. Jocasta reads its credentials
+		// only from here, and never stores them in the database.
 		//
-		// It is a map so an environment variable can override one
+		// It is a map. So an environment variable can override one
 		// destination by name.
 		Notify map[string]notify.Config `koanf:"notify"`
 	}
 )
 
-// New assembles configuration from defaults, the YAML file at cfgFile, and the
+// New builds the configuration from defaults, the YAML file at cfgFile, and the
 // environment.
 //
-// A missing file at DefaultConfigFile is fine, but an explicit path that does
-// not exist is reported: silently falling back to defaults would bind the
-// server to the wrong address or point it at the wrong database.
+// A missing file at DefaultConfigFile is not a problem. But New reports an
+// explicit path that does not exist. Defaults with no warning could bind the
+// server to the wrong address, or point it at the wrong database.
 func New(
 	cfgFile string,
 ) (*Config, error) {
@@ -393,8 +403,8 @@ func New(
 	return cfg, nil
 }
 
-// SlogLevel maps the configured level name to an slog.Level, defaulting to
-// info when the name is not recognised.
+// SlogLevel maps the configured level name to an slog.Level. For an unknown
+// name, it returns info.
 func (l Logger) SlogLevel() slog.Level {
 	switch strings.ToLower(l.Level) {
 	case "debug":
@@ -410,8 +420,8 @@ func (l Logger) SlogLevel() slog.Level {
 	return slog.LevelInfo
 }
 
-// FormatValue maps the configured format to a logger.Format, defaulting to
-// JSON for anything other than the text form.
+// FormatValue maps the configured format to a logger.Format. For any value
+// other than the text form, it returns JSON.
 func (l Logger) FormatValue() logger.Format {
 	if strings.EqualFold(l.Format, logger.FormatText.String()) {
 		return logger.FormatText
@@ -420,14 +430,14 @@ func (l Logger) FormatValue() logger.Format {
 	return logger.FormatJSON
 }
 
-// Common returns the settings every router source has, so code that handles
-// every kind alike can read them from any kind's config.
+// Common returns the settings that every router source has. So code that
+// treats all kinds the same can read them from the config of any kind.
 func (s Source) Common() Source {
 	return s
 }
 
-// PlainHTTP reports whether the source is reached over http, which sends its
-// password across the network unencrypted.
+// PlainHTTP reports whether Jocasta reaches the source over http. Over http,
+// the password goes over the network as plain text.
 func (h HTTPLogin) PlainHTTP() bool {
 	return !h.SSL
 }

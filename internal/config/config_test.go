@@ -66,11 +66,11 @@ func TestLoggerFormatValue(t *testing.T) {
 	}
 }
 
-// TestLoadConfig checks that the defaults reach the struct and that the
-// environment layers over them.
+// TestLoadConfig checks that the defaults reach the struct, and that the
+// environment overrides them.
 //
-// config.Load merges into a process-wide koanf store, so this must stay the
-// only Load in the package: successive loads accumulate.
+// config.Load merges into one koanf store for the whole process. Each load
+// adds to the one before. So this must stay the only Load in the package.
 func TestLoadConfig(t *testing.T) {
 	cfg, err := config.Load[Config](
 		config.WithDefaults(defaults),
@@ -99,49 +99,50 @@ func TestLoadConfig(t *testing.T) {
 	assert.Equal(t, 9999, cfg.Server.Port)
 	assert.Equal(t, "debug", cfg.Logger.Level)
 
-	// Untouched by the environment, so still the defaults.
+	// The environment does not set these, so they keep the defaults.
 	assert.Equal(t, "localhost", cfg.Server.Host)
 	assert.Equal(t, ".", cfg.DB.Path)
 	assert.Equal(t, "jocasta.db", cfg.DB.Name)
 	assert.Equal(t, "json", cfg.Logger.Format)
 
-	// A duration is configured as text and has to reach the struct as one.
+	// The config gives a duration as text. It must reach the struct as a
+	// duration.
 	assert.Equal(t, inventory.DefaultOnlineWindow, cfg.Inventory.OnlineWindow)
 	assert.Equal(t, inventory.DefaultAddressGrace, cfg.Inventory.AddressGrace)
 
-	// The default is derived from the host, so assert the derivation itself.
-	// An unnamed source would file every sweep under one blank row.
+	// The default comes from the host, so assert how it is made. A source
+	// with no name would put every sweep under one blank row.
 	assert.Equal(t, defaultSource(), cfg.Scan.Source)
 
-	// Asking hosts over mDNS, NetBIOS, DNS-SD and SSDP is on by default.
+	// The mDNS, NetBIOS, DNS-SD and SSDP lookups are on by default.
 	assert.True(t, cfg.Scan.Devices.ResolveMDNS)
 	assert.True(t, cfg.Scan.Devices.ResolveNetBIOS)
 	assert.True(t, cfg.Scan.Devices.ResolveDNSSD)
 	assert.True(t, cfg.Scan.Devices.ResolveSSDP)
 
-	// The port scan is off by default on a six-hour interval; the environment
-	// turns it on and hands it a spec.
+	// By default, the port scan is off, with a six-hour interval. The
+	// environment turns it on and gives it a spec.
 	assert.True(t, cfg.Scan.Ports.Enabled)
 	assert.Equal(t, 6*time.Hour, cfg.Scan.Ports.Interval)
 	assert.Equal(t, "22,80,8000-8100", cfg.Scan.Ports.Custom)
 
-	// Concurrency is untouched by the environment here, so it stays the
-	// scanner's default. A zero would mean "no limit".
+	// The environment does not set Concurrency here. So it keeps the default
+	// of the scanner. A zero would mean "no limit".
 	assert.Equal(t, scanner.DefaultConcurrency, cfg.Scan.Ports.Concurrency)
 
-	// Auth knobs are durations configured as text and a bool that defaults on:
-	// all three have to reach the struct from the defaults.
+	// The auth settings are two durations as text, and a bool that is on by
+	// default. All three must reach the struct from the defaults.
 	assert.Equal(t, 168*time.Hour, cfg.Server.Auth.SessionLifetime)
 	assert.Equal(t, 24*time.Hour, cfg.Server.Auth.IdleTimeout)
 	assert.True(t, cfg.Server.Auth.CookieSecure)
 
-	// MCP is off by default (see TestMCPIsOffByDefault); the environment turns
+	// MCP is off by default. See TestMCPIsOffByDefault. The environment turns
 	// it on.
 	assert.True(t, cfg.Server.MCP.Enabled)
 
-	// A map-keyed block collapses to a single zero-valued entry, with a nil
-	// error, if its shape is ever changed to a list. Both instances surviving an
-	// override aimed at one of them is what says it did not.
+	// If a map-keyed block changes to a list, it collapses to one zero-valued
+	// entry, with a nil error. An override for one instance keeps both
+	// instances. This shows that the block is still a map.
 	require.Len(t, cfg.Plugins.RouterOS, 2)
 
 	gateway := cfg.Plugins.RouterOS["gateway"]
@@ -152,7 +153,7 @@ func TestLoadConfig(t *testing.T) {
 	assert.True(t, gateway.Insecure)
 	assert.Equal(t, 15*time.Second, gateway.Timeout)
 
-	// The override reaches the instance it names, and only that one.
+	// The override reaches the instance that it names, and only that one.
 	assert.Equal(t, "from-environment", gateway.Password)
 
 	rack := cfg.Plugins.RouterOS["switch_rack"]
@@ -163,8 +164,8 @@ func TestLoadConfig(t *testing.T) {
 	assert.True(t, rack.TopologyOnly)
 	assert.False(t, gateway.TopologyOnly)
 
-	// A NetFlow instance is map-keyed for the same reason, and its listen
-	// address can be overridden without losing the exporters the file lists.
+	// A NetFlow instance is map-keyed for the same reason. An override of its
+	// listen address keeps the exporters from the file.
 	require.Len(t, cfg.Plugins.NetFlow, 1)
 
 	flows := cfg.Plugins.NetFlow["gateway"]
@@ -172,8 +173,8 @@ func TestLoadConfig(t *testing.T) {
 	assert.Equal(t, ":9995", flows.Listen)
 	assert.Equal(t, []string{"192.0.2.1"}, flows.Exporters)
 
-	// Each retention window is its own duration: one overridden, the others
-	// still their defaults.
+	// Each retention window is a separate duration. One has an override. The
+	// others keep their defaults.
 	assert.Equal(t, 48*time.Hour, cfg.Retention.History)
 	assert.Equal(t, inventory.DefaultTrafficRetention, cfg.Retention.Traffic)
 	assert.Equal(t, inventory.DefaultDNSRetention, cfg.Retention.DNS)
@@ -182,8 +183,8 @@ func TestLoadConfig(t *testing.T) {
 	assert.Equal(t, "au", cfg.Location.Country, "as written; serve checks it")
 	assert.Equal(t, "Australia/Sydney", cfg.Location.Timezone)
 
-	// Notification destinations are keyed by name too, and an override aimed
-	// at one leaves the other alone.
+	// Notification destinations also have their name as key. An override for
+	// one does not change the other.
 	require.Len(t, cfg.Notify, 3)
 
 	phone := cfg.Notify["phone"]
@@ -200,7 +201,8 @@ func TestLoadConfig(t *testing.T) {
 	require.NotNil(t, automation.Webhook)
 	assert.Equal(t, "placeholder-secret", automation.Webhook.Secret)
 
-	// An http destination keeps its headers and its body template as written.
+	// An http destination keeps its headers and its body template as
+	// written.
 	chat := cfg.Notify["chat"]
 	require.NotNil(t, chat.HTTP)
 	assert.Equal(t, "https://chat.example.com/hook", chat.HTTP.URL)
@@ -213,8 +215,8 @@ func TestLoadConfig(t *testing.T) {
 	}
 }
 
-// An explicit path that does not exist is reported. Silently falling back to
-// defaults would bind the server to the wrong address.
+// New reports an explicit path that does not exist. Defaults with no warning
+// could bind the server to the wrong address.
 func TestNewRejectsAMissingConfigFile(t *testing.T) {
 	t.Parallel()
 
@@ -222,8 +224,9 @@ func TestNewRejectsAMissingConfigFile(t *testing.T) {
 	require.Error(t, err)
 }
 
-// Serving the inventory to AI agents is opt-in. This reads the defaults map
-// directly, because TestLoadConfig must be the only caller of config.Load.
+// The owner must turn on the MCP server for AI agents. This test reads the
+// defaults map directly, because TestLoadConfig must be the only caller of
+// config.Load.
 func TestMCPIsOffByDefault(t *testing.T) {
 	t.Parallel()
 

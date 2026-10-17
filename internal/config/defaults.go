@@ -53,16 +53,16 @@ var defaults = map[string]any{
 	"scan.ports.concurrency":       scanner.DefaultConcurrency,
 }
 
-// DefaultNetFlowListen is the UDP address a NetFlow instance binds when it
-// names none: 2055 is the port exporters default to. It is a constant because
-// a map-keyed block has no static key path in the defaults map to hang a
-// default on.
+// DefaultNetFlowListen is the UDP address that a NetFlow instance binds when it
+// names none. 2055 is the default port of exporters. It is a constant, because
+// a map-keyed block has no static key path in the defaults map for a
+// default.
 const DefaultNetFlowListen = ":2055"
 
-// defaultSource names the vantage point sweeps are taken from when nothing
-// configures one. A host that keeps its name identifies itself well enough; a
-// container does not, since its hostname is the container ID and changes on
-// every run, which is what scan.source is there to override.
+// defaultSource names the place from which sweeps run, when no setting gives
+// one. A host with a fixed name identifies itself well enough. A container
+// does not, because its hostname is the container ID and changes on every
+// run. scan.source exists to override this.
 func defaultSource() string {
 	host, err := os.Hostname()
 	if err != nil {
