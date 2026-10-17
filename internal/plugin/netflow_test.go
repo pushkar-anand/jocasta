@@ -16,10 +16,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Every address in these packets is from a documentation range. Decoding is
-// goflow2's and is tested there; these tests cover what this package adds
-// (who may send, per-exporter templates, sampling, and the translation to
-// Flow), which needs packets whose every field the test chose.
+// Every address in these packets is from a documentation range. goflow2 does
+// the decoding, and its tests cover it. These tests cover what this package
+// adds: who can send, templates for each exporter, sampling, and the
+// translation to Flow. For this, the test chooses every field of the
+// packets.
 var (
 	nfSrc      = netip.MustParseAddr("192.0.2.10")
 	nfDst      = netip.MustParseAddr("198.51.100.20")
@@ -27,7 +28,7 @@ var (
 	nfExported = time.Date(2026, 1, 1, 12, 30, 0, 0, time.UTC)
 )
 
-// be appends big-endian fields, which is every field on these wires.
+// be appends big-endian fields. Every field of these protocols is big-endian.
 type be []byte
 
 func (b be) u8(v uint8) be   { return append(b, v) }
@@ -41,15 +42,15 @@ func (b be) ip4(a netip.Addr) be {
 	return append(b, v[:]...)
 }
 
-// u16len is a length for a 16-bit length field. Test packets are far below
-// the limit.
+// u16len is a length for a 16-bit length field. Test packets are much smaller
+// than the limit.
 func u16len(n int) uint16 { return uint16(n) } //nolint:gosec // see above.
 
 func exportSecs() uint32 { return uint32(nfExported.Unix()) } //nolint:gosec // a 2026 timestamp fits.
 
-// v5Packet is one NetFlow v5 datagram carrying a single TCP record from nfSrc
-// port 51000 to nfDst port 443. The record's last-seen uptime equals the
-// header's, so it ended exactly at the export time.
+// v5Packet is one NetFlow v5 datagram with a single TCP record from nfSrc port
+// 51000 to nfDst port 443. The last-seen uptime of the record is the same as
+// in the header. So it ended exactly at the export time.
 func v5Packet(sampling uint16) []byte {
 	const uptime = 600_000
 
@@ -66,7 +67,7 @@ func v5Packet(sampling uint16) []byte {
 }
 
 // ipfixPacket is one IPFIX message with a template set and a data set that
-// uses it, as an exporter sends on first contact.
+// uses it. An exporter sends this on first contact.
 func ipfixPacket(templateID uint16) []byte {
 	fields := [][2]uint16{
 		{8, 4},   // sourceIPv4Address
@@ -85,13 +86,14 @@ func ipfixPacket(templateID uint16) []byte {
 	return ipfixMessage(templateID, fields, rec)
 }
 
-// nfPublic is the router's public address in the NAT packets: what a reply
-// from the internet is addressed to before the router translates it.
+// nfPublic is the public address of the router in the NAT packets. A reply from
+// the internet goes to it before the router translates it.
 var nfPublic = netip.MustParseAddr("203.0.113.1")
 
-// ipfixNATReply is the reply half of a conversation through a NATing router,
-// laid out as a MikroTik exports it: addressed to the router's public address,
-// delivered to postNAT, whose unspecified value means "not translated".
+// ipfixNATReply is the reply half of a conversation through a router that does
+// NAT, in the layout of a MikroTik export. It goes to the public address of
+// the router, and arrives at postNAT. An unspecified postNAT means "not
+// translated".
 func ipfixNATReply(postNAT netip.Addr, postPort uint16) []byte {
 	fields := [][2]uint16{
 		{8, 4},   // sourceIPv4Address
@@ -114,7 +116,8 @@ func ipfixNATReply(postNAT netip.Addr, postPort uint16) []byte {
 	return ipfixMessage(257, fields, rec)
 }
 
-// ipfixMessage wraps one template and one record using it into a message.
+// ipfixMessage wraps one template, and one record that uses it, into a
+// message.
 func ipfixMessage(templateID uint16, fields [][2]uint16, rec []byte) []byte {
 	tmpl := be{}.u16(templateID).u16(u16len(len(fields)))
 	for _, f := range fields {
@@ -129,8 +132,8 @@ func ipfixMessage(templateID uint16, fields [][2]uint16, rec []byte) []byte {
 	return append(hdr, body...)
 }
 
-// ipfixDataOnly is ipfixPacket without its template set: what an exporter
-// sends once it believes the collector already knows the template.
+// ipfixDataOnly is ipfixPacket without its template set. An exporter sends this
+// when it believes that the collector already knows the template.
 func ipfixDataOnly(templateID uint16) []byte {
 	full := ipfixPacket(templateID)
 	tmplLen := int(binary.BigEndian.Uint16(full[16+2:]))
@@ -147,17 +150,18 @@ func set(id uint16, body []byte) be {
 	return append(be{}.u16(id).u16(u16len(4+len(body))), body...)
 }
 
-// v9Uptime and v9SourceID are the header values of goflow2's template capture
-// below; a data packet must carry the same source ID to find the template.
+// v9Uptime and v9SourceID are the header values of the template capture of
+// goflow2 below. A data packet must have the same source ID to find the
+// template.
 const (
 	v9Uptime   = 0xb3bff683
 	v9SourceID = 256
 )
 
 // v9Template is a NetFlow v9 template packet captured from an exporter: 23
-// fields, template ID 260. It is copied from goflow2's decoder tests
-// (decoders/netflow/netflow_test.go, BSD-3-Clause). A template carries field
-// layouts and no addresses, so nothing about any network is in it.
+// fields, template ID 260. It is a copy from the decoder tests of goflow2
+// (decoders/netflow/netflow_test.go, BSD-3-Clause). A template has field
+// layouts and no addresses. So it contains nothing about any network.
 var v9Template = []byte{
 	0x00, 0x09, 0x00, 0x01, 0xb3, 0xbf, 0xf6, 0x83, 0x61, 0x8a, 0xa3, 0xa8, 0x32, 0x01, 0xee, 0x98,
 	0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x64, 0x01, 0x04, 0x00, 0x17, 0x00, 0x02, 0x00, 0x04,
@@ -169,9 +173,9 @@ var v9Template = []byte{
 	0x00, 0xea, 0x00, 0x04, 0x00, 0xeb, 0x00, 0x04,
 }
 
-// v9Data is one data packet in v9Template's layout: a UDP flow from nfSrc to
-// nfDst port 53 whose LAST_SWITCHED equals the header uptime, so it ended at
-// the export time.
+// v9Data is one data packet in the layout of v9Template. It is a UDP flow from
+// nfSrc to nfDst port 53. Its LAST_SWITCHED is the same as the header uptime.
+// So it ended at the export time.
 func v9Data() []byte {
 	rec := be{}.
 		u32(2).u32(300). // IN_PKTS, IN_BYTES
@@ -285,9 +289,10 @@ func TestNetFlowCreditsARepliedPacketToWhereNATDeliveredIt(t *testing.T) {
 	}
 }
 
-// On the way out, a NATing router rewrites the device's address to its public
-// one; the export names that address, which is how the router's public address
-// is learned. A reply is not translated on the source side, and says nothing.
+// On the way out, a router that does NAT changes the address of the device to
+// its public address. The export names that address. So the public address of
+// the router is learned. A reply is not translated on the source side, and
+// tells nothing.
 func TestNetFlowReportsTheAddressNATSentAFlowFrom(t *testing.T) {
 	t.Parallel()
 
@@ -335,8 +340,8 @@ func TestNetFlowDropsItsOwnFeed(t *testing.T) {
 func TestNetFlowScalesBySamplingRate(t *testing.T) {
 	t.Parallel()
 
-	// v5 carries the rate in the low 14 bits of the header's sampling field;
-	// the top two are the sampling mode.
+	// v5 has the rate in the low 14 bits of the sampling field of the header.
+	// The top two bits are the sampling mode.
 	flows, err := testNetFlow(t).decode(nfExporter, v5Packet(0x4000|100), time.Now())
 	require.NoError(t, err)
 	require.Len(t, flows, 1)
@@ -344,7 +349,7 @@ func TestNetFlowScalesBySamplingRate(t *testing.T) {
 	assert.Equal(t, uint64(1000), flows[0].Packets)
 }
 
-// sampledMessage is a decoded record from nfSrc to nfDst carrying bytes and
+// sampledMessage is a decoded record from nfSrc to nfDst, with bytes and
 // packets at the given sampling rate.
 func sampledMessage(bytes, packets, rate uint64) *protoproducer.ProtoProducerMessage {
 	m := &protoproducer.ProtoProducerMessage{}
@@ -357,8 +362,8 @@ func sampledMessage(bytes, packets, rate uint64) *protoproducer.ProtoProducerMes
 	return m
 }
 
-// A count that scaling would carry past 64 bits is reported as the largest
-// there is, which the inventory caps from there.
+// If scaling would take a count past 64 bits, the count is the largest value.
+// The inventory then limits it.
 func TestNetFlowScalingThatOverflowsGivesTheMaximum(t *testing.T) {
 	t.Parallel()
 
@@ -368,8 +373,8 @@ func TestNetFlowScalingThatOverflowsGivesTheMaximum(t *testing.T) {
 	assert.Equal(t, uint64(3*math.MaxUint32), f.Packets)
 }
 
-// A router whose clock is a year out would file its flows in hours long gone
-// or not yet come. They are filed in the hour they arrived.
+// A router whose clock is a year wrong would put its flows in hours long in the
+// past or in the future. The flows go in the hour of their arrival.
 func TestNetFlowFilesAFlowDatedFarFromItsArrivalWhenItArrived(t *testing.T) {
 	t.Parallel()
 
@@ -397,9 +402,9 @@ func TestNetFlowFilesAFlowDatedFarFromItsArrivalWhenItArrived(t *testing.T) {
 	}
 }
 
-// ipfixSampledPacket is ipfixPacket preceded by an options template and record
-// saying the exporter selects interval packets and skips space, laid out as
-// softflowd 1.0 sends them: meteringProcessId as the scope, then
+// ipfixSampledPacket is ipfixPacket after an options template and record. They
+// say that the exporter selects interval packets and skips space. The layout
+// is as softflowd 1.0 sends them: meteringProcessId as the scope, then
 // systemInitTimeMilliseconds, samplingPacketInterval, samplingPacketSpace,
 // selectorAlgorithm and interfaceName.
 func ipfixSampledPacket(interval, space uint32) []byte {
@@ -424,9 +429,9 @@ func ipfixSampledPacket(interval, space uint32) []byte {
 	return append(hdr, body...)
 }
 
-// softflowd says it samples one packet in 100 as an interval of 1 and a space
-// of 99, which goflow2 alone reads as a rate of 1. The flows are scaled by 100,
-// in the packet that says so and in the data-only packets after it.
+// softflowd gives a sample of one packet in 100 as an interval of 1 and a space
+// of 99. goflow2 alone reads this as a rate of 1. The flows are scaled by
+// 100, in the packet that says this and in the data-only packets after it.
 func TestNetFlowScalesIPFIXByPacketIntervalAndSpace(t *testing.T) {
 	t.Parallel()
 
@@ -444,8 +449,8 @@ func TestNetFlowScalesIPFIXByPacketIntervalAndSpace(t *testing.T) {
 	assert.Equal(t, uint64(204_800), flows[0].Bytes)
 }
 
-// An interval with no space skipped is every packet, as is an interval of
-// several packets in a cycle of the same length.
+// An interval with no skipped space is every packet. An interval of several
+// packets in a cycle of the same length is also every packet.
 func TestPacketSpaceRate(t *testing.T) {
 	t.Parallel()
 
@@ -474,8 +479,8 @@ func TestNetFlowKeepsTemplatesPerExporter(t *testing.T) {
 	_, err := n.decode(nfExporter, ipfixPacket(256), time.Now())
 	require.NoError(t, err)
 
-	// The second exporter never sent template 256, so its data set must not
-	// decode using the first exporter's.
+	// The second exporter never sent template 256. So its data set must not
+	// decode with the template of the first exporter.
 	flows, err := n.decode(netip.MustParseAddr("192.0.2.1"), ipfixDataOnly(256), time.Now())
 	if err == nil {
 		assert.Empty(t, flows)
@@ -518,8 +523,9 @@ func TestNewNetFlowPrefixesTheInstanceName(t *testing.T) {
 	assert.Equal(t, "netflow:gateway", testNetFlow(t).Name())
 }
 
-// listening starts n on a loopback port and returns a connection to it, what
-// it emits, and a stop that cancels it and returns what Listen returned.
+// listening starts n on a loopback port. It returns a connection to it, what it
+// emits, and a stop function. stop cancels it and returns the result of
+// Listen.
 func listening(t *testing.T, n *NetFlow) (net.Conn, <-chan []Flow, func() error) {
 	t.Helper()
 
@@ -585,7 +591,8 @@ func TestNetFlowListenEmitsDecodedFlows(t *testing.T) {
 func TestNetFlowListenDropsUnlistedSenders(t *testing.T) {
 	t.Parallel()
 
-	// Only a documentation address may send, so loopback is refused.
+	// Only a documentation address can send, so the listener refuses
+	// loopback.
 	conn, got, stop := listening(t, testNetFlow(t, "192.0.2.1"))
 
 	_, err := conn.Write(ipfixPacket(256))

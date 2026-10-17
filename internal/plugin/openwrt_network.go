@@ -11,10 +11,10 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/openwrt"
 )
 
-// Networks reads the segments the router serves.
+// Networks reads the segments that the router serves.
 //
-// The interfaces netifd reports are the answer, and the VLAN devices in the
-// network configuration decorate them with tags.
+// The interfaces that netifd reports are the answer. The VLAN devices in the
+// network configuration add tags to them.
 func (o *OpenWrt) Networks(ctx context.Context) ([]Network, error) {
 	ifaces, err := o.client.Interfaces(ctx)
 	if err != nil {
@@ -32,12 +32,13 @@ func (o *OpenWrt) Networks(ctx context.Context) ([]Network, error) {
 // buildOpenWrtNetworks turns the interfaces into segments.
 //
 // A segment is a prefix on an interface that is up and configured static. An
-// uplink, whose protocol is dhcp, pppoe or the like, holds an address on a
-// segment the router does not serve. IPv6 counts the prefixes assigned to the
-// interface as well, which is how a delegated prefix reaches a LAN.
+// uplink, with the protocol dhcp, pppoe or similar, has an address on a
+// segment that the router does not serve. For IPv6, it also counts the
+// prefixes assigned to the interface. A delegated prefix reaches a LAN in this
+// way.
 func buildOpenWrtNetworks(ifaces []openwrt.Interface, vlans map[string]int) []Network {
-	// Sorted before the walk, so which of two interfaces on one prefix names
-	// it is the same answer every run.
+	// Sort before the walk. So if two interfaces are on one prefix, the same
+	// interface names it on every run.
 	ifaces = slices.Clone(ifaces)
 	slices.SortFunc(ifaces, func(a, b openwrt.Interface) int { return cmp.Compare(a.Name, b.Name) })
 

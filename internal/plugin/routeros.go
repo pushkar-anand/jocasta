@@ -15,51 +15,51 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/routeros"
 )
 
-// routerOSPrefix namespaces an instance key so it cannot collide with another
-// source kind's.
+// routerOSPrefix puts an instance key in a namespace. So it cannot collide
+// with the key of a different source kind.
 const routerOSPrefix = "routeros:"
 
-// RouterOS reads the devices a MikroTik router knows about.
+// RouterOS reads the devices that a MikroTik router knows.
 //
-// It reads two tables because neither is sufficient: ARP resolves hardware
-// across every VLAN but carries no names, and a lease carries a name but
-// outlives the device it names.
+// It reads two tables, because neither is enough. ARP resolves hardware across
+// every VLAN, but has no names. A lease has a name, but stays after its device
+// goes.
 type RouterOS struct {
 	name   string
 	client *routeros.RouterOS
 	logger *slog.Logger
 
-	// topologyOnly marks a switch or access point read for its switching
-	// tables alone. The router that routes the network is the one without it.
+	// topologyOnly marks a switch or access point that the plugin reads only
+	// for its switching tables. The router of the network does not have it.
 	topologyOnly bool
 
-	// now is a field so tests can pin the timestamp their facts carry.
+	// now is a field, so tests can fix the timestamp of their facts.
 	now func() time.Time
 }
 
 // RouterOSOption configures a RouterOS source.
 type RouterOSOption func(*RouterOS)
 
-// TopologyOnly marks the source as a switch or access point: it is read for
-// what is plugged into it, and is not the device the network hangs from.
+// TopologyOnly marks the source as a switch or access point. Jocasta reads it
+// for what is connected to it. The network does not hang from it.
 func TopologyOnly() RouterOSOption {
 	return func(r *RouterOS) { r.topologyOnly = true }
 }
 
-// IsTopologyOnly reports whether the source is read for its switching tables
-// alone, which is why it is left out of device discovery.
+// IsTopologyOnly reports whether Jocasta reads the source only for its
+// switching tables. If so, device discovery leaves it out.
 func (r *RouterOS) IsTopologyOnly() bool { return r.topologyOnly }
 
-// ErrNoInstanceName refuses a missing name: the name is a database key, and
-// one default would file two routers' facts under one source.
+// ErrNoInstanceName refuses a missing name. The name is a database key. With
+// one default, the facts of two routers would go under one source.
 var ErrNoInstanceName = errors.New("plugin: routeros instance has no name")
 
 // NewRouterOS builds the plugin for one router. name is the instance key from
 // config, such as "gateway" or "switch_rack".
 //
-// It performs no I/O, which is why the name comes from config: reading
-// /system/identity would need the router up, and a router that is down at
-// startup is retried later while the server still starts.
+// It does no I/O, so the name comes from config. A read of /system/identity
+// would need the router to be up. If the router is down at startup, the
+// server still starts and tries again later.
 func NewRouterOS(
 	name string,
 	client *routeros.RouterOS,
@@ -92,13 +92,13 @@ func NewRouterOS(
 	return r, nil
 }
 
-// Name returns the plugin's configured name.
+// Name returns the configured name of the plugin.
 func (r *RouterOS) Name() string { return r.name }
 
 // Kind identifies this plugin as a RouterOS source.
 func (r *RouterOS) Kind() dbtype.SourceKind { return dbtype.SourceRouter }
 
-// Discover merges the tables into one fact per device per address.
+// Discover merges the tables into one fact for each device and address.
 func (r *RouterOS) Discover(ctx context.Context) ([]Fact, error) {
 	c := make(claims)
 
@@ -125,10 +125,10 @@ func (r *RouterOS) Discover(ctx context.Context) ([]Fact, error) {
 
 // collectARP reads the ARP table into c.
 //
-// Most of the table is not evidence of anything: the router keeps a failed
-// entry for very nearly every address in every subnet it serves, so the usable
-// rows are a small fraction of it. Dropping the rest here is what stops the
-// first run inventing a device per address.
+// Most of the table proves nothing. The router keeps a failed entry for almost
+// every address in every subnet that it serves. So the usable rows are a
+// small part of it. collectARP drops the rest. This stops the first run from
+// making up a device for each address.
 func (r *RouterOS) collectARP(ctx context.Context, c claims, entries []routeros.ARPEntry) {
 	for _, e := range entries {
 		mac, ok := hosts.CanonicalMAC(e.MACAddress)
@@ -141,7 +141,7 @@ func (r *RouterOS) collectARP(ctx context.Context, c claims, entries []routeros.
 			continue
 		}
 
-		// Identifies nothing and claims nothing.
+		// This identifies nothing and claims nothing.
 		if mac == "" && !e.Usable() {
 			continue
 		}
@@ -157,9 +157,9 @@ func (r *RouterOS) collectARP(ctx context.Context, c claims, entries []routeros.
 
 		d := draftFor(c, claimKey{mac: mac, addr: addr})
 
-		// A resolved entry keeps the device in the inventory; only one the
-		// router has actually heard from lately makes it present. A "stale"
-		// entry is only the router remembering a hardware address.
+		// A resolved entry keeps the device in the inventory. Only an entry
+		// from which the router really heard recently makes it present. In a
+		// "stale" entry, the router only remembers a hardware address.
 		d.present = d.present || e.Reachable()
 
 		d.set("interface", e.Interface)
@@ -169,7 +169,8 @@ func (r *RouterOS) collectARP(ctx context.Context, c claims, entries []routeros.
 }
 
 // collectLeases reads the DHCP lease table into c. Only a bound lease is a
-// sighting: a static one can name something unplugged a month ago.
+// sighting. A static lease can name a device that was disconnected a month
+// ago.
 func (r *RouterOS) collectLeases(ctx context.Context, c claims, leases []routeros.DHCPLease) {
 	for _, l := range leases {
 		mac, ok := hosts.CanonicalMAC(cmp.Or(l.ActiveMACAddress, l.MACAddress))
@@ -191,7 +192,7 @@ func (r *RouterOS) collectLeases(ctx context.Context, c claims, leases []routero
 			continue
 		}
 
-		// Configuration for an address, which claims nothing about a device.
+		// Configuration for an address. It claims nothing about a device.
 		if mac == "" && l.HostName == "" {
 			continue
 		}
@@ -205,8 +206,8 @@ func (r *RouterOS) collectLeases(ctx context.Context, c claims, leases []routero
 				from = dbtype.HostnameFromDHCPStatic
 			}
 
-			// Standing decides between this router's own leases; ingest
-			// applies the same ladder across sources.
+			// Standing decides between the leases of this router. Ingest uses
+			// the same ladder across sources.
 			if d.hostname == "" || from.Rank() > d.nameFrom.Rank() {
 				d.hostname = l.HostName
 				d.nameFrom = from
@@ -217,16 +218,17 @@ func (r *RouterOS) collectLeases(ctx context.Context, c claims, leases []routero
 		d.set("dhcp_status", l.Status)
 		d.set("dhcp_dynamic", strconv.FormatBool(bool(l.Dynamic)))
 
-		// A note, which is never used as a name: tables read
-		// "Workstation - wired" beside a host-name of "workstation".
+		// A note. It is never a name. Tables have "Workstation - wired" next
+		// to a host-name of "workstation".
 		d.set("dhcp_comment", l.Comment)
 	}
 }
 
-// readOwn reads the router's own addresses and the interfaces behind them into
-// c. Neither the ARP table nor the leases list them, and a sweep that reaches
-// the router through another segment sees an address with no hardware behind
-// it, so without these the router is one device per segment it serves.
+// readOwn reads the own addresses of the router, and the interfaces behind
+// them, into c. Neither the ARP table nor the leases list them. A sweep that
+// reaches the router through a different segment sees an address with no
+// hardware. So without these, the router would be one device for each segment
+// that it serves.
 func (r *RouterOS) readOwn(ctx context.Context, c claims) error {
 	addrs, err := r.client.Addresses(ctx)
 	if err != nil {
@@ -243,10 +245,10 @@ func (r *RouterOS) readOwn(ctx context.Context, c claims) error {
 	return nil
 }
 
-// collectOwn pairs each address the router serves a segment on with the
+// collectOwn pairs each address on which the router serves a segment with the
 // hardware address of its interface. The router answered this read, so each
-// is present. A dynamic address, such as the WAN lease, sits on a link the
-// router does not serve and is left out.
+// is present. A dynamic address, such as the WAN lease, is on a link that the
+// router does not serve. collectOwn leaves it out.
 func (r *RouterOS) collectOwn(ctx context.Context, c claims, addrs []routeros.IPAddress, ifaces []routeros.Interface) {
 	macs := make(map[string]string, len(ifaces))
 
@@ -261,8 +263,8 @@ func (r *RouterOS) collectOwn(ctx context.Context, c claims, addrs []routeros.IP
 			continue
 		}
 
-		// The configured name first, as in lookupVLAN; the resolved one covers
-		// an address set on a bridge port.
+		// The configured name first, as in lookupVLAN. The resolved name covers
+		// an address on a bridge port.
 		mac := cmp.Or(macs[a.Interface], macs[a.ActualInterface])
 		if mac == "" {
 			continue
@@ -283,8 +285,8 @@ func (r *RouterOS) collectOwn(ctx context.Context, c claims, addrs []routeros.IP
 	}
 }
 
-// normaliseAddr renders an address so a lease and an ARP entry for the same one
-// meet at the same key.
+// normaliseAddr renders an address. So a lease and an ARP entry for the same
+// address get the same key.
 func normaliseAddr(s string) (addr string, ok bool) {
 	a, err := netip.ParseAddr(s)
 	if err != nil {
@@ -294,9 +296,10 @@ func normaliseAddr(s string) (addr string, ok bool) {
 	return a.String(), true
 }
 
-// classifyRouterOS maps the client's errors onto this package's, so nothing
-// above has to import pkg/routeros to tell a retryable failure from one that
-// needs a human. ErrNotFound stays unmapped, because it is neither.
+// classifyRouterOS maps the errors of the client to the errors of this
+// package. So no caller needs to import pkg/routeros to tell a failure that a
+// retry can fix from one that needs a person. ErrNotFound stays unmapped,
+// because it is neither.
 func classifyRouterOS(err error) error {
 	switch {
 	case errors.Is(err, routeros.ErrUnauthorized):

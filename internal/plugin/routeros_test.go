@@ -18,16 +18,16 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/routeros"
 )
 
-// pinned is the moment every fact in these tests is stamped with, so that
-// SeenAt can be asserted exactly.
+// pinned is the time of every fact in these tests. So the tests can assert
+// SeenAt exactly.
 var pinned = time.Date(2026, 9, 2, 10, 0, 0, 0, time.UTC)
 
-// Addresses come from RFC 5737 and hardware addresses from RFC 7042, both
-// reserved for documentation, so nothing here names a real device.
+// Addresses come from RFC 5737, and hardware addresses from RFC 7042. Both are
+// for documentation. So nothing here names a real device.
 
 // testRouterOS builds the plugin without a client. Every test here exercises
-// the mapping, which is the half that holds the decisions; the wire half is
-// pkg/routeros and has its own tests.
+// the mapping, which is the half with the decisions. pkg/routeros is the
+// network half, and has its own tests.
 func testRouterOS(t *testing.T) *RouterOS {
 	t.Helper()
 
@@ -38,8 +38,8 @@ func testRouterOS(t *testing.T) *RouterOS {
 	}
 }
 
-// facts runs the mapping over both tables the way Discover does, without a
-// router to read them from.
+// facts runs the mapping over both tables, as Discover does, without a
+// router.
 func facts(t *testing.T, arp []routeros.ARPEntry, leases []routeros.DHCPLease) []Fact {
 	t.Helper()
 
@@ -68,8 +68,8 @@ func TestNewRouterOSPrefixesTheInstanceName(t *testing.T) {
 	assert.Equal(t, dbtype.SourceRouter, p.Kind())
 }
 
-// The name becomes a database key that later rows are matched against, so a
-// missing one is refused.
+// The name becomes a database key, and later rows match against it. So the
+// plugin refuses a missing name.
 func TestNewRouterOSRefusesAnUnnamedInstance(t *testing.T) {
 	t.Parallel()
 
@@ -87,9 +87,10 @@ func TestNewRouterOSRefusesAMissingClient(t *testing.T) {
 	require.Error(t, err)
 }
 
-// The load-bearing rule: a router keeps a failed entry for very nearly every
-// address in every subnet it serves, so most of the table is not evidence of
-// anything. Without this the first run would invent a device per address.
+// The most important rule. A router keeps a failed entry for almost every
+// address in every subnet that it serves. So most of the table proves
+// nothing. Without this rule, the first run would make up a device for each
+// address.
 func TestCollectARPDropsTheFailedHalfOfTheTable(t *testing.T) {
 	t.Parallel()
 
@@ -98,8 +99,8 @@ func TestCollectARPDropsTheFailedHalfOfTheTable(t *testing.T) {
 			ID: "*1", Address: "192.0.2.12", MACAddress: "00:00:5E:00:53:01",
 			Interface: "vlan10", Complete: true, Dynamic: true, Status: "reachable",
 		},
-		// The shape of most of the table: an address the router asked about
-		// and got no answer for. No mac-address member at all.
+		// The shape of most of the table: an address that the router asked
+		// about, with no answer. No mac-address member.
 		{ID: "*2", Address: "192.0.2.13", Interface: "vlan10", Status: "failed"},
 		{ID: "*3", Address: "192.0.2.14", Interface: "vlan10", Status: "failed"},
 	}
@@ -111,8 +112,8 @@ func TestCollectARPDropsTheFailedHalfOfTheTable(t *testing.T) {
 	assert.True(t, out[0].Present)
 }
 
-// An entry the router itself no longer believes still names hardware, so it is
-// kept as a claim and denied as a sighting.
+// An entry that the router no longer trusts still names hardware. So the
+// plugin keeps it as a claim, but not as a sighting.
 func TestCollectARPKeepsDisbelievedEntriesWithoutPresence(t *testing.T) {
 	t.Parallel()
 
@@ -131,8 +132,8 @@ func TestCollectARPKeepsDisbelievedEntriesWithoutPresence(t *testing.T) {
 	}
 }
 
-// A "stale" ARP entry is only the router remembering a hardware address. The
-// device stays in the inventory as a claim and is marked absent.
+// In a "stale" ARP entry, the router only remembers a hardware address. The
+// device stays in the inventory as a claim, and is marked absent.
 func TestCollectARPKeepsStaleEntriesWithoutPresence(t *testing.T) {
 	t.Parallel()
 
@@ -148,9 +149,9 @@ func TestCollectARPKeepsStaleEntriesWithoutPresence(t *testing.T) {
 	assert.NotEmpty(t, out[0].Host.MAC, "still a claim about a device")
 }
 
-// A device whose ARP entry has gone stale but whose DHCP lease is still bound is
-// left present by the lease. Whether a bound lease should age out on its own is
-// a separate question from the stale-ARP one.
+// If the ARP entry of a device is stale, but its DHCP lease is still bound, the
+// lease keeps it present. Whether a bound lease must expire by itself is a
+// separate question.
 func TestCollectARPStaleEntryStaysPresentThroughABoundLease(t *testing.T) {
 	t.Parallel()
 
@@ -167,8 +168,8 @@ func TestCollectARPStaleEntryStaysPresentThroughABoundLease(t *testing.T) {
 	assert.True(t, out[0].Present, "the bound lease still vouches for it")
 }
 
-// The all-zero address parses perfectly well and identifies nothing, so it must
-// not become an identity two unrelated devices share.
+// The all-zero address parses, but it identifies nothing. So it must not become
+// an identity that two unrelated devices share.
 func TestCollectARPTreatsTheZeroMACAsNoMAC(t *testing.T) {
 	t.Parallel()
 
@@ -192,9 +193,9 @@ func TestCollectARPDropsAnUnparseableHardwareAddress(t *testing.T) {
 	assert.Empty(t, facts(t, arp, nil))
 }
 
-// A device's name and its presence come from different tables, and the merge is
-// the whole point: emitting them as two facts would have the ARP row's empty
-// name overwrite the lease's on the same claim.
+// The name and the presence of a device come from different tables. The merge
+// exists for this reason. With two facts, the empty name of the ARP row would
+// overwrite the name of the lease on the same claim.
 func TestLeaseNameReachesTheARPEntryForTheSameDevice(t *testing.T) {
 	t.Parallel()
 
@@ -217,8 +218,8 @@ func TestLeaseNameReachesTheARPEntryForTheSameDevice(t *testing.T) {
 	assert.Equal(t, "dhcp1", out[0].Detail["dhcp_server"])
 }
 
-// A static lease is one an operator bound deliberately, so the name recorded
-// against it is one they have already looked at and left alone.
+// An operator bound a static lease on purpose. So the operator already checked
+// its name, and kept it.
 func TestLeaseHostnameCarriesItsStanding(t *testing.T) {
 	t.Parallel()
 
@@ -249,9 +250,9 @@ func TestLeaseHostnameCarriesItsStanding(t *testing.T) {
 	}
 }
 
-// Router tables read "Workstation - wired" beside a host-name of
-// "workstation". The first has spaces and a dash and names an interface; only the
-// second is a hostname.
+// Router tables have "Workstation - wired" next to a host-name of
+// "workstation". The first has spaces and a dash, and names an interface. Only
+// the second is a hostname.
 func TestLeaseCommentIsCarriedAsDetailNotAsAName(t *testing.T) {
 	t.Parallel()
 
@@ -267,8 +268,8 @@ func TestLeaseCommentIsCarriedAsDetailNotAsAName(t *testing.T) {
 	assert.Equal(t, "Workstation - wired", out[0].Detail["dhcp_comment"])
 }
 
-// One machine with two NICs is two devices as far as anything here can tell,
-// and the comment is what distinguishes them. Both keep the same host-name.
+// For this code, one machine with two NICs is two devices. The comment
+// separates them. Both keep the same host-name.
 func TestTwoInterfacesOfOneMachineStayTwoFacts(t *testing.T) {
 	t.Parallel()
 
@@ -291,8 +292,8 @@ func TestTwoInterfacesOfOneMachineStayTwoFacts(t *testing.T) {
 	assert.NotEqual(t, out[0].Host.MAC, out[1].Host.MAC)
 }
 
-// A static lease for a device nobody has plugged in is configuration. Treating
-// it as a sighting would report an unplugged printer as online forever.
+// A static lease for a device that is not connected is configuration. As a
+// sighting, it would report a disconnected printer as online forever.
 func TestAnUnboundLeaseIsNotASighting(t *testing.T) {
 	t.Parallel()
 
@@ -308,10 +309,10 @@ func TestAnUnboundLeaseIsNotASighting(t *testing.T) {
 	assert.Equal(t, "host-c", out[0].Host.Hostname(), "it still names a device")
 }
 
-// The switch holds a configured address and never asks for one, so its lease
-// reads "waiting, never" while the ARP table has it reachable. One devices row
-// cannot hold both, which is why the claim carries presence per source, and
-// why either table saying the device is here is enough.
+// The switch has a configured address and never asks for one. So its lease
+// shows "waiting, never", but the ARP table has it reachable. One devices row
+// cannot hold both. So the claim has presence for each source. Also, it is
+// enough if one table says that the device is here.
 func TestPresenceIsEitherTableSayingSo(t *testing.T) {
 	t.Parallel()
 
@@ -329,8 +330,8 @@ func TestPresenceIsEitherTableSayingSo(t *testing.T) {
 	assert.Equal(t, "waiting", out[0].Detail["dhcp_status"])
 }
 
-// A lease being renegotiated carries both, and the one in use is the one that
-// says where the device is.
+// During a new negotiation, a lease has both addresses. The address in use
+// tells where the device is.
 func TestLeasePrefersTheAddressInUse(t *testing.T) {
 	t.Parallel()
 
@@ -345,7 +346,7 @@ func TestLeasePrefersTheAddressInUse(t *testing.T) {
 	assert.Equal(t, "192.0.2.61", out[0].Host.IP)
 }
 
-// A lease naming neither a device nor a name is configuration for an address.
+// A lease that names no device and no name is configuration for an address.
 func TestLeaseWithNothingToSayIsDropped(t *testing.T) {
 	t.Parallel()
 
@@ -354,9 +355,9 @@ func TestLeaseWithNothingToSayIsDropped(t *testing.T) {
 	assert.Empty(t, facts(t, nil, leases))
 }
 
-// A resolved name belongs to whoever resolved it. The router's row for a
-// nameless device must not come back carrying this host's reverse DNS, filed
-// under the router's claim.
+// A resolved name belongs to the source that resolved it. The row of the router
+// for a device with no name must not get the reverse DNS of this host, under
+// the claim of the router.
 func TestFactsCarryNoNameTheRouterDidNotGive(t *testing.T) {
 	t.Parallel()
 
@@ -371,8 +372,7 @@ func TestFactsCarryNoNameTheRouterDidNotGive(t *testing.T) {
 	assert.Empty(t, out[0].HostnameSource)
 }
 
-// The OUI lookup is what internal/hosts is for, and it is why a fact is built
-// through it.
+// internal/hosts does the OUI lookup. So a fact is built through it.
 func TestFactsAreEnrichedThroughHosts(t *testing.T) {
 	t.Parallel()
 
@@ -388,9 +388,9 @@ func TestFactsAreEnrichedThroughHosts(t *testing.T) {
 	assert.Equal(t, pinned, out[0].SeenAt)
 }
 
-// Map iteration is randomised, so facts are sorted by address before they
-// leave. Nothing downstream depends on it, but a run that reports its rows in a
-// different sequence every time cannot be diffed against the last one.
+// Map iteration is random. So the plugin sorts facts by address before they
+// leave. Nothing later depends on it. But a run that reports its rows in a
+// different order every time cannot be compared with the last run.
 func TestFactsComeBackSortedByAddress(t *testing.T) {
 	t.Parallel()
 
@@ -403,8 +403,8 @@ func TestFactsComeBackSortedByAddress(t *testing.T) {
 		{Address: "192.0.2.2", MACAddress: "00:00:5E:00:53:04", HostName: "host-e", Status: "bound"},
 	}
 
-	// Numerically: "192.0.2.9" sorts after "192.0.2.10" as a string,
-	// which is the bug a naive sort would have.
+	// By number. As a string, "192.0.2.9" sorts after "192.0.2.10". A simple
+	// sort would have this bug.
 	want := []string{"192.0.2.2", "192.0.2.9", "192.0.2.10", "198.51.100.7"}
 
 	for range 10 {
@@ -444,9 +444,9 @@ func TestClassifyRouterOSMapsWhatThePollerActsOn(t *testing.T) {
 	}
 }
 
-// A user holding read,rest-api but not api authenticates and is then refused
-// every command, which RouterOS reports as a 500. It is a credentials problem
-// however it arrives.
+// A user with read,rest-api but not api authenticates. Then the router refuses
+// every command, and RouterOS reports a 500. It is a credentials problem, in
+// any form.
 func TestClassifyRouterOSMapsTheRefusedCommandTo500(t *testing.T) {
 	t.Parallel()
 
@@ -459,8 +459,8 @@ func TestClassifyRouterOSMapsTheRefusedCommandTo500(t *testing.T) {
 	require.ErrorIs(t, classifyRouterOS(err), ErrAuth)
 }
 
-// A router with no REST service is neither unreachable nor refusing
-// credentials, and calling it either would mislead the log.
+// A router with no REST service is not unreachable, and does not refuse
+// credentials. Either name would give a wrong log.
 func TestClassifyRouterOSLeavesAMissingEndpointAlone(t *testing.T) {
 	t.Parallel()
 
@@ -471,8 +471,8 @@ func TestClassifyRouterOSLeavesAMissingEndpointAlone(t *testing.T) {
 	assert.NotErrorIs(t, got, ErrAuth)
 }
 
-// routerFor stands up a router answering the ARP and lease tables, with no
-// addresses of its own.
+// routerFor starts a router that answers the ARP and lease tables, with no own
+// addresses.
 func routerFor(t *testing.T, arpBody, leaseBody string) *RouterOS {
 	t.Helper()
 
@@ -484,9 +484,9 @@ func routerFor(t *testing.T, arpBody, leaseBody string) *RouterOS {
 	})
 }
 
-// routerAnswering stands up a router answering each path with its body. An
-// empty or missing body answers 500, which is how a table that fails while its
-// siblings succeed is arranged.
+// routerAnswering starts a router that answers each path with its body. An
+// empty or missing body answers 500. So one table can fail while the others
+// succeed.
 func routerAnswering(t *testing.T, bodies map[string]string) *RouterOS {
 	t.Helper()
 
@@ -567,7 +567,7 @@ func TestDiscoverReturnsNothingWhenBothTablesFail(t *testing.T) {
 	assert.Empty(t, out)
 }
 
-// An empty table is an answer: a router with nothing in its ARP table has said
+// An empty table is an answer. A router with an empty ARP table told
 // something.
 func TestDiscoverAcceptsEmptyTables(t *testing.T) {
 	t.Parallel()
@@ -578,8 +578,8 @@ func TestDiscoverAcceptsEmptyTables(t *testing.T) {
 	assert.Empty(t, out)
 }
 
-// Each address of a device files its own claim, so each fact keeps the name
-// and detail of its own rows: a lease on one address says nothing about the
+// Each address of a device makes its own claim. So each fact keeps the name and
+// detail of its own rows. A lease on one address tells nothing about the
 // other.
 func TestEachAddressKeepsItsOwnNameAndDetail(t *testing.T) {
 	t.Parallel()
@@ -608,8 +608,7 @@ func TestEachAddressKeepsItsOwnNameAndDetail(t *testing.T) {
 	assert.Equal(t, "vlan30", out[1].Detail["interface"])
 }
 
-// own runs the own-address mapping the way Discover does, without a router to
-// read the tables from.
+// own runs the own-address mapping as Discover does, without a router.
 func own(t *testing.T, addrs []routeros.IPAddress, ifaces []routeros.Interface) []Fact {
 	t.Helper()
 
@@ -624,8 +623,8 @@ func own(t *testing.T, addrs []routeros.IPAddress, ifaces []routeros.Interface) 
 	return out
 }
 
-// A router serving several segments shares one hardware address across them,
-// so each of its addresses comes back as the same device, present.
+// A router that serves several segments shares one hardware address across
+// them. So each of its addresses returns as the same device, present.
 func TestOwnAddressesCarryTheirInterfacesHardwareAddress(t *testing.T) {
 	t.Parallel()
 
@@ -655,8 +654,9 @@ func TestOwnAddressesCarryTheirInterfacesHardwareAddress(t *testing.T) {
 	assert.Equal(t, "vlan20", out[1].Detail["interface"])
 }
 
-// The WAN lease is dynamic and on a link the router does not serve. Disabled,
-// invalid and hardware-less rows say nothing about a device either.
+// The WAN lease is dynamic, and on a link that the router does not serve.
+// Disabled and invalid rows, and rows with no hardware, also tell nothing
+// about a device.
 func TestOwnAddressesSkipWhatIsNotASegmentTheRouterServes(t *testing.T) {
 	t.Parallel()
 

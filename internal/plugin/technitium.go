@@ -15,13 +15,13 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/technitium"
 )
 
-// technitiumPrefix namespaces an instance key so it cannot collide with
-// another source kind's.
+// technitiumPrefix puts an instance key in a namespace. So it cannot collide
+// with the key of a different source kind.
 const technitiumPrefix = "technitium:"
 
 const (
-	// logPageSize and maxLogPages bound one read to 20,000 lookups, so a log
-	// left unread for days drains over several reads.
+	// logPageSize and maxLogPages limit one read to 20,000 lookups. So a log
+	// with no read for days empties over several reads.
 	logPageSize = 1000
 	maxLogPages = 20
 
@@ -31,42 +31,43 @@ const (
 
 // Technitium reads the query log of one Technitium DNS Server.
 //
-// The server logs queries only through an installed app, so each read first
-// asks which app logs them. Asking every time costs one small request and
-// follows an app being installed or removed without a restart.
+// The server logs queries only through an installed app. So each read first
+// asks which app logs them. This question costs one small request each time.
+// It follows the installation or removal of an app without a restart.
 type Technitium struct {
 	name   string
 	client *technitium.Technitium
 	logger *slog.Logger
 
-	// logApp is the app to read when more than one logs queries, and empty
-	// when the only one is meant.
+	// logApp is the app to read when more than one app logs queries. It is
+	// empty for the only app.
 	logApp string
 
-	// now is a field so tests can pin where a first read starts.
+	// now is a field, so tests can fix where a first read starts.
 	now func() time.Time
 }
 
 var (
-	// ErrNoTechnitiumName refuses a missing name: the name is a database key,
-	// and one default would file two servers' lookups under one source.
+	// ErrNoTechnitiumName refuses a missing name. The name is a database key.
+	// With one default, the lookups of two servers would go under one
+	// source.
 	ErrNoTechnitiumName = errors.New("plugin: technitium instance has no name")
 
 	// ErrNoQueryLogger is a server with no installed app that logs queries, or
-	// none by the name log_app gives.
+	// no app with the name in log_app.
 	ErrNoQueryLogger = errors.New("plugin: no installed app logs queries")
 
-	// ErrSeveralQueryLoggers is a server with more than one app logging
-	// queries and no log_app saying which to read.
+	// ErrSeveralQueryLoggers is a server with more than one app that logs
+	// queries, and no log_app to choose one.
 	ErrSeveralQueryLoggers = errors.New("plugin: several installed apps log queries")
 )
 
-// NewTechnitium builds the plugin for one server. name is the instance key
-// from config, such as "resolver", and logApp the app to read, empty when the
-// server has one app logging queries.
+// NewTechnitium builds the plugin for one server. name is the instance key from
+// config, such as "resolver". logApp is the app to read. It is empty when the
+// server has one app that logs queries.
 //
-// It performs no I/O, so a server that is down at startup is retried later
-// while the server still starts.
+// It does no I/O. So if the server is down at startup, the server still starts
+// and tries again later.
 func NewTechnitium(name string, client *technitium.Technitium, logApp string, log *slog.Logger) (*Technitium, error) {
 	if name == "" {
 		return nil, ErrNoTechnitiumName
@@ -89,20 +90,20 @@ func NewTechnitium(name string, client *technitium.Technitium, logApp string, lo
 	}, nil
 }
 
-// Name returns the plugin's configured name.
+// Name returns the configured name of the plugin.
 func (t *Technitium) Name() string { return t.name }
 
 // Kind identifies this plugin as a DNS source.
 func (t *Technitium) Kind() dbtype.SourceKind { return dbtype.SourceDNS }
 
 // Queries reads the log from cursor. Its cursor is the timestamp of the last
-// entry read and how many entries carry that timestamp, which together name
-// a place in the log that entries logged later cannot move.
+// read entry, and how many entries have that timestamp. Together, they name a
+// place in the log that later entries cannot move.
 func (t *Technitium) Queries(ctx context.Context, cursor string) ([]Query, string, error) {
 	from, skip, err := parseLogCursor(cursor)
 	if err != nil {
-		// A cursor that does not parse would refuse every read from here on,
-		// so the read starts afresh, at the cost of an hour counted twice.
+		// A cursor that does not parse would refuse every later read. So the
+		// read starts again, and one hour can count twice.
 		t.logger.WarnContext(ctx, "stored cursor does not parse; reading the last hour", logger.Err(err))
 
 		from, skip = time.Time{}, 0
@@ -119,9 +120,9 @@ func (t *Technitium) Queries(ctx context.Context, cursor string) ([]Query, strin
 
 	var out []Query
 
-	// The server answers entries from a start time inclusive, so the entries
-	// at the cursor's own timestamp that an earlier read took come back first
-	// and are passed over.
+	// The server returns entries from a start time, inclusive. So the entries
+	// at the timestamp of the cursor, from an earlier read, come back first.
+	// Queries skips them.
 	last, taken := from, skip
 
 	for page := 1; page <= maxLogPages; page++ {
@@ -170,7 +171,7 @@ func (t *Technitium) Queries(ctx context.Context, cursor string) ([]Query, strin
 	return out, formatLogCursor(last, taken), nil
 }
 
-// queryLogger returns the app and class path whose log Queries reads.
+// queryLogger returns the app and class path of the log that Queries reads.
 func (t *Technitium) queryLogger(ctx context.Context) (app, classPath string, err error) {
 	apps, err := t.client.Apps(ctx)
 	if err != nil {
@@ -209,8 +210,8 @@ func (t *Technitium) queryLogger(ctx context.Context) (app, classPath string, er
 	return app, classPath, nil
 }
 
-// technitiumQuery maps one log entry, and reports false for an entry that
-// names no client or no name, such as a query for the root.
+// technitiumQuery maps one log entry. It reports false for an entry that names
+// no client or no name, such as a query for the root.
 func technitiumQuery(e technitium.LogEntry, at time.Time) (Query, bool) {
 	client, err := netip.ParseAddr(e.ClientIPAddress)
 	if err != nil {
@@ -240,14 +241,14 @@ func technitiumQuery(e technitium.LogEntry, at time.Time) (Query, bool) {
 	}, true
 }
 
-// answerAddrs returns the addresses in an answer the server logged as
-// "CNAME edge.example.net, A 192.0.2.1". Records that are not addresses are
-// left out.
+// answerAddrs returns the addresses in an answer that the server logged as
+// "CNAME edge.example.net, A 192.0.2.1". It leaves out records that are not
+// addresses.
 func answerAddrs(answer string) []netip.Addr {
 	var out []netip.Addr
 
 	for record := range strings.SplitSeq(answer, ", ") {
-		// Older servers logged the data alone, with no type in front.
+		// Older servers logged only the data, with no type in front.
 		_, data, ok := strings.Cut(record, " ")
 		if !ok {
 			data = record
@@ -261,8 +262,8 @@ func answerAddrs(answer string) []netip.Addr {
 	return out
 }
 
-// parseLogTime reads a log entry's timestamp. The server stores UTC, and one
-// written without a zone is taken as UTC.
+// parseLogTime reads the timestamp of a log entry. The server stores UTC. A
+// timestamp without a zone is UTC.
 func parseLogTime(s string) (time.Time, error) {
 	if t, err := time.Parse(time.RFC3339Nano, s); err == nil {
 		return t.UTC(), nil
@@ -306,9 +307,9 @@ func parseLogCursor(cursor string) (time.Time, int, error) {
 	return at.UTC(), taken, nil
 }
 
-// classifyTechnitium maps the client's errors onto this package's, so nothing
-// above has to import pkg/technitium to tell a retryable failure from one
-// that needs a human.
+// classifyTechnitium maps the errors of the client to the errors of this
+// package. So no caller needs to import pkg/technitium to tell a failure that
+// a retry can fix from one that needs a person.
 func classifyTechnitium(err error) error {
 	switch {
 	case errors.Is(err, technitium.ErrUnauthorized):

@@ -1,10 +1,11 @@
-// Package plugin reads facts about devices from sources a sweep cannot reach.
+// Package plugin reads facts about devices from sources that a sweep cannot
+// reach.
 //
-// ARP is not routed, so a sweep learns hardware addresses for its own segment
-// and no other. The router is the gateway for every VLAN, so its tables cover
-// them all. Reading any such source raises the same two questions, which
-// [Fact] answers: whether a sighting means the device is here now, and how
-// much its name is worth.
+// ARP is not routed. So a sweep learns hardware addresses only for its own
+// segment. The router is the gateway for every VLAN, so its tables cover all
+// of them. Each such source has the same two questions, and [Fact] answers
+// them. Does a sighting mean that the device is here now? How good is its
+// name?
 package plugin
 
 import (
@@ -18,15 +19,15 @@ import (
 )
 
 type (
-	// Plugin is one configured source and says only who it is.
+	// Plugin is one configured source. It tells only who it is.
 	//
-	// Capabilities are separate interfaces because they do not yield the same
-	// thing. The devices a router knows about, the port a device is plugged
-	// into and the ports it is listening on are three different answers, and
-	// one method returning any of them would return an empty interface.
+	// Capabilities are separate interfaces, because they give different
+	// things. The devices that a router knows, the port that a device
+	// connects to, and the ports that it listens on are three different
+	// answers. One method for all of them would return an empty interface.
 	Plugin interface {
-		// Name becomes the sources.name row these facts are filed under, so two
-		// routers stay distinguishable without the schema knowing either exists.
+		// Name becomes the sources.name row of these facts. So two routers
+		// stay separate, and the schema does not need to know either.
 		Name() string
 
 		Kind() dbtype.SourceKind
@@ -36,7 +37,7 @@ type (
 	HostDiscoverer interface {
 		Plugin
 
-		// Discover reads the source once. On error the facts are nil: a
+		// Discover reads the source once. On error, the facts are nil. A
 		// source that could not read every table returns none of them.
 		Discover(ctx context.Context) ([]Fact, error)
 	}
@@ -45,37 +46,37 @@ type (
 	NetworkDiscoverer interface {
 		Plugin
 
-		// Networks reads the source's segments once. On error the networks
-		// are nil.
+		// Networks reads the segments of the source once. On error, the
+		// networks are nil.
 		Networks(ctx context.Context) ([]Network, error)
 	}
 
-	// TopologyReader answers "what is plugged into what".
+	// TopologyReader answers "what is connected to what".
 	TopologyReader interface {
 		Plugin
 
-		// Topology reads the source's switching tables once. On error the
-		// Topology is empty.
+		// Topology reads the switching tables of the source once. On error,
+		// the Topology is empty.
 		Topology(ctx context.Context) (Topology, error)
 	}
 
-	// TopologyScoped answers "are you read for your switching tables alone".
+	// TopologyScoped answers "are you read only for your switching tables".
 	//
-	// A switch or access point is read for what is plugged into it, and the
-	// router above it lists the devices and segments, so a source that says
-	// so is left out of device discovery.
+	// Jocasta reads a switch or access point for what is connected to it. The
+	// router above it lists the devices and segments. So device discovery
+	// leaves out a source that says this.
 	TopologyScoped interface {
 		Plugin
 
 		IsTopologyOnly() bool
 	}
 
-	// TrafficReporter answers "who is talking to whom".
+	// TrafficReporter answers "who talks to whom".
 	//
-	// The router pushes to it: a router
-	// exports a flow when the conversation ends or times out, on its own
-	// schedule. Listen therefore runs until ctx is done, handing each batch it
-	// decodes to emit, and returns nil once ctx is cancelled.
+	// The router pushes to it. A router exports a flow when the conversation
+	// ends or times out, on its own schedule. So Listen runs until ctx is
+	// done. It gives each batch that it decodes to emit. It returns nil when
+	// ctx is cancelled.
 	TrafficReporter interface {
 		Plugin
 
@@ -84,60 +85,61 @@ type (
 
 	// QueryReader answers "what did each client look up".
 	//
-	// A resolver keeps its query log and serves it on request, so the log is
-	// read on a schedule, each read taking up where the last left off.
+	// A resolver keeps its query log, and serves it on request. So Jocasta
+	// reads the log on a schedule. Each read continues where the last read
+	// stopped.
 	QueryReader interface {
 		Plugin
 
-		// Queries reads what the resolver logged after cursor, oldest first,
-		// and returns the cursor to resume from. An empty cursor starts an
-		// hour back. What a cursor holds is the source's own business; the
-		// caller stores it and hands it back.
+		// Queries reads what the resolver logged after cursor, oldest first.
+		// It returns the cursor for the next read. An empty cursor starts one
+		// hour back. Only the source knows what a cursor holds. The caller
+		// stores it and gives it back.
 		//
-		// One read takes a bounded share of a long log. A source that pages
-		// oldest first returns a cursor partway through it, so a backlog
-		// drains over several reads. One that pages newest first keeps the
-		// newest share and skips the rest.
-		// Queries and an error can both be non-empty, with the cursor
-		// covering the queries returned.
+		// One read takes a limited part of a long log. A source that pages
+		// oldest first returns a cursor in the middle of the log. So a
+		// backlog empties over several reads. A source that pages newest
+		// first keeps the newest part, and skips the rest. Queries and an
+		// error can both be non-empty. The cursor then covers the returned
+		// queries.
 		Queries(ctx context.Context, cursor string) ([]Query, string, error)
 	}
 )
 
-// Query is one lookup a resolver logged.
+// Query is one lookup that a resolver logged.
 type Query struct {
-	// Client is the address that asked. A router forwarding its clients'
-	// lookups is the client of every one of them.
+	// Client is the address that asked. A router that forwards the lookups
+	// of its clients is the client of all of them.
 	Client netip.Addr
 
 	// Name is lowercase, without the trailing dot.
 	Name string
 
-	// Type is the record type asked for, such as A, AAAA or HTTPS.
+	// Type is the record type of the lookup, such as A, AAAA or HTTPS.
 	Type string
 
-	// Blocked marks a lookup the resolver refused to answer for a blocklist.
-	// Failed marks one that found nothing or failed upstream (NXDOMAIN or
-	// SERVFAIL), and is false on a blocked lookup, whose answer is the
-	// resolver's choice.
+	// Blocked marks a lookup that the resolver refused because of a
+	// blocklist. Failed marks a lookup that found nothing or failed upstream
+	// (NXDOMAIN or SERVFAIL). Failed is false on a blocked lookup, because the
+	// resolver chose that answer.
 	Blocked bool
 	Failed  bool
 
-	// Answers is the addresses the resolver answered with, in order.
+	// Answers is the addresses in the answer of the resolver, in order.
 	Answers []netip.Addr
 
 	// At is when the resolver logged the lookup.
 	At time.Time
 }
 
-// Flow is one conversation a source saw, in either direction it was recorded.
-// The source says which side sent; which side is the device is for the reader
-// to work out.
+// Flow is one conversation that a source saw, in the recorded direction. The
+// source tells which side sent. The reader must find which side is the
+// device.
 //
-// Src is where the packets came from before any NAT and Dst where they were
-// delivered after it, which on a router doing NAT are both the local ends: the
-// device an outgoing packet left, and the device a reply reached after the
-// router translated its public address.
+// Src is where the packets came from before NAT. Dst is where they arrived
+// after NAT. On a router that does NAT, both are the local ends. Src is the
+// device that an outgoing packet left. Dst is the device that a reply reached
+// after the router translated its public address.
 type Flow struct {
 	Src, Dst         netip.Addr
 	SrcPort, DstPort uint16
@@ -145,70 +147,73 @@ type Flow struct {
 	// Protocol is the IANA protocol number: 6 TCP, 17 UDP, 1 ICMP.
 	Protocol uint8
 
-	// TCPFlags is the TCP flags the source reported, zero when it exports
-	// none. Sources differ on what that means (some OR every packet's
-	// flags, a MikroTik reports only the first packet's), so only what
-	// both readings share is relied on: a flow opening a connection shows
-	// SYN, and the answer to it SYN and ACK, or RST when refused.
+	// TCPFlags is the TCP flags that the source reported. It is zero when the
+	// source exports none. Sources give it different meanings. Some OR the
+	// flags of every packet. A MikroTik reports only the flags of the first
+	// packet. So the code uses only what both meanings share. A flow that
+	// opens a connection shows SYN. The answer shows SYN and ACK, or RST when
+	// refused.
 	TCPFlags uint8
 
-	// ICMPType is the ICMP message type, telling an echo request (8, or 128
-	// for ICMPv6) from its reply. Zero when not ICMP or not exported.
+	// ICMPType is the ICMP message type. It tells an echo request (8, or 128
+	// for ICMPv6) from its reply. It is zero when the flow is not ICMP, or the
+	// source does not export it.
 	ICMPType uint8
 
-	// Bytes and Packets are what the source estimates crossed, already scaled
-	// by its sampling rate. A source that samples one packet in a hundred
-	// reports what it saw times a hundred, which is an estimate, but the only
-	// number worth adding up.
+	// Bytes and Packets are what the source estimates went through, already
+	// scaled by its sampling rate. A source that samples one packet in a
+	// hundred reports what it saw times a hundred. This is an estimate, but it
+	// is the only number worth a total.
 	Bytes, Packets uint64
 
-	// End is when the source last saw the conversation, which decides the
-	// hour it is counted in. A long transfer exported in pieces lands each
-	// piece in the hour it ended.
+	// End is when the source last saw the conversation. It decides the hour
+	// of the count. If the source exports a long transfer in pieces, each
+	// piece goes in the hour when it ended.
 	End time.Time
 
-	// Exporter is the address of the router that reported the flow, which
-	// is how traffic to the router itself is told apart.
+	// Exporter is the address of the router that reported the flow. With it,
+	// traffic to the router itself stays separate.
 	Exporter netip.Addr
 
-	// NATSrc is the address the router rewrote Src to on the way out, when it
-	// did: on a router doing NAT, its public address. Zero when the source
-	// was not translated or the exporter does not say.
+	// NATSrc is the address to which the router changed Src on the way out.
+	// On a router that does NAT, this is its public address. It is zero when
+	// the source was not translated, or the exporter does not tell.
 	NATSrc netip.Addr
 }
 
-// Network is one segment a source serves.
+// Network is one segment that a source serves.
 //
-// Nothing on the wire says which VLAN an address is on: the tag is stripped
-// before a sweep ever sees a packet, so a segment's identity can only come
-// from whatever is doing the routing.
+// No packet tells the VLAN of an address. The tag is removed before a sweep
+// sees a packet. So the identity of a segment can come only from the device
+// that routes.
 type Network struct {
-	// Prefix is masked, so a router reporting its own address with a length
-	// meets the prefix a sweep recorded at the same value.
+	// Prefix is masked. So a router that reports its own address with a
+	// length gives the same value as the prefix that a sweep recorded.
 	Prefix netip.Prefix
 
-	// Name is what a person called the segment, and is empty when nobody has.
+	// Name is the name that a person gave the segment. It is empty when
+	// nobody gave one.
 	Name string
 
-	// VLAN is the 802.1Q tag, zero on a segment that carries none. Untagged is
+	// VLAN is the 802.1Q tag. It is zero on a segment with no tag. Untagged is
 	// a real answer.
 	VLAN int
 }
 
-// Topology is what one switching device knows about what is plugged into it:
-// its ports, the hardware addresses it learned on each, and the neighbours that
-// announced themselves. A tree of the whole network is assembled from one of
-// these per router, switch and access point.
+// Topology is what one switching device knows about what is connected to it:
+// its ports, the hardware addresses that it learned on each, and the
+// neighbours that announced themselves. The tree of the whole network comes
+// from one Topology for each router, switch and access point.
 type Topology struct {
-	// Identity is the device's own name for itself.
+	// Identity is the name that the device gives itself.
 	Identity string
 
-	// Gateway marks the device that routes the network, which the tree hangs
-	// from, below the internet.
+	// Gateway marks the device that routes the network. The tree hangs from
+	// it, below the internet.
 	Gateway bool
 
-	// Own is the device's own hardware addresses, which is how another
-	// device's tables recognise it.
+	// Own is the hardware addresses of the device. The tables of other
+	// devices recognise it by these addresses.
 	Own []string
 
 	Ports      []TopologyPort
@@ -219,61 +224,63 @@ type Topology struct {
 	ReadAt time.Time
 }
 
-// Empty reports whether a read learned nothing about what is plugged in: no
-// address on any port and no neighbour.
+// Empty reports whether a read learned nothing about what is connected: no
+// address on a port, and no neighbour.
 func (t Topology) Empty() bool { return len(t.Seen) == 0 && len(t.Neighbours) == 0 }
 
-// PortKind is what sort of interface a port is.
+// PortKind is the kind of interface of a port.
 type PortKind string
 
-// A wired port and a radio are drawn differently; anything else (a bridge, a
-// VLAN interface, a tunnel) is only a place an address can be learned.
+// The tree draws a wired port and a radio differently. Anything else (a
+// bridge, a VLAN interface, a tunnel) is only a place where a device can learn
+// an address.
 const (
 	PortWired   PortKind = "wired"
 	PortWiFi    PortKind = "wifi"
 	PortVirtual PortKind = "virtual"
 )
 
-// TopologyPort is one interface and the VLANs it carries.
+// TopologyPort is one interface, with the VLANs that it carries.
 type TopologyPort struct {
 	Name string
 	Kind PortKind
 
-	// PVID is the VLAN untagged traffic on the port belongs to, zero when the
-	// device does not say. Tagged and Untagged are the VLANs the port carries
-	// each way, in order.
+	// PVID is the VLAN of the untagged traffic on the port. It is zero when
+	// the device does not tell. Tagged and Untagged are the VLANs that the
+	// port carries in each way, in order.
 	PVID     int
 	Tagged   []int
 	Untagged []int
 
 	Running bool
 
-	// Rate is the speed the port's link came up at, and Capable the fastest
-	// both ends offer, in bits per second. Each is zero when unknown, and
-	// FullDuplex means nothing without a Rate.
+	// Rate is the speed at which the link of the port came up. Capable is the
+	// fastest speed that both ends offer. Both are in bits per second, and
+	// zero when unknown. FullDuplex has no meaning without a Rate.
 	Rate       int64
 	Capable    int64
 	FullDuplex bool
 }
 
-// Sighting is one hardware address learned on one port.
+// Sighting is one hardware address that a device learned on one port.
 type Sighting struct {
 	Port string
 	MAC  string
 
-	// VLAN is the VLAN the address was learned in, zero when the device does
-	// not say.
+	// VLAN is the VLAN in which the device learned the address. It is zero
+	// when the device does not tell.
 	VLAN int
 
-	// WiFi marks a client associated with one of the device's radios, which
-	// SSID and Band describe.
+	// WiFi marks a client on a radio of the device. SSID and Band describe
+	// the radio.
 	WiFi bool
 	SSID string
 	Band string
 
-	// TxRate is the rate the radio sends to the client at and RxRate the rate
-	// it receives from it at, in bits per second, and Signal is the client's
-	// signal at the radio in dBm. Each is zero when unknown.
+	// TxRate is the rate at which the radio sends to the client. RxRate is
+	// the rate at which it receives from the client. Both are in bits per
+	// second. Signal is the signal of the client at the radio, in dBm. Each is
+	// zero when unknown.
 	TxRate int64
 	RxRate int64
 	Signal int
@@ -289,53 +296,55 @@ type Neighbour struct {
 	Platform string
 	Board    string
 
-	// TheirPort is the neighbour's own name for the port it announced itself
-	// from.
+	// TheirPort is the name that the neighbour gives the port from which it
+	// announced itself.
 	TheirPort string
 }
 
-// Fact is what one source claims about one device at one moment.
+// Fact is what one source says about one device at one time.
 type Fact struct {
-	// Host is built through [hosts.BuildHost], so every plugin parses and
-	// enriches the same way. One address per fact; a device holding two is
-	// two facts.
+	// Host is built through [hosts.BuildHost]. So every plugin parses and
+	// enriches in the same way. Each fact has one address. A device with two
+	// addresses is two facts.
 	Host *hosts.Host
 
-	// Present says the device is on the network now: it answered a probe, or a
-	// source that reads the network heard from it lately. A resolved ARP entry
-	// the router has not heard from since, or a static lease for something
-	// unplugged, is only a record of the device. Counting either as a
-	// sighting would report it as online long after it left.
+	// Present tells that the device is on the network now. It answered a
+	// probe, or a source that reads the network heard from it recently. A
+	// resolved ARP entry is only a record of the device, if the router did
+	// not hear from it since. A static lease for a disconnected device is
+	// also only a record. If Jocasta counted either as a sighting, it would
+	// report the device as online long after it left.
 	Present bool
 
-	// HostnameSource is the standing of the name Host carries. It travels with
-	// each fact, because one pass over a router yields a
-	// lease an operator bound and a name a device asked for this hour, and they
-	// do not weigh the same.
+	// HostnameSource is the standing of the name of Host. It goes with each
+	// fact. One pass over a router gives a lease that an operator bound, and
+	// a name that a device asked for this hour. They do not have the same
+	// value.
 	HostnameSource dbtype.HostnameSource
 
-	// Detail is what only this source knows, stored verbatim on the claim so
-	// the device page can say why a source believes what it does.
+	// Detail is what only this source knows. It is stored exactly on the
+	// claim. So the device page can tell why a source believes what it
+	// says.
 	Detail map[string]string
 
 	// Services are what the device advertised over DNS-SD. Only a sweep
-	// browses for them; a router leaves this empty.
+	// browses for them. A router leaves this empty.
 	Services []hosts.Service
 
-	// SeenAt is when the source was read. The router measures age in durations
-	// against a clock this process cannot see, so this is the only honest
-	// timestamp available.
+	// SeenAt is when the source was read. The router measures age in
+	// durations against a clock that this process cannot see. So this is the
+	// only true timestamp.
 	SeenAt time.Time
 }
 
-// The distinction worth making about a failed read is whether the next attempt
-// could go better.
+// For a failed read, the important question is whether the next attempt can go
+// better.
 var (
-	// ErrUnreachable is a source that could not be contacted at all. Worth
-	// retrying.
+	// ErrUnreachable is a source that Jocasta cannot contact at all. A retry
+	// can help.
 	ErrUnreachable = errors.New("plugin: source unreachable")
 
-	// ErrAuth is a source that answered and refused the credentials. Retrying
-	// will not fix it.
+	// ErrAuth is a source that answered and refused the credentials. A retry
+	// does not help.
 	ErrAuth = errors.New("plugin: source rejected credentials")
 )

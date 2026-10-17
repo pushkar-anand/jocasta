@@ -19,10 +19,9 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/technitium"
 )
 
-// fakeResolver serves the two calls the plugin makes the way Technitium's
-// SQLite logger answers them: entries from start inclusive, in the order they
-// were logged, paged by offset, and a page past the last answered with the
-// last.
+// fakeResolver serves the two calls of the plugin, as the SQLite logger of
+// Technitium does. It returns entries from start, inclusive, in log order,
+// paged by offset. A page after the last returns the last page.
 type fakeResolver struct {
 	apps  string
 	token string
@@ -31,7 +30,7 @@ type fakeResolver struct {
 	entries []technitium.LogEntry
 	starts  []string
 
-	// failPage answers that page of the log with an error, when set.
+	// When set, failPage answers that page of the log with an error.
 	failPage int
 }
 
@@ -108,8 +107,8 @@ const queryLoggerApps = `[
 	{"name":"Query Logs (Sqlite)","dnsApps":[{"classPath":"QueryLogsSqlite.App","isQueryLogger":true}]}
 ]`
 
-// testTechnitium starts a fake resolver and returns it with a plugin reading
-// it, whose clock is pinned.
+// testTechnitium starts a fake resolver. It returns it with a plugin that reads
+// it, with a fixed clock.
 func testTechnitium(t *testing.T, apps, logApp string) (*fakeResolver, *Technitium) {
 	t.Helper()
 
@@ -173,9 +172,9 @@ func TestNewTechnitium(t *testing.T) {
 	assert.Equal(t, dbtype.SourceDNS, p.Kind())
 }
 
-// TestTechnitiumQueryLogger checks which app's log is read: the only one that
-// logs queries, or the one log_app names, and an error naming what to set
-// otherwise.
+// TestTechnitiumQueryLogger checks which log the plugin reads. It is the log of
+// the only app that logs queries, or of the app that log_app names. Else, the
+// error names what to set.
 func TestTechnitiumQueryLogger(t *testing.T) {
 	two := `[
 		{"name":"Query Logs (Sqlite)","dnsApps":[{"classPath":"QueryLogsSqlite.App","isQueryLogger":true}]},
@@ -210,8 +209,9 @@ func TestTechnitiumQueryLogger(t *testing.T) {
 	}
 }
 
-// TestTechnitiumMapping checks each field a query takes from a log entry, and
-// that an entry naming no client or no name is left out.
+// TestTechnitiumMapping checks each field that a query takes from a log entry.
+// It also checks that the plugin leaves out an entry with no client or no
+// name.
 func TestTechnitiumMapping(t *testing.T) {
 	f, p := testTechnitium(t, queryLoggerApps, "")
 
@@ -259,8 +259,8 @@ func TestTechnitiumMapping(t *testing.T) {
 	}, qs)
 }
 
-// TestTechnitiumFirstRead checks that a read with no cursor starts an hour
-// back, and the cursor it returns names where an empty log leaves off.
+// TestTechnitiumFirstRead checks that a read with no cursor starts one hour
+// back. The returned cursor names where an empty log stops.
 func TestTechnitiumFirstRead(t *testing.T) {
 	f, p := testTechnitium(t, queryLoggerApps, "")
 
@@ -273,9 +273,9 @@ func TestTechnitiumFirstRead(t *testing.T) {
 	assert.Equal(t, hourBack.Format(time.RFC3339Nano)+"|0", cursor)
 }
 
-// TestTechnitiumResume checks that each read takes up where the last left
-// off, across a page boundary and across lookups logged at one timestamp
-// before and after a read.
+// TestTechnitiumResume checks that each read continues where the last read
+// stopped. This works across a page boundary, and across lookups at one
+// timestamp before and after a read.
 func TestTechnitiumResume(t *testing.T) {
 	f, p := testTechnitium(t, queryLoggerApps, "")
 
@@ -289,7 +289,7 @@ func TestTechnitiumResume(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, qs, logPageSize+3, "both pages are read")
 
-	// Two more at the same timestamp as the last two, and one after.
+	// Two more at the same timestamp as the last two, and one after them.
 	f.log(entry(time.Minute, "c.example.com"), entry(time.Minute, "d.example.com"), entry(2*time.Minute, "e.example.com"))
 
 	qs, cursor, err = p.Queries(t.Context(), cursor)
@@ -301,8 +301,8 @@ func TestTechnitiumResume(t *testing.T) {
 	assert.Empty(t, qs, "nothing new was logged")
 }
 
-// TestTechnitiumBacklog checks that one read stops after its share of a long
-// log and the next read carries on from there.
+// TestTechnitiumBacklog checks that one read stops after its part of a long
+// log. The next read continues from there.
 func TestTechnitiumBacklog(t *testing.T) {
 	f, p := testTechnitium(t, queryLoggerApps, "")
 
@@ -320,8 +320,8 @@ func TestTechnitiumBacklog(t *testing.T) {
 	assert.Len(t, qs, 5)
 }
 
-// TestTechnitiumPartial checks that a page failing returns the lookups read
-// before it, with a cursor that covers exactly those.
+// TestTechnitiumPartial checks that a failed page returns the lookups that the
+// read took before it, with a cursor that covers exactly those.
 func TestTechnitiumPartial(t *testing.T) {
 	f, p := testTechnitium(t, queryLoggerApps, "")
 
@@ -343,7 +343,7 @@ func TestTechnitiumPartial(t *testing.T) {
 }
 
 // TestTechnitiumBadCursor checks that a cursor that does not parse starts the
-// read afresh instead of refusing every read after it.
+// read again. It does not refuse every later read.
 func TestTechnitiumBadCursor(t *testing.T) {
 	f, p := testTechnitium(t, queryLoggerApps, "")
 	f.log(entry(time.Second, "example.com"))
@@ -355,8 +355,8 @@ func TestTechnitiumBadCursor(t *testing.T) {
 	}
 }
 
-// TestTechnitiumErrors checks that a refused token and a server that cannot
-// be reached map onto this package's sentinels.
+// TestTechnitiumErrors checks that a refused token and an unreachable server
+// map to the sentinels of this package.
 func TestTechnitiumErrors(t *testing.T) {
 	f, p := testTechnitium(t, queryLoggerApps, "")
 	f.token = "another"

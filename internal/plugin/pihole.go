@@ -16,8 +16,8 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/pihole"
 )
 
-// piholePrefix namespaces an instance key so it cannot collide with another
-// source kind's.
+// piholePrefix puts an instance key in a namespace. So it cannot collide
+// with the key of a different source kind.
 const piholePrefix = "pihole:"
 
 // PiHole reads the query log of one Pi-hole v6.
@@ -26,19 +26,19 @@ type PiHole struct {
 	client *pihole.PiHole
 	logger *slog.Logger
 
-	// now is a field so tests can pin where a first read starts.
+	// now is a field, so tests can fix where a first read starts.
 	now func() time.Time
 }
 
-// ErrNoPiHoleName refuses a missing name: the name is a database key, and one
-// default would file two servers' lookups under one source.
+// ErrNoPiHoleName refuses a missing name. The name is a database key. With one
+// default, the lookups of two servers would go under one source.
 var ErrNoPiHoleName = errors.New("plugin: pihole instance has no name")
 
 // NewPiHole builds the plugin for one Pi-hole. name is the instance key from
 // config, such as "resolver".
 //
-// It performs no I/O, so a Pi-hole that is down at startup is retried later
-// while the server still starts.
+// It does no I/O. So if the Pi-hole is down at startup, the server still starts
+// and tries again later.
 func NewPiHole(name string, client *pihole.PiHole, log *slog.Logger) (*PiHole, error) {
 	if name == "" {
 		return nil, ErrNoPiHoleName
@@ -60,25 +60,26 @@ func NewPiHole(name string, client *pihole.PiHole, log *slog.Logger) (*PiHole, e
 	}, nil
 }
 
-// Name returns the plugin's configured name.
+// Name returns the configured name of the plugin.
 func (p *PiHole) Name() string { return p.name }
 
 // Kind identifies this plugin as a DNS source.
 func (p *PiHole) Kind() dbtype.SourceKind { return dbtype.SourceDNS }
 
-// Queries reads the log from cursor, which is the id of the newest query
-// read. Pi-hole pages its log newest first, so a read that reaches its page
-// cap before the cursor keeps the newest lookups and skips the older ones.
-// A page that fails returns nothing and the cursor it was given: what came
-// before it sits above lookups no read has reached. A log whose newest id is
-// below the cursor was reset, and is read as a first read would.
+// Queries reads the log from cursor. The cursor is the id of the newest query
+// that a read took. Pi-hole pages its log newest first. So if a read reaches
+// its page limit before the cursor, it keeps the newest lookups and skips the
+// older ones. A page that fails returns nothing, with the cursor that the read
+// got. The pages before it are above lookups that no read reached. If the
+// newest id of a log is below the cursor, the log was reset. Queries then
+// reads it as a first read.
 //
-// Pi-hole logs no answer addresses, so its lookups name no traffic peers.
+// Pi-hole logs no answer addresses. So its lookups name no traffic peers.
 func (p *PiHole) Queries(ctx context.Context, cursor string) ([]Query, string, error) {
 	after, err := parseIDCursor(cursor)
 	if err != nil {
-		// A cursor that does not parse would refuse every read from here on,
-		// so the read starts afresh, at the cost of an hour counted twice.
+		// A cursor that does not parse would refuse every later read. So the
+		// read starts again, and one hour can count twice.
 		p.logger.WarnContext(ctx, "stored cursor does not parse; reading the last hour", logger.Err(err))
 
 		after = 0
@@ -101,11 +102,11 @@ func (p *PiHole) Queries(ctx context.Context, cursor string) ([]Query, string, e
 			return nil, cursor, fmt.Errorf("read query log page %d: %w", page+1, classifyPiHole(err))
 		}
 
-		// Pi-hole numbers its log from zero again once its database is gone,
-		// as on a container redeployed without its volume, which leaves every
-		// new query below the cursor. Without this the source records nothing
-		// until the new ids pass the old ones. Read with no cursor, after has
-		// to be 0, so this recurses at most once.
+		// When its database is gone, Pi-hole numbers its log from zero again.
+		// An example is a container deployed again without its volume. Then
+		// every new query is below the cursor. Without this code, the source
+		// records nothing until the new ids pass the old ids. With no cursor,
+		// after must be 0. So this recursion happens at most once.
 		if page == 0 && after != 0 && len(res.Queries) > 0 && res.Queries[0].ID < after {
 			p.logger.WarnContext(ctx, "query log is numbered below the stored cursor, so the log was reset; reading the last hour",
 				slog.Int64("cursor", after),
@@ -120,8 +121,8 @@ func (p *PiHole) Queries(ctx context.Context, cursor string) ([]Query, string, e
 				return oldestFirst(out), formatIDCursor(newest), nil
 			}
 
-			// The later pages count their offset from the first page's
-			// newest query, so queries logged during the read cannot shift
+			// The later pages count their offset from the newest query of the
+			// first page. So queries logged during the read cannot move
 			// them.
 			if req.Cursor == 0 {
 				req.Cursor = e.ID
@@ -147,14 +148,14 @@ func (p *PiHole) Queries(ctx context.Context, cursor string) ([]Query, string, e
 	return oldestFirst(out), formatIDCursor(newest), nil
 }
 
-// oldestFirst reverses a read taken newest first.
+// oldestFirst reverses a read that came newest first.
 func oldestFirst(qs []Query) []Query {
 	slices.Reverse(qs)
 
 	return qs
 }
 
-// piholeQuery maps one logged query, and reports false for one that names no
+// piholeQuery maps one logged query. It reports false for a query that names no
 // client or no name.
 func piholeQuery(e pihole.Query) (Query, bool) {
 	client, err := netip.ParseAddr(e.Client.IP)
@@ -210,9 +211,9 @@ func parseIDCursor(cursor string) (int64, error) {
 	return id, nil
 }
 
-// classifyPiHole maps the client's errors onto this package's, so nothing
-// above has to import pkg/pihole to tell a retryable failure from one that
-// needs a human.
+// classifyPiHole maps the errors of the client to the errors of this
+// package. So no caller needs to import pkg/pihole to tell a failure that a
+// retry can fix from one that needs a person.
 func classifyPiHole(err error) error {
 	switch {
 	case errors.Is(err, pihole.ErrUnauthorized):

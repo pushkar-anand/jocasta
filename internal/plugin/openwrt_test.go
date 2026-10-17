@@ -21,8 +21,8 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/openwrt"
 )
 
-// testOpenWrt builds the plugin without a client. Every test here exercises
-// the mapping; the wire half is pkg/openwrt and has its own tests.
+// testOpenWrt builds the plugin without a client. Every test here exercises the
+// mapping. pkg/openwrt is the network half, and has its own tests.
 func testOpenWrt(t *testing.T) *OpenWrt {
 	t.Helper()
 
@@ -33,7 +33,7 @@ func testOpenWrt(t *testing.T) *OpenWrt {
 	}
 }
 
-// openWrtFacts runs the mapping over the three tables the way Discover does.
+// openWrtFacts runs the mapping over the three tables, as Discover does.
 func openWrtFacts(
 	t *testing.T,
 	static []openwrt.StaticHost,
@@ -48,7 +48,7 @@ func openWrtFacts(
 	return out
 }
 
-// factAt returns the fact for addr, failing the test when there is none.
+// factAt returns the fact for addr. It fails the test when there is none.
 func factAt(t *testing.T, facts []Fact, addr string) Fact {
 	t.Helper()
 
@@ -89,8 +89,8 @@ func TestNewOpenWrtRefusesAnUnnamedInstance(t *testing.T) {
 	require.Error(t, err)
 }
 
-// Only a reachable neighbour is a sighting. A stale one keeps the device, and
-// one that never resolved names nothing.
+// Only a reachable neighbour is a sighting. A stale neighbour keeps the device.
+// A neighbour that never resolved names nothing.
 func TestOpenWrtNeighboursSayWhoIsHere(t *testing.T) {
 	t.Parallel()
 
@@ -112,8 +112,8 @@ func TestOpenWrtNeighboursSayWhoIsHere(t *testing.T) {
 	assert.False(t, factAt(t, facts, "192.0.2.11").Present)
 }
 
-// Every device holds a link-local IPv6 address on every segment, and a sweep
-// never records one, so the neighbour table's are dropped.
+// Every device has a link-local IPv6 address on every segment, and a sweep
+// never records one. So the plugin drops them from the neighbour table.
 func TestOpenWrtDropsLinkLocalNeighbours(t *testing.T) {
 	t.Parallel()
 
@@ -126,8 +126,8 @@ func TestOpenWrtDropsLinkLocalNeighbours(t *testing.T) {
 	assert.Equal(t, netip.MustParseAddr("2001:db8::10"), facts[0].Host.Address())
 }
 
-// A lease names the device at the standing a name a device asked for has, and
-// that name reaches the neighbour entry for the same device.
+// A lease names the device, with the standing of a name that a device asked
+// for. That name reaches the neighbour entry of the same device.
 func TestOpenWrtLeasesNameDevices(t *testing.T) {
 	t.Parallel()
 
@@ -146,9 +146,10 @@ func TestOpenWrtLeasesNameDevices(t *testing.T) {
 	assert.Equal(t, "true", f.Detail["dhcp_dynamic"])
 }
 
-// A static host's name is the operator's choice, so it ranks above what the
-// device calls itself, at every address the device holds. A static host that
-// reserves an address files a claim there even with nothing plugged in.
+// The name of a static host is the choice of the operator. So it ranks above
+// the name that the device gives itself, at every address of the device. A
+// static host that reserves an address makes a claim there, even when nothing
+// is connected.
 func TestOpenWrtStaticHostsNameAtTheirStanding(t *testing.T) {
 	t.Parallel()
 
@@ -180,8 +181,8 @@ func TestOpenWrtStaticHostsNameAtTheirStanding(t *testing.T) {
 	assert.Equal(t, dbtype.HostnameFromDHCPStatic, nas.HostnameSource)
 }
 
-// A lease without a hardware address cannot be matched to a device, which
-// happens to an IPv6 lease whose client built its DUID some other way.
+// A lease without a hardware address cannot match a device. This happens to an
+// IPv6 lease whose client built its DUID in a different way.
 func TestOpenWrtDropsALeaseWithNoHardwareAddress(t *testing.T) {
 	t.Parallel()
 
@@ -205,7 +206,8 @@ func TestOpenWrtNetworks(t *testing.T) {
 			Name: "iot", Up: true, Proto: openwrt.ProtoStatic, Device: "br-lan.20", L3Device: "br-lan.20",
 			IPv4: []openwrt.IfaceAddr{{Address: "198.51.100.1", Mask: 24}},
 		},
-		// An uplink holds an address on a segment the router does not serve.
+		// An uplink has an address on a segment that the router does not
+		// serve.
 		{
 			Name: "wan", Up: true, Proto: "dhcp", Device: "eth1", L3Device: "eth1",
 			IPv4: []openwrt.IfaceAddr{{Address: "203.0.113.7", Mask: 24}},
@@ -230,10 +232,10 @@ func TestOpenWrtNetworks(t *testing.T) {
 	}, got)
 }
 
-// fakeUbus answers ubus JSON-RPC from canned results keyed by "object method",
-// with `file exec` keyed by its command line and `uci get` by its config and
-// type. Every login works. A key with no answer is refused as rpcd refuses a
-// call the ACL does not grant.
+// fakeUbus answers ubus JSON-RPC from canned results with "object method" as
+// key. The key of `file exec` is its command line. The key of `uci get` is its
+// config and type. Every login works. It refuses a key with no answer, as rpcd
+// refuses a call that the ACL does not allow.
 func fakeUbus(t *testing.T, answers map[string]string) *openwrt.OpenWrt {
 	t.Helper()
 
@@ -310,7 +312,8 @@ func fakeUbus(t *testing.T, answers map[string]string) *openwrt.OpenWrt {
 	return client
 }
 
-// testOpenWrtWith builds the plugin over a fake router answering with answers.
+// testOpenWrtWith builds the plugin over a fake router that replies with
+// answers.
 func testOpenWrtWith(t *testing.T, answers map[string]string) *OpenWrt {
 	t.Helper()
 
@@ -320,7 +323,7 @@ func testOpenWrtWith(t *testing.T, answers map[string]string) *OpenWrt {
 	return o
 }
 
-// The tables as a router with one static host and two clients answers them.
+// The tables of a router with one static host and two clients.
 var openWrtAnswers = map[string]string{
 	"uci dhcp host": `[0,{"values":{"cfg1":{".index":3,"name":"living-room-tv","mac":"00:00:5e:00:53:14","ip":"192.0.2.50"}}}]`,
 	"exec /sbin/ip -4 neigh show": `[0,{"code":0,"stdout":` +
@@ -361,8 +364,7 @@ func TestOpenWrtDiscoverReadsEveryTable(t *testing.T) {
 	assert.Equal(t, "br-lan.10", router.Detail["interface"])
 }
 
-// ownFacts runs the own-address mapping the way Discover does, without a
-// router to read the tables from.
+// ownFacts runs the own-address mapping as Discover does, without a router.
 func ownFacts(t *testing.T, ifaces []openwrt.Interface, devices map[string]openwrt.NetDevice) []Fact {
 	t.Helper()
 
@@ -377,8 +379,8 @@ func ownFacts(t *testing.T, ifaces []openwrt.Interface, devices map[string]openw
 	return out
 }
 
-// A router serving several segments shares one hardware address across them,
-// so each of its addresses comes back as the same device, present.
+// A router that serves several segments shares one hardware address across
+// them. So each of its addresses returns as the same device, present.
 func TestOpenWrtOwnAddressesCarryTheirDevicesHardwareAddress(t *testing.T) {
 	t.Parallel()
 
@@ -412,8 +414,8 @@ func TestOpenWrtOwnAddressesCarryTheirDevicesHardwareAddress(t *testing.T) {
 		"an interface with no l3_device falls back to its configured device")
 }
 
-// An uplink sits on a link the router does not serve, an interface that is
-// down holds nothing, and a device with no hardware address names no device.
+// An uplink is on a link that the router does not serve. An interface that is
+// down has nothing. A device with no hardware address names no device.
 func TestOpenWrtOwnAddressesSkipWhatIsNotASegmentTheRouterServes(t *testing.T) {
 	t.Parallel()
 
@@ -457,8 +459,8 @@ func TestOpenWrtDiscoverFailsWhenTheOwnAddressesFail(t *testing.T) {
 	assert.Empty(t, facts)
 }
 
-// One table refused fails the read with an error that says the login lacks a
-// grant.
+// If rpcd refuses one table, the read fails. The error says that the login
+// does not have an ACL grant.
 func TestOpenWrtDiscoverFailsWhenOneTableIsRefused(t *testing.T) {
 	t.Parallel()
 
@@ -509,7 +511,8 @@ func TestClassifyOpenWrt(t *testing.T) {
 	assert.ErrorIs(t, classifyOpenWrt(openwrt.ErrUnreachable), ErrUnreachable)
 	assert.ErrorIs(t, classifyOpenWrt(openwrt.ErrTLS), ErrUnreachable)
 
-	// Neither retryable nor a credentials problem, so left as it came.
+	// Not a problem that a retry can fix, and not a credentials problem. So
+	// it stays as it is.
 	err := classifyOpenWrt(openwrt.ErrNotFound)
 	assert.NotErrorIs(t, err, ErrAuth)
 	assert.NotErrorIs(t, err, ErrUnreachable)

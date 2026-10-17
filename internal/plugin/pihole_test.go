@@ -21,22 +21,22 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/pihole"
 )
 
-// fakePiHoleLog serves /api/queries the way FTL answers it from memory:
-// newest first, from inclusive, cursor keeping ids at or below it, and start
-// and length paging by offset. It has no password, so nothing signs in.
+// fakePiHoleLog serves /api/queries as FTL does from memory: newest first,
+// with from inclusive. cursor keeps ids at or below it. start and length page
+// by offset. It has no password, so nothing signs in.
 type fakePiHoleLog struct {
 	mu       sync.Mutex
 	queries  []pihole.Query
 	requests []url.Values
 
-	// failPage answers the page with that number with an error, and refuse
-	// answers every request with a 401, each when set.
+	// When set, failPage answers the page with that number with an error.
+	// refuse answers every request with a 401.
 	failPage int
 	refuse   bool
 }
 
-// log appends a lookup of each name by 192.0.2.10, one second apart, after
-// the last one logged.
+// log appends a lookup of each name by 192.0.2.10, one second apart, after the
+// last logged lookup.
 func (f *fakePiHoleLog) log(names ...string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -98,8 +98,8 @@ func (f *fakePiHoleLog) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(resp)
 }
 
-// testPiHole starts a fake Pi-hole and returns it with a plugin reading it,
-// whose clock is pinned.
+// testPiHole starts a fake Pi-hole. It returns it with a plugin that reads it,
+// with a fixed clock.
 func testPiHole(t *testing.T) (*fakePiHoleLog, *PiHole) {
 	t.Helper()
 
@@ -177,8 +177,8 @@ func TestPiHoleMapping(t *testing.T) {
 	}, qs)
 }
 
-// A read with no cursor starts an hour back, and an empty log leaves the
-// cursor empty.
+// A read with no cursor starts one hour back. An empty log leaves the cursor
+// empty.
 func TestPiHoleFirstRead(t *testing.T) {
 	f, p := testPiHole(t)
 
@@ -191,8 +191,8 @@ func TestPiHoleFirstRead(t *testing.T) {
 	assert.Equal(t, strconv.FormatInt(pinned.Add(-time.Hour).Unix(), 10), f.requests[0].Get("from"))
 }
 
-// Each read takes up where the last left off, across a page boundary, and
-// the later pages of a read count from the first page's newest query.
+// Each read continues where the last read stopped, across a page boundary. The
+// later pages of a read count from the newest query of the first page.
 func TestPiHoleResume(t *testing.T) {
 	f, p := testPiHole(t)
 
@@ -223,7 +223,7 @@ func TestPiHoleResume(t *testing.T) {
 	assert.Equal(t, strconv.Itoa(logPageSize+3), cursor)
 }
 
-// A read that reaches its cap before the cursor keeps the newest lookups and
+// A read that reaches its limit before the cursor keeps the newest lookups. It
 // moves the cursor past the rest.
 func TestPiHoleBacklog(t *testing.T) {
 	f, p := testPiHole(t)
@@ -245,8 +245,8 @@ func TestPiHoleBacklog(t *testing.T) {
 	assert.Empty(t, qs)
 }
 
-// A page that fails returns nothing and the cursor the read was given, so
-// the next read covers the same lookups.
+// A page that fails returns nothing, with the cursor that the read got. So the
+// next read covers the same lookups.
 func TestPiHolePartial(t *testing.T) {
 	f, p := testPiHole(t)
 
@@ -268,9 +268,9 @@ func TestPiHolePartial(t *testing.T) {
 	assert.Len(t, qs, logPageSize+2)
 }
 
-// A log numbered below the cursor, as Pi-hole's is once its database is gone,
-// is read from an hour back instead of waiting for its ids to pass the
-// cursor.
+// A log with ids below the cursor is read from one hour back. It does not wait
+// until its ids pass the cursor. The log of Pi-hole is like this after its
+// database is gone.
 func TestPiHoleReset(t *testing.T) {
 	f, p := testPiHole(t)
 	f.log("before.example.com", "before.example.com", "before.example.com")
@@ -295,8 +295,8 @@ func TestPiHoleReset(t *testing.T) {
 	assert.Equal(t, []string{"next.example.com"}, names(qs), "the read after the reset resumes from its cursor")
 }
 
-// A cursor that does not parse starts the read afresh instead of refusing
-// every read after it.
+// A cursor that does not parse starts the read again. It does not refuse every
+// later read.
 func TestPiHoleBadCursor(t *testing.T) {
 	f, p := testPiHole(t)
 	f.log("example.com")
@@ -308,8 +308,8 @@ func TestPiHoleBadCursor(t *testing.T) {
 	}
 }
 
-// A refused password and a server that cannot be reached map onto this
-// package's sentinels.
+// A refused password and an unreachable server map to the sentinels of this
+// package.
 func TestPiHoleErrors(t *testing.T) {
 	f, p := testPiHole(t)
 	f.refuse = true

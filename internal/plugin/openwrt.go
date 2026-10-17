@@ -17,53 +17,52 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/openwrt"
 )
 
-// openWrtPrefix namespaces an instance key so it cannot collide with another
-// source kind's.
+// openWrtPrefix puts an instance key in a namespace. So it cannot collide
+// with the key of a different source kind.
 const openWrtPrefix = "openwrt:"
 
-// OpenWrt reads the devices an OpenWrt router knows about.
+// OpenWrt reads the devices that an OpenWrt router knows.
 //
-// It reads three tables because no one of them is enough. The neighbour table
-// resolves hardware across every segment but carries no names. A lease carries
-// a name but outlives the device it names. A static host is the name an
-// operator chose, and is the only one of the three that says so. None of them
-// lists the router itself, so its interfaces are read as well.
+// It reads three tables, because no single table is enough. The neighbour
+// table resolves hardware across every segment, but has no names. A lease has
+// a name, but stays after its device goes. A static host is the name that an
+// operator chose. Only this table tells that. None of them lists the router
+// itself. So the plugin also reads its interfaces.
 type OpenWrt struct {
 	name   string
 	client *openwrt.OpenWrt
 	logger *slog.Logger
 
-	// topologyOnly marks an access point or switch read for its switching
-	// tables alone. The router that routes the network is the one without it.
+	// topologyOnly marks an access point or switch that the plugin reads only
+	// for its switching tables. The router of the network does not have it.
 	topologyOnly bool
 
-	// now is a field so tests can pin the timestamp their facts carry.
+	// now is a field, so tests can fix the timestamp of their facts.
 	now func() time.Time
 }
 
 // OpenWrtOption configures an OpenWrt source.
 type OpenWrtOption func(*OpenWrt)
 
-// OpenWrtTopologyOnly marks the source as an access point or switch: it is
-// read for what is plugged into it, and is not the device the network hangs
-// from.
+// OpenWrtTopologyOnly marks the source as an access point or switch. Jocasta
+// reads it for what is connected to it. The network does not hang from it.
 func OpenWrtTopologyOnly() OpenWrtOption {
 	return func(o *OpenWrt) { o.topologyOnly = true }
 }
 
-// IsTopologyOnly reports whether the source is read for its switching tables
-// alone, which is why it is left out of device discovery.
+// IsTopologyOnly reports whether Jocasta reads the source only for its
+// switching tables. If so, device discovery leaves it out.
 func (o *OpenWrt) IsTopologyOnly() bool { return o.topologyOnly }
 
-// ErrNoOpenWrtName refuses a missing name: the name is a database key, and one
-// default would file two routers' facts under one source.
+// ErrNoOpenWrtName refuses a missing name. The name is a database key. With one
+// default, the facts of two routers would go under one source.
 var ErrNoOpenWrtName = errors.New("plugin: openwrt instance has no name")
 
 // NewOpenWrt builds the plugin for one router. name is the instance key from
 // config, such as "gateway".
 //
-// It performs no I/O, so a router that is down at startup is retried later
-// while the server still starts.
+// It does no I/O. So if the router is down at startup, the server still starts
+// and tries again later.
 func NewOpenWrt(name string, client *openwrt.OpenWrt, log *slog.Logger, opts ...OpenWrtOption) (*OpenWrt, error) {
 	if name == "" {
 		return nil, ErrNoOpenWrtName
@@ -91,17 +90,17 @@ func NewOpenWrt(name string, client *openwrt.OpenWrt, log *slog.Logger, opts ...
 	return o, nil
 }
 
-// Name returns the plugin's configured name.
+// Name returns the configured name of the plugin.
 func (o *OpenWrt) Name() string { return o.name }
 
 // Kind identifies this plugin as a router source.
 func (o *OpenWrt) Kind() dbtype.SourceKind { return dbtype.SourceRouter }
 
-// Discover merges the three tables and the router's own addresses into one
-// fact per device per address.
+// Discover merges the three tables and the own addresses of the router into
+// one fact for each device and address.
 func (o *OpenWrt) Discover(ctx context.Context) ([]Fact, error) {
-	// The static hosts are read first, since they decide the standing of the
-	// names the leases carry.
+	// Read the static hosts first, because they decide the standing of the
+	// names of the leases.
 	static, err := o.client.StaticHosts(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("read static hosts: %w", classifyOpenWrt(err))
@@ -117,7 +116,8 @@ func (o *OpenWrt) Discover(ctx context.Context) ([]Fact, error) {
 		return nil, fmt.Errorf("read dhcp leases: %w", classifyOpenWrt(err))
 	}
 
-	// The router's own addresses: its interfaces and the devices under them.
+	// The own addresses of the router: its interfaces and the devices under
+	// them.
 	ifaces, err := o.client.Interfaces(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("read interfaces: %w", classifyOpenWrt(err))
@@ -131,8 +131,8 @@ func (o *OpenWrt) Discover(ctx context.Context) ([]Fact, error) {
 	return o.facts(ctx, static, neigh, leases, ifaces, devices)
 }
 
-// facts merges what the three tables said, and the router's own addresses,
-// into one fact per device per address.
+// facts merges what the three tables said, and the own addresses of the
+// router, into one fact for each device and address.
 func (o *OpenWrt) facts(
 	ctx context.Context,
 	static []openwrt.StaticHost,
@@ -156,9 +156,9 @@ func (o *OpenWrt) facts(
 
 // collectNeighbours reads the neighbour tables into c.
 //
-// An entry that never resolved names nothing, and a link-local IPv6 address is
-// one every device holds on every segment, which a sweep never records. Both
-// are dropped.
+// An entry that never resolved names nothing. Every device has a link-local
+// IPv6 address on every segment, and a sweep never records it. The plugin
+// drops both.
 func (o *OpenWrt) collectNeighbours(ctx context.Context, c claims, entries []openwrt.Neighbour) {
 	for _, e := range entries {
 		if !e.Usable() {
@@ -182,27 +182,27 @@ func (o *OpenWrt) collectNeighbours(ctx context.Context, c claims, entries []ope
 
 		d := draftFor(c, claimKey{mac: mac, addr: addr})
 
-		// A reachable entry is the router having heard from the device
-		// lately. A stale one keeps the device in the inventory without
-		// making it read as online.
+		// A reachable entry means that the router heard from the device
+		// recently. A stale entry keeps the device in the inventory, but does
+		// not make it show as online.
 		d.present = d.present || e.Reachable()
 
 		d.set("interface", e.Device)
 
-		// Lowercase, as RouterOS words its ARP status.
+		// Lowercase, as RouterOS writes its ARP status.
 		d.set("neigh_state", strings.ToLower(e.State))
 	}
 }
 
 // collectLeases reads the active leases into c. dnsmasq and odhcpd list only
-// leases a client holds now, so every one is a sighting.
+// leases that a client holds now. So each lease is a sighting.
 func (o *OpenWrt) collectLeases(ctx context.Context, c claims, leases []openwrt.Lease, named map[string]string) {
 	for _, l := range leases {
 		mac, ok := hosts.CanonicalMAC(l.MAC)
 		if !ok || mac == "" {
-			// Without a hardware address the lease cannot be matched to a
-			// device, which happens to an IPv6 lease whose client built its
-			// DUID some other way.
+			// Without a hardware address, the lease cannot match a device. This
+			// happens to an IPv6 lease whose client built its DUID in a
+			// different way.
 			o.logger.DebugContext(ctx, "ignoring a lease with no usable hardware address",
 				slog.String("address", l.Address),
 				slog.String("mac", l.MAC),
@@ -222,9 +222,9 @@ func (o *OpenWrt) collectLeases(ctx context.Context, c claims, leases []openwrt.
 		_, static := named[mac]
 		d.set("dhcp_dynamic", strconv.FormatBool(!static))
 
-		// The static name, when there is one, is applied by nameStatic. dnsmasq
-		// reports it as the lease's hostname too, but a lease alone cannot say
-		// whether the name came from the operator or the device.
+		// nameStatic applies the static name, if there is one. dnsmasq also
+		// reports it as the hostname of the lease. But a lease alone cannot
+		// tell whether the name came from the operator or the device.
 		if l.Hostname != "" && d.hostname == "" {
 			d.hostname = l.Hostname
 			d.nameFrom = dbtype.HostnameFromDHCPLease
@@ -232,9 +232,9 @@ func (o *OpenWrt) collectLeases(ctx context.Context, c claims, leases []openwrt.
 	}
 }
 
-// collectStatic files each static host that reserves an address as a claim
-// that is not present: configuration names a device whether or not it is
-// plugged in.
+// collectStatic records each static host that reserves an address as a claim
+// that is not present. Configuration names a device, whether it is connected
+// or not.
 func (o *OpenWrt) collectStatic(ctx context.Context, c claims, static []openwrt.StaticHost) {
 	for _, h := range static {
 		addr, ok := deviceAddr(h.Address)
@@ -259,22 +259,22 @@ func (o *OpenWrt) collectStatic(ctx context.Context, c claims, static []openwrt.
 	}
 }
 
-// collectOwn pairs each address the router serves a segment on with the
-// hardware address of the device it sits on. None of the three tables lists
-// the router itself, and a sweep that reaches it through another segment sees
-// an address with no hardware behind it, so without these the router is one
-// device per segment it serves. The router answered this read,
-// so each is present. An interface that is down holds no address, and one
-// that is not static, such as a dhcp or pppoe uplink, sits on a link the
-// router does not serve; both are left out, as in buildOpenWrtNetworks.
+// collectOwn pairs each address on which the router serves a segment with the
+// hardware address of its device. None of the three tables lists the router
+// itself. A sweep that reaches it through a different segment sees an address
+// with no hardware. So without these, the router would be one device for each
+// segment that it serves. The router answered this read, so each is present.
+// An interface that is down has no address. An interface that is not static,
+// such as a dhcp or pppoe uplink, is on a link that the router does not
+// serve. collectOwn leaves out both, as buildOpenWrtNetworks does.
 func (o *OpenWrt) collectOwn(c claims, ifaces []openwrt.Interface, devices map[string]openwrt.NetDevice) {
 	for _, i := range ifaces {
 		if !i.Up || i.Proto != openwrt.ProtoStatic {
 			continue
 		}
 
-		// The device the addresses sit on first; the configured one covers a
-		// router that reports no l3_device.
+		// First the device that has the addresses. The configured device
+		// covers a router that reports no l3_device.
 		dev := cmp.Or(i.L3Device, i.Device)
 
 		mac, ok := hosts.CanonicalMAC(devices[dev].MAC)
@@ -291,15 +291,15 @@ func (o *OpenWrt) collectOwn(c claims, ifaces []openwrt.Interface, devices map[s
 			d := draftFor(c, claimKey{mac: mac, addr: addr})
 			d.present = true
 
-			// The device, as a neighbour entry names it.
+			// The device, with the name of a neighbour entry.
 			d.set("interface", dev)
 		}
 	}
 }
 
-// staticNames maps each hardware address a static host names to that name.
-// Where two hosts name one address, the first in configuration order wins,
-// as it does in dnsmasq.
+// staticNames maps each hardware address that a static host names to that
+// name. If two hosts name one address, the first in configuration order wins,
+// as in dnsmasq.
 func staticNames(static []openwrt.StaticHost) map[string]string {
 	out := make(map[string]string)
 
@@ -323,8 +323,9 @@ func staticNames(static []openwrt.StaticHost) map[string]string {
 	return out
 }
 
-// nameStatic gives every draft for a hardware address a static host names that
-// name, at the standing an operator's choice has.
+// nameStatic gives the static name to every draft for a hardware address that
+// a static host names. The name gets the standing of a choice of an
+// operator.
 func nameStatic(c claims, named map[string]string) {
 	for _, d := range c {
 		if name, ok := named[d.mac]; ok {
@@ -334,10 +335,10 @@ func nameStatic(c claims, named map[string]string) {
 	}
 }
 
-// deviceAddr renders an address a device can hold, so a lease and a neighbour
-// entry for the same one meet at the same key. Link-local, loopback and
-// multicast addresses are refused: none is an address a device is inventoried
-// at.
+// deviceAddr renders an address that a device can have. So a lease and a
+// neighbour entry for the same address get the same key. It refuses
+// link-local, loopback and multicast addresses. The inventory records no
+// device at such an address.
 func deviceAddr(s string) (string, bool) {
 	a, err := netip.ParseAddr(s)
 	if err != nil {
@@ -353,11 +354,11 @@ func deviceAddr(s string) (string, bool) {
 	return a.String(), true
 }
 
-// classifyOpenWrt maps the client's errors onto this package's, so nothing
-// above has to import pkg/openwrt to tell a retryable failure from one that
-// needs a human. ErrNotFound stays unmapped, because it is neither: it is
-// most often a package the router lacks, such as rpcd-mod-luci, and its own
-// message says which object is missing.
+// classifyOpenWrt maps the errors of the client to the errors of this package.
+// So no caller needs to import pkg/openwrt to tell a failure that a retry can
+// fix from one that needs a person. ErrNotFound stays unmapped, because it is
+// neither. Usually, it is a package that the router does not have, such as
+// rpcd-mod-luci. Its own message names the missing object.
 func classifyOpenWrt(err error) error {
 	switch {
 	case errors.Is(err, openwrt.ErrUnauthorized):

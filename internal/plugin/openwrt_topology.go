@@ -17,28 +17,28 @@ import (
 // wifiModeAP is the mode of a radio interface that serves an access point.
 const wifiModeAP = "ap"
 
-// openWrtTables is every table Topology reads, gathered before any of it is
-// mapped, so the mapping can be tested without a router.
+// openWrtTables is every table that Topology reads. Topology collects them
+// before it maps them. So a test of the mapping needs no router.
 type openWrtTables struct {
 	identity string
 	devices  map[string]openwrt.NetDevice
 	radios   []openwrt.Radio
 	vlans    []openwrt.BridgeVLAN
 
-	// fdb is each bridge's table, keyed by bridge.
+	// fdb is the table of each bridge, with the bridge as key.
 	fdb map[string][]openwrt.FDBEntry
 
-	// stations are the clients of each radio's network, keyed by the device
-	// the network runs on.
+	// stations are the clients of the network of each radio. The key is the
+	// device on which the network runs.
 	stations map[string][]openwrt.Station
 }
 
-// Topology reads what is plugged into the router: its ports, the hardware
-// addresses each bridge learned on them, and the clients of each radio. Every
-// table that fails is named in the error.
+// Topology reads what is connected to the router: its ports, the hardware
+// addresses that each bridge learned on them, and the clients of each radio.
+// The error names every table that fails.
 //
-// OpenWrt runs no neighbour discovery protocol by default, so the Topology
-// carries no neighbours.
+// By default, OpenWrt runs no neighbour discovery protocol. So the Topology has
+// no neighbours.
 func (o *OpenWrt) Topology(ctx context.Context) (Topology, error) {
 	var (
 		t    = openWrtTables{fdb: map[string][]openwrt.FDBEntry{}, stations: map[string][]openwrt.Station{}}
@@ -82,8 +82,9 @@ func (o *OpenWrt) Topology(ctx context.Context) (Topology, error) {
 
 	for _, r := range t.radios {
 		for _, i := range r.Interfaces {
-			// A station interface, a repeater's or a Wi-Fi uplink's, lists
-			// the access point it joined, which is no client of this one.
+			// A station interface, of a repeater or a Wi-Fi uplink, lists the
+			// access point that it joined. That access point is not a client
+			// of this one.
 			if i.Ifname == "" || i.Mode != wifiModeAP {
 				continue
 			}
@@ -100,7 +101,7 @@ func (o *OpenWrt) Topology(ctx context.Context) (Topology, error) {
 	return o.buildTopology(ctx, t), nil
 }
 
-// buildTopology maps the tables onto a Topology.
+// buildTopology maps the tables to a Topology.
 func (o *OpenWrt) buildTopology(ctx context.Context, t openWrtTables) Topology {
 	kinds := make(map[string]PortKind, len(t.devices))
 
@@ -125,8 +126,8 @@ func (o *OpenWrt) buildTopology(ctx context.Context, t openWrtTables) Topology {
 	}
 }
 
-// openWrtOwnMACs returns the router's own hardware addresses: every device's,
-// and every one a bridge marks as local.
+// openWrtOwnMACs returns the hardware addresses of the router: the address of
+// every device, and every address that a bridge marks as local.
 func openWrtOwnMACs(t openWrtTables) []string {
 	var out []string
 
@@ -155,8 +156,8 @@ func openWrtOwnMACs(t openWrtTables) []string {
 	return slices.Compact(out)
 }
 
-// openWrtPorts returns the router's Ethernet ports and radio interfaces, each
-// with its link and the VLANs it carries.
+// openWrtPorts returns the Ethernet ports and radio interfaces of the router,
+// each with its link and its VLANs.
 func openWrtPorts(t openWrtTables, kinds map[string]PortKind) []TopologyPort {
 	byName := make(map[string]*TopologyPort)
 
@@ -211,10 +212,10 @@ func openWrtPorts(t openWrtTables, kinds map[string]PortKind) []TopologyPort {
 	return out
 }
 
-// openWrtSightings returns every hardware address a bridge learned on a port
-// and every Wi-Fi client, with the Wi-Fi clients marked. A client the bridge
-// has not learned, such as one on a network that is in no bridge, is placed on
-// its radio's interface.
+// openWrtSightings returns every hardware address that a bridge learned on a
+// port, and every Wi-Fi client. It marks the Wi-Fi clients. A client that the
+// bridge did not learn goes on the interface of its radio. An example is a
+// client on a network that is in no bridge.
 func (o *OpenWrt) openWrtSightings(ctx context.Context, t openWrtTables, kinds map[string]PortKind) []Sighting {
 	type key struct{ port, mac string }
 
@@ -285,8 +286,8 @@ func (o *OpenWrt) openWrtSightings(ctx context.Context, t openWrtTables, kinds m
 	})
 }
 
-// bandName words an OpenWrt band, such as "5g", as RouterOS words its own,
-// such as "5ghz", so the topology page reads the same for both.
+// bandName writes an OpenWrt band, such as "5g", as RouterOS writes its band,
+// such as "5ghz". So the topology page is the same for both.
 func bandName(band string) string {
 	if band == "" {
 		return ""

@@ -23,58 +23,58 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
 
-// netFlowPrefix namespaces an instance key so it cannot collide with another
-// source kind's.
+// netFlowPrefix puts an instance key in a namespace. So it cannot collide with
+// the key of a different source kind.
 const netFlowPrefix = "netflow:"
 
-// maxDatagram is the largest UDP payload there is. Exporters keep well under
-// the path MTU, so this is headroom.
+// maxDatagram is the largest possible UDP payload. Exporters stay well below
+// the path MTU. So this is more than enough.
 const maxDatagram = 65535
 
-// ErrNoExporters refuses an empty exporter list: UDP carries
-// no authentication and its source address is trivially forged, so an open
-// listener would let anyone on the network write whatever traffic they liked
-// into the inventory.
+// ErrNoExporters refuses an empty exporter list. UDP has no authentication, and
+// its source address is easy to forge. So with an open listener, anyone on
+// the network could write any traffic into the inventory.
 var ErrNoExporters = errors.New("plugin: netflow instance lists no exporters")
 
-// NetFlow receives the flows a router exports over NetFlow v5, v9 or IPFIX.
+// NetFlow receives the flows that a router exports over NetFlow v5, v9 or
+// IPFIX.
 //
-// Decoding is goflow2's: its decoders parse the packets and its producer maps
-// template fields, uptime-relative timestamps and sampling rates onto one
-// record shape. What is left here is the socket, who may send to it, and the
-// translation into [Flow].
+// goflow2 does the decoding. Its decoders parse the packets. Its producer maps
+// template fields, timestamps relative to uptime, and sampling rates to one
+// record shape. This type does the rest: the socket, who can send to it, and
+// the translation into [Flow].
 type NetFlow struct {
 	name      string
 	listen    string
 	exporters map[netip.Addr]struct{}
 	logger    *slog.Logger
 
-	// ready, when set, receives the bound address once the socket is open, so
-	// a test listening on port zero learns where to send.
+	// ready, when set, receives the bound address when the socket is open. So
+	// a test that listens on port zero learns where to send.
 	ready func(net.Addr)
 
 	mu     sync.Mutex
 	states map[netip.Addr]*exporterState
 }
 
-// exporterState is what a v9 or IPFIX exporter has told this listener so far.
+// exporterState is what a v9 or IPFIX exporter told this listener until now.
 //
-// Kept per exporter because goflow2 keys templates by version, observation
-// domain and template ID, and two routers numbering their templates the same
-// way, as two of the same model will, would otherwise decode each other's
-// data with the wrong layout.
+// The listener keeps one for each exporter. goflow2 keys templates by version,
+// observation domain and template ID. Two routers of the same model give their
+// templates the same numbers. Without this, each would decode the data of the
+// other with the wrong layout.
 type exporterState struct {
 	templates netflow.NetFlowTemplateSystem
 	sampling  protoproducer.SamplingRateSystem
 }
 
 // NewNetFlow builds the plugin for one listener. name is the instance key from
-// config, listen the UDP address to bind, and exporters the only addresses
-// whose datagrams are decoded. A device on the same network can forge an
-// exporter's address, so only a listen address the router alone reaches, or a
-// firewall rule, keeps forged flows out.
+// config. listen is the UDP address to bind. exporters are the only addresses
+// whose datagrams the listener decodes. A device on the same network can forge
+// the address of an exporter. So forged flows stay out only with a listen
+// address that only the router reaches, or with a firewall rule.
 //
-// It performs no I/O; the socket opens in Listen.
+// It does no I/O. The socket opens in Listen.
 func NewNetFlow(name, listen string, exporters []string, log *slog.Logger) (*NetFlow, error) {
 	if name == "" {
 		return nil, fmt.Errorf("plugin: netflow instance has no name")
@@ -108,17 +108,17 @@ func NewNetFlow(name, listen string, exporters []string, log *slog.Logger) (*Net
 	}, nil
 }
 
-// Name is the source these flows are filed under.
+// Name is the source of these flows.
 func (n *NetFlow) Name() string { return n.name }
 
-// Kind is ROUTER: whatever exports flows is doing the routing.
+// Kind is ROUTER. The device that exports flows is the device that routes.
 func (n *NetFlow) Kind() dbtype.SourceKind { return dbtype.SourceRouter }
 
 // Listen receives datagrams until ctx is done.
 //
-// A datagram that will not decode is logged and skipped, and the listener
-// carries on: one malformed packet, or a v9 data set that arrived before its
-// template, says nothing about the next.
+// The listener logs and skips a datagram that does not decode, and continues.
+// One malformed packet, or a v9 data set that arrived before its template,
+// tells nothing about the next.
 func (n *NetFlow) Listen(ctx context.Context, emit func(context.Context, []Flow)) error {
 	var lc net.ListenConfig
 
@@ -133,7 +133,7 @@ func (n *NetFlow) Listen(ctx context.Context, emit func(context.Context, []Flow)
 		n.ready(conn.LocalAddr())
 	}
 
-	// Closing the socket is what unblocks ReadFrom when ctx ends.
+	// The close of the socket unblocks ReadFrom when ctx ends.
 	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
 	defer stop()
 
@@ -158,8 +158,8 @@ func (n *NetFlow) Listen(ctx context.Context, emit func(context.Context, []Flow)
 
 		sender := senderAddr(from)
 		if _, ok := n.exporters[sender]; !ok {
-			// Counted and warned about once: a misdirected exporter sends
-			// thousands a minute, and one warning is enough to find it.
+			// Count these, and warn once. An exporter with the wrong target
+			// sends thousands each minute. One warning is enough to find it.
 			if refused == 0 {
 				n.logger.WarnContext(ctx, "dropping datagrams from a sender not listed in exporters",
 					slog.String("sender", sender.String()))
@@ -186,8 +186,9 @@ func (n *NetFlow) Listen(ctx context.Context, emit func(context.Context, []Flow)
 	}
 }
 
-// decode turns one datagram into flows. received stands in for a flow's end
-// time when the exporter sent none, or one more than [maxFlowEndSkew] from it.
+// decode turns one datagram into flows. received replaces the end time of a
+// flow when the exporter sent none, or one more than [maxFlowEndSkew] from
+// it.
 func (n *NetFlow) decode(sender netip.Addr, payload []byte, received time.Time) ([]Flow, error) {
 	if len(payload) < 2 {
 		return nil, errors.New("datagram too short for a version")
@@ -229,10 +230,11 @@ func (n *NetFlow) decode(sender netip.Addr, payload []byte, received time.Time) 
 			records, _, _, options = protoproducer.SplitIPFIXSets(ipfix)
 			msgs, err = protoproducer.ProcessMessageIPFIXConfig(&ipfix, st.sampling, nil)
 
-			// goflow2 takes samplingPacketInterval as the rate, which is right
-			// only when nothing is skipped. Where the exporter says how many it
-			// skips, as softflowd does, the rate is worked out here and replaces
-			// goflow2's, for this packet and the ones after it.
+			// goflow2 takes samplingPacketInterval as the rate. This is right
+			// only when nothing is skipped. Some exporters tell how many they
+			// skip, as softflowd does. For them, this code calculates the rate.
+			// It replaces the rate of goflow2 for this packet and the next
+			// packets.
 			if rate, ok := packetSpaceRate(options); ok && err == nil {
 				st.sampling.AddSamplingRate(10, ipfix.ObservationDomainId, rate)
 
@@ -275,8 +277,8 @@ func (n *NetFlow) decode(sender netip.Addr, payload []byte, received time.Time) 
 		if i < len(nat) && nat[i].addr.IsValid() {
 			f.Dst = nat[i].addr
 
-			// A record may name the translated address without the port;
-			// ICMP has neither port to translate.
+			// A record can name the translated address without the port. ICMP
+			// has no port to translate.
 			if nat[i].port != 0 {
 				f.DstPort = nat[i].port
 			}
@@ -288,16 +290,16 @@ func (n *NetFlow) decode(sender netip.Addr, payload []byte, received time.Time) 
 	return flows, nil
 }
 
-// IPFIX information elements that describe count-based sampling (RFC 5477):
-// select samplingPacketInterval packets, then skip samplingPacketSpace.
+// IPFIX information elements that describe count-based sampling (RFC 5477).
+// Select samplingPacketInterval packets, then skip samplingPacketSpace.
 const (
 	ieSamplingPacketInterval = 305
 	ieSamplingPacketSpace    = 306
 )
 
-// packetSpaceRate returns the sampling rate an IPFIX options record gives as a
-// packet interval and space, such as softflowd's 1 and 99 for one packet in
-// 100, and false when no record gives both.
+// packetSpaceRate returns the sampling rate that an IPFIX options record gives
+// as a packet interval and space. An example is 1 and 99 from softflowd, for
+// one packet in 100. It returns false when no record gives both.
 func packetSpaceRate(options []netflow.OptionsDataFlowSet) (uint32, bool) {
 	for _, set := range options {
 		for _, rec := range set.Records {
@@ -325,7 +327,7 @@ func packetSpaceRate(options []netflow.OptionsDataFlowSet) (uint32, bool) {
 	return 0, false
 }
 
-// state returns the template and sampling memory for one exporter, creating it
+// state returns the template and sampling memory of one exporter. It creates it
 // on first contact.
 func (n *NetFlow) state(sender netip.Addr) *exporterState {
 	n.mu.Lock()
@@ -343,8 +345,8 @@ func (n *NetFlow) state(sender netip.Addr) *exporterState {
 	return st
 }
 
-// toFlow translates goflow2's record, dropping one without both addresses: a
-// template that carries no addresses (an options record, a layer-2-only
+// toFlow translates the record of goflow2. It drops a record without both
+// addresses. A template with no addresses (an options record, a layer-2-only
 // export) describes no conversation between hosts.
 func toFlow(m *protoproducer.ProtoProducerMessage, received time.Time) (Flow, bool) {
 	src, ok := netip.AddrFromSlice(m.SrcAddr)
@@ -360,9 +362,9 @@ func toFlow(m *protoproducer.ProtoProducerMessage, received time.Time) (Flow, bo
 	// Sampling rates of 0 and 1 both mean every packet was counted.
 	scale := max(m.SamplingRate, 1)
 
-	// A router with its clock wrong would file the flow in an hour long gone
-	// or not yet come, so an end that far out is replaced with the arrival,
-	// as is a missing one.
+	// A router with a wrong clock would put the flow in an hour long in the
+	// past or in the future. So the arrival replaces an end that far away. It
+	// also replaces a missing end.
 	end := time.Unix(0, int64(m.TimeFlowEndNs)) //nolint:gosec // nanoseconds since 1970 fit an int64 until 2262.
 	if m.TimeFlowEndNs == 0 || end.Sub(received).Abs() > maxFlowEndSkew {
 		end = received
@@ -382,13 +384,13 @@ func toFlow(m *protoproducer.ProtoProducerMessage, received time.Time) (Flow, bo
 	}, true
 }
 
-// maxFlowEndSkew is how far a flow's end may be from when its export arrived.
-// A router exports a flow when it ends or at its active timeout, so a true end
-// is minutes before arrival.
+// maxFlowEndSkew is how far the end of a flow can be from the arrival of its
+// export. A router exports a flow when it ends, or at its active timeout. So a
+// true end is minutes before the arrival.
 const maxFlowEndSkew = time.Hour
 
-// scaled returns n times rate, or the largest uint64 when that does not fit:
-// a forged or corrupt record can carry any count and any rate.
+// scaled returns n times rate, or the largest uint64 when that does not fit. A
+// forged or corrupt record can have any count and any rate.
 func scaled(n, rate uint64) uint64 {
 	hi, lo := bits.Mul64(n, rate)
 	if hi != 0 {
@@ -398,8 +400,8 @@ func scaled(n, rate uint64) uint64 {
 	return lo
 }
 
-// IPFIX information elements for a packet's addresses after the router's NAT.
-// v9 numbers them the same.
+// IPFIX information elements for the addresses of a packet after the NAT of
+// the router. v9 gives them the same numbers.
 const (
 	iePostNATSrcV4    = 225
 	iePostNATDstV4    = 226
@@ -408,26 +410,26 @@ const (
 	iePostNATDstV6    = 282
 )
 
-// natDestination is where one record's packets were delivered after NAT, and
-// the source they left with, zero when the exporter did not say.
+// natDestination is where the packets of one record arrived after NAT, and the
+// source with which they left. It is zero when the exporter did not tell.
 type natDestination struct {
 	addr netip.Addr
 	port uint16
 	src  netip.Addr
 }
 
-// postNATDestinations reads each data record's post-NAT destination, in the
-// order goflow2's producer turns records into messages: one message per record,
-// sets in packet order.
+// postNATDestinations reads the post-NAT destination of each data record. It
+// uses the order in which the producer of goflow2 turns records into messages:
+// one message for each record, with sets in packet order.
 //
-// goflow2 maps only the pre-NAT addresses, and on a router doing NAT those are
-// the wrong ones for every reply. A reply from the internet is addressed to the
-// router's public address and only reaches the device after translation, so
-// without this every download would be credited to an address no device holds
-// and dropped. The source needs no such fix: an outgoing packet's pre-NAT
-// source is already the device.
+// goflow2 maps only the pre-NAT addresses. On a router that does NAT, those are
+// the wrong addresses for every reply. A reply from the internet goes to the
+// public address of the router. It reaches the device only after translation.
+// So without this, every download would go to an address that no device has,
+// and would be dropped. The source needs no such fix. The pre-NAT source of
+// an outgoing packet is already the device.
 //
-// It returns nothing when the counts disagree, so no record is paired with the
+// It returns nothing when the counts are different. So no record goes with the
 // wrong message.
 func postNATDestinations(sets []netflow.DataFlowSet, messages int) []natDestination {
 	var out []natDestination
@@ -467,9 +469,9 @@ func postNATDestinations(sets []netflow.DataFlowSet, messages int) []natDestinat
 	return out
 }
 
-// withoutOwnExports drops the flows that carried the exports themselves: an
-// exporter sending to this listener sees its own datagrams go by and reports
-// them too, so a collector left to count them charts its own feed.
+// withoutOwnExports drops the flows that carried the exports themselves. An
+// exporter that sends to this listener sees its own datagrams, and also
+// reports them. So a collector that counts them would chart its own feed.
 func (n *NetFlow) withoutOwnExports(flows []Flow, port uint16) []Flow {
 	return slices.DeleteFunc(flows, func(f Flow) bool {
 		_, exporter := n.exporters[f.Src]
@@ -478,11 +480,11 @@ func (n *NetFlow) withoutOwnExports(flows []Flow, port uint16) []Flow {
 	})
 }
 
-// protoUDP is UDP's IANA protocol number, which exports travel over.
+// protoUDP is the IANA protocol number of UDP. Exports go over UDP.
 const protoUDP = 17
 
-// listenPort is the port a bound socket took, which differs from the
-// configured one when that asked for port zero.
+// listenPort is the port of a bound socket. It is different from the
+// configured port when the configured port is zero.
 func listenPort(a net.Addr) uint16 {
 	if ua, ok := a.(*net.UDPAddr); ok {
 		return uint16(ua.Port) //nolint:gosec // a bound UDP port fits 16 bits.
@@ -491,8 +493,8 @@ func listenPort(a net.Addr) uint16 {
 	return 0
 }
 
-// senderAddr reads the source address off a received datagram, unmapped so an
-// IPv4 exporter reaching a dual-stack socket matches its configured address.
+// senderAddr reads the source address from a received datagram, unmapped. So
+// an IPv4 exporter on a dual-stack socket matches its configured address.
 func senderAddr(from net.Addr) netip.Addr {
 	if ua, ok := from.(*net.UDPAddr); ok {
 		return ua.AddrPort().Addr().Unmap()

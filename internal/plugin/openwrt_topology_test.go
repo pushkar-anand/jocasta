@@ -19,8 +19,8 @@ func netDevice(name, devtype string, up, carrier bool, speed int, duplex string)
 	return d
 }
 
-// homeTables is a router with a VLAN-aware bridge over two DSA switch ports
-// and a 2.4 GHz network, and a 5 GHz network in no bridge.
+// homeTables is a router with a VLAN-aware bridge over two DSA switch ports and
+// a 2.4 GHz network. It also has a 5 GHz network in no bridge.
 func homeTables() openWrtTables {
 	bridge := netDevice("br-lan", "bridge", true, true, 1000, "unknown")
 	bridge.Bridge, bridge.Ports = true, []string{"lan1", "lan2", "phy0-ap0"}
@@ -77,8 +77,8 @@ func TestOpenWrtTopologyPorts(t *testing.T) {
 	assert.True(t, topo.Gateway)
 	assert.Equal(t, pinned, topo.ReadAt)
 
-	// The bridge, the VLAN device and loopback are places an address can be
-	// learned, and no port.
+	// The bridge, the VLAN device and loopback are places where the router can
+	// learn an address. They are not ports.
 	assert.Equal(t, []TopologyPort{
 		{Name: "lan1", Kind: PortWired, PVID: 1, Tagged: []int{20}, Untagged: []int{1}, Running: true, Rate: 1_000_000_000, FullDuplex: true},
 		{Name: "lan2", Kind: PortWired, PVID: 1, Untagged: []int{1}},
@@ -90,9 +90,9 @@ func TestOpenWrtTopologyPorts(t *testing.T) {
 	assert.Empty(t, topo.Neighbours)
 }
 
-// A wired client is where the bridge learned it. A Wi-Fi client the bridge
-// learned is on its radio's interface with the network's SSID and band, and
-// one on a network in no bridge is placed on its interface.
+// A wired client is where the bridge learned it. A Wi-Fi client that the bridge
+// learned is on the interface of its radio, with the SSID and band of the
+// network. A client on a network in no bridge goes on its interface.
 func TestOpenWrtTopologySightings(t *testing.T) {
 	t.Parallel()
 
@@ -105,8 +105,8 @@ func TestOpenWrtTopologySightings(t *testing.T) {
 	}, topo.Seen)
 }
 
-// An access point is read for what is plugged into it, and the router above
-// it is where the network hangs from.
+// Jocasta reads an access point for what is connected to it. The network hangs
+// from the router above it.
 func TestOpenWrtTopologyOnlyIsNoGateway(t *testing.T) {
 	t.Parallel()
 
@@ -125,8 +125,8 @@ func TestBandName(t *testing.T) {
 	}
 }
 
-// The tables as an access point with one bridge, one wired client and one
-// radio answers them.
+// The tables of an access point with one bridge, one wired client and one
+// radio.
 var openWrtTopologyAnswers = map[string]string{
 	"system board": `[0,{"hostname":"attic-ap"}]`,
 	"luci-rpc getNetworkDevices": `[0,{` +
@@ -150,7 +150,7 @@ func TestOpenWrtTopologyReadsEveryTable(t *testing.T) {
 	assert.Equal(t, []Sighting{{Port: "lan1", MAC: "00:00:5e:00:53:01"}}, topo.Seen)
 }
 
-// Without the bridge table nothing was learned, so the read fails with the
+// Without the bridge table, the read learned nothing. So it fails with the
 // reason.
 func TestOpenWrtTopologyWithoutTheBridgeTableFails(t *testing.T) {
 	t.Parallel()
@@ -163,8 +163,8 @@ func TestOpenWrtTopologyWithoutTheBridgeTableFails(t *testing.T) {
 	assert.True(t, topo.Empty())
 }
 
-// A station interface lists the access point it joined, which is no client of
-// this one, so it is not asked.
+// A station interface lists the access point that it joined. That access point
+// is not a client of this one. So the read does not ask it.
 func TestOpenWrtTopologyAsksOnlyAccessPoints(t *testing.T) {
 	t.Parallel()
 
@@ -186,8 +186,8 @@ func TestOpenWrtTopologyAsksOnlyAccessPoints(t *testing.T) {
 	assert.Equal(t, []string{"00:00:5e:00:53:01", "00:00:5e:00:53:21"}, macs)
 }
 
-// A radio that was asked and failed has learned nothing, so with the bridge
-// table refused too the read fails, as a RouterOS one does.
+// A radio that the read asked and that failed learned nothing. So if rpcd also
+// refuses the bridge table, the read fails, as a RouterOS read does.
 func TestOpenWrtTopologyWithNothingLearnedFails(t *testing.T) {
 	t.Parallel()
 

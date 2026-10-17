@@ -12,23 +12,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The environment koanf binds a netflow instance named "gateway" to, with
-// the exporters comma-separated.
+// The environment that koanf binds to a netflow instance named "gateway",
+// with the exporters comma-separated.
 const (
 	liveFlowListenEnv    = "JOCASTA_PLUGINS__NETFLOW__GATEWAY__LISTEN"
 	liveFlowExportersEnv = "JOCASTA_PLUGINS__NETFLOW__GATEWAY__EXPORTERS"
 
-	// liveFlowWaitEnv bounds how long the test waits for a first flow, as a
-	// duration. An exporter sends a flow only once it times out, so this is
-	// longer than the exporter's shortest timeout.
+	// liveFlowWaitEnv limits how long the test waits for a first flow, as a
+	// duration. An exporter sends a flow only when it times out. So this is
+	// longer than the shortest timeout of the exporter.
 	liveFlowWaitEnv = "JOCASTA_NETFLOW_LIVE_WAIT"
 )
 
-// TestNetFlowLive listens for a real exporter and prints every flow decoded
-// in the first batch that holds one, and in any batch arriving within a
-// second of it. It asserts only that a flow arrives.
+// TestNetFlowLive listens for a real exporter. It prints every flow decoded in
+// the first batch that has one, and in each batch within a second of it. It
+// asserts only that a flow arrives.
 //
-// It is skipped without a listen address: the rest of the suite must stay
+// Without a listen address, it skips. The rest of the suite must stay
 // hermetic.
 //
 //	JOCASTA_PLUGINS__NETFLOW__GATEWAY__LISTEN=:2055 \
@@ -72,8 +72,8 @@ func TestNetFlowLive(t *testing.T) {
 			flows = append(flows, batch...)
 
 			if len(flows) > 0 {
-				// Batches an exporter sends together arrive within moments of
-				// each other, so a second's grace collects the rest.
+				// Batches that an exporter sends together arrive within moments
+				// of each other. So one more second collects the rest.
 				once.Do(func() { time.AfterFunc(time.Second, cancel) })
 			}
 		})

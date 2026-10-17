@@ -20,24 +20,24 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/adguard"
 )
 
-// fakeAdGuardLog serves /control/querylog the way AdGuard Home answers it:
-// newest first, older_than keeping entries logged before it, and limit
-// capping the page. It has no login set.
+// fakeAdGuardLog serves /control/querylog as AdGuard Home does: newest first.
+// older_than keeps entries logged before it, and limit sets the maximum page
+// size. It has no login.
 type fakeAdGuardLog struct {
 	mu       sync.Mutex
 	entries  []adguard.LogEntry
 	requests []url.Values
 
-	// pageCap pages by fewer entries than asked for, failPage answers the
-	// request with that number, counting from 1 across reads, with an error,
-	// and refuse answers every request with a 401, each when set.
+	// When set, pageCap sends fewer entries than asked for. failPage answers
+	// the request with that number with an error, from 1 across reads. refuse
+	// answers every request with a 401.
 	pageCap  int
 	failPage int
 	refuse   bool
 }
 
-// log appends a lookup of each name by 192.0.2.10, one second apart, after
-// the last one logged.
+// log appends a lookup of each name by 192.0.2.10, one second apart, after the
+// last logged lookup.
 func (f *fakeAdGuardLog) log(names ...string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -99,8 +99,8 @@ func (f *fakeAdGuardLog) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(resp)
 }
 
-// testAdGuard starts a fake AdGuard Home and returns it with a plugin reading
-// it, whose clock is pinned.
+// testAdGuard starts a fake AdGuard Home. It returns it with a plugin that
+// reads it, with a fixed clock.
 func testAdGuard(t *testing.T) (*fakeAdGuardLog, *AdGuard) {
 	t.Helper()
 
@@ -132,7 +132,7 @@ func adguardClient(t *testing.T, raw string) *adguard.AdGuard {
 	return client
 }
 
-// cursorAt is the cursor a read leaves after the nth lookup logged.
+// cursorAt is the cursor that a read leaves after the nth logged lookup.
 func cursorAt(n int) string {
 	return pinned.Add(time.Duration(n) * time.Second).Format(time.RFC3339Nano)
 }
@@ -200,8 +200,8 @@ func TestAdGuardMapping(t *testing.T) {
 	}, qs)
 }
 
-// A read with no cursor takes the last hour, and an empty log leaves the
-// cursor empty.
+// A read with no cursor takes the last hour. An empty log leaves the cursor
+// empty.
 func TestAdGuardFirstRead(t *testing.T) {
 	f, p := testAdGuard(t)
 
@@ -219,7 +219,7 @@ func TestAdGuardFirstRead(t *testing.T) {
 	assert.Equal(t, []string{"new.example.com"}, names(qs))
 }
 
-// Each read takes up where the last left off, across a page boundary, and
+// Each read continues where the last read stopped, across a page boundary. It
 // pages past the last entry of the page before.
 func TestAdGuardResume(t *testing.T) {
 	f, p := testAdGuard(t)
@@ -248,7 +248,8 @@ func TestAdGuardResume(t *testing.T) {
 	assert.Equal(t, cursorAt(logPageSize+3), cursor)
 }
 
-// A server that pages by fewer entries than asked for is read to the end.
+// The plugin reads to the end a server that sends fewer entries than asked
+// for.
 func TestAdGuardShortPages(t *testing.T) {
 	f, p := testAdGuard(t)
 	f.pageCap = 2
@@ -260,7 +261,7 @@ func TestAdGuardShortPages(t *testing.T) {
 	assert.Equal(t, []string{"a.example.com", "b.example.com", "c.example.com", "d.example.com", "e.example.com"}, names(qs))
 }
 
-// A read that reaches its cap before the cursor keeps the newest lookups and
+// A read that reaches its limit before the cursor keeps the newest lookups. It
 // moves the cursor past the rest.
 func TestAdGuardBacklog(t *testing.T) {
 	f, p := testAdGuard(t)
@@ -282,8 +283,8 @@ func TestAdGuardBacklog(t *testing.T) {
 	assert.Empty(t, qs)
 }
 
-// A page that fails returns nothing and the cursor the read was given, so
-// the next read covers the same lookups.
+// A page that fails returns nothing, with the cursor that the read got. So the
+// next read covers the same lookups.
 func TestAdGuardPartial(t *testing.T) {
 	f, p := testAdGuard(t)
 
@@ -305,8 +306,8 @@ func TestAdGuardPartial(t *testing.T) {
 	assert.Len(t, qs, logPageSize+2)
 }
 
-// A cursor that does not parse starts the read afresh instead of refusing
-// every read after it.
+// A cursor that does not parse starts the read again. It does not refuse every
+// later read.
 func TestAdGuardBadCursor(t *testing.T) {
 	f, p := testAdGuard(t)
 	f.log("example.com")
@@ -318,8 +319,8 @@ func TestAdGuardBadCursor(t *testing.T) {
 	}
 }
 
-// A refused login and a server that cannot be reached map onto this
-// package's sentinels.
+// A refused login and an unreachable server map to the sentinels of this
+// package.
 func TestAdGuardErrors(t *testing.T) {
 	f, p := testAdGuard(t)
 	f.refuse = true
