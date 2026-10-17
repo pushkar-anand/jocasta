@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestLoginFormRejectsWrongPassword covers auth.ErrInvalidCredentials reaching
-// the client through the same status-mapper and error-page-data path as any
-// other handler error.
+// TestLoginFormRejectsWrongPassword covers auth.ErrInvalidCredentials. It
+// reaches the client through the same status-mapper and error-page-data path
+// as any other handler error.
 func TestLoginFormRejectsWrongPassword(t *testing.T) {
 	t.Parallel()
 
@@ -39,14 +39,14 @@ func TestLoginFormRejectsWrongPassword(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), `aria-describedby="login-error"`)
 	assert.NotContains(t, rec.Body.String(), "wrong-password")
 
-	// The username is kept, so the cursor goes where the retry starts: the
-	// password.
+	// The page keeps the username. So the cursor goes where the retry starts:
+	// the password.
 	assert.Regexp(t, `<input[^>]*id="login-password"[^>]*autofocus`, rec.Body.String())
 	assert.NotRegexp(t, `<input[^>]*id="login-username"[^>]*autofocus`, rec.Body.String())
 }
 
-// TestLoginFormLocksAfterTooManyPasswords covers auth.ErrLoginLocked reaching
-// the sign-in page as a 429 that says to wait, with the username kept.
+// TestLoginFormLocksAfterTooManyPasswords covers auth.ErrLoginLocked. It
+// reaches the sign-in page as a 429 that says to wait, with the username.
 func TestLoginFormLocksAfterTooManyPasswords(t *testing.T) {
 	t.Parallel()
 
@@ -63,9 +63,9 @@ func TestLoginFormLocksAfterTooManyPasswords(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), `value="`+testUsername+`"`)
 }
 
-// TestLoginFormLimitsEachClientAddress covers the sign-in page counting
-// attempts by the client address in the request's context: one address that
-// has tried too many accounts is refused, and another still signs in.
+// TestLoginFormLimitsEachClientAddress covers the count of attempts by the
+// client address in the context of the request. The page refuses an address
+// that tried too many accounts. A different address still signs in.
 func TestLoginFormLimitsEachClientAddress(t *testing.T) {
 	t.Parallel()
 
@@ -80,7 +80,7 @@ func TestLoginFormLimitsEachClientAddress(t *testing.T) {
 	h := newWebHandlerWithAuth(t, testStore(t), a)
 	from := netip.MustParseAddr("198.51.100.7")
 
-	// 30 spread over four accounts stays inside each account's 10.
+	// 30 over four accounts stays within the 10 of each account.
 	for i := range 30 {
 		rec := loginFrom(t, h, from, names[i%len(names)], "wrong-password")
 		require.Equal(t, http.StatusUnauthorized, rec.Code)
@@ -93,8 +93,9 @@ func TestLoginFormLimitsEachClientAddress(t *testing.T) {
 	assert.Equal(t, http.StatusFound, rec.Code)
 }
 
-// loginFrom posts the sign-in form as loginWith does, from the client address
-// the server's resolver would have placed in the request's context.
+// loginFrom posts the sign-in form as loginWith does. It posts from the client
+// address that the resolver of the server would put in the context of the
+// request.
 func loginFrom(t *testing.T, h http.Handler, addr netip.Addr, username, password string) *httptest.ResponseRecorder {
 	t.Helper()
 
@@ -110,8 +111,8 @@ func loginFrom(t *testing.T, h http.Handler, addr netip.Addr, username, password
 	return rec
 }
 
-// Signing out is a POST, since a link would let another site spend the
-// session cookie, and it ends the session.
+// Sign-out is a POST, because a link would let a different site use the
+// session cookie. It ends the session.
 func TestLogoutIsAPostThatEndsTheSession(t *testing.T) {
 	t.Parallel()
 
@@ -122,13 +123,13 @@ func TestLogoutIsAPostThatEndsTheSession(t *testing.T) {
 	require.Equal(t, http.StatusFound, rec.Code)
 	assert.Equal(t, "/login", rec.Header().Get("Location"))
 
-	// The session is gone: a page that needs one no longer finds it.
+	// The session is gone. A page that needs one no longer finds it.
 	after := requestAs(t, h, cookies, http.MethodGet, "/settings/tokens", "")
 	assert.Equal(t, http.StatusInternalServerError, after.Code)
 }
 
-// Only POST signs out: a GET /logout matches no route and leaves the session
-// alone.
+// Only POST signs out. A GET /logout matches no route, and does not change the
+// session.
 func TestLogoutByGetDoesNothing(t *testing.T) {
 	t.Parallel()
 
@@ -142,9 +143,9 @@ func TestLogoutByGetDoesNothing(t *testing.T) {
 	assert.Equal(t, http.StatusOK, stillIn.Code)
 }
 
-// TestLoginPageRedirectsASignedInVisitor covers /login sitting outside
-// auth.Middleware's gate: reaching the handler while signed in is possible,
-// so the handler is what has to send that visitor on.
+// TestLoginPageRedirectsASignedInVisitor covers /login outside the gate of
+// auth.Middleware. A signed-in visitor can reach the handler. So the handler
+// must send that visitor on.
 func TestLoginPageRedirectsASignedInVisitor(t *testing.T) {
 	t.Parallel()
 

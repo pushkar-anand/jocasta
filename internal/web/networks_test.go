@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The network page is the prefix and the devices currently on it, drawn by the
-// same filtered list the Devices page uses.
+// The network page is the prefix and its current devices. The same filtered
+// list as on the Devices page draws it.
 func TestNetworkPage(t *testing.T) {
 	t.Parallel()
 
@@ -29,22 +29,23 @@ func TestNetworkPage(t *testing.T) {
 	assert.Contains(t, body, "nas.local")
 	assert.Contains(t, body, `id="device-rows"`)
 
-	// It carries the same filter form as /devices, pointed at this page.
+	// It has the same filter form as /devices, pointed at this page.
 	assert.Contains(t, body, `class="filters"`)
 	assert.Contains(t, body, `action="/networks/1"`)
 	assert.Contains(t, body, `hx-get="/networks/1/rows"`)
 
-	// The network is fixed by the path, so the form does not offer to change it.
+	// The path fixes the network. So the form does not offer to change it.
 	assert.NotContains(t, body, "Any network")
 
-	// The way back leads to the device list, which the page is a scoped view of.
+	// The way back goes to the device list. This page is a view of it for one
+	// network.
 	assert.Contains(t, body, `href="/devices"`)
 
-	// The presence legend explains the window it counts over.
+	// The presence legend explains the window of its count.
 	assert.Contains(t, body, "answered a sweep in the last 15 minutes")
 }
 
-// The filter narrows the list without leaving the network's page.
+// The filter limits the list, and stays on the page of the network.
 func TestNetworkPageFilters(t *testing.T) {
 	t.Parallel()
 
@@ -54,7 +55,7 @@ func TestNetworkPageFilters(t *testing.T) {
 	assert.Contains(t, body, "nas.local")
 	assert.NotContains(t, body, "printer.local")
 
-	// The fragment endpoint answers with the table alone and pushes an address
+	// The fragment endpoint answers with only the table, and pushes an address
 	// on this page.
 	rec := get(t, h, "/networks/1/rows?q=nas")
 	require.Equal(t, http.StatusOK, rec.Code)
@@ -62,7 +63,7 @@ func TestNetworkPageFilters(t *testing.T) {
 	assert.Equal(t, "/networks/1?q=nas", rec.Header().Get("HX-Push-Url"))
 }
 
-// The list on a network's page is paged like the Devices page.
+// The list on the page of a network has pages, as the Devices page does.
 func TestNetworkPagePaginates(t *testing.T) {
 	t.Parallel()
 
@@ -73,7 +74,7 @@ func TestNetworkPagePaginates(t *testing.T) {
 	assert.Contains(t, body, `href="/networks/1?page=2"`)
 }
 
-// A router that named the segment is the only place its tag is shown.
+// The tag shows only when a router named the segment.
 func TestNetworkPageShowsTheTag(t *testing.T) {
 	t.Parallel()
 
@@ -93,16 +94,17 @@ func TestNetworkPageShowsTheTag(t *testing.T) {
 
 	assert.Contains(t, body, "VLAN 10")
 
-	// The friendly name leads the page: it is the heading and the browser title.
+	// The friendly name comes first on the page. It is the heading and the
+	// browser title.
 	assert.Contains(t, body, `<h1 id="page-title" title="Home">Home</h1>`)
 	assert.Contains(t, body, "<title>Home &middot; jocasta</title>")
 
-	// The CIDR is still shown, one line down in the summary card.
+	// The CIDR still shows, one line down in the summary card.
 	assert.Contains(t, body, prefix)
 }
 
-// The device table on a network's page drops the Network column: every row is
-// on that network, so the column would repeat the page.
+// The device table on the page of a network drops the Network column. Every
+// row is on that network. So the column would repeat the page.
 func TestNetworkPageDropsTheRedundantColumn(t *testing.T) {
 	t.Parallel()
 
@@ -113,8 +115,8 @@ func TestNetworkPageDropsTheRedundantColumn(t *testing.T) {
 	assert.NotContains(t, get(t, seeded(t), "/devices").Body.String(), `class="on-network"`)
 }
 
-// The route admits any segment, so a name or an id nothing has is a page that
-// is not there.
+// The route allows any segment. So a name or an id that nothing has is a
+// missing page.
 func TestNetworkPageUnknownIDIsNotFound(t *testing.T) {
 	t.Parallel()
 

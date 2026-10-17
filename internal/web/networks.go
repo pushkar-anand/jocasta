@@ -11,16 +11,16 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// networkPath is where one network's own page lives.
+// networkPath is the path of the page of one network.
 func networkPath(id int64) string {
 	return (&url.URL{Path: "/networks"}).JoinPath(strconv.FormatInt(id, 10)).String()
 }
 
-// network serves one prefix and the devices on it, or with rows the device
-// table on its own, which is what the filter form fetches as it is filled in.
-// The device list is the same filtered, paged list the Devices page draws,
-// scoped to this network: the filter form and pager address this page, and
-// the network select is left out since the path already names it.
+// network serves one prefix and its devices. With rows, it serves only the
+// device table, which the filter form fetches while a person fills it. The
+// device list is the same filtered list with pages as on the Devices page,
+// for this network only. The filter form and pager point to this page. The
+// network select is left out, because the path already names it.
 func (h *Handler) network(sm *auth.Session, rows bool) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		id, ok := pathID(r)

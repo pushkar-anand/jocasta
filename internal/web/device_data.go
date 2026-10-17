@@ -10,29 +10,31 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// deviceHistoryLimit is how much of one device's history the detail page shows.
+// deviceHistoryLimit is how much of the history of one device the detail page
+// shows.
 const deviceHistoryLimit = 30
 
-// devicesPerPage is how many rows one page of the device list shows. The list
-// is still read and sorted whole, since ordering by name or address cannot be
-// done in SQL, so this only bounds how much of it reaches the DOM at once.
+// devicesPerPage is how many rows one page of the device list shows. The page
+// still reads and sorts the whole list, because SQL cannot order by name or
+// address. So this only limits how much of it reaches the DOM at once.
 const devicesPerPage = 50
 
-// devicesData is the device list and the state of the form that narrowed it.
+// devicesData is the device list, and the state of its filter form.
 type devicesData struct {
 	view
 	Devices  []*inventory.Device
 	Groups   []string
 	Networks []*inventory.Network
 
-	// Total is how many devices the filter matched across every page; Devices
-	// holds only the page being shown. Pager is nil when the match fits on one.
+	// Total is how many devices the filter matched across every page. Devices
+	// holds only the shown page. Pager is nil when the match fits on one
+	// page.
 	Total int
 	Pager *listPager
 
-	// The form values, kept as strings so a template can compare them against
-	// the option values without converting anything. Network is the id of the
-	// chosen network, as text; Type is a device class.
+	// The form values, kept as strings. So a template can compare them with
+	// the option values, without a conversion. Network is the id of the
+	// chosen network, as text. Type is a device class.
 	Query          string
 	Group          string
 	Network        string
@@ -42,22 +44,22 @@ type devicesData struct {
 	IncludeIgnored bool
 	Watched        bool
 
-	// Page is the 1-based page the form asked for, before it is clamped to how
-	// many there turned out to be.
+	// Page is the 1-based page that the form asked for, before the clamp to
+	// the real number of pages.
 	Page int
 
-	// Base is where this list lives, "/devices" when empty. The network page
-	// reuses the list scoped to one prefix and sets Base to its own path, so
-	// the filter form and the pager address that page.
+	// Base is the path of this list. It is "/devices" when empty. The network
+	// page uses the list again for one prefix, and sets Base to its own path.
+	// So the filter form and the pager point to that page.
 	Base string
 
-	// OnNetwork is the prefix the list is pinned to on a network's page. The
-	// network select is left out then, since the path already names it, and
-	// the query string carries no redundant network id.
+	// OnNetwork is the fixed prefix of the list on the page of a network. The
+	// network select is then left out, because the path already names it. The
+	// query string has no repeated network id.
 	OnNetwork *inventory.Network
 }
 
-// listPath is where this list lives.
+// listPath is the path of this list.
 func (d *devicesData) listPath() string {
 	if d.Base != "" {
 		return d.Base
@@ -66,15 +68,15 @@ func (d *devicesData) listPath() string {
 	return "/devices"
 }
 
-// FilterAction is where the filter form submits without htmx, and also where
-// the "clear" link leads: the list with nothing narrowing it.
+// FilterAction is where the filter form sends without htmx. It is also where
+// the "clear" link goes: the list with no filter.
 func (d *devicesData) FilterAction() string { return d.listPath() }
 
-// FilterRows is the fragment endpoint the filter form fetches with htmx.
+// FilterRows is the fragment endpoint that the filter form fetches with htmx.
 func (d *devicesData) FilterRows() string { return d.listPath() + "/rows" }
 
-// Filtered reports whether the form is narrowing the list. The network a
-// network page pins is the page itself, so it does not count.
+// Filtered reports whether the form limits the list. The fixed network of a
+// network page is the page itself. So it does not count.
 func (d *devicesData) Filtered() bool {
 	chosenNetwork := d.Network != "" && d.OnNetwork == nil
 
@@ -82,8 +84,8 @@ func (d *devicesData) Filtered() bool {
 		d.Status != "" || d.Sort != "" || d.IncludeIgnored || d.Watched
 }
 
-// Count words how many devices are in the heading: the size of the match when a
-// filter is on, the size of the inventory when it is not.
+// Count writes how many devices are in the heading. It is the size of the
+// match when a filter is on. Else, it is the size of the inventory.
 func (d *devicesData) Count() string {
 	switch {
 	case d.Filtered() && d.Total == 1:
@@ -97,10 +99,10 @@ func (d *devicesData) Count() string {
 	}
 }
 
-// listPager positions a paginated list: which page is shown, how many there
-// are, and the ready-built addresses of the pages either side. A nil one is a
-// list short enough to show whole. The match count is carried on devicesData,
-// which the count line reads whether or not the list is paged.
+// listPager positions a paginated list: the shown page, the number of pages,
+// and the built addresses of the pages on each side. A nil pager is a list
+// short enough to show whole. devicesData has the match count. The count line
+// reads it, whether the list has pages or not.
 type listPager struct {
 	Page  int
 	Pages int
@@ -128,9 +130,9 @@ func (d *devicesData) filter() inventory.DeviceFilter {
 	}
 }
 
-// networkID reads the chosen network's id. A value that is not a number is no
-// filter at all, the same as choosing "any": the select only offers ids, so
-// anything else was typed into the address by hand.
+// networkID reads the id of the chosen network. A value that is not a number is
+// no filter, the same as "any". The select only offers ids. So any other value
+// was typed into the address by hand.
 func (d *devicesData) networkID() int64 {
 	id, err := strconv.ParseInt(d.Network, 10, 64)
 	if err != nil {
@@ -153,8 +155,8 @@ func (d *devicesData) params() url.Values {
 		}
 	}
 
-	// On a network's page the prefix is the path, so repeating it in the query
-	// string would only be there to fall out of step with the path.
+	// On the page of a network, the prefix is the path. A repeat in the query
+	// string could only become different from the path.
 	if d.OnNetwork != nil {
 		q.Del("network")
 	}
@@ -170,8 +172,9 @@ func (d *devicesData) params() url.Values {
 	return q
 }
 
-// address is the URL of this list on a given page. Page one carries no page
-// parameter, so an unfiltered first page is just the list's own path.
+// address is the URL of this list on a given page. Page one has no page
+// parameter. So a first page with no filter is only the own path of the
+// list.
 func (d *devicesData) address(page int) string {
 	q := d.params()
 
@@ -182,23 +185,26 @@ func (d *devicesData) address(page int) string {
 	return withQuery(d.listPath(), q)
 }
 
-// canonical is the address of the page showing this list. The fragment endpoint
-// returns it as HX-Push-Url, so the browser's address bar ends up somewhere
-// that can be reloaded or shared even though only the table was fetched.
+// canonical is the address of the page that shows this list. The fragment
+// endpoint returns it as HX-Push-Url. So the address bar of the browser shows
+// an address that a person can reload or share, although only the table was
+// fetched.
 func (d *devicesData) canonical() string {
 	return d.address(d.Page)
 }
 
-// deviceRowView is one device as the row partial renders it: the device itself,
-// embedded so the partial reads its fields directly, and whether this viewer's
-// role may edit it, which the row's Edit button hangs on.
+// deviceRowView is one device, as the row partial renders it. It embeds the
+// device, so the partial reads its fields directly. It also tells whether the
+// role of this viewer can edit it. The Edit button of the row depends on
+// this.
 type deviceRowView struct {
 	*inventory.Device
 	CanWrite bool
 }
 
-// Rows pairs each device on the shown page with the edit permission the row
-// partial needs. It reads Role, which the handler copied from the session.
+// Rows pairs each device on the shown page with the edit permission that the
+// row partial needs. It reads Role, which the handler copied from the
+// session.
 func (d *devicesData) Rows() []deviceRowView {
 	canWrite := d.Role.CanWrite()
 
@@ -210,8 +216,8 @@ func (d *devicesData) Rows() []deviceRowView {
 	return rows
 }
 
-// paginate keeps the page of the sorted match that the form asked for, clamping
-// a page number past the end back to the last real one.
+// paginate keeps the page of the sorted match that the form asked for. It
+// clamps a page number after the end back to the last real page.
 func (d *devicesData) paginate(all []*inventory.Device) {
 	d.Total = len(all)
 
@@ -235,13 +241,13 @@ func (d *devicesData) paginate(all []*inventory.Device) {
 	}
 }
 
-// deviceForm reads the validated query into the list's form state.
+// deviceForm reads the validated query into the form state of the list.
 //
-// A value whose shape is right but that the inventory does not recognise, such
-// as a device class outside the vocabulary or a network id that is not a
-// number, is dropped. The form only ever submits values
-// it offered, so an unrecognised one arrived by hand-editing the address, and
-// the rendered form then shows what was actually applied.
+// It drops a value with the right shape that the inventory does not know. An
+// example is a device class outside the vocabulary, or a network id that is
+// not a number. The form only sends values that it offered. So an unknown
+// value came from a hand edit of the address. The rendered form then shows
+// what really applied.
 func deviceForm(q deviceQuery) *devicesData {
 	d := &devicesData{
 		Query:          strings.TrimSpace(q.Query),
@@ -251,22 +257,20 @@ func deviceForm(q deviceQuery) *devicesData {
 		Page:           1,
 	}
 
-	// The pager only ever links to pages that exist; a number past the end is
-	// clamped back by paginate, and the validator has already turned away one
-	// below 1.
+	// The pager only links to pages that exist. paginate clamps a number after
+	// the end. The validator already refused a number below 1.
 	if q.Page > 1 {
 		d.Page = q.Page
 	}
 
-	// The select offers network ids; anything that is not one arrived by hand,
-	// and keeping it would leave the address claiming a filter that was not
-	// applied. An id for a network that no longer exists is left to filter to
-	// nothing, the same as an unknown group does.
+	// The select offers network ids. Any other value came by hand. If kept,
+	// the address would claim a filter that did not apply. An id for a network
+	// that no longer exists filters to nothing, as an unknown group does.
 	if n, err := strconv.ParseInt(q.Network, 10, 64); err == nil && n > 0 {
 		d.Network = strconv.FormatInt(n, 10)
 	}
 
-	// The select offers the class vocabulary; a value outside it, such as an
+	// The select offers the class vocabulary. A value outside it, such as an
 	// old free-text type, is no filter.
 	if c := classify.Class(q.Type); c.Known() {
 		d.Type = string(c)
@@ -283,14 +287,14 @@ func deviceForm(q deviceQuery) *devicesData {
 	return d
 }
 
-// buildDevicesData is the /devices list: the whole inventory, unscoped.
+// buildDevicesData is the /devices list: the whole inventory, with no scope.
 func buildDevicesData(ctx context.Context, store *inventory.Store, q deviceQuery) (*devicesData, error) {
 	return buildDeviceListData(ctx, store, q, view{Title: "Devices", Section: "Devices"}, "", nil)
 }
 
-// buildDeviceListData builds the filtered, paged device list. base and onNetwork
-// are empty for /devices; the network page passes its own path and prefix so the
-// same list, form and pager render scoped to one network.
+// buildDeviceListData builds the filtered device list, with pages. base and
+// onNetwork are empty for /devices. The network page passes its own path and
+// prefix. So the same list, form and pager render for one network.
 func buildDeviceListData(
 	ctx context.Context,
 	store *inventory.Store,
@@ -305,8 +309,8 @@ func buildDeviceListData(
 	data.OnNetwork = onNetwork
 	data.Window = windowWords(store.OnlineWindow())
 
-	// On a network's page the path fixes the prefix, so it overrides whatever
-	// the query string asked for.
+	// On the page of a network, the path fixes the prefix. So it overrides the
+	// query string.
 	if onNetwork != nil {
 		data.Network = strconv.FormatInt(onNetwork.ID, 10)
 	}
@@ -335,9 +339,10 @@ func buildDeviceListData(
 	return data, nil
 }
 
-// buildDevicePageData is one device's detail page: its history, the groups the
-// curation form suggests, and what each source claims about it. query is the
-// page's own, which carries the traffic section's period and filter.
+// buildDevicePageData is the detail page of one device: its history, the groups
+// that the curation form suggests, and what each source claims about it. query
+// is the query of the page. It has the period and filter of the traffic
+// section.
 func buildDevicePageData(
 	ctx context.Context, store *inventory.Store, device *inventory.Device, query url.Values,
 ) (*curationForm, error) {

@@ -16,9 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// signIn logs into h as the seeded test user (see testAuth) and returns the
-// cookies the response set, for a later request to prove it is signed in
-// with.
+// signIn logs into h as the seeded test user (see testAuth). It returns the
+// cookies of the response. A later request uses them to prove its sign-in.
 func signIn(t *testing.T, h http.Handler) []*http.Cookie {
 	t.Helper()
 
@@ -37,9 +36,9 @@ func signIn(t *testing.T, h http.Handler) []*http.Cookie {
 	return rec.Result().Cookies()
 }
 
-// follow issues a GET for the Location a prior response redirected to, carrying
-// the same cookies plus any the redirecting response set: the second half of
-// a POST-redirect-GET.
+// follow sends a GET for the Location of the redirect of an earlier response.
+// It sends the same cookies, and any cookies of the redirect response. This is
+// the second half of a POST-redirect-GET.
 func follow(t *testing.T, h http.Handler, cookies []*http.Cookie, rec *httptest.ResponseRecorder) *httptest.ResponseRecorder {
 	t.Helper()
 
@@ -51,7 +50,7 @@ func follow(t *testing.T, h http.Handler, cookies []*http.Cookie, rec *httptest.
 	return requestAs(t, h, append(cookies, rec.Result().Cookies()...), http.MethodGet, loc, "")
 }
 
-// requestAs issues method/target through h carrying cookies, with an optional
+// requestAs sends method/target through h with cookies, and an optional
 // form-encoded body.
 func requestAs(t *testing.T, h http.Handler, cookies []*http.Cookie, method, target, body string) *httptest.ResponseRecorder {
 	t.Helper()
@@ -78,9 +77,9 @@ func requestAs(t *testing.T, h http.Handler, cookies []*http.Cookie, method, tar
 	return rec
 }
 
-// Nothing in the web package itself redirects a signed-out request the way
-// auth.Middleware does, since that gate lives at the server level, so a
-// request with no session reaching this handler surfaces as an error page.
+// Nothing in the web package redirects a signed-out request as auth.Middleware
+// does, because that gate is at the server level. So a request with no session
+// that reaches this handler gets an error page.
 func TestTokensPageRequiresASession(t *testing.T) {
 	t.Parallel()
 
@@ -102,7 +101,7 @@ func TestTokensPageListsNoneToStart(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), `href="/settings/tokens" aria-current="page"`)
 }
 
-// The list is the page; the create form is a dialog reached from it.
+// The list is the page. The create form is a dialog from it.
 func TestTokensPageLeadsWithTheList(t *testing.T) {
 	t.Parallel()
 
@@ -118,7 +117,8 @@ func TestTokensPageLeadsWithTheList(t *testing.T) {
 	assert.Contains(t, body, "<legend>Permission</legend>")
 }
 
-// The topbar account menu names the signed-in account on the tokens page too.
+// The account menu of the topbar also names the signed-in account on the
+// tokens page.
 func TestTokensPageShowsTheSignedInAccount(t *testing.T) {
 	t.Parallel()
 
@@ -148,21 +148,21 @@ func TestCreateAndRevokeToken(t *testing.T) {
 
 	id := onlyTokenRowID(t, body)
 
-	// Revoking asks first, in a page dialog whose button names the action.
+	// A revoke asks first, in a page dialog whose button names the action.
 	assert.NotContains(t, body, "hx-confirm")
 	assert.Contains(t, body, `data-open="revoke-dialog-`+strconv.FormatInt(id, 10)+`"`)
 	assert.Contains(t, body, ">Revoke token</button>")
 
-	// The plaintext is a one-shot: loading the page again shows it without
-	// the secret, and without minting another token.
+	// The plaintext shows only once. A second load of the page shows it
+	// without the secret, and makes no other token.
 	reload := requestAs(t, h, cookies, http.MethodGet, "/settings/tokens", "")
 	require.Equal(t, http.StatusOK, reload.Code)
 	assert.NotContains(t, reload.Body.String(), "jct_", "a reload does not show the token again")
 	assert.Equal(t, id, onlyTokenRowID(t, reload.Body.String()), "and does not create a second token")
 
-	// Revoking straight after the create, while the reveal is still on the
-	// page: the response is the whole list region, showing the "none yet"
-	// line and carrying no leftover plaintext.
+	// A revoke just after the create, while the plaintext is still on the
+	// page. The response is the whole list region. It shows the "none yet"
+	// line, and has no old plaintext.
 	rec = requestAs(t, h, cookies, http.MethodDelete, "/settings/tokens/"+strconv.FormatInt(id, 10), "")
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "No tokens yet.")
@@ -190,8 +190,8 @@ func TestCreateTokenRejectsAnUnknownScope(t *testing.T) {
 	assert.NotContains(t, rec.Body.String(), "Internal Server Error")
 }
 
-// The form's own required/maxlength attributes stop an empty name in a browser;
-// a request that gets past them is answered on a page.
+// The required/maxlength attributes of the form stop an empty name in a
+// browser. The handler answers a request that gets past them on a page.
 func TestCreateTokenRejectsAMissingName(t *testing.T) {
 	t.Parallel()
 
@@ -205,8 +205,8 @@ func TestCreateTokenRejectsAMissingName(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "Request could not be processed")
 }
 
-// onlyTokenRowID pulls the id out of the one row's `id="token-row-N"` marker,
-// failing the test if the page does not have exactly one.
+// onlyTokenRowID gets the id from the `id="token-row-N"` marker of the one row.
+// It fails the test if the page does not have exactly one.
 func onlyTokenRowID(t *testing.T, body string) int64 {
 	t.Helper()
 
@@ -227,8 +227,8 @@ func onlyTokenRowID(t *testing.T, body string) int64 {
 	return id
 }
 
-// Tokens created in the same moment, as a script minting several does, keep
-// one order from load to load: newest first, by creation and then by id.
+// Tokens created at the same time, as by a script that makes several, keep one
+// order from load to load: newest first, by creation and then by id.
 func TestTokensListInAFixedOrder(t *testing.T) {
 	t.Parallel()
 
@@ -250,13 +250,14 @@ func TestTokensListInAFixedOrder(t *testing.T) {
 
 	body := requestAs(t, h, signIn(t, h), http.MethodGet, "/settings/tokens", "").Body.String()
 
-	// Each name appears again in its row's revoke dialog; the table comes first.
+	// Each name shows again in the revoke dialog of its row. The table comes
+	// first.
 	got := regexp.MustCompile(`token-\d\d`).FindAllString(body, -1)
 	require.GreaterOrEqual(t, len(got), len(want))
 	assert.Equal(t, want, got[:len(want)])
 }
 
-// A new token's plaintext is shown on the page that answers the create, and
+// The plaintext of a new token shows on the page that answers the create. It
 // never reaches the session, which the server keeps in its database.
 func TestCreatedTokenStaysOutOfTheSessionStore(t *testing.T) {
 	t.Parallel()
@@ -281,7 +282,7 @@ func TestCreatedTokenStaysOutOfTheSessionStore(t *testing.T) {
 	assert.NotContains(t, reload.Body.String(), plaintext[1], "a reload does not show the token again")
 }
 
-// The create dialog offers an expiry, with Never chosen to begin with.
+// The create dialog offers an expiry. Never is the first choice.
 func TestTokenDialogOffersAnExpiry(t *testing.T) {
 	t.Parallel()
 
@@ -295,8 +296,8 @@ func TestTokenDialogOffersAnExpiry(t *testing.T) {
 	assert.Contains(t, body, `<option value="1y">1 year</option>`)
 }
 
-// Each choice sets the expiry that far from now; Never, or a form with no
-// choice, leaves the token without one.
+// Each choice sets the expiry that far from now. Never, or a form with no
+// choice, leaves the token without an expiry.
 func TestCreateTokenSetsTheChosenExpiry(t *testing.T) {
 	t.Parallel()
 
@@ -360,8 +361,8 @@ func TestCreateTokenRejectsAnUnknownExpiry(t *testing.T) {
 	require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
 }
 
-// The list says when each token expires: never, on a date, or that it
-// already has. An expired token stays listed until it is revoked.
+// The list tells when each token expires: never, on a date, or that it already
+// expired. An expired token stays in the list until a revoke.
 func TestTokensListShowsExpiry(t *testing.T) {
 	t.Parallel()
 

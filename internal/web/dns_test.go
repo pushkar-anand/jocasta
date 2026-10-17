@@ -15,8 +15,8 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/plugin"
 )
 
-// recordLookups records lookups by client of each name, now, the way the DNS
-// reader does in production.
+// recordLookups records lookups by client of each name, now, as the DNS reader
+// does in production.
 func recordLookups(t *testing.T, store *inventory.Store, queries ...plugin.Query) {
 	t.Helper()
 
@@ -121,8 +121,8 @@ func TestDevicePageCutsLongListsAndCountsTheRest(t *testing.T) {
 
 	store := sweptPair(t)
 
-	// 52 domains, the busiest holding 25 names: two domains and five names
-	// past what the section lists.
+	// 52 domains, the busiest with 25 names. This is two domains and five
+	// names more than the section lists.
 	var queries []plugin.Query
 
 	for i := range 25 {

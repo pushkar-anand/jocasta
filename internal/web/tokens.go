@@ -13,9 +13,9 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// apiToken is what the tokens page shows for one row. The generated model
-// carries dbtype wrappers a template cannot call ago or eq against directly,
-// the same reason inventory's own view types exist.
+// apiToken is what the tokens page shows for one row. The generated model has
+// dbtype wrappers. A template cannot call ago or eq on them directly. The view
+// types of inventory exist for the same reason.
 type apiToken struct {
 	ID         int64
 	Name       string
@@ -26,8 +26,8 @@ type apiToken struct {
 	Expired    bool
 }
 
-// newAPIToken builds the row for t, judging expiry against now, the clock the
-// rest of the page reads.
+// newAPIToken builds the row for t. It checks expiry against now, the clock of
+// the rest of the page.
 func newAPIToken(t *models.ApiToken, now time.Time) apiToken {
 	v := apiToken{
 		ID:        t.ID,
@@ -53,13 +53,13 @@ type tokenLifetime struct {
 	Value string // the form value.
 	Label string
 
-	// years and days are how far from now the token expires. Both zero
-	// means it never does.
+	// years and days are how far from now the token expires. If both are
+	// zero, it never expires.
 	years, days int
 }
 
-// tokenLifetimes are the create dialog's expiry choices, the default first.
-// The form's validate tag lists the same values.
+// tokenLifetimes are the expiry choices of the create dialog, the default
+// first. The validate tag of the form lists the same values.
 var tokenLifetimes = []tokenLifetime{
 	{Value: "never", Label: "Never"},
 	{Value: "30d", Label: "30 days", days: 30},
@@ -67,8 +67,9 @@ var tokenLifetimes = []tokenLifetime{
 	{Value: "1y", Label: "1 year", years: 1},
 }
 
-// tokenExpiry returns when a token created at now with the choice named value
-// expires, or the zero time when it never does or value names no choice.
+// tokenExpiry returns when a token expires, if created at now with the choice
+// that value names. It returns the zero time when the token never expires, or
+// value names no choice.
 func tokenExpiry(value string, now time.Time) time.Time {
 	for _, l := range tokenLifetimes {
 		if l.Value == value && (l.years != 0 || l.days != 0) {
@@ -79,24 +80,24 @@ func tokenExpiry(value string, now time.Time) time.Time {
 	return time.Time{}
 }
 
-// tokensData is the settings page listing a user's API tokens.
+// tokensData is the settings page that lists the API tokens of a user.
 type tokensData struct {
 	view
 	Tokens []apiToken
 
-	// Lifetimes are the expiry choices the create dialog offers.
+	// Lifetimes are the expiry choices of the create dialog.
 	Lifetimes []tokenLifetime
 
-	// PlaintextToken, NewName and NewScope are the completion state for the
-	// token createToken just made, set only on the page that answers its POST.
-	// The plaintext is never stored, so that page is the only one it appears
-	// on.
+	// PlaintextToken, NewName and NewScope are the completion state of the
+	// token that createToken just made. They are set only on the page that
+	// answers its POST. The plaintext is never stored. So only that page
+	// shows it.
 	PlaintextToken string
 	NewName        string
 	NewScope       string
 
-	// Revoked marks the list region revokeToken returns, so it announces the
-	// removal once, on that render alone.
+	// Revoked marks the list region that revokeToken returns. So it announces
+	// the removal once, only on that render.
 	Revoked bool
 }
 
@@ -107,8 +108,8 @@ func (h *Handler) tokens(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	}
 }
 
-// renderTokens shows the token settings page, with the completion state data
-// carries from a create, if any.
+// renderTokens shows the token settings page, with the completion state in
+// data from a create, if any.
 func (h *Handler) renderTokens(w http.ResponseWriter, r *http.Request, sm *auth.Session, a *auth.Auth, data tokensData) error {
 	ctx := r.Context()
 
@@ -131,18 +132,18 @@ func (h *Handler) renderTokens(w http.ResponseWriter, r *http.Request, sm *auth.
 	return nil
 }
 
-// createToken issues a new token for the signed-in user and answers with the
-// list showing its plaintext. The page is the POST's own response, not a
-// redirect, so the plaintext, which can be seen only this once, is never
-// stored, not even in the session. Reloading offers to resend the form, which
-// would make a second token.
+// createToken makes a new token for the signed-in user, and answers with the
+// list that shows its plaintext. The page is the response of the POST, not a
+// redirect. The plaintext shows only this once. So it is never stored, also
+// not in the session. A reload offers to send the form again, which would make
+// a second token.
 func (h *Handler) createToken(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	type createTokenForm struct {
 		Name  string `schema:"name" validate:"required,min=1,max=100"`
 		Scope string `schema:"scope" validate:"required,oneof=read read_write"`
 
 		// Expires names one of tokenLifetimes. A form without it, as from a
-		// page loaded before the choice existed, makes a token that never
+		// page from before the choice existed, makes a token that never
 		// expires.
 		Expires string `schema:"expires" validate:"omitempty,oneof=never 30d 90d 1y"`
 	}
@@ -160,9 +161,9 @@ func (h *Handler) createToken(sm *auth.Session, a *auth.Auth) response.HandlerFu
 			return err
 		}
 
-		// A token cannot out-reach the account that mints it: a read user gets
-		// read tokens only, so a read-only session cannot hand itself write
-		// access to the JSON API through one.
+		// A token cannot do more than the account that makes it. A read user
+		// gets only read tokens. So a read-only session cannot give itself
+		// write access to the JSON API through a token.
 		if dbtype.TokenScope(input.Scope) == dbtype.TokenReadWrite && !sm.CurrentRole(ctx).CanWrite() {
 			return auth.ErrForbidden
 		}
@@ -182,10 +183,10 @@ func (h *Handler) createToken(sm *auth.Session, a *auth.Auth) response.HandlerFu
 	}
 }
 
-// revokeToken deletes one of the signed-in user's tokens and answers with the
-// list region as it now stands. It returns the whole region so the last revoke
-// shows the "none yet" line in place of an empty table, and so any plaintext
-// still on the page from a create just before it goes with the swap.
+// revokeToken deletes a token of the signed-in user, and answers with the
+// current list region. It returns the whole region. So the last revoke shows
+// the "none yet" line instead of an empty table. Also, plaintext on the page
+// from a create just before goes with the swap.
 func (h *Handler) revokeToken(sm *auth.Session, a *auth.Auth) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
@@ -215,8 +216,8 @@ func (h *Handler) revokeToken(sm *auth.Session, a *auth.Auth) response.HandlerFu
 	}
 }
 
-// tokenList reads the signed-in user's tokens, newest first, as the view the
-// template renders.
+// tokenList reads the tokens of the signed-in user, newest first, as the view
+// that the template renders.
 func (h *Handler) tokenList(ctx context.Context, sm *auth.Session, a *auth.Auth, r *http.Request) ([]apiToken, error) {
 	userID, err := currentUserID(sm, r)
 	if err != nil {
@@ -238,9 +239,9 @@ func (h *Handler) tokenList(ctx context.Context, sm *auth.Session, a *auth.Auth,
 	return list, nil
 }
 
-// currentUserID reads the id Login put in the session. The route sits behind
-// auth.Middleware, so finding none here means the middleware let through a
-// request it should have redirected, which is worth its own error.
+// currentUserID reads the id that Login put in the session. The route is behind
+// auth.Middleware. So if there is none here, the middleware passed a request
+// that it should have redirected. This needs its own error.
 func currentUserID(sm *auth.Session, r *http.Request) (int64, error) {
 	id, ok := sm.CurrentUserID(r.Context())
 	if !ok {

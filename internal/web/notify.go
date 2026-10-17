@@ -15,13 +15,13 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/notify"
 )
 
-// WithNotifier gives the notifications page the notifier and the destinations
-// it sends to.
+// WithNotifier gives the notifications page the notifier and its
+// destinations.
 func WithNotifier(n *notify.Notifier) Option {
 	return func(h *Handler) { h.notifier = n }
 }
 
-// kindChoice is one checkbox on a destination's card.
+// kindChoice is one checkbox on the card of a destination.
 type kindChoice struct {
 	Kind    dbtype.EventKind
 	Label   string
@@ -35,9 +35,9 @@ type destinationCard struct {
 	Host  string
 	Kinds []kindChoice
 
-	// LastAt is when the last message was sent since the server started, and
-	// zero when none was. LastErr says why it failed, and is empty when it
-	// arrived.
+	// LastAt is the time of the last message since the server started. It is
+	// zero when there was none. LastErr tells why it failed. It is empty when
+	// the message arrived.
 	LastAt  time.Time
 	LastErr string
 }
@@ -47,8 +47,8 @@ type notificationsData struct {
 	view
 	Destinations []destinationCard
 
-	// Saved, Sent and Error are one-shot flashes from the POSTs, read by the
-	// GET they redirect to.
+	// Saved, Sent and Error are one-shot flashes from the POSTs. The GET of
+	// their redirect reads them.
 	Saved string
 	Sent  string
 	Error string
@@ -60,17 +60,17 @@ const (
 	flashNotifyError = "flash.notify_error"
 )
 
-// notifiable returns the kinds of change a scan can record, in the order
-// dbtype.EventKinds lists them. An edit is the owner's own doing and is never
-// sent, so it is not offered.
+// notifiable returns the kinds of change that a scan can record, in the order
+// of dbtype.EventKinds. The owner makes an edit, and it is never sent. So it
+// is not offered.
 func notifiable() []dbtype.EventKind {
 	return slices.DeleteFunc(slices.Clone(dbtype.EventKinds()), func(k dbtype.EventKind) bool {
 		return k == dbtype.EventDeviceEdited
 	})
 }
 
-// notifications serves the notifications settings page. The route is gated to
-// an admin, so the page always renders in the admin view.
+// notifications serves the notifications settings page. Only an admin can use
+// the route. So the page always renders in the admin view.
 func (h *Handler) notifications(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
@@ -118,7 +118,7 @@ func (h *Handler) notifications(sm *auth.Session) response.HandlerFunc {
 	}
 }
 
-// saveNotifications replaces the kinds of change one destination is sent.
+// saveNotifications replaces the kinds of change that one destination gets.
 func (h *Handler) saveNotifications(sm *auth.Session) response.HandlerFunc {
 	type rulesForm struct {
 		Kinds []string `schema:"kind"`
@@ -137,9 +137,9 @@ func (h *Handler) saveNotifications(sm *auth.Session) response.HandlerFunc {
 			return err
 		}
 
-		// Only the kinds the page offers are kept. Its checkboxes submit
-		// nothing else, so anything more came from a hand-made request and
-		// dropping it loses no choice.
+		// Keep only the kinds that the page offers. Its checkboxes send nothing
+		// else. So anything more came from a hand-made request. To drop it
+		// loses no choice.
 		var kinds []dbtype.EventKind
 
 		for _, k := range notifiable() {
@@ -159,7 +159,8 @@ func (h *Handler) saveNotifications(sm *auth.Session) response.HandlerFunc {
 	}
 }
 
-// testNotification sends one destination a test message and says how it went.
+// testNotification sends one destination a test message, and tells the
+// outcome.
 func (h *Handler) testNotification(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
@@ -182,8 +183,8 @@ func (h *Handler) testNotification(sm *auth.Session) response.HandlerFunc {
 	}
 }
 
-// destinations returns the configured destinations, none when no notifier
-// was given.
+// destinations returns the configured destinations. It returns none when there
+// is no notifier.
 func (h *Handler) destinations() []*notify.Destination {
 	if h.notifier == nil {
 		return nil
@@ -200,7 +201,7 @@ func (h *Handler) destination(name string) (*notify.Destination, bool) {
 	return h.notifier.Destination(name)
 }
 
-// savedMessage names the destination saved and what it is now sent.
+// savedMessage names the saved destination, and what it gets now.
 func savedMessage(name string, kinds int) string {
 	switch kinds {
 	case 0:
@@ -212,8 +213,8 @@ func savedMessage(name string, kinds int) string {
 	return fmt.Sprintf("Saved: %s is sent %d kinds of change.", name, kinds)
 }
 
-// failedTestMessage says what the service answered and which settings to
-// check, which differ by the kind of destination.
+// failedTestMessage tells what the service answered, and which settings to
+// check. The settings are different for each kind of destination.
 func failedTestMessage(d *notify.Destination, err error) string {
 	check := "url and secret"
 

@@ -1,7 +1,7 @@
 package web
 
-// These template names are rendered from outside this package: internal/server
-// maps HTTP status codes to them through the error pipeline.
+// Code outside this package renders these template names. internal/server maps
+// HTTP status codes to them through the error pipeline.
 const (
 	TemplateLogin = "page/login"
 	TemplateSetup = "page/setup"

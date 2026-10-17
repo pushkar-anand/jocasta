@@ -16,7 +16,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/notify"
 )
 
-// ntfyServer answers every request with status and counts them.
+// ntfyServer answers every request with status, and counts the requests.
 func ntfyServer(t *testing.T, status int) (*httptest.Server, *atomic.Int32) {
 	t.Helper()
 
@@ -32,7 +32,7 @@ func ntfyServer(t *testing.T, status int) (*httptest.Server, *atomic.Int32) {
 	return srv, &n
 }
 
-// phone is an ntfy destination named phone, sending to srv.
+// phone is an ntfy destination named phone, which sends to srv.
 func phone(t *testing.T, srv *httptest.Server) *notify.Destination {
 	t.Helper()
 
@@ -76,7 +76,7 @@ func TestNotificationsPageForbidsANonAdmin(t *testing.T) {
 func TestNotificationsPageWithoutDestinations(t *testing.T) {
 	t.Parallel()
 
-	// No notifier at all, as when no destination is enabled.
+	// No notifier, as when no destination is enabled.
 	h := empty(t)
 
 	rec := requestAs(t, h, signIn(t, h), http.MethodGet, "/settings/notifications", "")
@@ -131,7 +131,7 @@ func TestSaveNotifications(t *testing.T) {
 	assert.ElementsMatch(t, []dbtype.EventKind{dbtype.EventDeviceDiscovered, dbtype.EventPortOpened}, kinds,
 		"a kind the page does not offer is dropped")
 
-	// Nothing ticked clears them.
+	// With nothing ticked, the save clears them.
 	rec = requestAs(t, h, cookies, http.MethodPost, "/settings/notifications/phone", url.Values{"kind": {"NOT_A_KIND"}}.Encode())
 	assert.Contains(t, follow(t, h, cookies, rec).Body.String(), "Saved: phone is sent nothing.")
 
@@ -191,7 +191,7 @@ func TestSavedMessageCountsAgree(t *testing.T) {
 	assert.Equal(t, "Saved: phone is sent 3 kinds of change.", savedMessage("phone", 3))
 }
 
-// A failed test names the settings its kind of destination has.
+// A failed test names the settings of its kind of destination.
 func TestFailedTestMessageNamesTheKindsSettings(t *testing.T) {
 	t.Parallel()
 

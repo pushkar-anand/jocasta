@@ -54,14 +54,15 @@ func TestSecurityEnrollAndConfirmShowsRecoveryCodesOnce(t *testing.T) {
 	assert.Contains(t, body, "10 recovery codes remaining")
 	assert.Contains(t, body, `id="recovery-codes"`, "the page that answers the confirm shows the codes")
 
-	// The recovery codes are a one-shot: gone on the next load.
+	// The recovery codes show only once. They are gone on the next load.
 	again := requestAs(t, h, cookies, http.MethodGet, "/settings/security", "")
 	require.Equal(t, http.StatusOK, again.Code)
 	assert.NotContains(t, again.Body.String(), "Recovery codes")
 }
 
-// TestSecurityConfirmationErrorsKeepTheirForms covers failed enrollment and
-// recovery-code replacement, including field hints and unchanged credentials.
+// TestSecurityConfirmationErrorsKeepTheirForms covers a failed enrollment and a
+// failed recovery-code replacement, with field hints and unchanged
+// credentials.
 func TestSecurityConfirmationErrorsKeepTheirForms(t *testing.T) {
 	t.Parallel()
 
@@ -114,8 +115,8 @@ func TestSecurityDisableRequiresPassword(t *testing.T) {
 	assert.Contains(t, wrong.Body.String(), `aria-describedby="disable-error"`)
 	assert.NotContains(t, wrong.Body.String(), "not-the-password")
 
-	// The dialog names the account for password managers, and the form
-	// posts it along with the password.
+	// The dialog names the account for password managers. The form posts it
+	// with the password.
 	assert.Contains(t, wrong.Body.String(),
 		`<input type="text" id="disable-username" name="username" autocomplete="username"`)
 
@@ -123,15 +124,15 @@ func TestSecurityDisableRequiresPassword(t *testing.T) {
 		url.Values{"username": {testUsername}, "password": {testPassword}}.Encode())
 	require.Equal(t, http.StatusSeeOther, right.Code)
 
-	// 2FA is off again: a fresh sign-in goes straight through.
+	// 2FA is off again. A new sign-in goes through at once.
 	fresh := loginWith(t, h, testUsername, testPassword)
 	require.Equal(t, http.StatusFound, fresh.Code)
 	assert.Equal(t, "/", fresh.Header().Get("Location"))
 }
 
 // TestSecurityQRRouteOnlyServesAPendingEnrollment covers the QR image route
-// having nothing to show without an unconfirmed secret: before enrollment
-// starts, and again once it has been confirmed.
+// without an unconfirmed secret. It has nothing to show before enrollment
+// starts, and again after the confirmation.
 func TestSecurityQRRouteOnlyServesAPendingEnrollment(t *testing.T) {
 	t.Parallel()
 
@@ -150,9 +151,9 @@ func TestSecurityQRRouteOnlyServesAPendingEnrollment(t *testing.T) {
 	assert.True(t, strings.HasPrefix(during.Body.String(), "\x89PNG"))
 }
 
-// TestSecurityKeepsTheSecretOnceTOTPIsOn covers a signed-in session reaching
-// enrollment while 2FA is already on, as a stale tab resubmitting would. The
-// secret stays out of reach and unchanged, and the recovery codes stay valid.
+// TestSecurityKeepsTheSecretOnceTOTPIsOn covers a signed-in session that
+// reaches enrollment while 2FA is already on, as from an old tab. The secret
+// stays out of reach and unchanged. The recovery codes stay valid.
 func TestSecurityKeepsTheSecretOnceTOTPIsOn(t *testing.T) {
 	t.Parallel()
 
@@ -182,7 +183,7 @@ func TestSecurityKeepsTheSecretOnceTOTPIsOn(t *testing.T) {
 	require.Equal(t, http.StatusSeeOther, confirm.Code)
 	assert.Equal(t, "/settings/security", confirm.Header().Get("Location"))
 
-	// No new codes were minted, so the page shows none, and an original
+	// The handler made no new codes. So the page shows none, and an original
 	// code still completes a sign-in.
 	after := requestAs(t, h, cookies, http.MethodGet, "/settings/security", "")
 	require.Equal(t, http.StatusOK, after.Code)
@@ -193,8 +194,9 @@ func TestSecurityKeepsTheSecretOnceTOTPIsOn(t *testing.T) {
 		url.Values{"code": {recoveryCodes[0]}}.Encode())
 	assert.Equal(t, http.StatusFound, redeem.Code)
 
-	// The authenticator's code still works too. The sign-in above already
-	// spent this step's code, so the next step's code stands in for it.
+	// The code of the authenticator also still works. The sign-in above
+	// already used the code of this step. So the code of the next step
+	// replaces it.
 	pending = loginWith(t, h, testUsername, testPassword).Result().Cookies()
 	next, err := totp.GenerateCode(secret, time.Now().Add(30*time.Second))
 	require.NoError(t, err)
@@ -203,8 +205,8 @@ func TestSecurityKeepsTheSecretOnceTOTPIsOn(t *testing.T) {
 	assert.Equal(t, http.StatusFound, verify.Code)
 }
 
-// Regenerated recovery codes are shown on the page that answers the request,
-// and never reach the session, which the server keeps in its database.
+// New recovery codes show on the page that answers the request. They never
+// reach the session, which the server keeps in its database.
 func TestRecoveryCodesStayOutOfTheSessionStore(t *testing.T) {
 	t.Parallel()
 

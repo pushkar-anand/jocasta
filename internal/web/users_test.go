@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// signInAs is signIn for a credential other than the seeded test user, for a
-// test that needs to sign in as an account it created itself.
+// signInAs is signIn for a credential other than the seeded test user. Use it
+// for a test that signs in as an account that it created itself.
 func signInAs(t *testing.T, h http.Handler, username, password string) []*http.Cookie {
 	t.Helper()
 
@@ -32,10 +32,10 @@ func signInAs(t *testing.T, h http.Handler, username, password string) []*http.C
 	return rec.Result().Cookies()
 }
 
-// The route is behind the admin gate, which reads the session role directly:
-// a request with no session carries the empty role, which is not admin, so it
-// gets the forbidden page. (The server-level middleware would have redirected
-// it to sign in before it ever reached here.)
+// The route is behind the admin gate, which reads the session role directly. A
+// request with no session has the empty role, which is not admin. So it gets
+// the forbidden page. (The server-level middleware would redirect it to sign
+// in before it reached here.)
 func TestUsersPageRequiresASession(t *testing.T) {
 	t.Parallel()
 
@@ -60,7 +60,7 @@ func TestUsersPageForbidsANonAdmin(t *testing.T) {
 }
 
 // The topbar offers the Users link only to an account that /settings/users
-// would let in; everyone still gets the links that are theirs.
+// allows. Everyone still gets their own links.
 func TestTopbarHidesUsersLinkFromNonAdmins(t *testing.T) {
 	t.Parallel()
 
@@ -93,7 +93,7 @@ func TestUsersPageListsTheSeededAdmin(t *testing.T) {
 	assert.Contains(t, body, testUsername)
 	assert.Contains(t, body, "Admin")
 
-	// The topbar marks the page being shown.
+	// The topbar marks the shown page.
 	assert.Contains(t, body, `href="/settings/users" aria-current="page"`)
 }
 
@@ -112,16 +112,17 @@ func TestCreateUserAsAdmin(t *testing.T) {
 	assert.Contains(t, body, "reader")
 	assert.Contains(t, body, `chip--label">Viewer</span>`, "the new account lists as a Viewer")
 
-	// The create is confirmed once, with the name and role and how to sign in.
+	// The page confirms the create once, with the name and role, and how to
+	// sign in.
 	assert.Contains(t, body, `class="notice notice--ok"`)
 	assert.Contains(t, body, "reader added as Viewer")
 	assert.Contains(t, body, "sign in at /login")
 
-	// The confirmation is a one-shot: a reload does not keep showing it.
+	// The confirmation shows only once. A reload does not show it again.
 	reload := requestAs(t, h, cookies, http.MethodGet, "/settings/users", "").Body.String()
 	assert.NotContains(t, reload, "reader added as Viewer")
 
-	// The account created can sign in as well as appear in the list.
+	// The created account can sign in, and is in the list.
 	readerCookies := signInAs(t, h, "reader", "reader-password-1")
 	assert.NotEmpty(t, readerCookies)
 }
@@ -145,15 +146,16 @@ func TestCreateUserRejectsADuplicateUsername(t *testing.T) {
 	assert.NotContains(t, rec.Body.String(), `name="role" value="read" checked`)
 	assert.NotContains(t, rec.Body.String(), "another-password-1", "passwords must never be redisplayed")
 
-	// The reason is a one-shot: reloading the list does not keep showing it.
+	// The reason shows only once. A reload of the list does not show it
+	// again.
 	reload := requestAs(t, h, cookies, http.MethodGet, "/settings/users", "")
 	assert.NotContains(t, reload.Body.String(), "is taken", "the message is shown once")
 	assert.NotContains(t, reload.Body.String(), `aria-invalid="true"`)
 	assert.Contains(t, reload.Body.String(), `name="role" value="read" checked`)
 }
 
-// A rejected create reopens the form so its error and the kept values are seen
-// without a click, even with no client script running.
+// A rejected create opens the form again. So its error and the kept values
+// show without a click, also with no client script.
 func TestCreateUserReopensTheDialogOnError(t *testing.T) {
 	t.Parallel()
 
@@ -170,7 +172,7 @@ func TestCreateUserReopensTheDialogOnError(t *testing.T) {
 	assert.NotContains(t, reload, `id="user-dialog" aria-labelledby="user-dialog-title" open`)
 }
 
-// The list is the page; the form is a dialog reached from it.
+// The list is the page. The form is a dialog from it.
 func TestUsersPageLeadsWithTheList(t *testing.T) {
 	t.Parallel()
 
@@ -195,7 +197,7 @@ func TestUsersPageMarksTheSignedInRow(t *testing.T) {
 	h := newWebHandlerWithAuth(t, testStore(t), a)
 	body := requestAs(t, h, signIn(t, h), http.MethodGet, "/settings/users", "").Body.String()
 
-	// Exactly one row, the seeded admin's, carries the "You" marker.
+	// Exactly one row, the row of the seeded admin, has the "You" marker.
 	assert.Equal(t, 1, strings.Count(body, ">You</span>"))
 
 	admin := strings.Index(body, testUsername)
@@ -219,7 +221,8 @@ func TestUsersPageExplainsRoles(t *testing.T) {
 	assert.Contains(t, body, "edits device labels and groups")
 }
 
-// The topbar account menu names the signed-in account on an ordinary page.
+// The account menu of the topbar names the signed-in account on a normal
+// page.
 func TestTopbarShowsTheSignedInAccount(t *testing.T) {
 	t.Parallel()
 

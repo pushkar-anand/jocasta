@@ -8,11 +8,11 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/classify"
 )
 
-// confidence words how strong a case the classifier's guess rests on, for the
-// reader who sees "auto" beside a type and wants to know how much to trust it.
-// One word: it rides in a chip beside "auto" and in a parenthetical in the
-// note, and both are tight. Empty for a guess that carries no confidence,
-// which is every Unknown one.
+// confidence writes how strong the case of the guess of the classifier is. A
+// reader who sees "auto" next to a type can know how much to trust it. It is
+// one word, because it goes in a chip next to "auto" and in parentheses in the
+// note. Both have little space. It is empty for a guess with no confidence,
+// which is every Unknown guess.
 func confidence(c classify.Confidence) string {
 	switch c {
 	case classify.High:
@@ -32,10 +32,10 @@ type classChoice struct {
 	Label string
 }
 
-// classChoices is the picker's options, ordered by label: the classifier's own
-// order is a tie-break rule a person reading a list would not expect. The
-// blank "let the classifier decide" option is the template's to add, since only
-// it knows the current guess to name in it.
+// classChoices is the options of the picker, ordered by label. The order of the
+// classifier is a tie-break rule that a person would not expect in a list. The
+// template adds the blank "let the classifier decide" option. Only the
+// template knows the current guess to name in it.
 func classChoices() []classChoice {
 	classes := classify.Classes()
 	out := make([]classChoice, len(classes))
@@ -52,9 +52,8 @@ func classChoices() []classChoice {
 }
 
 // classGlyphs are the device-class icons: the inner markup of a 24px SVG,
-// stroked in currentColor so a surface can size and colour them like the log
-// glyphs. This package owns them, which is what makes returning them as HTML
-// safe.
+// stroked in currentColor. So a surface can size and colour them, as the log
+// glyphs. This package owns them. So it is safe to return them as HTML.
 var classGlyphs = map[classify.Class]template.HTML{
 	classify.Router:         `<rect x="3" y="13" width="18" height="8" rx="1"/><path d="M7 17h.01M11 17h.01"/><path d="M12 13V9a3 3 0 0 1 3-3M12 9a3 3 0 0 0-3-3"/>`,
 	classify.Switch:         `<rect x="3" y="8" width="18" height="8" rx="1"/><path d="M7 12h.01M11 12h.01M15 12h.01"/>`,
@@ -80,9 +79,9 @@ var classGlyphs = map[classify.Class]template.HTML{
 	classify.VoIP:           `<path d="M5 4h5l1.5 5-2.5 1.8a12 12 0 0 0 5.2 5.2L17 18.5 22 20v-1a2 2 0 0 0-2-2h0M4 4a16 16 0 0 0 16 16"/>`,
 }
 
-// classIcon is the glyph for a class, and empty markup for one with none, the
-// zero class included, so a template can ask for an icon without first
-// checking whether the device has been classified.
+// classIcon is the glyph for a class. It is empty markup for a class with no
+// glyph, also the zero class. So a template can ask for an icon, without a
+// check whether the device has a class.
 func classIcon(c classify.Class) template.HTML {
 	return classGlyphs[c]
 }

@@ -10,55 +10,56 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// portRow is one line of the device page's Ports table: a port, what a port
-// scan found on it, and what the device advertises on it. A port the scan
-// never recorded is there because the device advertised it, and one the
-// device never advertised because the scan found it open.
+// portRow is one line of the Ports table of the device page: a port, what a
+// port scan found on it, and what the device advertises on it. A port that the
+// scan never recorded is there because the device advertised it. A port that
+// the device never advertised is there because the scan found it open.
 type portRow struct {
-	// Number is the port, and zero for a service the device advertised with
-	// no port. UDP marks a port a UDP service advertised; every port a scan
-	// records is TCP.
+	// Number is the port. It is zero for a service that the device advertised
+	// with no port. UDP marks a port that a UDP service advertised. Every port
+	// that a scan records is TCP.
 	Number uint16
 	UDP    bool
 
-	// Scanned reports whether a port scan recorded the port, and Service,
-	// Open and ChangedAt are what it recorded.
+	// Scanned reports whether a port scan recorded the port. Service, Open and
+	// ChangedAt are what it recorded.
 	Scanned   bool
 	Service   string
 	Open      bool
 	ChangedAt time.Time
 
-	// Advertised are the services the device advertised on the port.
+	// Advertised are the services that the device advertised on the port.
 	Advertised []advertised
 
-	// FirstSeen is the earliest the port was found open or advertised.
+	// FirstSeen is the earliest time when the port was open or advertised.
 	FirstSeen time.Time
 }
 
 // advertised is one service as the Ports table shows it.
 type advertised struct {
-	// Name is the friendly name of the service type, and empty when it has
-	// none, when the table shows Type.
+	// Name is the friendly name of the service type. It is empty when the type
+	// has none. Then the table shows Type.
 	Name string
 	Type string
 
-	// Instance is the name the device gives the service: a Google Cast
-	// device's owner-given name where it has one. Model is the model a Google
-	// Cast device gives.
+	// Instance is the name that the device gives the service. For a Google
+	// Cast device, it is the name from its owner, if it has one. Model is the
+	// model that a Google Cast device gives.
 	Instance string
 	Model    string
 }
 
-// portKey is what a port row is matched on.
+// portKey is the match key of a port row.
 type portKey struct {
 	number uint16
 	udp    bool
 }
 
-// portRows merges the ports a scan recorded with the services the device
-// advertised into one row per port. Rows that are open or advertised come
-// first, then rows only a scan recorded and found closed since, each part by
-// number with TCP before UDP and a service without a port last.
+// portRows merges the ports that a scan recorded with the services that the
+// device advertised, into one row for each port. Rows that are open or
+// advertised come first. Then come rows that only a scan recorded, and that
+// closed since. Each part is by number, with TCP before UDP, and a service
+// without a port last.
 func portRows(ports []*inventory.Port, services []*inventory.Service) []*portRow {
 	rows := make(map[portKey]*portRow, len(ports)+len(services))
 
@@ -123,8 +124,8 @@ func compareFalseFirst(a, b bool) int {
 	}
 }
 
-// closedOnly is 1 for a row a scan found closed that the device does not
-// advertise, which sorts it after the rest.
+// closedOnly is 1 for a row that a scan found closed, and that the device does
+// not advertise. This sorts it after the rest.
 func (r *portRow) closedOnly() int {
 	if r.Scanned && !r.Open && len(r.Advertised) == 0 {
 		return 1
@@ -133,8 +134,8 @@ func (r *portRow) closedOnly() int {
 	return 0
 }
 
-// serviceTypeNames words the DNS-SD service types devices on a home network
-// commonly advertise. A type missing here is shown as it is.
+// serviceTypeNames gives names to the DNS-SD service types that devices on a
+// home network often advertise. The page shows a missing type as it is.
 var serviceTypeNames = map[string]string{
 	"_adisk._tcp":            "Time Machine",
 	"_afpovertcp._tcp":       "File sharing (AFP)",

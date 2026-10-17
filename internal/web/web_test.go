@@ -31,8 +31,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Addresses come from RFC 5737 and hardware addresses from RFC 7042, both
-// reserved for documentation, so nothing here names a real device.
+// Addresses come from RFC 5737, and hardware addresses from RFC 7042. Both are
+// for documentation. So nothing here names a real device.
 const (
 	prefix = "192.0.2.0/24"
 
@@ -44,7 +44,7 @@ func testLogger() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
 }
 
-// testStore opens an inventory over a migrated database scoped to the test.
+// testStore opens an inventory over a migrated database for the test only.
 func testStore(t *testing.T) *inventory.Store {
 	t.Helper()
 
@@ -53,8 +53,8 @@ func testStore(t *testing.T) *inventory.Store {
 	return store
 }
 
-// testStoreWithConn also hands back the connection, for a test that has to set
-// up a state the store's own writes cannot reach.
+// testStoreWithConn also returns the connection, for a test that must set up a
+// state that the writes of the store cannot reach.
 func testStoreWithConn(t *testing.T) (*inventory.Store, *sql.DB) {
 	t.Helper()
 
@@ -66,12 +66,12 @@ func testStoreWithConn(t *testing.T) (*inventory.Store, *sql.DB) {
 	return inventory.New(conn, testLogger()), conn
 }
 
-// testReader builds the request reader the server wires in.
+// testReader builds the request reader of the server.
 func testReader(t *testing.T) *request.Reader {
 	t.Helper()
 
-	// deviceclass is the one custom tag any form or query struct in this
-	// package uses; main.go registers the same rule for the real server.
+	// deviceclass is the only custom tag of the form and query structs in this
+	// package. main.go registers the same rule for the real server.
 	v, err := validator.New(validator.WithCustomTags(map[string]validator.ValidationFunc{
 		"deviceclass": api.DeviceClassRule,
 	}))
@@ -80,17 +80,15 @@ func testReader(t *testing.T) *request.Reader {
 	return request.NewReader(testLogger(), v)
 }
 
-// testUsername and testPassword name the one account seeded into every test
-// Auth, so a test that needs a signed-in view does not have to invent its own
-// credential.
+// testUsername and testPassword name the one account in every test Auth. So a
+// test that needs a signed-in view does not need its own credential.
 const (
 	testUsername = "jocasta-test"
 	testPassword = "test-password-1"
 )
 
-// testAuth builds an Auth over its own migrated database, separate from
-// whatever store a test is exercising, seeded with the one account a test
-// signs in as.
+// testAuth builds an Auth over its own migrated database, separate from the
+// store of a test. It has the one account for test sign-ins.
 func testAuth(t *testing.T) *auth.Auth {
 	t.Helper()
 
@@ -117,8 +115,8 @@ func testAuth(t *testing.T) *auth.Auth {
 	return a
 }
 
-// unseededAuth is testAuth without seeding an account, for a test exercising
-// the setup flow itself, which only makes sense before any account exists.
+// unseededAuth is testAuth without an account, for a test of the setup flow
+// itself. The setup flow has a meaning only before an account exists.
 func unseededAuth(t *testing.T) *auth.Auth {
 	t.Helper()
 
@@ -133,11 +131,11 @@ func unseededAuth(t *testing.T) *auth.Auth {
 	return a
 }
 
-// newWebHandler builds the web handler the way the server does: an HTML writer
-// with the error pages configured, and the templates attached inside
-// NewHandler, wrapped in the same session load-and-save the real server
-// applies outside it. Without it, any code touching the session panics on
-// finding no session data in the request's context.
+// newWebHandler builds the web handler as the server does. It has an HTML
+// writer with the error pages, and the templates from NewHandler. It wraps
+// them in the same session load-and-save as the real server. Without it, any
+// code that uses the session panics, because the context of the request has
+// no session data.
 func newWebHandler(t *testing.T, store *inventory.Store) http.Handler {
 	t.Helper()
 
@@ -145,7 +143,7 @@ func newWebHandler(t *testing.T, store *inventory.Store) http.Handler {
 }
 
 // newWebHandlerWithAuth is newWebHandler for a test that needs its own handle
-// on the Auth it signs in against, such as one that reads a user's id
+// on the Auth of its sign-in. An example is a test that reads the id of a user
 // directly.
 func newWebHandlerWithAuth(t *testing.T, store *inventory.Store, a *auth.Auth, opts ...Option) http.Handler {
 	t.Helper()
@@ -153,8 +151,9 @@ func newWebHandlerWithAuth(t *testing.T, store *inventory.Store, a *auth.Auth, o
 	return newWebHandlerWithSession(t, store, a, auth.NewSession(testLogger()), opts...)
 }
 
-// newWebHandlerWithSession is newWebHandlerWithAuth over a session manager the
-// test built, such as one backed by a database the test reads afterwards.
+// newWebHandlerWithSession is newWebHandlerWithAuth over a session manager that
+// the test built. An example is a manager with a database that the test reads
+// after.
 func newWebHandlerWithSession(t *testing.T, store *inventory.Store, a *auth.Auth, sm *auth.Session, opts ...Option) http.Handler {
 	t.Helper()
 
@@ -198,9 +197,9 @@ func newWebHandlerWithSession(t *testing.T, store *inventory.Store, a *auth.Auth
 	return sm.LoadAndSave(h)
 }
 
-// sessionStoreHandler is newWebHandlerWithAuth with sessions kept in a
-// migrated database, the way the server keeps them, so a test can read back
-// what a request left in the session store.
+// sessionStoreHandler is newWebHandlerWithAuth with sessions in a migrated
+// database, as the server keeps them. So a test can read back what a request
+// left in the session store.
 func sessionStoreHandler(t *testing.T, a *auth.Auth) (http.Handler, *sql.DB) {
 	t.Helper()
 
@@ -238,14 +237,14 @@ func storedSessions(t *testing.T, conn *sql.DB) [][]byte {
 	return all
 }
 
-// empty returns a handler over an inventory nothing has swept into.
+// empty returns a handler over an inventory with no sweep.
 func empty(t *testing.T) http.Handler {
 	t.Helper()
 
 	return newWebHandler(t, testStore(t))
 }
 
-// seeded returns a handler over an inventory holding two swept devices.
+// seeded returns a handler over an inventory with two swept devices.
 func seeded(t *testing.T) http.Handler {
 	t.Helper()
 
@@ -262,8 +261,8 @@ func seeded(t *testing.T) http.Handler {
 	return newWebHandler(t, store)
 }
 
-// seededWith returns a handler over an inventory holding n swept devices, for a
-// test that needs more of them than the pair seeded gives.
+// seededWith returns a handler over an inventory with n swept devices, for a
+// test that needs more than the two of seeded.
 func seededWith(t *testing.T, n int) http.Handler {
 	t.Helper()
 
@@ -306,35 +305,35 @@ func TestOverviewRendersTheInventory(t *testing.T) {
 	assert.Contains(t, body, "<!DOCTYPE html>")
 	assert.Contains(t, body, "jocasta")
 
-	// The ledger is the page's one graphic, and its proportion has to come out
-	// as a number: html/template silently replaces a value it cannot vouch for
-	// in an attribute with ZgotmplZ.
+	// The ledger is the only graphic of the page. Its proportion must be a
+	// number. In an attribute, html/template replaces a value that it cannot
+	// trust with ZgotmplZ, and gives no warning.
 	assert.Contains(t, body, `class="ledger"`)
 	assert.Contains(t, body, `width="100"`)
 	assert.NotContains(t, body, "ZgotmplZ")
 
-	// Both swept devices are counted, and the activity log shows what the
+	// The page counts both swept devices. The activity log shows what the
 	// sweep recorded.
 	assert.Contains(t, body, "Seen recently")
 	assert.Contains(t, body, "printer.local")
 	assert.Contains(t, body, "discovered")
 
-	// "Seen recently" is not left as an unexplained threshold.
+	// "Seen recently" is not a limit with no explanation.
 	assert.Contains(t, body, "answered a sweep in the last 15 minutes")
 
-	// The sweep that produced all this is named.
+	// The page names the sweep that made all this.
 	assert.Contains(t, body, "test-sweep")
 	assert.Contains(t, body, prefix)
 
-	// The last-sweep panel anchors freshness to when collection last succeeded,
-	// and a healthy collector raises no staleness warning.
+	// The last-sweep panel measures freshness from the last successful
+	// collection. A healthy collector gives no age warning.
 	assert.Contains(t, body, "Last complete sweep")
 	assert.NotContains(t, body, "presence counts may be out of date")
 }
 
-// A collector that keeps recording scan rows while failing every one of them
-// leaves the presence counts aging with no visible cause. The overview says so
-// and points at the sweep log.
+// A collector can record scan rows while each of them fails. Then the presence
+// counts get old, with no visible cause. The overview tells this, and points
+// at the sweep log.
 func TestOverviewFlagsAStalledCollector(t *testing.T) {
 	t.Parallel()
 
@@ -344,8 +343,8 @@ func TestOverviewFlagsAStalledCollector(t *testing.T) {
 	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix), swept)
 	require.NoError(t, err)
 
-	// A later discovery run that finished but failed: newer than the clean one,
-	// so it is what the panel's status reads from.
+	// A later discovery run that finished but failed. It is newer than the
+	// clean run. So the status of the panel reads from it.
 	_, err = conn.ExecContext(t.Context(),
 		`INSERT INTO scans (source_id, kind, status, error, started_at, finished_at)
 		 VALUES ((SELECT id FROM sources WHERE name = 'test-sweep'), 'DISCOVERY', 'FAILED', 'boom',
@@ -358,8 +357,8 @@ func TestOverviewFlagsAStalledCollector(t *testing.T) {
 	assert.Contains(t, body, `href="/scans"`)
 }
 
-// The rail's ambient "Last sweep" line reads as healthy off a relative time
-// alone, so a failed run has to say it failed.
+// With only a relative time, the "Last sweep" line of the rail looks healthy.
+// So a failed run must say that it failed.
 func TestSweepNoteMarksAFailure(t *testing.T) {
 	t.Parallel()
 
@@ -372,8 +371,8 @@ func TestSweepNoteMarksAFailure(t *testing.T) {
 	assert.Equal(t, "4m ago · failed", failed)
 }
 
-// Every page in the signed-in shell opens with a skip link that jumps past the
-// rail to the main region, and breaks into <h2> sections below its <h1>.
+// Every page in the signed-in shell starts with a skip link that jumps past the
+// rail to the main region. It has <h2> sections below its <h1>.
 func TestShellHasSkipLinkAndSectionHeadings(t *testing.T) {
 	t.Parallel()
 
@@ -387,8 +386,8 @@ func TestShellHasSkipLinkAndSectionHeadings(t *testing.T) {
 	assert.Contains(t, body, `<h2 class="section">Networks</h2>`)
 }
 
-// Nothing on the wire says which VLAN an address is on, so a segment the
-// router named is the only place the operator ever sees the tag.
+// No packet tells the VLAN of an address. So the operator sees the tag only on
+// a segment that the router named.
 func TestOverviewShowsWhatASegmentIsCalled(t *testing.T) {
 	t.Parallel()
 
@@ -400,7 +399,7 @@ func TestOverviewShowsWhatASegmentIsCalled(t *testing.T) {
 		VLAN:   10,
 	}}))
 
-	// The overview shows the segments only once it has devices to put on them.
+	// The overview shows the segments only when it has devices for them.
 	_, err := store.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix),
 		[]scanner.Host{host("192.0.2.10", macA, "printer.local")})
 	require.NoError(t, err)
@@ -441,8 +440,8 @@ func TestOverviewShowsPortsAndServices(t *testing.T) {
 	assert.NotContains(t, body, "Devices exposed")
 }
 
-// A prefix nobody has named is still a prefix, and showing an empty chip
-// beside it would read as a tag the segment does not have.
+// A prefix with no name is still a prefix. An empty chip next to it would look
+// like a tag that the segment does not have.
 func TestOverviewLeavesAnUnnamedSegmentBare(t *testing.T) {
 	t.Parallel()
 
@@ -452,8 +451,8 @@ func TestOverviewLeavesAnUnnamedSegmentBare(t *testing.T) {
 	assert.NotContains(t, body, "VLAN")
 }
 
-// An empty inventory is a state to explain: the operator is
-// told how the inventory gets filled and given a command to fill it now.
+// An empty inventory needs an explanation. The page tells the operator how the
+// inventory fills, and gives a command to fill it now.
 func TestOverviewWithoutAnySweepInvitesOne(t *testing.T) {
 	t.Parallel()
 
@@ -465,17 +464,17 @@ func TestOverviewWithoutAnySweepInvitesOne(t *testing.T) {
 	assert.Contains(t, body, "No devices yet")
 	assert.Contains(t, body, "jocasta scan 192.0.2.0/24 --save")
 
-	// The invitation replaces the live block: a ledger of nothing says less
-	// than the instruction does.
+	// The invitation replaces the live block. A ledger of nothing tells less
+	// than the instruction.
 	assert.NotContains(t, body, `id="live"`)
 	assert.NotContains(t, body, "Seen recently")
 
-	// And the topbar does not claim a refresh the page is not running.
+	// The topbar does not claim a refresh that the page does not run.
 	assert.NotContains(t, body, "Refreshing every 30s")
 }
 
-// The poll swaps the contents of #live, so #live and the attributes that drive
-// the poll live on the page and the fragment is the body alone.
+// The poll swaps the contents of #live. So #live and the attributes of the poll
+// are on the page. The fragment is only the body.
 func TestOverviewLivePolls(t *testing.T) {
 	t.Parallel()
 
@@ -485,13 +484,13 @@ func TestOverviewLivePolls(t *testing.T) {
 	assert.Contains(t, page, `hx-trigger="every 30s"`)
 	assert.Contains(t, page, `hx-swap="innerHTML"`)
 
-	// An inventory that is being polled says so in the topbar, and says it is
-	// the page that refreshes.
+	// The topbar says that the inventory polls, and that the page
+	// refreshes.
 	assert.Contains(t, page, "Page refreshes every 30s")
 }
 
-// The fragment endpoint comes back on its own, outside any document, and
-// without a second #live nested inside the one the page keeps.
+// The fragment endpoint comes back alone, outside a document. It has no second
+// #live inside the #live of the page.
 func TestOverviewLiveServesTheBodyAlone(t *testing.T) {
 	t.Parallel()
 
@@ -509,7 +508,7 @@ func TestOverviewLiveServesTheBodyAlone(t *testing.T) {
 	assert.Contains(t, body, "Recent")
 }
 
-// The root pattern ends in {$}, so an unknown path is reported as not found.
+// The root pattern ends in {$}. So an unknown path gets not found.
 func TestUnknownPathIsNotFound(t *testing.T) {
 	t.Parallel()
 
@@ -554,9 +553,9 @@ func TestMissingStaticFile(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, get(t, seeded(t), "/static/nope.css").Code)
 }
 
-// The handlers ask for templates by name; a rename that misses one would only
-// show up at runtime. This parses the set the way NewHandler does and checks
-// every name a handler renders is defined.
+// The handlers ask for templates by name. A rename that misses one would show
+// only at runtime. This test parses the set as NewHandler does. It checks that
+// every name that a handler renders exists.
 func TestEveryNamedTemplateExists(t *testing.T) {
 	t.Parallel()
 
@@ -590,14 +589,14 @@ func TestNavMarksTheCurrentSection(t *testing.T) {
 	assert.Equal(t, 1, strings.Count(overview, `aria-current="page"`), "exactly one entry should be current")
 	assert.Contains(t, overview, `href="/" aria-current="page"`, "the current entry is Overview")
 
-	// The 404 page's section names none of the nav's entries, so it marks
-	// nothing current.
+	// The section of the 404 page names no entry of the nav. So it marks
+	// nothing as current.
 	notFound := get(t, h, "/nope").Body.String()
 	assert.NotContains(t, notFound, `aria-current="page"`)
 }
 
-// host builds a swept host the way a sweep does. A malformed argument is a
-// broken test.
+// host builds a swept host as a sweep does. A malformed argument means a broken
+// test.
 func host(ip, mac, hostname string) scanner.Host {
 	h, err := hosts.BuildHost(context.Background(), hosts.HostInput{IP: ip, MAC: mac, Hostname: hostname})
 	if err != nil {

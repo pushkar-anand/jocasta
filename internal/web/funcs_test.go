@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// now is fixed so every case reads as an offset from one instant.
+// now is fixed. So every case is an offset from one time.
 var now = time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
 
 func TestAgo(t *testing.T) {
@@ -28,7 +28,7 @@ func TestAgo(t *testing.T) {
 		{"days", now.Add(-50 * time.Hour), "2d ago"},
 		{"a date once it stops being relative", now.Add(-30 * 24 * time.Hour), "30 Jan 2026"},
 
-		// A sighting stamped ahead of the clock is a clock difference between
+		// A sighting with a time after the clock is a clock difference between
 		// two hosts.
 		{"ahead of the clock", now.Add(time.Minute), "just now"},
 	}
@@ -53,10 +53,10 @@ func TestStamp(t *testing.T) {
 	assert.Contains(t, got, `title="`+seen.Local().Format("Mon 2 Jan 2006, 15:04 MST")+`"`,
 		"the exact moment and zone are on the title")
 
-	// A class rides through for the few timestamps that need styling.
+	// A class goes through, for the few timestamps that need a style.
 	assert.Contains(t, string(stamp(now, seen, "act__when")), `class="act__when"`)
 
-	// Nothing was ever seen: no moment to place, so no datetime or title.
+	// Nothing was ever seen. So there is no time, datetime or title.
 	zero := string(stamp(now, time.Time{}, ""))
 	assert.Equal(t, "<time>never</time>", zero)
 	assert.Equal(t, `<time class="act__when">never</time>`, string(stamp(now, time.Time{}, "act__when")))
@@ -83,7 +83,7 @@ func TestDot(t *testing.T) {
 	assert.Contains(t, seen, `class="dot decay--recent"`)
 	assert.Contains(t, seen, `aria-label="Seen recently: 10m ago"`, "the colour has a text alternative")
 
-	// Nothing was ever seen: the status stands alone, with no relative time.
+	// Nothing was ever seen. The status is alone, with no relative time.
 	assert.Contains(t, string(dot(now, time.Time{}, 15*time.Minute)), `aria-label="Not seen"`)
 }
 
@@ -142,8 +142,8 @@ func TestPct(t *testing.T) {
 	assert.Equal(t, "33.33", pct(1, 3))
 	assert.Equal(t, "100", pct(3, 3))
 
-	// An empty inventory divides by nothing, and a share cannot exceed the
-	// whole, so neither case reaches the arithmetic.
+	// An empty inventory divides by zero. A share cannot be more than the
+	// whole. So neither case reaches the arithmetic.
 	assert.Equal(t, "0", pct(0, 0))
 	assert.Equal(t, "0", pct(5, 0))
 	assert.Equal(t, "0", pct(0, 10))
@@ -165,8 +165,8 @@ func TestTook(t *testing.T) {
 	assert.Equal(t, "1.5s", took(&inventory.Scan{StartedAt: start, FinishedAt: start.Add(1500 * time.Millisecond)}))
 	assert.Equal(t, "12ms", took(&inventory.Scan{StartedAt: start, FinishedAt: start.Add(12 * time.Millisecond)}))
 
-	// A scan still running has no duration yet, and renders differently from
-	// one that finished instantly.
+	// A scan that still runs has no duration yet. It renders differently from
+	// a scan that finished at once.
 	assert.Equal(t, em, took(&inventory.Scan{StartedAt: start}))
 }
 
@@ -187,7 +187,7 @@ func TestSourceKey(t *testing.T) {
 	assert.Equal(t, "Dynamic ARP", sourceKey("arp_dynamic"))
 	assert.Equal(t, "Reverse DNS names", sourceKey("reverse_dns"))
 
-	// A key with no wording falls back to its own name, de-underscored.
+	// A key with no text uses its own name, without underscores.
 	assert.Equal(t, "Vlan pool", sourceKey("vlan_pool"))
 }
 
@@ -205,7 +205,7 @@ func TestTone(t *testing.T) {
 	assert.Equal(t, "act--learned", tone(dbtype.EventPortOpened))
 	assert.Equal(t, "act--shape", tone(dbtype.EventPortClosed))
 
-	// Anything not worded yet reads as an edit.
+	// Anything with no text yet reads as an edit.
 	assert.Equal(t, "act--edit", tone(dbtype.EventKind("GROUP_ASSIGNED")))
 }
 
@@ -215,8 +215,8 @@ func TestEventIcon(t *testing.T) {
 	assert.Equal(t, glyphs[dbtype.EventDeviceDiscovered], eventIcon(dbtype.EventDeviceDiscovered))
 	assert.Equal(t, glyphs[dbtype.EventPortOpened], eventIcon(dbtype.EventPortOpened))
 
-	// A kind with no glyph of its own falls back to the edit mark. An empty
-	// tile would read as a rendering fault.
+	// A kind with no glyph uses the edit mark. An empty tile would look like
+	// a rendering fault.
 	assert.Equal(t, glyphs[dbtype.EventDeviceEdited], eventIcon(dbtype.EventKind("GROUP_ASSIGNED")))
 }
 
@@ -248,8 +248,8 @@ func TestStatusClass(t *testing.T) {
 	assert.Equal(t, "chip chip--brand", statusClass(dbtype.StatusRunning))
 }
 
-// The templates are parsed against the map, so a helper renamed in only one
-// of the two places would otherwise fail at runtime.
+// The templates parse against the map. Without this test, a helper renamed in
+// only one of the two places would fail at runtime.
 func TestFuncsCoverEveryHelperTheTemplatesUse(t *testing.T) {
 	t.Parallel()
 

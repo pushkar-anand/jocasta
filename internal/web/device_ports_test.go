@@ -32,8 +32,9 @@ func TestPortRows(t *testing.T) {
 	rows := portRows(ports, services)
 	require.Len(t, rows, 5)
 
-	// Open or advertised first, by number, with the portless service last
-	// among them; the port only a scan saw, now closed, at the end.
+	// Open or advertised first, by number, with the service without a port
+	// last among them. The port that only a scan saw, now closed, is at the
+	// end.
 	got := make([]uint16, len(rows))
 	for i, r := range rows {
 		got[i] = r.Number

@@ -18,13 +18,13 @@ const (
 	overviewPortEventLimit = 2
 
 	// collectionStaleFloor is the shortest gap after a clean sweep before the
-	// overview will call the presence counts stale. Below it, a missed run is
-	// more likely scheduling jitter than a stalled collector.
+	// overview calls the presence counts old. Below it, a missed run is more
+	// likely a schedule delay than a stopped collector.
 	collectionStaleFloor = 30 * time.Minute
 )
 
-// overviewData is the whole overview, and also every part of it that refreshes
-// on its own, since the fragment is rendered from the same value.
+// overviewData is the whole overview. It is also every part of it that
+// refreshes by itself, because the fragment renders from the same value.
 type overviewData struct {
 	view
 	Stats      *inventory.Stats
@@ -35,16 +35,17 @@ type overviewData struct {
 	Networks   []*inventory.Network
 	Events     []*inventory.Event
 
-	// LastCollected is when a device sweep last finished with something to
-	// show for it; zero before the first. Stale is set when the newest sweep
-	// did not finish cleanly, or nothing has for long enough that the presence
-	// counts probably lag behind the devices.
+	// LastCollected is when a device sweep last finished with a result. It is
+	// zero before the first. Stale is set when the newest sweep did not finish
+	// cleanly. It is also set when no sweep finished for so long that the
+	// presence counts are probably behind the devices.
 	LastCollected time.Time
 	Stale         bool
 }
 
-// overview serves the inventory summary with the signed-in account's controls.
-// Failed reads return an error rather than showing an empty inventory.
+// overview serves the inventory summary, with the controls of the signed-in
+// account. A failed read returns an error. It does not show an empty
+// inventory.
 func (h *Handler) overview(sm *auth.Session) response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		data, err := buildOverviewData(r.Context(), h.store)
@@ -67,9 +68,9 @@ func (h *Handler) overview(sm *auth.Session) response.HandlerFunc {
 	}
 }
 
-// overviewLive serves the part of the overview that goes stale, which is what
-// the page polls for. It answers with the body alone: the #live wrapper that
-// drives the poll stays on the page across every refresh.
+// overviewLive serves the part of the overview that gets old. The page polls
+// for it. It answers with only the body. The #live wrapper that drives the
+// poll stays on the page across every refresh.
 func (h *Handler) overviewLive() response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		data, err := buildOverviewData(r.Context(), h.store)
@@ -86,9 +87,9 @@ func (h *Handler) overviewLive() response.HandlerFunc {
 	}
 }
 
-// buildOverviewData reads everything the overview shows: the counts, the
+// buildOverviewData reads everything that the overview shows: the counts, the
 // networks, the newest changes and port events, the latest sweep and port
-// scan, and whether the presence counts look stale.
+// scan, and whether the presence counts look old.
 func buildOverviewData(
 	ctx context.Context,
 	store *inventory.Store,
@@ -103,8 +104,8 @@ func buildOverviewData(
 		return nil, err
 	}
 
-	// The overview shows the top of the log and never walks it, so it takes
-	// the first page and drops the cursor that would continue it.
+	// The overview shows the top of the log, and never walks it. So it takes
+	// the first page, and drops the cursor that would continue it.
 	activity, err := store.ListEvents(ctx, inventory.Page{Limit: activityLimit})
 	if err != nil {
 		return nil, fmt.Errorf("list events: %w", err)
@@ -125,9 +126,9 @@ func buildOverviewData(
 	}
 
 	data := &overviewData{
-		// Live drives the topbar's "refreshing" line, and the page only
-		// mounts the poller once it has an inventory to poll for. An empty
-		// one renders the invitation, with nothing that ticks.
+		// Live drives the "refreshing" line of the topbar. The page mounts the
+		// poller only when it has an inventory to poll for. An empty inventory
+		// renders the invitation, with nothing that ticks.
 		Title: "Overview", Section: "Overview", Live: liveEvery(stats.Total > 0, "30s"),
 		Window:     windowWords(store.OnlineWindow()),
 		Stats:      stats,
@@ -137,8 +138,8 @@ func buildOverviewData(
 		Events:     activity.Events,
 	}
 
-	// A first run has no sweep behind it yet: the page renders that state
-	// and reports no error.
+	// A first run has no sweep yet. The page renders that state, and reports
+	// no error.
 	if scan, err := store.LatestScan(ctx); err == nil {
 		data.Scan = scan
 		data.Note = sweepNote(store.Now(), scan)
@@ -154,10 +155,10 @@ func buildOverviewData(
 	return data, nil
 }
 
-// staleCollection reports whether the presence counts on the overview should be
-// read with suspicion: the newest sweep failed or was cut off, or a clean one
-// has not finished in long enough that a stalled collector is the likelier
-// reason a device looks quiet.
+// staleCollection reports whether the presence counts on the overview need
+// care. This is when the newest sweep failed or stopped early. It is also when
+// no clean sweep finished for so long that a stopped collector is the more
+// likely reason why a device looks quiet.
 func staleCollection(ctx context.Context, store *inventory.Store, lastCollected time.Time, devices int) bool {
 	if latest, err := store.LatestScanOfKind(ctx, dbtype.ScanDiscovery); err == nil &&
 		(latest.Status == dbtype.StatusFailed || latest.Status == dbtype.StatusCancelled) {
