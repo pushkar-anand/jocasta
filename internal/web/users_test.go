@@ -138,7 +138,7 @@ func TestCreateUserRejectsADuplicateUsername(t *testing.T) {
 	rec = follow(t, h, cookies, rec)
 
 	require.Equal(t, http.StatusOK, rec.Code, "a refused create lands back on the list, not an error")
-	assert.Contains(t, rec.Body.String(), "is taken")
+	assert.Contains(t, rec.Body.String(), "already in use")
 	assert.Contains(t, rec.Body.String(), `value="`+testUsername+`" autofocus`)
 	assert.Contains(t, rec.Body.String(), `aria-describedby="username-help username-error"`)
 	assert.Contains(t, rec.Body.String(), `aria-invalid="true"`)
@@ -149,7 +149,7 @@ func TestCreateUserRejectsADuplicateUsername(t *testing.T) {
 	// The reason shows only once. A reload of the list does not show it
 	// again.
 	reload := requestAs(t, h, cookies, http.MethodGet, "/settings/users", "")
-	assert.NotContains(t, reload.Body.String(), "is taken", "the message is shown once")
+	assert.NotContains(t, reload.Body.String(), "already in use", "the message is shown once")
 	assert.NotContains(t, reload.Body.String(), `aria-invalid="true"`)
 	assert.Contains(t, reload.Body.String(), `name="role" value="read" checked`)
 }

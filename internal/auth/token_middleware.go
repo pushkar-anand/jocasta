@@ -136,6 +136,6 @@ func (m *TokenMiddleware) unauthorized(w http.ResponseWriter, r *http.Request) {
 
 	m.jw.WriteProblem(w, r, response.NewProblem().
 		WithStatus(http.StatusUnauthorized).
-		WithDetail("API token not recognised. Send an active token in the Authorization header as Bearer <token>.").
+		WithDetail("Jocasta does not know this API token. Send an active token in the Authorization header as Bearer <token>.").
 		Build())
 }

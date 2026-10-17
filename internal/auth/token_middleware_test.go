@@ -60,7 +60,7 @@ func TestTokenMiddlewareRejectsAMissingToken(t *testing.T) {
 
 	body := problemBody(t, rec)
 	assert.Equal(t, float64(http.StatusUnauthorized), body["status"])
-	assert.Equal(t, "API token not recognised. Send an active token in the Authorization header as Bearer <token>.", body["detail"])
+	assert.Equal(t, "Jocasta does not know this API token. Send an active token in the Authorization header as Bearer <token>.", body["detail"])
 }
 
 func TestTokenMiddlewareRejectsAnInvalidToken(t *testing.T) {
