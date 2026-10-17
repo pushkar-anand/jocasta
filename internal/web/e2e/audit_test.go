@@ -12,15 +12,15 @@ import (
 )
 
 // TestAudit draws every page in every state on every screen, theme and
-// fixture, and writes each screenshot with a report of what the checks found.
-// It fails nothing: it is for reading.
+// fixture. It writes each screenshot with a report of what the checks found.
+// It fails nothing. It is for reading.
 //
 //	E2E_AUDIT=$PWD/tmp/audit TMPDIR=$PWD/tmp go test -tags e2e -run TestAudit -timeout 0 ./internal/web/e2e/
 //
-// TMPDIR moves the databases and Chrome's profiles off /tmp, which a full run
-// can fill.
+// TMPDIR moves the databases and the profiles of Chrome away from /tmp. A full
+// run can fill /tmp.
 //
-// E2E_FIXTURES, E2E_ROLES, E2E_VIEWPORTS, E2E_THEMES and E2E_PAGES narrow the
+// E2E_FIXTURES, E2E_ROLES, E2E_VIEWPORTS, E2E_THEMES and E2E_PAGES limit the
 // run to comma-separated names.
 func TestAudit(t *testing.T) {
 	out := os.Getenv("E2E_AUDIT")
@@ -59,7 +59,7 @@ func TestAudit(t *testing.T) {
 	t.Log(summary(shots))
 }
 
-// summary counts each check's findings, and on how many pages.
+// summary counts the findings of each check, and on how many pages.
 func summary(shots []*shot) string {
 	type tally struct {
 		n     int

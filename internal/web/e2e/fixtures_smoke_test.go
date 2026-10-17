@@ -12,8 +12,8 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// TestFixturesRender asks for every page over every fixture and expects each
-// to render, so a fixture that trips a template fails here before any browser
+// TestFixturesRender asks for every page over every fixture. It expects each to
+// render. So a fixture that breaks a template fails here, before a browser
 // starts.
 func TestFixturesRender(t *testing.T) {
 	for _, f := range []fixture{fixtureEmpty, fixtureNormal, fixtureWeird, fixtureFresh} {

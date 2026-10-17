@@ -12,7 +12,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// page is one screen, at a path worked out from the fixture it is shown over.
+// page is one screen, at a path from the fixture under it.
 type page struct {
 	name string
 	path string
@@ -20,28 +20,28 @@ type page struct {
 	// signedOut pages are drawn without a session.
 	signedOut bool
 
-	// writes pages need an account that can change things; a reader is
-	// turned away.
+	// writes pages need an account that can change things. They refuse a
+	// reader.
 	admin bool
 
 	states []state
 }
 
-// state is something done to a loaded page before it is checked: a dialog
-// opened, a menu dropped down, a row put into edit.
+// state is an action on a loaded page before the check: an opened dialog, an
+// opened menu, or a row in edit.
 type state struct {
 	name string
 	do   chromedp.Action
 
-	// status is the response this state is meant to end on, when it is an
-	// error page by design.
+	// status is the intended response of this state, when it is an error page
+	// on purpose.
 	status int
 }
 
 var base = state{name: "base"}
 
-// errNotApplicable is a state that has nothing to act on in this fixture,
-// such as editing a row of an empty list.
+// errNotApplicable is a state with nothing to act on in this fixture, such as
+// an edit of a row of an empty list.
 var errNotApplicable = errors.New("state does not apply")
 
 func click(sel string) chromedp.Action {
@@ -96,9 +96,9 @@ func dialog(id string) state {
 	return state{name: "dialog-" + id, do: click(`[data-open="` + id + `"]`)}
 }
 
-// pages lists every screen to visit over a. Device and network pages are
-// picked by hardware address and prefix, so the list names the same devices
-// whatever ids the fixture's writes gave them.
+// pages lists every screen to visit over a. It picks device and network pages
+// by hardware address and prefix. So the list names the same devices, for any
+// ids from the writes of the fixture.
 func pages(ctx context.Context, a *app) ([]page, error) {
 	ps := []page{
 		{name: "login", path: "/login", signedOut: true, states: []state{base, {name: "failed", do: chromedp.Tasks{

@@ -28,7 +28,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/server"
 )
 
-// role is an account a page is viewed as.
+// role is the account that views a page.
 type role struct {
 	name     string
 	username string
@@ -56,8 +56,8 @@ var (
 	seedClock time.Time
 )
 
-// setClock moves the clock the fixture is written through; each read after
-// moves it on a little, so a scan takes time.
+// setClock moves the clock through which the fixture is written. Each later
+// read moves it a little more. So a scan takes time.
 func setClock(t time.Time) {
 	seedMu.Lock()
 	defer seedMu.Unlock()
@@ -104,8 +104,9 @@ func startApp(ctx context.Context, dir string, f fixture) (*app, func(), error) 
 
 	store := inventory.New(conn, log, inventory.WithClock(func() time.Time { return anchor }))
 
-	// The sign-in page's failed state sends a wrong password once per
-	// viewport and theme, faster than the default allowance refills.
+	// The failed state of the sign-in page sends a wrong password once for
+	// each viewport and theme. This is faster than the refill of the default
+	// limit.
 	a, err := auth.New(conn, models.New(conn), password.NewHasher(), auth.WithLoginAllowance(1000))
 	if err != nil {
 		return nil, nil, err
@@ -144,8 +145,8 @@ func startApp(ctx context.Context, dir string, f fixture) (*app, func(), error) 
 	}, nil
 }
 
-// recentAt answers the map's "what is active" from the recorder as of the
-// anchor, which the map asks relative to its own clock.
+// recentAt answers the "what is active" question of the map from the recorder,
+// at the anchor. The map asks relative to its own clock.
 type recentAt struct{ rec *inventory.TrafficRecorder }
 
 func (r recentAt) Recent(since time.Time) []inventory.RecentEdge {
@@ -187,9 +188,9 @@ func notifier(conn *sql.DB, store *inventory.Store, log *slog.Logger, f fixture)
 	return notify.New(conn, store, log, dests...), nil
 }
 
-// seedAccounts gives the admin some tokens, one in each expiry state the list
-// shows, and the weird fixture more accounts and tokens than either list is
-// laid out for.
+// seedAccounts gives the admin some tokens, one in each expiry state of the
+// list. It gives the weird fixture more accounts and tokens than the layout of
+// either list expects.
 func seedAccounts(ctx context.Context, a *auth.Auth, f fixture) error {
 	users, err := a.ListUsers(ctx)
 	if err != nil {
@@ -209,7 +210,7 @@ func seedAccounts(ctx context.Context, a *auth.Auth, f fixture) error {
 		expiresAt time.Time
 	}
 
-	// Expiry is judged against the page's clock, the anchor.
+	// Expiry uses the clock of the page, the anchor.
 	tokens := []seedToken{
 		{name: "home-assistant"},
 		{name: "backup script", expiresAt: anchor.AddDate(0, 0, -14)},
@@ -247,7 +248,8 @@ func seedAccounts(ctx context.Context, a *auth.Auth, f fixture) error {
 	return nil
 }
 
-// signIn returns the session cookies for r, signed in through the login form.
+// signIn returns the session cookies for r, after a sign-in through the login
+// form.
 func (a *app) signIn(ctx context.Context, r role) ([]*http.Cookie, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {

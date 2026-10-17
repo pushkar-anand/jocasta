@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// TestServe serves one fixture until interrupted, to look at by hand:
+// TestServe serves one fixture until an interrupt, for a check by hand:
 //
 //	E2E_SERVE=weird go test -tags e2e -run TestServe -timeout 0 ./internal/web/e2e/
 //

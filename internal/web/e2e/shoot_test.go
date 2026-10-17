@@ -24,17 +24,17 @@ type shotSpec struct {
 	Viewport string `json:"viewport"`
 	Theme    string `json:"theme"`
 
-	// Do is script run once the page settles, such as a click that opens a
-	// dialog.
+	// Do is a script that runs when the page settles, such as a click that
+	// opens a dialog.
 	Do string `json:"do"`
 
-	// Selector picks what to frame; empty frames the viewport.
+	// Selector picks what to frame. Empty frames the viewport.
 	Selector string `json:"selector"`
 	Pad      int    `json:"pad"`
 }
 
-// TestShoot takes the pictures E2E_SHOOT lists (a JSON array of shotSpec)
-// and writes them to E2E_SHOOT_OUT.
+// TestShoot takes the pictures that E2E_SHOOT lists (a JSON array of shotSpec).
+// It writes them to E2E_SHOOT_OUT.
 //
 //	E2E_SHOOT=specs.json E2E_SHOOT_OUT=plans/issues/img go test -tags e2e -run TestShoot ./internal/web/e2e/
 func TestShoot(t *testing.T) {

@@ -13,10 +13,10 @@ import (
 	"github.com/chromedp/chromedp/kb"
 )
 
-// TestSearchKeepsFocus types into each live search box and checks the box
-// still has focus and every character once the results have come back, that
-// emptying the box searches again, and that a select keeps focus when it
-// fetches.
+// TestSearchKeepsFocus types into each live search box. It checks that the box
+// still has focus and every character when the results come back. It checks
+// that an empty box searches again. It also checks that a select keeps focus
+// when it fetches.
 func TestSearchKeepsFocus(t *testing.T) {
 	ctx := t.Context()
 
@@ -64,8 +64,8 @@ func TestSearchKeepsFocus(t *testing.T) {
 				settle(),
 				chromedp.Evaluate(`window.__reqs = 0; document.addEventListener('htmx:beforeRequest', () => window.__reqs++)`, nil),
 				chromedp.Click(c.input, chromedp.ByQuery),
-				// Typed with pauses longer than the debounce, so a request is
-				// in flight while the next key lands.
+				// Type with pauses longer than the debounce. So a request is
+				// active when the next key arrives.
 				chromedp.SendKeys(c.input, "l", chromedp.ByQuery),
 				chromedp.Sleep(400*time.Millisecond),
 				chromedp.SendKeys(c.input, "a", chromedp.ByQuery),
@@ -93,7 +93,7 @@ func TestSearchKeepsFocus(t *testing.T) {
 				t.Errorf("search box holds %q, want %q", value, "lap")
 			}
 
-			// Fewer than three characters is too broad to search on.
+			// Fewer than three characters is too broad for a search.
 			if reqs != 1 {
 				t.Errorf("%d requests for one three-letter word, want 1", reqs)
 			}
