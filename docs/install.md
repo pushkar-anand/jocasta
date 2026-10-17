@@ -4,10 +4,10 @@ For a guided first run, see [Your first inventory](tutorial.md).
 
 ## Container image
 
-Images for amd64 and arm64 are on the GitHub Container Registry, tagged
-`latest` and per release, such as `:v0.11.1`. The image is distroless and runs
-as non-root. It listens on `0.0.0.0:8080`, keeps its database in `/data`, and
-reads `/data/jocasta.yaml`.
+Images for amd64 and arm64 are on the GitHub Container Registry. Each image
+has the tag `latest` and a release tag, such as `:v0.11.1`. The image is
+distroless and does not run as root. It listens on `0.0.0.0:8080`, keeps its
+database in `/data`, and reads `/data/jocasta.yaml`.
 
 === "docker run"
 
@@ -34,28 +34,28 @@ reads `/data/jocasta.yaml`.
       jocasta-data:
     ```
 
-Use host networking. On a bridge network (`-p 8080:8080`) the sweep finds
-hosts but no hardware addresses, and mDNS, DNS-SD and SSDP names never arrive.
-A [router plugin](plugins/index.md) fills the first gap. Neither mode needs
-extra capabilities.
+Use host networking. On a bridge network (`-p 8080:8080`), the sweep finds
+hosts but not their hardware addresses. Also, mDNS, DNS-SD and SSDP names do
+not arrive. A [router plugin](plugins/index.md) can supply the hardware
+addresses. Neither mode needs extra capabilities.
 
 ## Prebuilt binaries
 
 Archives for Linux, macOS and Windows, on amd64 and arm64, are on the
-[releases page][releases], with a `checksums.txt`.
+[releases page][releases]. A `checksums.txt` file is with them.
 
 1. Extract `jocasta` from the archive for your system.
 2. Put a `jocasta.yaml` next to it.
-3. From that directory, run `jocasta serve`. No root needed.
+3. From that directory, run `jocasta serve`. It does not need root.
 
-It listens on `localhost:8080`. Set `server.host: 0.0.0.0` to reach it from
-other machines.
+It listens on `localhost:8080`. To reach it from other machines, set
+`server.host: 0.0.0.0`.
 
 [releases]: https://github.com/pushkar-anand/jocasta/releases
 
 ## From source
 
-Needs Go 1.27 or newer.
+You need Go 1.27 or newer.
 
 ```bash
 git clone https://github.com/pushkar-anand/jocasta.git
@@ -66,12 +66,13 @@ make docker           # -> jocasta:latest
 
 ## First run
 
-The first visit asks for the admin account. Until it exists, anyone who
-reaches the page can create it, so do it straight away. More users:
+On the first visit, Jocasta asks you to create the admin account. Until
+this account exists, anyone who reaches the page can create it. So create it
+immediately. To add more users, see
 [Manage users and sign-in](operate/users.md).
 
-Over plain HTTP, sign-in needs `server.auth.cookie_secure: false`; see
+To sign in over plain HTTP, set `server.auth.cookie_secure: false`. See
 [Serve over HTTPS](operate/https.md).
 
-Migrations run at startup. Before upgrading, see
+Jocasta runs database migrations when it starts. Before you upgrade, see
 [Back up and upgrade](operate/backup.md).

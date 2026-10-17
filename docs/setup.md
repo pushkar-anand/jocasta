@@ -1,7 +1,7 @@
 # Setup
 
-This page has moved. Older versions of Jocasta link to the sections below,
-so each one says where its content is now.
+This page has moved. Older versions of Jocasta link to the sections below.
+So each section says where its content is now.
 
 ## Install
 
