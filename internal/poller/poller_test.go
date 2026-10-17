@@ -15,34 +15,34 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// tick is the interval every fake task runs at. Short enough that a test can
-// observe several runs without sleeping, long enough that a slow CI box does
-// not turn a single expected run into three.
+// tick is the interval of every fake task. It is short enough that a test can
+// see several runs without a sleep. It is long enough that a slow CI box does
+// not turn one expected run into three.
 const tick = 5 * time.Millisecond
 
-// settle is how long to wait for a lifecycle transition that has no signal of
-// its own to wait on. Generous on purpose: it only bounds how long a broken
-// poller takes to fail the test, and these tests run in parallel under -race
-// where a 5ms ticker can slip well past a tight budget.
+// settle is how long to wait for a lifecycle change that has no signal. It is
+// long on purpose. It only limits how long a broken poller takes to fail the
+// test. These tests run in parallel under -race, where a 5ms ticker can be
+// much later than a tight limit.
 const settle = 5 * time.Second
 
-// fake is a task whose behaviour each test dictates: how often it runs, what
-// it returns, and how many times it was called.
+// fake is a task whose behaviour each test sets: how often it runs, what it
+// returns, and how many times it was called.
 type fake struct {
 	name     string
 	interval time.Duration
 	runs     atomic.Int32
 
-	// err is returned from every Run, to check a failing task keeps being
-	// retried.
+	// err is returned from every Run. It checks that a failing task still
+	// gets retries.
 	err error
 
-	// panics makes Run panic, to check one task's panic does not take the
-	// process down with it.
+	// panics makes Run panic. It checks that the panic of one task does not
+	// stop the process.
 	panics bool
 
-	// block, when non-nil, holds Run until it is closed or the context ends,
-	// so a test can catch the poller mid-run.
+	// block, when non-nil, holds Run until it is closed or the context ends.
+	// So a test can catch the poller during a run.
 	block chan struct{}
 }
 
@@ -72,15 +72,15 @@ func newFake(name string) *fake {
 	return &fake{name: name, interval: tick}
 }
 
-// history is a History kept in memory: it answers LastRun from what the
-// poller recorded, or from what a test seeded.
+// history is a History in memory. It answers LastRun from what the poller
+// recorded, or from what a test added.
 type history struct {
 	mu   sync.Mutex
 	runs map[string]time.Time
 	errs map[string]error
 
-	// err is returned from every LastRun, to check an unreadable history holds
-	// a task off.
+	// err is returned from every LastRun. It checks that an unreadable history
+	// makes a task wait.
 	err error
 }
 
@@ -114,7 +114,7 @@ func (h *history) RecordRun(_ context.Context, task string, at time.Time, runErr
 	return nil
 }
 
-// recorded reports whether a run of task has been recorded.
+// recorded reports whether the history has a run of task.
 func (h *history) recorded(task string) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -144,8 +144,8 @@ func newPollerWith(t *testing.T, h History, tasks ...task) *Poller {
 	return p
 }
 
-// startAsync runs Start in the background and returns a channel carrying its
-// error, so a test can assert that Start returns on shutdown.
+// startAsync runs Start in the background, and returns a channel with its
+// error. So a test can assert that Start returns on shutdown.
 func startAsync(ctx context.Context, t *testing.T, p *Poller) <-chan error {
 	t.Helper()
 
@@ -156,7 +156,7 @@ func startAsync(ctx context.Context, t *testing.T, p *Poller) <-chan error {
 	return errc
 }
 
-// requireReturned fails the test if Start has not returned within settle.
+// requireReturned fails the test if Start did not return within settle.
 func requireReturned(t *testing.T, errc <-chan error) {
 	t.Helper()
 
@@ -168,8 +168,8 @@ func requireReturned(t *testing.T, errc <-chan error) {
 	}
 }
 
-// eventually waits for cond, so a test never depends on a fixed sleep being
-// long enough on a loaded machine.
+// eventually waits for cond. So a test never depends on a fixed sleep that is
+// long enough on a busy machine.
 func eventually(t *testing.T, cond func() bool, msg string) {
 	t.Helper()
 
@@ -209,8 +209,8 @@ func TestRegisterAcceptsValidTaskWhenIdle(t *testing.T) {
 	assert.Len(t, p.tasks, 2)
 }
 
-// Registering after Start would leave a task that never runs, because Start
-// takes its own copy of the slice.
+// A Register after Start would add a task that never runs, because Start takes
+// its own copy of the slice.
 func TestRegisterRejectedWhileRunning(t *testing.T) {
 	t.Parallel()
 
@@ -249,8 +249,7 @@ func TestStartRunsEveryRegisteredTask(t *testing.T) {
 	requireReturned(t, errc)
 }
 
-// A task is scheduled by its own interval, so a slow task cannot delay a fast
-// one.
+// Each task has its own interval. So a slow task cannot delay a fast task.
 func TestTasksRunOnIndependentIntervals(t *testing.T) {
 	t.Parallel()
 
@@ -292,8 +291,8 @@ func TestStartRejectsSecondStart(t *testing.T) {
 	requireReturned(t, errc)
 }
 
-// Cancelling the context handed to Start is the ordinary shutdown path, and it
-// must unblock Start without anyone calling Stop.
+// To cancel the context of Start is the normal shutdown path. It must unblock
+// Start without a call to Stop.
 func TestParentCancelStopsPoller(t *testing.T) {
 	t.Parallel()
 
@@ -311,7 +310,7 @@ func TestParentCancelStopsPoller(t *testing.T) {
 	assert.Equal(t, stateIdle, p.state.Load(), "poller should be idle after shutdown")
 }
 
-// Stop is reachable from an API handler, so it must unblock Start on its own.
+// An API handler can call Stop. So Stop must unblock Start by itself.
 func TestStopUnblocksStart(t *testing.T) {
 	t.Parallel()
 
@@ -328,8 +327,9 @@ func TestStopUnblocksStart(t *testing.T) {
 	assert.Equal(t, stateIdle, p.state.Load(), "poller should be idle after Stop")
 }
 
-// Stop races itself: the watchdog Start spawns calls it too, and callers hold
-// a deferred Stop. Every one of those must be safe.
+// Stop can run at the same time as itself. The watchdog that Start starts
+// also calls it, and callers hold a deferred Stop. Every one of these must be
+// safe.
 func TestStopIsIdempotent(t *testing.T) {
 	t.Parallel()
 
@@ -360,8 +360,7 @@ func TestStopBeforeStartIsSafe(t *testing.T) {
 	assert.Equal(t, stateIdle, p.state.Load())
 }
 
-// Stopping must leave the poller reusable, which is why Stop returns it to
-// idle.
+// After Stop, the poller must be usable again. So Stop returns it to idle.
 func TestStartAfterStop(t *testing.T) {
 	t.Parallel()
 
@@ -380,8 +379,8 @@ func TestStartAfterStop(t *testing.T) {
 	}
 }
 
-// Tasks must be gone by the time Start returns, otherwise a caller that
-// reopens the database underneath them is racing a live sweep.
+// Tasks must be gone when Start returns. If not, a caller that opens the
+// database again races a live sweep.
 func TestTasksStopBeforeStartReturns(t *testing.T) {
 	t.Parallel()
 
@@ -403,8 +402,8 @@ func TestTasksStopBeforeStartReturns(t *testing.T) {
 	assert.Equal(t, settled, f.runs.Load(), "no task should run after Start returns")
 }
 
-// A failing task is logged and retried: one unreachable network must not end
-// the schedule.
+// The poller logs a failing task and tries again. One unreachable network must
+// not end the schedule.
 func TestFailingTaskKeepsRunning(t *testing.T) {
 	t.Parallel()
 
@@ -422,12 +421,13 @@ func TestFailingTaskKeepsRunning(t *testing.T) {
 	requireReturned(t, errc)
 }
 
-// A not-ready task is retried after notReadyRetry.
+// The poller tries a not-ready task again after notReadyRetry.
 func TestNotReadyTaskRetriesSoon(t *testing.T) {
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) {
-		// interval >> notReadyRetry, so any run past the first is the short retry.
+		// interval >> notReadyRetry. So each run after the first is the short
+		// retry.
 		f := &fake{name: "waiting", interval: time.Hour, err: errNotReady}
 		p := newPoller(t, f)
 
@@ -449,8 +449,8 @@ func TestNotReadyTaskRetriesSoon(t *testing.T) {
 	})
 }
 
-// A plain error is retried after the full interval, so one unreachable network
-// cannot become a spin.
+// The poller tries a plain error again after the full interval. So one
+// unreachable network cannot become a fast loop.
 func TestFailingTaskWaitsTheFullInterval(t *testing.T) {
 	t.Parallel()
 
@@ -478,8 +478,8 @@ func TestFailingTaskWaitsTheFullInterval(t *testing.T) {
 	})
 }
 
-// A panicking task must not take the process down, and must not strand the
-// other tasks or the shutdown path.
+// A task that panics must not stop the process. It must not block the other
+// tasks or the shutdown path.
 func TestPanickingTaskDoesNotKillPoller(t *testing.T) {
 	t.Parallel()
 
@@ -497,8 +497,8 @@ func TestPanickingTaskDoesNotKillPoller(t *testing.T) {
 	requireReturned(t, errc)
 }
 
-// A run in flight when the context ends must be handed the cancellation, so a
-// long sweep aborts and lets shutdown finish.
+// A run that is active when the context ends must get the cancellation. So a
+// long sweep stops, and shutdown can finish.
 func TestRunInFlightSeesCancellation(t *testing.T) {
 	t.Parallel()
 
@@ -514,8 +514,8 @@ func TestRunInFlightSeesCancellation(t *testing.T) {
 	requireReturned(t, errc)
 }
 
-// The interval is the gap between runs, so a task that overruns its interval
-// does not accumulate a backlog of immediate repeats.
+// The interval is the gap between runs. So a task that runs longer than its
+// interval does not collect a backlog of immediate repeats.
 func TestOverrunningTaskDoesNotBacklog(t *testing.T) {
 	t.Parallel()
 
@@ -536,7 +536,8 @@ func TestOverrunningTaskDoesNotBacklog(t *testing.T) {
 
 	close(release)
 
-	// After the release the next run is one interval away, with no backlog.
+	// After the release, the next run is one interval later, with no
+	// backlog.
 	time.Sleep(3 * tick)
 	assert.Less(t, f.runs.Load(), int32(10), "ticks must not have accumulated while the run was held")
 
@@ -544,14 +545,14 @@ func TestOverrunningTaskDoesNotBacklog(t *testing.T) {
 	requireReturned(t, errc)
 }
 
-// A task with nothing to resume from runs at once. Waiting out its first
-// interval would leave the inventory stale for that long.
+// A task with no recorded run runs at once. If it waited its first interval,
+// the inventory would be old for that time.
 func TestTaskDueNowRunsAtStart(t *testing.T) {
 	t.Parallel()
 
-	// An interval far longer than the wait below, so that only a run at start
-	// can satisfy it: with a short one, a task that waited a full interval
-	// would pass too.
+	// An interval much longer than the wait below. So only a run at start can
+	// pass. With a short interval, a task that waited a full interval would
+	// also pass.
 	f := &fake{name: "a", interval: time.Hour}
 	p := newPoller(t, f)
 
@@ -566,9 +567,9 @@ func TestTaskDueNowRunsAtStart(t *testing.T) {
 	requireReturned(t, errc)
 }
 
-// A zero first wait leaves the timer and the context both ready on the first
-// select, which picks at random. Repeated so that a missing ctx.Err() guard
-// cannot pass by winning the coin toss once.
+// A zero first wait makes the timer and the context both ready on the first
+// select, which picks at random. The test repeats. So a missing ctx.Err()
+// guard cannot pass because of one lucky pick.
 func TestStartUnderACancelledContextRunsNothing(t *testing.T) {
 	t.Parallel()
 
@@ -584,8 +585,8 @@ func TestStartUnderACancelledContextRunsNothing(t *testing.T) {
 	}
 }
 
-// A task that ran recently is left alone until its interval is up, which is
-// what stops a restart from re-running work that is not due.
+// A task that ran recently waits until its interval ends. This stops a restart
+// from running work again that is not due.
 func TestTaskDueLaterIsLeftAlone(t *testing.T) {
 	t.Parallel()
 
@@ -607,8 +608,8 @@ func TestTaskDueLaterIsLeftAlone(t *testing.T) {
 	requireReturned(t, errc)
 }
 
-// A stored time that is wrong in either direction, from a clock that moved or
-// a row from the future, must not strand the task or stampede it.
+// A stored time can be wrong in either direction, from a clock that moved or a
+// row from the future. It must not stop the task, or run it many times.
 func TestFirstRunIsClamped(t *testing.T) {
 	t.Parallel()
 
@@ -625,8 +626,8 @@ func TestFirstRunIsClamped(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			// A bubble, so the clock does not move between seeding the run and
-			// reading it back.
+			// A bubble, so the clock does not move between the write of the run
+			// and its read.
 			synctest.Test(t, func(t *testing.T) {
 				h := newHistory()
 				h.runs["a"] = time.Now().Add(-tt.ago)
@@ -640,8 +641,8 @@ func TestFirstRunIsClamped(t *testing.T) {
 	}
 }
 
-// Not knowing whether the work is due is a reason to hold off: running anyway
-// would turn a restart loop into a scan loop.
+// If the poller does not know whether the work is due, it waits. A run would
+// turn a restart loop into a scan loop.
 func TestUnreadableHistoryHoldsOffOneInterval(t *testing.T) {
 	t.Parallel()
 
@@ -654,8 +655,9 @@ func TestUnreadableHistoryHoldsOffOneInterval(t *testing.T) {
 	assert.Equal(t, time.Hour, p.firstRun(t.Context(), f, p.logger))
 }
 
-// A run that finished is recorded whatever it returned, since the poller waits
-// a full interval after either. A not-ready run did no work and is not.
+// The history records a run that finished, for any result, because the poller
+// waits a full interval after both. A not-ready run did no work, so the
+// history does not record it.
 func TestFinishedRunIsRecorded(t *testing.T) {
 	t.Parallel()
 
@@ -696,8 +698,8 @@ func TestFinishedRunIsRecorded(t *testing.T) {
 	}
 }
 
-// A run cut short by shutdown did not finish its work, so the next start runs
-// it again rather than waiting out an interval.
+// A run that shutdown stopped did not finish its work. So the next start runs
+// it again, and does not wait an interval.
 func TestRunCutShortIsNotRecorded(t *testing.T) {
 	t.Parallel()
 
@@ -721,9 +723,9 @@ func TestRunCutShortIsNotRecorded(t *testing.T) {
 	})
 }
 
-// Start, Stop and Register hammering the lifecycle at once, to catch races
-// under -race. Start blocks until the poller stops, so each round starts it
-// once and races several Stops and Registers against it.
+// Start, Stop and Register all use the lifecycle at once, to find races under
+// -race. Start blocks until the poller stops. So each round starts it once,
+// and runs several Stops and Registers against it.
 func TestConcurrentLifecycle(t *testing.T) {
 	t.Parallel()
 
@@ -748,8 +750,8 @@ func TestConcurrentLifecycle(t *testing.T) {
 
 		wg.Wait()
 
-		// A Stop that lands before Start published is a no-op, so the poller
-		// may still be running here. Stop again until Start lets go.
+		// A Stop before Start published does nothing. So the poller can still
+		// run here. Stop again until Start returns.
 		for {
 			select {
 			case err := <-errc:
@@ -765,12 +767,12 @@ func TestConcurrentLifecycle(t *testing.T) {
 	}
 }
 
-// A run's watchdog outlives its run: it wakes when its own context is
-// cancelled, but need not be scheduled before a later run has started. Calling
-// stop with that stale run must not tear down its successor.
+// The watchdog of a run can live longer than its run. It wakes when its own
+// context is cancelled, but it can get scheduled after a later run started. A
+// call to stop with that old run must not stop the next run.
 //
-// The scenario is driven directly: the real watchdog fires too promptly to
-// reproduce it reliably.
+// The test drives this case directly. The real watchdog fires too fast to
+// make the case happen reliably.
 func TestStopIgnoresStaleRun(t *testing.T) {
 	t.Parallel()
 
@@ -792,7 +794,7 @@ func TestStopIgnoresStaleRun(t *testing.T) {
 	eventually(t, func() bool { return p.state.Load() == stateRunning },
 		"second run never started")
 
-	// Exactly what a descheduled watchdog from the first run would do.
+	// This is exactly what a late watchdog from the first run would do.
 	p.stop(stale)
 
 	select {

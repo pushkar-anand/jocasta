@@ -50,8 +50,8 @@ func dev(m int, name string, online bool) Device {
 	return Device{ID: int64(m), MAC: mac(m), Name: name, Online: online}
 }
 
-// render draws the tree as indented text, which keeps a whole-tree assertion
-// readable.
+// render draws the tree as indented text. So an assertion on the whole tree
+// stays readable.
 func render(t *Tree) string {
 	var sb strings.Builder
 
@@ -100,7 +100,7 @@ func render(t *Tree) string {
 }
 
 // Only the router is read. The switch and access point are known from what
-// they announced, and hold the devices behind their ports.
+// they announced. They have the devices behind their ports.
 func TestBuildFromTheRouterAlone(t *testing.T) {
 	t.Parallel()
 
@@ -157,14 +157,15 @@ func TestBuildFromTheRouterAlone(t *testing.T) {
 	require.True(t, ok)
 	assert.Same(t, tree.Root, rt)
 
-	// An online device nothing has seen on a port is listed apart.
+	// An online device that no source saw on a port is in a separate list.
 	require.Len(t, tree.Unplaced, 1)
 	assert.Equal(t, "laptop", tree.Unplaced[0].Name)
 }
 
-// The router, the switch and the access point are all read, the access point
-// hanging from the switch. The router learns everything behind its trunk on
-// one port; the switch's and access point's tables say where each device is.
+// The router, the switch and the access point are all read. The access point
+// hangs from the switch. The router learns everything behind its trunk on one
+// port. The tables of the switch and the access point tell where each device
+// is.
 func TestBuildFromEveryDevice(t *testing.T) {
 	t.Parallel()
 
@@ -239,8 +240,8 @@ func TestBuildFromEveryDevice(t *testing.T) {
 	assert.Equal(t, "ether1", hops[2].Uplink.Port)
 }
 
-// A device that moved from a switch port to Wi-Fi is placed where the latest
-// reads saw it. One that has gone quiet stays where it was last seen.
+// A device that moved from a switch port to Wi-Fi goes where the latest reads
+// saw it. A device that is quiet stays where a source last saw it.
 func TestBuildPrefersTheLatestRead(t *testing.T) {
 	t.Parallel()
 
@@ -268,9 +269,9 @@ func TestBuildPrefersTheLatestRead(t *testing.T) {
 	assert.False(t, printer.Current)
 }
 
-// A bridge forgets a quiet device's address between reads, so a device the
-// latest read missed is still current while an earlier read within the window
-// listed it.
+// A bridge forgets the address of a quiet device between reads. So a device
+// that the latest read missed is still current, if an earlier read within the
+// window listed it.
 func TestBuildKeepsAQuietDeviceCurrentWithinTheWindow(t *testing.T) {
 	t.Parallel()
 
@@ -295,8 +296,8 @@ func TestBuildKeepsAQuietDeviceCurrentWithinTheWindow(t *testing.T) {
 	assert.False(t, printer.Current)
 }
 
-// A device that moved is placed where the latest read saw it, even when an
-// earlier read within the window saw it deeper in the tree.
+// A device that moved goes where the latest read saw it. This is true even if
+// an earlier read within the window saw it deeper in the tree.
 func TestBuildPlacesAMovedDeviceByTheLatestRead(t *testing.T) {
 	t.Parallel()
 
@@ -324,8 +325,8 @@ func TestBuildPlacesAMovedDeviceByTheLatestRead(t *testing.T) {
 	assert.True(t, laptop.Current)
 }
 
-// Several devices on one wired port of a source, with nothing announcing
-// itself there, are behind something the tree does not read.
+// Several devices on one wired port of a source, where nothing announces
+// itself, are behind something that the tree does not read.
 func TestBuildInfersAnUnnamedSwitch(t *testing.T) {
 	t.Parallel()
 
@@ -347,8 +348,9 @@ func TestBuildInfersAnUnnamedSwitch(t *testing.T) {
 `, render(tree))
 }
 
-// A router managing access points it does not read, with no neighbour
-// announcing them, still shows its Wi-Fi clients behind an access point.
+// A router can manage access points that the tree does not read and that no
+// neighbour announces. It still shows its Wi-Fi clients behind an access
+// point.
 func TestBuildMarksAnUnnamedAccessPoint(t *testing.T) {
 	t.Parallel()
 
@@ -366,8 +368,9 @@ func TestBuildMarksAnUnnamedAccessPoint(t *testing.T) {
 	assert.True(t, ap.WiFi)
 }
 
-// Two read switches behind one port of the router, neither seeing the other
-// below it, hang from something between them the tree does not read.
+// Two read switches can be behind one port of the router, and neither sees the
+// other below it. They hang from something between them that the tree does
+// not read.
 func TestBuildHangsSiblingsFromWhatIsBetween(t *testing.T) {
 	t.Parallel()
 
@@ -406,8 +409,8 @@ func TestBuildWithNothingRead(t *testing.T) {
 	assert.Equal(t, "phone", tree.Unplaced[0].Name)
 }
 
-// The same input builds the same tree, so a page that refreshes does not
-// shuffle.
+// The same input builds the same tree. So a page that refreshes does not
+// change its order.
 func TestBuildIsStable(t *testing.T) {
 	t.Parallel()
 
@@ -439,10 +442,10 @@ func TestComparePortsOrdersPortNumbers(t *testing.T) {
 	assert.Negative(t, ComparePorts("", "ether1"))
 }
 
-// A switch learns every Wi-Fi client of an access point beside it on its
-// uplink, and the access point learns the switch's wired devices on its own.
-// Neither is where those devices are: each is placed where it plugs in or
-// associates, however recently a source heard it through its uplink.
+// A switch learns every Wi-Fi client of an access point next to it on its
+// uplink. The access point learns the wired devices of the switch on its own
+// uplink. Neither is where those devices are. Each device goes where it
+// connects, even if a source heard it recently through its uplink.
 func TestBuildIgnoresWhatAnUplinkLearns(t *testing.T) {
 	t.Parallel()
 
@@ -498,8 +501,8 @@ func TestBuildIgnoresWhatAnUplinkLearns(t *testing.T) {
 `, render(tree))
 }
 
-// A hypervisor sharing a port with its virtual machines is the node on that
-// port, whether the classifier or its owner said so.
+// A hypervisor that shares a port with its virtual machines is the node on that
+// port. This is true if the classifier or its owner gave the class.
 func TestBuildHangsVirtualMachinesFromTheirHost(t *testing.T) {
 	t.Parallel()
 
@@ -528,7 +531,7 @@ func TestBuildHangsVirtualMachinesFromTheirHost(t *testing.T) {
 	assert.Empty(t, tree.Unplaced)
 }
 
-// With two hypervisors on one port, neither is plainly the host.
+// With two hypervisors on one port, neither is clearly the host.
 func TestBuildLeavesTwoHypervisorsBehindASwitch(t *testing.T) {
 	t.Parallel()
 
@@ -548,13 +551,13 @@ func TestBuildLeavesTwoHypervisorsBehindASwitch(t *testing.T) {
 	assert.False(t, tree.Root.Children[0].VMs)
 }
 
-// Devices mostly carrying virtual machine addresses behind one port, with no
-// hypervisor known, are behind a virtual machine host.
+// If most devices behind one port have virtual machine addresses, and no
+// hypervisor is known, they are behind a virtual machine host.
 func TestBuildMarksAVirtualMachineHost(t *testing.T) {
 	t.Parallel()
 
-	// VirtualBox and QEMU address blocks; the rest of each address is
-	// arbitrary.
+	// VirtualBox and QEMU address blocks. The rest of each address can be
+	// any value.
 	vbox, qemu, plain := "08:00:27:00:00:01", "52:54:00:00:00:02", mac(3)
 
 	router := Source{
@@ -579,9 +582,10 @@ func TestBuildMarksAVirtualMachineHost(t *testing.T) {
 	assert.True(t, n.VMs)
 }
 
-// A device alone on a port has that port's link. A hypervisor on a port has
-// the link, and its virtual machines, behind it, have none. So do the devices
-// behind an unnamed switch, whose link is the switch's.
+// A device alone on a port has the link of that port. A hypervisor on a port
+// has the link. Its virtual machines behind it have no link. The devices
+// behind an unnamed switch also have no link, because the link belongs to the
+// switch.
 func TestBuildGivesTheLinkToWhatIsPluggedIn(t *testing.T) {
 	t.Parallel()
 
@@ -629,8 +633,8 @@ func TestBuildGivesTheLinkToWhatIsPluggedIn(t *testing.T) {
 	assert.Zero(t, web.Speed, "a virtual machine is behind its host")
 }
 
-// A Wi-Fi client has its radio's rates. One placed from an older read has
-// none, and neither does a wired device placed from one.
+// A Wi-Fi client has the rates of its radio. A client placed from an older read
+// has no rates. A wired device placed from an older read also has none.
 func TestBuildGivesAWiFiClientItsRates(t *testing.T) {
 	t.Parallel()
 

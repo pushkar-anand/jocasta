@@ -11,12 +11,12 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/plugin"
 )
 
-// Topology asks every router, switch and access point what is plugged into
-// it, and records the answers.
+// Topology asks every router, switch and access point what is connected to it,
+// and records the answers.
 //
-// It is a task apart from Device because it answers a different question:
-// where a device is, rather than whether it is here. A switch that will not
-// answer costs only its own branch of the tree.
+// It is a separate task from Device, because it answers a different question:
+// where a device is, not whether it is here. A switch that does not answer
+// loses only its own branch of the tree.
 type Topology struct {
 	store    *inventory.Store
 	interval time.Duration
@@ -24,7 +24,7 @@ type Topology struct {
 	logger   *slog.Logger
 }
 
-// NewTopology builds the task that reads each of readers every interval.
+// NewTopology builds the task that reads each of readers at each interval.
 func NewTopology(
 	log *slog.Logger,
 	store *inventory.Store,
@@ -43,14 +43,14 @@ func NewTopology(
 	}
 }
 
-// Name returns the identifier used in logs and scheduling.
+// Name returns the identifier for logs and scheduling.
 func (t *Topology) Name() string { return "topology_reader" }
 
 // Interval returns how often every source is read.
 func (t *Topology) Interval() time.Duration { return t.interval }
 
-// Run reads every source and records what each said. A source that fails is
-// reported in the error and leaves the others recorded.
+// Run reads every source and records what each said. The error reports a
+// source that fails. The task still records the others.
 func (t *Topology) Run(ctx context.Context) error {
 	var errs []error
 
@@ -73,7 +73,7 @@ func (t *Topology) readAndSave(ctx context.Context, r plugin.TopologyReader) err
 	return SaveTopology(ctx, t.store, t.logger, r, topo)
 }
 
-// SaveTopology records what src said is plugged into it and logs what was
+// SaveTopology records what src said is connected to it, and logs what it
 // recorded.
 func SaveTopology(
 	ctx context.Context,

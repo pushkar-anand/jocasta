@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// fakeQueryReader hands back the cursor it was given with a mark added, and
-// remembers each cursor it was handed.
+// fakeQueryReader returns the cursor that it got, with a mark added. It
+// remembers each cursor that it got.
 type fakeQueryReader struct {
 	cursors []string
 	err     error
@@ -45,8 +45,8 @@ func newDNSTask(t *testing.T, r plugin.QueryReader) *DNS {
 	return NewDNS(slog.New(slog.DiscardHandler), inventory.New(conn, slog.New(slog.DiscardHandler)), r)
 }
 
-// TestDNSResumesFromTheStoredCursor checks that each run hands the source the
-// cursor the last run stored.
+// TestDNSResumesFromTheStoredCursor checks that each run gives the source the
+// cursor that the last run stored.
 func TestDNSResumesFromTheStoredCursor(t *testing.T) {
 	t.Parallel()
 
@@ -63,8 +63,8 @@ func TestDNSResumesFromTheStoredCursor(t *testing.T) {
 	assert.Equal(t, []string{"", "+", "++"}, r.cursors)
 }
 
-// TestDNSReportsAFailedRead checks that a read returning nothing is an error
-// and leaves the stored cursor where it was.
+// TestDNSReportsAFailedRead checks that a read that returns nothing is an
+// error. It also checks that the stored cursor does not change.
 func TestDNSReportsAFailedRead(t *testing.T) {
 	t.Parallel()
 

@@ -12,12 +12,12 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/scanner"
 )
 
-// Ports probes the TCP ports of every address the inventory holds on a recorded
+// Ports probes the TCP ports of every address of the inventory on a recorded
 // network, on its own schedule.
 //
-// It is a task apart from Device because it answers a different question,
-// what a device is running, and is judged by a different clock: the default
-// is six hours against discovery's five minutes.
+// It is a separate task from Device, because it answers a different question:
+// what a device runs. It also has a different clock. The default is six
+// hours, but discovery runs every five minutes.
 type Ports struct {
 	scanner  *scanner.PortScanner
 	store    *inventory.Store
@@ -26,11 +26,12 @@ type Ports struct {
 	logger   *slog.Logger
 }
 
-// NewPorts builds the task that port-scans the inventory's current addresses.
+// NewPorts builds the task that port-scans the current addresses of the
+// inventory.
 //
-// source names the vantage point the scan is taken from and is resolved by the
-// caller, the same as the device task: it is the same host probing, so it files
-// under the same source row the sweep does.
+// source names the place from which the scan runs. The caller resolves it, as
+// for the device task. The same host probes. So the scan uses the same source
+// row as the sweep.
 func NewPorts(
 	log *slog.Logger,
 	sc *scanner.PortScanner,
@@ -51,17 +52,18 @@ func NewPorts(
 	}
 }
 
-// Name returns the identifier used in logs and scheduling.
+// Name returns the identifier for logs and scheduling.
 func (p *Ports) Name() string { return "port_scanner" }
 
-// Interval returns the polling period configured for the port scan.
+// Interval returns the configured polling period of the port scan.
 func (p *Ports) Interval() time.Duration { return p.interval }
 
 // Run scans every current address on a recorded network and records what
 // answered.
 //
-// With nothing to scan yet, because discovery has not run or has recorded no
-// network, it returns errNotReady, so the poller retries in a minute.
+// If there is nothing to scan yet, it returns errNotReady. This happens when
+// discovery did not run, or recorded no network. The poller then tries again
+// in a minute.
 func (p *Ports) Run(ctx context.Context) error {
 	targets, err := p.store.PortScanTargets(ctx)
 	if err != nil {
@@ -93,11 +95,12 @@ func (p *Ports) Run(ctx context.Context) error {
 	return nil
 }
 
-// ScanNew scans the ports of devices a sweep has just discovered, at addrs,
-// so they do not wait for the next full port scan. An address on no recorded
-// network is left out, as the full scan leaves it out.
+// ScanNew scans the ports of devices that a sweep just found, at addrs. So they
+// do not wait for the next full port scan. It leaves out an address on no
+// recorded network, as the full scan does.
 //
-// It is not a run of the task: the full scan's schedule stays where it was.
+// It is not a run of the task. The schedule of the full scan does not
+// change.
 func (p *Ports) ScanNew(ctx context.Context, addrs []netip.Addr) error {
 	all, err := p.store.PortScanTargets(ctx)
 	if err != nil {

@@ -18,7 +18,7 @@ import (
 )
 
 // newPortsTask builds a port-scan task over an empty inventory. The scanner is
-// real; the scheduling tests never call it.
+// real, but the scheduling tests never call it.
 func newPortsTask(t *testing.T, interval time.Duration, opts ...scanner.PortOption) (*Ports, *inventory.Store, *sql.DB) {
 	t.Helper()
 
@@ -33,8 +33,8 @@ func newPortsTask(t *testing.T, interval time.Duration, opts ...scanner.PortOpti
 	return NewPorts(slog.New(slog.DiscardHandler), sc, store, "test-sweep", interval), store, conn
 }
 
-// sweptDevice records a discovery sweep that finds one host, so the port scan
-// has an address to aim at.
+// sweptDevice records a discovery sweep that finds one host. So the port scan
+// has an address to scan.
 func sweptDevice(t *testing.T, store *inventory.Store, addr string) {
 	t.Helper()
 
@@ -56,7 +56,7 @@ func TestPortsName(t *testing.T) {
 func TestPortsRunScansEveryCurrentAddress(t *testing.T) {
 	t.Parallel()
 
-	// A listener on loopback, so the scan has a port that genuinely answers.
+	// A listener on loopback, so the scan has a port that really answers.
 	var lc net.ListenConfig
 
 	l, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
@@ -89,14 +89,15 @@ func TestPortsRunWithNoTargetsAsksToRetry(t *testing.T) {
 
 	p, store, _ := newPortsTask(t, time.Hour)
 
-	// Nothing to scan is errNotReady, so the poller retries soon.
+	// Nothing to scan gives errNotReady, so the poller tries again soon.
 	require.ErrorIs(t, p.Run(t.Context()), errNotReady)
 
 	_, err := store.LastSuccessfulScanAt(t.Context(), dbtype.ScanPorts)
 	require.ErrorIs(t, err, inventory.ErrNotFound, "an empty inventory records no scan")
 }
 
-// listener opens a port on loopback, so a scan has one that genuinely answers.
+// listener opens a port on loopback. So a scan has a port that really
+// answers.
 func listener(t *testing.T) uint16 {
 	t.Helper()
 
@@ -109,7 +110,7 @@ func listener(t *testing.T) uint16 {
 	return uint16(l.Addr().(*net.TCPAddr).Port) //nolint:gosec // kernel-assigned port.
 }
 
-// newDeviceScans counts the port scans of only new devices.
+// newDeviceScans counts the port scans of new devices only.
 func newDeviceScans(t *testing.T, conn *sql.DB) int {
 	t.Helper()
 
@@ -136,8 +137,8 @@ func TestPortsScanNewRecordsANewDeviceScan(t *testing.T) {
 	require.ErrorIs(t, err, inventory.ErrNotFound, "no full port scan has run")
 }
 
-// An address on no recorded network is not one the full scan would reach, so
-// the new-device scan leaves it out too, and with nothing left records no scan.
+// The full scan would not reach an address on no recorded network. So the
+// new-device scan also leaves it out. With nothing left, it records no scan.
 func TestPortsScanNewSkipsAddressesOffEveryNetwork(t *testing.T) {
 	t.Parallel()
 

@@ -11,20 +11,20 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/plugin"
 )
 
-// DNSInterval is how often each resolver's query log is read. A minute keeps
-// one read small on a busy network, and each read resumes from a stored
-// cursor, so a longer gap costs only how fresh the counts are.
+// DNSInterval is how often the task reads the query log of each resolver. A
+// minute keeps one read small on a busy network. Each read continues from a
+// stored cursor. So a longer gap makes the counts only less fresh.
 const DNSInterval = time.Minute
 
-// DNS reads each resolver's query log from where the last read left off, and
-// records the lookups against the devices that made them.
+// DNS reads the query log of each resolver from where the last read stopped.
+// It records the lookups against the devices that made them.
 type DNS struct {
 	store   *inventory.Store
 	readers []plugin.QueryReader
 	logger  *slog.Logger
 }
 
-// NewDNS builds the task that reads each of readers every [DNSInterval].
+// NewDNS builds the task that reads each of readers at each [DNSInterval].
 func NewDNS(log *slog.Logger, store *inventory.Store, readers ...plugin.QueryReader) *DNS {
 	if log == nil {
 		log = slog.New(slog.DiscardHandler)
@@ -33,14 +33,14 @@ func NewDNS(log *slog.Logger, store *inventory.Store, readers ...plugin.QueryRea
 	return &DNS{store: store, readers: readers, logger: log}
 }
 
-// Name returns the identifier used in logs and scheduling.
+// Name returns the identifier for logs and scheduling.
 func (d *DNS) Name() string { return "dns_reader" }
 
 // Interval returns how often every source is read.
 func (d *DNS) Interval() time.Duration { return DNSInterval }
 
-// Run reads every source and records what each logged. A source that fails is
-// reported in the error and leaves the others recorded.
+// Run reads every source and records what each logged. The error reports a
+// source that fails. The task still records the others.
 func (d *DNS) Run(ctx context.Context) error {
 	var errs []error
 
@@ -53,10 +53,9 @@ func (d *DNS) Run(ctx context.Context) error {
 	return errors.Join(errs...)
 }
 
-// ReadQueries reads src from its stored cursor and records what it logged,
-// with the cursor its read returned. A read that failed partway is recorded
-// as far as it got, and logged; only a read that returned nothing is an
-// error.
+// ReadQueries reads src from its stored cursor. It records what src logged,
+// with the cursor that its read returned. If the read returns an error,
+// ReadQueries records nothing and returns the error.
 func ReadQueries(ctx context.Context, store *inventory.Store, log *slog.Logger, src plugin.QueryReader) error {
 	cursor, err := store.QueryCursor(ctx, src.Name())
 	if err != nil {

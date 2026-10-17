@@ -11,16 +11,16 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/classify"
 )
 
-// Build assembles the tree from what sources say and places devices in it.
+// Build builds the tree from what sources say, and places devices in it.
 //
-// A device goes to the deepest node that saw it on a port leading to no other
-// node, from the latest reads where there are any and the last sighting
-// otherwise. A leaf is [Leaf.Current] when its source listed it within window
-// of the source's latest read: a bridge forgets a quiet device's address
-// between reads, so the latest read alone would mark it as gone every other
-// read. Devices no source has seen are left out, except online ones, which are
-// listed in [Tree.Unplaced]. A device whose hardware address no source
-// reported, or that is itself a node, is not a leaf.
+// A device goes to the deepest node that saw it on a port that leads to no
+// other node. Build uses the latest reads if there are any, or else the last
+// sighting. A leaf is [Leaf.Current] when its source listed it within window
+// of the latest read of the source. A bridge forgets the address of a quiet
+// device between reads. So with only the latest read, the device would be gone
+// in every second read. Build leaves out devices that no source saw, except
+// online devices. It lists these in [Tree.Unplaced]. A device is not a leaf if
+// no source reported its hardware address, or if it is itself a node.
 func Build(sources []Source, devices []Device, window time.Duration) *Tree {
 	b := newBuilder(sources, devices, window)
 
@@ -39,32 +39,34 @@ func Build(sources []Source, devices []Device, window time.Duration) *Tree {
 	return b.tree
 }
 
-// reader is one source while the tree is assembled.
+// reader is one source while Build builds the tree.
 type reader struct {
 	src  *Source
 	node *Node
 
-	// window is how long before the latest read a sighting is still recent.
+	// window is how long before the latest read a sighting is still
+	// recent.
 	window time.Duration
 
 	ports map[string]Port
 
-	// toward[b] is the port of this source that b is behind, as its tables
-	// say.
+	// toward[b] is the port of this source that b is behind, from its
+	// tables.
 	toward map[*reader]string
 
-	// up is the port the source hangs from. Everything it learns there is
-	// above it or on another branch, so a sighting on it places nothing.
+	// up is the port from which the source hangs. Everything that it learns
+	// there is above it or on a different branch. So a sighting on it places
+	// nothing.
 	up string
 
-	// links is the ports leading to another read source, and onPort the node
-	// on a port: a read source, an announced neighbour, an inferred node or a
-	// hypervisor.
+	// links is the ports that lead to a different read source. onPort is the
+	// node on a port: a read source, an announced neighbour, an inferred node
+	// or a hypervisor.
 	links  map[string]bool
 	onPort map[string]*Node
 }
 
-// current reports whether s came from the source's latest read.
+// current reports whether s came from the latest read of the source.
 func (r *reader) current(s Sighting) bool {
 	return !s.LastSeen.Before(r.src.ReadAt)
 }
@@ -86,14 +88,14 @@ type builder struct {
 	root  *reader
 	depth map[*Node]int
 
-	// seen is the nodes made from neighbours no source reads, by key, and
-	// nodeMACs every hardware address that is a node rather than a leaf.
+	// seen is the nodes from neighbours that no source reads, by key.
+	// nodeMACs is every hardware address that is a node, not a leaf.
 	seen     map[string]*Node
 	nodeMACs map[string]bool
 }
 
-// newBuilder prepares source and device identities for tree construction.
-// Sources sharing a hardware address are resolved in source-name order.
+// newBuilder prepares the identities of sources and devices for the tree. If
+// sources share a hardware address, it resolves them in source-name order.
 func newBuilder(sources []Source, devices []Device, window time.Duration) *builder {
 	b := &builder{
 		tree: &Tree{
@@ -152,8 +154,8 @@ func newBuilder(sources []Source, devices []Device, window time.Duration) *build
 	return b
 }
 
-// claim marks mac as a node's rather than a leaf's, and makes n the inventory
-// device with that address when n is none yet.
+// claim marks mac as the address of a node, not a leaf. If n is no inventory
+// device yet, claim makes n the inventory device with that address.
 func (b *builder) claim(n *Node, mac string) {
 	if mac == "" {
 		return
@@ -167,8 +169,9 @@ func (b *builder) claim(n *Node, mac string) {
 	}
 }
 
-// pickRoot returns the gateway, the first in name order when several say they
-// are, or the first source when none does.
+// pickRoot returns the gateway. If several sources say that they are the
+// gateway, it returns the first in name order. If none does, it returns the
+// first source.
 func (b *builder) pickRoot() *reader {
 	for _, r := range b.readers {
 		if r.src.Gateway {
@@ -197,7 +200,7 @@ func (b *builder) others(root *reader) []*reader {
 	return out
 }
 
-// match returns the read source a neighbour is, or nil.
+// match returns the read source that a neighbour is, or nil.
 func (b *builder) match(n Neighbour) *reader {
 	if r, ok := b.byOwn[n.MAC]; ok {
 		return r
@@ -206,7 +209,8 @@ func (b *builder) match(n Neighbour) *reader {
 	return b.byIdentity[n.Identity]
 }
 
-// findLinks fills toward from each source's current sightings and neighbours.
+// findLinks fills toward from the current sightings and neighbours of each
+// source.
 func (b *builder) findLinks() {
 	for _, a := range b.readers {
 		for _, s := range a.src.Seen {
@@ -229,7 +233,8 @@ func (b *builder) findLinks() {
 }
 
 // setToward records that other is behind port of a. A wired port or radio
-// replaces a VLAN or bridge interface, since the port is where it plugs in.
+// replaces a VLAN or bridge interface, because the port is where it
+// connects.
 func (b *builder) setToward(a, other *reader, port string) {
 	have := a.toward[other]
 	if have == "" || (a.ports[have].Kind == PortVirtual && a.ports[port].Kind != PortVirtual) {
@@ -237,27 +242,28 @@ func (b *builder) setToward(a, other *reader, port string) {
 	}
 }
 
-// upPort returns the port of z that x is behind, or failing that the root.
+// upPort returns the port of z that x is behind. If there is none, it returns
+// the root.
 func (b *builder) upPort(z, x *reader) string {
 	return cmp.Or(z.toward[x], z.toward[b.root])
 }
 
-// below reports whether z sees y on a port other than the one leading back
-// towards x, which puts y in z's subtree.
+// below reports whether z sees y on a port other than the port back towards
+// x. If so, y is in the subtree of z.
 func (b *builder) below(z, y, x *reader) bool {
 	p := z.toward[y]
 
 	return p != "" && p != b.upPort(z, x)
 }
 
-// place hangs the sources in set from x, x having been reached through its
-// port up. Each source in set ends up in the tree exactly once.
+// place hangs the sources in set from x. place reached x through its port
+// up. Each source in set goes into the tree exactly once.
 func (b *builder) place(x *reader, up string, set []*reader) {
-	// The sources x sees behind one port are all in that branch. The ones no
-	// other source in the branch has below it hang directly from the port;
-	// the rest go below whichever of those has them below it. More than one
-	// hanging directly from a port means something between them the tree
-	// does not read.
+	// The sources that x sees behind one port are all in that branch. A
+	// source that no other source in the branch has below it hangs directly
+	// from the port. The others go below the source that has them below it.
+	// If more than one source hangs directly from a port, there is something
+	// between them that the tree does not read.
 	byPort := map[string][]*reader{}
 
 	var unseen []*reader
@@ -285,8 +291,8 @@ func (b *builder) place(x *reader, up string, set []*reader) {
 			}
 		}
 
-		// Tables that contradict each other put everything below something
-		// else; hang the branch here rather than lose it.
+		// If the tables contradict each other, everything is below something
+		// else. Hang the branch here, so it is not lost.
 		if len(direct) == 0 {
 			direct = branch
 		}
@@ -329,7 +335,8 @@ func (b *builder) place(x *reader, up string, set []*reader) {
 	}
 }
 
-// hangReader hangs c from parent, which is x's node or a node on x's port.
+// hangReader hangs c from parent. parent is the node of x, or a node on a
+// port of x.
 func (b *builder) hangReader(c *reader, parent *Node, x *reader, parentPort string) {
 	up := c.toward[x]
 	c.up = up
@@ -357,7 +364,7 @@ func (b *builder) hang(child, parent *Node, link *Link) {
 	b.depth[child] = b.depth[parent] + 1
 }
 
-// carried returns the VLANs a port carries, and whether any are tagged.
+// carried returns the VLANs that a port carries, and whether one is tagged.
 func carried(p Port) (vlans []int, trunk bool) {
 	vlans = append(slices.Clone(p.Tagged), p.Untagged...)
 	if len(vlans) == 0 && p.PVID > 0 {
@@ -382,9 +389,9 @@ func (b *builder) strangers(x *reader, p string) []Neighbour {
 	return out
 }
 
-// intermediate returns the node on port p of x, making it on first use: the
-// neighbour that announced itself there when exactly one did, and an unnamed
-// node otherwise.
+// intermediate returns the node on port p of x. It makes the node on first
+// use. If exactly one neighbour announced itself there, the node is that
+// neighbour. If not, it is an unnamed node.
 func (b *builder) intermediate(x *reader, p string, wifi bool) *Node {
 	if n, ok := x.onPort[p]; ok {
 		return n
@@ -415,7 +422,7 @@ func (b *builder) hangOnPort(x *reader, p string, n *Node) {
 // seenKey is the key of the node made from neighbour n.
 func seenKey(n Neighbour) string { return "n" + cmp.Or(n.MAC, n.Identity) }
 
-// seenNode returns the node for a neighbour no source reads.
+// seenNode returns the node for a neighbour that no source reads.
 func (b *builder) seenNode(n Neighbour) *Node {
 	key := seenKey(n)
 
@@ -431,9 +438,9 @@ func (b *builder) seenNode(n Neighbour) *Node {
 	return node
 }
 
-// placeStrangers makes a node of each neighbour no source reads that has other
-// devices behind it, on the deepest source that hears it on a port leading to
-// no other source.
+// placeStrangers makes a node of each neighbour that no source reads and that
+// has other devices behind it. It puts the node on the deepest source that
+// hears it on a port that leads to no other source.
 func (b *builder) placeStrangers() {
 	readers := slices.Clone(b.readers)
 	slices.SortStableFunc(readers, func(a, c *reader) int { return cmp.Compare(b.depth[c.node], b.depth[a.node]) })
@@ -468,8 +475,8 @@ func portsWithStrangers(x *reader) []string {
 	return slices.Compact(out)
 }
 
-// othersOnPort reports whether x's latest read learned any address on port p
-// besides mac and the sources' own.
+// othersOnPort reports whether the latest read of x learned an address on
+// port p, other than mac and the own addresses of the sources.
 func (b *builder) othersOnPort(x *reader, p, mac string) bool {
 	for _, s := range x.src.Seen {
 		if s.Port == p && s.MAC != mac && x.current(s) && b.byOwn[s.MAC] == nil {
@@ -480,7 +487,7 @@ func (b *builder) othersOnPort(x *reader, p, mac string) bool {
 	return false
 }
 
-// spot is one place a device was seen.
+// spot is one place where a source saw a device.
 type spot struct {
 	r      *reader
 	s      Sighting
@@ -489,9 +496,9 @@ type spot struct {
 	link   bool
 }
 
-// better reports whether a is a better place for a device than c: from a
-// latest read, on a port leading to no other source, deeper, and more recent,
-// in that order.
+// better reports whether a is a better place for a device than c. It compares,
+// in this order: from a latest read, on a port that leads to no other source,
+// deeper, and more recent.
 func (b *builder) better(a, c spot) bool {
 	switch {
 	case a.cur != c.cur:
@@ -507,10 +514,10 @@ func (b *builder) better(a, c spot) bool {
 	return cmp.Or(strings.Compare(a.r.src.Name, c.r.src.Name), strings.Compare(a.s.Port, c.s.Port)) < 0
 }
 
-// betterWiFi reports whether a says more about a Wi-Fi client than c: it names
-// the network, it is from a latest read, or it is more recent, in that order.
-// A router managing access points names the network of a client the access
-// point's own bridge only marks as Wi-Fi.
+// betterWiFi reports whether a tells more about a Wi-Fi client than c. It
+// compares, in this order: it names the network, it is from a latest read, or
+// it is more recent. A router that manages access points names the network of
+// a client. The bridge of the access point only marks the client as Wi-Fi.
 func betterWiFi(a, c spot) bool {
 	switch {
 	case (a.s.SSID != "") != (c.s.SSID != ""):
@@ -522,7 +529,7 @@ func betterWiFi(a, c spot) bool {
 	return a.s.LastSeen.After(c.s.LastSeen)
 }
 
-// attach places every device a source has seen.
+// attach places every device that a source saw.
 func (b *builder) attach() {
 	best := map[string]spot{}
 	wifi := map[string]spot{}
@@ -546,7 +553,8 @@ func (b *builder) attach() {
 		}
 	}
 
-	// Every VLAN the device was seen in on the port it is placed on.
+	// Every VLAN in which a source saw the device, on the port where the
+	// device is placed.
 	for _, r := range b.readers {
 		for _, s := range r.src.Seen {
 			sp, ok := best[s.MAC]
@@ -588,9 +596,9 @@ func (b *builder) attach() {
 			l.VLAN = sp.r.ports[sp.s.Port].PVID
 		}
 
-		// A device seen on a port with a node on it is somewhere behind that
-		// node. On a port leading to another source, that source did not see
-		// it, so it is somewhere on that branch.
+		// A device seen on a port with a node is somewhere behind that node.
+		// On a port that leads to a different source, that source did not see
+		// it. So it is somewhere on that branch.
 		if n := sp.r.onPort[sp.s.Port]; n != nil {
 			behind(l, n)
 		}
@@ -606,17 +614,17 @@ func (b *builder) attach() {
 	}
 }
 
-// behind moves l under node n on its port. The port's link is n's, so l no
-// longer has a port or its speed.
+// behind moves l under node n on its port. The link of the port belongs to n.
+// So l no longer has a port or its speed.
 func behind(l *Leaf, n *Node) {
 	l.Owner, l.Port, l.Speed = n, "", Speed{}
 }
 
-// inferSwitches puts the devices sharing one wired port of a source under a
-// node on that port: something the tree does not read is plugged in there,
-// with all of them behind it. When exactly one of them is a hypervisor, the
-// rest are its virtual machines and it is that node. It returns the leaves
-// left once any hypervisor has become a node.
+// inferSwitches puts the devices that share one wired port of a source under a
+// node on that port. Something that the tree does not read is connected there,
+// with all of them behind it. If exactly one of them is a hypervisor, it is
+// that node, and the others are its virtual machines. It returns the leaves
+// that are left after a hypervisor became a node.
 func (b *builder) inferSwitches(leaves []*Leaf) []*Leaf {
 	type portKey struct {
 		r    *reader
@@ -666,8 +674,9 @@ func (b *builder) inferSwitches(leaves []*Leaf) []*Leaf {
 	return slices.DeleteFunc(leaves, func(l *Leaf) bool { return hosts[l] })
 }
 
-// hypervisor returns the one leaf in ls classed as a hypervisor, by the
-// classifier or its owner, and nil when there is none or more than one.
+// hypervisor returns the one leaf in ls with the class hypervisor, from the
+// classifier or its owner. It returns nil when there is none, or more than
+// one.
 func hypervisor(ls []*Leaf) *Leaf {
 	var found *Leaf
 
@@ -695,7 +704,7 @@ func (b *builder) host(x *reader, p string, h *Leaf) *Node {
 	return n
 }
 
-// vmPrefixes are the hardware address blocks hypervisors assign to virtual
+// vmPrefixes are the hardware address blocks that hypervisors give to virtual
 // machines: VirtualBox, QEMU and KVM, Proxmox, VMware, Hyper-V, Xen and
 // Parallels.
 var vmPrefixes = []string{
@@ -704,8 +713,8 @@ var vmPrefixes = []string{
 	"00:15:5d", "00:16:3e", "00:1c:42",
 }
 
-// mostlyVMs reports whether more than half of ls have a virtual machine's
-// hardware address.
+// mostlyVMs reports whether more than half of ls have the hardware address of
+// a virtual machine.
 func mostlyVMs(ls []*Leaf) bool {
 	vms := 0
 
@@ -720,8 +729,8 @@ func mostlyVMs(ls []*Leaf) bool {
 	return vms*2 > len(ls)
 }
 
-// group files l in its owner's group for its VLAN, or for its Wi-Fi network
-// and VLAN.
+// group puts l in the group of its owner for its VLAN, or for its Wi-Fi
+// network and VLAN.
 func (b *builder) group(l *Leaf) {
 	ssid := ""
 	if l.WiFi {
@@ -739,7 +748,7 @@ func (b *builder) group(l *Leaf) {
 	l.Owner.Groups = append(l.Owner.Groups, &Group{WiFi: l.WiFi, SSID: ssid, VLAN: l.VLAN, Devices: []*Leaf{l}})
 }
 
-// finish orders the tree, lists the VLANs and the unplaced devices, and
+// finish orders the tree, and lists the VLANs and the unplaced devices. It also
 // indexes the nodes by device.
 func (b *builder) finish() {
 	vlans := map[int]bool{}
@@ -816,7 +825,7 @@ func compareBool(a, c bool) int {
 	}
 }
 
-// ComparePorts orders port names the way a person reads them, so ether2 comes
+// ComparePorts orders port names as a person reads them. So ether2 comes
 // before ether10.
 func ComparePorts(a, c string) int {
 	for a != "" && c != "" {
