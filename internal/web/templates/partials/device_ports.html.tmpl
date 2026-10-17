@@ -1,12 +1,12 @@
 {{- /*
-    Takes a slice of port rows. Each is a port a scan found a device listening
-    on, or listening on before the service stopped, or a port the device
-    advertises a service on over DNS-SD. Only a port seen open or advertised
-    is ever recorded, so a short list here means a small surface.
+    Takes a slice of port rows. Each is a port on which a scan found the device
+    listening, now or before the service stopped. Or it is a port on which the
+    device advertises a service over DNS-SD. The store records only a port that
+    was open or advertised. So a short list here means a small surface.
 
-    Past the tenth row the rest fold away behind "Show all", a native details
-    element after the table whose open state the stylesheet reads, so no
-    script is needed and a browser without :has() shows every row.
+    After the tenth row, the rest are behind "Show all". This is a native
+    details element after the table, and the stylesheet reads its open state. So
+    no script is necessary, and a browser without :has() shows every row.
 */ -}}
 {{ define "partial/device-ports" }}
 <div class="card card--table fold">

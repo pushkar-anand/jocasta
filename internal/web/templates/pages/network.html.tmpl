@@ -5,9 +5,9 @@
 <section class="block">
     <h2 class="section">Network</h2>
     <div class="card panel">
-        {{- /* Lead with what a person calls this segment when a source has named
-               it; the CIDR is the address of it, one line down. An unnamed
-               prefix has only its CIDR, so the CIDR leads. */}}
+        {{- /* If a source named this segment, its name comes first. The CIDR is
+               its address, one line down. A prefix with no name has only its
+               CIDR. So the CIDR comes first. */}}
         <p class="netcard__top">
             {{- if .Name }}
             <span class="nethead__name">{{ .Name }}</span>

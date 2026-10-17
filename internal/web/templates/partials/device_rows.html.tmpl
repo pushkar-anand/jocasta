@@ -1,19 +1,19 @@
 {{- /*
-    The table on its own. This is what the filter form swaps, and what the page
-    renders inline on first paint.
+    Only the table. The filter form swaps this, and the page renders it inline
+    on first paint.
 */ -}}
 {{ define "partial/device-rows" }}
 <div id="device-rows">
-    {{- /* Inside the swapped fragment, so a filtered-down count is current the
-           moment the table is. */}}
+    {{- /* Inside the swapped fragment. So a filtered count is current at the
+           same time as the table. */}}
     <p class="rowcount">{{ .Count }}{{ if .Filtered }} <a class="clear" href="{{ .FilterAction }}">clear</a>{{ end }}</p>
 
     {{- if .Devices }}
     <div class="card card--table">
         <div class="scroller">
-            {{- /* On a network's own page the Network column would repeat the
-                   page on every row; the row partial stays context-free and
-                   this container, which knows, hides column 3. */}}
+            {{- /* On the page of a network, the Network column would repeat the
+                   page on every row. The row partial does not know its context.
+                   This container knows, so it hides column 3. */}}
             <table{{ if .OnNetwork }} class="on-network"{{ end }}>
                 <thead>
                 <tr>
@@ -36,9 +36,9 @@
     </div>
     {{- with .Pager }}
     {{- /*
-        Plain links: a page change moves the address bar as much as it moves the
-        table, so a full navigation is the honest thing, the same choice the
-        event and scan logs make.
+        Plain links. A page change moves the address bar as much as the table.
+        So a full navigation is the correct choice. The event and scan logs make
+        the same choice.
     */}}
     <nav class="pager pager--split" aria-label="Device list pages">
         {{- if .HasPrev }}
@@ -68,7 +68,7 @@
     </div>
     {{- end }}
 
-    {{- /* Shared by every row's group field, so it is written once. */}}
+    {{- /* Every group field of a row shares this. So it is written once. */}}
     <datalist id="known-groups">
         {{- range .Groups }}
         <option value="{{ . }}"></option>

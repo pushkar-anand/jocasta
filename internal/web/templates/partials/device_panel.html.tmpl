@@ -1,6 +1,6 @@
 {{- /*
-    The device's identity and the form that curates it, side by side, so saving
-    a label updates the facts that show it as well as the field.
+    The identity of the device and its curation form, next to each other. So a
+    saved label updates the field, and the facts that show it.
 */ -}}
 {{ define "partial/device-panel" }}
 <div id="device-panel">
@@ -33,9 +33,9 @@
                 <div><dt>Group</dt><dd>{{ dash .Group }}</dd></div>
                 <div><dt>First seen</dt><dd class="dim">{{ stamp .FirstSeen "" }}</dd></div>
                 <div><dt>Last seen</dt><dd class="dim">{{ stamp .LastSeen "" }}</dd></div>
-                {{- /* Since when, where stamp says how long ago: a run of
-                       sightings is read by when it began. A device present
-                       before presence was recorded has no start to give. */}}
+                {{- /* The start time, where stamp gives an age. A person reads
+                       a run of sightings by its start. A device that was
+                       present before presence tracking has no start. */}}
                 <div><dt>Presence</dt><dd>
                     {{- if .Online }}Seen recently{{ if not .PresentSince.IsZero }} since {{ since .PresentSince }}{{ end }}
                     {{- else if .LastSeen.IsZero }}Not seen
@@ -45,13 +45,13 @@
             </dl>
 
             {{- if .Randomised }}
-            <p class="note">The device made up this hardware address itself, so it names
-                no vendor and may change the next time the device connects.</p>
+            <p class="note">The device made up this hardware address itself. So it names
+                no vendor, and it can change the next time the device connects.</p>
             {{- end }}
 
-            {{- /* The type is yours, and the classifier would have said something
-                   else. Worth showing: its guess is why "auto" would land elsewhere
-                   if you cleared the override. */}}
+            {{- /* The user set the type, and the classifier would say something
+                   different. This is worth a line. Its guess is where "auto"
+                   would go if the user cleared the override. */}}
             {{- if and .Type .ClassGuess (ne .ClassGuess .Class) }}
             <p class="note">Auto-detected as
                 {{ classLabel .ClassGuess }}{{ with confidence .ClassConfidence }} ({{ . }} confidence){{ end }}.</p>
@@ -62,16 +62,15 @@
         <section class="card panel">
             <h2 class="section">What you call it</h2>
 
-            {{- /* The facts lead, for every reader: what the device is called
-                   now. A writer opens the form
-                   from here; a save closes it again and these values are what
-                   moved. */}}
+            {{- /* The facts come first, for every reader: the current name of
+                   the device. A writer opens the form from here. A save closes
+                   it again, and these values show the change. */}}
             <dl class="facts">
                 <div><dt>Label</dt><dd>{{ with .Device.Label }}{{ . }}{{ else }}<span class="dim">&mdash;</span>{{ end }}</dd></div>
                 <div><dt>Group</dt><dd>{{ with .Device.Group }}{{ . }}{{ else }}<span class="dim">&mdash;</span>{{ end }}</dd></div>
-                {{- /* Notes take the card's width under the label and group.
-                       Long ones are cut at 8 lines with "Show all", the same
-                       details switch the ports table uses. */}}
+                {{- /* Notes take the width of the card, under the label and
+                       group. Long notes are cut at 8 lines with "Show all". The
+                       ports table uses the same details switch. */}}
                 <div class="facts__wide fold">
                     <dt>Notes</dt>
                     {{- with .Device.Notes }}
@@ -99,12 +98,12 @@
             <p class="note">Your account is read-only, so it cannot change these.</p>
             {{- else }}
             {{- if .Saved }}
-            {{- /* tabindex so the swap can land focus on the outcome; sits by the
-                   summary because the form it came from is now folded away. */}}
+            {{- /* tabindex, so the swap can put focus on the outcome. It is
+                   next to the summary, because its form is now closed. */}}
             <p class="saved" role="status" tabindex="-1">{{ or .Notice "Details saved." }}</p>
             {{- end }}
-            {{- /* Watching is its own action: the edit form replaces every
-                   field it carries, and watching is not one of them. */}}
+            {{- /* The watch is a separate action. The edit form replaces every
+                   field in it. The watch is not one of them. */}}
             <form class="watch"
                   hx-post="/devices/{{ .Device.ID }}/watch"
                   hx-target="#device-panel"
@@ -179,11 +178,11 @@
 </div>
 {{- if .Saved }}
 {{- /*
-    Two things this swap does not cover sit outside it, and both are stale the
-    moment a label changes: the heading, which the layout draws in the topbar,
-    and the log, which is further down the page. Sent out of band so they
-    update too. Otherwise the page would go on calling the device by its old
-    name, and the history would sit there saying nothing had happened.
+    Two things are outside this swap, and both become old when a label changes.
+    One is the heading, which the layout draws in the topbar. The other is the
+    log, further down the page. They go out of band, so they also update. If
+    not, the page would still show the old name of the device, and the history
+    would show no change.
 */}}
 <h1 id="page-title" title="{{ .Device.Name }}" hx-swap-oob="true">{{ .Device.Name }}</h1>
 <div id="device-history" hx-swap-oob="true">

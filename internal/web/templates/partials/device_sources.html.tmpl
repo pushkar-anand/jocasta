@@ -1,12 +1,12 @@
 {{- /*
-    What each source says about the device, beside the one name the device row
-    settled on. A source that was outranked still had a reason for what it
-    claimed, and the disagreements are the point: a router holding a bound lease
-    for something the sweep has not reached in days is two sources telling the
-    truth about different things.
+    What each source says about the device, next to the one name of the device
+    row. A source with a lower rank still had a reason for its claim. The
+    disagreements are the purpose of this section. A router can have a bound
+    lease for a device that the sweep did not reach for days. Then two sources
+    tell the truth about different things.
 
-    A source claims per address, so a device holding several has a row for
-    each. A source's rows sit together, and its name is shown once.
+    A source claims for each address. So a device with several addresses has a
+    row for each. The rows of a source stay together, and its name shows once.
 */ -}}
 {{ define "partial/device-sources" }}
 <div class="card card--table">

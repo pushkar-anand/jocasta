@@ -814,7 +814,7 @@ func TestDevicePageMergesAdvertisedServicesIntoPorts(t *testing.T) {
 	assert.Contains(t, body, "5540/udp")
 	assert.Contains(t, body, `<span class="mono dim">_example._tcp</span>`)
 	assert.Contains(t, body, `<span class="chip">advertised</span>`)
-	assert.Contains(t, body, "only the services this device advertises are listed")
+	assert.Contains(t, body, "only the services that this device advertises")
 	assert.NotContains(t, body, "ZgotmplZ")
 }
 

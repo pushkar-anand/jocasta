@@ -328,7 +328,7 @@ func TestOverviewRendersTheInventory(t *testing.T) {
 	// The last-sweep panel measures freshness from the last successful
 	// collection. A healthy collector gives no age warning.
 	assert.Contains(t, body, "Last complete sweep")
-	assert.NotContains(t, body, "presence counts may be out of date")
+	assert.NotContains(t, body, "presence counts can be out of date")
 }
 
 // A collector can record scan rows while each of them fails. Then the presence
@@ -353,7 +353,7 @@ func TestOverviewFlagsAStalledCollector(t *testing.T) {
 
 	body := get(t, newWebHandler(t, store), "/").Body.String()
 
-	assert.Contains(t, body, "presence counts may be out of date")
+	assert.Contains(t, body, "presence counts can be out of date")
 	assert.Contains(t, body, `href="/scans"`)
 }
 
