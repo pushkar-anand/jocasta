@@ -8,11 +8,11 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-// standardMDNSPort is where an mDNS responder listens.
+// standardMDNSPort is the port of an mDNS responder.
 const standardMDNSPort = 5353
 
-// mdns asks a host for its name with an mDNS reverse lookup sent to the host
-// itself (RFC 6762, section 5.5).
+// mdns asks a host for its name with an mDNS reverse lookup to the host itself
+// (RFC 6762, section 5.5).
 var mdns = nameProtocol{
 	query: func(addr netip.Addr) ([]byte, error) {
 		return ptrQuery(reverseName(addr))
@@ -22,8 +22,8 @@ var mdns = nameProtocol{
 	},
 }
 
-// reverseName returns the in-addr.arpa name that a reverse lookup of addr
-// asks about. addr must be an IPv4 address.
+// reverseName returns the in-addr.arpa name for a reverse lookup of addr. addr
+// must be an IPv4 address.
 func reverseName(addr netip.Addr) string {
 	b := addr.As4()
 
@@ -31,7 +31,7 @@ func reverseName(addr netip.Addr) string {
 }
 
 // ptrQuery returns a query with a PTR question for each of names, and message
-// ID 0, which parseReverseAnswer relies on to ignore the ID.
+// ID 0. parseReverseAnswer needs this to ignore the ID.
 func ptrQuery(names ...string) ([]byte, error) {
 	b := dnsmessage.NewBuilder(nil, dnsmessage.Header{})
 
@@ -55,12 +55,12 @@ func ptrQuery(names ...string) ([]byte, error) {
 
 // parseReverseAnswer returns the name that the response in b gives for the
 // reverse name q. It returns false when b is not a DNS response, has no PTR
-// answer for q, or gives a name cleanName refuses.
+// answer for q, or gives a name that cleanName refuses.
 func parseReverseAnswer(b []byte, q string) (string, bool) {
 	var p dnsmessage.Parser
 
-	// The message ID is left unchecked. A responder may echo the query's or
-	// send zero, and the query sends zero, so the ID tells nothing apart.
+	// Do not check the message ID. A responder can echo the ID of the query,
+	// or send zero. The query sends zero. So the ID tells nothing.
 	h, err := p.Start(b)
 	if err != nil || !h.Response {
 		return "", false

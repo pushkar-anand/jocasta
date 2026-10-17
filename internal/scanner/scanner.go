@@ -1,7 +1,7 @@
-// Package scanner discovers hosts on a network by sweeping an address range with
-// ICMP echo requests and enriching whatever answers with a MAC address and a
-// hostname, from reverse DNS or, failing that, from the host itself over mDNS,
-// NetBIOS, DNS-SD or SSDP.
+// Package scanner finds hosts on a network. It sweeps an address range with
+// ICMP echo requests. It adds a MAC address and a hostname to each host that
+// answers. The hostname comes from reverse DNS. If that fails, it comes from
+// the host itself, over mDNS, NetBIOS, DNS-SD or SSDP.
 package scanner
 
 import (
@@ -22,46 +22,46 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/cidr"
 )
 
-// ErrPrefixTooLarge is returned for a range wide enough that sweeping it is
+// ErrPrefixTooLarge is returned for a range so wide that a sweep of it is
 // almost certainly a mistake.
 var ErrPrefixTooLarge = errors.New("prefix too large to sweep")
 
-// maxSweepHosts caps a single sweep. A /16 is 65k probes, which is already
-// slow and loud; anything wider is almost certainly a typo'd prefix. The cap is
-// this scanner's policy, which is why it lives here.
+// maxSweepHosts limits a single sweep. A /16 is 65k probes, which is already
+// slow and loud. Anything wider is almost certainly a mistyped prefix. The
+// limit is a policy of this scanner, so it is here.
 const maxSweepHosts = 65536
 
-// Host is an address that answered a sweep. The identifying detail is carried
-// by the embedded [hosts.Host], so a sweep and a plugin describe the same
-// device the same way; what is added here is what only a probe can know.
+// Host is an address that answered a sweep. The embedded [hosts.Host] has the
+// identifying details. So a sweep and a plugin describe the same device in the
+// same way. This type adds what only a probe can know.
 type Host struct {
 	*hosts.Host
 
 	// RTT is how long the address took to answer.
 	RTT time.Duration
 
-	// SeenAt is when the sweep ran, taken once for the whole sweep so every
-	// host it found carries the same observation time.
+	// SeenAt is when the sweep ran. It is taken once for the whole sweep. So
+	// every host that it found has the same observation time.
 	SeenAt time.Time
 
-	// Self marks an address belonging to the host running the scan; the
-	// embedded Interface names the interface holding it. Both are empty for
-	// every other host, whose interfaces are not visible from here.
+	// Self marks an address of the host that runs the scan. The embedded
+	// Interface names the interface that has it. Both are empty for every
+	// other host, because its interfaces are not visible from here.
 	Self bool
 
-	// NameSource is how the sweep learned the name the embedded host carries,
-	// and is empty when it carries none.
+	// NameSource is how the sweep learned the name of the embedded host. It is
+	// empty when the host has no name.
 	NameSource dbtype.HostnameSource
 
 	// Services are what the address advertised over DNS-SD during the sweep,
-	// sorted by type and instance. They are empty when it advertised nothing
-	// or the browse is turned off.
+	// sorted by type and instance. They are empty when it advertised nothing,
+	// or the browse is off.
 	Services []hosts.Service
 }
 
-// MarshalJSON writes the sweep's fields alongside the embedded host's. Without
-// it Go promotes [hosts.Host.MarshalJSON] and silently drops every field
-// declared on Host itself.
+// MarshalJSON writes the fields of the sweep with the fields of the embedded
+// host. Without it, Go promotes [hosts.Host.MarshalJSON]. That method drops
+// every field of Host itself, with no warning.
 func (h Host) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Addr       netip.Addr      `json:"addr"`
@@ -90,22 +90,23 @@ func (h Host) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// Scanner sweeps address ranges. It holds no per-scan state, so a single
+// Scanner sweeps address ranges. It holds no state for each scan. So a single
 // instance is safe for concurrent use.
 type Scanner struct {
 	log *slog.Logger
 
-	// rounds is how many times an address is probed before it is called dead.
-	// A single dropped packet on a busy wireless VLAN should not retire a host.
+	// rounds is how many times the sweep probes an address before it calls it
+	// dead. A single lost packet on a busy wireless VLAN must not retire a
+	// host.
 	rounds int
 
-	// wait is how long to keep reading replies after the final probe is sent.
-	// Cheap IoT devices can take over a second to answer, so a short window
-	// would report them as down.
+	// wait is how long to read replies after the final probe. Cheap IoT
+	// devices can take more than a second to answer. So a short window would
+	// report them as down.
 	wait time.Duration
 
-	// rate caps probes per second so a large sweep does not arrive as a burst
-	// that a switch or a cheap IoT device treats as a flood.
+	// rate limits probes per second. So a large sweep does not arrive as a
+	// burst that a switch or a cheap IoT device sees as a flood.
 	rate int
 
 	resolveNames   bool
@@ -115,8 +116,8 @@ type Scanner struct {
 	resolveDNSSD   bool
 	resolveSSDP    bool
 
-	// mdnsPort, netbiosPort, dnssdGroup and ssdpGroup are where each
-	// protocol's queries go, which a test points at a responder of its own.
+	// mdnsPort, netbiosPort, dnssdGroup and ssdpGroup are where the queries of
+	// each protocol go. A test points them at its own responder.
 	mdnsPort    uint16
 	netbiosPort uint16
 	dnssdGroup  netip.AddrPort
@@ -126,15 +127,16 @@ type Scanner struct {
 	// for SSDP searches.
 	dnssdFailed atomic.Bool
 
-	// ssdpFailed is set while SSDP searches keep failing, so only the first
-	// failure in a run is logged as a warning. A search that works clears it.
+	// ssdpFailed is set while SSDP searches keep failing. So only the first
+	// failure in a series is logged as a warning. A search that works clears
+	// it.
 	ssdpFailed atomic.Bool
 }
 
 // Option configures a Scanner.
 type Option func(*Scanner)
 
-// WithRounds sets how many probes an address gets before it is considered down.
+// WithRounds sets how many probes an address gets before it counts as down.
 func WithRounds(n int) Option {
 	return func(s *Scanner) {
 		if n > 0 {
@@ -143,7 +145,7 @@ func WithRounds(n int) Option {
 	}
 }
 
-// WithWait sets how long to listen for replies after the last probe is sent.
+// WithWait sets how long to listen for replies after the last probe.
 func WithWait(d time.Duration) Option {
 	return func(s *Scanner) {
 		if d > 0 {
@@ -152,7 +154,7 @@ func WithWait(d time.Duration) Option {
 	}
 }
 
-// WithRate sets the ceiling on probes sent per second.
+// WithRate sets the maximum number of probes each second.
 func WithRate(n int) Option {
 	return func(s *Scanner) {
 		if n > 0 {
@@ -166,29 +168,29 @@ func WithNameResolution(v bool) Option {
 	return func(s *Scanner) { s.resolveNames = v }
 }
 
-// WithMDNSResolution controls asking hosts that answered, and have no reverse
-// DNS name, for their name over mDNS. With reverse DNS turned off, that is
+// WithMDNSResolution controls the mDNS name query. The sweep asks each host
+// that answered and has no reverse DNS name. With reverse DNS off, that is
 // every host that answered.
 func WithMDNSResolution(v bool) Option {
 	return func(s *Scanner) { s.resolveMDNS = v }
 }
 
-// WithNetBIOSResolution controls asking hosts that answered, and have no name
-// from reverse DNS or mDNS, for their name over NetBIOS.
+// WithNetBIOSResolution controls the NetBIOS name query. The sweep asks each
+// host that answered and has no name from reverse DNS or mDNS.
 func WithNetBIOSResolution(v bool) Option {
 	return func(s *Scanner) { s.resolveNetBIOS = v }
 }
 
-// WithDNSSDResolution controls browsing the services hosts that answered
-// advertise over DNS-SD, and naming each that has no name from reverse DNS,
-// mDNS or NetBIOS after the name it gives them.
+// WithDNSSDResolution controls the DNS-SD browse of the services of hosts that
+// answered. A host with no name from reverse DNS, mDNS or NetBIOS gets the
+// name that it gives its services.
 func WithDNSSDResolution(v bool) Option {
 	return func(s *Scanner) { s.resolveDNSSD = v }
 }
 
-// WithSSDPResolution controls naming hosts that answered, and have no name
-// from reverse DNS, mDNS, NetBIOS or DNS-SD, after the friendlyName in their UPnP
-// description.
+// WithSSDPResolution controls the SSDP name. A host that answered and has no
+// name from reverse DNS, mDNS, NetBIOS or DNS-SD gets the friendlyName in its
+// UPnP description.
 func WithSSDPResolution(v bool) Option {
 	return func(s *Scanner) { s.resolveSSDP = v }
 }
@@ -198,8 +200,9 @@ func WithMACResolution(v bool) Option {
 	return func(s *Scanner) { s.resolveMACs = v }
 }
 
-// New builds a Scanner with defaults tuned for a home LAN: fast enough to sweep
-// a /24 in a couple of seconds, gentle enough not to upset IoT firmware.
+// New builds a Scanner with defaults for a home LAN. They are fast enough to
+// sweep a /24 in a few seconds. They are also gentle enough for IoT
+// firmware.
 func New(log *slog.Logger, opts ...Option) *Scanner {
 	s := &Scanner{
 		log:            log,
@@ -225,8 +228,9 @@ func New(log *slog.Logger, opts ...Option) *Scanner {
 	return s
 }
 
-// Scan sweeps every usable address in p and returns the hosts that answered,
-// ordered by address. An empty result with a nil error means nothing answered.
+// Scan sweeps every usable address in p, and returns the hosts that answered,
+// ordered by address. An empty result with a nil error means that nothing
+// answered.
 func (s *Scanner) Scan(ctx context.Context, p netip.Prefix) ([]Host, error) {
 	count, err := cidr.Count(p)
 	if err != nil {
@@ -269,14 +273,14 @@ func (s *Scanner) Scan(ctx context.Context, p netip.Prefix) ([]Host, error) {
 	return found, nil
 }
 
-// enrich turns the addresses that answered into hosts, adding what only a
-// probe knows to what [hosts.BuildHost] can work out. at stamps every host,
-// so one sweep is one observation.
+// enrich turns the addresses that answered into hosts. It adds what only a
+// probe knows to what [hosts.BuildHost] can find. at is the time of every
+// host. So one sweep is one observation.
 func (s *Scanner) enrich(ctx context.Context, replies map[netip.Addr]time.Duration, at time.Time) []Host {
 	ordered := slices.SortedFunc(maps.Keys(replies), netip.Addr.Compare)
 
-	// Hardware first: a host takes its vendor from its MAC at build time, so
-	// the MAC has to be known before the host is built.
+	// Hardware first. A host gets its vendor from its MAC at build time. So
+	// the MAC must be known before the host is built.
 	var (
 		table map[netip.Addr]string
 		local map[netip.Addr]localInterface
@@ -303,9 +307,9 @@ func (s *Scanner) enrich(ctx context.Context, replies map[netip.Addr]time.Durati
 		}
 	}
 
-	// An address that answered is the sweep's finding, so enrichment failing
-	// for one host is not a reason to lose the rest. Both tables feeding this
-	// have already parsed every MAC they yield, which leaves little to fail.
+	// An address that answered is a finding of the sweep. So if enrichment
+	// fails for one host, the sweep keeps the others. Both source tables
+	// already parsed every MAC that they give. So little can fail.
 	built, err := hosts.BulkBuild(ctx, inputs)
 	if err != nil {
 		s.log.WarnContext(ctx, "some hosts could not be enriched", logger.Err(err))
@@ -343,17 +347,18 @@ func (s *Scanner) enrich(ctx context.Context, replies map[netip.Addr]time.Durati
 	return found
 }
 
-// perHost returns the lookup that sends proto's query to port on each host.
+// perHost returns the lookup that sends the query of proto to port on each
+// host.
 func (s *Scanner) perHost(proto nameProtocol, port uint16) nameLookup {
 	return func(ctx context.Context, addrs []netip.Addr) (map[netip.Addr]string, error) {
 		return askNames(ctx, proto, addrs, port, s.rate, askWait)
 	}
 }
 
-// ssdpLookup names addrs after their UPnP friendlyName, found with one SSDP
-// search. A machine that cannot send the search, such as one without a route
-// for multicast, fails it on every sweep, so only the first failure in each
-// run of failures is returned and the rest are logged at debug level.
+// ssdpLookup names addrs after their UPnP friendlyName, from one SSDP search. A
+// machine that cannot send the search fails on every sweep. An example is a
+// machine without a route for multicast. So it returns only the first failure
+// in each series. It logs the others at debug level.
 func (s *Scanner) ssdpLookup(ctx context.Context, addrs []netip.Addr) (map[netip.Addr]string, error) {
 	names, err := askSSDP(ctx, s.ssdpGroup, addrs, ssdpWait)
 	if err == nil {
@@ -371,12 +376,12 @@ func (s *Scanner) ssdpLookup(ctx context.Context, addrs []netip.Addr) (map[netip
 	return names, err
 }
 
-// browseServices records on each host in found the services it advertises over
-// DNS-SD, and names each host still without a name after the name it gives
-// them (see dnssdName). Every host is browsed, named or not, since what it
-// advertises says what it is. A machine that cannot join the mDNS group fails
-// on every sweep, so only the first failure in each run of failures is logged
-// as a warning.
+// browseServices records on each host in found the services that it advertises
+// over DNS-SD. A host that still has no name gets the name that it gives its
+// services (see dnssdName). The browse covers every host, with or without a
+// name, because its services tell what it is. A machine that cannot join the
+// mDNS group fails on every sweep. So it logs only the first failure in each
+// series as a warning.
 func (s *Scanner) browseServices(ctx context.Context, found []Host) {
 	addrs := make([]netip.Addr, len(found))
 
@@ -384,8 +389,8 @@ func (s *Scanner) browseServices(ctx context.Context, found []Host) {
 		addrs[i] = h.Address()
 	}
 
-	// The services that arrived before a failure are still the hosts' own
-	// answers, so they are kept.
+	// The services that arrived before a failure are still answers from the
+	// hosts. So keep them.
 	services, err := browseDNSSD(ctx, s.dnssdGroup, addrs, dnssdWait)
 
 	switch {
@@ -411,14 +416,14 @@ func (s *Scanner) browseServices(ctx context.Context, found []Host) {
 	}
 }
 
-// nameLookup asks addrs for their names, and returns the names that came
-// back, with any error that cut the lookup short.
+// nameLookup asks addrs for their names. It returns the names that came back,
+// with an error that stopped the lookup early.
 type nameLookup func(ctx context.Context, addrs []netip.Addr) (map[netip.Addr]string, error)
 
-// nameOver asks each host in found that has no name for one with ask. It names
-// each host that answers, with standing as the name's source. A host that
-// already has a name is not asked, because the lookups run from the highest
-// standing down.
+// nameOver asks each host in found that has no name for a name, with ask. It
+// names each host that answers, with standing as the source of the name. It
+// does not ask a host that already has a name, because the lookups run from
+// the highest standing down.
 func (s *Scanner) nameOver(
 	ctx context.Context,
 	found []Host,
@@ -437,8 +442,8 @@ func (s *Scanner) nameOver(
 		return
 	}
 
-	// The names that arrived before a failure are still the hosts' own
-	// answers, so they are kept.
+	// The names that arrived before a failure are still answers from the
+	// hosts. So keep them.
 	names, err := ask(ctx, nameless)
 	if err != nil {
 		s.log.WarnContext(ctx, "could not ask hosts for their names",
@@ -458,13 +463,13 @@ func (s *Scanner) nameOver(
 	}
 }
 
-// hardware reads the two views of who holds an address: the kernel's neighbour
-// table and this host's own interfaces. Only on-link hosts appear in the
-// neighbour table: an address behind a router is reached through the router's
-// own MAC, so a routed network yields no hardware addresses at all.
+// hardware reads the two views of who has an address: the neighbour table of
+// the kernel, and the own interfaces of this host. Only on-link hosts are in
+// the neighbour table. The sweep reaches an address behind a router through
+// the MAC of the router. So a routed network gives no hardware addresses.
 //
-// Either being unreadable costs the MACs it would have supplied and nothing
-// else, so both fall back to an empty map.
+// If one of them is unreadable, only its MACs are lost. So each falls back to
+// an empty map.
 func (s *Scanner) hardware(ctx context.Context) (map[netip.Addr]string, map[netip.Addr]localInterface) {
 	table, err := neighbours()
 	if err != nil {
@@ -483,12 +488,12 @@ func (s *Scanner) hardware(ctx context.Context) (map[netip.Addr]string, map[neti
 	return table, local
 }
 
-// hardwareFor reports the MAC and interface an address is known by, and whether
-// it is one of this host's own.
+// hardwareFor reports the MAC and interface of an address. It also reports
+// whether the address belongs to this host.
 //
-// A local interface wins over the neighbour table: it is the kernel describing
-// its own address, and a host never ARPs for itself, so any entry the table
-// holds is stale. An interface with no hardware address still counts as local.
+// A local interface wins over the neighbour table. There, the kernel describes
+// its own address. A host never ARPs for itself. So an entry in the table is
+// old. An interface with no hardware address still counts as local.
 func hardwareFor(
 	addr netip.Addr,
 	table map[netip.Addr]string,

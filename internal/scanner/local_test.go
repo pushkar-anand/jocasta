@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestLocalAddrs checks the kernel is readable and reports loopback, which
-// every host has whatever else it is configured with.
+// TestLocalAddrs checks that the kernel is readable and reports loopback.
+// Every host has loopback, in any configuration.
 func TestLocalAddrs(t *testing.T) {
 	t.Parallel()
 
@@ -48,8 +48,8 @@ func TestHardwareFor(t *testing.T) {
 
 	table := map[netip.Addr]string{
 		onLink: "00:00:5e:00:53:1e",
-		// The neighbour table can still carry a stale entry for a local
-		// address; the kernel's own view of the interface must win.
+		// The neighbour table can still have an old entry for a local address.
+		// The view of the kernel of the interface must win.
 		self: "00:00:5e:00:53:ff",
 	}
 
@@ -82,8 +82,8 @@ func TestHardwareFor(t *testing.T) {
 			addr: routed,
 		},
 		{
-			// An interface with no hardware address is still ours, and must
-			// not be left looking like somebody else's host.
+			// An interface with no hardware address still belongs to this
+			// host. It must not look like the host of somebody else.
 			name:  "an interface without a hardware address is still ours",
 			addr:  loopback,
 			iface: "lo",

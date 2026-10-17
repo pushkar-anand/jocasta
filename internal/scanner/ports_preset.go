@@ -5,15 +5,16 @@ import (
 	"slices"
 )
 
-// presetServices is the port scan's default set: the TCP ports a homelab
-// actually runs something on, each with the service that usually answers there.
-// It is hand-picked so it stays auditable in review and a whole-inventory scan
-// is about a hundred connects per host, a tenth of nmap's top 1000.
+// presetServices is the default set of the port scan. It has the TCP ports on
+// which a homelab really runs something, each with its usual service. It is
+// chosen by hand. So it stays easy to check in review. Also, a scan of the
+// whole inventory is about a hundred connects for each host. This is a tenth
+// of the top 1000 of nmap.
 //
-// The map is the whole list, and presetPorts is its keys sorted, so the set
-// and the names cannot drift apart. A name is a guess for display: a
-// service on a non-standard port is labelled wrong, which is why the scan never
-// fingerprints to confirm one.
+// The map is the whole list. presetPorts is its keys, sorted. So the set and
+// the names cannot become different. A name is a guess for display. A service
+// on a non-standard port gets the wrong label. So the scan never fingerprints
+// to confirm a name.
 var presetServices = map[uint16]string{
 	21:    "ftp",
 	22:    "ssh",
@@ -117,13 +118,13 @@ var presetServices = map[uint16]string{
 	64738: "mumble",
 }
 
-// presetPorts is presetServices' keys in ascending order, resolved once so the
-// scanner can use it without a normalising pass.
+// presetPorts is the keys of presetServices in ascending order. It is resolved
+// once, so the scanner can use it without a normalising pass.
 var presetPorts = slices.Sorted(maps.Keys(presetServices))
 
-// ServiceName returns the service usually found on a port, or the empty string
-// for every port outside the preset. The name is a guess for display; nothing
-// probes to confirm it.
+// ServiceName returns the usual service on a port. It returns the empty string
+// for every port outside the preset. The name is a guess for display. No
+// probe confirms it.
 func ServiceName(port uint16) string {
 	return presetServices[port]
 }

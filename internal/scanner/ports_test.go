@@ -59,8 +59,8 @@ func TestParsePortSpec(t *testing.T) {
 	}
 }
 
-// A full scan is asked for as "1-65535", so that spec has to enumerate the
-// whole range without the p++ on 65535 wrapping to zero.
+// The spec for a full scan is "1-65535". So that spec must list the whole
+// range, and the p++ on 65535 must not wrap to zero.
 func TestParsePortSpecFullRange(t *testing.T) {
 	t.Parallel()
 
@@ -80,8 +80,8 @@ func TestServiceName(t *testing.T) {
 	assert.Empty(t, ServiceName(12345), "a port with no well-known service names none")
 }
 
-// presetPorts is derived from the service map's keys, so it should carry one
-// entry per service, ascending, with the zero port impossible.
+// presetPorts comes from the keys of the service map. So it must have one entry
+// for each service, ascending, with no zero port.
 func TestPresetPortsDerivedFromServices(t *testing.T) {
 	t.Parallel()
 
@@ -113,8 +113,8 @@ func TestWithPortsEmptyKeepsPreset(t *testing.T) {
 func TestPortScannerFindsOpenPorts(t *testing.T) {
 	t.Parallel()
 
-	// One port with a listener, one that had one and lost it, so the second
-	// refuses the connection at once.
+	// One port with a listener, and one that lost its listener. So the second
+	// port refuses the connection at once.
 	open := loopback(t)
 
 	gone := loopback(t)
@@ -139,8 +139,8 @@ func TestPortScannerFindsOpenPorts(t *testing.T) {
 	assert.Equal(t, at, got[0].SeenAt)
 }
 
-// A host that refuses every connection is up, so its result says it answered
-// though nothing is open.
+// A host that refuses every connection is up. So its result says that it
+// answered, although nothing is open.
 func TestPortScannerCountsARefusalAsAnAnswer(t *testing.T) {
 	t.Parallel()
 
@@ -156,8 +156,8 @@ func TestPortScannerCountsARefusalAsAnAnswer(t *testing.T) {
 	assert.True(t, got[0].Answered)
 }
 
-// A host that lets every probe go unanswered has not answered, though every
-// port was probed. 192.0.2.1 is a documentation address that routes nowhere.
+// A host that answers no probe did not answer, although the scan probed every
+// port. 192.0.2.1 is a documentation address that routes nowhere.
 func TestPortScannerReportsASilentHost(t *testing.T) {
 	t.Parallel()
 
@@ -170,8 +170,8 @@ func TestPortScannerReportsASilentHost(t *testing.T) {
 	assert.False(t, got[0].Answered)
 }
 
-// Every target comes back in the order it was given, even one with nothing
-// open, because ingest reads the scanned set off each result.
+// Every target returns in the given order, also a target with nothing open.
+// Ingest reads the scanned set from each result.
 func TestPortScannerReturnsEveryTargetInOrder(t *testing.T) {
 	t.Parallel()
 
@@ -193,8 +193,9 @@ func TestPortScannerReturnsEveryTargetInOrder(t *testing.T) {
 	assert.Equal(t, []uint16{port}, got[1].Open)
 }
 
-// A target's extra ports are probed on that target alone, and its scanned set
-// says so, so ingest can close an advertised port that stops answering.
+// The scan probes the extra ports of a target only on that target. Its scanned
+// set shows this. So ingest can close an advertised port that stops
+// answering.
 func TestPortScannerProbesATargetsExtraPorts(t *testing.T) {
 	t.Parallel()
 
@@ -227,8 +228,8 @@ func TestPortScannerHandlesNoTargets(t *testing.T) {
 	assert.Empty(t, ps.Scan(t.Context(), nil, time.Now()))
 }
 
-// loopback opens a listener bound to a free loopback port and closes it when
-// the test ends.
+// loopback opens a listener on a free loopback port. It closes the listener
+// when the test ends.
 func loopback(t *testing.T) net.Listener {
 	t.Helper()
 

@@ -15,8 +15,8 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
 
-// responder answers every query it receives with what reply returns for it,
-// and stays silent when reply returns false.
+// responder answers every query that it gets with what reply returns for it.
+// It stays silent when reply returns false.
 type responder struct {
 	listen  *net.UDPConn
 	from    *net.UDPConn
@@ -24,8 +24,8 @@ type responder struct {
 	queries atomic.Int32
 }
 
-// newResponder starts a responder on addr, sending each answer from from, or
-// from the socket it listens on when from is nil. Port 0 picks a free port,
+// newResponder starts a responder on addr. It sends each answer from from. If
+// from is nil, it sends from its listening socket. Port 0 picks a free port,
 // which the port method reports.
 func newResponder(t *testing.T, addr string, from *net.UDPConn, reply func([]byte) ([]byte, bool)) *responder {
 	t.Helper()
@@ -82,8 +82,8 @@ func mdnsReply(name string) func([]byte) ([]byte, bool) {
 	}
 }
 
-// netbiosReply answers a NetBIOS node status request with a list holding name
-// as the machine's name.
+// netbiosReply answers a NetBIOS node status request with a list that has name
+// as the name of the machine.
 func netbiosReply(name string) func([]byte) ([]byte, bool) {
 	return func([]byte) ([]byte, bool) {
 		return nodeStatusResponse(nbName{name, nbSuffixMachine, false}), true
@@ -95,7 +95,7 @@ func TestAskNamesNamesTheHostsThatAnswer(t *testing.T) {
 
 	r := newResponder(t, "127.0.0.1:0", nil, mdnsReply("tv.local."))
 
-	// 127.0.0.2 has nothing listening on the port, so it stays silent.
+	// Nothing listens on the port of 127.0.0.2, so it stays silent.
 	addrs := []netip.Addr{netip.MustParseAddr("127.0.0.1"), netip.MustParseAddr("127.0.0.2")}
 
 	names, err := askNames(t.Context(), mdns, addrs, r.port(), 1000, 200*time.Millisecond)
@@ -144,7 +144,8 @@ func TestAskNamesStopsWhenCancelled(t *testing.T) {
 
 	start := time.Now()
 
-	// Nothing listens on port 9 of a loopback address, so no answer comes.
+	// Nothing listens on port 9 of a loopback address, so no answer
+	// arrives.
 	names, err := askNames(ctx, mdns, []netip.Addr{netip.MustParseAddr("127.0.0.1")}, 9, 1000, 10*time.Second)
 
 	require.ErrorIs(t, err, context.DeadlineExceeded)

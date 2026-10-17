@@ -9,7 +9,7 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-// questionName returns the name the DNS query in b asks about.
+// questionName returns the name that the DNS query in b asks about.
 func questionName(b []byte) (string, bool) {
 	var p dnsmessage.Parser
 
@@ -25,7 +25,7 @@ func questionName(b []byte) (string, bool) {
 	return q.Name.String(), true
 }
 
-// ptrResponse builds a response answering the reverse name q with a PTR to
+// ptrResponse builds a response that answers the reverse name q with a PTR to
 // name.
 func ptrResponse(q, name string) ([]byte, error) {
 	b := dnsmessage.NewBuilder(nil, dnsmessage.Header{Response: true, Authoritative: true})

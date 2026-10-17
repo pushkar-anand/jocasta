@@ -13,9 +13,9 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/hosts"
 )
 
-// askWait is how long to keep reading answers after the last query is sent. A
-// host answers a unicast name query at once, so a host silent this long is one
-// that will not answer.
+// askWait is how long to read answers after the last query. A host answers a
+// unicast name query at once. So a host that is silent for this long will not
+// answer.
 const askWait = time.Second
 
 // nameProtocol is one way to ask a host for its name.
@@ -23,18 +23,18 @@ type nameProtocol struct {
 	// query returns the message that asks addr for its name.
 	query func(addr netip.Addr) ([]byte, error)
 
-	// answer returns the name a message from addr gives, and false when the
-	// message gives none that cleanName passes.
+	// answer returns the name from a message from addr. It returns false when
+	// the message gives no name that cleanName passes.
 	answer func(b []byte, addr netip.Addr) (string, bool)
 }
 
-// askNames sends proto's query to port on each IPv4 address in addrs, and
-// returns the names that came back. An address that did not answer, or
-// answered with something unusable as a name, is absent.
+// askNames sends the query of proto to port on each IPv4 address in addrs. It
+// returns the names that came back. An address that did not answer, or that
+// gave an unusable name, is absent.
 //
-// Queries go out at rate per second. It returns once every address has given
-// a usable name, or wait after the last query. When ctx ends first, it
-// returns the names that arrived before then, with ctx's error.
+// Queries go out at rate per second. It returns when every address gave a
+// usable name, or wait after the last query. If ctx ends first, it returns the
+// names that arrived before, with the error of ctx.
 func askNames(
 	ctx context.Context,
 	proto nameProtocol,
@@ -45,7 +45,7 @@ func askNames(
 ) (map[netip.Addr]string, error) {
 	names := make(map[netip.Addr]string)
 
-	// asked holds each target, keyed by where its answer must come from.
+	// asked holds each target. Its key is where the answer must come from.
 	asked := make(map[netip.AddrPort]bool, len(addrs))
 	targets := make([]netip.AddrPort, 0, len(addrs))
 
@@ -73,14 +73,14 @@ func askNames(
 
 	var reader sync.WaitGroup
 
-	// The reader alone writes names until Wait returns, and returns by itself
-	// once every target has given a usable name.
+	// Only the reader writes names until Wait returns. It returns by itself
+	// when every target gave a usable name.
 	reader.Go(func() { readAnswers(pc, proto, asked, names) })
 
 	sendErr := sendQueries(ctx, pc, proto, targets, rate)
 
-	// The read deadline is what ends the reader, so it is set only after the
-	// last query has gone out, and cut short when ctx ends.
+	// The read deadline ends the reader. So set it only after the last query
+	// went out. Make it earlier when ctx ends.
 	deadline := time.Now().Add(wait)
 	if ctx.Err() != nil {
 		deadline = time.Now()
@@ -100,9 +100,9 @@ func askNames(
 	return names, ctx.Err()
 }
 
-// sendQueries writes proto's query to each target, paced to rate per second.
-// It returns an error only when a query cannot be built. When ctx ends it
-// stops and returns nil, leaving ctx's error to the caller.
+// sendQueries writes the query of proto to each target, at rate per second. It
+// returns an error only when a query cannot be built. When ctx ends, it stops
+// and returns nil. The caller handles the error of ctx.
 func sendQueries(
 	ctx context.Context,
 	pc net.PacketConn,
@@ -119,8 +119,8 @@ func sendQueries(
 			return fmt.Errorf("build name query: %w", err)
 		}
 
-		// A write that fails says something about that address alone, so the
-		// rest are still asked.
+		// A failed write tells something only about that address. So the
+		// others still get the query.
 		_, _ = pc.WriteTo(q, net.UDPAddrFromAddrPort(ap))
 
 		select {
@@ -133,16 +133,16 @@ func sendQueries(
 	return nil
 }
 
-// readAnswers records in names the first usable name each target gives. It
-// returns once every target has given one, or a read fails.
+// readAnswers records in names the first usable name of each target. It
+// returns when every target gave one, or when a read fails.
 func readAnswers(pc net.PacketConn, proto nameProtocol, asked map[netip.AddrPort]bool, names map[netip.Addr]string) {
-	// An mDNS message can fill a jumbo frame (RFC 6762, section 17), and a
-	// NetBIOS answer is far smaller.
+	// An mDNS message can fill a jumbo frame (RFC 6762, section 17). A NetBIOS
+	// answer is much smaller.
 	buf := make([]byte, 9000)
 
 	for len(names) < len(asked) {
-		// The read deadline askNames sets is what fails this read once the
-		// wait is over or ctx ends.
+		// The read deadline from askNames fails this read when the wait is
+		// over, or when ctx ends.
 		n, from, err := pc.ReadFrom(buf)
 		if err != nil {
 			return
@@ -153,8 +153,8 @@ func readAnswers(pc net.PacketConn, proto nameProtocol, asked map[netip.AddrPort
 			continue
 		}
 
-		// Only the asked address, from the port it was asked on, can answer
-		// for itself.
+		// Only the asked address can answer for itself, from the port of the
+		// query.
 		ap := udp.AddrPort()
 		ap = netip.AddrPortFrom(ap.Addr().Unmap(), ap.Port())
 
@@ -172,14 +172,14 @@ func readAnswers(pc net.PacketConn, proto nameProtocol, asked map[netip.AddrPort
 	}
 }
 
-// cleanName trims the root dot off name and reports whether what is left has
-// no space and passes [hosts.CleanName]. A host writes its own answer, so the
-// name can hold any byte.
+// cleanName removes the root dot from name. It reports whether the rest has no
+// space and passes [hosts.CleanName]. A host writes its own answer. So the
+// name can contain any byte.
 func cleanName(name string) (string, bool) {
 	name = strings.TrimSuffix(name, ".")
 
-	// Checked before hosts.CleanName, which trims surrounding whitespace this
-	// rule refuses.
+	// Check this before hosts.CleanName. hosts.CleanName trims whitespace at
+	// the ends, but this rule refuses it.
 	if strings.ContainsFunc(name, unicode.IsSpace) {
 		return "", false
 	}

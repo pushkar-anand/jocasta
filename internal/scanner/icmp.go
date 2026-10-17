@@ -21,26 +21,26 @@ import (
 	"golang.org/x/net/ipv4"
 )
 
-// payloadSize is the echo body: an 8-byte run token, so a reply to some other
-// program's ping is ignored, then the send time, so a reply carries its own
-// RTT and needs no table to match it back.
+// payloadSize is the size of the echo body. The body has an 8-byte run token,
+// so the sweep ignores a reply to the ping of a different program. Then it has
+// the send time, so a reply has its own RTT and needs no table to match it.
 const payloadSize = 16
 
-// readSlice bounds a single blocking read so the reader goroutine notices a
+// readSlice limits a single blocking read. So the reader goroutine sees a
 // cancelled context within that time.
 const readSlice = 200 * time.Millisecond
 
-// conn is an ICMP socket plus the addressing mode it needs. A datagram socket
-// wants a UDPAddr and a raw socket wants an IPAddr, and reads come back the
-// same way, so the mode has to travel with the connection.
+// conn is an ICMP socket, with the addressing mode that it needs. A datagram
+// socket needs a UDPAddr, and a raw socket needs an IPAddr. Reads return the
+// same type. So the mode must stay with the connection.
 type conn struct {
 	pc  *icmp.PacketConn
 	udp bool
 }
 
-// listen opens an ICMP socket, preferring a raw one. The datagram fallback needs
-// no privileges wherever net.ipv4.ping_group_range covers the running user,
-// which is what lets an unprivileged binary sweep at all.
+// listen opens an ICMP socket, and prefers a raw socket. The datagram fallback
+// needs no privileges if net.ipv4.ping_group_range covers the running user.
+// This is what lets a binary without privileges sweep.
 func listen() (*conn, error) {
 	pc, rawErr := icmp.ListenPacket("ip4:icmp", "0.0.0.0")
 	if rawErr == nil {
@@ -64,8 +64,8 @@ func (c *conn) dst(addr netip.Addr) net.Addr {
 	return &net.IPAddr{IP: ip}
 }
 
-// peerAddr pulls the source address out of whichever address type this socket
-// mode hands back on read.
+// peerAddr gets the source address from the address type that this socket
+// mode returns on a read.
 func peerAddr(a net.Addr) (netip.Addr, bool) {
 	switch v := a.(type) {
 	case *net.UDPAddr:
@@ -79,9 +79,9 @@ func peerAddr(a net.Addr) (netip.Addr, bool) {
 	}
 }
 
-// results collects the round-trip time of the first reply seen from each
-// address. The reader goroutine and the send loop both touch it, so every
-// method takes the lock.
+// results collects the round-trip time of the first reply from each address.
+// The reader goroutine and the send loop both use it. So every method takes
+// the lock.
 type results struct {
 	mu sync.Mutex
 	m  map[netip.Addr]time.Duration
@@ -91,10 +91,10 @@ func newResults(size int) *results {
 	return &results{m: make(map[netip.Addr]time.Duration, size)}
 }
 
-// record stores rtt as addr's time unless an earlier reply already set one. It
-// reports whether this was the first reply from addr: a later duplicate says
-// nothing new, and retry rounds mean a host that answered twice would otherwise
-// report the slower of the two.
+// record stores rtt as the time of addr, unless an earlier reply already set
+// one. It reports whether this was the first reply from addr. A later
+// duplicate tells nothing new. Because of retry rounds, a host that answered
+// twice would otherwise report the slower time.
 func (r *results) record(addr netip.Addr, rtt time.Duration) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -108,8 +108,8 @@ func (r *results) record(addr netip.Addr, rtt time.Duration) bool {
 	return true
 }
 
-// answered reports whether addr has replied, which is how a retry round skips
-// it without a second list of pending addresses being built.
+// answered reports whether addr replied. So a retry round skips it, without a
+// second list of pending addresses.
 func (r *results) answered(addr netip.Addr) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -119,7 +119,7 @@ func (r *results) answered(addr netip.Addr) bool {
 	return ok
 }
 
-// count is how many distinct addresses have replied.
+// count is how many different addresses replied.
 func (r *results) count() int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -127,7 +127,7 @@ func (r *results) count() int {
 	return len(r.m)
 }
 
-// take returns a copy of the collected times, to hand back once the sweep ends.
+// take returns a copy of the collected times, to return when the sweep ends.
 func (r *results) take() map[netip.Addr]time.Duration {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -135,8 +135,8 @@ func (r *results) take() map[netip.Addr]time.Duration {
 	return maps.Clone(r.m)
 }
 
-// sweepParams is one call to sweep: the addresses to probe, how many there are,
-// and the pacing the Scanner is configured with.
+// sweepParams is one call to sweep: the addresses to probe, their number, and
+// the pacing of the Scanner.
 type sweepParams struct {
 	log     *slog.Logger
 	targets iter.Seq[netip.Addr]
@@ -146,8 +146,8 @@ type sweepParams struct {
 	rate    int
 }
 
-// sweep probes every target and returns the round-trip time of the first reply
-// from each. Addresses that never answer are absent from the result.
+// sweep probes every target, and returns the round-trip time of the first reply
+// from each. Addresses that never answer are not in the result.
 func sweep(ctx context.Context, p sweepParams) (map[netip.Addr]time.Duration, error) {
 	if p.count == 0 {
 		return map[netip.Addr]time.Duration{}, nil
@@ -175,9 +175,9 @@ func sweep(ctx context.Context, p sweepParams) (map[netip.Addr]time.Duration, er
 		readReplies(readerCtx, p.log, c, token, res)
 	})
 
-	// Echo IDs only survive on a raw socket; a datagram socket has the kernel
-	// rewrite them. The run token in the payload is what actually identifies
-	// this run's replies, so the ID is only conventional here.
+	// Echo IDs stay only on a raw socket. On a datagram socket, the kernel
+	// writes them again. The run token in the payload identifies the replies
+	// of this run. So here the ID is only a convention.
 	snd := sender{
 		conn:     c,
 		targets:  p.targets,
@@ -197,7 +197,7 @@ func sweep(ctx context.Context, p sweepParams) (map[netip.Addr]time.Duration, er
 		}
 	}
 
-	// Give the last probes their full flight time before giving up on them.
+	// Give the last probes their full flight time before the sweep stops.
 	select {
 	case <-time.After(p.wait):
 	case <-ctx.Done():
@@ -209,8 +209,8 @@ func sweep(ctx context.Context, p sweepParams) (map[netip.Addr]time.Duration, er
 	return res.take(), ctx.Err()
 }
 
-// sender writes echo requests for one sweep. Everything it needs but the round
-// number is fixed for the sweep's life.
+// sender writes echo requests for one sweep. Everything that it needs, except
+// the round number, is fixed for the life of the sweep.
 type sender struct {
 	conn     *conn
 	targets  iter.Seq[netip.Addr]
@@ -220,9 +220,8 @@ type sender struct {
 	interval time.Duration
 }
 
-// round writes one echo request per target that has not answered yet, paced to
-// the configured rate. seq is the retry round, carried as the echo sequence
-// number.
+// round writes one echo request to each target that did not answer yet, at the
+// configured rate. seq is the retry round, sent as the echo sequence number.
 func (s sender) round(ctx context.Context, seq int) error {
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
@@ -246,8 +245,8 @@ func (s sender) round(ctx context.Context, seq int) error {
 			return fmt.Errorf("marshal echo request: %w", err)
 		}
 
-		// A host that is unreachable right now fails the write outright. That
-		// says something about that address alone, so the sweep carries on.
+		// A host that is unreachable now fails the write at once. This tells
+		// something only about that address. So the sweep continues.
 		if _, err := s.conn.pc.WriteTo(b, s.conn.dst(addr)); err != nil {
 			continue
 		}
@@ -262,7 +261,7 @@ func (s sender) round(ctx context.Context, seq int) error {
 	return nil
 }
 
-// readReplies records every echo reply carrying this run's token until the
+// readReplies records every echo reply with the token of this run, until the
 // context is cancelled.
 func readReplies(ctx context.Context, log *slog.Logger, c *conn, token []byte, res *results) {
 	buf := make([]byte, 512)
@@ -278,7 +277,7 @@ func readReplies(ctx context.Context, log *slog.Logger, c *conn, token []byte, r
 
 		n, peer, err := c.pc.ReadFrom(buf)
 		if err != nil {
-			// A read deadline lapsing is the loop's own pacing.
+			// An expired read deadline is the normal pacing of the loop.
 			if netErr, ok := errors.AsType[net.Error](err); ok && netErr.Timeout() {
 				continue
 			}
@@ -298,8 +297,8 @@ func readReplies(ctx context.Context, log *slog.Logger, c *conn, token []byte, r
 	}
 }
 
-// parseReply validates one received packet and returns the address that sent it
-// with the time its payload was stamped.
+// parseReply validates one received packet. It returns the address that sent
+// it, and the time in its payload.
 func parseReply(b []byte, peer net.Addr, token []byte) (netip.Addr, time.Time, bool) {
 	msg, err := icmp.ParseMessage(ipv4.ICMPTypeEchoReply.Protocol(), b)
 	if err != nil {

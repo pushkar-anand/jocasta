@@ -12,7 +12,7 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-// advert is one service instance a test responder advertises.
+// advert is one service instance that a test responder advertises.
 type advert struct {
 	typ      string // such as "_googlecast._tcp.local."
 	instance string // such as "Living Room TV"
@@ -22,9 +22,9 @@ type advert struct {
 	a        netip.Addr // the target's A record, left out when invalid
 }
 
-// dnssdResponse builds a response answering serviceTypesName with the type of
-// each of ads when types is set, and otherwise giving each of ads in full: a
-// PTR from its type, its SRV and TXT, and its target's A record.
+// dnssdResponse builds a response. When types is set, it answers
+// serviceTypesName with the type of each of ads. Else, it gives each of ads in
+// full: a PTR from its type, its SRV and TXT, and the A record of its target.
 func dnssdResponse(t *testing.T, types bool, ads []advert) []byte {
 	t.Helper()
 
@@ -62,9 +62,9 @@ func dnssdResponse(t *testing.T, types bool, ads []advert) []byte {
 	return raw
 }
 
-// dnssdReply answers a query for serviceTypesName with the type of each of
-// ads, and a query for service types with each of ads whose type it asks
-// about. It stays silent when it has nothing to give.
+// dnssdReply answers a query for serviceTypesName with the type of each of ads.
+// It answers a query for service types with each of ads whose type the query
+// asks about. It stays silent when it has nothing to give.
 func dnssdReply(t *testing.T, ads ...advert) func([]byte) ([]byte, bool) {
 	t.Helper()
 
@@ -125,8 +125,8 @@ func TestBrowseDNSSD(t *testing.T) {
 	assert.Equal(t, int32(2), r.queries.Load())
 }
 
-// Every host on the segment answers, so a browse keeps only the addresses it
-// was asked about, and asks for no instances when none of them gave a type.
+// Every host on the segment answers. So a browse keeps only the addresses that
+// it asked about. It asks for no instances when none of them gave a type.
 func TestBrowseDNSSDIgnoresAddressesNotAsked(t *testing.T) {
 	t.Parallel()
 
@@ -140,8 +140,9 @@ func TestBrowseDNSSDIgnoresAddressesNotAsked(t *testing.T) {
 	assert.Equal(t, int32(1), r.queries.Load())
 }
 
-// A host answering for another, as a sleep proxy does, gives the other host's
-// address for the service, which is where the service is filed.
+// A host that answers for a different host, as a sleep proxy does, gives the
+// address of the other host for the service. The service goes under that
+// address.
 func TestBrowseDNSSDFilesAServiceUnderItsTarget(t *testing.T) {
 	t.Parallel()
 

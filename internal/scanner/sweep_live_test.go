@@ -13,13 +13,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// cidrEnv holds one or more comma-separated prefixes to sweep. The test is
-// skipped without it: the rest of the suite must stay hermetic, and this one
-// puts packets on a real network.
+// cidrEnv holds one or more comma-separated prefixes to sweep. Without it, the
+// test skips. The rest of the suite must stay hermetic, and this test puts
+// packets on a real network.
 const cidrEnv = "JOCASTA_SCAN_CIDR"
 
-// TestSweepLive scans real networks and prints what came back. It exists to
-// produce field data to design against, so it asserts almost nothing.
+// TestSweepLive scans real networks and prints the result. Its purpose is to
+// give field data for the design. So it asserts almost nothing.
 //
 //	JOCASTA_SCAN_CIDR=192.0.2.0/24,198.51.100.0/24 go test ./internal/scanner -run TestSweepLive -v
 func TestSweepLive(t *testing.T) {

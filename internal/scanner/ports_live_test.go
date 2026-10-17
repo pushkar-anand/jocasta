@@ -14,13 +14,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// portsEnv holds one or more comma-separated addresses to port-scan. The test
-// is skipped without it: the rest of the suite stays hermetic, and this one
+// portsEnv holds one or more comma-separated addresses to port-scan. Without
+// it, the test skips. The rest of the suite stays hermetic, and this test
 // opens connections to real hosts.
 const portsEnv = "JOCASTA_PORTS_TARGET"
 
-// TestPortScanLive scans real addresses with the preset and prints what
-// answered. It exists to produce field data to tune the preset against, so it
+// TestPortScanLive scans real addresses with the preset, and prints what
+// answered. Its purpose is to give field data to tune the preset. So it
 // asserts almost nothing.
 //
 //	JOCASTA_PORTS_TARGET=192.0.2.10,192.0.2.20 go test ./internal/scanner -run TestPortScanLive -v

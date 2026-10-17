@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Address enumeration itself is covered in pkg/cidr. What belongs here is the
-// sweep cap, which is this scanner's policy.
+// The tests of pkg/cidr cover the address list itself. This file covers the
+// sweep limit, which is a policy of this scanner.
 func TestScanRejectsPrefixOverCap(t *testing.T) {
 	t.Parallel()
 

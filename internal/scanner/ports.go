@@ -18,19 +18,21 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// Default knobs for a homelab: a listening service on a LAN answers in
-// single-digit milliseconds, so half a second is really the budget for a
-// firewalled port that will never answer.
+// Default settings for a homelab. A listening service on a LAN answers in a few
+// milliseconds. So half a second is really the time for a port behind a
+// firewall that never answers.
 const defaultDialTimeout = 500 * time.Millisecond
 
-// DefaultConcurrency caps connections in flight when nothing configures a
-// ceiling. A burst of new flows is what a cheap router's connection table
-// handles worst, and the scan runs on a long interval where finishing sooner
-// buys nothing, so the default stays well below where consumer gear strains.
+// DefaultConcurrency limits the open connections when no setting gives a
+// limit. The connection table of a cheap router handles a burst of new flows
+// worst. The scan runs on a long interval, where an earlier finish gives
+// nothing. So the default stays well below the load that consumer equipment
+// can handle.
 const DefaultConcurrency = 64
 
-// PortTarget is one address to probe. Extra are ports to probe on it beyond
-// the set every address gets, such as the ports of the services it advertises.
+// PortTarget is one address to probe. Extra are more ports to probe on it, in
+// addition to the set of every address. An example is the ports of the
+// services that it advertises.
 type PortTarget struct {
 	Addr  netip.Addr
 	Extra []uint16
@@ -54,31 +56,32 @@ type PortScan struct {
 	// Open lists the ports that completed a TCP handshake, ascending.
 	Open []uint16
 
-	// Scanned lists every port probed at this address, ascending, so a port
-	// missing from Open can be told from one that was never checked. Ingest
-	// needs the difference to know a port has closed. It is the scanner's set
-	// plus the target's Extra.
+	// Scanned lists every port probed at this address, ascending. So a port
+	// that is not in Open is different from a port that was never checked.
+	// Ingest needs the difference to know that a port closed. It is the set of
+	// the scanner, plus the Extra of the target.
 	Scanned []uint16
 
-	// Extra lists the ports in Scanned beyond the scanner's set, ascending:
-	// those probed only because the target asked for them.
+	// Extra lists the ports in Scanned that are not in the set of the
+	// scanner, ascending. The scan probed them only because the target asked
+	// for them.
 	Extra []uint16
 
-	// Answered reports whether the address replied on any port, by accepting
-	// the connection or refusing it. An address that let every probe time out
-	// may be asleep, gone or filtering, so its Scanned says nothing about which
-	// ports have closed.
+	// Answered reports whether the address replied on any port. A reply is an
+	// accepted or a refused connection. If every probe to an address timed
+	// out, it can be asleep, gone or filtering. So its Scanned tells nothing
+	// about which ports closed.
 	Answered bool
 
-	// SeenAt is when the scan ran, taken once for the whole scan so every
-	// address it touched carries the same observation time.
+	// SeenAt is when the scan ran. It is taken once for the whole scan. So
+	// every address of the scan has the same observation time.
 	SeenAt time.Time
 }
 
-// MarshalJSON expands the open ports with the service each port usually
-// carries, and reduces Scanned to its length: the scanned list is the preset
-// or spec for every address in a run, plus a few ports for some, so its size
-// is the only part worth repeating per result.
+// MarshalJSON adds the usual service of each open port. It reduces Scanned to
+// its length. The scanned list is the preset or spec for every address in a
+// run, plus a few ports for some. So only its size is worth a repeat in each
+// result.
 func (s PortScan) MarshalJSON() ([]byte, error) {
 	type openPort struct {
 		Port    uint16 `json:"port"`
@@ -103,30 +106,31 @@ func (s PortScan) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// PortScanner probes TCP ports on addresses discovery has already found. It
-// holds no per-scan state, so a single instance is safe for concurrent use.
+// PortScanner probes TCP ports on addresses that discovery already found. It
+// holds no state for each scan. So a single instance is safe for concurrent
+// use.
 type PortScanner struct {
 	log *slog.Logger
 
-	// ports is the set every address is probed for, ascending and unique. It
-	// defaults to the curated preset; WithPorts replaces it wholesale.
+	// ports is the set of ports to probe on every address, ascending and
+	// unique. The default is the preset. WithPorts replaces all of it.
 	ports []uint16
 
-	// timeout bounds a single connect. A port that has not completed a
-	// handshake in this long is recorded not-open.
+	// timeout limits a single connect. If a port does not complete a
+	// handshake in this time, the scan records it as not open.
 	timeout time.Duration
 
-	// concurrency caps connections in flight across the whole scan.
+	// concurrency limits the open connections across the whole scan.
 	concurrency int
 }
 
 // PortOption configures a PortScanner.
 type PortOption func(*PortScanner)
 
-// WithPorts sets the ports every address is probed for. An empty list leaves
-// the preset in place, the same zero-value guard the other options use. The
-// list is sorted and deduplicated, so a spec from [ParsePortSpec] and a
-// hand-built slice behave the same.
+// WithPorts sets the ports to probe on every address. An empty list keeps the
+// preset, as the zero-value guard of the other options does. The list is
+// sorted, with no duplicates. So a spec from [ParsePortSpec] and a hand-built
+// slice work in the same way.
 func WithPorts(ports []uint16) PortOption {
 	return func(ps *PortScanner) {
 		if len(ports) == 0 {
@@ -137,8 +141,8 @@ func WithPorts(ports []uint16) PortOption {
 	}
 }
 
-// WithDialTimeout sets how long a single connect may take before the port is
-// called not-open.
+// WithDialTimeout sets how long a single connect can take. After that time,
+// the port is not open.
 func WithDialTimeout(d time.Duration) PortOption {
 	return func(ps *PortScanner) {
 		if d > 0 {
@@ -147,7 +151,7 @@ func WithDialTimeout(d time.Duration) PortOption {
 	}
 }
 
-// WithConcurrency sets the ceiling on connections open at once.
+// WithConcurrency sets the maximum number of connections open at once.
 func WithConcurrency(n int) PortOption {
 	return func(ps *PortScanner) {
 		if n > 0 {
@@ -156,9 +160,8 @@ func WithConcurrency(n int) PortOption {
 	}
 }
 
-// NewPortScanner builds a PortScanner with homelab defaults: the curated
-// preset, a half-second dial timeout and [DefaultConcurrency] connections in
-// flight.
+// NewPortScanner builds a PortScanner with homelab defaults: the preset, a
+// half-second dial timeout, and [DefaultConcurrency] open connections.
 func NewPortScanner(log *slog.Logger, opts ...PortOption) *PortScanner {
 	ps := &PortScanner{
 		log:         log,
@@ -174,20 +177,20 @@ func NewPortScanner(log *slog.Logger, opts ...PortOption) *PortScanner {
 	return ps
 }
 
-// Ports returns the set this scanner probes, as a copy.
+// Ports returns the set that this scanner probes, as a copy.
 func (ps *PortScanner) Ports() []uint16 {
 	return slices.Clone(ps.ports)
 }
 
-// Scan probes every port in the scanner's set, and the target's Extra, on every
-// target, and returns one PortScan per target, in the order they were given.
-// at stamps every result. A target with nothing
-// open still comes back, carrying the scanned set, because ingest reads that to
-// tell a port that has closed from one it never looked at.
+// Scan probes every port in the set of the scanner, and the Extra of the
+// target, on every target. It returns one PortScan for each target, in the
+// given order. at is the time of every result. A target with nothing open
+// still returns, with the scanned set. Ingest reads that set to tell a closed
+// port from a port that it never checked.
 //
-// A cancelled context stops new connections; the ones in flight finish, so
-// every result stays coherent. It is not reported as an error: a short scan is
-// still a true account of what answered before it stopped.
+// A cancelled context stops new connections. The open connections finish. So
+// every result stays consistent. Scan does not report this as an error. A
+// short scan is still a true record of what answered before it stopped.
 func (ps *PortScanner) Scan(ctx context.Context, targets []PortTarget, at time.Time) []PortScan {
 	scanned := make([][]uint16, len(targets))
 	extra := make([][]uint16, len(targets))
@@ -227,8 +230,8 @@ feed:
 		}
 	}
 
-	// A worker never returns an error, since a refused port is a result, so
-	// Wait has nothing to report and only marks the group done.
+	// A worker never returns an error, because a refused port is a result. So
+	// Wait has nothing to report, and only marks the group done.
 	_ = g.Wait()
 
 	results := make([]PortScan, len(targets))
@@ -249,9 +252,9 @@ feed:
 	return results
 }
 
-// portResults collects what each target's probes found, by index. The
-// workers all write to it at once, so every method takes the lock, as the
-// sweep's results collector does.
+// portResults collects what the probes of each target found, by index. All
+// workers write to it at once. So every method takes the lock, as the results
+// collector of the sweep does.
 type portResults struct {
 	mu       sync.Mutex
 	open     [][]uint16
@@ -262,7 +265,7 @@ func newPortResults(targets int) *portResults {
 	return &portResults{open: make([][]uint16, targets), answered: make([]bool, targets)}
 }
 
-// add records what probing port on target i found.
+// add records what the probe of port on target i found.
 func (r *portResults) add(i int, port uint16, got probeResult) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -276,7 +279,7 @@ func (r *portResults) add(i int, port uint16, got probeResult) {
 	}
 }
 
-// sorted returns target i's open ports in ascending order.
+// sorted returns the open ports of target i in ascending order.
 func (r *portResults) sorted(i int) []uint16 {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -291,12 +294,12 @@ type probeResult int
 
 const (
 	// portSilent is a port that gave no answer: a timeout, an unreachable
-	// host or a firewall dropping the attempt. It cannot tell a closed port
+	// host, or a firewall that drops the attempt. It cannot tell a closed port
 	// from a host that is not there.
 	portSilent probeResult = iota
 
-	// portRefused is a port the host refused, so the host is up and the port
-	// is closed.
+	// portRefused is a port that the host refused. So the host is up, and the
+	// port is closed.
 	portRefused
 
 	// portOpen is a port that completed a handshake.
@@ -319,13 +322,12 @@ func probe(ctx context.Context, d *net.Dialer, addr netip.Addr, port uint16) pro
 	}
 }
 
-// ParsePortSpec turns a spec like "22,80,443,8000-8100" into a sorted,
-// deduplicated port list. A spec is a comma-separated list of single ports and
-// N-M inclusive ranges. "1-65535" is allowed and is how a full scan is asked
-// for.
+// ParsePortSpec turns a spec such as "22,80,443,8000-8100" into a sorted port
+// list, with no duplicates. A spec is a comma-separated list of single ports
+// and N-M inclusive ranges. "1-65535" is allowed. It asks for a full scan.
 //
-// An empty spec is an error: a caller that wants the preset does not pass a
-// spec at all, so an empty one is a misconfiguration worth naming.
+// An empty spec is an error. A caller that wants the preset sends no spec. So
+// an empty spec is a configuration error with a name.
 func ParsePortSpec(spec string) ([]uint16, error) {
 	fields := strings.Split(spec, ",")
 
@@ -354,8 +356,8 @@ func ParsePortSpec(spec string) ([]uint16, error) {
 	return slices.Sorted(maps.Keys(seen)), nil
 }
 
-// parsePortRange reads one spec entry, a single port or a "lo-hi" range, and
-// returns its inclusive bounds.
+// parsePortRange reads one spec entry, a single port or a "lo-hi" range. It
+// returns its inclusive limits.
 func parsePortRange(entry string) (lo, hi uint16, err error) {
 	before, after, isRange := strings.Cut(entry, "-")
 
@@ -380,9 +382,9 @@ func parsePortRange(entry string) (lo, hi uint16, err error) {
 	return lo, hi, nil
 }
 
-// parsePort reads one port number, rejecting anything outside the range the
-// device_ports CHECK admits. The bitSize of 16 does the upper bound; the zero
-// check does the lower.
+// parsePort reads one port number. It refuses a number outside the range that
+// the device_ports CHECK allows. The bitSize of 16 sets the upper limit. The
+// zero check sets the lower limit.
 func parsePort(s string) (uint16, error) {
 	s = strings.TrimSpace(s)
 
@@ -402,8 +404,8 @@ func parsePort(s string) (uint16, error) {
 	return uint16(n), nil
 }
 
-// normalisePorts sorts, deduplicates and drops the zero port from a list, so a
-// hand-built slice reaching the scanner behaves like a parsed spec.
+// normalisePorts sorts a list, and removes duplicates and the zero port. So a
+// hand-built slice works as a parsed spec does.
 func normalisePorts(ports []uint16) []uint16 {
 	out := make([]uint16, 0, len(ports))
 
