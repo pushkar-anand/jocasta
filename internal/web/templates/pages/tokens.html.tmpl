@@ -18,14 +18,14 @@
         </div>
 
         {{- /*
-            Reveal and list share one wrapper so a revoke, which swaps the
-            whole region, clears a plaintext left from a create just before it
-            and lands on the "none yet" line.
+            The reveal and the list share one wrapper. A revoke swaps the whole
+            region. So it clears a plaintext from a create just before it, and
+            it can show the "none yet" line.
         */ -}}
         {{ template "partial/token-list" . }}
 
-        {{- /* JS opens it; with no script the Create button is inert, as the
-               revoke buttons already are (both need htmx). */}}
+        {{- /* JS opens it. With no script, the Create button does nothing, like
+               the revoke buttons. Both need htmx. */}}
         <dialog class="modal" id="token-dialog" aria-labelledby="token-dialog-title">
             <div class="modal__head">
                 <div>

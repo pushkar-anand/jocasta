@@ -96,7 +96,7 @@ func TestNotificationsPageListsEachDestinationAndItsChoices(t *testing.T) {
 
 	body := requestAs(t, h, signIn(t, h), http.MethodGet, "/settings/notifications", "").Body.String()
 
-	assert.Contains(t, body, "Choose which changes each destination is told about.")
+	assert.Contains(t, body, "Choose the changes that each destination gets.")
 	assert.Contains(t, body, "phone")
 	assert.Contains(t, body, strings.TrimPrefix(srv.URL, "http://"))
 	assert.Contains(t, body, `value="DEVICE_DISCOVERED" checked`)

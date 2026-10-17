@@ -1,7 +1,7 @@
 {{- /*
-    Its own document, outside layout/head and layout/foot: that layout is the
-    signed-in shell (sidebar, nav, sweep note), none of which applies to a
-    visitor who is not signed in yet.
+    Its own document, outside layout/head and layout/foot. That layout is the
+    signed-in shell: the sidebar, the nav and the sweep note. None of these
+    apply to a visitor who has not signed in.
 */ -}}
 {{ define "page/login" }}<!DOCTYPE html>
 <html lang="en">
@@ -61,8 +61,8 @@
                 <p class="failure" id="login-error" role="alert">{{ . }}</p>
             {{- end }}
 
-            {{- /* After a failed sign-in the username is kept, so focus starts
-                   on the password, where the retry begins. */}}
+            {{- /* After a failed sign-in, the form keeps the username. So focus
+                   starts on the password, where the retry begins. */}}
             {{- $retry := and .Error .Username }}
             <form method="post" action="/login" class="authform">
                 <label class="stack" for="login-username">

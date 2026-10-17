@@ -1,4 +1,5 @@
-{{- /* Opens the document, the rail and the main element that layout/foot closes. */ -}}
+{{- /* Opens the document, the rail and the main element. layout/foot closes
+       them. */ -}}
 {{ define "layout/head" }}<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,10 +8,10 @@
     <title>{{ .Title }} &middot; jocasta</title>
 
     {{- /*
-        htmx injects a style element for its indicator classes, which the
-        content security policy refuses. Turned off here and declared in the
-        stylesheet; a meta tag is how htmx can be configured without
-        the inline script the policy would also refuse.
+        htmx injects a style element for its indicator classes. The content
+        security policy refuses it. So this tag turns it off, and the stylesheet
+        declares those classes. A meta tag configures htmx without an inline
+        script, which the policy also refuses.
     */}}
     <meta name="htmx-config" content='{"includeIndicatorStyles":false}'>
 
@@ -50,7 +51,7 @@
 
     {{ template "partial/nav" . }}
 
-    {{- /* Pushed to the foot of the rail, where ambient information sits. */}}
+    {{- /* At the foot of the rail, with the other background information. */}}
     {{- with .Note }}
     <div class="sidebar__foot">
         <div class="sidebar__foot-note">
@@ -62,9 +63,9 @@
 </aside>
 
 {{- /*
-    Below 60rem the sidebar is hidden and the menu button in the top bar opens
-    this drawer, which drawer.js moves the sidebar into while it is open. A
-    modal dialog keeps focus inside and closes on Escape.
+    Below 60rem, the sidebar is hidden. The menu button in the top bar then
+    opens this drawer. While the drawer is open, drawer.js moves the sidebar
+    into it. A modal dialog keeps focus inside and closes on Escape.
 */}}
 <dialog class="drawer" id="drawer" aria-label="Sections">
     <button type="button" class="drawer__close" aria-label="Close sections">
@@ -105,8 +106,8 @@
         </p>
         {{- end }}
 
-        {{- /* theme.js sets aria-label to the next action and aria-pressed to the
-               current theme once it can see the button. */}}
+        {{- /* When theme.js can see the button, it sets aria-label to the next
+               action and aria-pressed to the current theme. */}}
         <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Switch colour theme" aria-pressed="false">
             <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="5"></circle>

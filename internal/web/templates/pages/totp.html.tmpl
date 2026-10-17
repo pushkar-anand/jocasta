@@ -1,7 +1,7 @@
 {{- /*
-    Its own document, outside layout/head and layout/foot, for the same reason
-    as page/login: no sidebar, nav or sweep note applies to a visitor mid
-    sign-in, second factor or not.
+    Its own document, outside layout/head and layout/foot, as for page/login.
+    The sidebar, the nav and the sweep note do not apply to a visitor who has
+    not completed the sign-in.
 */ -}}
 {{ define "page/totp" }}<!DOCTYPE html>
 <html lang="en">
