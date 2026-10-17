@@ -9,7 +9,8 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/topology"
 )
 
-// link is how fast a wired link runs, as the latest read of the port found it.
+// link is how fast a wired link runs, as the latest read of the port found
+// it.
 type link struct {
 	RateBps    int64 `json:"rate_bps" jsonschema:"The rate the link came up at, in bits per second."`
 	CapableBps int64 `json:"capable_bps,omitempty" jsonschema:"The fastest rate both ends offer, in bits per second, where the port reported it."`
@@ -17,7 +18,7 @@ type link struct {
 	Slow       bool  `json:"slow" jsonschema:"The link came up below the rate both ends can run at. A damaged or poor cable is the usual cause."`
 }
 
-// linkOf is s as a tool reports it, nil when its rate is unknown.
+// linkOf is s as a tool reports it. It is nil when its rate is unknown.
 func linkOf(s topology.Speed) *link {
 	if s.Rate == 0 {
 		return nil
@@ -26,15 +27,16 @@ func linkOf(s topology.Speed) *link {
 	return &link{RateBps: s.Rate, CapableBps: s.Capable, FullDuplex: s.FullDuplex, Slow: s.Slow()}
 }
 
-// radio is how a Wi-Fi client's connection runs, as the latest read of the
-// access point found it.
+// radio is how the connection of a Wi-Fi client runs, as the latest read of
+// the access point found it.
 type radio struct {
 	DownBps   int64 `json:"down_bps,omitempty" jsonschema:"The rate the access point sends to the client at, in bits per second."`
 	UpBps     int64 `json:"up_bps,omitempty" jsonschema:"The rate the access point receives from the client at, in bits per second."`
 	SignalDBm int   `json:"signal_dbm,omitempty" jsonschema:"The client's signal at the access point, in dBm. Closer to zero is stronger; below -75 is weak."`
 }
 
-// radioOf is r as a tool reports it, nil when nothing about it is known.
+// radioOf is r as a tool reports it. It is nil when nothing about it is
+// known.
 func radioOf(r topology.Radio) *radio {
 	if r == (topology.Radio{}) {
 		return nil
@@ -64,7 +66,8 @@ func hopOf(n *topology.Node) hop {
 	return h
 }
 
-// likely is what an unnamed node most likely is, empty for any other node.
+// likely is what an unnamed node most likely is. It is empty for any other
+// node.
 func likely(n *topology.Node) string {
 	switch {
 	case n.Kind != topology.NodeUnnamed:
@@ -78,8 +81,8 @@ func likely(n *topology.Node) string {
 	}
 }
 
-// connection is where a device is plugged in: the path down from the router,
-// and how the device hangs from the end of it.
+// connection is where a device connects: the path down from the router, and
+// how the device hangs from the end of it.
 type connection struct {
 	Placed  bool  `json:"placed" jsonschema:"Whether any router, switch or access point Jocasta reads has seen the device on a port. Every other field is absent when not."`
 	Current bool  `json:"current,omitempty" jsonschema:"Whether a read within the online window saw the device there. False means this is where it was last seen."`
@@ -97,7 +100,7 @@ type connection struct {
 	Radio *radio `json:"radio,omitempty" jsonschema:"How the device's Wi-Fi connection runs."`
 }
 
-// connectionOf returns where device id sits in tree.
+// connectionOf returns where device id is in tree.
 func connectionOf(tree *topology.Tree, id int64) *connection {
 	if node, ok := tree.Node(id); ok {
 		path := topology.Path(node)
@@ -139,8 +142,8 @@ func hops(path []*topology.Node) []hop {
 	return out
 }
 
-// vlansOf is every VLAN l was seen in, or the VLAN of its network when no
-// source said.
+// vlansOf is every VLAN in which a source saw l. If no source told, it is the
+// VLAN of its network.
 func vlansOf(l *topology.Leaf) []int {
 	if len(l.VLANs) == 0 && l.VLAN > 0 {
 		return []int{l.VLAN}
@@ -167,7 +170,7 @@ type topologyNode struct {
 	Link       *link  `json:"link,omitempty" jsonschema:"How fast the link to the parent runs. Absent when unknown."`
 }
 
-// placedDevice is one device and where it sits in the tree.
+// placedDevice is one device, and where it is in the tree.
 type placedDevice struct {
 	DeviceID int64  `json:"device_id"`
 	Name     string `json:"name"`
@@ -187,25 +190,26 @@ type placedDevice struct {
 	Radio *radio `json:"radio,omitempty" jsonschema:"How the device's Wi-Fi connection runs."`
 }
 
-// unplacedDevice is an online device no source has seen on any port.
+// unplacedDevice is an online device that no source saw on a port.
 type unplacedDevice struct {
 	DeviceID int64  `json:"device_id"`
 	Name     string `json:"name"`
 	Class    string `json:"class,omitempty"`
 }
 
-// getTopologyOutput is the whole tree, flattened: the nodes from the router
-// down, each after the node it hangs from, and the devices on each.
+// getTopologyOutput is the whole tree, flattened. It has the nodes from the
+// router down, each after the node from which it hangs, and the devices on
+// each.
 type getTopologyOutput struct {
-	// Recorded is false when no router, switch or access point has been read,
-	// and the lists are empty.
+	// Recorded is false when no router, switch or access point was read. The
+	// lists are then empty.
 	Recorded bool             `json:"recorded"`
 	Nodes    []topologyNode   `json:"nodes"`
 	Devices  []placedDevice   `json:"devices"`
 	Unplaced []unplacedDevice `json:"unplaced"`
 }
 
-// getTopology is inventory.Store.Topology, offered as a tool.
+// getTopology is inventory.Store.Topology, as a tool.
 func getTopology(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	t := &mcpsdk.Tool{
 		Name:  "get_topology",
@@ -237,7 +241,7 @@ func getTopology(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	return func(s *mcpsdk.Server, log *slog.Logger) { addTool(s, log, t, handler) }
 }
 
-// topologyOf flattens tree into what get_topology answers with.
+// topologyOf flattens tree into the answer of get_topology.
 func topologyOf(tree *topology.Tree) getTopologyOutput {
 	out := getTopologyOutput{
 		Recorded: tree.Root != nil,

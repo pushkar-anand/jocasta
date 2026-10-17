@@ -9,13 +9,13 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// listNetworksOutput is every recorded network, each with its device counts.
+// listNetworksOutput is every recorded network, with its device counts.
 type listNetworksOutput struct {
 	Networks []*inventory.Network `json:"networks"`
 	Count    int                  `json:"count"`
 }
 
-// listNetworks is inventory.Store.ListNetworks, offered as a tool.
+// listNetworks is inventory.Store.ListNetworks, as a tool.
 func listNetworks(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	t := &mcpsdk.Tool{
 		Name:  "list_networks",
@@ -50,13 +50,13 @@ type getNetworkInput struct {
 	ID int64 `json:"id" jsonschema:"The network's id, as list_networks reports it."`
 }
 
-// getNetworkOutput wraps the network so the result is an object with a name,
-// as every other tool's is.
+// getNetworkOutput wraps the network. So the result is an object with a name,
+// as for every other tool.
 type getNetworkOutput struct {
 	Network *inventory.Network `json:"network"`
 }
 
-// getNetwork is inventory.Store.Network, offered as a tool.
+// getNetwork is inventory.Store.Network, as a tool.
 func getNetwork(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	t := &mcpsdk.Tool{
 		Name:  "get_network",
@@ -85,8 +85,8 @@ func getNetwork(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	return func(s *mcpsdk.Server, log *slog.Logger) { addTool(s, log, t, handler) }
 }
 
-// getNetworkSchema is the schema inferred from getNetworkInput, with ids held
-// to the positive numbers the inventory issues.
+// getNetworkSchema is the schema inferred from getNetworkInput. It limits ids
+// to the positive numbers that the inventory gives.
 func getNetworkSchema() *jsonschema.Schema {
 	s := schemaFor[getNetworkInput]()
 	s.Properties["id"].Minimum = new(1.0)

@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// connectPrompt joins a client to a server holding only the given prompt,
-// registered as it would be on the read or the read_write server.
+// connectPrompt joins a client to a server that has only the given prompt. The
+// prompt is registered as on the read or the read_write server.
 func connectPrompt(t *testing.T, p prompt, canWrite bool) *mcpsdk.ClientSession {
 	t.Helper()
 
@@ -99,8 +99,8 @@ func TestWeeklyReport(t *testing.T) {
 	}
 }
 
-// Both servers offer every prompt, and the triage prompt a token is handed
-// matches what its scope lets the model do.
+// Both servers give every prompt. The triage prompt that a token gets matches
+// what its scope lets the model do.
 func TestHandlerOffersPrompts(t *testing.T) {
 	t.Parallel()
 

@@ -11,26 +11,26 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// listScansInput narrows and pages the scan history. Every field is optional;
-// an empty call is the first page of every scan.
+// listScansInput limits and pages the scan history. Every field is optional.
+// An empty call is the first page of every scan.
 type listScansInput struct {
 	Kind   string `json:"kind,omitempty" jsonschema:"Only scans of this kind. Omit for every kind."`
 	Limit  int    `json:"limit,omitempty" jsonschema:"Most scans to return. Defaults to 50."`
 	Cursor string `json:"cursor,omitempty" jsonschema:"The next_cursor a previous list_scans call returned, to read the page after it. Pass kind unchanged."`
 }
 
-// listScansOutput is one page of the scan history, the same shape
-// GET /api/scans answers with.
+// listScansOutput is one page of the scan history. It has the same shape as
+// the answer of GET /api/scans.
 type listScansOutput struct {
 	Scans []*inventory.Scan `json:"scans"`
 	Count int               `json:"count"`
 
-	// NextCursor is what to pass as cursor for the page after this one, and is
-	// absent once the history has been read to the end.
+	// NextCursor is the cursor for the next page. It is absent when the
+	// client read the history to the end.
 	NextCursor inventory.Cursor `json:"next_cursor,omitzero"`
 }
 
-// listScans is inventory.Store.ListScans, offered as a tool.
+// listScans is inventory.Store.ListScans, as a tool.
 func listScans(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	t := &mcpsdk.Tool{
 		Name:  "list_scans",
@@ -74,8 +74,8 @@ func listScans(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	return func(s *mcpsdk.Server, log *slog.Logger) { addTool(s, log, t, handler) }
 }
 
-// listScansSchema is the schema inferred from listScansInput, with the scan
-// kinds spelled out and the limit held to what the history can serve.
+// listScansSchema is the schema inferred from listScansInput. It lists the scan
+// kinds, and limits the number to what the history can serve.
 func listScansSchema() *jsonschema.Schema {
 	s := schemaFor[listScansInput]()
 

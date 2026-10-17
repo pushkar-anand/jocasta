@@ -25,12 +25,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The fixtures every test in the package shares live here, alongside the tests
-// for the handler mcp.go builds. The tools themselves are tested in the file
-// named after the one that defines them.
+// This file has the fixtures that all tests in the package share. It also has
+// the tests for the handler that mcp.go builds. The tests of each tool are in
+// the file with the name of the file that defines the tool.
 
-// Addresses come from RFC 5737 and hardware addresses from RFC 7042, both
-// reserved for documentation, so nothing here names a real device.
+// Addresses come from RFC 5737, and hardware addresses from RFC 7042. Both are
+// for documentation. So nothing here names a real device.
 const (
 	prefix = "192.0.2.0/24"
 
@@ -42,13 +42,13 @@ func testLogger() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
 }
 
-// testJSONWriter builds the writer the server hands the MCP handler, the one
-// the JSON API answers with.
+// testJSONWriter builds the writer that the server gives the MCP handler. This
+// is the writer of the JSON API.
 func testJSONWriter() *response.JSONWriter {
 	return response.NewJSONWriter(testLogger())
 }
 
-// testStore opens an inventory over a migrated database scoped to the test.
+// testStore opens an inventory over a migrated database for the test only.
 func testStore(t *testing.T) *inventory.Store {
 	t.Helper()
 
@@ -60,7 +60,7 @@ func testStore(t *testing.T) *inventory.Store {
 	return inventory.New(conn, testLogger())
 }
 
-// seededStore returns an inventory holding two swept devices.
+// seededStore returns an inventory with two swept devices.
 func seededStore(t *testing.T) *inventory.Store {
 	t.Helper()
 
@@ -86,14 +86,14 @@ func host(ip, mac, hostname string) scanner.Host {
 	return scanner.Host{Host: h}
 }
 
-// tokens holds one API token of each scope, both good against the Auth
+// tokens holds one API token of each scope. Both work on the Auth that
 // testAuth returns.
 type tokens struct {
 	read, readWrite string
 }
 
-// testAuth builds an Auth over its own migrated database, with one user and a
-// token of each scope issued to them.
+// testAuth builds an Auth over its own migrated database. It has one user,
+// with one token of each scope.
 func testAuth(t *testing.T) (*auth.Auth, tokens) {
 	t.Helper()
 
@@ -123,7 +123,7 @@ func testAuth(t *testing.T) (*auth.Auth, tokens) {
 	return a, tokens{read: read, readWrite: readWrite}
 }
 
-// bearer attaches a token to every request a client sends.
+// bearer adds a token to every request that a client sends.
 type bearer struct {
 	token string
 	next  http.RoundTripper
@@ -136,8 +136,8 @@ func (b bearer) RoundTrip(r *http.Request) (*http.Response, error) {
 	return b.next.RoundTrip(r)
 }
 
-// connectHTTP connects an MCP client to url over Streamable HTTP, presenting
-// token, and returns the session. It is closed when the test ends.
+// connectHTTP connects an MCP client to url over Streamable HTTP, with token.
+// It returns the session, which closes when the test ends.
 func connectHTTP(t *testing.T, url, token string) *mcpsdk.ClientSession {
 	t.Helper()
 
@@ -155,7 +155,7 @@ func connectHTTP(t *testing.T, url, token string) *mcpsdk.ClientSession {
 	return cs
 }
 
-// toolNames lists the tools a session is offered.
+// toolNames lists the tools that a session gets.
 func toolNames(t *testing.T, cs *mcpsdk.ClientSession) []string {
 	t.Helper()
 
@@ -170,9 +170,8 @@ func toolNames(t *testing.T, cs *mcpsdk.ClientSession) []string {
 	return names
 }
 
-// postWithToken sends a bare JSON-RPC request, for the cases a real client
-// refuses to get as far as sending, and returns the status and the decoded
-// body.
+// postWithToken sends a bare JSON-RPC request, for the cases that a real
+// client does not send. It returns the status and the decoded body.
 func postWithToken(t *testing.T, url, token string) (int, map[string]any) {
 	t.Helper()
 
@@ -207,7 +206,7 @@ func TestHandlerRequiresAToken(t *testing.T) {
 	srv := httptest.NewServer(NewHandler(testLogger(), testJSONWriter(), a, testStore(t)))
 	t.Cleanup(srv.Close)
 
-	// The refusal is the JSON API's own problem document, word for word.
+	// The refusal is the problem document of the JSON API, exactly.
 	for name, token := range map[string]string{
 		"none":                   "",
 		"not one jocasta issued": "jct_not-a-real-token",
@@ -223,7 +222,7 @@ func TestHandlerRequiresAToken(t *testing.T) {
 	}
 }
 
-// A read-scoped token can use the read tools end to end over HTTP.
+// A read-scoped token can use the read tools from end to end over HTTP.
 func TestHandlerServesAReadToken(t *testing.T) {
 	t.Parallel()
 
@@ -243,8 +242,8 @@ func TestHandlerServesAReadToken(t *testing.T) {
 	assert.Equal(t, 2, decodeDevices(t, res).Count)
 }
 
-// Which tools a token is shown follows its scope: a read-scoped token is
-// never offered a tool that writes, and a read_write one is offered both.
+// The scope of a token sets which tools it sees. A read-scoped token never
+// gets a tool that writes. A read_write token gets both.
 func TestHandlerOffersWriteToolsOnlyToAReadWriteToken(t *testing.T) {
 	t.Parallel()
 
@@ -271,8 +270,8 @@ func TestHandlerOffersWriteToolsOnlyToAReadWriteToken(t *testing.T) {
 	})
 }
 
-// fakeTool registers a tool that does nothing, for tests about which tools are
-// offered.
+// fakeTool registers a tool that does nothing, for tests about which tools a
+// token gets.
 func fakeTool(name string) func(*mcpsdk.Server, *slog.Logger) {
 	return func(s *mcpsdk.Server, _ *slog.Logger) {
 		mcpsdk.AddTool(s, &mcpsdk.Tool{Name: name}, func(
@@ -283,7 +282,7 @@ func fakeTool(name string) func(*mcpsdk.Server, *slog.Logger) {
 	}
 }
 
-// The real tool list keeps its write tool from a read-scoped token.
+// The real tool list does not give its write tool to a read-scoped token.
 func TestHandlerKeepsCurationFromAReadToken(t *testing.T) {
 	t.Parallel()
 

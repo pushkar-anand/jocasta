@@ -13,13 +13,14 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/problem"
 )
 
-// problemError carries a problem document as a tool's error. A failed call is
-// a successful MCP response with the result marked as an error, so there is no
-// status line to put the problem on: the SDK puts the error's text in the
-// result, and the text here is the document, the same JSON the API would send.
+// problemError holds a problem document as the error of a tool. A failed call
+// is a successful MCP response, with the result marked as an error. So there
+// is no status line for the problem. The SDK puts the text of the error in the
+// result. Here, the text is the document, the same JSON that the API would
+// send.
 //
-// Its being this type is also how argumentProblems tells a failure a tool
-// reported from one the SDK reported before the tool ran.
+// This type also lets argumentProblems tell a failure from a tool apart from a
+// failure that the SDK reported before the tool ran.
 type problemError struct {
 	doc map[string]any
 }
@@ -27,18 +28,18 @@ type problemError struct {
 func (e *problemError) Error() string {
 	b, err := json.Marshal(e.doc)
 	if err != nil {
-		// Every member is a string, a number, or a value a Problem's own
-		// custom members hold, so this is not reached in practice.
+		// Every member is a string, a number, or a value of the custom members
+		// of a Problem. So this code does not run in practice.
 		return http.StatusText(http.StatusInternalServerError)
 	}
 
 	return string(b)
 }
 
-// toolProblem describes an error a tool's handler returned the way the API
-// would: an error problem.Resolve recognises becomes its problem, and anything
-// else is logged here and answered with problem.Internal, so the cause, such
-// as a query that failed, stays in the server log.
+// toolProblem describes an error from the handler of a tool, as the API would.
+// An error that problem.Resolve knows becomes its problem. toolProblem logs any
+// other error and answers with problem.Internal. So the cause, such as a
+// failed query, stays in the server log.
 func toolProblem(ctx context.Context, log *slog.Logger, tool string, err error) *problemError {
 	p, ok := problem.Resolve(err)
 	if !ok {
@@ -50,13 +51,13 @@ func toolProblem(ctx context.Context, log *slog.Logger, tool string, err error) 
 	return &problemError{doc: problem.Document(p, tool)}
 }
 
-// argumentProblems is receiving middleware that makes the one kind of tool
-// failure no handler sees a problem document too: arguments the SDK refused
-// against the tool's input schema before calling it. Every error a handler
-// returns is already a problemError by then, so any other error on a tool
-// result can only be the SDK's account of what was wrong with the arguments.
-// That account names the property and the values it admits, so it is kept as
-// the detail.
+// argumentProblems is receiving middleware. It also makes a problem document
+// of the one kind of tool failure that no handler sees. This is when the SDK
+// refuses arguments against the input schema of the tool, before it calls the
+// tool. By then, every error from a handler is already a problemError. So any
+// other error on a tool result can only be the report of the SDK about the
+// arguments. That report names the property and its allowed values. So
+// argumentProblems keeps it as the detail.
 func argumentProblems(next mcpsdk.MethodHandler) mcpsdk.MethodHandler {
 	return func(ctx context.Context, method string, req mcpsdk.Request) (mcpsdk.Result, error) {
 		res, err := next(ctx, method, req)
@@ -88,8 +89,8 @@ func argumentProblems(next mcpsdk.MethodHandler) mcpsdk.MethodHandler {
 			WithDetail(cause.Error()).
 			Build()
 
-		// SetError keeps whatever content a result already has, and the SDK
-		// set the refusal's text there, so it is cleared for the document.
+		// SetError keeps the content that a result already has. The SDK put
+		// the text of the refusal there. So clear it for the document.
 		result.Content = nil
 		result.SetError(&problemError{doc: problem.Document(p, tool)})
 

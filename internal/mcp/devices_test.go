@@ -13,16 +13,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// connect joins a client to a server holding only the given tool over an
-// in-memory transport, so a tool is tested without HTTP or a token.
+// connect joins a client to a server that has only the given tool, over an
+// in-memory transport. So a test of a tool needs no HTTP and no token.
 func connect(t *testing.T, register func(*mcpsdk.Server, *slog.Logger)) *mcpsdk.ClientSession {
 	t.Helper()
 
 	return connectLogging(t, testLogger(), register)
 }
 
-// connectLogging is connect with the server logging to log, for a test that
-// asserts on what a failure logged.
+// connectLogging is connect with the server that logs to log. Use it for a test
+// that asserts on what a failure logged.
 func connectLogging(t *testing.T, log *slog.Logger, register func(*mcpsdk.Server, *slog.Logger)) *mcpsdk.ClientSession {
 	t.Helper()
 
@@ -45,7 +45,7 @@ func connectLogging(t *testing.T, log *slog.Logger, register func(*mcpsdk.Server
 	return cs
 }
 
-// decodeDevices reads list_devices' structured result back.
+// decodeDevices reads the structured result of list_devices.
 func decodeDevices(t *testing.T, res *mcpsdk.CallToolResult) listDevicesOutput {
 	t.Helper()
 
@@ -95,7 +95,7 @@ func TestListDevices(t *testing.T) {
 		assert.Equal(t, macA, out.Devices[0].MAC)
 	})
 
-	// Both devices were swept moments ago, so both are online.
+	// A sweep saw both devices a moment ago, so both are online.
 	t.Run("status filters", func(t *testing.T) {
 		t.Parallel()
 
@@ -107,8 +107,8 @@ func TestListDevices(t *testing.T) {
 		assert.NotNil(t, offline.Devices, "an empty list should still be a list, not null")
 	})
 
-	// A misspelt filter is refused, since silently listing everything would
-	// look like the filter matched everything.
+	// The SDK refuses a misspelt filter. A full list with no warning would
+	// look like a filter that matched everything.
 	t.Run("an unknown status is refused", func(t *testing.T) {
 		t.Parallel()
 
@@ -126,8 +126,8 @@ func TestListDevices(t *testing.T) {
 	})
 }
 
-// The tool tells a client it only reads, so a client that asks before running
-// a tool that changes things can run this one without asking.
+// The tool tells a client that it only reads. So a client that asks before a
+// tool that changes things can run this tool without a question.
 func TestListDevicesIsReadOnly(t *testing.T) {
 	t.Parallel()
 
@@ -144,7 +144,7 @@ func TestListDevicesIsReadOnly(t *testing.T) {
 	assert.False(t, *ann.OpenWorldHint)
 }
 
-// deviceID finds a seeded device's id through list_devices, the way an agent
+// deviceID finds the id of a seeded device through list_devices, as an agent
 // would.
 func deviceID(t *testing.T, cs *mcpsdk.ClientSession, q string) int64 {
 	t.Helper()
@@ -164,7 +164,7 @@ func callTool(t *testing.T, cs *mcpsdk.ClientSession, name string, args map[stri
 	return res
 }
 
-// decodeAs reads a tool's structured result back into T.
+// decodeAs reads the structured result of a tool into T.
 func decodeAs[T any](t *testing.T, res *mcpsdk.CallToolResult) T {
 	t.Helper()
 
@@ -240,7 +240,7 @@ func TestListDevicesByNetworkAndType(t *testing.T) {
 
 	cs := connect(t, listDevices(store))
 
-	// The owner's answer is what the type filter matches when they gave one.
+	// If the owner gave a type, the type filter matches that type.
 	id := deviceID(t, cs, "printer")
 	_, err = store.UpdateCuration(t.Context(), id, inventory.Curation{Type: string(classify.Printer)})
 	require.NoError(t, err)

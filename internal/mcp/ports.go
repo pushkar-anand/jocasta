@@ -10,25 +10,25 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// serviceLimit is how many services a call that asks for no particular number
-// gets, and serviceLimitMax the most one may ask for.
+// serviceLimit is how many services a call gets when it asks for no number.
+// serviceLimitMax is the most that a call can ask for.
 const (
 	serviceLimit    = 10
 	serviceLimitMax = 100
 )
 
-// getPortOverviewInput bounds the service breakdown.
+// getPortOverviewInput limits the service breakdown.
 type getPortOverviewInput struct {
 	ServiceLimit int `json:"service_limit,omitempty" jsonschema:"Most services to list, commonest first. Defaults to 10."`
 }
 
-// getPortOverviewOutput wraps the overview so the result is an object with a
-// name, as every other tool's is.
+// getPortOverviewOutput wraps the overview. So the result is an object with a
+// name, as for every other tool.
 type getPortOverviewOutput struct {
 	Overview *inventory.PortOverview `json:"overview"`
 }
 
-// getPortOverview is inventory.Store.PortOverview, offered as a tool.
+// getPortOverview is inventory.Store.PortOverview, as a tool.
 func getPortOverview(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	t := &mcpsdk.Tool{
 		Name:  "get_port_overview",
@@ -59,8 +59,8 @@ func getPortOverview(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) 
 	return func(s *mcpsdk.Server, log *slog.Logger) { addTool(s, log, t, handler) }
 }
 
-// getPortOverviewSchema is the schema inferred from getPortOverviewInput, with
-// the limit held to what the overview can serve.
+// getPortOverviewSchema is the schema inferred from getPortOverviewInput. It
+// limits the number to what the overview can serve.
 func getPortOverviewSchema() *jsonschema.Schema {
 	s := schemaFor[getPortOverviewInput]()
 	s.Properties["service_limit"].Minimum = new(1.0)

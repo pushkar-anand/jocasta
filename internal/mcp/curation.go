@@ -10,11 +10,12 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// updateDeviceCurationInput is a device and every field its owner controls.
+// updateDeviceCurationInput is a device, with every field that its owner
+// controls.
 //
-// No field is optional: the call replaces all five, so an agent that left one
-// out would clear it without meaning to. Making each required has the SDK turn
-// such a call away before anything is written.
+// No field is optional. The call replaces all five. So an agent that left one
+// out would clear it by mistake. Because each field is required, the SDK
+// refuses such a call before it writes anything.
 type updateDeviceCurationInput struct {
 	ID      int64  `json:"id" jsonschema:"The device's id, as list_devices reports it."`
 	Label   string `json:"label" jsonschema:"The name to show for the device. Empty clears it."`
@@ -24,13 +25,13 @@ type updateDeviceCurationInput struct {
 	Ignored bool   `json:"ignored" jsonschema:"Whether to hide the device from default device lists. get_stats still includes ignored devices."`
 }
 
-// updateDeviceCurationOutput is the device as it stands after the change.
+// updateDeviceCurationOutput is the device after the change.
 type updateDeviceCurationOutput struct {
 	Device *inventory.Device `json:"device"`
 }
 
-// updateDeviceCuration is inventory.Store.UpdateCuration, offered as a tool.
-// It changes the inventory, so only a read_write token is offered it.
+// updateDeviceCuration is inventory.Store.UpdateCuration, as a tool. It
+// changes the inventory, so only a read_write token gets it.
 func updateDeviceCuration(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	t := &mcpsdk.Tool{
 		Name:  "update_device_curation",
@@ -43,8 +44,8 @@ func updateDeviceCuration(store *inventory.Store) func(*mcpsdk.Server, *slog.Log
 		InputSchema:  updateDeviceCurationSchema(),
 		OutputSchema: schemaFor[updateDeviceCurationOutput](),
 		Annotations: &mcpsdk.ToolAnnotations{
-			// It overwrites what the owner wrote, and a second identical call
-			// changes nothing further.
+			// It overwrites what the owner wrote. A second identical call
+			// changes nothing more.
 			DestructiveHint: new(true),
 			IdempotentHint:  true,
 			OpenWorldHint:   new(false),
@@ -74,9 +75,9 @@ func updateDeviceCuration(store *inventory.Store) func(*mcpsdk.Server, *slog.Log
 }
 
 // updateDeviceCurationSchema is the schema inferred from
-// updateDeviceCurationInput, with the id held to what the inventory issues, the
-// text fields to the API's lengths, and type to the classifier's classes or
-// the empty string that removes an override.
+// updateDeviceCurationInput. It limits the id to what the inventory gives, and
+// the text fields to the lengths of the API. It limits type to the classes of
+// the classifier, or the empty string that removes an override.
 func updateDeviceCurationSchema() *jsonschema.Schema {
 	s := schemaFor[updateDeviceCurationInput]()
 
@@ -90,21 +91,21 @@ func updateDeviceCurationSchema() *jsonschema.Schema {
 	return s
 }
 
-// watchDeviceInput is a device and whether its owner should be told when it
-// goes quiet or comes back. Both are required: a call that left watched out
-// would otherwise stop watching.
+// watchDeviceInput is a device, and whether its owner gets told when it goes
+// quiet or comes back. Both are required. Without this, a call without watched
+// would stop the watch.
 type watchDeviceInput struct {
 	ID      int64 `json:"id" jsonschema:"The device's id, as list_devices reports it."`
 	Watched bool  `json:"watched" jsonschema:"True to watch the device, false to stop."`
 }
 
-// watchDeviceOutput is the device as it stands after the change.
+// watchDeviceOutput is the device after the change.
 type watchDeviceOutput struct {
 	Device *inventory.Device `json:"device"`
 }
 
-// watchDevice is inventory.Store.Watch, offered as a tool. It changes the
-// inventory, so only a read_write token is offered it.
+// watchDevice is inventory.Store.Watch, as a tool. It changes the inventory,
+// so only a read_write token gets it.
 func watchDevice(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	t := &mcpsdk.Tool{
 		Name:  "watch_device",
@@ -117,8 +118,8 @@ func watchDevice(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 		InputSchema:  watchDeviceSchema(),
 		OutputSchema: schemaFor[watchDeviceOutput](),
 		Annotations: &mcpsdk.ToolAnnotations{
-			// It changes only a flag the owner can set back, and a second
-			// identical call changes nothing further.
+			// It changes only a flag that the owner can set back. A second
+			// identical call changes nothing more.
 			DestructiveHint: new(false),
 			IdempotentHint:  true,
 			OpenWorldHint:   new(false),
@@ -141,8 +142,8 @@ func watchDevice(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 	return func(s *mcpsdk.Server, log *slog.Logger) { addTool(s, log, t, handler) }
 }
 
-// watchDeviceSchema is the schema inferred from watchDeviceInput, with the id
-// held to what the inventory issues.
+// watchDeviceSchema is the schema inferred from watchDeviceInput. It limits the
+// id to what the inventory gives.
 func watchDeviceSchema() *jsonschema.Schema {
 	s := schemaFor[watchDeviceInput]()
 

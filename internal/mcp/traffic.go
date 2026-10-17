@@ -12,14 +12,14 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// The period list_traffic covers when none is asked for, and the longest it
-// may. Traffic retention is what really bounds how far back it can reach.
+// The period of list_traffic when the call asks for none, and the longest
+// period. Traffic retention is the real limit on how far back it can go.
 const (
 	trafficDays    = 1
 	trafficMaxDays = 90
 )
 
-// Traffic scopes, for a device's view: everything, only peers on the local
+// Traffic scopes, for the view of a device: everything, only peers on the local
 // network, or only internet organisations.
 const (
 	scopeAll      = "all"
@@ -27,9 +27,9 @@ const (
 	scopeInternet = "internet"
 )
 
-// listTrafficInput picks one of three views: one device's peers when
-// device_id is set, the network's first contacts when first_contact_only is,
-// and otherwise a network summary.
+// listTrafficInput picks one of three views. With device_id, it is the peers of
+// one device. With first_contact_only, it is the first contacts of the
+// network. Else, it is a network summary.
 type listTrafficInput struct {
 	DeviceID         int64  `json:"device_id,omitempty" jsonschema:"Only this device's traffic, from get_device or list_devices. Omit for the whole network."`
 	Days             int    `json:"days,omitempty" jsonschema:"How many days back to cover. Defaults to 1."`
@@ -39,27 +39,27 @@ type listTrafficInput struct {
 	Limit            int    `json:"limit,omitempty" jsonschema:"Most rows in each list. Defaults to 50."`
 }
 
-// listTrafficOutput carries whichever view was asked for; the others are
+// listTrafficOutput has the view that the call asked for. The others are
 // absent.
 type listTrafficOutput struct {
-	// Recorded is false when no traffic has ever been recorded, meaning
-	// nothing is collecting. A quiet network reports true.
+	// Recorded is false when Jocasta never recorded traffic. This means that
+	// no source collects traffic. A quiet network reports true.
 	Recorded bool      `json:"recorded"`
 	Since    time.Time `json:"since"`
 
 	Device *inventory.DeviceTraffic `json:"device,omitzero"`
 
-	// Attempts are the connections the device started that never carried
-	// data, with the device view.
+	// Attempts are the connections that the device started and that never
+	// carried data, with the device view.
 	Attempts []*inventory.Attempt `json:"attempts,omitempty"`
 
 	// Probing lists the devices that probed the local network, with the
 	// network summary.
 	Probing []*inventory.Prober `json:"probing,omitempty"`
 
-	// Incoming lists the device services internet peers opened connections
-	// to, and Probed the devices the internet tried without carrying data,
-	// with the network summary.
+	// Incoming lists the device services that internet peers connected to.
+	// Probed lists the devices that the internet tried, without data. Both
+	// come with the network summary.
 	Incoming []*inventory.Incoming `json:"incoming,omitempty"`
 	Probed   []*inventory.Probed   `json:"probed,omitempty"`
 
@@ -69,7 +69,7 @@ type listTrafficOutput struct {
 	FirstContacts *inventory.FirstContacts `json:"first_contacts,omitzero"`
 }
 
-// listTraffic offers the traffic views as one tool.
+// listTraffic gives the traffic views as one tool.
 func listTraffic(store *inventory.Store, now func() time.Time) func(*mcpsdk.Server, *slog.Logger) {
 	t := &mcpsdk.Tool{
 		Name:  "list_traffic",
@@ -179,8 +179,8 @@ func listTraffic(store *inventory.Store, now func() time.Time) func(*mcpsdk.Serv
 	return func(s *mcpsdk.Server, log *slog.Logger) { addTool(s, log, t, handler) }
 }
 
-// scoped trims a device's traffic to the scope and limit asked for. An empty
-// list stays in the result, so an agent reads it as "none".
+// scoped cuts the traffic of a device to the scope and limit of the call. An
+// empty list stays in the result. So an agent reads it as "none".
 func scoped(dt *inventory.DeviceTraffic, scope string, limit int) *inventory.DeviceTraffic {
 	switch scope {
 	case scopeLocal:
@@ -195,8 +195,8 @@ func scoped(dt *inventory.DeviceTraffic, scope string, limit int) *inventory.Dev
 	return dt
 }
 
-// scopedAttempts trims a device's attempts to the scope and limit asked for.
-// An empty list stays in the result, as the peers' does.
+// scopedAttempts cuts the attempts of a device to the scope and limit of the
+// call. An empty list stays in the result, as for the peers.
 func scopedAttempts(attempts []*inventory.Attempt, scope string, limit int) []*inventory.Attempt {
 	out := []*inventory.Attempt{}
 
@@ -211,8 +211,8 @@ func scopedAttempts(attempts []*inventory.Attempt, scope string, limit int) []*i
 	return out[:min(len(out), limit)]
 }
 
-// listTrafficSchema is the schema inferred from listTrafficInput, with its
-// bounds and the scopes spelled out.
+// listTrafficSchema is the schema inferred from listTrafficInput. It has the
+// limits, and lists the scopes.
 func listTrafficSchema() *jsonschema.Schema {
 	s := schemaFor[listTrafficInput]()
 
