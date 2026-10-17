@@ -1,9 +1,9 @@
 {{- /*
-    The network as a tree, top down: the internet, the router, each switch
-    and access point on the port it hangs from, and the devices on each port
-    or Wi-Fi network. Laid out by topomap.Place; colours come from classes in
-    style.css. netmap.js zooms, pans, searches and selects, and lights the
-    path to a selected device through each element's data-path keys.
+    The network as a tree, from the top down. It shows the internet, the router,
+    each switch and access point on its upstream port, and the devices on each
+    port or Wi-Fi network. topomap.Place sets the layout. Colours come from
+    classes in style.css. netmap.js zooms, pans, searches and selects. It uses
+    the data-path keys of each element to light the path to a selected device.
 */ -}}
 {{ define "partial/topology-body" }}
 {{- with .Layout }}

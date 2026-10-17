@@ -589,7 +589,7 @@ func TestDevicePageShowsWhatTheDeviceTriedWhenAsked(t *testing.T) {
 	assert.Contains(t, body, "This device probed your network.")
 	assert.Contains(t, body, "In one hour it tried 26 addresses on your network.")
 	assert.Contains(t, body, "<div><dd>26</dd><dt>Tries with no data</dt></div>")
-	assert.Contains(t, body, "Sent to 26 peers; none answered.")
+	assert.Contains(t, body, "Sent to 26 peers. None answered.")
 	assert.Contains(t, body, "Show tries with no data")
 	assert.NotContains(t, body, "198.51.100.0/24")
 
