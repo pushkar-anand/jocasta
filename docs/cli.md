@@ -14,7 +14,7 @@ jocasta <command> [flags]
       --log-format   text | json
 ```
 
-Every command takes `--help` for its own flags.
+To see the flags of a command, run it with `--help`.
 
 ## serve
 
@@ -23,23 +23,27 @@ jocasta serve                 # host and port from config
 jocasta serve -p 9000         # override the port
 ```
 
-Starts the HTTP server. When `scan.devices.enabled` is set, it also starts a
-poller that sweeps every network in `networks` on `scan.devices.interval`. When
-`scan.ports.enabled` is set, a second poller port-scans every address the
-inventory holds on your networks, on `scan.ports.interval`, and port-scans each
-new device as soon as a sweep or router read discovers it. Each enabled `routeros` and
-`openwrt` instance is also read for what is plugged into it, on
-`scan.devices.interval`. Each
-enabled `netflow` instance
-starts a listener for its router's flow exports, and an hourly prune deletes
-records older than their `retention` window, and devices you never curated
-that no scan has seen within `retention.devices`.
+Starts the HTTP server. It also starts these tasks:
+
+- If `scan.devices.enabled` is set, a poller sweeps every network in
+  `networks` at each `scan.devices.interval`.
+- If `scan.ports.enabled` is set, a second poller port-scans every address
+  that the inventory has on your networks, at each `scan.ports.interval`. It
+  also port-scans each new device when a sweep or a router read finds it.
+- At each `scan.devices.interval`, Jocasta reads each enabled `routeros` and
+  `openwrt` instance for what is connected to it.
+- Each enabled `netflow` instance starts a listener for the flow exports of
+  its router.
+- Each hour, a prune deletes records that are older than their `retention`
+  window. It also deletes devices that you never edited and that no scan saw
+  within `retention.devices`.
 
 ## scan
 
-Runs one sweep and prints a table, or JSON with `--json`. With `--save` it also
-records the sweep in the inventory, under the name from `--source`, then
-`scan.source`, then this host's name.
+Runs one sweep and prints a table, or JSON with `--json`. With `--save`, it
+also records the sweep in the inventory. The source name comes from
+`--source`. If that is not set, it comes from `scan.source`, and then from
+the name of this host.
 
 ```
 $ jocasta scan 192.0.2.0/24
@@ -51,26 +55,33 @@ IP           MAC                VENDOR   HOSTNAME              RTT     DETAILS
 $ jocasta scan 192.0.2.0/24 --save --rate 500 --no-resolve-names
 ```
 
-The sweep uses a raw ICMP socket where it can and an unprivileged datagram
-socket otherwise, so it runs without root. A host with no reverse DNS name is
-asked for its name over mDNS, then over NetBIOS, then over DNS-SD, then over
-SSDP, until one gives it a name. `--no-resolve-mdns`, `--no-resolve-netbios`,
-`--no-resolve-dnssd` and `--no-resolve-ssdp` turn each off. With `--json`, each
-host also lists the services it advertises over DNS-SD.
+The sweep uses a raw ICMP socket if it can. If not, it uses an
+unprivileged datagram socket. So it runs without root. If a host has no
+reverse DNS name, the sweep asks for its name over mDNS, then NetBIOS, then
+DNS-SD, then SSDP. It stops when one of them gives a name. To turn each one
+off, use `--no-resolve-mdns`, `--no-resolve-netbios`, `--no-resolve-dnssd` or
+`--no-resolve-ssdp`. With `--json`, each host also lists the services that it
+advertises over DNS-SD.
 
 ## ports
 
-Probes TCP ports with a plain `connect()`, so it needs no privileges and cannot
-change the target. With no argument it scans every current address the
-inventory holds on your networks: those in `networks` and the segments a
-router serves. A neighbour outside them, such as your ISP's gateway, is left
-alone. Each address is also scanned on the TCP ports its device advertises a
-service on and the ports recorded open on that device;
-give an address or a prefix to scan only that. `--ports` takes a
-spec like `22,80,443,8000-8100`; the default is a curated preset of about a
-hundred ports a homelab commonly runs. `--concurrency` caps how many
-connections are open at once (64 by default). `--save` records what it finds
-against the matching devices.
+Probes TCP ports with a plain `connect()`. So it needs no privileges and
+cannot change the target.
+
+With no argument, it scans every current address that the inventory has on
+your networks. Your networks are those in `networks` and the segments that a
+router serves. It does not scan a neighbour outside them, such as the gateway
+of your ISP. It also scans each address on these TCP ports:
+
+- the ports on which its device advertises a service
+- the ports recorded as open on that device
+
+To scan only one address or prefix, give it as the argument.
+
+`--ports` takes a list such as `22,80,443,8000-8100`. By default, it scans a
+preset of about a hundred ports that homelabs often use. `--concurrency` sets
+the maximum number of open connections at one time (64 by default). `--save`
+records the results on the matching devices.
 
 ```
 $ jocasta ports 192.0.2.10
@@ -84,9 +95,9 @@ $ jocasta ports 192.0.2.0/24 --ports 1-1024 --json
 
 ## plugin run
 
-Reads one configured source without starting the server. Use it to check a
+Reads one configured source without starting the server. Use it to test a
 credential or a firewall rule against the real router. It reads the instance
-even when it is disabled in config.
+even when the config disables it.
 
 ```
 $ jocasta plugin run gateway
@@ -101,7 +112,10 @@ ADDRESS          MAC                VENDOR  HOSTNAME    STANDING     PRESENT
 $ jocasta plugin run gateway --json --save
 ```
 
-After the devices it prints the source's topology: its ports and the VLANs
-each carries, the hardware addresses learned on each port, and its
-neighbours. A `topology_only` instance prints the topology alone. `--save`
-records both.
+After the devices, it prints the topology of the source:
+
+- its ports, and the VLANs on each port
+- the hardware addresses that it learned on each port
+- its neighbours
+
+A `topology_only` instance prints only the topology. `--save` records both.
