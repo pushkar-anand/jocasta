@@ -2,55 +2,55 @@ package routeros
 
 import "context"
 
-// LeaseStatusBound is the lease status meaning a client accepted the address
-// and is using it. Every other status, such as "waiting", "offered" or "busy",
-// describes the address and says nothing about a device.
+// LeaseStatusBound is the lease status that means a client accepted the
+// address and uses it. Every other status, such as "waiting", "offered" or
+// "busy", describes the address. It tells nothing about a device.
 const LeaseStatusBound = "bound"
 
 // DHCPLease is one row of /ip/dhcp-server/lease.
 //
-// A lease is worth more than an ARP entry in one respect and less in another:
-// it carries a name, which ARP never does, and it outlives the device's
-// presence, so a static lease can name something that was unplugged a month
-// ago. Both matter, which is why Status is here.
+// A lease is better than an ARP entry in one way, and worse in another. It has
+// a name, which ARP never has. But it stays after the device goes. So a static
+// lease can name a device that was disconnected a month ago. Both facts are
+// important, so Status is here.
 type DHCPLease struct {
 	ID string `json:".id"`
 
-	// Address is the leased address; ActiveAddress is the one currently in
-	// use, and they differ while a lease is being renegotiated. Static leases
-	// that no client is using carry only the first.
+	// Address is the leased address. ActiveAddress is the address in use now.
+	// They are different while the client and server negotiate the lease
+	// again. A static lease that no client uses has only Address.
 	Address       string `json:"address"`
 	ActiveAddress string `json:"active-address"`
 
 	MACAddress       string `json:"mac-address"`
 	ActiveMACAddress string `json:"active-mac-address"`
 
-	// HostName is what the client called itself in its DHCP request, so it is
-	// the device's own claim about its name and is often absent.
+	// HostName is the name that the client gave itself in its DHCP request.
+	// So it is the claim of the device about its name. It is often absent.
 	HostName string `json:"host-name"`
 
-	// Comment is the operator's free-text note on the lease. It may be a name,
-	// and "spare, do not reuse" is just as likely.
+	// Comment is the free-text note of the operator on the lease. It can be a
+	// name, but it can also be "spare, do not reuse".
 	Comment string `json:"comment"`
 
-	// Server is the DHCP server instance, which on a VLAN'd router names the
-	// segment the device is on.
+	// Server is the DHCP server instance. On a router with VLANs, it names
+	// the segment of the device.
 	Server string `json:"server"`
 
-	// Status is the lease state; see [LeaseStatusBound].
+	// Status is the lease state. See [LeaseStatusBound].
 	Status string `json:"status"`
 
-	// Dynamic separates a lease the server handed out from one an operator
-	// configured. A static lease is the operator's intent and stands whether
-	// or not anyone is using it.
+	// Dynamic separates a lease that the server gave out from a lease that an
+	// operator configured. A static lease is the intent of the operator. It
+	// stays, also when no client uses it.
 	Dynamic  Bool `json:"dynamic"`
 	Disabled Bool `json:"disabled"`
 	Blocked  Bool `json:"blocked"`
 
-	// ExpiresAfter and LastSeen are RouterOS durations such as "9m59s" or
-	// "1w2d", left as text. They are the router's own arithmetic against a
-	// clock this client cannot see, so converting them here would invent a
-	// precision the answer does not have.
+	// ExpiresAfter and LastSeen are RouterOS durations, such as "9m59s" or
+	// "1w2d". They stay as text. The router calculates them from a clock that
+	// this client cannot see. A conversion here would add a precision that the
+	// answer does not have.
 	ExpiresAfter string `json:"expires-after"`
 	LastSeen     string `json:"last-seen"`
 
@@ -60,13 +60,13 @@ type DHCPLease struct {
 // Static reports whether an operator configured this lease.
 func (l DHCPLease) Static() bool { return !bool(l.Dynamic) }
 
-// Bound reports whether a client is holding this address now. A static lease
-// for a device nobody has plugged in is not bound, which is what keeps it from
-// reading as a sighting.
+// Bound reports whether a client holds this address now. A static lease for a
+// device that is not connected is not bound. So it does not count as a
+// sighting.
 func (l DHCPLease) Bound() bool { return l.Status == LeaseStatusBound }
 
-// DHCPLeases returns every lease the router holds, static and dynamic, bound
-// and not.
+// DHCPLeases returns every lease of the router: static and dynamic, bound and
+// not bound.
 func (r *RouterOS) DHCPLeases(ctx context.Context) ([]DHCPLease, error) {
 	return list[DHCPLease](ctx, r, dhcpLeaseAPI)
 }

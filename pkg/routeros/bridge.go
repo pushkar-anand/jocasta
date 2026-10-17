@@ -8,33 +8,32 @@ import (
 	"strings"
 )
 
-// maxVLAN is the highest 802.1Q tag. A range reaching past it is cut there, so
-// a mistyped row cannot make a caller allocate millions of tags.
+// maxVLAN is the highest 802.1Q tag. VLANs cuts a range at this tag. So a
+// mistyped row cannot make a caller allocate millions of tags.
 const maxVLAN = 4094
 
-// BridgePort is one row of /interface/bridge/port: an interface that is a
-// member of a bridge, and the VLAN its untagged traffic belongs to.
+// BridgePort is one row of /interface/bridge/port. It is an interface that is
+// a member of a bridge, with the VLAN of its untagged traffic.
 type BridgePort struct {
 	ID        string `json:".id"`
 	Interface string `json:"interface"`
 	Bridge    string `json:"bridge"`
 
-	// PVID is the VLAN untagged frames arriving on the port are placed in.
-	// It means something only when the bridge filters VLANs; see
-	// [BridgePort.VLAN].
+	// PVID is the VLAN for untagged frames that arrive on the port. It has a
+	// meaning only when the bridge filters VLANs. See [BridgePort.VLAN].
 	PVID string `json:"pvid"`
 
 	Disabled Bool `json:"disabled"`
 
-	// Inactive marks a port the bridge is not forwarding on, most often one
-	// with no link.
+	// Inactive marks a port on which the bridge does not forward. Usually,
+	// the port has no link.
 	Inactive Bool `json:"inactive"`
 
 	Comment string `json:"comment"`
 }
 
-// VLAN returns the port's PVID as a number, and false when the router rendered
-// something that is not one.
+// VLAN returns the PVID of the port as a number. It returns false when the
+// router rendered something that is not a number.
 func (p BridgePort) VLAN() (int, bool) {
 	n, err := strconv.Atoi(p.PVID)
 	if err != nil {
@@ -44,24 +43,24 @@ func (p BridgePort) VLAN() (int, bool) {
 	return n, true
 }
 
-// BridgePorts returns every bridge membership the router has.
+// BridgePorts returns every bridge membership of the router.
 func (r *RouterOS) BridgePorts(ctx context.Context) ([]BridgePort, error) {
 	return list[BridgePort](ctx, r, bridgePortAPI)
 }
 
-// BridgeVLAN is one row of /interface/bridge/vlan: a set of VLANs and the
-// ports that carry them tagged or untagged.
+// BridgeVLAN is one row of /interface/bridge/vlan. It is a set of VLANs, with
+// the ports that carry them tagged or untagged.
 type BridgeVLAN struct {
 	ID     string `json:".id"`
 	Bridge string `json:"bridge"`
 
-	// VLANIDs is the tags this row covers, as the router renders them: "10",
-	// "10,20" or "100-110". See [BridgeVLAN.VLANs].
+	// VLANIDs is the tags that this row covers, as the router renders them:
+	// "10", "10,20" or "100-110". See [BridgeVLAN.VLANs].
 	VLANIDs string `json:"vlan-ids"`
 
 	// Tagged and Untagged are what an operator configured. The current-*
-	// columns add what the router joined on its own, such as a Wi-Fi
-	// interface a datapath placed in a VLAN, and are the ones to believe.
+	// columns add what the router joined itself, such as a Wi-Fi interface
+	// that a datapath put in a VLAN. Trust the current-* columns.
 	Tagged          string `json:"tagged"`
 	Untagged        string `json:"untagged"`
 	CurrentTagged   string `json:"current-tagged"`
@@ -71,8 +70,8 @@ type BridgeVLAN struct {
 	Dynamic  Bool `json:"dynamic"`
 }
 
-// VLANs returns the tags the row covers, in order, with ranges expanded. A
-// part that does not read as a tag is skipped.
+// VLANs returns the tags that the row covers, in order, with ranges expanded.
+// It skips a part that is not a tag.
 func (v BridgeVLAN) VLANs() []int {
 	var out []int
 
@@ -105,19 +104,19 @@ func (v BridgeVLAN) VLANs() []int {
 	return slices.Compact(out)
 }
 
-// TaggedPorts returns the interfaces carrying these VLANs tagged, preferring
-// what the router is doing now over what was configured.
+// TaggedPorts returns the interfaces that carry these VLANs tagged. It
+// prefers what the router does now to what the operator configured.
 func (v BridgeVLAN) TaggedPorts() []string {
 	return names(cmp.Or(v.CurrentTagged, v.Tagged))
 }
 
-// UntaggedPorts returns the interfaces carrying these VLANs untagged, on the
-// same terms as [BridgeVLAN.TaggedPorts].
+// UntaggedPorts returns the interfaces that carry these VLANs untagged. It
+// works as [BridgeVLAN.TaggedPorts] does.
 func (v BridgeVLAN) UntaggedPorts() []string {
 	return names(cmp.Or(v.CurrentUntagged, v.Untagged))
 }
 
-// names splits a comma-separated list of interface names, dropping blanks.
+// names splits a comma-separated list of interface names. It removes blanks.
 func names(s string) []string {
 	var out []string
 
@@ -135,25 +134,25 @@ func (r *RouterOS) BridgeVLANs(ctx context.Context) ([]BridgeVLAN, error) {
 	return list[BridgeVLAN](ctx, r, bridgeVLANAPI)
 }
 
-// BridgeHost is one row of /interface/bridge/host: a hardware address the
-// bridge learned, and the port it learned it on. This is the table that says
-// which port a device is behind.
+// BridgeHost is one row of /interface/bridge/host. It is a hardware address
+// that the bridge learned, with the port on which it learned it. This table
+// tells which port a device is behind.
 type BridgeHost struct {
 	ID         string `json:".id"`
 	MACAddress string `json:"mac-address"`
 	Bridge     string `json:"bridge"`
 
-	// OnInterface is the port the address was learned on. Some releases name
-	// it Interface instead; see [BridgeHost.Port].
+	// OnInterface is the port on which the bridge learned the address. Some
+	// releases name it Interface. See [BridgeHost.Port].
 	OnInterface string `json:"on-interface"`
 	Interface   string `json:"interface"`
 
-	// VID is the VLAN the address was learned in, empty unless the bridge
-	// filters VLANs.
+	// VID is the VLAN in which the bridge learned the address. It is empty,
+	// unless the bridge filters VLANs.
 	VID string `json:"vid"`
 
-	// Local marks one of the router's own addresses, and External one the
-	// switch chip reported.
+	// Local marks an own address of the router. External marks an address
+	// that the switch chip reported.
 	Local    Bool `json:"local"`
 	External Bool `json:"external"`
 	Dynamic  Bool `json:"dynamic"`
@@ -161,13 +160,13 @@ type BridgeHost struct {
 	Disabled Bool `json:"disabled"`
 }
 
-// Port returns the interface the address was learned on.
+// Port returns the interface on which the bridge learned the address.
 func (h BridgeHost) Port() string {
 	return cmp.Or(h.OnInterface, h.Interface)
 }
 
-// VLAN returns the VLAN the address was learned in, and false when the bridge
-// did not say.
+// VLAN returns the VLAN in which the bridge learned the address. It returns
+// false when the bridge did not tell.
 func (h BridgeHost) VLAN() (int, bool) {
 	n, err := strconv.Atoi(h.VID)
 	if err != nil || n < 1 {
@@ -177,7 +176,7 @@ func (h BridgeHost) VLAN() (int, bool) {
 	return n, true
 }
 
-// BridgeHosts returns the bridge's learned hardware addresses.
+// BridgeHosts returns the hardware addresses that the bridge learned.
 func (r *RouterOS) BridgeHosts(ctx context.Context) ([]BridgeHost, error) {
 	return list[BridgeHost](ctx, r, bridgeHostAPI)
 }

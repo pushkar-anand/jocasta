@@ -17,18 +17,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// fakeRouter answers ubus JSON-RPC the way uhttpd and rpcd do, from canned
-// answers keyed by "object method". A login with the right password opens a
-// session, and a call on any other session is refused as rpcd refuses it.
+// fakeRouter answers ubus JSON-RPC as uhttpd and rpcd do. Its canned answers
+// have "object method" as key. A login with the right password opens a
+// session. It refuses a call on any other session, as rpcd does.
 type fakeRouter struct {
 	password string
 
-	// answers holds what each "object method" returns: the raw JSON of the
-	// result array, such as `[0,{"hostname":"OpenWrt"}]`.
+	// answers holds what each "object method" returns. This is the raw JSON
+	// of the result array, such as `[0,{"hostname":"OpenWrt"}]`.
 	answers map[string]string
 
-	// refused are the "object method" calls the login's ACL does not grant,
-	// which rpcd refuses on a live session as it refuses an expired one.
+	// refused are the "object method" calls that the ACL of the login does
+	// not allow. rpcd refuses them on a live session, as on an expired one.
 	refused map[string]bool
 
 	mu       sync.Mutex
@@ -37,8 +37,9 @@ type fakeRouter struct {
 	calls    []string
 }
 
-// newFakeRouter starts a fake router answering with answers, and returns it
-// with a client logged in with the right password and the server's URL.
+// newFakeRouter starts a fake router that replies with answers. It returns the
+// router, a client that logs in with the right password, and the URL of the
+// server.
 func newFakeRouter(t *testing.T, answers map[string]string) (*fakeRouter, *OpenWrt, string) {
 	t.Helper()
 
@@ -66,7 +67,7 @@ func clientFor(t *testing.T, raw, password string) *OpenWrt {
 	return o
 }
 
-// expire drops every session, as rpcd does after five idle minutes.
+// expire removes every session, as rpcd does after five idle minutes.
 func (f *fakeRouter) expire() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -139,7 +140,8 @@ func (f *fakeRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// A command is keyed by what it runs, so two commands answer apart.
+	// The key of a command is what it runs. So two commands get separate
+	// answers.
 	if key == "file exec" {
 		var args struct {
 			Command string   `json:"command"`
@@ -160,7 +162,7 @@ func (f *fakeRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// A file read is keyed by its path.
+	// The key of a file read is its path.
 	if key == "file read" {
 		var args struct {
 			Path string `json:"path"`
@@ -171,7 +173,8 @@ func (f *fakeRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		key = "read " + args.Path
 	}
 
-	// uci get is keyed by the config and the section type it asks for.
+	// The key of uci get is the config and the section type that it asks
+	// for.
 	if key == "uci get" {
 		var args struct {
 			Config string `json:"config"`
@@ -183,7 +186,7 @@ func (f *fakeRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		key = "uci " + args.Config + " " + args.Type
 	}
 
-	// getDHCPLeases is keyed by the family it asks for.
+	// The key of getDHCPLeases is the family that it asks for.
 	if key == "luci-rpc getDHCPLeases" {
 		var args struct {
 			Family int `json:"family"`
@@ -221,8 +224,8 @@ func TestVerifyLogsInAndReadsTheBoard(t *testing.T) {
 	assert.Equal(t, int32(1), f.logins.Load())
 }
 
-// Calls share one session until the router expires it, and then the client
-// logs in again by itself.
+// Calls share one session until the router expires it. Then the client logs
+// in again by itself.
 func TestCallsShareASessionAndRenewIt(t *testing.T) {
 	t.Parallel()
 
@@ -252,8 +255,9 @@ func TestAWrongPasswordIsUnauthorized(t *testing.T) {
 	require.ErrorIs(t, err, ErrUnauthorized)
 }
 
-// A call refused on a session that was just opened is one the login's ACL does
-// not grant, which no retry will change, so the client does not log in again.
+// If the router refuses a call on a new session, the ACL of the login does not
+// allow the call. A retry does not change this. So the client does not log in
+// again.
 func TestACallRefusedOnAFreshSessionIsUnauthorized(t *testing.T) {
 	t.Parallel()
 
@@ -266,10 +270,11 @@ func TestACallRefusedOnAFreshSessionIsUnauthorized(t *testing.T) {
 	assert.Equal(t, int32(1), f.logins.Load())
 }
 
-// rpcd refuses an expired session and a call the ACL does not grant alike. The
-// first refusal mid-session is taken as expiry and costs one more login; once
-// the fresh session is refused too, the call is remembered, and refusing it
-// again keeps the session.
+// rpcd gives the same refusal for an expired session and for a call that the
+// ACL does not allow. The client takes the first refusal during a session as
+// expiry, and logs in one more time. If rpcd also refuses the new session, the
+// client remembers the call. A later refusal of that call keeps the
+// session.
 func TestACallTheACLRefusesKeepsTheSession(t *testing.T) {
 	t.Parallel()
 
@@ -293,8 +298,8 @@ func TestACallTheACLRefusesKeepsTheSession(t *testing.T) {
 	assert.Equal(t, int32(2), f.logins.Load())
 }
 
-// The ACL grants a command, not every command, so one refused command leaves
-// the others working on the same session.
+// The ACL allows a command, not every command. So if rpcd refuses one command,
+// the other commands still work on the same session.
 func TestACommandTheACLRefusesLeavesTheOthers(t *testing.T) {
 	t.Parallel()
 
@@ -332,7 +337,7 @@ func (c *clock) advance(d time.Duration) {
 	c.at = c.at.Add(d)
 }
 
-// withClock points o at a clock the test moves.
+// withClock points o at a clock that the test moves.
 func withClock(o *OpenWrt) *clock {
 	c := &clock{at: time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)}
 	o.now = c.now
@@ -340,9 +345,10 @@ func withClock(o *OpenWrt) *clock {
 	return c
 }
 
-// A sweep runs further apart than rpcd's idle timeout, so a remembered refusal
-// that opens the next sweep meets an expired session. It is retried on a new
-// one, so an ACL fixed between sweeps works then.
+// The interval between sweeps is longer than the idle timeout of rpcd. So a
+// remembered refusal at the start of the next sweep finds an expired session.
+// The client tries again on a new session. So an ACL that is fixed between
+// sweeps then works.
 func TestARefusalAfterTheSessionTimeoutIsRetried(t *testing.T) {
 	t.Parallel()
 
@@ -373,8 +379,8 @@ func TestARefusalAfterTheSessionTimeoutIsRetried(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// A login whose every call is refused never has a call work, and must still
-// log in again once its session times out.
+// If rpcd refuses every call of a login, no call works. The client must still
+// log in again when its session times out.
 func TestASessionThatServedNothingIsRenewedAfterItsTimeout(t *testing.T) {
 	t.Parallel()
 
@@ -398,7 +404,7 @@ func TestASessionThatServedNothingIsRenewedAfterItsTimeout(t *testing.T) {
 	assert.Equal(t, int32(2), f.logins.Load())
 }
 
-// Once the ACL grants a call it once refused, the call works without a
+// When the ACL allows a call that it refused before, the call works without a
 // restart.
 func TestACallTheACLGrantsLaterWorks(t *testing.T) {
 	t.Parallel()
@@ -448,7 +454,7 @@ func TestARouterThatIsDownIsUnreachable(t *testing.T) {
 	require.ErrorIs(t, err, ErrUnreachable)
 }
 
-// Something else answering the port is not mistaken for a router.
+// The client does not take a different service on the port for a router.
 func TestAnAnswerThatIsNotUbusIsUnexpected(t *testing.T) {
 	t.Parallel()
 

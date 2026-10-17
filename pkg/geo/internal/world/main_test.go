@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Points within the tolerance of the line between their neighbours go, and a
-// corner stays.
+// The simplification removes points within the tolerance of the line between
+// their neighbours. A corner stays.
 func TestSimplifyKeepsTheShape(t *testing.T) {
 	t.Parallel()
 
@@ -20,7 +20,8 @@ func TestSimplifyKeepsTheShape(t *testing.T) {
 	assert.Equal(t, corner, simplify(corner, 0.2))
 }
 
-// Specks of islands go unless they are all a country has.
+// The build removes very small islands, unless they are the only land of a
+// country.
 func TestKeptRingsDropsSpecksButNotWholeCountries(t *testing.T) {
 	t.Parallel()
 
@@ -31,8 +32,8 @@ func TestKeptRingsDropsSpecksButNotWholeCountries(t *testing.T) {
 	assert.Equal(t, [][][2]float64{speck}, keptRings([][][][2]float64{{speck}}))
 }
 
-// A territory filed under a country's code lends its outline, and the name and
-// marker stay the country's whichever comes last.
+// A territory under the code of a country gives its outline. The name and
+// marker stay with the country, in any order.
 func TestBuildNamesACountryAfterItsBiggestFeature(t *testing.T) {
 	t.Parallel()
 

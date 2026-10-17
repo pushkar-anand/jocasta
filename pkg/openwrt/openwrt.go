@@ -1,19 +1,19 @@
-// Package openwrt reads an OpenWrt router's state over ubus, the message bus
-// its daemons publish their state on.
+// Package openwrt reads the state of an OpenWrt router over ubus. ubus is the
+// message bus on which its daemons publish their state.
 //
-// uhttpd serves ubus as JSON-RPC at /ubus, which is what LuCI's own pages call,
-// so any router with LuCI installed answers it with nothing added. A call
-// names a session, an object, a method and its arguments; a session comes from
-// logging in, and rpcd checks every call against the ACL groups the login was
-// granted.
+// uhttpd serves ubus as JSON-RPC at /ubus. The pages of LuCI call this
+// endpoint. So every router with LuCI answers it, and needs nothing more. A
+// call names a session, an object, a method and its arguments. A session
+// comes from a login. rpcd checks every call against the ACL groups of the
+// login.
 //
-// Everything here reads; nothing writes. The router is a source of facts about
-// the network, and a client that cannot change its configuration cannot break
-// the network by being wrong.
+// The package only reads. It never writes. The router is a source of facts
+// about the network. A client that cannot change its configuration cannot
+// break the network by a mistake.
 //
-// Values arrive as the router renders them. Addresses and hardware addresses
-// stay strings on purpose: a router with one malformed row should cost the
-// caller only that row, and the caller decides what to do with it.
+// Values stay as the router renders them. Addresses and hardware addresses
+// stay strings on purpose. If one row is malformed, the caller loses only that
+// row. The caller decides what to do with it.
 package openwrt
 
 import (
@@ -35,28 +35,29 @@ import (
 )
 
 const (
-	// endpoint is the path uhttpd serves ubus on.
+	// endpoint is the path on which uhttpd serves ubus.
 	endpoint = "/ubus"
 
 	defaultPort    = 80
 	defaultSSLPort = 443
 	defaultTimeout = 10 * time.Second
 
-	// maxBody caps a response. A router will not send more than a few hundred
-	// kilobytes of leases, and a device answering on this port that is not a
-	// router can stream forever.
+	// maxBody limits the size of a response. A router does not send more than
+	// a few hundred kilobytes of leases. A device on this port that is not a
+	// router can send data forever.
 	maxBody = 8 << 20
 
-	// anonymous is the session a login is called with, before there is one.
+	// anonymous is the session for a login call, before a session exists.
 	anonymous = "00000000000000000000000000000000"
 
 	// defaultSessionTimeout is how long rpcd keeps an idle session, when a
-	// login does not say. It is rpcd's own default.
+	// login does not tell. It is the default of rpcd.
 	defaultSessionTimeout = 5 * time.Minute
 
-	// sessionMargin is taken off a session's timeout before it is trusted to
-	// be live: rpcd counts from the call it saw last, and this client from
-	// the answer it read, which arrives a little later.
+	// sessionMargin comes off the timeout of a session before the client
+	// trusts that the session is live. rpcd counts from the last call that it
+	// saw. This client counts from the answer that it read, which arrives a
+	// little later.
 	sessionMargin = 10 * time.Second
 )
 
@@ -73,16 +74,16 @@ type (
 		User     string
 		Password string
 
-		// SSL selects https, which uhttpd serves once luci-ssl is installed.
+		// SSL selects https. uhttpd serves https when luci-ssl is installed.
 		SSL bool
 
-		// Insecure skips certificate verification. uhttpd generates a
-		// self-signed certificate unless one is installed, so without this the
-		// common setup cannot connect over https at all.
+		// Insecure skips certificate verification. uhttpd makes a self-signed
+		// certificate, unless you install one. So the usual setup cannot
+		// connect over https without this setting.
 		Insecure bool
 
-		// Timeout bounds each request on its own, defaulting to 10s, so a
-		// caller's context stays the only thing that bounds a whole read.
+		// Timeout limits each request on its own. The default is 10s. Only the
+		// context of the caller limits a whole read.
 		Timeout time.Duration
 	}
 
@@ -94,34 +95,36 @@ type (
 		logger *slog.Logger
 		url    string
 
-		// mu guards session, which every call shares until the router expires
-		// it, and refused, the calls the login's ACL does not grant.
+		// mu guards session and refused. Every call shares session until the
+		// router expires it. refused is the calls that the ACL of the login
+		// does not allow.
 		mu      sync.Mutex
 		session string
 		refused map[string]bool
 
-		// used is when a call last worked on session, and idle how long rpcd
-		// keeps it after that. Between them they say whether session is live.
+		// used is when a call last worked on session. idle is how long rpcd
+		// keeps the session after that. Together they tell whether session is
+		// live.
 		used time.Time
 		idle time.Duration
 
-		// opened is a session logged in to that no call has worked on yet. A
-		// refusal on it is the ACL's, since it cannot have expired.
+		// opened is a new session on which no call worked yet. A refusal on it
+		// comes from the ACL, because it cannot be expired.
 		opened string
 
-		// now is a field so tests can move the clock.
+		// now is a field, so tests can move the clock.
 		now func() time.Time
 	}
 )
 
-// ErrNoHost is a config naming no router.
+// ErrNoHost is a config that names no router.
 var ErrNoHost = errors.New("openwrt: no host configured")
 
-// New builds a client for the router cfg names.
+// New builds a client for the router that cfg names.
 //
-// It performs no I/O, so a router that is down at startup is retried later
-// and the server still starts. Call [OpenWrt.Verify] to find out whether the
-// credentials and the service are actually good.
+// It does no I/O. So if the router is down at startup, the server still starts
+// and tries again later. To find out whether the credentials and the service
+// work, call [OpenWrt.Verify].
 func New(cfg *Config, log *slog.Logger) (*OpenWrt, error) {
 	if cfg == nil || cfg.Host == "" {
 		return nil, ErrNoHost
@@ -152,8 +155,8 @@ func New(cfg *Config, log *slog.Logger) (*OpenWrt, error) {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 
 	if c.Insecure {
-		// Clone carries the default TLS settings over, but not necessarily a
-		// config to hang this on.
+		// Clone copies the default TLS settings, but it can leave the TLS
+		// config nil.
 		if transport.TLSClientConfig == nil {
 			transport.TLSClientConfig = &tls.Config{} //nolint:gosec // the next line is the point.
 		}
@@ -176,22 +179,25 @@ func New(cfg *Config, log *slog.Logger) (*OpenWrt, error) {
 	}, nil
 }
 
-// Addr is the URL this client calls, useful in a log line naming which router
-// answered.
+// Addr is the URL that this client calls. Use it in a log line to name the
+// router that answered.
 func (o *OpenWrt) Addr() string { return o.url }
 
-// call runs method on object with args and decodes what it returns into T.
+// call runs method on object with args, and decodes what it returns into T.
 //
-// It logs in first when there is no session. rpcd answers a session it has
-// expired and a call the login's ACL does not grant with the same refusal.
-// rpcd expires a session after five idle minutes, which is shorter than a
-// sweep's interval, so the first call of a sweep usually meets an expired
-// session. A refusal is taken as expiry, and the client logs in once more and
-// retries, unless the session is known to be live: it was just opened, or a
-// call worked on it within its timeout and this call was refused before. A
-// call refused on a live session is one the ACL does not grant, which is
-// [ErrUnauthorized], and is remembered. Every sweep still makes the call on
-// a live session at least once, so a fixed ACL works without a restart.
+// If there is no session, call logs in first. rpcd gives the same refusal for
+// an expired session and for a call that the ACL of the login does not allow.
+// rpcd expires a session after five idle minutes. This is shorter than the
+// interval of a sweep. So the first call of a sweep usually finds an expired
+// session.
+//
+// call takes a refusal as expiry. It logs in one more time and tries again.
+// It does not do this if it knows that the session is live. A session is live
+// if it was just opened. It is also live if a call worked on it within its
+// timeout, and the server refused this call before. A refusal on a live
+// session means that the ACL does not allow the call. call returns
+// [ErrUnauthorized] and remembers the refusal. Each sweep still makes the call
+// on a live session at least once. So a fixed ACL works without a restart.
 func call[T any](ctx context.Context, o *OpenWrt, object, method string, args any) (*T, error) {
 	key, err := callKey(object, method, args)
 	if err != nil {
@@ -205,9 +211,10 @@ func call[T any](ctx context.Context, o *OpenWrt, object, method string, args an
 
 	data, err := o.do(ctx, session, object, method, args)
 
-	// On a live session a refusal is the ACL's when the session has served
-	// nothing yet, so it cannot have expired, or when the call was refused
-	// before. Any other refusal may be expiry.
+	// On a live session, a refusal comes from the ACL in two cases. In the
+	// first, the session served no call yet, so it cannot be expired. In the
+	// second, the server refused the call before. Any other refusal can be
+	// expiry.
 	byACL := live && (o.isFresh(session) || o.isRefused(key))
 
 	if errors.Is(err, errAccessDenied) && !byACL {
@@ -234,8 +241,8 @@ func call[T any](ctx context.Context, o *OpenWrt, object, method string, args an
 
 	var t T
 
-	// A call that succeeds with nothing to say, as an empty table can,
-	// answers with the status alone.
+	// A call that succeeds with no data returns only the status. An empty
+	// table can do this.
 	if len(data) == 0 {
 		return &t, nil
 	}
@@ -247,9 +254,9 @@ func call[T any](ctx context.Context, o *OpenWrt, object, method string, args an
 	return &t, nil
 }
 
-// callKey names a call the way rpcd's ACL grants it: by object and method,
-// and for the file object by its arguments as well, since the ACL grants a
-// path or a command there, and can grant one `file exec` command and refuse
+// callKey names a call as the ACL of rpcd allows it: by object and method.
+// For the file object, it also uses the arguments. There, the ACL allows a
+// path or a command. It can allow one `file exec` command and refuse
 // another.
 func callKey(object, method string, args any) (string, error) {
 	if object != "file" {
@@ -264,9 +271,9 @@ func callKey(object, method string, args any) (string, error) {
 	return object + " " + method + " " + string(b), nil
 }
 
-// currentSession returns the session calls share, logging in when there is
-// none. live reports whether the session is known to be live: just opened, or
-// used within its timeout.
+// currentSession returns the session that calls share. If there is none, it
+// logs in. live reports whether the session is known to be live. A live
+// session was just opened, or was used within its timeout.
 func (o *OpenWrt) currentSession(ctx context.Context) (session string, live bool, err error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -288,8 +295,8 @@ func (o *OpenWrt) currentSession(ctx context.Context) (session string, live bool
 	return session, true, nil
 }
 
-// isFresh reports whether session was opened for the call now asking and has
-// not served one since, so a refusal on it cannot be expiry.
+// isFresh reports whether session was opened for the current call, and served
+// no call since. If so, a refusal on it cannot be expiry.
 func (o *OpenWrt) isFresh(session string) bool {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -297,7 +304,7 @@ func (o *OpenWrt) isFresh(session string) bool {
 	return o.opened == session
 }
 
-// forget drops session, unless another call already replaced it.
+// forget removes session, unless another call already replaced it.
 func (o *OpenWrt) forget(session string) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -307,8 +314,8 @@ func (o *OpenWrt) forget(session string) {
 	}
 }
 
-// isRefused reports whether the ACL refused the call named key on a fresh
-// session.
+// isRefused reports whether the ACL refused the call that key names, on a
+// fresh session.
 func (o *OpenWrt) isRefused(key string) bool {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -316,7 +323,7 @@ func (o *OpenWrt) isRefused(key string) bool {
 	return o.refused[key]
 }
 
-// refuse remembers that the ACL refuses the call named key.
+// refuse remembers that the ACL refuses the call that key names.
 func (o *OpenWrt) refuse(key string) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -328,8 +335,8 @@ func (o *OpenWrt) refuse(key string) {
 	o.refused[key] = true
 }
 
-// worked records that the call named key worked on session: the session is
-// live as of now, and the ACL grants the call, whatever it did before.
+// worked records that the call that key names worked on session. The session
+// is live from now. The ACL allows the call, even if it refused it before.
 func (o *OpenWrt) worked(session, key string) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -345,9 +352,9 @@ func (o *OpenWrt) worked(session, key string) {
 	delete(o.refused, key)
 }
 
-// login asks rpcd for a session, and returns it with how long rpcd keeps it
-// idle. A wrong user or password answers with a permission status, which is
-// [ErrUnauthorized].
+// login asks rpcd for a session. It returns the session and how long rpcd
+// keeps it idle. A wrong user or password returns a permission status, which
+// is [ErrUnauthorized].
 func (o *OpenWrt) login(ctx context.Context) (string, time.Duration, error) {
 	data, err := o.do(ctx, anonymous, "session", "login", map[string]string{
 		"username": o.cfg.User,
@@ -382,19 +389,19 @@ type request struct {
 	Params  []any  `json:"params"`
 }
 
-// response is what ubus answers. Result holds the ubus status, then the data
-// when there is any; Error is set instead when the call never reached the
-// object.
+// response is the answer of ubus. Result holds the ubus status, then the data
+// if there is data. If the call did not reach the object, Error is set
+// instead.
 type response struct {
 	Result []jsontext.Value `json:"result"`
 	Error  *rpcError        `json:"error"`
 }
 
-// do sends one call and returns the data it answered with.
+// do sends one call and returns the data of the answer.
 //
-// A router that cannot be reached at all is [ErrUnreachable], one whose
-// certificate does not verify is [ErrTLS], and one that answers with an error
-// is a [StatusError] or a JSON-RPC error saying why.
+// If do cannot reach the router at all, it returns [ErrUnreachable]. If the
+// certificate does not verify, it returns [ErrTLS]. If the router answers with
+// an error, do returns a [StatusError] or a JSON-RPC error with the reason.
 func (o *OpenWrt) do(ctx context.Context, session, object, method string, args any) (jsontext.Value, error) {
 	if args == nil {
 		args = struct{}{}
@@ -420,8 +427,8 @@ func (o *OpenWrt) do(ctx context.Context, session, object, method string, args a
 
 	resp, err := o.client.Do(req)
 	if err != nil {
-		// A cancelled context is the caller giving up. Calling it unreachable
-		// would have the poller retry during a shutdown.
+		// A cancelled context means that the caller stopped. If the client
+		// called it unreachable, the poller would try again during a shutdown.
 		if ctx.Err() != nil {
 			return nil, fmt.Errorf("request send: %w", err)
 		}
@@ -435,8 +442,8 @@ func (o *OpenWrt) do(ctx context.Context, session, object, method string, args a
 
 	defer func() { _ = resp.Body.Close() }()
 
-	// uhttpd answers a path it does not serve, such as /ubus on a router
-	// without uhttpd-mod-ubus, with a 404.
+	// uhttpd answers a 404 for a path that it does not serve. An example is
+	// /ubus on a router without uhttpd-mod-ubus.
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, fmt.Errorf("%w: %s answered 404; is uhttpd-mod-ubus installed?", ErrNotFound, o.url)
 	}

@@ -1,7 +1,7 @@
 package routeros
 
-// The endpoints this client reads. Each mirrors the console path with /rest
-// prefixed, which is the whole of the REST API's addressing scheme.
+// The endpoints that this client reads. Each is the console path with /rest
+// in front. This is the full addressing scheme of the REST API.
 const (
 	resourceAPI  = "/system/resource"
 	identityAPI  = "/system/identity"
@@ -16,11 +16,11 @@ const (
 	bridgeVLANAPI = "/interface/bridge/vlan"
 	bridgeHostAPI = "/interface/bridge/host"
 
-	// ethernetMonitorAPI is a command, which the REST API runs on a POST.
+	// ethernetMonitorAPI is a command. The REST API runs it on a POST.
 	ethernetMonitorAPI = "/interface/ethernet/monitor"
 
-	// RouterOS 7.13 replaced the wireless package with wifi. A router carries
-	// one or the other, or neither.
+	// RouterOS 7.13 replaced the wireless package with wifi. A router has one
+	// of them, or neither.
 	wifiRegistrationAPI     = "/interface/wifi/registration-table"
 	wirelessRegistrationAPI = "/interface/wireless/registration-table"
 	wirelessAPI             = "/interface/wireless"

@@ -11,14 +11,14 @@ import (
 	"strings"
 )
 
-// NetDevice is one network device as LuCI's rpcd module describes it: a port,
-// a bridge, a radio's interface or a VLAN device.
+// NetDevice is one network device, as the rpcd module of LuCI describes it: a
+// port, a bridge, the interface of a radio, or a VLAN device.
 type NetDevice struct {
 	Name string `json:"name"`
 
-	// DevType is the kernel's device type, such as "ethernet", "dsa",
-	// "bridge", "vlan" or "wlan". A DSA switch's user port, such as lan1,
-	// reports "dsa".
+	// DevType is the device type of the kernel, such as "ethernet", "dsa",
+	// "bridge", "vlan" or "wlan". The user port of a DSA switch, such as
+	// lan1, reports "dsa".
 	DevType string `json:"devtype"`
 
 	// Type is the hardware type from if_arp.h: 1 for Ethernet, 772 for
@@ -29,14 +29,14 @@ type NetDevice struct {
 	Bridge   bool `json:"bridge"`
 	Wireless bool `json:"wireless"`
 
-	// Ports are a bridge's member devices.
+	// Ports are the member devices of a bridge.
 	Ports []string `json:"ports"`
 
 	MAC string `json:"mac"`
 
 	Link struct {
-		// Speed is the rate the link came up at in Mbit/s, and absent when
-		// the driver does not report one.
+		// Speed is the rate at which the link came up, in Mbit/s. It is
+		// absent when the driver does not report a rate.
 		Speed int `json:"speed"`
 
 		// Duplex is "full", "half" or "unknown".
@@ -53,13 +53,13 @@ const arpHrdLoopback = 772
 // IsLoopback reports whether the device is the loopback device.
 func (d NetDevice) IsLoopback() bool { return d.Type == arpHrdLoopback }
 
-// IsWireless reports whether the device is a radio's interface.
+// IsWireless reports whether the device is the interface of a radio.
 func (d NetDevice) IsWireless() bool { return d.Wireless || d.DevType == "wlan" }
 
-// IsPort reports whether the device is a port something can be plugged into:
-// an Ethernet port, a DSA switch's user port or a radio's interface. A bridge,
-// a VLAN device, a tunnel and loopback are only places an address can be
-// learned.
+// IsPort reports whether the device is a port that a device can connect to:
+// an Ethernet port, the user port of a DSA switch, or the interface of a
+// radio. On a bridge, a VLAN device, a tunnel or loopback, the router can only
+// learn an address.
 func (d NetDevice) IsPort() bool {
 	if d.Bridge || d.IsLoopback() {
 		return false
@@ -78,23 +78,23 @@ func (o *OpenWrt) NetworkDevices(ctx context.Context) (map[string]NetDevice, err
 	return *res, nil
 }
 
-// Radio is one Wi-Fi radio and the networks it serves.
+// Radio is one Wi-Fi radio, with the networks that it serves.
 type Radio struct {
 	Name string
 	Up   bool
 
-	// Band is the radio's band, such as "2g", "5g" or "6g", and is empty on a
-	// release older than 21.02, which did not configure one.
+	// Band is the band of the radio, such as "2g", "5g" or "6g". It is empty
+	// on a release before 21.02, which did not configure a band.
 	Band string
 
 	Interfaces []WiFiIface
 }
 
-// WiFiIface is one network a radio serves, such as an access point for one
-// SSID.
+// WiFiIface is one network that a radio serves, such as an access point for
+// one SSID.
 type WiFiIface struct {
-	// Ifname is the device the network runs on, such as "phy0-ap0", and is
-	// empty while the network is not up.
+	// Ifname is the device on which the network runs, such as "phy0-ap0". It
+	// is empty while the network is down.
 	Ifname string
 
 	SSID string
@@ -103,8 +103,8 @@ type WiFiIface struct {
 	Mode string
 }
 
-// rawRadio is a radio as network.wireless status renders it, with the iwinfo
-// LuCI adds to each interface.
+// rawRadio is a radio as network.wireless status renders it. It includes the
+// iwinfo data that LuCI adds to each interface.
 type rawRadio struct {
 	Up     bool `json:"up"`
 	Config struct {
@@ -122,8 +122,8 @@ type rawRadio struct {
 	} `json:"interfaces"`
 }
 
-// WirelessDevices returns the router's radios, sorted by name. A router with
-// no radio returns none.
+// WirelessDevices returns the radios of the router, sorted by name. A router
+// with no radio returns none.
 func (o *OpenWrt) WirelessDevices(ctx context.Context) ([]Radio, error) {
 	res, err := call[map[string]rawRadio](ctx, o, "luci-rpc", "getWirelessDevices", nil)
 	if err != nil {
@@ -162,16 +162,16 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
-// Station is one client associated with a radio's network.
+// Station is one client on the network of a radio.
 type Station struct {
 	MAC string
 
-	// Signal is the client's signal at the radio in dBm, and zero when the
-	// driver does not report it.
+	// Signal is the signal of the client at the radio, in dBm. It is zero
+	// when the driver does not report it.
 	Signal int
 
-	// TxRate is the rate the radio sends to the client at and RxRate the rate
-	// it receives from it at, in bits per second.
+	// TxRate is the rate at which the radio sends to the client. RxRate is the
+	// rate at which it receives from the client. Both are in bits per second.
 	TxRate int64
 	RxRate int64
 }
@@ -188,8 +188,8 @@ type rawStation struct {
 	} `json:"tx"`
 }
 
-// Stations returns the clients associated with the network on device, such
-// as "phy0-ap0".
+// Stations returns the clients on the network of device, such as
+// "phy0-ap0".
 func (o *OpenWrt) Stations(ctx context.Context, device string) ([]Station, error) {
 	res, err := call[struct {
 		Results []rawStation `json:"results"`
@@ -212,50 +212,52 @@ func (o *OpenWrt) Stations(ctx context.Context, device string) ([]Station, error
 	return out, nil
 }
 
-// FDBEntry is one hardware address a bridge learned on one of its ports.
+// FDBEntry is one hardware address that a bridge learned on one of its ports.
 type FDBEntry struct {
 	MAC string
 
-	// Port is the member device the address was learned on, such as "lan2",
-	// and is empty when the port number matches no member.
+	// Port is the member device on which the bridge learned the address, such
+	// as "lan2". It is empty when the port number matches no member.
 	Port string
 
-	// Local marks one of the bridge's own addresses.
+	// Local marks an own address of the bridge.
 	Local bool
 }
 
 // fdbEntrySize is the size of one struct __fdb_entry in brforward, from
-// linux/if_bridge.h: the address, the port number's low byte, the local flag,
-// the ageing timer, the port number's high byte and padding.
+// linux/if_bridge.h. The struct has the address, the low byte of the port
+// number, the local flag, the ageing timer, the high byte of the port number,
+// and padding.
 const fdbEntrySize = 16
 
-// fileReadCap is the most rpcd's file read returns from a file whose size the
-// kernel does not report, as brforward's is not: one read of 4096 bytes. That
-// is 256 bridge entries.
+// fileReadCap is the maximum that the file read of rpcd returns from a file
+// when the kernel does not report its size. brforward is such a file. The
+// maximum is one read of 4096 bytes, which is 256 bridge entries.
 const fileReadCap = 4096
 
 var (
 	// ErrBadFDB is a bridge table that is not a whole number of entries.
 	ErrBadFDB = errors.New("openwrt: bridge table is not a whole number of entries")
 
-	// ErrFDBCapped is a bridge table that filled the most rpcd's file read
-	// returns, so entries past the first 256 may be missing.
+	// ErrFDBCapped is a bridge table that filled the maximum of the file read
+	// of rpcd. So entries after the first 256 can be missing.
 	ErrFDBCapped = errors.New("openwrt: bridge table filled rpcd's 4096-byte read, so entries past 256 may be missing")
 )
 
-// BridgeFDB returns the hardware addresses bridge has learned, each on the
-// member port it was learned on. members are the bridge's ports, whose port
-// numbers say which entry is on which.
+// BridgeFDB returns the hardware addresses that bridge learned, each on the
+// member port on which it learned it. members are the ports of the bridge.
+// Their port numbers tell which entry is on which port.
 //
-// The table comes from the kernel's /sys/class/net/<bridge>/brforward, which
-// needs no package, through rpcd's file read. Each member's number comes from
-// its brport/port_no. A member whose number cannot be read leaves its entries
-// with no port, alongside the error.
+// The table comes from /sys/class/net/<bridge>/brforward of the kernel,
+// through the file read of rpcd. It needs no package. The number of each
+// member comes from its brport/port_no. If BridgeFDB cannot read the number of
+// a member, the entries of that member have no port. BridgeFDB then also
+// returns the error.
 //
-// rpcd reads at most 4096 bytes of the table, which is 256 entries, and says
-// nothing when there are more. A table that fills the read comes back with
-// [ErrFDBCapped]. No command reads it whole without an rpcd ACL that would let
-// the login read any file, so the cap stands.
+// rpcd reads at most 4096 bytes of the table, which is 256 entries. It does
+// not tell when there are more. If a table fills the read, BridgeFDB returns
+// [ErrFDBCapped]. A command can read the whole table only with an rpcd ACL
+// that lets the login read any file. So the limit stays.
 func (o *OpenWrt) BridgeFDB(ctx context.Context, bridge string, members []string) ([]FDBEntry, error) {
 	res, err := call[struct {
 		Data string `json:"data"`
@@ -305,7 +307,7 @@ func (o *OpenWrt) BridgeFDB(ctx context.Context, bridge string, members []string
 	return out, errors.Join(errs...)
 }
 
-// portNumber reads the port number a bridge gives its member device.
+// portNumber reads the port number that a bridge gives its member device.
 func (o *OpenWrt) portNumber(ctx context.Context, device string) (int, error) {
 	res, err := call[struct {
 		Data string `json:"data"`
@@ -323,16 +325,16 @@ func (o *OpenWrt) portNumber(ctx context.Context, device string) (int, error) {
 	return int(n), nil
 }
 
-// RawFDBEntry is one entry of a brforward table, before its port number is
-// matched to a member.
+// RawFDBEntry is one entry of a brforward table, before BridgeFDB matches its
+// port number to a member.
 type RawFDBEntry struct {
 	MAC    string
 	PortNo int
 	Local  bool
 }
 
-// ParseFDB reads a brforward table. A trailing part entry is reported, with
-// the whole entries before it.
+// ParseFDB reads a brforward table. If the table ends with a part of an
+// entry, ParseFDB reports it, with the whole entries before it.
 func ParseFDB(b []byte) ([]RawFDBEntry, error) {
 	out := make([]RawFDBEntry, 0, len(b)/fdbEntrySize)
 
@@ -354,17 +356,17 @@ func ParseFDB(b []byte) ([]RawFDBEntry, error) {
 	return out, nil
 }
 
-// BridgeVLANPort is one port a bridge VLAN carries.
+// BridgeVLANPort is one port that a bridge VLAN carries.
 type BridgeVLANPort struct {
 	Name string
 
-	// Tagged marks a port that carries the VLAN tagged, and PVID one whose
-	// untagged traffic belongs to it.
+	// Tagged marks a port that carries the VLAN tagged. PVID marks a port
+	// whose untagged traffic belongs to the VLAN.
 	Tagged bool
 	PVID   bool
 }
 
-// BridgeVLAN is one VLAN on a VLAN-aware bridge and the ports that carry it.
+// BridgeVLAN is one VLAN on a VLAN-aware bridge, with the ports that carry it.
 type BridgeVLAN struct {
 	Bridge string
 	VLAN   int
@@ -372,7 +374,7 @@ type BridgeVLAN struct {
 }
 
 // BridgeVLANs returns the bridge-vlan sections of /etc/config/network, in the
-// order the file lists them.
+// order of the file.
 func (o *OpenWrt) BridgeVLANs(ctx context.Context) ([]BridgeVLAN, error) {
 	sections, err := uciSections(ctx, o, "network", "bridge-vlan")
 	if err != nil {
@@ -399,9 +401,9 @@ func (o *OpenWrt) BridgeVLANs(ctx context.Context) ([]BridgeVLAN, error) {
 	return out, nil
 }
 
-// ParseBridgeVLANPort reads one entry of a bridge-vlan section's ports list,
-// such as "lan1", "lan2:t" or "lan3:u*". A port is untagged unless it says
-// ":t", and "*" makes the VLAN its PVID.
+// ParseBridgeVLANPort reads one entry of the ports list of a bridge-vlan
+// section, such as "lan1", "lan2:t" or "lan3:u*". A port is untagged, unless
+// it has ":t". "*" makes the VLAN its PVID.
 func ParseBridgeVLANPort(s string) BridgeVLANPort {
 	name, flags, _ := strings.Cut(s, ":")
 

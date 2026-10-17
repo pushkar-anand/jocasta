@@ -10,42 +10,42 @@ import (
 	"strings"
 )
 
-// Sentinels a caller acts on differently. The distinction that matters is
-// whether the next attempt could go better: a router behind a firewall may
-// come back, a password that is wrong is wrong until someone edits the config.
+// A caller acts differently on each of these sentinels. The question is
+// whether the next attempt can go better. A router behind a firewall can come
+// back. A wrong password stays wrong until someone edits the config.
 var (
-	// ErrUnreachable is a router that could not be contacted at all: a
-	// refused connection, a timeout, a name that does not resolve. Worth
-	// retrying.
+	// ErrUnreachable is a router that the client cannot contact at all. For
+	// example, the connection is refused, it times out, or the name does not
+	// resolve. A retry can help.
 	ErrUnreachable = errors.New("routeros: router unreachable")
 
-	// ErrUnauthorized is a router that refused the credentials, or a user
-	// without the policy the endpoint needs. Retrying will not fix it.
+	// ErrUnauthorized is a router that refused the credentials. It is also a
+	// user without the policy that the endpoint needs. A retry does not help.
 	ErrUnauthorized = errors.New("routeros: credentials rejected")
 
-	// ErrTLS is a router whose certificate could not be verified. It is told
-	// apart from ErrUnreachable because the router is plainly there and no
-	// number of retries will change its certificate: it wants Insecure set,
-	// or the certificate imported.
+	// ErrTLS is a router whose certificate does not verify. It is separate
+	// from ErrUnreachable, because the router is clearly there. Retries do not
+	// change its certificate. The fix is to set Insecure, or to import the
+	// certificate.
 	ErrTLS = errors.New("routeros: certificate not verified")
 
-	// ErrNotFound is an endpoint this build asks for and this router does not
-	// serve. Most often the router runs RouterOS 6, which has no REST service
-	// at all, or lacks the package that serves the endpoint.
+	// ErrNotFound is an endpoint that this build asks for and this router
+	// does not serve. Usually, the router runs RouterOS 6, which has no REST
+	// service. Or the router does not have the package for the endpoint.
 	ErrNotFound = errors.New("routeros: endpoint not found")
 )
 
-// stdFailureNotAllowed is RouterOS's own code for a request the logged-in user
-// has no policy for. The status that carries it is 500: the router
-// authenticated the user, then its console refused the command, and the router
-// reports that refusal as a fault.
+// stdFailureNotAllowed is the RouterOS code for a request without a policy for
+// the logged-in user. Its status is 500. The router authenticated the user,
+// then its console refused the command. The router reports that refusal as a
+// fault.
 const stdFailureNotAllowed = 9
 
-// stdFailure reads RouterOS's failure code off the end of a detail such as
-// "std failure: not allowed (9)", returning -1 when there is none.
+// stdFailure reads the RouterOS failure code from the end of a detail, such as
+// "std failure: not allowed (9)". It returns -1 when there is no code.
 //
-// The code is the only part of that string worth branching on. The prose
-// around it is written for a human and may change between releases.
+// Only the code is safe to branch on. The text around it is for a human, and
+// it can change between releases.
 func stdFailure(detail string) int {
 	if !strings.HasSuffix(detail, ")") {
 		return -1
@@ -64,21 +64,21 @@ func stdFailure(detail string) int {
 	return code
 }
 
-// Error is a fault the router itself reported. RouterOS answers a failed REST
-// call with a JSON body naming what went wrong, which is more use in a log
-// than the status alone: "no such command prefix" and "not enough permissions"
-// are both 400.
+// Error is a fault that the router reported. RouterOS answers a failed REST
+// call with a JSON body that names the problem. In a log, this is more useful
+// than the status alone. For example, "no such command prefix" and "not enough
+// permissions" are both 400.
 type Error struct {
-	// Status is the HTTP status the router answered with.
+	// Status is the HTTP status of the answer.
 	Status int `json:"-"`
 
-	// Code is RouterOS's own error number, which repeats the status.
+	// Code is the RouterOS error number. It repeats the status.
 	Code int `json:"error"`
 
 	// Message is the short form, such as "Unauthorized".
 	Message string `json:"message"`
 
-	// Detail is the specific complaint, and is often empty.
+	// Detail is the specific problem. It is often empty.
 	Detail string `json:"detail"`
 }
 
@@ -93,12 +93,12 @@ func (e *Error) Error() string {
 	}
 }
 
-// Unwrap maps what the router said onto sentinels, so that errors.Is answers
-// the retry question without anyone reading Status.
+// Unwrap maps the answer of the router to sentinels. So errors.Is tells whether
+// to retry, and no caller needs to read Status.
 //
-// A user that logs in and is then refused every command has an account that
-// cannot do the job. That is as much a credentials problem as a wrong
-// password, so it unwraps to ErrUnauthorized despite arriving as a 500.
+// Some users log in, and then the router refuses every command. Such an
+// account cannot do the job. This is a credentials problem, as a wrong
+// password is. So it unwraps to ErrUnauthorized, although its status is 500.
 func (e *Error) Unwrap() error {
 	switch e.Status {
 	case http.StatusUnauthorized, http.StatusForbidden:
@@ -106,9 +106,10 @@ func (e *Error) Unwrap() error {
 	case http.StatusNotFound:
 		return ErrNotFound
 	case http.StatusBadRequest:
-		// A menu the router lacks, such as the wireless package's on a router
-		// running wifi, is "no such command or directory (wireless)". The
-		// router gives no code for it, so the text is all there is to match.
+		// For a menu that it does not have, the router answers "no such
+		// command or directory (wireless)". An example is the wireless menu on
+		// a router that runs wifi. The router gives no code for it, so only
+		// the text can match.
 		if strings.HasPrefix(e.Detail, "no such command") {
 			return ErrNotFound
 		}
@@ -121,10 +122,10 @@ func (e *Error) Unwrap() error {
 	return nil
 }
 
-// statusError reads what the router said about a non-OK response. A body that
-// is not the expected JSON still yields an [Error] carrying the status:
-// something answering this port that is not a router will not describe itself
-// in RouterOS's terms.
+// statusError reads what the router said about a non-OK response. If the body
+// is not the expected JSON, it still returns an [Error] with the status. A
+// different service on this port does not describe itself in RouterOS
+// terms.
 func statusError(status int, body io.Reader) error {
 	e := &Error{Status: status}
 

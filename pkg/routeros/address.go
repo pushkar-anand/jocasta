@@ -2,50 +2,53 @@ package routeros
 
 import "context"
 
-// IPAddress is one row of /ip/address: a prefix the router is a host on.
+// IPAddress is one row of /ip/address: a prefix on which the router is a
+// host.
 //
-// Between them these rows are the segments the router serves, which is the
-// only place the mapping from a prefix to the interface carrying it exists.
-// Nothing on the wire carries it: a sweep sees addresses and never learns
-// which VLAN they belong to.
+// Together, these rows are the segments that the router serves. Only this
+// table maps a prefix to the interface that carries it. No packet carries this
+// mapping. A sweep sees addresses, but never learns their VLAN.
 type IPAddress struct {
 	ID string `json:".id"`
 
-	// Address is the router's own address with the prefix length, such as
-	// "192.0.2.1/24", and Network is the prefix's base. The length lives only
-	// on the first, so that is the field a caller parses.
+	// Address is the own address of the router with the prefix length, such
+	// as "192.0.2.1/24". Network is the base of the prefix. Only Address has
+	// the length, so a caller parses Address.
 	Address string `json:"address"`
 	Network string `json:"network"`
 
-	// Interface is the interface the address is configured on, and
-	// ActualInterface the one it resolved to. They differ when the configured
-	// name is a bridge port or a list, so a lookup that misses on the first
-	// should try the second.
+	// Interface is the interface on which the address is configured.
+	// ActualInterface is the interface that it resolved to. They are different
+	// when the configured name is a bridge port or a list. So if a lookup
+	// misses on Interface, try ActualInterface.
 	Interface       string `json:"interface"`
 	ActualInterface string `json:"actual-interface"`
 
-	// Dynamic separates an address the router was handed from one an operator
-	// configured. A WAN address from the ISP's DHCP server is dynamic: the
-	// router sits on that link without serving it as a segment.
+	// Dynamic separates an address that the router got from an address that
+	// an operator configured. A WAN address from the DHCP server of the ISP is
+	// dynamic. The router is on that link, but does not serve it as a
+	// segment.
 	Dynamic Bool `json:"dynamic"`
 
-	// Invalid marks an address the router itself no longer believes, because
-	// its interface is gone, and Disabled one an operator turned off.
+	// Invalid marks an address that the router no longer trusts, because its
+	// interface is gone. Disabled marks an address that an operator turned
+	// off.
 	Invalid  Bool `json:"invalid"`
 	Disabled Bool `json:"disabled"`
 
-	// Comment is the operator's note on the address, and is the closest thing
-	// the router holds to a name a person chose for the segment.
+	// Comment is the note of the operator on the address. It is the nearest
+	// thing that the router has to a name that a person chose for the
+	// segment.
 	Comment string `json:"comment"`
 }
 
-// Usable reports whether the address describes a segment the router serves
-// now: believed, switched on, and configured by an operator.
+// Usable reports whether the address is a segment that the router serves now.
+// The address must be valid, enabled, and configured by an operator.
 func (a IPAddress) Usable() bool {
 	return !bool(a.Invalid) && !bool(a.Disabled) && !bool(a.Dynamic)
 }
 
-// Addresses returns the prefixes the router is a host on.
+// Addresses returns the prefixes on which the router is a host.
 func (r *RouterOS) Addresses(ctx context.Context) ([]IPAddress, error) {
 	return list[IPAddress](ctx, r, addressAPI)
 }

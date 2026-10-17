@@ -66,7 +66,7 @@ func TestNeighboursReadsBothFamilies(t *testing.T) {
 	assert.Equal(t, "2001:db8::10", got[1].Address)
 }
 
-// A command the router ran and that failed costs its own family alone.
+// If a command fails on the router, only its own family is lost.
 func TestNeighboursKeepsTheFamilyThatWorked(t *testing.T) {
 	t.Parallel()
 
@@ -80,7 +80,7 @@ func TestNeighboursKeepsTheFamilyThatWorked(t *testing.T) {
 	assert.Len(t, got, 1)
 }
 
-// An ACL without the command answers with a permission status.
+// If the ACL does not have the command, the answer is a permission status.
 func TestACommandTheACLRefusesIsUnauthorized(t *testing.T) {
 	t.Parallel()
 
@@ -138,8 +138,8 @@ func TestStaticHosts(t *testing.T) {
 	t.Parallel()
 
 	_, o, _ := newFakeRouter(t, map[string]string{
-		// Anonymous sections are named after a hash, so their names sort in
-		// no particular order and .index is the order in the file.
+		// The name of an anonymous section is a hash. So the names sort in no
+		// useful order. .index is the order in the file.
 		"uci dhcp host": `[0,{"values":{` +
 			`"cfgf1a2b3":{".type":"host",".index":5,"name":"living-room-tv","mac":"00:00:5e:00:53:14","ip":"192.0.2.50"},` +
 			`"cfg05c4d2":{".type":"host",".index":6,"name":"laptop","mac":["00:00:5e:00:53:12","00:00:5e:00:53:13"]},` +

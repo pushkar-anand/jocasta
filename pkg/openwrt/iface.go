@@ -12,35 +12,36 @@ import (
 	"strconv"
 )
 
-// IfaceAddr is one address an interface holds, with its prefix length.
+// IfaceAddr is one address of an interface, with its prefix length.
 type IfaceAddr struct {
 	Address string `json:"address"`
 	Mask    int    `json:"mask"`
 }
 
-// PrefixAssignment is an IPv6 prefix netifd assigned to an interface from a
-// delegated one, which makes the interface a segment the router serves.
+// PrefixAssignment is an IPv6 prefix that netifd assigned to an interface
+// from a delegated prefix. This makes the interface a segment that the router
+// serves.
 type PrefixAssignment struct {
 	Address string `json:"address"`
 	Mask    int    `json:"mask"`
 }
 
-// Interface is one logical interface from netifd, such as "lan" or "guest":
-// the name an operator gave a segment, the device under it and the addresses
-// the router holds on it.
+// Interface is one logical interface from netifd, such as "lan" or "guest".
+// It has the name that an operator gave a segment, the device under it, and
+// the addresses of the router on it.
 type Interface struct {
-	// Name is the interface's name in /etc/config/network.
+	// Name is the name of the interface in /etc/config/network.
 	Name string `json:"interface"`
 
 	Up bool `json:"up"`
 
-	// Proto is how the interface gets its addresses: "static" for one the
-	// router serves, "dhcp" or "pppoe" for an uplink.
+	// Proto is how the interface gets its addresses. It is "static" for an
+	// interface that the router serves, and "dhcp" or "pppoe" for an uplink.
 	Proto string `json:"proto"`
 
-	// Device is the device the interface is configured on, and L3Device the
-	// one its addresses sit on. They differ when a protocol such as pppoe
-	// creates a device of its own.
+	// Device is the device on which the interface is configured. L3Device is
+	// the device that has its addresses. They are different when a protocol,
+	// such as pppoe, creates its own device.
 	Device   string `json:"device"`
 	L3Device string `json:"l3_device"`
 
@@ -51,11 +52,11 @@ type Interface struct {
 	Assigned []PrefixAssignment `json:"ipv6-prefix-assignment"`
 }
 
-// ProtoStatic is the protocol of an interface with addresses an operator
-// configured, which is how a segment the router serves is set up.
+// ProtoStatic is the protocol of an interface with addresses that an operator
+// configured. A segment that the router serves has this protocol.
 const ProtoStatic = "static"
 
-// Interfaces returns every logical interface netifd knows, up or not.
+// Interfaces returns every logical interface that netifd knows, up or down.
 func (o *OpenWrt) Interfaces(ctx context.Context) ([]Interface, error) {
 	res, err := call[struct {
 		Interfaces []Interface `json:"interface"`
@@ -67,14 +68,14 @@ func (o *OpenWrt) Interfaces(ctx context.Context) ([]Interface, error) {
 	return res.Interfaces, nil
 }
 
-// VLANs returns the VLAN tag of each VLAN device in /etc/config/network, keyed
-// by device name. Nothing netifd reports at run time carries the tag, so the
-// configuration is the only place it can come from.
+// VLANs returns the VLAN tag of each VLAN device in /etc/config/network, by
+// device name. netifd does not report the tag at run time. So the tag can
+// come only from the configuration.
 //
-// Two kinds of section define one. A device section of type 8021q or 8021ad
-// tags a device such as eth0, and names the result eth0.20 unless it gives a
-// name. A bridge-vlan section tags a VLAN-aware bridge, and the result is
-// always named after the bridge and the tag, such as br-lan.20.
+// Two kinds of section define a VLAN device. A device section of type 8021q
+// or 8021ad tags a device such as eth0. Its name is eth0.20, unless the
+// section gives a name. A bridge-vlan section tags a VLAN-aware bridge. Its
+// name is always the bridge and the tag, such as br-lan.20.
 func (o *OpenWrt) VLANs(ctx context.Context) (map[string]int, error) {
 	out := make(map[string]int)
 
@@ -124,7 +125,7 @@ func (o *OpenWrt) VLANs(ctx context.Context) (map[string]int, error) {
 	return out, errors.Join(errs...)
 }
 
-// tag reads a VLAN ID, which 802.1Q bounds to 1-4094.
+// tag reads a VLAN ID. 802.1Q limits it to 1-4094.
 func tag(s string) (int, bool) {
 	vid, err := strconv.Atoi(s)
 	if err != nil || vid < 1 || vid > 4094 {
@@ -134,12 +135,12 @@ func tag(s string) (int, bool) {
 	return vid, true
 }
 
-// section is one uci section, as option name to value.
+// section is one uci section, as a map from option name to value.
 type section map[string]jsontext.Value
 
 // uciSections returns the sections of one type in one config file, in the
-// order the file lists them. Section names do not give that order, since an
-// anonymous section is named cfg followed by a hash.
+// order of the file. Section names do not give that order, because the name
+// of an anonymous section is cfg and a hash.
 func uciSections(ctx context.Context, o *OpenWrt, config, typ string) ([]section, error) {
 	res, err := call[struct {
 		Values map[string]section `json:"values"`
@@ -155,7 +156,7 @@ func uciSections(ctx context.Context, o *OpenWrt, config, typ string) ([]section
 	return out, nil
 }
 
-// index is the section's position in its file, from uci's .index.
+// index is the position of the section in its file, from the .index of uci.
 func (s section) index() int {
 	var i int
 
