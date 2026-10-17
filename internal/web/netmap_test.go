@@ -15,8 +15,8 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/geo"
 )
 
-// recentEdges stands in for the recorder, reporting the same edges whatever
-// it is asked.
+// recentEdges replaces the recorder. It reports the same edges for any
+// question.
 type recentEdges []inventory.RecentEdge
 
 func (r recentEdges) Recent(time.Time) []inventory.RecentEdge { return r }
@@ -45,8 +45,8 @@ func TestMapSaysWhenTheLastHourWasQuiet(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "No traffic in the last hour.")
 }
 
-// The page draws each device on its network and links to it, and polls for
-// itself; the fragment it polls is the map alone.
+// The page draws each device on its network and links to it. It polls for
+// itself. The polled fragment is only the map.
 func TestMapDrawsDevicesAndRefreshesItself(t *testing.T) {
 	t.Parallel()
 
@@ -88,8 +88,8 @@ func TestMapDrawsDevicesAndRefreshesItself(t *testing.T) {
 	assert.NotContains(t, frag, "<html")
 }
 
-// Without the recorder in this process nothing can be told to be active, and
-// the page does not claim otherwise.
+// Without the recorder in this process, the page cannot know what is active.
+// It does not claim otherwise.
 func TestMapWithoutTheRecorderMarksNothingActive(t *testing.T) {
 	t.Parallel()
 
@@ -104,8 +104,8 @@ func TestMapWithoutTheRecorderMarksNothingActive(t *testing.T) {
 	assert.NotContains(t, body, "Active now")
 }
 
-// The world view draws every country once with the page and polls only for
-// how to shade them; a country the network reached is shaded, with a card of
+// The world view draws every country once with the page. It polls only for
+// their shades. A country that the network reached has a shade, with a card of
 // who talked to it.
 func TestWorldMapShadesTheCountriesReached(t *testing.T) {
 	t.Parallel()
@@ -149,9 +149,9 @@ func TestShadeIsALogScale(t *testing.T) {
 	assert.Equal(t, 3, shade(1_000, 1_000_000), "a thousandth of the busiest is halfway")
 }
 
-// Home is the country configured, or else the one the router's outside address
-// is registered in; a network behind the ISP's NAT, with none configured, has
-// none.
+// Home is the configured country. Else, it is the country of the outside
+// address of the router. A network behind the NAT of the ISP, with no
+// configured country, has none.
 func TestWorldMapFindsHome(t *testing.T) {
 	t.Parallel()
 
@@ -167,7 +167,8 @@ func TestWorldMapFindsHome(t *testing.T) {
 	require.NotNil(t, home)
 	assert.Equal(t, "AU", home.Code)
 
-	// The router names its outside address as it translates a connection out.
+	// The router names its outside address when it translates a connection
+	// out.
 	out := tcp("192.0.2.10", "198.51.100.7", 443, 100)
 	out.NATSrc = netip.MustParseAddr("1.1.1.1")
 	out.Exporter = netip.MustParseAddr("192.0.2.1")
@@ -186,8 +187,8 @@ func TestWorldMapFindsHome(t *testing.T) {
 	assert.Equal(t, "AU", home.Code, "a country named in the config wins")
 }
 
-// With a home, each country the network reached gets a line from it, which
-// selecting the country lights; home itself gets none.
+// With a home, each country that the network reached gets a line from it. A
+// selection of the country highlights the line. Home itself gets none.
 func TestWorldMapDrawsLinesFromHome(t *testing.T) {
 	t.Parallel()
 
@@ -214,13 +215,13 @@ func TestWorldMapDrawsLinesFromHome(t *testing.T) {
 	same := get(t, newWebHandlerWithAuth(t, store, testAuth(t), WithHomeCountry(code)), "/map?view=world").Body.String()
 	assert.NotContains(t, same, "data-arc=")
 
-	// Without a home there is nothing to draw from.
+	// Without a home, there is no start for a line.
 	none := get(t, newWebHandler(t, store), "/map?view=world").Body.String()
 	assert.NotContains(t, none, "data-arc=")
 	assert.NotContains(t, none, "data-home=")
 }
 
-// An arc bows up the map whichever way it runs.
+// An arc bends up the map, in either direction.
 func TestArcBowsUpwards(t *testing.T) {
 	t.Parallel()
 

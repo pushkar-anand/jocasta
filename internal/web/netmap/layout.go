@@ -1,16 +1,16 @@
-// Package netmap lays out the traffic map: where each device, organisation
-// and line goes on the canvas.
+// Package netmap lays out the traffic map: where each device, organisation and
+// line goes on the canvas.
 //
-// The map is a tree. The router is at the centre, with a hub for each network
-// and one for the internet around it; each hub has its devices, or the
-// internet's organisations, fanned around it. The lines are the branches, and
-// a branch is thicker the more traffic passed along it. Over the tree, a link
-// joins each device to whatever it exchanged traffic with (an organisation,
-// or a device on another network), with the services it carried.
+// The map is a tree. The router is in the centre. Around it, there is a hub for
+// each network, and one for the internet. Around each hub are its devices, or
+// the organisations of the internet. The lines are the branches. A branch is
+// thicker when more traffic went along it. Over the tree, a link joins each
+// device to what it exchanged traffic with: an organisation, or a device on a
+// different network. The link has its services.
 //
-// The layout is a pure function of what it is given, ordered by id, so a
-// device keeps its place from one refresh to the next whatever its traffic,
-// and the picture only changes where the network did.
+// The layout is a pure function of its input, ordered by id. So a device keeps
+// its place from one refresh to the next, for any traffic. The picture changes
+// only where the network changed.
 package netmap
 
 import (
@@ -24,34 +24,34 @@ import (
 )
 
 const (
-	// nodeSpacing is the distance between neighbours around a hub, enough
-	// for the labels that point away from it not to touch.
+	// nodeSpacing is the distance between neighbours around a hub. It is
+	// enough, so the labels that point away from it do not touch.
 	nodeSpacing = 24.0
 
-	// minCluster is the smallest radius a hub's nodes sit at.
+	// minCluster is the smallest radius of the nodes of a hub.
 	minCluster = 70.0
 
-	// labelGap is how far a label starts beyond its node, and labelSpan the
-	// room one takes, for keeping clusters apart.
+	// labelGap is how far after its node a label starts. labelSpan is the
+	// space that a label takes. Both keep clusters apart.
 	labelGap  = 12.0
 	labelSpan = 170.0
 
-	// routerGap is the angle a hub leaves empty on the side facing the
+	// routerGap is the angle that a hub leaves empty on the side towards the
 	// router, where its branch comes in.
 	routerGap = 50 * math.Pi / 180
 
-	// minHubRing is the smallest distance from the router to a hub, and
-	// margin the empty edge around the whole map.
+	// minHubRing is the smallest distance from the router to a hub. margin is
+	// the empty edge around the whole map.
 	minHubRing = 260.0
 	margin     = 40.0
 
-	// wide stretches the ring of hubs across, since the map is shown on a
-	// screen wider than it is tall.
+	// wide stretches the ring of hubs across, because the screen of the map is
+	// wider than it is tall.
 	wide = 1.4
 
-	// hubLabelGap is how far a hub's name sits from it, towards the router,
-	// in the gap its devices leave clear, when the name runs along its
-	// branch.
+	// hubLabelGap is the distance of the name of a hub from the hub, towards
+	// the router. The name is in the gap that its devices leave, when it runs
+	// along its branch.
 	hubLabelGap = 34.0
 
 	maxLabel = 24
@@ -59,26 +59,26 @@ const (
 	minStroke = 0.75
 	maxStroke = 6.0
 
-	// labelAlong is how far along a link its services are named: towards
-	// the peer, clear of the router the link bends past.
+	// labelAlong is how far along a link the names of its services are. They
+	// are towards the peer, away from the router that the link bends past.
 	labelAlong = 0.7
 
-	// linkScale thins the links against the branches, so the tree still
-	// reads under them.
+	// linkScale makes the links thinner than the branches. So the tree is
+	// still readable under them.
 	linkScale = 0.6
 )
 
 // Point is a position on the canvas.
 type Point struct{ X, Y float64 }
 
-// Segment is one network the devices are grouped by, in the order the map
-// shows them. ID zero holds the devices on no recorded network.
+// Segment is one network that groups the devices, in the order of the map. ID
+// zero holds the devices on no recorded network.
 type Segment struct {
 	ID    int64
 	Label string
 }
 
-// Label is text beside a node, turned to point away from its hub.
+// Label is text next to a node, turned to point away from its hub.
 type Label struct {
 	At     Point
 	Rotate float64
@@ -86,8 +86,8 @@ type Label struct {
 	Text   string
 }
 
-// Hub is a network's node, or the internet's, between the router and what
-// hangs off it.
+// Hub is the node of a network, or of the internet, between the router and
+// what hangs from it.
 type Hub struct {
 	Label    string
 	At       Point
@@ -102,7 +102,7 @@ type Hub struct {
 	Nodes int
 }
 
-// Device is a device placed around its network's hub.
+// Device is a device around the hub of its network.
 type Device struct {
 	*inventory.MapDevice
 
@@ -111,7 +111,7 @@ type Device struct {
 	Sector int
 }
 
-// Org is an organisation placed around the internet's hub.
+// Org is an organisation around the hub of the internet.
 type Org struct {
 	*inventory.MapOrg
 
@@ -127,8 +127,8 @@ type Line struct {
 	Title  string
 }
 
-// Link is traffic between two nodes, drawn over the tree. A and B are the
-// keys of its ends, as DeviceKey and OrgKey give them.
+// Link is traffic between two nodes, drawn over the tree. A and B are the keys
+// of its ends, from DeviceKey and OrgKey.
 type Link struct {
 	Path     string
 	Width    float64
@@ -139,7 +139,7 @@ type Link struct {
 	Services []inventory.MapService
 }
 
-// Layout is everything the template draws.
+// Layout is everything that the template draws.
 type Layout struct {
 	Width, Height float64
 	Router        Point
@@ -157,20 +157,20 @@ func DeviceKey(id int64) string { return "d" + strconv.FormatInt(id, 10) }
 // OrgKey names an organisation for the links that end on it.
 func OrgKey(number uint32) string { return "o" + strconv.FormatUint(uint64(number), 10) }
 
-// Key is the device's name for its links.
+// Key is the name of the device for its links.
 func (d Device) Key() string { return DeviceKey(d.ID) }
 
-// Key is the organisation's name for its links.
+// Key is the name of the organisation for its links.
 func (o Org) Key() string { return OrgKey(o.ASN) }
 
-// cluster is one hub with what hangs off it, before it is placed.
+// cluster is one hub with what hangs from it, before it is placed.
 type cluster struct {
 	hub     Hub
 	devices []*inventory.MapDevice
 	orgs    []*inventory.MapOrg
 	bytes   int64
 
-	// radius is where its nodes sit, and reach how far from the hub its
+	// radius is the distance of its nodes. reach is how far from the hub its
 	// labels end.
 	radius, reach float64
 
@@ -179,17 +179,17 @@ type cluster struct {
 
 func (c *cluster) size() int { return len(c.devices) + len(c.orgs) }
 
-// Place lays out m with its devices grouped into segments, in their order.
-// A device whose network is not among them is grouped with segment zero.
+// Place lays out m, with its devices grouped into segments, in their order. A
+// device whose network is not among them goes in segment zero.
 func Place(m *inventory.TrafficMap, segments []Segment) *Layout {
 	clusters := buildClusters(m, segments)
 	if len(clusters) == 0 {
 		return &Layout{Width: 2 * minHubRing, Height: 2 * minHubRing, Router: Point{minHubRing, minHubRing}}
 	}
 
-	// Each hub gets a share of the circle by how far its cluster reaches, and
-	// the ring is as big as it has to be for neighbours not to meet. The
-	// internet comes first, centred due right.
+	// Each hub gets a part of the circle by the reach of its cluster. The ring
+	// is as big as necessary, so neighbours do not meet. The internet comes
+	// first, centred to the right.
 	var need, widest float64
 
 	for _, c := range clusters {
@@ -233,9 +233,9 @@ func Place(m *inventory.TrafficMap, segments []Segment) *Layout {
 		}
 		c.hub.At = hub
 
-		// Its name goes on the side facing the router, which its nodes leave
-		// clear, a little below the line in. The name runs away from the
-		// hub, towards the router, clear of the hub's own nodes.
+		// Its name goes on the side towards the router, which its nodes leave
+		// clear, a little below the line in. The name runs away from the hub,
+		// towards the router, away from the nodes of the hub.
 		toRouter := math.Atan2(router.Y-hub.Y, router.X-hub.X)
 		gap := hubLabelGap
 
@@ -245,8 +245,8 @@ func Place(m *inventory.TrafficMap, segments []Segment) *Layout {
 		case cos > 0.5:
 			c.hub.Anchor = "start"
 		default:
-			// Set across the branch, it is wider than the gap the nodes
-			// leave, so it starts past them and grows away from the hub.
+			// Across the branch, it is wider than the gap that the nodes
+			// leave. So it starts after them, and grows away from the hub.
 			c.hub.Anchor = "middle"
 			gap = c.radius + labelGap
 
@@ -261,7 +261,7 @@ func Place(m *inventory.TrafficMap, segments []Segment) *Layout {
 			c.hub.LabelAt.Y += 4
 		}
 
-		// The nodes go round the hub, leaving the side that faces the router
+		// The nodes go around the hub. They leave the side towards the router
 		// for its branch.
 		n := c.size()
 		from := toRouter + routerGap/2
@@ -292,7 +292,7 @@ func Place(m *inventory.TrafficMap, segments []Segment) *Layout {
 		l.Hubs = append(l.Hubs, c.hub)
 	}
 
-	// Quiet lines first, so the busy ones are drawn over them.
+	// Quiet lines first. So the busy lines are drawn over them.
 	slices.SortStableFunc(l.Lines, func(a, b Line) int { return cmp.Compare(a.Width, b.Width) })
 
 	l.Links = links(m, l)
@@ -300,8 +300,8 @@ func Place(m *inventory.TrafficMap, segments []Segment) *Layout {
 	return l
 }
 
-// links draws each of m's links between the nodes l placed, bending in
-// towards the router so they clear the clusters they leave.
+// links draws each link of m between the nodes that l placed. The links bend
+// towards the router. So they stay clear of the clusters that they leave.
 func links(m *inventory.TrafficMap, l *Layout) []Link {
 	type end struct {
 		at   Point
@@ -357,8 +357,9 @@ func links(m *inventory.TrafficMap, l *Layout) []Link {
 	return out
 }
 
-// buildClusters groups devices by segment, in the segments' order and each by
-// id, after the internet's organisations by ASN. Empty groups are left out.
+// buildClusters groups devices by segment, in the order of the segments, and
+// each by id. They come after the organisations of the internet by ASN. It
+// leaves out empty groups.
 func buildClusters(m *inventory.TrafficMap, segments []Segment) []*cluster {
 	var out []*cluster
 
@@ -410,8 +411,8 @@ func buildClusters(m *inventory.TrafficMap, segments []Segment) []*cluster {
 	return out
 }
 
-// branch is a straight line from p to q for n bytes, against the busiest
-// line of its kind.
+// branch is a straight line from p to q for n bytes, against the busiest line
+// of its kind.
 func branch(p, q Point, n, top int64, active bool, title string) Line {
 	return Line{
 		Path:   fmt.Sprintf("M %g %g L %g %g", p.X, p.Y, q.X, q.Y),
@@ -421,21 +422,21 @@ func branch(p, q Point, n, top int64, active bool, title string) Line {
 	}
 }
 
-// along is the point t of the way along the curve from p to q bent towards c.
+// along is the point at part t of the curve from p to q, bent towards c.
 func along(p, c, q Point, t float64) Point {
 	a, b, d := (1-t)*(1-t), 2*t*(1-t), t*t
 
 	return Point{X: round(a*p.X + b*c.X + d*q.X), Y: round(a*p.Y + b*c.Y + d*q.Y)}
 }
 
-// polar is the point at radius r and angle a from c, clockwise from due right,
-// as SVG's y runs down.
+// polar is the point at radius r and angle a from c, clockwise from the right,
+// because the y of SVG runs down.
 func polar(c Point, r, a float64) Point {
 	return Point{X: round(c.X + r*math.Cos(a)), Y: round(c.Y + r*math.Sin(a))}
 }
 
-// radialLabel sets text along the radius from c at angle a, starting r from
-// it; on the left half it is turned the other way round so it never reads
+// radialLabel sets text along the radius from c at angle a, from r away from
+// it. On the left half, it turns the text the other way. So the text is never
 // upside down.
 func radialLabel(c Point, a, r float64, text string) Label {
 	deg := math.Mod(a*180/math.Pi+720, 360)
@@ -449,9 +450,9 @@ func radialLabel(c Point, a, r float64, text string) Label {
 	return l
 }
 
-// stroke is a line's width for n bytes against the busiest line's top, on a
-// log scale: a line a thousand times busier is thicker, by far less than a
-// thousand times.
+// stroke is the width of a line for n bytes against the top of the busiest
+// line, on a log scale. A line a thousand times busier is thicker, but by much
+// less than a thousand times.
 func stroke(n, top int64) float64 {
 	if n <= 1 || top <= 1 {
 		return minStroke
@@ -462,7 +463,7 @@ func stroke(n, top int64) float64 {
 	return round(minStroke + (maxStroke-minStroke)*min(max(f, 0), 1))
 }
 
-// shorten cuts a name that would run into the next cluster.
+// shorten cuts a name that would go into the next cluster.
 func shorten(s string) string {
 	r := []rune(s)
 	if len(r) <= maxLabel {

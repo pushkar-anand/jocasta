@@ -25,16 +25,16 @@ type trafficWindow struct {
 	span  time.Duration
 }
 
-// trafficWindows are the periods offered, shortest first. The first is the
-// default: "today, roughly" is the question most visits ask.
+// trafficWindows are the offered periods, shortest first. The first is the
+// default, because most visits ask about "today, roughly".
 var trafficWindows = []trafficWindow{
 	{Key: "24h", Label: "24 hours", span: 24 * time.Hour},
 	{Key: "7d", Label: "7 days", span: 7 * 24 * time.Hour},
 	{Key: "30d", Label: "30 days", span: 30 * 24 * time.Hour},
 }
 
-// windowFor returns the window key names, falling back to the default for
-// anything else: the key only ever arrives from a link.
+// windowFor returns the window that key names. For any other value, it returns
+// the default, because the key only comes from a link.
 func windowFor(key string) trafficWindow {
 	for _, w := range trafficWindows {
 		if w.Key == key {
@@ -45,65 +45,64 @@ func windowFor(key string) trafficWindow {
 	return trafficWindows[0]
 }
 
-// trafficSection is a device's "Talks to" section, on the page and as the
-// fragment its filter form fetches.
+// trafficSection is the "Talks to" section of a device, on the page and as the
+// fragment that its filter form fetches.
 type trafficSection struct {
 	DeviceID int64
 	Window   trafficWindow
 	Windows  []trafficWindow
 	Filter   trafficFilter
 
-	// Services are the services the device used over the window, for the
-	// filter's choices. Taken before filtering, so picking one never empties
-	// the list it was picked from.
+	// Services are the services that the device used over the window, for
+	// the choices of the filter. They come before the filter. So a choice
+	// never empties its own list.
 	Services []serviceChoice
 
-	// Recorded is whether any traffic has been recorded at all, which is how
-	// the section tells "this device exchanged nothing" from "nothing is
-	// collecting".
+	// Recorded tells whether Jocasta recorded any traffic. So the section can
+	// tell "this device exchanged nothing" from "nothing collects".
 	Recorded bool
 	Traffic  *inventory.DeviceTraffic
 
-	// Summary is the window at a glance, before the filter.
+	// Summary is a short summary of the window, before the filter.
 	Summary trafficSummary
 
-	// Tabs split what is left after the filter by network segment; Tab is the
-	// one shown.
+	// Tabs split what is left after the filter by network segment. Tab is the
+	// shown tab.
 	Tabs []*trafficTab
 	Tab  *trafficTab
 
-	// HasAttempts is whether the device tried anything that never carried
-	// data, whether or not those tries are shown. Probing is set when they add
-	// up to probing the network.
+	// HasAttempts tells whether the device tried something that never carried
+	// data, shown or not. Probing is set when the tries add up to probing of
+	// the network.
 	HasAttempts bool
 	Probing     *inventory.Prober
 
-	// HasBroadcasts is whether the device sent anything to everyone, which
-	// gives it a Broadcasts tab.
+	// HasBroadcasts tells whether the device sent something to everyone. If
+	// so, it gets a Broadcasts tab.
 	HasBroadcasts bool
 
-	// Probed is what the internet tried on the device: on its own, and, for
-	// the router, through its outside address.
+	// Probed is what the internet tried on the device: on its own address,
+	// and, for the router, through its outside address.
 	Probed []*inventory.Probed
 }
 
-// Attribution credits the organisation names, in the words the traffic page
-// uses, as their licence requires.
+// Attribution gives the credit for the organisation names, with the text of
+// the traffic page, as their licence requires.
 func (*trafficSection) Attribution() string { return asn.Attribution }
 
-// Empty reports whether the device neither talked nor tried anything in the
+// Empty reports whether the device did not talk or try anything in the
 // window.
 func (t *trafficSection) Empty() bool {
 	return t.Traffic.Empty() && !t.HasAttempts && !t.HasBroadcasts
 }
 
-// query is the section's address with f in place of its filter.
+// query is the address of the section, with f instead of its filter.
 func (t *trafficSection) query(f trafficFilter) url.Values {
 	return trafficQuery(t.Window, f)
 }
 
-// trafficQuery is the traffic period and filter as query parameters, leaving
-// out whatever is the default.
+// trafficQuery is the traffic period and filter as query parameters. It leaves
+// out each default value.
 func trafficQuery(w trafficWindow, f trafficFilter) url.Values {
 	q := url.Values{}
 	if w.Key != trafficWindows[0].Key {
@@ -115,7 +114,7 @@ func trafficQuery(w trafficWindow, f trafficFilter) url.Values {
 	return q
 }
 
-// TabPath is the device page on the tab key, filter kept.
+// TabPath is the device page on the tab key, with the filter.
 func (t *trafficSection) TabPath(key string) string {
 	f := t.Filter
 	f.Tab = key
@@ -123,7 +122,7 @@ func (t *trafficSection) TabPath(key string) string {
 	return devicePath(t.DeviceID, t.Window, f)
 }
 
-// TabFragment is the section alone on the tab key, for htmx.
+// TabFragment is only the section on the tab key, for htmx.
 func (t *trafficSection) TabFragment(key string) string {
 	f := t.Filter
 	f.Tab = key
@@ -131,7 +130,7 @@ func (t *trafficSection) TabFragment(key string) string {
 	return fragmentPath(t.DeviceID, t.query(f))
 }
 
-// TriedPath and TriedFragment flip whether tries are shown, on the same tab.
+// TriedPath and TriedFragment change whether tries show, on the same tab.
 func (t *trafficSection) TriedPath() string {
 	f := t.Filter
 	f.Tab, f.Tried = t.Tab.Key, !f.Tried
@@ -147,8 +146,8 @@ func (t *trafficSection) TriedFragment() string {
 	return fragmentPath(t.DeviceID, t.query(f))
 }
 
-// ClearPath is the device page with the period, tab and tries switch kept and
-// the search and service dropped.
+// ClearPath is the device page. It keeps the period, tab and tries switch. It
+// drops the search and service.
 func (t *trafficSection) ClearPath() string {
 	return devicePath(t.DeviceID, t.Window, trafficFilter{Tab: t.Tab.Key, Tried: t.Filter.Tried})
 }
@@ -162,8 +161,8 @@ func fragmentPath(id int64, q url.Values) string {
 	return withQuery("/devices/"+strconv.FormatInt(id, 10)+"/traffic", q)
 }
 
-// buildTrafficSection reads one device's traffic over the window key names,
-// narrowed by f.
+// buildTrafficSection reads the traffic of one device over the window that key
+// names, limited by f.
 func buildTrafficSection(
 	ctx context.Context, store *inventory.Store, id int64, key string, f trafficFilter, now time.Time,
 ) (*trafficSection, error) {
@@ -221,8 +220,8 @@ func buildTrafficSection(
 	}
 
 	var tried []*inventory.Attempt
-	// Tries are always the device's own, so they have no place among what
-	// others opened.
+	// Tries are always the own tries of the device. So they do not go among
+	// what others opened.
 	if f.Tried && f.Direction != dirIn {
 		tried = filterAttempts(attempts, f)
 	}
@@ -236,7 +235,7 @@ func buildTrafficSection(
 
 	sec.Tab = pickTab(sec.Tabs, f.Tab)
 
-	// A tab that is not there any more is dropped from the address.
+	// Drop a tab that no longer exists from the address.
 	if sec.Tab.Key != f.Tab {
 		f.Tab = ""
 	}
@@ -246,20 +245,20 @@ func buildTrafficSection(
 	return sec, nil
 }
 
-// devicePath is a device's page with the traffic period and filter when they
-// are not the defaults, so the address bar can be reloaded or shared.
+// devicePath is the page of a device, with the traffic period and filter when
+// they are not the defaults. So a person can reload or share the address.
 func devicePath(id int64, w trafficWindow, f trafficFilter) string {
 	return withQuery("/devices/"+strconv.FormatInt(id, 10), trafficQuery(w, f))
 }
 
-// trafficWindowKey is the period a request asked for. The form and the page
-// call it traffic; window is accepted too, for links made before the section
-// had a form.
+// trafficWindowKey is the period that a request asked for. The form and the
+// page name it traffic. It also accepts window, for links from before the
+// section had a form.
 func trafficWindowKey(q url.Values) string {
 	return cmp.Or(q.Get("traffic"), q.Get("window"))
 }
 
-// deviceTraffic serves the "Talks to" section alone, for its filter form.
+// deviceTraffic serves only the "Talks to" section, for its filter form.
 func (h *Handler) deviceTraffic() response.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		id, ok := pathID(r)
@@ -267,7 +266,7 @@ func (h *Handler) deviceTraffic() response.HandlerFunc {
 			return inventory.ErrNotFound
 		}
 
-		// A device that is not there is a 404 here too.
+		// A missing device is also a 404 here.
 		if err := h.store.RequireDevice(r.Context(), id); err != nil {
 			return err
 		}
@@ -287,21 +286,21 @@ func (h *Handler) deviceTraffic() response.HandlerFunc {
 	}
 }
 
-// Traffic page sizes: a card is a glance.
+// Traffic page sizes. A card is a short view.
 const (
 	trafficCardRows = 10
 
-	// firstContactRows is how many device-and-organisation pairs are read for
-	// "New this week", before they are grouped by organisation.
+	// firstContactRows is how many device-and-organisation pairs the page
+	// reads for "New this week", before it groups them by organisation.
 	firstContactRows = 200
 
 	// trafficAllRows reads every device or organisation, for a tab that
-	// narrows them in Go before taking the top of the list.
+	// limits them in Go before it takes the top of the list.
 	trafficAllRows = 100_000
 
-	// firstContactSpan is how far back "first contact" looks, whatever the
-	// period switch says: it answers "anything new this week?",
-	// and a month of first contacts is mostly the month collection started.
+	// firstContactSpan is how far back "first contact" looks, for any period
+	// switch. It answers "anything new this week?". A month of first contacts
+	// is mostly the month when collection started.
 	firstContactSpan = 7 * 24 * time.Hour
 )
 
@@ -312,54 +311,56 @@ type trafficPage struct {
 	Window  trafficWindow
 	Windows []trafficWindow
 
-	// Group narrows every card to one group's devices; Groups are the
+	// Group limits every card to the devices of one group. Groups are the
 	// choices.
 	Group  string
 	Groups []string
 
-	// Recorded is whether any traffic has been recorded at all.
+	// Recorded tells whether Jocasta recorded any traffic.
 	Recorded bool
 
-	// Tabs are the whole network and each recorded network; Tab is the one
-	// shown, and every card below counts only the devices on it.
+	// Tabs are the whole network and each recorded network. Tab is the shown
+	// tab. Every card below counts only the devices on it.
 	Tabs []*pageTab
 	Tab  *pageTab
 
-	// Summary is the tab at a glance.
+	// Summary is a short summary of the tab.
 	Summary pageSummary
 
 	// Probers are the devices that probed the local network in the window.
 	Probers []*inventory.Prober
 
-	// Incoming are the device services the internet opened connections to.
+	// Incoming are the device services to which the internet opened
+	// connections.
 	Incoming []*inventory.Incoming
 
-	// Probed are the devices the internet tried without getting anywhere.
+	// Probed are the devices that the internet tried without success.
 	Probed []*inventory.Probed
 
-	// BehindNAT is set when the router's outside address is itself private:
-	// another NAT stands between it and the internet, and nothing out there
-	// can open a connection in over IPv4. Nil when the outside address is
-	// public or not known yet.
+	// BehindNAT is set when the outside address of the router is itself
+	// private. A different NAT is between it and the internet. Nothing on the
+	// internet can open a connection in over IPv4. It is nil when the outside
+	// address is public, or not known yet.
 	BehindNAT *behindNAT
 
 	Busiest []*inventory.DeviceTotal
 	TopOrgs []*orgDevices
 	First   *inventory.FirstContacts
 
-	// NewOrgs is First grouped by organisation, newest first: one
-	// organisation many devices started reaching is one row.
+	// NewOrgs is First, grouped by organisation, newest first. One
+	// organisation that many devices started to reach is one row.
 	NewOrgs []*newOrg
 
-	// MoreNewOrgs counts the organisations past the card's rows.
+	// MoreNewOrgs counts the organisations after the rows of the card.
 	MoreNewOrgs int
 
-	// Attribution credits the organisation names, as their licence requires.
+	// Attribution gives the credit for the organisation names, as their
+	// licence requires.
 	Attribution string
 }
 
 // pageTab is one tab of the Traffic page: the whole network, or the devices
-// holding an address on one recorded network.
+// with an address on one recorded network.
 type pageTab struct {
 	Key   string
 	Label string
@@ -374,14 +375,14 @@ type pageTab struct {
 // has reports whether device id is on the tab.
 func (t *pageTab) has(id int64) bool { return t.members == nil || t.members[id] }
 
-// pageSummary is one Traffic page tab at a glance.
+// pageSummary is a short summary of one tab of the Traffic page.
 type pageSummary struct {
 	Sent, Received int64
 	Devices        int
 	Probing        int
 }
 
-// TabPath is the page on the tab key, period and group kept.
+// TabPath is the page on the tab key, with the period and group.
 func (p *trafficPage) TabPath(key string) string {
 	q := url.Values{}
 	if p.Window.Key != trafficWindows[0].Key {
@@ -399,8 +400,8 @@ func (p *trafficPage) TabPath(key string) string {
 	return withQuery("/traffic", q)
 }
 
-// pageTabs builds the whole-network tab and one per recorded network, from
-// which devices are on each and which moved data.
+// pageTabs builds the whole-network tab and one tab for each recorded network.
+// It uses the devices on each, and the devices that moved data.
 func pageTabs(nets []*inventory.Network, devices []*inventory.Device, active []*inventory.DeviceTotal) []*pageTab {
 	tabs := []*pageTab{{Label: "Whole network", Devices: len(active)}}
 
@@ -426,8 +427,9 @@ func pageTabs(nets []*inventory.Network, devices []*inventory.Device, active []*
 }
 
 // orgsOnTab adds up what the devices on tab exchanged with each organisation,
-// busiest first, at most limit of them. names names the organisations; one
-// company announcing from several ASNs is one row, its devices merged.
+// busiest first, at most limit of them. names names the organisations. One
+// company that announces from several ASNs is one row, with its devices
+// merged.
 func orgsOnTab(
 	tab *pageTab, names []*inventory.OrgTotal, byOrg map[uint32][]*inventory.DeviceTotal, limit int,
 ) []*orgDevices {
@@ -471,8 +473,8 @@ func orgsOnTab(
 	return out[:min(limit, len(out))]
 }
 
-// addDeviceTotal adds d to list, folding it into the device's entry when it
-// is already there.
+// addDeviceTotal adds d to list. If the device already has an entry, it merges
+// d into it.
 func addDeviceTotal(list []*inventory.DeviceTotal, d *inventory.DeviceTotal) []*inventory.DeviceTotal {
 	for _, e := range list {
 		if e.DeviceID == d.DeviceID {
@@ -488,12 +490,12 @@ func addDeviceTotal(list []*inventory.DeviceTotal, d *inventory.DeviceTotal) []*
 	return append(list, &c)
 }
 
-// outsideAddrWindow is how recently a router must have named an outside
-// address for the page to judge by it.
+// outsideAddrWindow is how recently a router must name an outside address, for
+// the page to use it.
 const outsideAddrWindow = 24 * time.Hour
 
-// behindNAT describes the NAT in front of the router: the outside address the
-// router has, and whether it is in the carrier-grade range an ISP uses.
+// behindNAT describes the NAT in front of the router: the outside address of
+// the router, and whether it is in the carrier-grade range of an ISP.
 type behindNAT struct {
 	Addr  netip.Addr
 	CGNAT bool
@@ -501,9 +503,10 @@ type behindNAT struct {
 
 var cgnatRange = netip.MustParsePrefix("100.64.0.0/10")
 
-// behindNATFrom says whether the router sits behind another NAT, judged by its
-// IPv4 outside addresses: when every one is private or carrier-grade, nothing
-// on the internet reaches it. IPv6 is never translated and does not count.
+// behindNATFrom tells whether the router is behind a different NAT, from its
+// IPv4 outside addresses. When every one is private or carrier-grade, nothing
+// on the internet reaches it. IPv6 is never translated, so it does not
+// count.
 func behindNATFrom(outside []netip.Addr) *behindNAT {
 	var note *behindNAT
 
@@ -525,39 +528,40 @@ func behindNATFrom(outside []netip.Addr) *behindNAT {
 	return note
 }
 
-// orgDevices is one of the busiest organisations and which devices reached it.
+// orgDevices is one of the busiest organisations, with the devices that reached
+// it.
 type orgDevices struct {
 	*inventory.OrgTotal
 
 	DeviceList []*inventory.DeviceTotal
 }
 
-// orgDeviceRows is how many devices an organisation's row opens to. A big
-// provider can be reached by most of the network, which would make one open
-// row longer than the card beside it.
+// orgDeviceRows is how many devices the row of an organisation opens to. Most
+// of the network can reach a big provider. That would make one open row longer
+// than the card next to it.
 const orgDeviceRows = 10
 
-// DevicesHead is the devices the row lists, the busiest first.
+// DevicesHead is the devices that the row lists, the busiest first.
 func (o *orgDevices) DevicesHead() []*inventory.DeviceTotal {
 	return o.DeviceList[:min(orgDeviceRows, len(o.DeviceList))]
 }
 
-// DevicesRest counts the ones DevicesHead leaves out.
+// DevicesRest counts the devices that DevicesHead leaves out.
 func (o *orgDevices) DevicesRest() int64 { return int64(max(0, len(o.DeviceList)-orgDeviceRows)) }
 
-// newOrg is an organisation some devices reached for the first time.
+// newOrg is an organisation that some devices reached for the first time.
 type newOrg struct {
 	ASN         uint32
 	Name, Short string
 
-	// First is the earliest of its devices' first contacts.
+	// First is the earliest of the first contacts of its devices.
 	First   time.Time
 	Bytes   int64
 	Devices []*inventory.FirstContact
 }
 
-// groupFirstContacts folds first contacts by organisation, keeping the order
-// of each organisation's newest contact.
+// groupFirstContacts merges first contacts by organisation. It keeps the order
+// of the newest contact of each organisation.
 func groupFirstContacts(contacts []*inventory.FirstContact) []*newOrg {
 	byShort := make(map[string]*newOrg)
 
@@ -582,8 +586,8 @@ func groupFirstContacts(contacts []*inventory.FirstContact) []*newOrg {
 	return out
 }
 
-// addFirstContact adds c to list, folding it into the device's entry when the
-// device reached the same organisation through another of its ASNs.
+// addFirstContact adds c to list. It merges c into the entry of the device when
+// the device reached the same organisation through a different ASN.
 func addFirstContact(list []*inventory.FirstContact, c *inventory.FirstContact) []*inventory.FirstContact {
 	for _, e := range list {
 		if e.DeviceID == c.DeviceID {
@@ -626,8 +630,7 @@ func (h *Handler) traffic(sm *auth.Session) response.HandlerFunc {
 			return err
 		}
 
-		// A group nobody is in any more is dropped: an empty page would give
-		// no way to tell why.
+		// Drop a group with no devices. An empty page would not tell why.
 		if g := strings.TrimSpace(q.Get("group")); slices.Contains(data.Groups, g) {
 			data.Group = g
 		}
@@ -636,8 +639,8 @@ func (h *Handler) traffic(sm *auth.Session) response.HandlerFunc {
 			return err
 		}
 
-		// With nothing recorded the page is the set-up note alone, so none of
-		// the cards' reads would be shown.
+		// With nothing recorded, the page is only the setup note. So the page
+		// would show none of the reads of the cards.
 		if !data.Recorded {
 			data.Note = latestSweepNote(ctx, h.store)
 			h.htmlWriter.Success(w, r, templatePageTraffic, data)
@@ -753,9 +756,9 @@ func (h *Handler) traffic(sm *auth.Session) response.HandlerFunc {
 
 		data.NewOrgs = groupFirstContacts(contacts)
 
-		// Until a week has been recorded every organisation is new, and
-		// newest first is only the order collection happened to meet them;
-		// the ones that moved the most are the ones worth a look.
+		// Until a week is recorded, every organisation is new. Newest first is
+		// only the order in which collection found them. The organisations
+		// that moved the most are worth a look.
 		if data.First.Partial {
 			slices.SortStableFunc(data.NewOrgs, func(a, b *newOrg) int { return cmp.Compare(b.Bytes, a.Bytes) })
 		}
