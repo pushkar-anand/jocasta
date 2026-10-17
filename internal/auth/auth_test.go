@@ -17,10 +17,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// fakeQueries answers the store interface from memory, so Auth's logic can be
-// tested without a database. Tokens are keyed by hash, as the real table is
-// looked up. A real store is safe to call from parallel subtests, so the
-// mutex guards every access to make this one behave the same.
+// fakeQueries answers the store interface from memory. So a test of the logic
+// of Auth needs no database. The key of a token is its hash, as in a lookup of
+// the real table. Parallel subtests can safely call a real store. So the mutex
+// guards every access, and this store works in the same way.
 type fakeQueries struct {
 	mu            sync.Mutex
 	users         map[string]*models.User
@@ -173,8 +173,8 @@ func (f *fakeQueries) TouchAPITokenByHash(_ context.Context, arg models.TouchAPI
 	return t, nil
 }
 
-// DeleteAPIToken matches the real query's :exec semantics: a WHERE that names
-// no row succeeds, as SQL's DELETE affecting zero rows does.
+// DeleteAPIToken matches the :exec semantics of the real query. A WHERE that
+// names no row succeeds, as a SQL DELETE of zero rows does.
 func (f *fakeQueries) DeleteAPIToken(_ context.Context, arg models.DeleteAPITokenParams) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -300,8 +300,8 @@ func (f *fakeQueries) CountUnusedRecoveryCodesByUser(_ context.Context, userID i
 	return n, nil
 }
 
-// testAddr is the client address the tests sign in from, unless a test is
-// about addresses.
+// testAddr is the client address of the test sign-ins, unless a test is about
+// addresses.
 var testAddr = netip.MustParseAddr("192.0.2.1")
 
 func testLogger() *slog.Logger {
@@ -359,9 +359,9 @@ func TestVerify(t *testing.T) {
 	})
 }
 
-// TestVerifyLimitRefills covers the password allowance over time: ten
-// attempts at once, then one more each time the refill interval passes. The
-// clock is Auth's own, moved by hand.
+// TestVerifyLimitRefills covers the password limit over time: ten attempts at
+// once, then one more after each refill interval. The clock is the clock of
+// Auth, which the test moves by hand.
 func TestVerifyLimitRefills(t *testing.T) {
 	t.Parallel()
 
@@ -403,8 +403,8 @@ func TestVerifyLimitRefills(t *testing.T) {
 	}
 }
 
-// TestVerifyLimitIsPerAccount covers one account running out of attempts while
-// another, and every unknown username together, keep their own.
+// TestVerifyLimitIsPerAccount covers one account that uses up its attempts. A
+// different account, and all unknown usernames together, keep their own.
 func TestVerifyLimitIsPerAccount(t *testing.T) {
 	t.Parallel()
 
@@ -429,15 +429,15 @@ func TestVerifyLimitIsPerAccount(t *testing.T) {
 	assert.ErrorIs(t, err, ErrInvalidCredentials)
 }
 
-// TestVerifyLimitIsPerAddress covers one address running out of attempts
-// across several accounts, each still inside its own allowance, while another
-// address keeps its own. The attempts an address is refused spend nothing
-// from the accounts it names.
+// TestVerifyLimitIsPerAddress covers one address that uses up its attempts
+// across several accounts. Each account is still within its own limit. A
+// different address keeps its own. The refused attempts of an address use
+// nothing from the accounts that it names.
 func TestVerifyLimitIsPerAddress(t *testing.T) {
 	t.Parallel()
 
-	// The bubble's clock stands still while the hashes run, so no attempt
-	// comes back before the last one is checked, however slow the machine.
+	// The clock of the bubble does not move while the hashes run. So no
+	// attempt comes back before the last one is checked, on any machine.
 	synctest.Test(t, func(t *testing.T) {
 		users := map[string]*models.User{}
 		names := []string{"ada", "grace", "alan", "linus"}
@@ -450,7 +450,7 @@ func TestVerifyLimitIsPerAddress(t *testing.T) {
 		from := netip.MustParseAddr("198.51.100.7")
 		other := netip.MustParseAddr("198.51.100.8")
 
-		// 30 spread over four accounts is 8, 8, 7 and 7: each under loginBurst.
+		// 30 over four accounts is 8, 8, 7 and 7. Each is under loginBurst.
 		for i := range loginAddrBurst {
 			_, err := a.Verify(t.Context(), from, names[i%len(names)], "wrong-password")
 			require.ErrorIs(t, err, ErrInvalidCredentials)
@@ -470,9 +470,9 @@ func TestVerifyLimitIsPerAddress(t *testing.T) {
 	})
 }
 
-// TestVerifyLimitGroupsIPv6ByNetwork covers the addresses of one IPv6 /64
-// sharing an allowance, and a neighbouring /64 keeping its own. Without the
-// grouping, one host could take a fresh allowance from every address in its
+// TestVerifyLimitGroupsIPv6ByNetwork covers the addresses of one IPv6 /64,
+// which share one limit. A neighbouring /64 keeps its own. Without the
+// grouping, one host could get a new limit from every address in its
 // network.
 func TestVerifyLimitGroupsIPv6ByNetwork(t *testing.T) {
 	t.Parallel()
@@ -482,8 +482,9 @@ func TestVerifyLimitGroupsIPv6ByNetwork(t *testing.T) {
 			"ada": {ID: 1, Username: "ada", PasswordHash: hashOf(t, "correct-password")},
 		})
 
-		// Unknown usernames share one account allowance, which would run out
-		// before the address's. Raising it keeps this test about addresses.
+		// Unknown usernames share one account limit. It would run out before
+		// the limit of the address. A higher limit keeps this test about
+		// addresses.
 		a.loginAttempts = newAttemptLimiter[int64](loginAddrBurst+1, loginRefill)
 
 		for i := range loginAddrBurst {
@@ -500,8 +501,8 @@ func TestVerifyLimitGroupsIPv6ByNetwork(t *testing.T) {
 	})
 }
 
-// TestVerifyWithoutAddress covers a connection with no IP address: only the
-// account's allowance applies.
+// TestVerifyWithoutAddress covers a connection with no IP address. Only the
+// limit of the account applies.
 func TestVerifyWithoutAddress(t *testing.T) {
 	t.Parallel()
 
@@ -515,8 +516,8 @@ func TestVerifyWithoutAddress(t *testing.T) {
 	assert.Empty(t, a.loginAddrAttempts.keys)
 }
 
-// TestWithLoginAllowance covers a raised allowance taking the place of the
-// default, and a non-positive one leaving the default in place.
+// TestWithLoginAllowance covers a higher limit that replaces the default. It
+// also covers a limit that is not positive, which keeps the default.
 func TestWithLoginAllowance(t *testing.T) {
 	t.Parallel()
 
@@ -546,8 +547,8 @@ func TestWithLoginAllowance(t *testing.T) {
 	}
 }
 
-// New hashes its placeholder password once, up front, so the first
-// unknown-user login does not pay for it.
+// New hashes its placeholder password once, at the start. So the first login
+// of an unknown user does not pay for it.
 func TestNewPrecomputesUnknownUserHash(t *testing.T) {
 	t.Parallel()
 

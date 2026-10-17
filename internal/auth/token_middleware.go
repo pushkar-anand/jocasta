@@ -13,15 +13,16 @@ import (
 
 const authHeaderName = "Authorization"
 
-// TokenMiddleware guards the JSON API with a bearer token: a script has no
-// browser session to present, so the API needs a credential of its own.
+// TokenMiddleware guards the JSON API with a bearer token. A script has no
+// browser session. So the API needs its own credential.
 type TokenMiddleware struct {
 	jw     *response.JSONWriter
 	a      *Auth
 	bypass []*regexp.Regexp
 
 	// methodScope refuses a request that changes something when the token
-	// is read-only, judging "changes something" by the HTTP method.
+	// is read-only. The HTTP method tells whether a request changes
+	// something.
 	methodScope bool
 
 	next http.Handler
@@ -30,25 +31,25 @@ type TokenMiddleware struct {
 // TokenOption adjusts what a TokenMiddleware checks.
 type TokenOption func(*TokenMiddleware)
 
-// WithTokenBypass exempts the paths matching any of bypass, typically a health
-// check, from needing a token at all.
+// WithTokenBypass exempts the paths that match one of bypass from the token
+// check. An example is a health check.
 func WithTokenBypass(bypass ...*regexp.Regexp) TokenOption {
 	return func(m *TokenMiddleware) { m.bypass = append(m.bypass, bypass...) }
 }
 
-// WithoutMethodScope leaves a token's scope for the handler to enforce, for a
-// surface where the method says nothing about what a request does: over MCP,
-// every call is a POST, whether it reads or writes. The handler reads the
-// token's scope off [TokenFromContext].
+// WithoutMethodScope leaves the scope of a token to the handler. Use it where
+// the method tells nothing about what a request does. Over MCP, every call is
+// a POST, for reads and for writes. The handler reads the scope of the token
+// from [TokenFromContext].
 func WithoutMethodScope() TokenOption {
 	return func(m *TokenMiddleware) { m.methodScope = false }
 }
 
-// NewTokenMiddleware builds a bearer-token gate. jw is the same writer the
-// guarded handlers answer with, so a request this middleware refuses gets the
-// same problem-document shape as one a handler itself turned down.
+// NewTokenMiddleware builds a bearer-token gate. jw is the same writer as for
+// the guarded handlers. So a request that this middleware refuses gets the
+// same problem-document shape as a request that a handler refused.
 //
-// By default a read-only token is refused any method but a read.
+// By default, a read-only token can use only a read method.
 func NewTokenMiddleware(
 	jw *response.JSONWriter,
 	a *Auth,
@@ -64,26 +65,27 @@ func NewTokenMiddleware(
 	}
 }
 
-// tokenKey is the context key the verified token travels under.
+// tokenKey is the context key of the verified token.
 type tokenKey struct{}
 
-// TokenFromContext returns the token TokenMiddleware verified for this
-// request, or nil for a bypassed path or a request that never passed through
-// the middleware.
+// TokenFromContext returns the token that TokenMiddleware verified for this
+// request. It returns nil for a bypassed path, or for a request that never
+// passed through the middleware.
 func TokenFromContext(ctx context.Context) *models.ApiToken {
 	token, _ := ctx.Value(tokenKey{}).(*models.ApiToken)
 
 	return token
 }
 
-// ServeHTTP verifies a bearer token and adds it to the request context.
-// Unless method checks are disabled, a read-only token cannot make writes.
+// ServeHTTP verifies a bearer token, and adds it to the request context. If
+// method checks are on, a read-only token cannot make writes.
 func (m *TokenMiddleware) ServeHTTP(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	// Matched against URL.Path: this sits inside StripPrefix, which removes
-	// the mounted prefix from URL.Path and leaves RequestURI as it arrived.
+	// Match against URL.Path. This middleware is inside StripPrefix.
+	// StripPrefix removes the mounted prefix from URL.Path, but not from
+	// RequestURI.
 	path := r.URL.Path
 
 	for _, b := range m.bypass {
@@ -117,9 +119,9 @@ func (m *TokenMiddleware) ServeHTTP(
 	m.next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), tokenKey{}, token)))
 }
 
-// readOnly reports whether method only reads. A token scope draws the same
-// line, so a read-scoped token can be handed to something that has no
-// business writing.
+// readOnly reports whether method only reads. A token scope uses the same
+// rule. So you can give a read-scoped token to a client that must not
+// write.
 func readOnly(method string) bool {
 	switch method {
 	case http.MethodGet, http.MethodHead, http.MethodOptions:

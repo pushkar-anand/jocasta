@@ -16,8 +16,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// testTokenMiddleware wraps a handler that reports whether it was reached, so
-// a test can tell a request refused by the gate from one that passed through.
+// testTokenMiddleware wraps a handler that reports whether a request reached
+// it. So a test can tell a request that the gate refused from one that
+// passed.
 func testTokenMiddleware(t *testing.T, a *Auth, bypass ...*regexp.Regexp) (http.Handler, *bool) {
 	t.Helper()
 
@@ -31,8 +32,8 @@ func testTokenMiddleware(t *testing.T, a *Auth, bypass ...*regexp.Regexp) (http.
 	return NewTokenMiddleware(jw, a, WithTokenBypass(bypass...))(next), &reached
 }
 
-// problemBody decodes a response body as the problem document the API's
-// JSONWriter builds, so a test can assert on it the way a caller would.
+// problemBody decodes a response body as the problem document that the
+// JSONWriter of the API builds. So a test can assert on it as a caller would.
 func problemBody(t *testing.T, rec *httptest.ResponseRecorder) map[string]any {
 	t.Helper()
 
@@ -134,8 +135,8 @@ func TestTokenMiddlewareBypassesNamedPaths(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
-// Without the method check, a read-only token's write reaches the handler,
-// carrying the token so the handler can decide by its scope.
+// Without the method check, a write with a read-only token reaches the
+// handler. It has the token, so the handler can decide by its scope.
 func TestTokenMiddlewareWithoutMethodScopeLeavesScopeToTheHandler(t *testing.T) {
 	t.Parallel()
 
@@ -163,7 +164,8 @@ func TestTokenMiddlewareWithoutMethodScopeLeavesScopeToTheHandler(t *testing.T) 
 	assert.Equal(t, dbtype.TokenRead, seen.Scope)
 }
 
-// A bypassed path never had a token checked, so there is none to find.
+// The middleware never checked a token on a bypassed path. So there is no
+// token to find.
 func TestTokenFromContextIsNilOnABypassedPath(t *testing.T) {
 	t.Parallel()
 

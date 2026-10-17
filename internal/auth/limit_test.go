@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestAttemptLimiterPrunesFullAllowances covers the limiter dropping keys back
-// at a full allowance once minPrune of them accumulate, while a key still
-// short of attempts keeps its count.
+// TestAttemptLimiterPrunesFullAllowances covers the limiter when it removes
+// keys that are back at their full limit, after minPrune keys collect. A key
+// that is still short of attempts keeps its count.
 func TestAttemptLimiterPrunesFullAllowances(t *testing.T) {
 	t.Parallel()
 
@@ -22,8 +22,8 @@ func TestAttemptLimiterPrunesFullAllowances(t *testing.T) {
 
 	assert.Len(t, l.keys, minPrune)
 
-	// Two refills later every key is full again. Key 0 spends one just
-	// before the new key that sets off the sweep.
+	// Two refills later, every key is full again. Key 0 uses one just before
+	// the new key that starts the sweep.
 	now = now.Add(2 * time.Minute)
 	l.spend(0, now)
 	l.spend(minPrune, now)

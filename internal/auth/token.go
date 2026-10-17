@@ -15,18 +15,18 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 )
 
-// tokenPrefix marks a value as one of ours before it is ever looked up, so a
-// bearer value from somewhere else fails on sight, before any database round
+// tokenPrefix marks a value as a jocasta token before a lookup. So a bearer
+// value from a different source fails at once, before a database round
 // trip.
 const tokenPrefix = "jct_"
 
-// tokenEntropyBytes is how much random material backs a token.
+// tokenEntropyBytes is the amount of random data in a token.
 const tokenEntropyBytes = 32
 
-// CreateToken issues a new API token for userID and returns its plaintext.
-// Only the token's hash is kept, as with a password, so this is the one moment
-// a caller can show the plaintext to whoever is meant to use it. The token
-// stops working at expiresAt, or never when expiresAt is zero.
+// CreateToken makes a new API token for userID, and returns its plaintext.
+// Only the hash of the token is kept, as for a password. So only at this time
+// can a caller show the plaintext to its user. The token stops working at
+// expiresAt. If expiresAt is zero, it never stops.
 func (a *Auth) CreateToken(
 	ctx context.Context,
 	userID int64,
@@ -62,15 +62,15 @@ func (a *Auth) CreateToken(
 	return plaintext, token, nil
 }
 
-// VerifyToken returns the stored token plaintext names and records that it was
-// used. It returns [ErrInvalidToken] when plaintext names no token or one that
-// has expired.
+// VerifyToken returns the stored token that plaintext names, and records that
+// it was used. It returns [ErrInvalidToken] when plaintext names no token, or
+// an expired token.
 func (a *Auth) VerifyToken(ctx context.Context, plaintext string) (*models.ApiToken, error) {
 	if !strings.HasPrefix(plaintext, tokenPrefix) {
 		return nil, ErrInvalidToken
 	}
 
-	// This runs on every API request, so the lookup and the last_used_at
+	// This runs on every API request. So the lookup and the last_used_at
 	// update share one query.
 	token, err := a.store.TouchAPITokenByHash(ctx, models.TouchAPITokenByHashParams{
 		Now:       dbtype.NewNullTime(a.now()),
@@ -87,18 +87,19 @@ func (a *Auth) VerifyToken(ctx context.Context, plaintext string) (*models.ApiTo
 	return token, nil
 }
 
-// ListTokens returns userID's tokens, newest first.
+// ListTokens returns the tokens of userID, newest first.
 func (a *Auth) ListTokens(ctx context.Context, userID int64) ([]*models.ApiToken, error) {
 	return a.store.ListAPITokensByUser(ctx, userID)
 }
 
-// RevokeToken deletes token id when userID owns it. A token that does not
-// exist or belongs to someone else is left alone, and no error is returned.
+// RevokeToken deletes token id when userID owns it. It does not change a token
+// that does not exist, or that belongs to a different user. It then returns no
+// error.
 func (a *Auth) RevokeToken(ctx context.Context, userID, id int64) error {
 	return a.store.DeleteAPIToken(ctx, models.DeleteAPITokenParams{ID: id, UserID: userID})
 }
 
-// generateToken returns a new random bearer token carrying tokenPrefix.
+// generateToken returns a new random bearer token with tokenPrefix.
 func generateToken() (string, error) {
 	b := make([]byte, tokenEntropyBytes)
 	if _, err := rand.Read(b); err != nil {
@@ -108,9 +109,9 @@ func generateToken() (string, error) {
 	return tokenPrefix + hex.EncodeToString(b), nil
 }
 
-// hashToken is the form a token is stored and looked up in. A plain SHA-256
-// is enough: the token carries 256 random bits, so a slow hash would add no
-// protection against guessing.
+// hashToken is the form in which a token is stored and looked up. A plain
+// SHA-256 is enough. The token has 256 random bits. So a slow hash would add
+// no protection against guesses.
 func hashToken(plaintext string) string {
 	sum := sha256.Sum256([]byte(plaintext))
 	return hex.EncodeToString(sum[:])

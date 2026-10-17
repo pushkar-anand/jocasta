@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// testSessionMiddleware wraps a handler that reports whether it was reached,
-// so a test can tell a request the gate turned away from one that passed
-// through.
+// testSessionMiddleware wraps a handler that reports whether a request reached
+// it. So a test can tell a request that the gate refused from one that
+// passed.
 func testSessionMiddleware(t *testing.T, a *Auth, always, signIn []*regexp.Regexp) (*Session, http.Handler, *bool) {
 	t.Helper()
 
@@ -122,9 +122,9 @@ func TestSessionMiddlewareAllowsASignedInVisitor(t *testing.T) {
 }
 
 // TestSessionMiddlewareAllowsTheSecondFactorPageWithoutASession covers
-// /login/totp sitting in the signIn list beside /login: a visitor mid sign-in
-// carries no UserID yet either, only a pending one, so this route needs the
-// same bypass.
+// /login/totp in the signIn list, next to /login. During sign-in, a visitor
+// also has no UserID yet, only a pending one. So this route needs the same
+// bypass.
 func TestSessionMiddlewareAllowsTheSecondFactorPageWithoutASession(t *testing.T) {
 	t.Parallel()
 
@@ -143,7 +143,8 @@ func TestSessionMiddlewareAllowsTheSecondFactorPageWithoutASession(t *testing.T)
 }
 
 // TestSessionMiddlewareAllowsTheSignInPageWithAQuery covers a signIn pattern
-// anchored at both ends: the query string is not part of the path it checks.
+// anchored at both ends. The query string is not part of the path that it
+// checks.
 func TestSessionMiddlewareAllowsTheSignInPageWithAQuery(t *testing.T) {
 	t.Parallel()
 
