@@ -1939,10 +1939,10 @@
 
 
 <h1 id="netflow">NetFlow<a class="headerlink" href="#netflow" title="Permanent link">&para;</a></h1>
-<p>Jocasta can record which devices talk to which, and to where on the internet,
-from the flow records your router exports (NetFlow v5, v9 or IPFIX). It keeps
-hourly totals per device for <code>retention.traffic</code> (30 days by default).
-Individual connections are not stored.</p>
+<p>Jocasta can record which devices talk to each other, and to where on the
+internet. It reads the flow records that your router exports (NetFlow v5, v9
+or IPFIX). It keeps hourly totals for each device for <code>retention.traffic</code>,
+which is 30 days by default. It does not store single connections.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">plugins</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">netflow</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">gateway</span><span class="p">:</span>
@@ -1951,39 +1951,40 @@ Individual connections are not stored.</p>
 <span class="w">      </span><span class="nt">exporters</span><span class="p">:</span>
 <span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">"192.0.2.1"</span><span class="w">        </span><span class="c1"># the router's address; anything else is dropped</span>
 </code></pre></div>
-<p><code>exporters</code> is required. Only datagrams from the listed addresses are read.
-A device on the same network can forge that address, so bind <code>listen</code> to an
-address only the router reaches, or allow the port only from the router in
-your firewall.</p>
-<p>With host networking the listener is reachable as it is. On a bridge network,
+<p>You must set <code>exporters</code>. Jocasta reads only datagrams from the listed
+addresses. A device on the same network can forge such an address. So bind
+<code>listen</code> to an address that only the router reaches. Or, in your firewall,
+allow the port only from the router.</p>
+<p>With host networking, no more setup is necessary. On a bridge network,
 publish the port as UDP: <code>-p 2055:2055/udp</code>.</p>
 <h2 id="set-up-the-router">Set up the router<a class="headerlink" href="#set-up-the-router" title="Permanent link">&para;</a></h2>
-<p>Point the router's flow export at the Jocasta host and port:</p>
+<p>Send the flow export of the router to the Jocasta host and port:</p>
 <ul>
 <li><a href="../routeros/#export-traffic-flows">MikroTik RouterOS</a>: Traffic Flow, as IPFIX.</li>
 <li><a href="../openwrt/#export-traffic-flows">OpenWrt</a>: softflowd, as NetFlow v9.</li>
 </ul>
-<p>Export from one router only. Two routers that both see a conversation both
-report it, and it is counted twice.</p>
-<p>Internet addresses are shown by the organisation that announces them, and
-placed on the map by the country they are registered in, using
+<p>Export from one router only. If two routers see the same conversation, both
+report it, and Jocasta counts it twice.</p>
+<p>Jocasta shows an internet address by the organisation that announces it. It
+puts the address on the map by the country where it is registered. For this,
+it uses
 <a href="https://db-ip.com/db/download/ip-to-asn-lite">IP to ASN data</a> and
 <a href="https://db-ip.com/db/download/ip-to-country-lite">IP to Country data</a> by
 <a href="https://db-ip.com">DB-IP</a>, licensed under
 <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.</p>
-<p>The world map draws a line from the network's country to each country it
-talked to. Jocasta finds its country from the router's outside address. When that
-address is private, because the ISP puts the router behind carrier-grade NAT,
-name the country yourself, by its two-letter code. A country named here is
-used whatever the outside address says:</p>
+<p>The world map draws a line from the country of the network to each country
+that it talked to. Jocasta finds the country of the network from the outside
+address of the router. This address is private if the ISP puts the router
+behind carrier-grade NAT. In that case, set the country yourself, by its
+two-letter code. Jocasta then uses this country, whatever the outside address is:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">location</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">country</span><span class="p">:</span><span class="w"> </span><span class="s">"AU"</span>
 </code></pre></div>
-<p>Only the country is used, to start the lines from its middle; nothing finer
-is asked for or stored.</p>
+<p>Jocasta uses only the country, to start the lines from its middle. It does
+not ask for or store a more exact location.</p>
 <h2 id="all-settings">All settings<a class="headerlink" href="#all-settings" title="Permanent link">&para;</a></h2>
-<p>Every <code>plugins.netflow</code> setting, with its default and allowed values, is in the
-<a href="../../reference/configuration/#pluginsnetflow">configuration reference</a>.</p>
+<p>The <a href="../../reference/configuration/#pluginsnetflow">configuration reference</a>
+lists every <code>plugins.netflow</code> setting, with its default and allowed values.</p>
 
 
 

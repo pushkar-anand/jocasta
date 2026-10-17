@@ -2048,199 +2048,214 @@ make<span class="w"> </span>docs<span class="w">           </span><span class="c
 make<span class="w"> </span>docs-serve<span class="w">     </span><span class="c1"># preview the docs site at http://localhost:8000</span>
 </code></pre></div>
 <h2 id="browser-tests">Browser tests<a class="headerlink" href="#browser-tests" title="Permanent link">&para;</a></h2>
-<p><code>internal/web/e2e</code> drives Chrome over the real server, built with the <code>e2e</code>
-tag so <code>go test ./...</code> leaves it out. It needs Google Chrome or Chromium on
-<code>PATH</code>, or <code>E2E_CHROME</code> set to one.</p>
-<p>Each page is drawn over four fabricated inventories (empty, a home network,
-one with extreme data, and one with no accounts), and each dialog, menu and
-inline edit it opens is drawn too. Every drawing is checked for sideways
-scrolling, clipped or overlapping text, small tap targets, small text, WCAG
-2.2 AA failures (axe-core), script errors and failed requests.</p>
+<p><code>internal/web/e2e</code> drives Chrome over the real server. It builds with the
+<code>e2e</code> tag, so <code>go test ./...</code> leaves it out. It needs Google Chrome or
+Chromium on <code>PATH</code>, or <code>E2E_CHROME</code> set to one of them.</p>
+<p>The tests draw each page over four fabricated inventories: empty, a home
+network, a network with extreme data, and a network with no accounts. They
+also draw each dialog, menu and inline edit that the page opens. Each drawing
+is checked for these problems:</p>
+<ul>
+<li>sideways scrolling</li>
+<li>clipped or overlapping text</li>
+<li>small tap targets and small text</li>
+<li>WCAG 2.2 AA failures (axe-core)</li>
+<li>script errors and failed requests</li>
+</ul>
 <p><code>make e2e</code> draws every page as admin on a phone, a tablet and a laptop, in
-both themes. It takes about two minutes, and CI does not run it: run it before
-opening a pull request that touches the UI. <code>make e2e-full</code> adds every other
-screen and account; <code>scripts/release.sh</code> runs it before tagging.</p>
-<p>A finding fails the run unless <code>testdata/known.json</code> lists it under an open
+both themes. It takes about two minutes. CI does not run it. So run it before
+you open a pull request that changes the UI. <code>make e2e-full</code> adds every other
+screen and account. <code>scripts/release.sh</code> runs it before it tags a release.</p>
+<p>A finding fails the run, unless <code>testdata/known.json</code> lists it under an open
 issue. A fix deletes its entries. <code>make e2e-full</code> also fails on an entry that
-no longer matches anything.</p>
-<p>The run also compares the first screen of every page on the home network with
-a stored picture in <code>testdata/golden/</code>: on a phone, a tablet and a laptop in
-light, and the laptop in dark. A picture fails when more than 64 of its pixels
-changed, which a single word added or lost exceeds. When a change is meant,
-store the new pictures and commit them with it:</p>
+no longer matches a finding.</p>
+<p>The run also compares the first screen of every page on the home network
+with a stored picture in <code>testdata/golden/</code>. It does this on a phone, a
+tablet and a laptop in the light theme, and on the laptop in the dark theme.
+A picture fails when more than 64 of its pixels changed. One added or
+removed word changes more pixels than that. If you change the UI on purpose,
+store the new pictures and commit them with the change:</p>
 <div class="highlight"><pre><span></span><code><span class="nv">E2E_UPDATE</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>make<span class="w"> </span>e2e
 </code></pre></div>
-<p>To see what changed, set <code>E2E_ARTIFACTS</code> to a directory: each picture that
-differs is written there beside a map of the changed pixels.</p>
+<p>To see what changed, set <code>E2E_ARTIFACTS</code> to a directory. The run writes each
+picture that differs there, next to a map of the changed pixels.</p>
 <p>To look at a fixture in a browser:</p>
 <div class="highlight"><pre><span></span><code><span class="nv">E2E_SERVE</span><span class="o">=</span>weird<span class="w"> </span>go<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-tags<span class="w"> </span>e2e<span class="w"> </span>-run<span class="w"> </span>TestServe<span class="w"> </span>-timeout<span class="w"> </span><span class="m">0</span><span class="w"> </span>./internal/web/e2e/
 </code></pre></div>
-<p>To capture every page and read the findings, with no pass or fail:</p>
+<p>To capture every page and read the findings, without a pass or fail:</p>
 <div class="highlight"><pre><span></span><code><span class="nv">E2E_AUDIT</span><span class="o">=</span><span class="nv">$PWD</span>/tmp/audit<span class="w"> </span><span class="nv">TMPDIR</span><span class="o">=</span><span class="nv">$PWD</span>/tmp<span class="w"> </span>go<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-tags<span class="w"> </span>e2e<span class="w"> </span>-run<span class="w"> </span>TestAudit<span class="w"> </span>-timeout<span class="w"> </span><span class="m">0</span><span class="w"> </span>./internal/web/e2e/
 </code></pre></div>
-<p><code>E2E_FIXTURES</code>, <code>E2E_ROLES</code>, <code>E2E_VIEWPORTS</code>, <code>E2E_THEMES</code> and <code>E2E_PAGES</code>
-narrow either run to a comma-separated list.</p>
+<p>To limit either run, set <code>E2E_FIXTURES</code>, <code>E2E_ROLES</code>, <code>E2E_VIEWPORTS</code>,
+<code>E2E_THEMES</code> or <code>E2E_PAGES</code> to a comma-separated list.</p>
 <h2 id="smoke-tests">Smoke tests<a class="headerlink" href="#smoke-tests" title="Permanent link">&para;</a></h2>
 <p><code>make smoke</code> reads real OpenWrt, RouterOS, Pi-hole, AdGuard Home and
-Technitium servers and a real NetFlow exporter, each in a container, and checks what jocasta
-says about them. The plugin tests answer from canned replies; this catches a
-server that has changed what it sends. It needs Docker and Go, and CI does
-not run it: run it before opening a pull request that changes one of these
-plugins or the client under <code>pkg/</code>.</p>
-<p><code>scripts/smoke/smoke.sh up</code> starts the servers on a network of their own,
+Technitium servers and a real NetFlow exporter, each in a container. It
+checks what jocasta says about them. The plugin tests use canned replies.
+The smoke tests find a server that changed what it sends. They need Docker
+and Go. CI does not run them. So run them before you open a pull request
+that changes one of these plugins or its client under <code>pkg/</code>.</p>
+<p><code>scripts/smoke/smoke.sh up</code> starts the servers on their own network,
 <code>198.51.100.0/24</code>:</p>
 <ul>
-<li>OpenWrt is set up as <a href="../plugins/openwrt/">the OpenWrt page</a> describes, with
-  the ACL in <code>docs/openwrt/jocasta.json</code>, and given leases and static hosts.</li>
-<li>RouterOS CHR runs in QEMU, booted by <code>scripts/smoke/routeros.sh</code>. Its
-  <code>ether1</code> takes an address over DHCP, as a WAN does, and <code>ether2</code> sits on
-  the smoke network. It gets a read-only <code>jocasta</code> user, a bridge with an
-  address of its own, a DHCP server with a static lease, a static ARP entry,
-  and Traffic Flow exporting IPFIX, as
-  <a href="../plugins/routeros/#export-traffic-flows">the RouterOS page</a> sets it up.</li>
-<li>Pi-hole, AdGuard Home and Technitium each block a name, and AdGuard Home
-  rewrites one. Technitium is set up as
-  <a href="../plugins/technitium/">the Technitium page</a> describes: a user that can
-  view Logs, its API token, and the Query Logs (Sqlite) app. Pi-hole answers
-  as the other two's upstream, so no lookup leaves the network.</li>
-<li>pmacct runs in the OpenWrt container's network namespace and exports
+<li>OpenWrt has the setup that <a href="../plugins/openwrt/">the OpenWrt page</a> gives,
+  with the ACL in <code>docs/openwrt/jocasta.json</code>. It also gets leases and static
+  hosts.</li>
+<li>RouterOS CHR runs in QEMU, and <code>scripts/smoke/routeros.sh</code> boots it. Its
+  <code>ether1</code> gets an address over DHCP, as a WAN port does. Its <code>ether2</code> is on
+  the smoke network. It gets a read-only <code>jocasta</code> user, a bridge with its
+  own address, a DHCP server with a static lease, and a static ARP entry. It
+  also gets Traffic Flow that exports IPFIX, with the setup from
+  <a href="../plugins/routeros/#export-traffic-flows">the RouterOS page</a>.</li>
+<li>Pi-hole, AdGuard Home and Technitium each block a name. AdGuard Home also
+  rewrites one name. Technitium has the setup that
+  <a href="../plugins/technitium/">the Technitium page</a> gives: a user that can view
+  Logs, its API token, and the Query Logs (Sqlite) app. Pi-hole is the
+  upstream of the other two, so no lookup leaves the network.</li>
+<li>pmacct runs in the network namespace of the OpenWrt container. It exports
   NetFlow v9 to this host, as the router would.</li>
 <li>The OpenWrt container sends lookups to each resolver.</li>
 </ul>
-<p>Each server's web interface is published on <code>127.0.0.1</code>, which jocasta
-reads.</p>
+<p>Each server publishes its web interface on <code>127.0.0.1</code>, and jocasta reads it
+there.</p>
 <p><code>scripts/smoke/smoke.sh check</code> runs <code>jocasta plugin run</code> against each server
-and checks the rows it prints. It runs <code>TestNetFlowLive</code> in <code>internal/plugin</code>
-while the OpenWrt container makes a lookup, and again while this host makes
-a request to the router, and checks the flows each decodes. It also runs the
-live tests in <code>pkg/openwrt</code>, <code>pkg/routeros</code> and <code>internal/plugin</code>. It writes the config it used to
-<code>$TMPDIR/jocasta-smoke/jocasta.yaml</code>, so you can point <code>jocasta serve</code> at the
-same servers. <code>make smoke-down</code> removes them.</p>
-<p>Some services need more than Docker. Leave any of them out with
+and checks the rows that it prints. It also runs these tests:</p>
+<ul>
+<li><code>TestNetFlowLive</code> in <code>internal/plugin</code>, two times. The first time, the
+  OpenWrt container makes a lookup. The second time, this host makes a
+  request to the router. The script checks the flows that each run decodes.</li>
+<li>The live tests in <code>pkg/openwrt</code>, <code>pkg/routeros</code> and <code>internal/plugin</code>.</li>
+</ul>
+<p>The script writes its config to <code>$TMPDIR/jocasta-smoke/jocasta.yaml</code>. So you
+can point <code>jocasta serve</code> at the same servers. <code>make smoke-down</code> removes the
+servers.</p>
+<p>Some services need more than Docker. To leave a service out, add it to
 <code>SMOKE_SKIP</code>, such as <code>SMOKE_SKIP="technitium netflow" make smoke</code>:</p>
 <ul>
-<li><code>routeros</code>: RouterOS runs under QEMU, which emulates the CPU where the
-  host has no KVM. It boots in under a minute either way. Its container
-  joins a second network, which needs Docker 28 or later.</li>
-<li><code>technitium</code>: the server downloads the Query Logs app from Technitium's app
-  store, so its container needs internet.</li>
-<li><code>netflow</code>: the exporter sends to the network's gateway address, which only
-  Docker on Linux puts on the host.</li>
+<li><code>routeros</code>: RouterOS runs under QEMU. If the host has no KVM, QEMU emulates
+  the CPU. In both cases, it boots in less than a minute. Its container joins
+  a second network, which needs Docker 28 or later.</li>
+<li><code>technitium</code>: the server downloads the Query Logs app from the app store of
+  Technitium. So its container needs internet access.</li>
+<li><code>netflow</code>: the exporter sends to the gateway address of the network. Only
+  Docker on Linux puts this address on the host.</li>
 </ul>
 <p>To change a setting, set the matching variable:</p>
 <ul>
-<li><code>SMOKE_REGISTRY</code> pulls the images from a mirror, such as <code>mirror.gcr.io</code>,
-  when Docker Hub limits your pulls.</li>
+<li><code>SMOKE_REGISTRY</code> pulls the images from a mirror, such as <code>mirror.gcr.io</code>.
+  Use it when Docker Hub limits your pulls.</li>
 <li><code>SMOKE_PIHOLE_IMAGE</code>, <code>SMOKE_ADGUARD_IMAGE</code>, <code>SMOKE_OPENWRT_IMAGE</code>,
   <code>SMOKE_ROUTEROS_IMAGE</code>, <code>SMOKE_TECHNITIUM_IMAGE</code> and <code>SMOKE_PMACCT_IMAGE</code>
-  test another release. MikroTik publishes no image; the RouterOS one is
-  <code>evilfreelancer/docker-routeros</code>, which carries the CHR disk and QEMU.</li>
+  test a different release. MikroTik publishes no image. The RouterOS image
+  is <code>evilfreelancer/docker-routeros</code>, which contains the CHR disk and QEMU.</li>
 <li><code>SMOKE_PIHOLE_PORT</code>, <code>SMOKE_ADGUARD_PORT</code>, <code>SMOKE_ADGUARD_SETUP_PORT</code>,
   <code>SMOKE_OPENWRT_PORT</code>, <code>SMOKE_TECHNITIUM_PORT</code> and <code>SMOKE_ROUTEROS_PORT</code>
-  move the published ports, 18081 to 18086 by default. <code>SMOKE_FLOW_PORT</code> and
-  <code>SMOKE_ROUTEROS_FLOW_PORT</code> move the ports the NetFlow and IPFIX exports
-  arrive on, 2055 and 2056 by default.</li>
+  change the published ports, 18081 to 18086 by default. <code>SMOKE_FLOW_PORT</code>
+  and <code>SMOKE_ROUTEROS_FLOW_PORT</code> change the ports for the NetFlow and IPFIX
+  exports, 2055 and 2056 by default.</li>
 </ul>
-<p>netifd cannot create the <code>br-lan</code> bridge inside a container, so the OpenWrt
-container's <code>lan</code> sits on <code>eth0</code>. Its bridge table and VLANs are empty, and
-the unit tests cover reading them.</p>
+<p>netifd cannot create the <code>br-lan</code> bridge in a container. So the <code>lan</code> of the
+OpenWrt container is on <code>eth0</code>. Its bridge table and VLANs are empty. The
+unit tests cover the reads of these tables.</p>
 <h2 id="docs">Docs<a class="headerlink" href="#docs" title="Permanent link">&para;</a></h2>
-<p>The pages in <code>docs/</code> are published with <a href="https://zensical.org">Zensical</a> to
-GitHub Pages, one version for each minor release and one for <code>main</code>. The
-<code>Docs</code> workflow builds every pull request that touches them with <code>make docs</code>,
-which fails on a broken link or anchor. A merge to <code>main</code> publishes the <code>dev</code>
-version, and a <code>v*</code> tag publishes that minor version as <code>latest</code>. Both are
-pushed to the <code>gh-pages</code> branch with the Zensical fork of
-<a href="https://github.com/squidfunk/mike">mike</a>.</p>
+<p><a href="https://zensical.org">Zensical</a> publishes the pages in <code>docs/</code> to GitHub
+Pages. There is one version for each minor release and one for <code>main</code>. The
+<code>Docs</code> workflow builds every pull request that changes the docs with
+<code>make docs</code>. This build fails on a broken link or anchor. A merge to <code>main</code>
+publishes the <code>dev</code> version. A <code>v*</code> tag publishes its minor version as
+<code>latest</code>. The Zensical fork of <a href="https://github.com/squidfunk/mike">mike</a>
+pushes both to the <code>gh-pages</code> branch.</p>
 <p>When you change the docs:</p>
 <ul>
 <li>Add a new page to <code>nav</code> in <code>mkdocs.yml</code>, and to the <code>llmstxt</code> sections
-  there, or the site leaves it out of the sidebar and <code>llms.txt</code>.</li>
+  there. If you do not, the site leaves it out of the sidebar and <code>llms.txt</code>.</li>
 <li>A new plugin gets a page under <code>docs/plugins/</code> and a line in the table on
   the plugins overview. A DNS resolver also gets a column on
   <a href="../plugins/dns/">Record what devices look up</a>.</li>
 <li>A new setting gets a row in the
   <a href="../reference/configuration/">configuration reference</a>.
-  <code>TestReferenceDocumentsEveryKey</code> fails until it has one, and fails on a row
-  for a setting that no longer exists.</li>
+  <code>TestReferenceDocumentsEveryKey</code> fails until the setting has a row. It
+  also fails on a row for a setting that no longer exists.</li>
 <li>Keep <code>docs/setup.md</code> and <code>docs/mcp.md</code>. Earlier releases link to their
-  sections on GitHub, and each section there points to where it moved.</li>
+  sections on GitHub. Each section there points to the new location.</li>
 </ul>
 <h2 id="release">Release<a class="headerlink" href="#release" title="Permanent link">&para;</a></h2>
-<p>After CI passes on <code>main</code>, run the following. It runs <code>make e2e-full</code> first,
-so Chrome must be installed.</p>
+<p>After CI passes on <code>main</code>, run the command below. It runs <code>make e2e-full</code>
+first, so Chrome must be installed.</p>
 <div class="highlight"><pre><span></span><code>./scripts/release.sh<span class="w"> </span>v0.10.0
 </code></pre></div>
-<p>The script requires a clean working tree and a local <code>main</code> that matches
-<code>origin/main</code>. It checks that the tag is unused, creates an annotated tag,
-and pushes it to trigger the release workflow. It does not wait for the build.</p>
-<p>The GitHub release and the changelog page are written from the commit
-messages, as <code>cliff.toml</code> sets out. To give a minor release highlights, merge
-<code>docs/releases/&lt;major.minor&gt;.md</code> before tagging its <code>.0</code>.</p>
+<p>The script needs a clean working tree and a local <code>main</code> that matches
+<code>origin/main</code>. It checks that the tag is not used. Then it creates an
+annotated tag and pushes it, which starts the release workflow. It does not
+wait for the build.</p>
+<p>git-cliff writes the GitHub release and the changelog page from the commit
+messages, as <code>cliff.toml</code> sets. To give a minor release highlights, merge
+<code>docs/releases/&lt;major.minor&gt;.md</code> before you tag its <code>.0</code>.</p>
 <h2 id="layout">Layout<a class="headerlink" href="#layout" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>cmd/jocasta</code>: CLI entry point.</li>
 <li><code>internal/scanner</code>: the ICMP sweep, and the reverse DNS, mDNS, NetBIOS,
-  DNS-SD and SSDP lookups that name what answers.</li>
-<li><code>internal/plugin</code>: sources beyond the sweep (RouterOS, OpenWrt, NetFlow,
-  Technitium, Pi-hole, AdGuard Home).</li>
-<li><code>internal/inventory</code>: the store, covering identity resolution, address
+  DNS-SD and SSDP lookups that name the hosts that answer.</li>
+<li><code>internal/plugin</code>: sources other than the sweep (RouterOS, OpenWrt,
+  NetFlow, Technitium, Pi-hole, AdGuard Home).</li>
+<li><code>internal/inventory</code>: the store. It covers identity resolution, address
   handling, device classification and the change log.</li>
-<li><code>internal/classify</code>: the rules that guess a device's type from its vendor,
-  name and open ports.</li>
-<li><code>internal/notify</code>: sends each finished scan's changes to ntfy, a webhook
-  or a templated HTTP request.</li>
+<li><code>internal/classify</code>: the rules that guess the type of a device from its
+  vendor, name and open ports.</li>
+<li><code>internal/notify</code>: sends the changes of each finished scan to ntfy, a
+  webhook or a templated HTTP request.</li>
 <li><code>internal/web</code>, <code>internal/api</code>: the HTML UI and the JSON API.</li>
 <li><code>internal/db</code>: connection, migrations, generated queries.</li>
 </ul>
-<p>Queries are SQLC-generated from <code>internal/db/queries/</code>. The schema is in
+<p>SQLC generates the queries from <code>internal/db/queries/</code>. The schema is in
 <code>internal/db/migrations/</code>.</p>
 <h2 id="add-a-notification-service">Add a notification service<a class="headerlink" href="#add-a-notification-service" title="Permanent link">&para;</a></h2>
-<p>Most services take an HTTP request, and the <code>http</code> provider reaches them
-with a body template and no new code. For one of those, add a recipe to
+<p>Most services accept an HTTP request. The <code>http</code> provider reaches them with a
+body template and no new code. For such a service, add a recipe to
 <a href="../notifications/other-services/">Send to another service</a>.
-<code>TestRecipesInTheDocsRender</code> renders every recipe there, so a broken one
-fails the tests.</p>
-<p>A service gets a provider of its own only when the <code>http</code> provider cannot
-reach it: it needs more than one request, a protocol other than HTTP, or
-signing a template cannot do. Each provider is in <code>internal/notify</code>, in a
-file of its own, as <code>ntfy.go</code> and <code>webhook.go</code> are:</p>
+<code>TestRecipesInTheDocsRender</code> renders every recipe on that page. So a broken
+recipe fails the tests.</p>
+<p>A service gets its own provider only when the <code>http</code> provider cannot reach
+it. For example, the service needs more than one request, a protocol other
+than HTTP, or a signature that a template cannot make. Each provider is in
+its own file in <code>internal/notify</code>, as <code>ntfy.go</code> and <code>webhook.go</code> are:</p>
 <ol>
-<li>Add a struct with <code>koanf</code> tags for its settings, and give it <code>Validate</code>,
-   <code>Host</code> and <code>Send</code>. <code>Send</code> must not put a credential in its error. <code>post</code>
-   covers a service that takes an HTTP request.</li>
+<li>Add a struct with <code>koanf</code> tags for its settings. Give it <code>Validate</code>,
+   <code>Host</code> and <code>Send</code>. <code>Send</code> must not put a credential in its error. For a
+   service that accepts an HTTP request, use <code>post</code>.</li>
 <li>Add a field for it to <code>notify.Config</code>, and a line to <code>Config.provider</code>.</li>
-<li>Add an example to <code>jocasta.example.yaml</code>, and a row for each setting to
+<li>Add an example to <code>jocasta.example.yaml</code>. Add a row for each setting to
    the <a href="../reference/configuration/">configuration reference</a>.</li>
 </ol>
 <p>The notifier, the settings page, the store and <code>cmd</code> need no change.</p>
 <h2 id="add-a-name-source">Add a name source<a class="headerlink" href="#add-a-name-source" title="Permanent link">&para;</a></h2>
-<p>Each name carries a standing, <code>dbtype.HostnameSource</code>, which says how it was
-learned. When sources disagree, the name with the higher standing is shown.</p>
+<p>Each name has a standing, <code>dbtype.HostnameSource</code>, which tells how Jocasta
+learned it. If sources give different names, Jocasta shows the name with the
+higher standing.</p>
 <ol>
-<li>Add a constant for it in <code>internal/db/dbtype/enum.go</code> and add it to
+<li>Add a constant for it in <code>internal/db/dbtype/enum.go</code>, and add it to
    <code>hostnameSources</code>.</li>
-<li>Give it a place in <code>HostnameSource.Rank</code>, and say why in the comment
-   there. A name that resolves ranks above one a device only claims.</li>
-<li>Word it for the device page in <code>standing</code>, in <code>internal/web/funcs.go</code>.</li>
+<li>Give it a place in <code>HostnameSource.Rank</code>. Give the reason in the comment
+   there. A name that resolves ranks above a name that a device only claims.</li>
+<li>Write its device page text in <code>standing</code>, in <code>internal/web/funcs.go</code>.</li>
 <li>List it in <a href="../naming/">Name devices</a>.</li>
 </ol>
-<p>A sweep that asks devices for their names takes two more steps:</p>
+<p>If a sweep asks devices for their names, do two more steps:</p>
 <ol>
-<li>Add its lookup in <code>internal/scanner</code>, in a file of its own, and ask it in
-   <code>enrich</code> in rank order. A query sent to each host is a <code>nameProtocol</code>, as
-   in <code>mdns.go</code> and <code>netbios.go</code>. Any other lookup is a <code>nameLookup</code>, as
-   <code>askSSDP</code> in <code>ssdp.go</code> is, or names hosts itself, as <code>browseServices</code>
+<li>Add its lookup in its own file in <code>internal/scanner</code>. Ask it in <code>enrich</code>,
+   in rank order. A query that goes to each host is a <code>nameProtocol</code>, as in
+   <code>mdns.go</code> and <code>netbios.go</code>. Any other lookup is a <code>nameLookup</code>, as
+   <code>askSSDP</code> in <code>ssdp.go</code> is. Or it names hosts itself, as <code>browseServices</code>
    does with <code>dnssd.go</code>.</li>
-<li>Add it to <code>HostnameSource.Swept</code>, so a lower-ranked lookup never replaces
-   its name on the sweep's claim.</li>
+<li>Add it to <code>HostnameSource.Swept</code>. Then a lookup with a lower rank never
+   replaces its name on the claim of the sweep.</li>
 </ol>
 <p>The column has no CHECK, so a new standing needs no migration.</p>
 <h2 id="screenshots">Screenshots<a class="headerlink" href="#screenshots" title="Permanent link">&para;</a></h2>
-<p>The images in <a href="../ui/"><code>docs/ui.md</code></a> are taken against a database of fabricated
-devices, never real network data: addresses from RFC 5737, hardware addresses
-from RFC 7042, invented names. Internet peers are well-known public services,
-so their organisations and countries resolve.</p>
+<p>The images in <a href="../ui/"><code>docs/ui.md</code></a> come from a database of fabricated
+devices, never real network data: addresses from RFC 5737, hardware
+addresses from RFC 7042, and invented names. The internet peers are
+well-known public services, so Jocasta can find their organisations and
+countries.</p>
 
 
 

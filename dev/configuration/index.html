@@ -1917,34 +1917,35 @@
 
 
 <h1 id="configure">Configure<a class="headerlink" href="#configure" title="Permanent link">&para;</a></h1>
-<p>The only setting you need is <code>networks</code>, the prefixes to sweep. Everything
-else has a default.
+<p>You must set only <code>networks</code>, the prefixes to sweep. All other settings have
+a default.
 <a href="https://github.com/pushkar-anand/jocasta/blob/main/jocasta.example.yaml"><code>jocasta.example.yaml</code></a>
-lists every setting with its default and a line on what it does, and the
-<a href="../reference/configuration/">configuration reference</a> gives each one's type,
-allowed values and environment variable.</p>
-<p>Settings are read in this order, each overriding the last:</p>
+lists every setting, with its default and a line about what it does. The
+<a href="../reference/configuration/">configuration reference</a> gives the type,
+allowed values and environment variable of each setting.</p>
+<p>Jocasta reads settings in this order. Each one overrides the one before it:</p>
 <ol>
 <li>built-in defaults</li>
 <li>a YAML file, <code>jocasta.yaml</code> in the working directory, or the path given to
    <code>--config</code></li>
 <li>environment variables prefixed <code>JOCASTA_</code></li>
 </ol>
-<p>In an environment variable, a double underscore separates levels and a single
+<p>In an environment variable, a double underscore separates levels. A single
 underscore stays part of the key:</p>
 <div class="highlight"><pre><span></span><code><span class="nv">JOCASTA_SCAN__DEVICES__INTERVAL</span><span class="o">=</span>10m<span class="w">      </span><span class="c1"># scan.devices.interval</span>
 <span class="nv">JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD</span><span class="o">=</span>change-me
 </code></pre></div>
-<p>Times are shown in the server's time zone, which in a container is UTC. Name
-yours to see them in local time. This changes only how times are shown; they
-are stored in UTC.</p>
+<p>Jocasta shows times in the time zone of the server. In a container, this
+time zone is UTC. To see local times, set your time zone. This setting
+changes only how Jocasta shows times. It always stores them in UTC.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">location</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">timezone</span><span class="p">:</span><span class="w"> </span><span class="s">"Australia/Sydney"</span><span class="w">   </span><span class="c1"># an IANA zone name</span>
 </code></pre></div>
-<p>A device you have not labelled, grouped, typed, noted, ignored or watched is
-deleted once no scan has seen it for 90 days. Phones leave one of these each
-time they change their privacy address. Anything you set on a device keeps it.
-Change the window, or set it to <code>0</code> to keep every device:</p>
+<p>Jocasta deletes a device when no scan has seen it for 90 days. It does not
+delete a device that you labelled, grouped, typed, noted, ignored or watched.
+Each time a phone changes its privacy address, it leaves one such device. To
+change the window, set <code>retention.devices</code>. To keep every device, set it to
+<code>0</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">retention</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="s">"2160h"</span>
 </code></pre></div>
@@ -1952,21 +1953,21 @@ Change the window, or set it to <code>0</code> to keep every device:</p>
 repository.</p>
 <h2 id="what-to-turn-on-next">What to turn on next<a class="headerlink" href="#what-to-turn-on-next" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Port scanning</strong>: set <code>scan.ports.enabled: true</code> to probe every known
-  address on your networks for open TCP ports on a timer. Each address is also
-  probed on the TCP ports its device advertises a service on. See
-  <a href="../cli/#ports">CLI</a> for one-off scans.</li>
-<li><strong>Routers</strong>: devices on every VLAN, and what is plugged in where. See
+<li><strong>Port scanning</strong>: to probe every known address on your networks for open
+  TCP ports at a set interval, set <code>scan.ports.enabled: true</code>. Jocasta also
+  probes each address on the TCP ports on which its device advertises a
+  service. For a single scan, see <a href="../cli/#ports">CLI</a>.</li>
+<li><strong>Routers</strong>: devices on every VLAN, and what is connected where. See
   <a href="../plugins/">Plugins</a>.</li>
-<li><strong>Traffic</strong>: who each device talks to, from your router's flow exports,
-  with a Traffic page and a live Map. See <a href="../plugins/netflow/">NetFlow</a> and
-  <a href="../ui/#traffic-page">Tour the web UI</a>.</li>
-<li><strong>DNS lookups</strong>: what each device looks up, from your resolver's query log.
-  See <a href="../plugins/dns/">Record what devices look up</a>.</li>
-<li><strong>Notifications</strong>: new devices, opened ports and other changes, sent to
-  ntfy, a signed webhook, or any service that takes an HTTP request. See
-  <a href="../notifications/">Notifications</a>.</li>
-<li><strong>MCP server</strong>: lets AI agents query the inventory. See
+<li><strong>Traffic</strong>: who each device talks to, from the flow exports of your
+  router. It adds a Traffic page and a live Map. See
+  <a href="../plugins/netflow/">NetFlow</a> and <a href="../ui/#traffic-page">Tour the web UI</a>.</li>
+<li><strong>DNS lookups</strong>: what each device looks up, from the query log of your
+  resolver. See <a href="../plugins/dns/">Record what devices look up</a>.</li>
+<li><strong>Notifications</strong>: new devices, opened ports and other changes. Jocasta
+  sends them to ntfy, a signed webhook, or any service that accepts an HTTP
+  request. See <a href="../notifications/">Notifications</a>.</li>
+<li><strong>MCP server</strong>: AI agents can query the inventory. See
   <a href="../integrations/mcp/">MCP server</a>.</li>
 <li><strong>JSON API</strong>: under <code>/api</code>, for scripts and dashboards. See
   <a href="../integrations/api/">JSON API</a>.</li>

@@ -1983,40 +1983,44 @@
 
 
 <h1 id="serve-over-https">Serve over HTTPS<a class="headerlink" href="#serve-over-https" title="Permanent link">&para;</a></h1>
-<p>Jocasta speaks plain HTTP. Put a reverse proxy with a certificate in front of
-it.</p>
-<p>The session cookie is HTTPS-only by default, so plain HTTP sign-in from any
-address but <code>localhost</code> needs <code>server.auth.cookie_secure: false</code>. Remove it
-once the proxy is up.</p>
+<p>Jocasta serves only plain HTTP. Put a reverse proxy with a certificate in
+front of it.</p>
+<p>By default, the session cookie works only over HTTPS. So to sign in over
+plain HTTP from an address other than <code>localhost</code>, set
+<code>server.auth.cookie_secure: false</code>. When the proxy works, remove this
+setting.</p>
 <h2 id="caddy">Caddy<a class="headerlink" href="#caddy" title="Permanent link">&para;</a></h2>
-<p><a href="https://caddyserver.com">Caddy</a> fetches and renews the certificate. On the
+<p><a href="https://caddyserver.com">Caddy</a> gets and renews the certificate. On the
 same machine:</p>
 <div class="highlight"><pre><span></span><code>jocasta.example.com {
     reverse_proxy localhost:8080
 }
 </code></pre></div>
-<p>For a name only your network resolves, add <code>tls internal</code>. Caddy then signs
-the certificate itself, and each browser has to trust it once.</p>
+<p>If only your network resolves the name, add <code>tls internal</code>. Caddy then
+signs the certificate itself. Each browser must trust it once.</p>
 <h2 id="other-proxies">Other proxies<a class="headerlink" href="#other-proxies" title="Permanent link">&para;</a></h2>
-<p>Pass the <code>Host</code> header through unchanged. Jocasta checks it against <code>Origin</code>
-to refuse cross-site form posts from browsers that send no <code>Sec-Fetch-Site</code>.
-In nginx: <code>proxy_set_header Host $host;</code>.</p>
+<p>Pass the <code>Host</code> header through without a change. Jocasta compares it with
+<code>Origin</code>. This lets Jocasta refuse cross-site form posts from browsers that
+do not send <code>Sec-Fetch-Site</code>. In nginx, use <code>proxy_set_header Host $host;</code>.</p>
 <h2 id="name-the-proxy">Name the proxy<a class="headerlink" href="#name-the-proxy" title="Permanent link">&para;</a></h2>
-<p>Sign-in attempts are limited per client address. Behind a proxy every request
-comes from the proxy's address, so all clients share one allowance until
-Jocasta knows to read the client from <code>X-Forwarded-For</code>:</p>
+<p>Jocasta limits sign-in attempts for each client address. Behind a proxy,
+every request comes from the address of the proxy. So all clients share one
+limit. To prevent this, tell Jocasta to read the client address from
+<code>X-Forwarded-For</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">server</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">trusted_proxies</span><span class="p">:</span>
 <span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">"127.0.0.1"</span>
 </code></pre></div>
-<p>List each proxy's address or range. Caddy, nginx and Traefik set the header.</p>
+<p>List the address or range of each proxy. Caddy, nginx and Traefik set the
+header.</p>
 <h2 id="close-the-plain-port">Close the plain port<a class="headerlink" href="#close-the-plain-port" title="Permanent link">&para;</a></h2>
-<p>With the proxy on the same machine, listen on loopback only:</p>
+<p>If the proxy is on the same machine, listen only on loopback:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">server</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">host</span><span class="p">:</span><span class="w"> </span><span class="s">"127.0.0.1"</span>
 </code></pre></div>
-<p>The container image sets <code>JOCASTA_SERVER__HOST=0.0.0.0</code>, which wins over the
-file. Pass <code>-e JOCASTA_SERVER__HOST=127.0.0.1</code> to <code>docker run</code> instead.</p>
+<p>The container image sets <code>JOCASTA_SERVER__HOST=0.0.0.0</code>, and this value wins
+over the file. So in a container, pass <code>-e JOCASTA_SERVER__HOST=127.0.0.1</code> to
+<code>docker run</code> instead.</p>
 
 
 

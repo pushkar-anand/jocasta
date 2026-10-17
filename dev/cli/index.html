@@ -1991,26 +1991,31 @@
       --log-level    debug | info | warn | error
       --log-format   text | json
 </code></pre></div>
-<p>Every command takes <code>--help</code> for its own flags.</p>
+<p>To see the flags of a command, run it with <code>--help</code>.</p>
 <h2 id="serve">serve<a class="headerlink" href="#serve" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>jocasta<span class="w"> </span>serve<span class="w">                 </span><span class="c1"># host and port from config</span>
 jocasta<span class="w"> </span>serve<span class="w"> </span>-p<span class="w"> </span><span class="m">9000</span><span class="w">         </span><span class="c1"># override the port</span>
 </code></pre></div>
-<p>Starts the HTTP server. When <code>scan.devices.enabled</code> is set, it also starts a
-poller that sweeps every network in <code>networks</code> on <code>scan.devices.interval</code>. When
-<code>scan.ports.enabled</code> is set, a second poller port-scans every address the
-inventory holds on your networks, on <code>scan.ports.interval</code>, and port-scans each
-new device as soon as a sweep or router read discovers it. Each enabled <code>routeros</code> and
-<code>openwrt</code> instance is also read for what is plugged into it, on
-<code>scan.devices.interval</code>. Each
-enabled <code>netflow</code> instance
-starts a listener for its router's flow exports, and an hourly prune deletes
-records older than their <code>retention</code> window, and devices you never curated
-that no scan has seen within <code>retention.devices</code>.</p>
+<p>Starts the HTTP server. It also starts these tasks:</p>
+<ul>
+<li>If <code>scan.devices.enabled</code> is set, a poller sweeps every network in
+  <code>networks</code> at each <code>scan.devices.interval</code>.</li>
+<li>If <code>scan.ports.enabled</code> is set, a second poller port-scans every address
+  that the inventory has on your networks, at each <code>scan.ports.interval</code>. It
+  also port-scans each new device when a sweep or a router read finds it.</li>
+<li>At each <code>scan.devices.interval</code>, Jocasta reads each enabled <code>routeros</code> and
+  <code>openwrt</code> instance for what is connected to it.</li>
+<li>Each enabled <code>netflow</code> instance starts a listener for the flow exports of
+  its router.</li>
+<li>Each hour, a prune deletes records that are older than their <code>retention</code>
+  window. It also deletes devices that you never edited and that no scan saw
+  within <code>retention.devices</code>.</li>
+</ul>
 <h2 id="scan">scan<a class="headerlink" href="#scan" title="Permanent link">&para;</a></h2>
-<p>Runs one sweep and prints a table, or JSON with <code>--json</code>. With <code>--save</code> it also
-records the sweep in the inventory, under the name from <code>--source</code>, then
-<code>scan.source</code>, then this host's name.</p>
+<p>Runs one sweep and prints a table, or JSON with <code>--json</code>. With <code>--save</code>, it
+also records the sweep in the inventory. The source name comes from
+<code>--source</code>. If that is not set, it comes from <code>scan.source</code>, and then from
+the name of this host.</p>
 <div class="highlight"><pre><span></span><code>$ jocasta scan 192.0.2.0/24
 IP           MAC                VENDOR   HOSTNAME              RTT     DETAILS
 192.0.2.1    00:00:5e:00:53:01  -        gateway.example      1.2ms
@@ -2019,24 +2024,29 @@ IP           MAC                VENDOR   HOSTNAME              RTT     DETAILS
 
 $ jocasta scan 192.0.2.0/24 --save --rate 500 --no-resolve-names
 </code></pre></div>
-<p>The sweep uses a raw ICMP socket where it can and an unprivileged datagram
-socket otherwise, so it runs without root. A host with no reverse DNS name is
-asked for its name over mDNS, then over NetBIOS, then over DNS-SD, then over
-SSDP, until one gives it a name. <code>--no-resolve-mdns</code>, <code>--no-resolve-netbios</code>,
-<code>--no-resolve-dnssd</code> and <code>--no-resolve-ssdp</code> turn each off. With <code>--json</code>, each
-host also lists the services it advertises over DNS-SD.</p>
+<p>The sweep uses a raw ICMP socket if it can. If not, it uses an
+unprivileged datagram socket. So it runs without root. If a host has no
+reverse DNS name, the sweep asks for its name over mDNS, then NetBIOS, then
+DNS-SD, then SSDP. It stops when one of them gives a name. To turn each one
+off, use <code>--no-resolve-mdns</code>, <code>--no-resolve-netbios</code>, <code>--no-resolve-dnssd</code> or
+<code>--no-resolve-ssdp</code>. With <code>--json</code>, each host also lists the services that it
+advertises over DNS-SD.</p>
 <h2 id="ports">ports<a class="headerlink" href="#ports" title="Permanent link">&para;</a></h2>
-<p>Probes TCP ports with a plain <code>connect()</code>, so it needs no privileges and cannot
-change the target. With no argument it scans every current address the
-inventory holds on your networks: those in <code>networks</code> and the segments a
-router serves. A neighbour outside them, such as your ISP's gateway, is left
-alone. Each address is also scanned on the TCP ports its device advertises a
-service on and the ports recorded open on that device;
-give an address or a prefix to scan only that. <code>--ports</code> takes a
-spec like <code>22,80,443,8000-8100</code>; the default is a curated preset of about a
-hundred ports a homelab commonly runs. <code>--concurrency</code> caps how many
-connections are open at once (64 by default). <code>--save</code> records what it finds
-against the matching devices.</p>
+<p>Probes TCP ports with a plain <code>connect()</code>. So it needs no privileges and
+cannot change the target.</p>
+<p>With no argument, it scans every current address that the inventory has on
+your networks. Your networks are those in <code>networks</code> and the segments that a
+router serves. It does not scan a neighbour outside them, such as the gateway
+of your ISP. It also scans each address on these TCP ports:</p>
+<ul>
+<li>the ports on which its device advertises a service</li>
+<li>the ports recorded as open on that device</li>
+</ul>
+<p>To scan only one address or prefix, give it as the argument.</p>
+<p><code>--ports</code> takes a list such as <code>22,80,443,8000-8100</code>. By default, it scans a
+preset of about a hundred ports that homelabs often use. <code>--concurrency</code> sets
+the maximum number of open connections at one time (64 by default). <code>--save</code>
+records the results on the matching devices.</p>
 <div class="highlight"><pre><span></span><code>$ jocasta ports 192.0.2.10
 ADDRESS      PORT   SERVICE
 192.0.2.10   22     ssh
@@ -2046,9 +2056,9 @@ $ jocasta ports --save                      # every known address, recorded
 $ jocasta ports 192.0.2.0/24 --ports 1-1024 --json
 </code></pre></div>
 <h2 id="plugin-run">plugin run<a class="headerlink" href="#plugin-run" title="Permanent link">&para;</a></h2>
-<p>Reads one configured source without starting the server. Use it to check a
+<p>Reads one configured source without starting the server. Use it to test a
 credential or a firewall rule against the real router. It reads the instance
-even when it is disabled in config.</p>
+even when the config disables it.</p>
 <div class="highlight"><pre><span></span><code>$ jocasta plugin run gateway
 NETWORK           VLAN  NAME
 192.0.2.0/24      -     Trusted
@@ -2060,10 +2070,13 @@ ADDRESS          MAC                VENDOR  HOSTNAME    STANDING     PRESENT
 
 $ jocasta plugin run gateway --json --save
 </code></pre></div>
-<p>After the devices it prints the source's topology: its ports and the VLANs
-each carries, the hardware addresses learned on each port, and its
-neighbours. A <code>topology_only</code> instance prints the topology alone. <code>--save</code>
-records both.</p>
+<p>After the devices, it prints the topology of the source:</p>
+<ul>
+<li>its ports, and the VLANs on each port</li>
+<li>the hardware addresses that it learned on each port</li>
+<li>its neighbours</li>
+</ul>
+<p>A <code>topology_only</code> instance prints only the topology. <code>--save</code> records both.</p>
 
 
 

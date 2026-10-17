@@ -2071,10 +2071,12 @@
 
 
 <h1 id="your-first-inventory">Your first inventory<a class="headerlink" href="#your-first-inventory" title="Permanent link">&para;</a></h1>
-<p>Run Jocasta in a container, sweep your network, name a device, and get a
-message on your phone when it goes quiet. About 10 minutes.</p>
-<p>You need a Linux machine on the network with Docker, and the network's
-prefix. <code>ip -4 addr</code> shows it: <code>inet 192.0.2.20/24</code> means <code>192.0.2.0/24</code>.</p>
+<p>In this tutorial, you run Jocasta in a container and sweep your network.
+Then you name a device and get a message on your phone when it goes quiet.
+It takes about 10 minutes.</p>
+<p>You need a Linux machine with Docker on the network. You also need the
+network's prefix. To find it, run <code>ip -4 addr</code>. For example,
+<code>inet 192.0.2.20/24</code> means <code>192.0.2.0/24</code>.</p>
 <h2 id="1-write-the-config">1. Write the config<a class="headerlink" href="#1-write-the-config" title="Permanent link">&para;</a></h2>
 <p>Create <code>jocasta.yaml</code> in an empty directory:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">networks</span><span class="p">:</span>
@@ -2090,16 +2092,17 @@ prefix. <code>ip -4 addr</code> shows it: <code>inet 192.0.2.20/24</code> means 
 <span class="w">  </span>-v<span class="w"> </span>./jocasta.yaml:/data/jocasta.yaml:ro<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>ghcr.io/pushkar-anand/jocasta:latest
 </code></pre></div>
-<p>Host networking lets the sweep read hardware addresses.</p>
+<p>With host networking, the sweep can read hardware addresses.</p>
 <h2 id="3-create-the-admin-account">3. Create the admin account<a class="headerlink" href="#3-create-the-admin-account" title="Permanent link">&para;</a></h2>
 <p>Open <code>http://&lt;host&gt;:8080</code>. Enter a username and a password of 8 or more
 characters, and select <strong>Create admin account</strong>.</p>
-<p>Until this account exists, anyone who reaches the page can create it.</p>
+<p>Until this account exists, anyone who reaches the page can create it. So
+do this step immediately.</p>
 <h2 id="4-look-at-the-first-sweep">4. Look at the first sweep<a class="headerlink" href="#4-look-at-the-first-sweep" title="Permanent link">&para;</a></h2>
-<p>The first sweep runs at startup. Open <strong>Devices</strong>: one row per device, with
-its addresses, vendor and name.</p>
-<p>Rows with no vendor are usually phones and laptops, which make up their
-hardware address. Rows with no name belong to devices that did not answer a
+<p>The first sweep runs when Jocasta starts. Open <strong>Devices</strong>. Each row is one
+device, with its addresses, vendor and name.</p>
+<p>A row with no vendor is usually a phone or a laptop. These devices make up
+their hardware address. A row with no name is a device that did not answer a
 name lookup.</p>
 <h2 id="5-name-a-device">5. Name a device<a class="headerlink" href="#5-name-a-device" title="Permanent link">&para;</a></h2>
 <ol>
@@ -2112,11 +2115,11 @@ name lookup.</p>
 <h2 id="6-watch-it">6. Watch it<a class="headerlink" href="#6-watch-it" title="Permanent link">&para;</a></h2>
 <p>On the device's page, select <strong>Watch</strong>.</p>
 <p>A watched device goes quiet 15 minutes after the last scan that saw it. To
-try it, turn the device off for 20 minutes and open <strong>Events</strong>.</p>
+test this, turn the device off for 20 minutes. Then open <strong>Events</strong>.</p>
 <h2 id="7-get-a-message-on-your-phone">7. Get a message on your phone<a class="headerlink" href="#7-get-a-message-on-your-phone" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Install <a href="https://ntfy.sh">ntfy</a> on your phone and subscribe to a topic.
-   Topics are public, so pick a name nobody would guess, such as
+   Topics are public. So use a name that nobody can guess, such as
    <code>jocasta-k3v9q2</code>.</li>
 <li>
 <p>Add it to <code>jocasta.yaml</code>:</p>
@@ -2127,12 +2130,13 @@ try it, turn the device off for 20 minutes and open <strong>Events</strong>.</p>
 </code></pre></div>
 </li>
 <li>
-<p>Restart: <code>docker restart jocasta</code>.</p>
+<p>Restart Jocasta: <code>docker restart jocasta</code>.</p>
 </li>
 <li>Open the account menu, top right, and select <strong>Notifications</strong>.</li>
 <li>Under <code>phone</code>, tick <strong>Watched device went quiet</strong> and <strong>Watched device
-   came back</strong>. Select <strong>Save</strong>.</li>
-<li>Select <strong>Send test</strong>. "Jocasta test" arrives on your phone.</li>
+   came back</strong>.</li>
+<li>Select <strong>Save</strong>.</li>
+<li>Select <strong>Send test</strong>. Your phone gets the message "Jocasta test".</li>
 </ol>
 <h2 id="next">Next<a class="headerlink" href="#next" title="Permanent link">&para;</a></h2>
 <ul>

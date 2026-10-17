@@ -1877,12 +1877,13 @@
 
 
 <h1 id="show-what-is-plugged-in-where">Show what is plugged in where<a class="headerlink" href="#show-what-is-plugged-in-where" title="Permanent link">&para;</a></h1>
-<p>The Topology page draws the network from the internet down: router, switches,
-access points, and each device on its port or Wi-Fi network. It comes from the
-bridge and Wi-Fi tables of each <a href="../routeros/">MikroTik</a> and
-<a href="../openwrt/">OpenWrt</a> router Jocasta reads. A switch or access point that
-announces itself to the router shows up with the devices behind it.</p>
-<p>To see which switch port each device is on, read the switch too, with
+<p>The Topology page shows the network from the internet down. It shows the
+router, switches, access points, and each device on its port or Wi-Fi
+network. The data comes from the bridge and Wi-Fi tables of each
+<a href="../routeros/">MikroTik</a> and <a href="../openwrt/">OpenWrt</a> router that Jocasta reads.
+If a switch or access point announces itself to the router, the page shows
+it with the devices behind it.</p>
+<p>To see the switch port of each device, also read the switch, with
 <code>topology_only: true</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="nt">plugins</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">routeros</span><span class="p">:</span>
@@ -1897,13 +1898,13 @@ announces itself to the router shows up with the devices behind it.</p>
 <span class="w">      </span><span class="nt">password</span><span class="p">:</span><span class="w"> </span><span class="s">"change-me"</span>
 <span class="w">      </span><span class="nt">topology_only</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">    </span><span class="c1"># ports only; the router lists the devices</span>
 </code></pre></div>
-<p>A <code>topology_only</code> source finds no devices, so its management address cannot
-rename a network. Every RouterOS and OpenWrt source is read on
-<code>scan.devices.interval</code>.</p>
-<p><code>jocasta plugin run switch_core</code> prints its ports, the addresses on each, and
-its neighbours.</p>
-<p>What each router's tables add: <a href="../routeros/#topology">RouterOS</a>,
-<a href="../openwrt/#topology">OpenWrt</a>. How to read the page:
+<p>A <code>topology_only</code> source finds no devices. So its management address cannot
+change the name of a network. Jocasta reads every RouterOS and OpenWrt source
+at each <code>scan.devices.interval</code>.</p>
+<p><code>jocasta plugin run switch_core</code> prints the ports of the switch, the
+addresses on each port, and the neighbours of the switch.</p>
+<p>For what the tables of each router add, see <a href="../routeros/#topology">RouterOS</a>
+and <a href="../openwrt/#topology">OpenWrt</a>. For how to read the page, see
 <a href="../../ui/#topology">Tour the web UI</a>.</p>
 
 

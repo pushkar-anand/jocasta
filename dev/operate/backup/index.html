@@ -1961,30 +1961,39 @@
 
 
 <h1 id="back-up-and-upgrade">Back up and upgrade<a class="headerlink" href="#back-up-and-upgrade" title="Permanent link">&para;</a></h1>
-<p>Everything lives in one SQLite database: inventory, change log, traffic,
-accounts, tokens and notification choices. Keep it and your config file.</p>
+<p>Jocasta keeps all its data in one SQLite database: inventory, change log,
+traffic, accounts, tokens and notification choices. Back up this database
+and your config file.</p>
 <h2 id="back-up">Back up<a class="headerlink" href="#back-up" title="Permanent link">&para;</a></h2>
-<p>The database is <code>/data/jocasta.db</code> in the container. Recent writes can sit in
-<code>jocasta.db-wal</code> beside it, so stop Jocasta and copy the whole directory:</p>
+<p>In the container, the database is <code>/data/jocasta.db</code>. Recent writes can be
+in <code>jocasta.db-wal</code>, next to it. So stop Jocasta and copy the whole
+directory:</p>
 <div class="highlight"><pre><span></span><code>docker<span class="w"> </span>stop<span class="w"> </span>jocasta
 docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-v<span class="w"> </span>jocasta-data:/data<span class="w"> </span>-v<span class="w"> </span><span class="s2">"</span><span class="nv">$PWD</span><span class="s2">"</span>:/backup<span class="w"> </span>alpine<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>cp<span class="w"> </span>-a<span class="w"> </span>/data<span class="w"> </span>/backup/jocasta-backup
 docker<span class="w"> </span>start<span class="w"> </span>jocasta
 </code></pre></div>
-<p>The copy holds password hashes and two-factor secrets.</p>
-<p>To restore, stop Jocasta, put the files back, and start it.</p>
+<p>The copy contains password hashes and two-factor secrets. Keep it safe.</p>
+<p>To restore:</p>
+<ol>
+<li>Stop Jocasta.</li>
+<li>Put the files back.</li>
+<li>Start Jocasta.</li>
+</ol>
 <h2 id="upgrade">Upgrade<a class="headerlink" href="#upgrade" title="Permanent link">&para;</a></h2>
 <p>Jocasta is pre-1.0. A release can change the config format or the schema with
 no upgrade path.</p>
 <ol>
 <li>Read the <a href="../upgrading/">upgrade notes</a> for every release after yours.</li>
 <li>Back up.</li>
-<li>Pull the new tag, such as <code>:v0.11.1</code>, and recreate the container.</li>
+<li>Pull the new tag, such as <code>:v0.11.1</code>.</li>
+<li>Recreate the container.</li>
 </ol>
-<p>The schema updates at startup.</p>
+<p>Jocasta updates the schema when it starts.</p>
 <h2 id="downgrade">Downgrade<a class="headerlink" href="#downgrade" title="Permanent link">&para;</a></h2>
-<p>Restore the backup from before the upgrade. An older release started on a
-newer database migrates the schema down and drops the newer data.</p>
+<p>Restore the backup from before the upgrade. If you start an older release
+on a newer database, it migrates the schema down. This deletes the newer
+data.</p>
 
 
 

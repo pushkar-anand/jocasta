@@ -2,49 +2,49 @@
 
 ## Devices
 
-A device is identified by its hardware (MAC) address. Its IP address is a lease, so your label and notes stay put when the IP changes.
+Jocasta identifies a device by its hardware (MAC) address. An IP address is only a lease. So your label and notes stay with the device when its IP address changes.
 
-A sweep reads hardware addresses on its own segment only. A device on another segment is known by IP until a router reports its hardware address. The device page says which: **by hardware address** or **by IP address**. If a record for that hardware address already exists, the two merge and keep your labels.
+A sweep reads hardware addresses only on its own segment. Jocasta knows a device on another segment by its IP address until a router reports its hardware address. The device page shows which: **by hardware address** or **by IP address**. If a record for that hardware address already exists, Jocasta merges the two and keeps your labels.
 
-Phones, tablets and laptops make up a hardware address per Wi-Fi network. Such an address names no vendor, and each new one is a new device. Devices you never touch are deleted 90 days after they were last seen.
+Phones, tablets and laptops make up a new hardware address for each Wi-Fi network. Such an address names no vendor, and each new address is a new device. Jocasta deletes a device 90 days after a scan last saw it, unless you gave it a label, group, type or notes, or ignored or watched it.
 
-An address the device stops answering on is dropped once the device has answered elsewhere in the same network for 6 hours.
+If a device stops answering on an address, Jocasta removes that address after the device answers on a different address in the same network for 6 hours.
 
 ## Networks
 
-A network is an IP prefix, such as `192.0.2.0/24`. Jocasta sweeps the prefixes under `networks`. A [router plugin](<https://pushkar-anand.github.io/jocasta/dev/plugins/index.md>) adds the segments the router serves, with names and VLAN tags.
+A network is an IP prefix, such as `192.0.2.0/24`. Jocasta sweeps the prefixes under `networks`. A [router plugin](<https://pushkar-anand.github.io/jocasta/dev/plugins/index.md>) adds the segments that the router serves, with their names and VLAN tags.
 
 ## Scans
 
 A scan is one recorded reading:
 
-- **Sweep.** An ICMP echo to every address in `networks`, then a name lookup for each one that answers. Every 5 minutes.
-- **Port scan.** A TCP connection to a list of ports on every known address. Off until `scan.ports.enabled: true`, then every 6 hours. A new device is also scanned as soon as a sweep or router read discovers it.
+- **Sweep.** An ICMP echo to every address in `networks`, then a name lookup for each address that answers. Every 5 minutes.
+- **Port scan.** A TCP connection to a list of ports on every known address. Off until you set `scan.ports.enabled: true`, then every 6 hours. Jocasta also scans a new device when a sweep or a router read finds it.
 - **Plugin read.** A router's ARP and DHCP tables, read with each sweep. A DNS resolver's query log, read every minute.
 
-The Scans page lists them. To run one by hand, use [`jocasta scan`](<https://pushkar-anand.github.io/jocasta/dev/cli/#scan>), [`jocasta ports`](<https://pushkar-anand.github.io/jocasta/dev/cli/#ports>) or [`jocasta plugin run`](<https://pushkar-anand.github.io/jocasta/dev/cli/#plugin-run>).
+The Scans page lists them. To start a scan yourself, use [`jocasta scan`](<https://pushkar-anand.github.io/jocasta/dev/cli/#scan>), [`jocasta ports`](<https://pushkar-anand.github.io/jocasta/dev/cli/#ports>) or [`jocasta plugin run`](<https://pushkar-anand.github.io/jocasta/dev/cli/#plugin-run>).
 
 ## Sources
 
-Each scan files its facts under a source: `sweep:<host>` for the sweep, or the plugin's instance name, such as `gateway`. The device page lists what each source calls the device.
+Each scan records its facts under a source. The sweep's source is `sweep:<host>`. A plugin's source is its instance name, such as `gateway`. The device page lists the name that each source gives the device.
 
-When sources disagree on a name, the higher standing wins. A static DHCP lease beats a name the device announces. See [How names are chosen](<https://pushkar-anand.github.io/jocasta/dev/naming/index.md>).
+If two sources give different names, the source with the higher standing wins. For example, a static DHCP lease wins over a name that the device announces. See [How names are chosen](<https://pushkar-anand.github.io/jocasta/dev/naming/index.md>).
 
 ## Presence
 
-A device is seen recently if a scan saw it in the last 15 minutes, and quiet otherwise. Both come from past scans. Opening a page starts none.
+A device is seen recently if a scan saw it in the last 15 minutes. If not, it is quiet. Both states come from past scans. A page that you open does not start a scan.
 
-Watched devices log when they go quiet and come back. Others do not: phones and laptops would fill the log. See [Get told when a device goes quiet](<https://pushkar-anand.github.io/jocasta/dev/notifications/watch/index.md>).
+A watched device logs an event when it goes quiet and when it comes back. Other devices do not, because phones and laptops would fill the log. See [Get told when a device goes quiet](<https://pushkar-anand.github.io/jocasta/dev/notifications/watch/index.md>).
 
 ## The change log
 
-The Events page lists every change: new devices, addresses gained and dropped, renames, ports opened and closed, type changes, and your own edits. [Notifications](<https://pushkar-anand.github.io/jocasta/dev/notifications/index.md>) send them on.
+The Events page lists every change: new devices, addresses added and removed, new names, ports opened and closed, type changes, and your own edits. [Notifications](<https://pushkar-anand.github.io/jocasta/dev/notifications/index.md>) send these events to other services.
 
 ## What you own
 
-Label, group, type, notes, ignored and watched are yours. Scans never write them. See [Label, group and ignore devices](<https://pushkar-anand.github.io/jocasta/dev/devices/index.md>).
+The label, group, type, notes, ignored flag and watched flag are yours. Scans never change them. See [Label, group and ignore devices](<https://pushkar-anand.github.io/jocasta/dev/devices/index.md>).
 
-Without a type from you, Jocasta guesses one. See [How a device gets its type](<https://pushkar-anand.github.io/jocasta/dev/classification/index.md>).
+If you do not give a device a type, Jocasta guesses one. See [How a device gets its type](<https://pushkar-anand.github.io/jocasta/dev/classification/index.md>).
 
 ## Retention
 
@@ -59,7 +59,7 @@ Without a type from you, Jocasta guesses one. See [How a device gets its type](<
 
 ## Limits
 
-- An open port is one that accepted a TCP connection. The service name is a guess from the port number.
-- No recorded ports can mean port scanning is off.
-- Traffic covers only what crossed the router while flow export was on.
-- An internet address is named after the network that announces it. For a cloud address, that is the provider.
+- An open port is a port that accepted a TCP connection. Jocasta guesses the service name from the port number.
+- If a device has no recorded ports, port scanning can be off.
+- Traffic shows only what passed the router while flow export was on.
+- Jocasta names an internet address after the network that announces it. For a cloud address, that is the provider.

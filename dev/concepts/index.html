@@ -2094,55 +2094,62 @@
 
 <h1 id="how-jocasta-works">How Jocasta works<a class="headerlink" href="#how-jocasta-works" title="Permanent link">&para;</a></h1>
 <h2 id="devices">Devices<a class="headerlink" href="#devices" title="Permanent link">&para;</a></h2>
-<p>A device is identified by its hardware (MAC) address. Its IP address is a
-lease, so your label and notes stay put when the IP changes.</p>
-<p>A sweep reads hardware addresses on its own segment only. A device on another
-segment is known by IP until a router reports its hardware address. The device
-page says which: <strong>by hardware address</strong> or <strong>by IP address</strong>. If a record for
-that hardware address already exists, the two merge and keep your labels.</p>
-<p>Phones, tablets and laptops make up a hardware address per Wi-Fi network.
-Such an address names no vendor, and each new one is a new device. Devices you
-never touch are deleted 90 days after they were last seen.</p>
-<p>An address the device stops answering on is dropped once the device has
-answered elsewhere in the same network for 6 hours.</p>
+<p>Jocasta identifies a device by its hardware (MAC) address. An IP address is
+only a lease. So your label and notes stay with the device when its IP
+address changes.</p>
+<p>A sweep reads hardware addresses only on its own segment. Jocasta knows a
+device on another segment by its IP address until a router reports its
+hardware address. The device page shows which: <strong>by hardware address</strong> or
+<strong>by IP address</strong>. If a record for that hardware address already exists,
+Jocasta merges the two and keeps your labels.</p>
+<p>Phones, tablets and laptops make up a new hardware address for each Wi-Fi
+network. Such an address names no vendor, and each new address is a new
+device. Jocasta deletes a device 90 days after a scan last saw it, unless you
+gave it a label, group, type or notes, or ignored or watched it.</p>
+<p>If a device stops answering on an address, Jocasta removes that address
+after the device answers on a different address in the same network for 6
+hours.</p>
 <h2 id="networks">Networks<a class="headerlink" href="#networks" title="Permanent link">&para;</a></h2>
 <p>A network is an IP prefix, such as <code>192.0.2.0/24</code>. Jocasta sweeps the
 prefixes under <code>networks</code>. A <a href="../plugins/">router plugin</a> adds the
-segments the router serves, with names and VLAN tags.</p>
+segments that the router serves, with their names and VLAN tags.</p>
 <h2 id="scans">Scans<a class="headerlink" href="#scans" title="Permanent link">&para;</a></h2>
 <p>A scan is one recorded reading:</p>
 <ul>
 <li><strong>Sweep.</strong> An ICMP echo to every address in <code>networks</code>, then a name lookup
-  for each one that answers. Every 5 minutes.</li>
+  for each address that answers. Every 5 minutes.</li>
 <li><strong>Port scan.</strong> A TCP connection to a list of ports on every known address.
-  Off until <code>scan.ports.enabled: true</code>, then every 6 hours. A new device is
-  also scanned as soon as a sweep or router read discovers it.</li>
+  Off until you set <code>scan.ports.enabled: true</code>, then every 6 hours. Jocasta
+  also scans a new device when a sweep or a router read finds it.</li>
 <li><strong>Plugin read.</strong> A router's ARP and DHCP tables, read with each sweep. A DNS
   resolver's query log, read every minute.</li>
 </ul>
-<p>The Scans page lists them. To run one by hand, use
+<p>The Scans page lists them. To start a scan yourself, use
 <a href="../cli/#scan"><code>jocasta scan</code></a>, <a href="../cli/#ports"><code>jocasta ports</code></a> or
 <a href="../cli/#plugin-run"><code>jocasta plugin run</code></a>.</p>
 <h2 id="sources">Sources<a class="headerlink" href="#sources" title="Permanent link">&para;</a></h2>
-<p>Each scan files its facts under a source: <code>sweep:&lt;host&gt;</code> for the sweep, or the
-plugin's instance name, such as <code>gateway</code>. The device page lists what each
-source calls the device.</p>
-<p>When sources disagree on a name, the higher standing wins. A static DHCP lease
-beats a name the device announces. See <a href="../naming/">How names are chosen</a>.</p>
+<p>Each scan records its facts under a source. The sweep's source is
+<code>sweep:&lt;host&gt;</code>. A plugin's source is its instance name, such as <code>gateway</code>.
+The device page lists the name that each source gives the device.</p>
+<p>If two sources give different names, the source with the higher standing
+wins. For example, a static DHCP lease wins over a name that the device
+announces. See <a href="../naming/">How names are chosen</a>.</p>
 <h2 id="presence">Presence<a class="headerlink" href="#presence" title="Permanent link">&para;</a></h2>
-<p>A device is seen recently if a scan saw it in the last 15 minutes, and quiet
-otherwise. Both come from past scans. Opening a page starts none.</p>
-<p>Watched devices log when they go quiet and come back. Others do not: phones
-and laptops would fill the log. See
+<p>A device is seen recently if a scan saw it in the last 15 minutes. If not,
+it is quiet. Both states come from past scans. A page that you open does not
+start a scan.</p>
+<p>A watched device logs an event when it goes quiet and when it comes back.
+Other devices do not, because phones and laptops would fill the log. See
 <a href="../notifications/watch/">Get told when a device goes quiet</a>.</p>
 <h2 id="the-change-log">The change log<a class="headerlink" href="#the-change-log" title="Permanent link">&para;</a></h2>
-<p>The Events page lists every change: new devices, addresses gained and
-dropped, renames, ports opened and closed, type changes, and your own edits.
-<a href="../notifications/">Notifications</a> send them on.</p>
+<p>The Events page lists every change: new devices, addresses added and
+removed, new names, ports opened and closed, type changes, and your own
+edits. <a href="../notifications/">Notifications</a> send these events to other
+services.</p>
 <h2 id="what-you-own">What you own<a class="headerlink" href="#what-you-own" title="Permanent link">&para;</a></h2>
-<p>Label, group, type, notes, ignored and watched are yours. Scans never write
-them. See <a href="../devices/">Label, group and ignore devices</a>.</p>
-<p>Without a type from you, Jocasta guesses one. See
+<p>The label, group, type, notes, ignored flag and watched flag are yours.
+Scans never change them. See <a href="../devices/">Label, group and ignore devices</a>.</p>
+<p>If you do not give a device a type, Jocasta guesses one. See
 <a href="../classification/">How a device gets its type</a>.</p>
 <h2 id="retention">Retention<a class="headerlink" href="#retention" title="Permanent link">&para;</a></h2>
 <table>
@@ -2179,12 +2186,12 @@ them. See <a href="../devices/">Label, group and ignore devices</a>.</p>
 <p><code>0s</code> keeps a record forever.</p>
 <h2 id="limits">Limits<a class="headerlink" href="#limits" title="Permanent link">&para;</a></h2>
 <ul>
-<li>An open port is one that accepted a TCP connection. The service name is a
-  guess from the port number.</li>
-<li>No recorded ports can mean port scanning is off.</li>
-<li>Traffic covers only what crossed the router while flow export was on.</li>
-<li>An internet address is named after the network that announces it. For a
-  cloud address, that is the provider.</li>
+<li>An open port is a port that accepted a TCP connection. Jocasta guesses the
+  service name from the port number.</li>
+<li>If a device has no recorded ports, port scanning can be off.</li>
+<li>Traffic shows only what passed the router while flow export was on.</li>
+<li>Jocasta names an internet address after the network that announces it. For
+  a cloud address, that is the provider.</li>
 </ul>
 
 

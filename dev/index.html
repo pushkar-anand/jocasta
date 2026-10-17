@@ -1900,30 +1900,32 @@
 
 
 <h1 id="jocasta">Jocasta<a class="headerlink" href="#jocasta" title="Permanent link">&para;</a></h1>
-<p>Jocasta keeps an inventory of the devices on your network and logs every
-change. One binary, with a web UI, a JSON API and an MCP server.</p>
+<p>Jocasta keeps an inventory of the devices on your network. It logs every
+change. It is one binary, with a web UI, a JSON API and an MCP server.</p>
 <div class="admonition warning">
 <p class="admonition-title">Pre-1.0</p>
 <p>A release can change the config format, the database schema or the API
-with no upgrade path. Pin a version and read the
-<a href="operate/upgrading/">upgrade notes</a> before moving on. The version menu
-at the top picks the docs for your release.</p>
+with no upgrade path. Pin a version. Before you move to a new version,
+read the <a href="operate/upgrading/">upgrade notes</a>. To read the docs for your
+release, select it in the version menu at the top.</p>
 </div>
 <p><img alt="The overview page" src="img/overview.png" /></p>
 <h2 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
 <ol>
-<li>Sweep the networks you list, every 5 minutes.</li>
-<li>File each device under its hardware address. Its IP is a lease.</li>
-<li>Log what changed. Add your router, flow exports and DNS resolver for other
-   VLANs, traffic and lookups.</li>
+<li>Jocasta sweeps the networks you list, every 5 minutes.</li>
+<li>It records each device under its hardware address, because an IP address
+   is only a lease.</li>
+<li>It logs what changed.</li>
 </ol>
+<p>To see other VLANs, add your router. To see traffic, add flow exports. To see
+lookups, add your DNS resolver.</p>
 <h2 id="start-here">Start here<a class="headerlink" href="#start-here" title="Permanent link">&para;</a></h2>
 <div class="grid cards">
 <ul>
 <li>
 <p><strong><a href="tutorial/">Your first inventory</a></strong></p>
-<p>Run it, sweep, name a device, get a message when it goes quiet. 10
-minutes.</p>
+<p>Run Jocasta, sweep your network, name a device, and get a message when
+it goes quiet. 10 minutes.</p>
 </li>
 <li>
 <p><strong><a href="concepts/">How Jocasta works</a></strong></p>

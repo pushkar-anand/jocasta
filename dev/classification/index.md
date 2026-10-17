@@ -1,30 +1,38 @@
 # How a device gets its type
 
-After each scan, Jocasta guesses each device's type from:
+After each scan, Jocasta guesses the type of each device from these facts:
 
 - the vendor of its hardware address
 - its name
 - its open TCP ports
-- the DNS-SD services it advertises, and a Google Cast device's model
+- the DNS-SD services it advertises, and the model of a Google Cast device
 - whether it made up its hardware address
 - the name of its network, such as `IoT`
-- whether it holds the `.1` of its subnet
+- whether it has the `.1` address of its subnet
 
 ## Rules
 
-Each rule names a type and the facts it needs, such as vendor Brother for a printer, or port 8123 for a Home Assistant hub. The matching rule with the most facts wins. On a tie, the rule listed first wins.
+Each rule names a type and the facts it needs. For example, vendor Brother means a printer, and port 8123 means a Home Assistant hub. Of the rules that match, the rule with the most facts wins. If two rules have the same number of facts, the rule listed first wins.
 
-The device page shows the guess as **auto** with a confidence. High: the rule needed two or more facts, or two rules agree. Low: one weak fact, such as the network's name, and nothing else. Medium: anything between.
+The device page shows the guess as **auto**, with a confidence:
 
-When a later scan changes the guess, the change log records **Type changed**.
+- **High**: the rule needs two or more facts, or two rules agree.
+- **Low**: the guess comes from one weak fact, such as the network's name, and nothing else.
+- **Medium**: all other cases.
+
+If a later scan changes the guess, the change log records **Type changed**.
 
 ## Set the type yourself
 
-Open the device, select **Edit details**, pick a type, and select **Save**. Scans never change it. The device page still shows the guess. **Auto** goes back to it.
+1. Open the device and select **Edit details**.
+2. Select a type.
+3. Select **Save**.
+
+Scans never change a type that you set. The device page still shows the guess. To use the guess again, select **Auto**.
 
 ## Ask why
 
-The [MCP server](<https://pushkar-anand.github.io/jocasta/dev/integrations/mcp/index.md>)'s `explain_device` tool returns the facts, the winning rule, and every other rule that matched.
+The `explain_device` tool of the [MCP server](<https://pushkar-anand.github.io/jocasta/dev/integrations/mcp/index.md>) returns the facts, the rule that won, and every other rule that matched.
 
 ## Types
 

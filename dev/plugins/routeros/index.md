@@ -14,22 +14,22 @@ plugins:
       insecure: true         # RouterOS serves a self-signed cert unless you import one
 ```
 
-Check it with `jocasta plugin run gateway` before starting the server. See [CLI](<https://pushkar-anand.github.io/jocasta/dev/cli/#plugin-run>).
+Before you start the server, test the source with `jocasta plugin run gateway`. See [CLI](<https://pushkar-anand.github.io/jocasta/dev/cli/#plugin-run>).
 
 ## Topology
 
-What each RouterOS table adds to the [Topology page](<https://pushkar-anand.github.io/jocasta/dev/plugins/topology/index.md>):
+Each RouterOS table adds this to the [Topology page](<https://pushkar-anand.github.io/jocasta/dev/plugins/topology/index.md>):
 
-- The bridge host table says which port each hardware address is behind, and in which VLAN when the bridge has VLAN filtering on.
-- Neighbour discovery (MNDP or LLDP) names the switch or access point on each port. RouterOS runs it on the `LAN` interface list by default; see `/ip neighbor discovery-settings`.
-- The Wi-Fi registration table marks Wi-Fi clients and names their network and band, from the wifi or the wireless package, with the rate each way and the signal. A router managing access points with CAPsMAN lists their clients too.
-- The Ethernet monitor gives the rate each Ethernet and SFP port's link runs at, and the fastest rate both ends offer.
+- **Bridge host table**: the port behind which each hardware address is. If the bridge has VLAN filtering on, it also gives the VLAN.
+- **Neighbour discovery** (MNDP or LLDP): the name of the switch or access point on each port. By default, RouterOS runs it on the `LAN` interface list. See `/ip neighbor discovery-settings`.
+- **Wi-Fi registration table**: which devices are Wi-Fi clients, with their network, band, signal and rate in each direction. It comes from the wifi package or the wireless package. A router that manages access points with CAPsMAN also lists their clients.
+- **Ethernet monitor**: the link rate of each Ethernet and SFP port, and the fastest rate that both ends offer.
 
-To read a MikroTik switch or access point for its ports, add it as another instance with `topology_only: true`. See [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/dev/plugins/topology/index.md>).
+To read the ports of a MikroTik switch or access point, add it as another instance with `topology_only: true`. See [Show what is plugged in where](<https://pushkar-anand.github.io/jocasta/dev/plugins/topology/index.md>).
 
 ## Export traffic flows
 
-To record who devices talk to, point Traffic Flow at the Jocasta host (here `192.0.2.10`) and set up the [NetFlow listener](<https://pushkar-anand.github.io/jocasta/dev/plugins/netflow/index.md>):
+To record who devices talk to, send Traffic Flow to the Jocasta host. Then set up the [NetFlow listener](<https://pushkar-anand.github.io/jocasta/dev/plugins/netflow/index.md>). In this example, the Jocasta host is `192.0.2.10`:
 
 ```
 /ip traffic-flow set enabled=yes interfaces=all
@@ -38,4 +38,4 @@ To record who devices talk to, point Traffic Flow at the Jocasta host (here `192
 
 ## All settings
 
-Every `plugins.routeros` setting, with its default and allowed values, is in the [configuration reference](<https://pushkar-anand.github.io/jocasta/dev/reference/configuration/#pluginsrouteros>).
+The [configuration reference](<https://pushkar-anand.github.io/jocasta/dev/reference/configuration/#pluginsrouteros>) lists every `plugins.routeros` setting, with its default and allowed values.

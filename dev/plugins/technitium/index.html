@@ -1952,9 +1952,9 @@
 
 <h1 id="technitium">Technitium<a class="headerlink" href="#technitium" title="Permanent link">&para;</a></h1>
 <p>Jocasta reads the query log of a
-<a href="https://technitium.com/dns/">Technitium DNS Server</a> over its HTTP API. What
-is recorded, and how to route lookups so each device asks the server
-directly, is in <a href="../dns/">Record what devices look up</a>.</p>
+<a href="https://technitium.com/dns/">Technitium DNS Server</a> over its HTTP API.
+<a href="../dns/">Record what devices look up</a> tells what Jocasta records. It also
+tells how to make each device ask the server directly.</p>
 <div class="highlight"><pre><span></span><code><span class="nt">plugins</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">technitium</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">resolver</span><span class="p">:</span>
@@ -1969,21 +1969,23 @@ directly, is in <a href="../dns/">Record what devices look up</a>.</p>
 <ol>
 <li>In Apps, App Store, install Query Logs (Sqlite). Technitium keeps a query
    log only through an app like this one.</li>
-<li>In Administration, Users, add a user for Jocasta. In Administration,
-   Permissions, give that user View on the Logs section and nothing else.</li>
-<li>Sign in as that user, and in the user menu select Create API Token. Put the
-   token in <code>token</code>, or in <code>JOCASTA_PLUGINS__TECHNITIUM__RESOLVER__TOKEN</code>.</li>
+<li>In Administration, Users, add a user for Jocasta.</li>
+<li>In Administration, Permissions, give that user View on the Logs section
+   and nothing else.</li>
+<li>Sign in as that user. In the user menu, select Create API Token.</li>
+<li>Put the token in <code>token</code>, or in
+   <code>JOCASTA_PLUGINS__TECHNITIUM__RESOLVER__TOKEN</code>.</li>
 </ol>
-<p>With more than one app logging queries, name the one to read in <code>log_app</code>,
-as the Apps page lists it.</p>
-<p>In a cluster, each node logs the lookups it answered to its own disk. Add one
-entry per node, each at that node's own address. A virtual address shared
-between nodes, such as one VRRP keeps, reaches one node at a time, and the
-other node's lookups would go unread. The token and the log app reach every
-node from the primary.</p>
+<p>If more than one app logs queries, set <code>log_app</code> to the app to read. Use the
+name that the Apps page shows.</p>
+<p>In a cluster, each node logs the lookups that it answered to its own disk.
+Add one entry for each node, at the node's own address. Do not use a virtual
+address that the nodes share, such as a VRRP address. It reaches only one
+node at a time, so Jocasta does not read the lookups of the other node. The
+primary node copies the token and the log app to every node.</p>
 <h2 id="all-settings">All settings<a class="headerlink" href="#all-settings" title="Permanent link">&para;</a></h2>
-<p>Every <code>plugins.technitium</code> setting, with its default and allowed values, is in the
-<a href="../../reference/configuration/#pluginstechnitium">configuration reference</a>.</p>
+<p>The <a href="../../reference/configuration/#pluginstechnitium">configuration reference</a>
+lists every <code>plugins.technitium</code> setting, with its default and allowed values.</p>
 
 
 
