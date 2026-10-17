@@ -20,35 +20,35 @@ import (
 )
 
 const (
-	// trafficFlushInterval is how often buffered flows are written. A minute
-	// keeps the write rate to one transaction a minute however busy the
-	// network, and the views ask about hours.
+	// trafficFlushInterval is how often the recorder writes buffered flows. A
+	// minute keeps the write rate at one transaction each minute, for any
+	// network. The views ask about hours.
 	trafficFlushInterval = time.Minute
 
-	// trafficFlushTimeout bounds the final flush on shutdown, which runs after
-	// the context that governed the listener is gone.
+	// trafficFlushTimeout limits the final flush on shutdown. That flush runs
+	// after the context of the listener is gone.
 	trafficFlushTimeout = 10 * time.Second
 
-	// maxPendingTraffic caps how many distinct conversations one flush
-	// interval may buffer. Past it, flows are dropped and counted: a flood of
-	// spoofed or scanning traffic should cost only a log line.
+	// maxPendingTraffic limits how many different conversations one flush
+	// interval can buffer. After it, the recorder drops and counts flows. A
+	// flood of forged or scanning traffic must cost only a log line.
 	maxPendingTraffic = 200_000
 
-	// Peer names are cached so a busy peer is resolved once; the cache is
-	// dropped whole when it grows past its cap, which is
-	// simpler than evicting and costs one round of lookups.
+	// The recorder caches peer names. So it resolves a busy peer once. When
+	// the cache grows past its limit, the recorder drops all of it. This is
+	// simpler than eviction, and costs one round of lookups.
 	peerNameTTL       = 6 * time.Hour
 	maxPeerNames      = 20_000
 	nameLookupsAtOnce = 16
 )
 
-// TrafficRecorder rolls the flows traffic sources report into hourly totals
-// per device and peer.
+// TrafficRecorder adds the flows from traffic sources into hourly totals for
+// each device and peer.
 //
-// Flows arrive continuously and are only added up in memory; Run writes them
-// once a minute. Which device an address belongs to is settled at that write,
-// against the addresses devices hold then, so the totals stay with the device
-// after its address moves on.
+// Flows arrive all the time. The recorder adds them up in memory. Run writes
+// them once a minute. That write decides the device of an address, against
+// the addresses of devices at that time. So the totals stay with the device
+// after its address changes.
 type TrafficRecorder struct {
 	store   *Store
 	log     *slog.Logger
@@ -58,24 +58,25 @@ type TrafficRecorder struct {
 	pending map[trafficKey]*trafficTotals
 	dropped uint64
 
-	// broadcasts are what devices sent to everyone, kept apart from pending
-	// since they have no peer.
+	// broadcasts are what devices sent to everyone. They stay separate from
+	// pending, because they have no peer.
 	broadcasts map[broadcastKey]*broadcastTotals
 
-	// outside are the routers' outside addresses, learned from what they
-	// translated flows to, with who last named each and when; routers are the
-	// exporters' own addresses.
+	// outside are the outside addresses of the routers. The recorder learns
+	// them from the translated flows. It keeps who last named each, and when.
+	// routers are the own addresses of the exporters.
 	outside map[netip.Addr]outsideSeen
 	routers map[netip.Addr]bool
 
-	// ports is the ports each device tried on each peer this hour, kept
-	// across flushes so an hour's count is of distinct ports. Only Flush
-	// touches it.
+	// ports is the ports that each device tried on each peer this hour. It
+	// stays across flushes. So the count of an hour is of different ports.
+	// Only Flush uses it.
 	ports map[attemptKey]*portSet
 
 	names map[netip.Addr]peerName
 
-	// recent is the last few flushes' conversations, for what is active now.
+	// recent is the conversations of the last few flushes, for what is active
+	// now.
 	recent recentActivity
 }
 
@@ -92,15 +93,15 @@ type trafficKey struct {
 type trafficTotals struct {
 	bytes, packets, connections uint64
 
-	// flows is how many flows were added up; flags every TCP flag they
-	// showed. toService is set when they were addressed to the service port,
-	// which makes this the direction that started the exchange.
+	// flows is how many flows the recorder added up. flags is every TCP flag
+	// that they showed. toService is set when they went to the service port.
+	// This makes this the direction that started the exchange.
 	flows     uint64
 	flags     uint8
 	toService bool
 
 	// mirrored is how many of connections came from flows with the same port
-	// on both ends, whose reply is addressed to the service as well.
+	// on both ends. Their reply also goes to the service.
 	mirrored uint64
 
 	// echoRequests and echoReplies count pings and their answers.
@@ -112,8 +113,9 @@ type peerName struct {
 	resolvedAt time.Time
 }
 
-// NewTrafficRecorder returns a recorder writing through store. resolve looks
-// up a peer's name and may be nil, which records no names.
+// NewTrafficRecorder returns a recorder that writes through store. resolve
+// looks up the name of a peer. It can be nil. Then the recorder records no
+// names.
 func NewTrafficRecorder(store *Store, log *slog.Logger, resolve func(context.Context, netip.Addr) string) *TrafficRecorder {
 	if log == nil {
 		log = slog.Default()
@@ -132,8 +134,8 @@ func NewTrafficRecorder(store *Store, log *slog.Logger, resolve func(context.Con
 	}
 }
 
-// Add buffers what src reported. It is safe to call from every source's
-// listener at once, and never blocks on the database.
+// Add buffers what src reported. The listeners of all sources can call it at
+// once. It never blocks on the database.
 func (r *TrafficRecorder) Add(src plugin.Plugin, flows []plugin.Flow) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -178,12 +180,12 @@ func (r *TrafficRecorder) Add(src plugin.Plugin, flows []plugin.Flow) {
 		t.flows++
 		t.flags |= f.TCPFlags
 
-		// A conversation is usually exported as two flows, one each way.
-		// Only the one addressed to the service counts as a connection, so
-		// the reply does not count it twice. ICMP has no service port: only a
-		// ping starts anything, and every other message (an echo reply, an
-		// unreachable, a time exceeded) answers something, so it is never
-		// counted as the replier opening a connection.
+		// An exporter usually exports a conversation as two flows, one in
+		// each direction. Only the flow to the service counts as a
+		// connection. So the reply does not count it twice. ICMP has no
+		// service port. Only a ping starts something. Every other message (an
+		// echo reply, an unreachable, a time exceeded) answers something. So
+		// it never counts as a connection opened by the replier.
 		switch {
 		case f.Protocol == protoICMP || f.Protocol == protoICMPv6:
 			if f.ICMPType == icmpEchoRequest || f.ICMPType == icmpv6EchoRequest {
@@ -192,8 +194,8 @@ func (r *TrafficRecorder) Add(src plugin.Plugin, flows []plugin.Flow) {
 		case key.service == 0 || f.DstPort == key.service:
 			t.connections++
 
-			// An NTP client sends from 123 to 123, so its server's reply
-			// counts here too. trafficRow sorts out which side started it.
+			// An NTP client sends from 123 to 123. So the reply of its server
+			// also counts here. trafficRow decides which side started it.
 			if key.service != 0 && f.SrcPort == f.DstPort {
 				t.mirrored++
 			}
@@ -214,8 +216,8 @@ func (r *TrafficRecorder) Add(src plugin.Plugin, flows []plugin.Flow) {
 	}
 }
 
-// Run flushes every minute until ctx is done, then once more so nothing
-// buffered is lost on a clean shutdown.
+// Run flushes every minute until ctx is done. Then it flushes once more. So a
+// clean shutdown loses no buffered data.
 func (r *TrafficRecorder) Run(ctx context.Context) error {
 	tick := time.NewTicker(trafficFlushInterval)
 	defer tick.Stop()
@@ -243,9 +245,9 @@ func (r *TrafficRecorder) Run(ctx context.Context) error {
 	}
 }
 
-// Flush writes everything buffered since the last flush in one transaction.
-// Run is its only caller in production; the name cache it keeps is not safe
-// for two flushes at once.
+// Flush writes everything buffered since the last flush, in one transaction.
+// In production, only Run calls it. Its name cache is not safe for two flushes
+// at once.
 func (r *TrafficRecorder) Flush(ctx context.Context) error {
 	r.mu.Lock()
 	pending, broadcasts, dropped := r.pending, r.broadcasts, r.dropped
@@ -283,9 +285,9 @@ func (r *TrafficRecorder) Flush(ctx context.Context) error {
 	return r.store.recordOutside(ctx, outside)
 }
 
-// peerNames returns names for the peers in addrs, resolving the ones the cache
-// does not hold concurrently. Called before the write transaction opens, so a
-// slow resolver never holds the database.
+// peerNames returns names for the peers in addrs. It resolves the peers that
+// are not in the cache at the same time. It runs before the write transaction
+// opens. So a slow resolver never holds the database.
 func (r *TrafficRecorder) peerNames(ctx context.Context, addrs []netip.Addr) map[netip.Addr]string {
 	out := make(map[netip.Addr]string, len(addrs))
 	if r.resolve == nil {
@@ -334,10 +336,11 @@ func (r *TrafficRecorder) peerNames(ctx context.Context, addrs []netip.Addr) map
 	return out
 }
 
-// recordTraffic writes one flush. Each buffered direction lands on the row of
-// whichever end is a known device, and on both rows when both are: the sender
-// counts it as sent, the receiver as received. A flow between two addresses
-// no device holds says nothing about the inventory and is left out.
+// recordTraffic writes one flush. Each buffered direction goes on the row of
+// the end that is a known device. If both ends are, it goes on both rows. The
+// sender counts it as sent, and the receiver as received. A flow between two
+// addresses of no device tells nothing about the inventory. So it is left
+// out.
 func (s *Store) recordTraffic(
 	ctx context.Context,
 	pending map[trafficKey]*trafficTotals,
@@ -346,9 +349,9 @@ func (s *Store) recordTraffic(
 	routers map[netip.Addr]bool,
 	names func(context.Context, []netip.Addr) map[netip.Addr]string,
 ) error {
-	// One read settles every device, outside the write, so the peers that need
-	// a name are known before any lookup and no lookup runs inside the
-	// transaction. An address absent from the map is held by no device.
+	// One read settles every device, outside the write. So the peers that need
+	// a name are known before a lookup. No lookup runs in the transaction. An
+	// address that is not in the map belongs to no device.
 	holders, err := s.currentHolders(ctx)
 	if err != nil {
 		return err
@@ -359,8 +362,8 @@ func (s *Store) recordTraffic(
 	seen := make(map[netip.Addr]bool)
 
 	for k := range pending {
-		// Only a peer across from a device is written, so only that one is
-		// worth a lookup.
+		// Only a peer of a device is written. So only that peer is worth a
+		// lookup.
 		for _, pair := range [][2]netip.Addr{{k.src, k.dst}, {k.dst, k.src}} {
 			device, peer := pair[0], pair[1]
 			if holders[device] != 0 && holders[peer] == 0 && !seen[peer] {
@@ -437,9 +440,9 @@ func (s *Store) recordTraffic(
 }
 
 // conversational reports whether a flow is between two hosts. Broadcast and
-// multicast go to everyone listening, so "who did it talk to" has no answer
-// and they are kept as broadcasts. An unspecified address is a host that has
-// none yet, asking for one.
+// multicast go to every listener. So "who did it talk to" has no answer, and
+// the recorder keeps them as broadcasts. An unspecified address is a host that
+// has no address yet, and asks for one.
 func conversational(f plugin.Flow) bool {
 	for _, a := range []netip.Addr{f.Src, f.Dst} {
 		if !a.IsValid() || a.IsUnspecified() || a.IsMulticast() || a == limitedBroadcast {
@@ -452,8 +455,8 @@ func conversational(f plugin.Flow) bool {
 
 var limitedBroadcast = netip.AddrFrom4([4]byte{255, 255, 255, 255})
 
-// trafficRow is one side's view of a buffered direction. sent says whether
-// the device is the side that sent it.
+// trafficRow is the view of one side of a buffered direction. sent tells
+// whether the device is the side that sent it.
 func (s *Store) trafficRow(
 	sourceID int64,
 	k trafficKey,
@@ -484,8 +487,9 @@ func (s *Store) trafficRow(
 
 	bytes, packets := clampInt64(t.bytes), clampInt64(t.packets)
 
-	// The connections this direction counts were started by its sender: the
-	// device's own when it sent, the peer's when it received.
+	// The sender of this direction started its connections. When the device
+	// sent, they are its own. When it received, they are the connections of
+	// the peer.
 	if sent {
 		p.BytesOut, p.PacketsOut = bytes, packets
 		p.Connections = clampInt64(t.connections)
@@ -494,9 +498,9 @@ func (s *Store) trafficRow(
 		p.ConnectionsIn = clampInt64(t.connections)
 
 		// With the same port on both ends, the ports cannot tell the opener
-		// from the replier. An internet peer is taken to be replying, since a
-		// device here is far likelier the client of an NTP or IKE server than
-		// one itself.
+		// from the replier. The recorder takes an internet peer as the
+		// replier. A device here is much more likely the client of an NTP or
+		// IKE server than a server itself.
 		if p.PeerASN.Valid {
 			p.ConnectionsIn = clampInt64(t.connections - t.mirrored)
 		}
@@ -506,19 +510,20 @@ func (s *Store) trafficRow(
 }
 
 // servicePort picks the port that names the service in a conversation, from
-// whichever side offered it. A protocol without ports has none.
+// the side that offered it. A protocol without ports has none.
 //
-// The side a flow came from says nothing on its own, since a reply flows from
-// the server, so the choice is made on the ports: a well-known service's port
-// below the ephemeral range over any other, a privileged port over an
-// unprivileged one, a port below the ephemeral range over one inside it, a
-// well-known service's port over one without, and the lower port when nothing
-// else decides.
+// The side of a flow alone tells nothing, because a reply comes from the
+// server. So the choice uses the ports, in this order:
+//   - the port of a well-known service below the ephemeral range wins
+//   - a privileged port wins over an unprivileged port
+//   - a port below the ephemeral range wins over a port in it
+//   - the port of a well-known service wins over a port without one
+//   - else, the lower port wins
 //
-// A known port inside the ephemeral range only counts late, because a client
-// can draw it as its source port: a laptop that happens to pick 51820 for a
-// connection to a game server is not running WireGuard. A server really
-// listening there still wins against a client's random port.
+// A known port in the ephemeral range counts only late, because a client can
+// pick it as its source port. A laptop that picks 51820 for a connection to a
+// game server does not run WireGuard. A server that really listens there still
+// wins over the random port of a client.
 func servicePort(protocol uint8, src, dst uint16) uint16 {
 	switch protocol {
 	case 6, 17, 132: // TCP, UDP, SCTP
@@ -528,8 +533,8 @@ func servicePort(protocol uint8, src, dst uint16) uint16 {
 
 	s, d := traitsOf(src), traitsOf(dst)
 
-	// Each rule decides only when the two ports differ on it, for the port
-	// that has it; the first rule that decides wins.
+	// Each rule decides only when the two ports differ on it. It picks the
+	// port that has it. The first rule that decides wins.
 	for _, rule := range [...]struct{ src, dst bool }{
 		{s.settled(), d.settled()},   // a well-known service below the ephemeral range
 		{s.privileged, d.privileged}, // a privileged port
@@ -548,8 +553,9 @@ func servicePort(protocol uint8, src, dst uint16) uint16 {
 	return min(src, dst)
 }
 
-// portTraits are what servicePort judges a port on. They are worked out once
-// per port, since servicePort runs for every flow under the recorder's lock.
+// portTraits are the properties of a port for servicePort. They are calculated
+// once for each port, because servicePort runs for every flow under the lock
+// of the recorder.
 type portTraits struct {
 	known      bool // a well-known service's port
 	privileged bool // below 1024
@@ -564,11 +570,13 @@ func traitsOf(p uint16) portTraits {
 	}
 }
 
-// settled is a well-known service's port a client would not draw as its own.
+// settled is the port of a well-known service that a client would not pick as
+// its own.
 func (t portTraits) settled() bool { return t.known && !t.ephemeral }
 
-// clampInt64 stores a counter SQLite can hold. Nothing real reaches the
-// limit in an hour; a corrupt export claiming to should not wrap negative.
+// clampInt64 limits a counter to what SQLite can hold. No real counter reaches
+// the limit in an hour. A corrupt export that claims to must not wrap to a
+// negative value.
 func clampInt64(v uint64) int64 {
 	const maxInt64 = 1<<63 - 1
 	if v > maxInt64 {
@@ -578,14 +586,14 @@ func clampInt64(v uint64) int64 {
 	return int64(v)
 }
 
-// hourOf is the stored hour bucket t falls in: traffic, attempts and probes are
-// all kept per UTC hour.
+// hourOf is the stored hour bucket of t. Traffic, attempts and probes are all
+// kept for each UTC hour.
 func hourOf(t time.Time) dbtype.Time {
 	return dbtype.NewTime(t.UTC().Truncate(time.Hour))
 }
 
-// parseHour reads an hour an aggregate query returned as text, naming what it
-// was in the error.
+// parseHour reads an hour that an aggregate query returned as text. The error
+// names the value.
 func parseHour(what, s string) (time.Time, error) {
 	t, err := time.Parse(dbtype.Layout, s)
 	if err != nil {
@@ -595,7 +603,7 @@ func parseHour(what, s string) (time.Time, error) {
 	return t, nil
 }
 
-// currentHolders maps every address a device holds now to that device.
+// currentHolders maps every current address of a device to that device.
 func (s *Store) currentHolders(ctx context.Context) (map[netip.Addr]int64, error) {
 	rows, err := s.q.CurrentHolders(ctx)
 	if err != nil {

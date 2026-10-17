@@ -17,8 +17,8 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/plugin"
 )
 
-// trafficSource stands in for a traffic plugin: the recorder only needs to
-// know what to file the flows under.
+// trafficSource replaces a traffic plugin. The recorder only needs to know the
+// source of the flows.
 type trafficSource struct{}
 
 func (trafficSource) Name() string            { return "netflow:test" }
@@ -26,8 +26,8 @@ func (trafficSource) Kind() dbtype.SourceKind { return dbtype.SourceRouter }
 
 var trafficHour = time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 
-// flow is one direction of a TCP connection that carried data, flagged the
-// way an exporter reports one: a handshake, then data pushed.
+// flow is one direction of a TCP connection with data, with flags as an
+// exporter reports them: a handshake, then pushed data.
 func flow(src, dst string, srcPort, dstPort uint16, bytes uint64, at time.Time) plugin.Flow {
 	return plugin.Flow{
 		Src: netip.MustParseAddr(src), Dst: netip.MustParseAddr(dst),
@@ -84,10 +84,10 @@ func TestTrafficLandsOnEachDeviceInTheConversation(t *testing.T) {
 	rec := newRecorder(s, nil)
 
 	rec.Add(trafficSource{}, []plugin.Flow{
-		// A connects to B's SSH, and B replies.
+		// A connects to the SSH of B, and B replies.
 		flow("192.0.2.10", "192.0.2.11", 51000, 22, 1000, trafficHour.Add(5*time.Minute)),
 		flow("192.0.2.11", "192.0.2.10", 22, 51000, 4000, trafficHour.Add(5*time.Minute)),
-		// Two addresses no device holds: nothing to record.
+		// Two addresses of no device: nothing to record.
 		flow("198.51.100.1", "198.51.100.2", 51000, 443, 999, trafficHour),
 	})
 	require.NoError(t, rec.Flush(t.Context()))
@@ -158,8 +158,8 @@ func TestTrafficCountsEachFlowInTheHourItEnded(t *testing.T) {
 	assert.Equal(t, trafficHour.Add(time.Hour).Format(dbtype.Layout), rows[1].Hour)
 }
 
-// The reason traffic is resolved to a device when it arrives: the address is a
-// lease, and history recorded under it belongs to whoever held it then.
+// This is why traffic resolves to a device when it arrives. The address is a
+// lease. The history under it belongs to the device that had it then.
 func TestTrafficStaysWithTheDeviceAfterItsAddressMoves(t *testing.T) {
 	t.Parallel()
 
@@ -172,7 +172,7 @@ func TestTrafficStaysWithTheDeviceAfterItsAddressMoves(t *testing.T) {
 	rec.Add(trafficSource{}, []plugin.Flow{flow("192.0.2.10", "203.0.113.5", 51000, 443, 100, trafficHour)})
 	require.NoError(t, rec.Flush(t.Context()))
 
-	// A moves, and another device takes its old address.
+	// A moves, and a different device takes its old address.
 	sweep(t, s, host("192.0.2.20", macA, ""), host("192.0.2.10", macB, ""))
 
 	b := deviceIDByMAC(t, conn, macB)
@@ -307,10 +307,11 @@ func TestDeviceTrafficSplitsLocalFromInternetByOrganisation(t *testing.T) {
 	rec := newRecorder(s, nil)
 	rec.Add(trafficSource{}, []plugin.Flow{
 		flow("192.0.2.10", "192.0.2.11", 51000, 445, 5000, now),
-		// A local address no device holds stays local.
+		// A local address of no device stays local.
 		flow("192.0.2.10", "192.0.2.99", 51000, 80, 10, now),
-		// Two addresses one organisation announces fold into one entry.
-		// These are public resolvers, the addresses the asn tests use too.
+		// Two addresses that one organisation announces merge into one
+		// entry. These are public resolvers. The asn tests use the same
+		// addresses.
 		flow("192.0.2.10", "1.1.1.1", 51000, 443, 700, now),
 		flow("192.0.2.10", "1.0.0.1", 51000, 443, 300, now),
 		// Outside the window.
@@ -372,7 +373,7 @@ func TestNetworkTrafficSummaries(t *testing.T) {
 	a, b := deviceIDByMAC(t, conn, macA), deviceIDByMAC(t, conn, macB)
 	rec := newRecorder(s, nil)
 
-	// Ten days ago the laptop already talked to Cloudflare.
+	// The laptop already talked to Cloudflare ten days ago.
 	rec.Add(trafficSource{}, []plugin.Flow{flow("192.0.2.10", "1.1.1.1", 51000, 443, 100, s.now())})
 	require.NoError(t, rec.Flush(t.Context()))
 
@@ -405,7 +406,7 @@ func TestNetworkTrafficSummaries(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, first.Partial, "ten days of records cover a seven-day look back")
 
-	// Cloudflare is not new to the laptop; Google is new to both.
+	// Cloudflare is not new to the laptop. Google is new to both.
 	got := map[int64][]string{}
 	for _, c := range first.Contacts {
 		got[c.DeviceID] = append(got[c.DeviceID], c.Short)
@@ -413,7 +414,7 @@ func TestNetworkTrafficSummaries(t *testing.T) {
 
 	assert.Equal(t, map[int64][]string{a: {"Google"}, b: {"Google"}}, got)
 
-	// Each organisation breaks down by device, busiest first.
+	// Each organisation splits by device, busiest first.
 	byOrg, err := s.OrganisationDevices(t.Context(), now.Add(-24*time.Hour), "")
 	require.NoError(t, err)
 	require.Len(t, byOrg[15169], 2)
@@ -421,7 +422,7 @@ func TestNetworkTrafficSummaries(t *testing.T) {
 	assert.Equal(t, int64(7_000), byOrg[15169][0].Sent)
 	assert.Equal(t, a, byOrg[15169][1].DeviceID)
 
-	// A group narrows every summary to its devices.
+	// A group limits every summary to its devices.
 	_, err = s.UpdateCuration(t.Context(), a, Curation{Group: "family"})
 	require.NoError(t, err)
 
@@ -445,7 +446,7 @@ func TestNetworkTrafficSummaries(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, byOrg[15169], 1)
 
-	// An ignored device drops out of every summary.
+	// Every summary leaves out an ignored device.
 	_, err = s.UpdateCuration(t.Context(), b, Curation{Ignored: true})
 	require.NoError(t, err)
 
@@ -472,9 +473,10 @@ func TestFirstContactsSaysWhenRecordsAreShorterThanTheLookBack(t *testing.T) {
 	assert.Len(t, first.Contacts, 1)
 }
 
-// A connection is counted on the row of the side that started it: out on the
-// device's row when the device opened the peer's service, in when the peer
-// opened the device's. The same service can be opened each way.
+// A connection counts on the row of the side that started it. It is out on the
+// row of the device when the device opened the service of the peer. It is in
+// when the peer opened the service of the device. The same service can open
+// in each direction.
 func TestConnectionsAreCountedByWhoStartedThem(t *testing.T) {
 	t.Parallel()
 
@@ -485,11 +487,12 @@ func TestConnectionsAreCountedByWhoStartedThem(t *testing.T) {
 
 	rec := newRecorder(s, nil)
 	rec.Add(trafficSource{}, []plugin.Flow{
-		// The internet opens the device's 443, twice, and the device answers.
+		// The internet opens port 443 of the device, twice, and the device
+		// answers.
 		flow("1.1.1.1", "192.0.2.10", 51000, 443, 2_000, at),
 		flow("1.1.1.1", "192.0.2.10", 51001, 443, 2_000, at),
 		flow("192.0.2.10", "1.1.1.1", 443, 51000, 9_000, at),
-		// The device opens the NAS's ssh.
+		// The device opens the ssh of the NAS.
 		flow("192.0.2.10", "192.0.2.11", 50000, 22, 1_000, at),
 	})
 	require.NoError(t, rec.Flush(t.Context()))
@@ -534,9 +537,9 @@ func TestConnectionsAreCountedByWhoStartedThem(t *testing.T) {
 	assert.Equal(t, int64(9_000), incoming[0].Sent)
 }
 
-// An NTP client sends from 123 to 123, so the server's reply is addressed to
-// the service as well. From the internet it counts as no connection: the
-// device asked, and nothing it serves was reached.
+// An NTP client sends from 123 to 123. So the reply of the server also goes to
+// the service. From the internet, it counts as no connection. The device
+// asked, and nothing reached a service of the device.
 func TestAnInternetReplyOnTheSamePortIsNotIncoming(t *testing.T) {
 	t.Parallel()
 
@@ -572,9 +575,9 @@ func TestAnInternetReplyOnTheSamePortIsNotIncoming(t *testing.T) {
 	assert.Empty(t, incoming)
 }
 
-// An ICMP message that answers something, here an unreachable sent back to a
-// device that swept a subnet, counts as no connection by the replier. A ping
-// still counts as one by the pinger.
+// An ICMP message that answers something counts as no connection of the
+// replier. Here, it is an unreachable to a device that swept a subnet. A ping
+// still counts as a connection of the pinger.
 func TestOnlyPingsCountAsICMPConnections(t *testing.T) {
 	t.Parallel()
 

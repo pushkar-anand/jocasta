@@ -15,8 +15,8 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/asn"
 )
 
-// The map shows the busiest devices and organisations; past these the rest are
-// only counted, since a picture with hundreds of nodes shows nothing.
+// The map shows the busiest devices and organisations. It only counts the rest,
+// because a picture with hundreds of nodes shows nothing.
 const (
 	MapMaxDevices = 60
 	MapMaxOrgs    = 12
@@ -29,7 +29,8 @@ type TrafficMap struct {
 	Orgs    []*MapOrg
 	Links   []*MapLink
 
-	// MoreDevices and MoreOrgs count what had traffic but was left off.
+	// MoreDevices and MoreOrgs count what had traffic, but is not on the
+	// map.
 	MoreDevices, MoreOrgs int
 }
 
@@ -39,13 +40,13 @@ type MapDevice struct {
 	Name string
 	Type string
 
-	// NetworkID is the recorded network one of its current addresses is on,
-	// zero when none is.
+	// NetworkID is the recorded network of one of its current addresses. It
+	// is zero when none is on one.
 	NetworkID int64
 
 	Bytes int64
 
-	// Active is set when it exchanged anything in the recent window.
+	// Active is set when it exchanged something in the recent window.
 	Active bool
 }
 
@@ -57,8 +58,8 @@ type MapOrg struct {
 	Active      bool
 }
 
-// MapLink is traffic between a device and another device or an organisation.
-// Exactly one of PeerDevice and PeerASN is set.
+// MapLink is traffic between a device and a different device or an
+// organisation. Exactly one of PeerDevice and PeerASN is set.
 type MapLink struct {
 	Device     int64
 	PeerDevice int64
@@ -70,25 +71,24 @@ type MapLink struct {
 	Services []MapService
 }
 
-// MapService is one service a link carried: its protocol and the port that
-// names it, and the name usually found there, empty when there is none.
+// MapService is one service of a link: its protocol, the port that names it,
+// and its usual name. The name is empty when there is none.
 type MapService struct {
 	Protocol uint8
 	Port     uint16
 	Name     string
 }
 
-// mapLinkKey names a link; a device pair is kept lower id first, as the query
+// mapLinkKey names a link. A device pair has the lower id first, as the query
 // returns it.
 type mapLinkKey struct {
 	device, peerDevice int64
 	peerASN            uint32
 }
 
-// TrafficMap returns the map of traffic since the start of the hour holding
-// since, with what recent covers marked active. recent is what the recorder
-// saw lately, by address; it is resolved to devices by the addresses they
-// hold now.
+// TrafficMap returns the map of traffic since the start of the hour of since.
+// It marks what recent covers as active. recent is what the recorder saw
+// recently, by address. It resolves to devices by their current addresses.
 func (s *Store) TrafficMap(ctx context.Context, since time.Time, recent []RecentEdge) (*TrafficMap, error) {
 	hour := hourOf(since)
 
@@ -187,9 +187,9 @@ func (s *Store) TrafficMap(ctx context.Context, since time.Time, recent []Recent
 	return m, nil
 }
 
-// markActive sets Active on what the recent edges cover: both devices of a
-// pair and the line between them, or a device, the organisation announcing
-// its peer and the line between those.
+// markActive sets Active on what the recent edges cover. This is both devices
+// of a pair and the line between them. Or it is a device, the organisation
+// that announces its peer, and the line between those.
 func (s *Store) markActive(
 	ctx context.Context,
 	recent []RecentEdge,
@@ -257,10 +257,10 @@ func (s *Store) markActive(
 	return nil
 }
 
-// mergeOrgs folds the organisations that go by one short name (a company
-// announcing from several ASNs) into one, busiest first, as the Traffic page
-// does. Each keeps the number of its busiest ASN; canon maps every ASN to the
-// number it was folded under.
+// mergeOrgs merges the organisations with one short name into one, busiest
+// first, as the Traffic page does. An example is a company that announces from
+// several ASNs. Each keeps the number of its busiest ASN. canon maps every ASN
+// to the number of its merge.
 func mergeOrgs(perASN map[uint32]*MapOrg) (merged []*MapOrg, canon map[uint32]uint32) {
 	all := slices.SortedFunc(maps.Values(perASN), func(a, b *MapOrg) int {
 		return cmp.Or(cmp.Compare(b.Bytes, a.Bytes), cmp.Compare(a.ASN, b.ASN))
@@ -291,7 +291,7 @@ func mergeOrgs(perASN map[uint32]*MapOrg) (merged []*MapOrg, canon map[uint32]ui
 	return merged, canon
 }
 
-// parseServices reads the "6/443,17/123" list the map query returns, skipping
+// parseServices reads the "6/443,17/123" list from the map query. It skips
 // what does not parse.
 func parseServices(list string) []MapService {
 	var out []MapService
@@ -318,7 +318,7 @@ func parseServices(list string) []MapService {
 	return out
 }
 
-// mergeServices adds more to have, once each, named and by port.
+// mergeServices adds more to have, once each, with names and by port.
 func mergeServices(have, more []MapService) []MapService {
 	for _, m := range more {
 		if slices.ContainsFunc(have, func(h MapService) bool { return h.Protocol == m.Protocol && h.Port == m.Port }) {

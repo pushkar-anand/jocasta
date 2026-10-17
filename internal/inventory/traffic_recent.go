@@ -7,22 +7,22 @@ import (
 )
 
 // recentWindow is how much activity the recorder keeps in memory. The tables
-// hold hours; this is what "active just now" is read from, and it is gone
-// after a restart.
+// hold hours. "Active now" comes from this window. It is gone after a
+// restart.
 const recentWindow = 15 * time.Minute
 
-// RecentEdge is the traffic between two addresses over the recent window, both
-// directions together. A is the lower of the two.
+// RecentEdge is the traffic between two addresses over the recent window, in
+// both directions together. A is the lower address.
 type RecentEdge struct {
 	A, B  netip.Addr
 	Bytes uint64
 
-	// Last is the flush that last carried traffic between them.
+	// Last is the last flush with traffic between them.
 	Last time.Time
 }
 
-// recentPair is two addresses in a fixed order, so both directions of a
-// conversation meet on one key.
+// recentPair is two addresses in a fixed order. So both directions of a
+// conversation have one key.
 type recentPair struct {
 	a, b netip.Addr
 }
@@ -35,20 +35,20 @@ func pairOfAddrs(x, y netip.Addr) recentPair {
 	return recentPair{a: x, b: y}
 }
 
-// recentBucket is what one flush carried.
+// recentBucket is the data of one flush.
 type recentBucket struct {
 	at    time.Time
 	bytes map[recentPair]uint64
 }
 
-// recentActivity is a short run of flushes, oldest first.
+// recentActivity is a short series of flushes, oldest first.
 type recentActivity struct {
 	mu      sync.RWMutex
 	buckets []recentBucket
 }
 
-// push adds one flush's conversations and drops the flushes that have left
-// the window. Attempts are not passed in: nothing came of them.
+// push adds the conversations of one flush, and drops the flushes that left
+// the window. It does not get attempts, because they gave nothing.
 func (ra *recentActivity) push(at time.Time, conversations map[trafficKey]*trafficTotals) {
 	b := recentBucket{at: at, bytes: make(map[recentPair]uint64, len(conversations))}
 
@@ -74,7 +74,7 @@ func (ra *recentActivity) push(at time.Time, conversations map[trafficKey]*traff
 	ra.buckets = keep
 }
 
-// since returns the edges with traffic in a flush after a moment.
+// since returns the edges with traffic in a flush after a time.
 func (ra *recentActivity) since(t time.Time) []RecentEdge {
 	ra.mu.RLock()
 	defer ra.mu.RUnlock()
@@ -107,9 +107,9 @@ func (ra *recentActivity) since(t time.Time) []RecentEdge {
 }
 
 // Recent returns the traffic between each pair of addresses in the flushes
-// after a moment, as far back as the recent window reaches. A flow to the
-// router's outside address is under the router's own address, as it is in
-// the tables. It is safe to call while the recorder flushes.
+// after a time, as far back as the recent window. A flow to the outside
+// address of the router is under the own address of the router, as in the
+// tables. It is safe to call while the recorder flushes.
 func (r *TrafficRecorder) Recent(since time.Time) []RecentEdge {
 	return r.recent.since(since)
 }

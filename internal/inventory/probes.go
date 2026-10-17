@@ -14,9 +14,10 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/asn"
 )
 
-// outsideAddrTTL is how long an address the router translated to is kept as
-// its outside address after the last flow that named it. An ISP that hands
-// out a new address leaves the old one behind once nothing uses it.
+// outsideAddrTTL is how long the recorder keeps an address from the router's
+// translation as its outside address, after the last flow that named it. An
+// ISP that gives a new address leaves the old address behind when nothing uses
+// it.
 const outsideAddrTTL = 24 * time.Hour
 
 // outsideSeen is who last named an outside address, and when.
@@ -26,9 +27,9 @@ type outsideSeen struct {
 	at     time.Time
 }
 
-// learnOutside remembers the addresses the routers translated flows to on the
-// way out (their outside addresses) and the routers themselves. The caller
-// holds r.mu.
+// learnOutside remembers the addresses to which the routers translated flows on
+// the way out (their outside addresses). It also remembers the routers
+// themselves. The caller holds r.mu.
 func (r *TrafficRecorder) learnOutside(src plugin.Plugin, flows []plugin.Flow) {
 	for _, f := range flows {
 		if f.NATSrc.IsValid() {
@@ -41,11 +42,11 @@ func (r *TrafficRecorder) learnOutside(src plugin.Plugin, flows []plugin.Flow) {
 	}
 }
 
-// toRouter files a flow to or from a router's outside address under the
-// router that exported it. Nothing on the network holds the outside address,
-// so without this a scan of it, or a VPN ended on the router, would have no
-// device to be counted on. A flow the router forwarded carries the device's
-// own address, and is left alone. The caller holds r.mu.
+// toRouter puts a flow to or from the outside address of a router under the
+// router that exported it. Nothing on the network has the outside address. So
+// without this, a scan of it, or a VPN that ends on the router, would have no
+// device for its count. A flow that the router forwarded has the address of
+// the device, and does not change. The caller holds r.mu.
 func (r *TrafficRecorder) toRouter(f plugin.Flow) plugin.Flow {
 	if !f.Exporter.IsValid() {
 		return f
@@ -62,7 +63,7 @@ func (r *TrafficRecorder) toRouter(f plugin.Flow) plugin.Flow {
 	return f
 }
 
-// forgetOutside drops the outside addresses no flow has named for a while.
+// forgetOutside drops the outside addresses that no flow named for some time.
 // The caller holds r.mu.
 func (r *TrafficRecorder) forgetOutside(now time.Time) {
 	for a, seen := range r.outside {
@@ -72,8 +73,9 @@ func (r *TrafficRecorder) forgetOutside(now time.Time) {
 	}
 }
 
-// recordOutside writes the outside addresses the routers named, so a view can
-// tell a router with a public address from one behind another NAT.
+// recordOutside writes the outside addresses that the routers named. So a view
+// can tell a router with a public address from a router behind a different
+// NAT.
 func (s *Store) recordOutside(ctx context.Context, outside map[netip.Addr]outsideSeen) error {
 	if len(outside) == 0 {
 		return nil
@@ -113,8 +115,8 @@ func (s *Store) recordOutside(ctx context.Context, outside map[netip.Addr]outsid
 }
 
 // writeProbe writes what an internet peer tried on a device in one flush.
-// outside says the router's outside address was what it tried, and the device
-// is the router.
+// outside tells that the peer tried the outside address of the router. Then
+// the device is the router.
 func (s *Store) writeProbe(
 	ctx context.Context,
 	q *models.Queries,
@@ -181,8 +183,9 @@ func (s *Store) writeProbe(
 	return nil
 }
 
-// probeTarget is the device an attempt was made on when it counts as a probe
-// from the internet: made by a public address, on a device. Zero otherwise.
+// probeTarget is the target device of an attempt that counts as a probe from
+// the internet. Such an attempt is from a public address, on a device. Else,
+// it is zero.
 func probeTarget(k attemptKey, holders map[netip.Addr]int64) int64 {
 	if holders[k.src] != 0 || !asn.IsPublic(k.src) {
 		return 0
@@ -191,8 +194,8 @@ func probeTarget(k attemptKey, holders map[netip.Addr]int64) int64 {
 	return holders[k.dst]
 }
 
-// OutsideAddresses returns the outside addresses any router named since a
-// moment.
+// OutsideAddresses returns the outside addresses that any router named since a
+// time.
 func (s *Store) OutsideAddresses(ctx context.Context, since time.Time) ([]netip.Addr, error) {
 	rows, err := s.q.OutsideAddresses(ctx, dbtype.NewTime(since))
 	if err != nil {
@@ -213,17 +216,17 @@ func (s *Store) OutsideAddresses(ctx context.Context, since time.Time) ([]netip.
 	return out, nil
 }
 
-// Probed is a device the internet tried over a window without the connections
-// carrying data.
+// Probed is a device that the internet tried over a window, with no data on
+// the connections.
 type Probed struct {
 	DeviceID   int64  `json:"device_id"`
 	DeviceName string `json:"device_name"`
 
-	// Outside says the router's outside address was what was tried, and the
-	// device is the router.
+	// Outside tells that the target was the outside address of the router.
+	// Then the device is the router.
 	Outside bool `json:"outside,omitempty"`
 
-	// Peers is how many addresses tried, Orgs how many organisations they
+	// Peers is how many addresses tried. Orgs is how many organisations they
 	// belong to.
 	Peers int64 `json:"peers"`
 	Orgs  int64 `json:"orgs"`
@@ -231,30 +234,31 @@ type Probed struct {
 	Attempts int64 `json:"attempts"`
 	Answered int64 `json:"answered"`
 
-	// MaxPorts is the most ports one address tried in an hour, and Ports
-	// the lowest of those tried.
+	// MaxPorts is the most ports that one address tried in an hour. Ports is
+	// the lowest of the tried ports.
 	MaxPorts int64    `json:"max_ports"`
 	Ports    []uint16 `json:"ports,omitempty"`
 
 	LastHour time.Time `json:"last_hour"`
 }
 
-// ProbedDevices returns the devices the internet probed since the start of the
-// hour containing since, most probes first. A device tried both on its own
-// and through the router's outside address is listed once for each. A
-// non-empty group keeps only the devices in it.
+// ProbedDevices returns the devices that the internet probed since the start of
+// the hour of since, most probes first. A device tried on its own address and
+// through the outside address of the router is listed once for each. A
+// non-empty group keeps only its devices.
 func (s *Store) ProbedDevices(ctx context.Context, since time.Time, group string) ([]*Probed, error) {
 	return s.probed(ctx, since, group, 0)
 }
 
-// DeviceProbed is ProbedDevices for one device: a row for its own address and
-// one for the router's outside address, each only when it was tried.
+// DeviceProbed is ProbedDevices for one device. It has a row for its own
+// address, and one for the outside address of the router. Each row is there
+// only when the address was tried.
 func (s *Store) DeviceProbed(ctx context.Context, id int64, since time.Time) ([]*Probed, error) {
 	return s.probed(ctx, since, "", id)
 }
 
-// probed reads the probed devices, narrowed to a group or a device when either
-// is set.
+// probed reads the probed devices. It limits them to a group or a device, if
+// either is set.
 func (s *Store) probed(ctx context.Context, since time.Time, group string, device int64) ([]*Probed, error) {
 	rows, err := s.q.ProbedDevices(ctx, models.ProbedDevicesParams{
 		Since:     hourOf(since),

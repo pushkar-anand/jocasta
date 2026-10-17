@@ -10,51 +10,52 @@ import (
 	"github.com/pushkar-anand/jocasta/pkg/asn"
 )
 
-// A device probing the network is one that, within a single hour, tried at
-// least ProbeMinPeers local addresses or ProbeMinPorts ports on one of them
-// without carrying data. Ordinary devices reach a handful of neighbours
-// (the router, a printer, a speaker) and a handful of ports on each.
+// A device probes the network when, within a single hour, it tried at least
+// ProbeMinPeers local addresses, or ProbeMinPorts ports on one of them,
+// without data. Normal devices reach a few neighbours (the router, a printer,
+// a speaker), and a few ports on each.
 const (
 	ProbeMinPeers = 20
 	ProbeMinPorts = 20
 )
 
-// deviceAttemptsLimit caps how many peer rows a device's attempts view reads.
+// deviceAttemptsLimit limits how many peer rows the attempts view of a device
+// reads.
 const deviceAttemptsLimit = 200
 
-// Attempt is what one device tried to reach at one peer over a window
-// without the connection ever carrying data.
+// Attempt is what one device tried to reach at one peer over a window, with no
+// data on the connection.
 type Attempt struct {
 	// PeerDeviceID and PeerDeviceName name the peer when it was a known
-	// device; zero otherwise.
+	// device. Else, they are zero.
 	PeerDeviceID   int64  `json:"peer_device_id,omitempty"`
 	PeerDeviceName string `json:"peer_device_name,omitempty"`
 
 	IP netip.Addr `json:"ip"`
 
-	// Internet is set for a public address, with the organisation announcing
-	// it when known.
+	// Internet is set for a public address, with the organisation that
+	// announces it, if known.
 	Internet bool   `json:"internet,omitempty"`
 	ASN      uint32 `json:"asn,omitempty"`
 	OrgShort string `json:"org,omitempty"`
 
 	Protocol uint8 `json:"protocol"`
 
-	// Attempts is how many were made, Answered how many the peer answered:
-	// a port that accepted the handshake, a ping that came back.
+	// Attempts is how many attempts there were. Answered is how many the peer
+	// answered: a port that accepted the handshake, or a ping that came back.
 	Attempts int64 `json:"attempts"`
 	Answered int64 `json:"answered"`
 
-	// PortCount is how many distinct ports were tried, and Ports the lowest
-	// of them. Both empty for ICMP.
+	// PortCount is how many different ports were tried. Ports is the lowest
+	// of them. Both are empty for ICMP.
 	PortCount int64    `json:"port_count,omitempty"`
 	Ports     []uint16 `json:"ports,omitempty"`
 
 	LastHour time.Time `json:"last_hour"`
 }
 
-// DeviceAttempts returns what device id tried to reach since the start of
-// the hour containing since, most attempts first.
+// DeviceAttempts returns what device id tried to reach since the start of the
+// hour of since, most attempts first.
 func (s *Store) DeviceAttempts(ctx context.Context, id int64, since time.Time) ([]*Attempt, error) {
 	rows, err := s.q.DeviceAttempts(ctx, models.DeviceAttemptsParams{
 		DeviceID: id,
@@ -110,39 +111,40 @@ type Prober struct {
 	DeviceID   int64  `json:"device_id"`
 	DeviceName string `json:"device_name"`
 
-	// LastHour is the most recent hour it probed, Hours how many hours of
-	// the window it did.
+	// LastHour is the most recent hour in which it probed. Hours is in how
+	// many hours of the window it probed.
 	LastHour time.Time `json:"last_hour"`
 	Hours    int       `json:"hours"`
 
-	// Peers is the most local addresses it tried in any one hour, and
-	// MaxPorts the most ports it tried on any one of them.
+	// Peers is the most local addresses that it tried in one hour. MaxPorts is
+	// the most ports that it tried on one of them.
 	Peers    int64 `json:"peers"`
 	MaxPorts int64 `json:"max_ports"`
 
-	// Attempts and Answered are summed over the hours it probed.
+	// Attempts and Answered are totals over the hours in which it probed.
 	Attempts int64 `json:"attempts"`
 	Answered int64 `json:"answered"`
 
-	// Ports is the lowest ports it tried, across those hours.
+	// Ports is the lowest ports that it tried, across those hours.
 	Ports []uint16 `json:"ports,omitempty"`
 }
 
-// SweptAddresses reports whether the device tried many addresses in one hour.
+// SweptAddresses reports whether the device tried many addresses in one
+// hour.
 func (p *Prober) SweptAddresses() bool { return p.Peers >= ProbeMinPeers }
 
 // SweptPorts reports whether it tried many ports on one address in one hour.
 func (p *Prober) SweptPorts() bool { return p.MaxPorts >= ProbeMinPorts }
 
 // ProbingDevices returns the devices that probed the local network since the
-// start of the hour containing since, most recent first. A non-empty group
-// keeps only the devices in it.
+// start of the hour of since, most recent first. A non-empty group keeps only
+// its devices.
 func (s *Store) ProbingDevices(ctx context.Context, since time.Time, group string) ([]*Prober, error) {
 	return s.probing(ctx, since, group, 0)
 }
 
-// DeviceProbing is ProbingDevices for one device: its entry, or nil when it
-// probed nothing since the start of the hour containing since.
+// DeviceProbing is ProbingDevices for one device. It returns its entry, or nil
+// when it probed nothing since the start of the hour of since.
 func (s *Store) DeviceProbing(ctx context.Context, id int64, since time.Time) (*Prober, error) {
 	probers, err := s.probing(ctx, since, "", id)
 	if err != nil || len(probers) == 0 {
@@ -152,8 +154,8 @@ func (s *Store) DeviceProbing(ctx context.Context, id int64, since time.Time) (*
 	return probers[0], nil
 }
 
-// probing reads the probing hours, narrowed to a group or a device when either
-// is set.
+// probing reads the probing hours. It limits them to a group or a device, if
+// either is set.
 func (s *Store) probing(ctx context.Context, since time.Time, group string, device int64) ([]*Prober, error) {
 	rows, err := s.q.ProbingHours(ctx, models.ProbingHoursParams{
 		Since:     hourOf(since),
@@ -170,7 +172,8 @@ func (s *Store) probing(ctx context.Context, since time.Time, group string, devi
 
 	var out []*Prober
 
-	// Rows come newest hour first, so a device's first row is its latest.
+	// Rows come newest hour first. So the first row of a device is its
+	// latest.
 	for _, r := range rows {
 		hour, err := parseHour("probing", r.Hour)
 		if err != nil {
