@@ -80,8 +80,8 @@ func TestOnlyTheKindsChosen(t *testing.T) {
 	assert.Len(t, c.Events, 2, "the scan's changes are left as they were")
 }
 
-// A first scan that found nothing but new devices, as one into an empty
-// inventory does, is sent as a count.
+// If a first scan found only new devices, as in an empty inventory, the
+// message is a count.
 func TestFirstScanOfNewDevicesIsACount(t *testing.T) {
 	c := sweepOf(
 		&inventory.Event{ID: 1, Kind: discovered, DeviceName: "host-a", NewValue: "192.0.2.10"},
@@ -95,8 +95,8 @@ func TestFirstScanOfNewDevicesIsACount(t *testing.T) {
 	assert.Equal(t, "Found 2 devices", m.Body)
 }
 
-// A first scan that found devices the inventory already knew, as when a
-// router joins, names the ones that are new.
+// If a first scan found devices that the inventory already knew, as when a
+// router joins, the message names the new devices.
 func TestFirstScanNamesTheNewDevicesAmongKnownOnes(t *testing.T) {
 	c := sweepOf(&inventory.Event{ID: 1, Kind: discovered, DeviceName: "host-a", NewValue: "192.0.2.10"})
 	c.First, c.Found = true, 3
@@ -131,7 +131,7 @@ func TestALargeScanCountsWhatItLeavesOut(t *testing.T) {
 }
 
 func TestLineWithoutADevice(t *testing.T) {
-	// The device was deleted since; the change still reads.
+	// The device is deleted now. The change still has its text.
 	assert.Equal(t, "192.0.2.10", notify.Line(&inventory.Event{Kind: discovered, NewValue: "192.0.2.10"}))
 	assert.Equal(t, "started listening on port 22", notify.Line(&inventory.Event{Kind: opened, NewValue: "22"}))
 }

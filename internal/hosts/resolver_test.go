@@ -15,17 +15,17 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-// TestMain points the package resolver at one that can reach nothing, so no
-// test here can quietly depend on the machine's own DNS. A test that wants an
-// answer installs a stub of its own.
+// TestMain points the package resolver at a resolver that can reach nothing. So
+// no test here can depend on the DNS of the machine without a warning. A test
+// that needs an answer installs its own stub.
 func TestMain(m *testing.M) {
 	resolver = deadResolver()
 
 	os.Exit(m.Run())
 }
 
-// deadResolver refuses every dial, which is how resolveName sees an address
-// with no PTR record: an error, and so no name.
+// deadResolver refuses every dial. resolveName sees an address with no PTR
+// record in the same way: an error, and so no name.
 func deadResolver() *net.Resolver {
 	return &net.Resolver{
 		PreferGo: true,
@@ -36,7 +36,7 @@ func deadResolver() *net.Resolver {
 }
 
 // useResolver installs r for the duration of the test. The resolver is package
-// state, so a test that swaps it must not be parallel.
+// state. So a test that replaces it must not be parallel.
 func useResolver(t *testing.T, r *net.Resolver) {
 	t.Helper()
 
@@ -46,8 +46,8 @@ func useResolver(t *testing.T, r *net.Resolver) {
 	t.Cleanup(func() { resolver = previous })
 }
 
-// countingResolver refuses every dial like deadResolver and counts the
-// attempts, so a test can assert that no lookup was made at all.
+// countingResolver refuses every dial, as deadResolver does, and counts the
+// attempts. So a test can assert that no lookup ran.
 func countingResolver() (*net.Resolver, *atomic.Int64) {
 	var calls atomic.Int64
 
@@ -63,10 +63,11 @@ func countingResolver() (*net.Resolver, *atomic.Int64) {
 	return r, &calls
 }
 
-// stubResolver answers PTR queries from ptr, keyed by the fully qualified
-// in-addr.arpa name, over a UDP socket on the loopback, with one PTR record per
-// name in the order given. An address the map does not hold answers NXDOMAIN,
-// which is what a LAN resolver says about one it has no record for.
+// stubResolver answers PTR queries from ptr, over a UDP socket on the loopback.
+// The key of ptr is the fully qualified in-addr.arpa name. It gives one PTR
+// record for each name, in the given order. For an address that is not in the
+// map, it answers NXDOMAIN. A LAN resolver gives this answer for an address
+// with no record.
 func stubResolver(t *testing.T, ptr map[string][]string) *net.Resolver {
 	t.Helper()
 
@@ -109,9 +110,9 @@ func serveDNS(pc net.PacketConn, ptr map[string][]string) {
 	}
 }
 
-// answerPTR builds the response to one query. The reply is assembled with
-// dnsmessage, so the encoder cross-checks the parser the resolver runs and
-// there is no golden binary to keep in step.
+// answerPTR builds the response to one query. dnsmessage builds the reply. So
+// the encoder checks the parser of the resolver, and there is no golden binary
+// to keep current.
 func answerPTR(query []byte, ptr map[string][]string) ([]byte, error) {
 	var p dnsmessage.Parser
 
@@ -186,8 +187,9 @@ func TestResolveNameTrimsTheTrailingDot(t *testing.T) {
 	assert.Equal(t, "printer.lan", resolveName(t.Context(), netip.MustParseAddr("192.0.2.10")))
 }
 
-// An address with several PTR records resolves to the same name whichever order
-// the resolver lists them in, or a device's name would change with the order.
+// An address with several PTR records resolves to the same name, in any order
+// from the resolver. If not, the name of a device would change with the
+// order.
 func TestResolveNameIsTheSameForEitherOrderOfSeveralRecords(t *testing.T) {
 	for _, order := range [][]string{
 		{"host-a.example.com.", "dns2.example.com."},
@@ -202,8 +204,8 @@ func TestResolveNameIsTheSameForEitherOrderOfSeveralRecords(t *testing.T) {
 	}
 }
 
-// systemd-resolved answers for its host's default gateway with _gateway, which
-// names no device.
+// systemd-resolved answers _gateway for the default gateway of its host. This
+// name does not name a device.
 func TestResolveNameLeavesOutTheNamesSystemdResolvedMakesUp(t *testing.T) {
 	useResolver(t, stubResolver(t, map[string][]string{
 		"1.2.0.192.in-addr.arpa.": {"_gateway."},
@@ -226,9 +228,9 @@ func TestResolveNameIsEmptyWhenTheResolverCannotBeReached(t *testing.T) {
 	assert.Empty(t, resolveName(t.Context(), netip.MustParseAddr("192.0.2.10")))
 }
 
-// A lookup must not outlive the caller. The sweep cancels its context on
-// shutdown, and a resolution that ignored it would hold the poller open for the
-// timeout on every outstanding address.
+// A lookup must not run longer than the caller. The sweep cancels its context
+// on shutdown. A resolution that ignored it would hold the poller open for the
+// timeout on every open address.
 func TestResolveNameHonoursACancelledContext(t *testing.T) {
 	useResolver(t, &net.Resolver{
 		PreferGo: true,

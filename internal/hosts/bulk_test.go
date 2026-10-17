@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// delayedResolver answers PTR queries from ptr as stubResolver does, but holds
-// every dial for delay and counts them, so a test can watch concurrent lookups
-// for one address collapse into a single query.
+// delayedResolver answers PTR queries from ptr, as stubResolver does. But it
+// holds every dial for delay, and counts the dials. So a test can see that
+// lookups for one address at the same time collapse into one query.
 func delayedResolver(t *testing.T, ptr map[string][]string, delay time.Duration) (*net.Resolver, *atomic.Int64) {
 	t.Helper()
 
@@ -51,8 +51,8 @@ func delayedResolver(t *testing.T, ptr map[string][]string, delay time.Duration)
 	return r, &calls
 }
 
-// The ARP and DHCP tables both hold the same address, so a merged sweep asks
-// about it more than once. Those lookups run together and share one query.
+// The ARP and DHCP tables both have the same address. So a merged sweep asks
+// about it more than once. These lookups run together and share one query.
 func TestBulkBuildLooksUpARepeatedAddressOnce(t *testing.T) {
 	r, calls := delayedResolver(t, map[string][]string{
 		"10.2.0.192.in-addr.arpa.": {"printer.lan."},
@@ -75,8 +75,8 @@ func TestBulkBuildLooksUpARepeatedAddressOnce(t *testing.T) {
 	assert.Equal(t, int64(1), calls.Load(), "one address in flight, one query")
 }
 
-// A router fills these tables in, so a malformed row is ordinary. It costs its
-// own entry and leaves the rest of the sweep standing.
+// A router fills these tables, so a malformed row is normal. It loses only its
+// own entry. The rest of the sweep stays.
 func TestBulkBuildKeepsTheHostsThatBuilt(t *testing.T) {
 	useResolver(t, stubResolver(t, nil))
 
@@ -125,8 +125,8 @@ func TestBulkBuildWithNoInputs(t *testing.T) {
 	assert.Empty(t, out)
 }
 
-// A cancelled sweep is incomplete and must say so: a caller that saw only the
-// error would otherwise read a truncated table as the whole one.
+// A cancelled sweep is incomplete, and must tell this. If not, a caller could
+// read a cut table as the whole table.
 func TestBulkBuildReportsACancelledSweep(t *testing.T) {
 	useResolver(t, stubResolver(t, nil))
 

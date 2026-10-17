@@ -11,33 +11,33 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
-// nameLookupTimeout bounds one reverse lookup. A LAN resolver answers in
-// milliseconds, so a slow one is a resolver that has no record for the address.
+// nameLookupTimeout limits one reverse lookup. A LAN resolver answers in
+// milliseconds. So a slow resolver has no record for the address.
 const nameLookupTimeout = 500 * time.Millisecond
 
-// resolver is the system resolver. It is a package variable, so tests can swap in
-// one that answers from a stub.
+// resolver is the system resolver. It is a package variable. So tests can
+// replace it with a resolver that answers from a stub.
 var resolver = net.DefaultResolver
 
-// lookups collapses concurrent reverse lookups for one address into a single
-// query. A sweep that merges the ARP and DHCP tables meets the same address in
-// both, and the second sighting should not cost a second round trip.
+// lookups collapses reverse lookups for one address at the same time into one
+// query. A sweep that merges the ARP and DHCP tables finds the same address in
+// both. The second sighting must not cause a second round trip.
 //
-// Nothing is cached: a flight is held only while it is in progress, so a later
-// sweep resolves again and sees current DNS.
+// Nothing is cached. A flight exists only while it runs. So a later sweep
+// resolves again and sees the current DNS.
 var lookups singleflight.Group
 
-// resolveNames does the reverse lookup for one address, bounded by
-// nameLookupTimeout, and returns every name the resolver gave, sorted, with the
-// trailing root dot trimmed. An address can carry several PTR records, such as
-// a server's own name beside the name of a role it serves, and the resolver
-// returns them in no fixed order. The names systemd-resolved makes up are left
-// out (see synthesized).
+// resolveNames does the reverse lookup for one address, within
+// nameLookupTimeout. It returns every name from the resolver, sorted, without
+// the trailing root dot. An address can have several PTR records, such as the
+// name of a server and the name of a role that it serves. The resolver returns
+// them in no fixed order. resolveNames leaves out the names that
+// systemd-resolved makes up. See synthesized.
 //
-// Callers that arrive while a lookup for the same address is already running
-// share its result, and so also share the deadline of whoever started it. A
-// shared lookup cut short yields no names, which is how every other lookup
-// failure reads here.
+// A caller can arrive while a lookup for the same address already runs. It
+// then shares the result, and also the deadline of the first caller. If a
+// shared lookup stops early, it gives no names. Every other lookup failure
+// also gives no names here.
 func resolveNames(ctx context.Context, addr netip.Addr) []string {
 	key := addr.String()
 
@@ -67,9 +67,10 @@ func resolveNames(ctx context.Context, addr netip.Addr) []string {
 	return names
 }
 
-// synthesized are the names systemd-resolved answers with for addresses in its
-// own host's setup, such as _gateway for the default gateway. They say what the
-// address is to that host, not what anyone named the device.
+// synthesized are the names that systemd-resolved gives for addresses in the
+// setup of its own host, such as _gateway for the default gateway. They tell
+// what the address is to that host. They are not names that a person gave the
+// device.
 var synthesized = map[string]bool{
 	"_gateway":       true,
 	"_outbound":      true,
@@ -77,8 +78,8 @@ var synthesized = map[string]bool{
 	"_localdnsproxy": true,
 }
 
-// resolveName returns the first of addr's reverse DNS names in sorted order, so
-// an address with several resolves to the same one on every lookup.
+// resolveName returns the first reverse DNS name of addr, in sorted order. So
+// an address with several names resolves to the same name on every lookup.
 func resolveName(ctx context.Context, addr netip.Addr) string {
 	if names := resolveNames(ctx, addr); len(names) > 0 {
 		return names[0]
@@ -87,8 +88,8 @@ func resolveName(ctx context.Context, addr netip.Addr) string {
 	return ""
 }
 
-// ResolveName returns the reverse DNS name for addr, or the empty string when
-// it has none or the lookup does not answer within a lookup's bound.
+// ResolveName returns the reverse DNS name of addr. It returns the empty string
+// when addr has none, or when the lookup does not answer in time.
 func ResolveName(ctx context.Context, addr netip.Addr) string {
 	return resolveName(ctx, addr)
 }

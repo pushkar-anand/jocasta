@@ -15,19 +15,20 @@ const KindNtfy Kind = "ntfy"
 
 // Ntfy publishes to one topic on an ntfy server.
 type Ntfy struct {
-	// URL is the topic's address as ntfy shows it, such as
-	// https://ntfy.sh/jocasta: the server, then the topic.
+	// URL is the address of the topic as ntfy shows it, such as
+	// https://ntfy.sh/jocasta. It is the server, then the topic.
 	URL string `koanf:"url"`
 
 	// Token is an access token, for a server that requires one.
 	Token string `koanf:"token"`
 
-	// Priority is ntfy's 1 (min) to 5 (max). Zero leaves it to the server.
+	// Priority is the ntfy priority, from 1 (min) to 5 (max). With zero, the
+	// server sets it.
 	Priority int `koanf:"priority"`
 }
 
-// Validate reports a URL that is not an absolute http or https address or
-// names no topic, and a priority outside 0 to 5.
+// Validate reports a URL that is not an absolute http or https address, or
+// that names no topic. It also reports a priority outside 0 to 5.
 func (n *Ntfy) Validate() error {
 	if _, _, err := n.split(); err != nil {
 		return err
@@ -40,7 +41,7 @@ func (n *Ntfy) Validate() error {
 	return nil
 }
 
-// Host is the ntfy server's host.
+// Host is the host of the ntfy server.
 func (n *Ntfy) Host() string {
 	server, _, _ := n.split()
 	if server == nil {
@@ -72,13 +73,12 @@ func (n *Ntfy) Send(ctx context.Context, m Message) error {
 		header.Set("Authorization", "Bearer "+n.Token)
 	}
 
-	// ntfy takes a title alongside the message only when the message is
-	// published as JSON, and JSON is published to the server's root with the
-	// topic in the body.
+	// ntfy accepts a title with the message only when the message is JSON.
+	// JSON goes to the root of the server, with the topic in the body.
 	return post(ctx, server.String(), header, raw)
 }
 
-// split parts the topic URL into the server's root and the topic.
+// split separates the topic URL into the root of the server and the topic.
 func (n *Ntfy) split() (*url.URL, string, error) {
 	u, err := parseURL(n.URL)
 	if err != nil {
