@@ -65,8 +65,9 @@ func (p *Poller) Register(t task) error {
 		return errors.New("cannot register tasks while poller is running or stopping")
 	}
 
-	if t.Interval() == 0 {
-		return fmt.Errorf("task %q has zero interval", t.Name())
+	// A negative interval makes the timer fire at once, every time.
+	if t.Interval() <= 0 {
+		return fmt.Errorf("task %q has interval %s; it must be positive", t.Name(), t.Interval())
 	}
 
 	if t.Name() == "" {
@@ -163,8 +164,8 @@ func (p *Poller) stop(r *run) {
 // runTask runs t on its own schedule until the context of r ends. The first
 // run is after the wait from firstRun. Each next run is one interval after a
 // run finishes. After a run that returned errNotReady, it is notReadyRetry.
-// runTask logs a failed run and tries again on schedule. It logs a panic,
-// which ends only this task.
+// runTask logs a failed run and tries again on schedule. A panic in a run is
+// a failed run.
 //
 // The history records every run that finishes, with or without a failure. So
 // after a restart, the wait is the same as for a poller with no restart. A run
@@ -178,13 +179,6 @@ func (p *Poller) runTask(r *run, t task) {
 	)
 
 	ctx := r.ctx
-
-	defer func() {
-		err := recover()
-		if err != nil {
-			log.ErrorContext(ctx, "task panicked", slog.String("panic", fmt.Sprint(err)))
-		}
-	}()
 
 	dur := p.firstRun(ctx, t, log)
 
@@ -215,7 +209,7 @@ func (p *Poller) runTask(r *run, t task) {
 			log.InfoContext(ctx, "starting task run")
 
 			next := t.Interval()
-			err := t.Run(ctx)
+			err := runOnce(ctx, t)
 
 			if ctx.Err() == nil && !errors.Is(err, errNotReady) {
 				p.record(ctx, t, err, log)
@@ -242,6 +236,19 @@ func (p *Poller) runTask(r *run, t task) {
 			timer.Reset(next)
 		}
 	}
+}
+
+// runOnce runs t one time. It returns a panic in the run as an error. So the
+// task stays on its schedule. Without this, one panic would stop the task
+// until the next restart.
+func runOnce(ctx context.Context, t task) (err error) {
+	defer func() {
+		if v := recover(); v != nil {
+			err = fmt.Errorf("task panicked: %v", v)
+		}
+	}()
+
+	return t.Run(ctx)
 }
 
 // firstRun is how long t waits before its first run. This is the rest of its
