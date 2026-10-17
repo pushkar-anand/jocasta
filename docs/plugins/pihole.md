@@ -1,9 +1,9 @@
 # Pi-hole
 
 Jocasta reads the query log of a [Pi-hole](https://pi-hole.net) v6 over its
-API. What is recorded, and how to route lookups so each device asks Pi-hole
-directly, is in [Record what devices look up](dns.md). Pi-hole logs no
-answer addresses, so its lookups name no traffic.
+API. [Record what devices look up](dns.md) tells what Jocasta records. It
+also tells how to make each device ask Pi-hole directly. Pi-hole does not log
+answer addresses, so its lookups do not name traffic.
 
 ```yaml
 plugins:
@@ -22,18 +22,18 @@ To prepare the server:
 1. In Pi-hole's web interface, create an app password.
 2. Put it in `password`, or in `JOCASTA_PLUGINS__PIHOLE__RESOLVER__PASSWORD`.
 
-Pi-hole has no read-only login, so the app password can change settings too.
-Making a new app password signs out every session, Jocasta's included, and
-Jocasta signs in again on its next read. On a Pi-hole with no password set,
-leave `password` empty.
+Pi-hole has no read-only login, so the app password can also change
+settings. A new app password signs out every session. This includes the session of
+Jocasta. Jocasta signs in again on its next read. If the Pi-hole has no
+password, leave `password` empty.
 
-Keep Pi-hole's privacy level at the one that shows everything. A level that
-hides domains or clients hides them from Jocasta too.
+Keep the privacy level of Pi-hole at the level that shows everything. A level
+that hides domains or clients also hides them from Jocasta.
 
-Each read takes at most 20,000 lookups. If more pile up while Jocasta is
-stopped, it keeps the newest and logs that it skipped the rest.
+Each read takes at most 20,000 lookups. If more lookups collect while Jocasta
+is stopped, it keeps the newest. It logs that it skipped the rest.
 
 ## All settings
 
-Every `plugins.pihole` setting, with its default and allowed values, is in the
-[configuration reference](../reference/configuration.md#pluginspihole).
+The [configuration reference](../reference/configuration.md#pluginspihole)
+lists every `plugins.pihole` setting, with its default and allowed values.

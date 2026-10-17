@@ -1,12 +1,13 @@
 # Show what is plugged in where
 
-The Topology page draws the network from the internet down: router, switches,
-access points, and each device on its port or Wi-Fi network. It comes from the
-bridge and Wi-Fi tables of each [MikroTik](routeros.md) and
-[OpenWrt](openwrt.md) router Jocasta reads. A switch or access point that
-announces itself to the router shows up with the devices behind it.
+The Topology page shows the network from the internet down. It shows the
+router, switches, access points, and each device on its port or Wi-Fi
+network. The data comes from the bridge and Wi-Fi tables of each
+[MikroTik](routeros.md) and [OpenWrt](openwrt.md) router that Jocasta reads.
+If a switch or access point announces itself to the router, the page shows
+it with the devices behind it.
 
-To see which switch port each device is on, read the switch too, with
+To see the switch port of each device, also read the switch, with
 `topology_only: true`:
 
 ```yaml
@@ -24,13 +25,13 @@ plugins:
       topology_only: true    # ports only; the router lists the devices
 ```
 
-A `topology_only` source finds no devices, so its management address cannot
-rename a network. Every RouterOS and OpenWrt source is read on
-`scan.devices.interval`.
+A `topology_only` source finds no devices. So its management address cannot
+change the name of a network. Jocasta reads every RouterOS and OpenWrt source
+at each `scan.devices.interval`.
 
-`jocasta plugin run switch_core` prints its ports, the addresses on each, and
-its neighbours.
+`jocasta plugin run switch_core` prints the ports of the switch, the
+addresses on each port, and the neighbours of the switch.
 
-What each router's tables add: [RouterOS](routeros.md#topology),
-[OpenWrt](openwrt.md#topology). How to read the page:
+For what the tables of each router add, see [RouterOS](routeros.md#topology)
+and [OpenWrt](openwrt.md#topology). For how to read the page, see
 [Tour the web UI](../ui.md#topology).
