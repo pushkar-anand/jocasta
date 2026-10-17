@@ -176,15 +176,21 @@ func eventually(t *testing.T, cond func() bool, msg string) {
 	assert.Eventually(t, cond, settle, time.Millisecond, msg)
 }
 
-func TestRegisterRejectsZeroInterval(t *testing.T) {
+func TestRegisterRejectsNonPositiveInterval(t *testing.T) {
 	t.Parallel()
 
-	p := New(slog.New(slog.DiscardHandler), newHistory())
+	for _, interval := range []time.Duration{0, -time.Minute} {
+		t.Run(interval.String(), func(t *testing.T) {
+			t.Parallel()
 
-	err := p.Register(&fake{name: "zero", interval: 0})
+			p := New(slog.New(slog.DiscardHandler), newHistory())
 
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "zero interval")
+			err := p.Register(&fake{name: "bad", interval: interval})
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "must be positive")
+		})
+	}
 }
 
 func TestRegisterRejectsEmptyName(t *testing.T) {
@@ -479,19 +485,26 @@ func TestFailingTaskWaitsTheFullInterval(t *testing.T) {
 }
 
 // A task that panics must not stop the process. It must not block the other
-// tasks or the shutdown path.
+// tasks or the shutdown path. The poller must run it again on schedule, and
+// record the panic as a failed run.
 func TestPanickingTaskDoesNotKillPoller(t *testing.T) {
 	t.Parallel()
 
 	boom := &fake{name: "boom", interval: tick, panics: true}
 	ok := newFake("ok")
-	p := newPoller(t, boom, ok)
+	h := newHistory()
+	p := newPollerWith(t, h, boom, ok)
 
 	ctx, cancel := context.WithCancel(t.Context())
 	errc := startAsync(ctx, t, p)
 
-	eventually(t, func() bool { return boom.runs.Load() > 0 }, "panicking task never ran")
+	eventually(t, func() bool { return boom.runs.Load() > 1 }, "panicking task never ran again")
 	eventually(t, func() bool { return ok.runs.Load() > 0 }, "healthy task never ran")
+
+	h.mu.Lock()
+	err := h.errs["boom"]
+	h.mu.Unlock()
+	require.ErrorContains(t, err, "task panicked")
 
 	cancel()
 	requireReturned(t, errc)
