@@ -5,33 +5,33 @@ import (
 	"fmt"
 )
 
-// Sentinels a caller acts on differently. The distinction that matters is
-// whether the next attempt could go better: a Pi-hole behind a firewall may
-// come back, a password that is wrong is wrong until someone edits the config.
+// A caller acts differently on each of these sentinels. The question is
+// whether the next attempt can go better. A Pi-hole behind a firewall can come
+// back. A wrong password stays wrong until someone edits the config.
 var (
-	// ErrUnreachable is a Pi-hole that could not be contacted at all: a
-	// refused connection, a timeout, a name that does not resolve. Worth
-	// retrying.
+	// ErrUnreachable is a Pi-hole that the client cannot contact at all. For
+	// example, the connection is refused, it times out, or the name does not
+	// resolve. A retry can help.
 	ErrUnreachable = errors.New("pihole: server unreachable")
 
-	// ErrUnauthorized is a Pi-hole that refused the password, or wants one
-	// and was given none. Retrying will not fix it.
+	// ErrUnauthorized is a Pi-hole that refused the password, or that needs a
+	// password and got none. A retry does not help.
 	ErrUnauthorized = errors.New("pihole: password rejected")
 
-	// ErrTLS is a Pi-hole whose certificate could not be verified. It is told
-	// apart from ErrUnreachable because the server is plainly there and no
-	// number of retries will change its certificate: it wants Insecure set,
-	// or a certificate installed.
+	// ErrTLS is a server whose certificate does not verify. It is separate
+	// from ErrUnreachable, because the server is clearly there. Retries do not
+	// change its certificate. The fix is to set Insecure, or to install a
+	// certificate.
 	ErrTLS = errors.New("pihole: certificate not verified")
 
-	// ErrUnexpected is an answer that is not the Pi-hole v6 API, such as an
-	// older Pi-hole or something else listening on the port.
+	// ErrUnexpected is an answer that is not the Pi-hole v6 API. For example,
+	// an older Pi-hole or a different service listens on the port.
 	ErrUnexpected = errors.New("pihole: unexpected answer")
 )
 
-// APIError is a call the server refused with an error of its own, such as
-// every session seat being taken. Message and Hint are the server's, and say
-// what to change.
+// APIError is a call that the server refused with its own error. For
+// example, all session seats are in use. Message and Hint come from the
+// server, and tell what to change.
 type APIError struct {
 	Path    string
 	Key     string

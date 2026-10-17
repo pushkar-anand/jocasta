@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The answers below are in the shape the server returns them, with
+// The answers below have the shape that the server returns, with
 // documentation addresses and names.
 const (
 	appsAnswer = `{"response":{"apps":[
@@ -29,8 +29,8 @@ const (
 	]},"status":"ok"}`
 )
 
-// fakeServer answers each path with a canned body, and records the last
-// request so a test can check what was asked.
+// fakeServer answers each path with a canned body. It records the last
+// request, so a test can check what the client asked.
 type fakeServer struct {
 	token   string
 	answers map[string]string
@@ -56,8 +56,8 @@ func (f *fakeServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(body))
 }
 
-// newFake starts a server answering with answers, and returns it with a client
-// holding token.
+// newFake starts a server that replies with answers. It returns the server
+// and a client that holds token.
 func newFake(t *testing.T, token string, answers map[string]string) (*fakeServer, *Technitium) {
 	t.Helper()
 
@@ -86,8 +86,8 @@ func TestNewNeedsAHost(t *testing.T) {
 	require.ErrorIs(t, err, ErrNoHost)
 }
 
-// TestNewPorts checks the port each scheme defaults to, and that a configured
-// port wins.
+// TestNewPorts checks the default port of each scheme. It also checks that a
+// configured port wins.
 func TestNewPorts(t *testing.T) {
 	for _, tc := range []struct {
 		cfg  Config
@@ -117,8 +117,8 @@ func TestApps(t *testing.T) {
 	assert.Equal(t, "application/json", f.last.Header.Get("Accept"))
 }
 
-// TestQueryLogs checks the request a page is asked for with, and that an
-// entry decodes field for field.
+// TestQueryLogs checks the request for a page. It also checks that each
+// field of an entry decodes.
 func TestQueryLogs(t *testing.T) {
 	f, c := newFake(t, "secret", map[string]string{"/api/logs/query": logsAnswer})
 
@@ -157,8 +157,8 @@ func TestQueryLogs(t *testing.T) {
 	}, page)
 }
 
-// TestQueryLogsDefaults checks that a zero start and page size are left to
-// the server, and a zero page asks for the first.
+// TestQueryLogsDefaults checks that the client leaves a zero start and page
+// size to the server. It also checks that a zero page asks for the first.
 func TestQueryLogsDefaults(t *testing.T) {
 	f, c := newFake(t, "secret", map[string]string{"/api/logs/query": logsAnswer})
 
@@ -171,8 +171,8 @@ func TestQueryLogsDefaults(t *testing.T) {
 	assert.False(t, q.Has("entriesPerPage"))
 }
 
-// TestNullFields checks that a field the server writes as null, as it does
-// for a query with no answer, decodes as empty.
+// TestNullFields checks that a null field decodes as empty. The server writes
+// null for a query with no answer.
 func TestNullFields(t *testing.T) {
 	_, c := newFake(t, "secret", map[string]string{"/api/logs/query": `{"response":{"pageNumber":1,"totalPages":1,"totalEntries":1,
 		"entries":[{"timestamp":"2026-10-11T09:00:00Z","clientIpAddress":"192.0.2.10","qname":null,"answer":null}]},"status":"ok"}`})

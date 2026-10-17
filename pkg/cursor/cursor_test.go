@@ -13,8 +13,8 @@ import (
 func TestRoundTripsEveryKind(t *testing.T) {
 	t.Parallel()
 
-	// Truncated to the precision RFC3339Nano keeps, so the value read back
-	// compares equal to the one written.
+	// Truncate to the precision that RFC3339Nano keeps. Then the value that
+	// the test reads is equal to the value that it wrote.
 	at := time.Date(2026, 8, 31, 11, 26, 19, 360_000_000, time.UTC)
 
 	tests := []struct {
@@ -45,8 +45,8 @@ func TestRoundTripsEveryKind(t *testing.T) {
 	}
 }
 
-// The token is what a client is handed, so it has to survive a query string and
-// a JSON body without being escaped into something else.
+// The client gets the token. So the token must pass through a query string and
+// a JSON body without a change from escapes.
 func TestTokenIsURLAndJSONSafe(t *testing.T) {
 	t.Parallel()
 
@@ -69,8 +69,8 @@ func TestTokenIsURLAndJSONSafe(t *testing.T) {
 	assert.Equal(t, c, fromJSON)
 }
 
-// A separator inside a string value must not split the token, which is why the
-// separator is more than one character.
+// A separator in a string value must not split the token. So the separator has
+// more than one character.
 func TestValueMayContainASeparatorCharacter(t *testing.T) {
 	t.Parallel()
 
@@ -100,8 +100,8 @@ func TestZeroCursorHasNoToken(t *testing.T) {
 	assert.JSONEq(t, "null", string(encoded))
 }
 
-// An empty token decodes to the first page, so a client need not leave the
-// parameter off to ask for it.
+// An empty token decodes to the first page. So a client can send the parameter
+// empty to ask for it.
 func TestEmptyTokenDecodesToZero(t *testing.T) {
 	t.Parallel()
 
@@ -143,8 +143,8 @@ func TestUnsortableValueIsRefused(t *testing.T) {
 	assert.ErrorIs(t, err, ErrUnsortableValue)
 }
 
-// The clause has to admit exactly the rows past the cursor: the ones the sort
-// column already separates, and the ones it ties that the id separates.
+// The clause must select exactly the rows after the cursor. These are the rows
+// that the sort column separates, and the tied rows that the id separates.
 func TestWhereSeeksPastTheRow(t *testing.T) {
 	t.Parallel()
 
@@ -172,7 +172,7 @@ func TestWhereSeeksPastTheRow(t *testing.T) {
 	}
 }
 
-// The first page has nothing to seek past, so the query gets no clause.
+// The first page has no row to seek past, so the query gets no clause.
 func TestWhereAddsNothingForTheZeroCursor(t *testing.T) {
 	t.Parallel()
 
@@ -185,8 +185,8 @@ func TestWhereAddsNothingForTheZeroCursor(t *testing.T) {
 	assert.Empty(t, args)
 }
 
-// WithValue is how a caller hands the query a value that renders itself the way
-// its column stores it.
+// With WithValue, a caller gives the query a value that renders in the format
+// of its column.
 func TestWithValueReplacesOnlyTheValue(t *testing.T) {
 	t.Parallel()
 

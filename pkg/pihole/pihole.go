@@ -1,13 +1,13 @@
-// Package pihole reads a Pi-hole v6 query log over the API its FTL engine
-// serves.
+// Package pihole reads the query log of a Pi-hole v6, over the API of its FTL
+// engine.
 //
-// The API signs a client in with a password and hands back a session id,
-// which the client sends with each call until the session lapses after its
-// idle timeout. An app password, made in Pi-hole's web interface, signs in
-// without a second factor. Pi-hole has no read-only login: any password that
-// signs in can change settings too.
+// The API signs a client in with a password and returns a session id. The
+// client sends the id with each call, until the session ends after its idle
+// timeout. An app password signs in without a second factor. You make it in
+// the web interface of Pi-hole. Pi-hole has no read-only login. Any password
+// that signs in can also change settings.
 //
-// Nothing here changes the Pi-hole's settings.
+// This package never changes the settings of the Pi-hole.
 package pihole
 
 import (
@@ -32,12 +32,12 @@ const (
 	defaultSSLPort = 443
 	defaultTimeout = 10 * time.Second
 
-	// maxBody caps a response. A page of a thousand queries is a few hundred
-	// kilobytes, and a device answering on this port that is not a Pi-hole
-	// can stream forever.
+	// maxBody limits the size of a response. A page of a thousand queries is a
+	// few hundred kilobytes. A device on this port that is not a Pi-hole can
+	// send data forever.
 	maxBody = 8 << 20
 
-	// sidHeader carries the session id on every call after sign-in.
+	// sidHeader holds the session id on every call after sign-in.
 	sidHeader = "X-FTL-SID"
 )
 
@@ -50,22 +50,22 @@ type (
 		// Port defaults to 80, or 443 when SSL is set.
 		Port int
 
-		// Password is an app password or the web interface password. Empty
-		// reads a Pi-hole that has no password set.
+		// Password is an app password or the web interface password. Leave it
+		// empty for a Pi-hole that has no password.
 		Password string
 
-		// SSL selects https. Insecure skips certificate verification, for the
-		// self-signed certificate Pi-hole serves until one is installed.
+		// SSL selects https. Insecure skips certificate verification. Use it
+		// for the self-signed certificate that Pi-hole serves by default.
 		SSL      bool
 		Insecure bool
 
-		// Timeout bounds each request on its own, defaulting to 10s, so a
-		// caller's context stays the only thing that bounds a whole read.
+		// Timeout limits each request on its own. The default is 10s. Only the
+		// context of the caller limits a whole read.
 		Timeout time.Duration
 	}
 
 	// PiHole is a read-only client for one Pi-hole. It is safe for
-	// concurrent use, and its calls share one session.
+	// concurrent use. Its calls share one session.
 	PiHole struct {
 		client   *http.Client
 		base     string
@@ -74,24 +74,25 @@ type (
 		mu       sync.Mutex
 		signedIn bool
 
-		// sid is empty before sign-in, and after it on a Pi-hole with no
-		// password, which hands out no session.
+		// sid is empty before sign-in. On a Pi-hole with no password, it stays
+		// empty, because that Pi-hole gives no session.
 		sid string
 	}
 
 	// QueryRequest picks a page of the query log, newest first.
 	QueryRequest struct {
-		// From drops queries logged before it. Zero reads from the oldest
-		// the server holds in memory.
+		// From leaves out queries logged before it. Zero reads from the oldest
+		// query that the server holds in memory.
 		From time.Time
 
-		// Cursor drops queries with a higher id. Passing the first page's
-		// newest id on later pages keeps their offsets counting from the same
-		// query, whatever is logged in between. Zero starts at the newest.
+		// Cursor leaves out queries with a higher id. Pass the newest id of
+		// the first page on later pages. Then their offsets count from the same
+		// query, even when the server logs more queries. Zero starts at the
+		// newest query.
 		Cursor int64
 
-		// Start skips that many queries. Length is the server's default of
-		// 100 when zero.
+		// Start skips that number of queries. If Length is zero, the server
+		// uses its default of 100.
 		Start  int
 		Length int
 	}
@@ -101,9 +102,9 @@ type (
 		Queries []Query `json:"queries"`
 	}
 
-	// Query is one logged query and how Pi-hole handled it.
+	// Query is one logged query, and how Pi-hole handled it.
 	Query struct {
-		// ID grows with every query logged.
+		// ID increases with each logged query.
 		ID int64 `json:"id"`
 
 		// Time is when the query arrived, in Unix seconds.
@@ -113,34 +114,34 @@ type (
 		Domain string `json:"domain"`
 
 		// Status is how Pi-hole handled the query, such as FORWARDED, CACHE,
-		// GRAVITY or REGEX. It is empty for a query still in flight when the
-		// page was read.
+		// GRAVITY or REGEX. It is empty for a query that was not complete when
+		// the client read the page.
 		Status string `json:"status"`
 
 		Client Client `json:"client"`
 		Reply  Reply  `json:"reply"`
 	}
 
-	// Client is the address a query came from, and the name Pi-hole knows it
-	// by, if any.
+	// Client is the address that a query came from, and the name that
+	// Pi-hole has for it, if any.
 	Client struct {
 		IP   string `json:"ip"`
 		Name string `json:"name"`
 	}
 
-	// Reply is what kind of answer the query got, such as IP, CNAME, NXDOMAIN
-	// or SERVFAIL. The log keeps the kind alone, never the addresses.
+	// Reply is the kind of answer that the query got, such as IP, CNAME,
+	// NXDOMAIN or SERVFAIL. The log keeps only the kind, never the addresses.
 	Reply struct {
 		Type string `json:"type"`
 	}
 )
 
-// ErrNoHost is a config naming no server.
+// ErrNoHost is a config that names no server.
 var ErrNoHost = errors.New("pihole: no host configured")
 
-// New builds a client for the Pi-hole cfg names. It performs no I/O, so a
-// server that is down at startup is retried later and the caller still
-// starts.
+// New builds a client for the Pi-hole that cfg names. It does no I/O. So if
+// the server is down at startup, the caller still starts and tries again
+// later.
 func New(cfg *Config) (*PiHole, error) {
 	if cfg == nil || cfg.Host == "" {
 		return nil, ErrNoHost
@@ -161,8 +162,8 @@ func New(cfg *Config) (*PiHole, error) {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 
 	if cfg.Insecure {
-		// Clone carries the default TLS settings over, but not necessarily a
-		// config to hang this on.
+		// Clone copies the default TLS settings, but it can leave the TLS
+		// config nil.
 		if transport.TLSClientConfig == nil {
 			transport.TLSClientConfig = &tls.Config{} //nolint:gosec // the next line is the point.
 		}
@@ -184,8 +185,8 @@ func New(cfg *Config) (*PiHole, error) {
 	}, nil
 }
 
-// Addr is the URL this client calls, useful in a log line naming which server
-// answered.
+// Addr is the URL that this client calls. Use it in a log line to name the
+// server that answered.
 func (p *PiHole) Addr() string { return p.base }
 
 // At returns when q arrived.
@@ -195,8 +196,8 @@ func (q Query) At() time.Time {
 	return time.Unix(int64(sec), int64(frac*1e9)).UTC()
 }
 
-// Queries returns one page of the query log Pi-hole holds in memory, which
-// by default is the last 24 hours.
+// Queries returns one page of the query log that Pi-hole holds in memory. By
+// default, this log covers the last 24 hours.
 func (p *PiHole) Queries(ctx context.Context, q QueryRequest) (*QueryPage, error) {
 	v := url.Values{}
 
@@ -225,8 +226,8 @@ func (p *PiHole) Queries(ctx context.Context, q QueryRequest) (*QueryPage, error
 	return &page, nil
 }
 
-// get calls path with query and decodes the answer into out, signing in
-// first when the client has no session.
+// get calls path with query and decodes the answer into out. If the client
+// has no session, get signs in first.
 func (p *PiHole) get(ctx context.Context, path string, query url.Values, out any) error {
 	sid, err := p.session(ctx, "")
 	if err != nil {
@@ -243,8 +244,9 @@ func (p *PiHole) get(ctx context.Context, path string, query url.Values, out any
 		return err
 	}
 
-	// A session lapses after its idle timeout, and every session ends when
-	// someone makes a new app password, so one refusal signs in again.
+	// A session ends after its idle timeout. Every session also ends when
+	// someone makes a new app password. So after one refusal, get signs in
+	// again.
 	if sid, err = p.session(ctx, sid); err != nil {
 		return err
 	}
@@ -252,9 +254,9 @@ func (p *PiHole) get(ctx context.Context, path string, query url.Values, out any
 	return p.call(ctx, http.MethodGet, u, sid, nil, out)
 }
 
-// session returns the session id to call with. It signs in when the client
-// has not, or when the session it holds is stale, the one a call just had
-// refused.
+// session returns the session id for a call. It signs in if the client has
+// no session. It also signs in if the session is stale, which means that the
+// server just refused it.
 func (p *PiHole) session(ctx context.Context, stale string) (string, error) {
 	if p.password == "" {
 		return "", nil
@@ -295,9 +297,10 @@ func (p *PiHole) session(ctx context.Context, stale string) (string, error) {
 
 // call sends one request and decodes a successful answer into out.
 //
-// A server that cannot be reached at all is [ErrUnreachable], one whose
-// certificate does not verify is [ErrTLS], and a 401 is [ErrUnauthorized].
-// Any other refusal is an [*APIError] carrying the server's reason.
+// If the client cannot reach the server at all, the error is
+// [ErrUnreachable]. If the certificate does not verify, it is [ErrTLS]. A 401
+// is [ErrUnauthorized]. Any other refusal is an [*APIError] with the reason
+// of the server.
 func (p *PiHole) call(ctx context.Context, method, u, sid string, body []byte, out any) error {
 	req, err := http.NewRequestWithContext(ctx, method, u, bytes.NewReader(body))
 	if err != nil {
@@ -316,8 +319,8 @@ func (p *PiHole) call(ctx context.Context, method, u, sid string, body []byte, o
 
 	resp, err := p.client.Do(req)
 	if err != nil {
-		// A cancelled context is the caller giving up. Calling it unreachable
-		// would have the poller retry during a shutdown.
+		// A cancelled context means that the caller stopped. If the client
+		// called it unreachable, the poller would try again during a shutdown.
 		if ctx.Err() != nil {
 			return fmt.Errorf("request send: %w", err)
 		}

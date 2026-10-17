@@ -31,8 +31,8 @@ func TestLookupResolvesRegisteredPrefixes(t *testing.T) {
 		{"lowercase input", "3c:22:fb:aa:bb:cc", "Apple", 24},
 		{"uppercase input", "3C:22:FB:AA:BB:CC", "Apple", 24},
 		{"hyphen separated", "3C-22-FB-AA-BB-CC", "Apple", 24},
-		// A 36-bit assignment inside a block registered to the IEEE itself.
-		// Matching the 24-bit parent would report the registry.
+		// A 36-bit assignment in a block that belongs to the IEEE itself. A
+		// match on the 24-bit parent would report the registry.
 		{"36-bit assignment", "00:1b:c5:00:00:01", "Converging", 36},
 	}
 
@@ -74,7 +74,7 @@ func TestLookupReportsMissForUnregisteredAndShortInput(t *testing.T) {
 		{"empty", net.HardwareAddr{}},
 		// Four bytes cannot decide a 36-bit match.
 		{"too short", net.HardwareAddr{0x00, 0x00, 0x0c, 0x11}},
-		// A randomised address matches no registry by construction.
+		// A random address can never match a registry.
 		{"locally administered", mustMACAddr("02:00:5e:10:00:01")},
 	}
 
@@ -101,8 +101,8 @@ func TestShortFallsBackToTheRegisteredName(t *testing.T) {
 func TestShortIgnoresAPrefixMasqueradingAsAName(t *testing.T) {
 	t.Parallel()
 
-	// The upstream abbreviation for this block is the prefix itself, which
-	// would be worse to display than the registered name.
+	// The upstream short name for this block is the prefix itself. The
+	// registered name is better to display.
 	v, ok := oui.Lookup(mustMAC(t, "00:00:00:11:22:33"))
 	require.True(t, ok)
 	assert.Equal(t, v.Name, v.Short)

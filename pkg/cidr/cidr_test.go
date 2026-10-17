@@ -89,8 +89,8 @@ func TestHostsAreContiguous(t *testing.T) {
 	}
 }
 
-// TestHostsIsReiterable covers the retry rounds of a sweep, which range the
-// same sequence more than once.
+// TestHostsIsReiterable covers the retry rounds of a sweep. Each round ranges
+// over the same sequence.
 func TestHostsIsReiterable(t *testing.T) {
 	t.Parallel()
 
@@ -100,7 +100,7 @@ func TestHostsIsReiterable(t *testing.T) {
 	assert.Equal(t, slices.Collect(seq), slices.Collect(seq))
 }
 
-// TestHostsStopsEarly covers abandoning a sweep part way through.
+// TestHostsStopsEarly covers a sweep that stops before the end.
 func TestHostsStopsEarly(t *testing.T) {
 	t.Parallel()
 

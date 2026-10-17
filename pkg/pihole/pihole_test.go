@@ -15,8 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// queriesAnswer is a page in the shape FTL returns it, with documentation
-// addresses and names.
+// queriesAnswer is a page with the shape that FTL returns, with
+// documentation addresses and names.
 const queriesAnswer = `{"queries":[
 	{"id":42,"time":1791709200.25,"type":"A","domain":"www.example.com","cname":null,"status":"FORWARDED",
 	 "client":{"ip":"192.0.2.10","name":"host-a"},"dnssec":"INSECURE","reply":{"type":"IP","time":12.5},
@@ -26,8 +26,8 @@ const queriesAnswer = `{"queries":[
 	 "list_id":null,"upstream":null,"ede":{"code":-1,"text":null}}
 ],"cursor":42,"recordsTotal":2,"recordsFiltered":2,"draw":0,"took":0.001}`
 
-// fakePiHole signs clients in with password and answers /api/queries for a
-// session it handed out.
+// fakePiHole signs clients in with password. It answers /api/queries for a
+// session that it gave out.
 type fakePiHole struct {
 	password string
 
@@ -77,8 +77,8 @@ func (f *fakePiHole) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// newFake starts a Pi-hole with serverPassword and returns it with a client
-// holding password.
+// newFake starts a Pi-hole with serverPassword. It returns the Pi-hole and a
+// client that holds password.
 func newFake(t *testing.T, serverPassword, password string) (*fakePiHole, *PiHole) {
 	t.Helper()
 
@@ -123,8 +123,8 @@ func TestNewPicksPortFromSSL(t *testing.T) {
 	assert.Equal(t, "https://192.0.2.53:443", secure.Addr())
 }
 
-// A page decodes, sends what the request asks for, and two calls share one
-// sign-in.
+// A page decodes, and the request sends what it asks for. Two calls share
+// one sign-in.
 func TestQueriesDecodesAPageOnOneSession(t *testing.T) {
 	t.Parallel()
 
@@ -151,7 +151,7 @@ func TestQueriesDecodesAPageOnOneSession(t *testing.T) {
 	assert.Equal(t, "IP", q.Reply.Type)
 	assert.Equal(t, time.Date(2026, 10, 11, 9, 0, 0, 250_000_000, time.UTC), q.At())
 
-	// FTL writes null for a query still in flight.
+	// FTL writes null for a query that is not complete.
 	assert.Empty(t, page.Queries[1].Status)
 	assert.Empty(t, page.Queries[1].Reply.Type)
 }
@@ -173,8 +173,8 @@ func TestQueriesSendsTheRequest(t *testing.T) {
 	}, f.last)
 }
 
-// A session that lapsed between reads costs one more sign-in, and the read
-// goes through.
+// If a session ends between reads, the client signs in one more time. The
+// read then succeeds.
 func TestQueriesSignsInAgainWhenTheSessionLapses(t *testing.T) {
 	t.Parallel()
 
@@ -202,7 +202,7 @@ func TestQueriesRefusedPassword(t *testing.T) {
 	require.ErrorIs(t, err, ErrUnauthorized)
 }
 
-// A Pi-hole with a password, read with none, refuses the read itself.
+// A Pi-hole with a password refuses a read with no password.
 func TestQueriesNoPasswordAgainstOneThatWantsIt(t *testing.T) {
 	t.Parallel()
 
@@ -212,7 +212,7 @@ func TestQueriesNoPasswordAgainstOneThatWantsIt(t *testing.T) {
 	require.ErrorIs(t, err, ErrUnauthorized)
 }
 
-// A Pi-hole with no password set is read without signing in.
+// The client reads a Pi-hole with no password, and does not sign in.
 func TestQueriesWithoutAPassword(t *testing.T) {
 	t.Parallel()
 
@@ -225,8 +225,8 @@ func TestQueriesWithoutAPassword(t *testing.T) {
 	assert.Empty(t, f.lastSID)
 }
 
-// Every session seat taken is the server's own refusal, which says what to
-// change.
+// When all session seats are in use, the server refuses with its own error.
+// The error tells what to change.
 func TestQueriesSeatsTaken(t *testing.T) {
 	t.Parallel()
 
@@ -244,7 +244,8 @@ func TestQueriesSeatsTaken(t *testing.T) {
 	assert.Contains(t, err.Error(), "increase webserver.api.max_sessions")
 }
 
-// Something else on the port, such as a Pi-hole v5 web page, is unexpected.
+// A different service on the port, such as a Pi-hole v5 web page, is
+// unexpected.
 func TestQueriesSomethingElseOnThePort(t *testing.T) {
 	t.Parallel()
 

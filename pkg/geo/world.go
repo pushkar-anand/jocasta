@@ -11,8 +11,8 @@ import (
 	"sync"
 )
 
-// WorldWidth and WorldHeight are the dimensions of the world map's canvas.
-// Its equirectangular projection includes Greenland and Svalbard but omits
+// WorldWidth and WorldHeight are the dimensions of the canvas of the world
+// map. Its equirectangular projection includes Greenland and Svalbard, but not
 // Antarctica.
 const (
 	WorldWidth  = 1000.0
@@ -22,28 +22,28 @@ const (
 	worldSouth = -58.0
 )
 
-// Project places a longitude and latitude, in degrees, on the world map's
-// canvas. Latitude is clamped to the map's north and south edges.
+// Project puts a longitude and latitude, in degrees, on the canvas of the
+// world map. It clamps the latitude to the north and south edges of the map.
 func Project(lon, lat float64) (x, y float64) {
 	lat = math.Max(worldSouth, math.Min(worldNorth, lat))
 
 	return (lon + 180) / 360 * WorldWidth, (worldNorth - lat) / (worldNorth - worldSouth) * WorldHeight
 }
 
-// Country is one country's outline on the world map.
+// Country is the outline of one country on the world map.
 type Country struct {
-	// Code is the two-letter ISO 3166 code Lookup returns.
+	// Code is the two-letter ISO 3166 code that Lookup returns.
 	Code string
 	Name string
 
-	// Path is the outline as SVG path data on the world map's canvas, and
-	// LabelX, LabelY where a marker for the country belongs, inside it.
+	// Path is the outline as SVG path data on the canvas of the world map.
+	// LabelX and LabelY are the position of the marker, in the country.
 	Path           string
 	LabelX, LabelY float64
 }
 
-// worldData holds outlines from Natural Earth's 1:10m countries, which are in the
-// public domain, simplified and generated into world.gz by internal/world.
+// worldData holds outlines from the 1:10m countries of Natural Earth, which are
+// in the public domain. internal/world simplifies them into world.gz.
 //
 //go:embed world.gz
 var worldData []byte
@@ -55,8 +55,8 @@ type worldIndex struct {
 	byCode map[string]int
 }
 
-// loadWorld indexes the embedded outlines by country code. It returns an empty
-// index if the gzip header cannot be read and skips malformed rows.
+// loadWorld indexes the embedded outlines by country code. If it cannot read
+// the gzip header, it returns an empty index. It skips malformed rows.
 func loadWorld() *worldIndex {
 	ix := &worldIndex{byCode: make(map[string]int)}
 
@@ -88,12 +88,12 @@ func loadWorld() *worldIndex {
 	return ix
 }
 
-// World returns every country's outline, by code. The slice and its elements
-// are shared and must not be modified.
+// World returns the outline of every country, by code. The slice and its
+// elements are shared. Do not change them.
 func World() []Country { return world().list }
 
-// CountryOf returns the country with a two-letter code, and false for one the
-// map does not draw.
+// CountryOf returns the country with a two-letter code. It returns false for a
+// country that the map does not draw.
 func CountryOf(code string) (Country, bool) {
 	ix := world()
 

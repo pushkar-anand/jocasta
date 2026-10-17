@@ -7,7 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Addresses off the public internet have no country, whatever the table says.
+// An address that is not on the public internet has no country, even if the
+// table gives one.
 func TestLookupSkipsWhatIsNotPublic(t *testing.T) {
 	t.Parallel()
 
@@ -17,8 +18,8 @@ func TestLookupSkipsWhatIsNotPublic(t *testing.T) {
 	}
 }
 
-// Well-known anycast resolvers are registered somewhere; which country the
-// table says is its business, but it must say one.
+// Well-known anycast resolvers are registered in a country. The test does not
+// check which country, but the table must give one.
 func TestLookupFindsAPublicAddress(t *testing.T) {
 	t.Parallel()
 

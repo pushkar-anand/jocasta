@@ -9,9 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The public addresses below are long-standing anycast resolvers, chosen
-// because the network announcing them has not changed in years and is not
-// likely to.
+// The public addresses below are old anycast resolvers. The network that
+// announces them has not changed in years, and it probably will not change.
 func TestLookupResolvesPublicAddresses(t *testing.T) {
 	t.Parallel()
 

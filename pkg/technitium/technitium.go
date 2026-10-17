@@ -1,13 +1,13 @@
-// Package technitium reads a Technitium DNS Server's query log over its HTTP
-// API.
+// Package technitium reads the query log of a Technitium DNS Server over its
+// HTTP API.
 //
-// The server keeps no query log of its own. An installed DNS app that logs
-// queries, such as Query Logs (Sqlite), keeps one, and the API pages through
-// it by app name and class path. In a cluster each node's app logs to that
-// node's own disk, so a client reads one node.
+// The server itself keeps no query log. An installed DNS app that logs
+// queries keeps one, such as Query Logs (Sqlite). The API pages through the
+// log by app name and class path. In a cluster, the app on each node logs to
+// the disk of that node. So a client reads one node.
 //
-// Everything here reads; nothing writes. Values arrive as the server renders
-// them and stay strings, so a malformed row costs the caller only that row.
+// The package only reads. It never writes. Values stay strings, as the server
+// renders them. So if a row is malformed, the caller loses only that row.
 package technitium
 
 import (
@@ -30,14 +30,14 @@ const (
 	defaultSSLPort = 53443
 	defaultTimeout = 10 * time.Second
 
-	// maxBody caps a response. A page of a thousand log entries is a few
-	// hundred kilobytes, and a device answering on this port that is not a
-	// Technitium server can stream forever.
+	// maxBody limits the size of a response. A page of a thousand log entries
+	// is a few hundred kilobytes. A device on this port that is not a
+	// Technitium server can send data forever.
 	maxBody = 8 << 20
 
-	// startLayout is how a log query's start is sent. The server parses it as
-	// UTC and stores timestamps to 100ns, so seven digits name an entry's
-	// timestamp exactly.
+	// startLayout is the format of the start of a log query. The server parses
+	// it as UTC and stores timestamps to 100ns. So seven digits give the
+	// timestamp of an entry exactly.
 	startLayout = "2006-01-02T15:04:05.0000000Z"
 )
 
@@ -50,11 +50,11 @@ type (
 		// Port defaults to 5380, or 53443 when SSL is set.
 		Port int
 
-		// Token is an API token, from the user menu's Create API Token. A
-		// user granted Logs: View alone can make every call here.
+		// Token is an API token, from Create API Token in the user menu. A
+		// user with only Logs: View can make every call in this package.
 		Token string
 
-		// SSL selects https, which the web service serves once it is enabled
+		// SSL selects https. The web service serves https after you enable it
 		// in Settings.
 		SSL bool
 
@@ -62,8 +62,8 @@ type (
 		// self-signed certificate.
 		Insecure bool
 
-		// Timeout bounds each request on its own, defaulting to 10s, so a
-		// caller's context stays the only thing that bounds a whole read.
+		// Timeout limits each request on its own. The default is 10s. Only the
+		// context of the caller limits a whole read.
 		Timeout time.Duration
 	}
 
@@ -94,10 +94,12 @@ type (
 		App       string
 		ClassPath string
 
-		// Start drops entries logged before it. Zero reads from the oldest.
+		// Start leaves out entries logged before it. Zero reads from the
+		// oldest entry.
 		Start time.Time
 
-		// Page counts from 1. PerPage is the server's default of 25 when zero.
+		// Page counts from 1. If PerPage is zero, the server uses its default
+		// of 25.
 		Page    int
 		PerPage int
 	}
@@ -128,19 +130,19 @@ type (
 		QType  string `json:"qtype"`
 		QClass string `json:"qclass"`
 
-		// Answer is the answer section as one string, each record its type
-		// and data, joined by ", ": "A 192.0.2.1, AAAA 2001:db8::1". It is
-		// empty when the answer had no records.
+		// Answer is the answer section as one string. Each record is its type
+		// and data, and ", " joins the records: "A 192.0.2.1, AAAA
+		// 2001:db8::1". It is empty when the answer had no records.
 		Answer string `json:"answer"`
 	}
 )
 
-// ErrNoHost is a config naming no server.
+// ErrNoHost is a config that names no server.
 var ErrNoHost = errors.New("technitium: no host configured")
 
-// New builds a client for the server cfg names. It performs no I/O, so a
-// server that is down at startup is retried later and the caller still
-// starts.
+// New builds a client for the server that cfg names. It does no I/O. So if
+// the server is down at startup, the caller still starts and tries again
+// later.
 func New(cfg *Config) (*Technitium, error) {
 	if cfg == nil || cfg.Host == "" {
 		return nil, ErrNoHost
@@ -161,8 +163,8 @@ func New(cfg *Config) (*Technitium, error) {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 
 	if cfg.Insecure {
-		// Clone carries the default TLS settings over, but not necessarily a
-		// config to hang this on.
+		// Clone copies the default TLS settings, but it can leave the TLS
+		// config nil.
 		if transport.TLSClientConfig == nil {
 			transport.TLSClientConfig = &tls.Config{} //nolint:gosec // the next line is the point.
 		}
@@ -184,8 +186,8 @@ func New(cfg *Config) (*Technitium, error) {
 	}, nil
 }
 
-// Addr is the URL this client calls, useful in a log line naming which server
-// answered.
+// Addr is the URL that this client calls. Use it in a log line to name the
+// server that answered.
 func (t *Technitium) Addr() string { return t.base }
 
 // Apps returns the installed DNS apps.
@@ -200,11 +202,11 @@ func (t *Technitium) Apps(ctx context.Context) ([]App, error) {
 	return res.Apps, nil
 }
 
-// QueryLogs returns one page of the query log q names.
+// QueryLogs returns one page of the query log that q names.
 //
-// The server pages by offset over the entries logged since q.Start, so the
-// pages up to the last stay put while it logs more. A page past the last
-// answers with the last page again, so a caller stops at TotalPages.
+// The server pages by offset over the entries logged since q.Start. So the
+// pages before the last do not move while the server logs more. A page after
+// the last returns the last page again. So a caller stops at TotalPages.
 func (t *Technitium) QueryLogs(ctx context.Context, q LogQuery) (*LogPage, error) {
 	v := url.Values{
 		"name":            {q.App},
@@ -224,8 +226,8 @@ func (t *Technitium) QueryLogs(ctx context.Context, q LogQuery) (*LogPage, error
 	return get[LogPage](ctx, t, "/api/logs/query", v)
 }
 
-// envelope is what every call answers with. Response holds the call's own
-// data when Status is "ok".
+// envelope is the answer of every call. When Status is "ok", Response holds
+// the data of the call.
 type envelope struct {
 	Status       string         `json:"status"`
 	ErrorMessage string         `json:"errorMessage"`
@@ -234,10 +236,10 @@ type envelope struct {
 
 // get calls path with query and decodes the response into T.
 //
-// A server that cannot be reached at all is [ErrUnreachable], one whose
-// certificate does not verify is [ErrTLS], and one that refuses the token is
-// [ErrUnauthorized]. The server answers every refusal with HTTP 200, so the
-// status in the body is what says which.
+// If get cannot reach the server at all, it returns [ErrUnreachable]. If the
+// certificate does not verify, it returns [ErrTLS]. If the server refuses the
+// token, it returns [ErrUnauthorized]. The server answers every refusal with
+// HTTP 200. So only the status in the body tells the cause.
 func get[T any](ctx context.Context, t *Technitium, path string, query url.Values) (*T, error) {
 	u := t.base + path
 	if len(query) > 0 {
@@ -254,8 +256,8 @@ func get[T any](ctx context.Context, t *Technitium, path string, query url.Value
 
 	resp, err := t.client.Do(req)
 	if err != nil {
-		// A cancelled context is the caller giving up. Calling it unreachable
-		// would have the poller retry during a shutdown.
+		// A cancelled context means that the caller stopped. If get called it
+		// unreachable, the poller would try again during a shutdown.
 		if ctx.Err() != nil {
 			return nil, fmt.Errorf("request send: %w", err)
 		}
