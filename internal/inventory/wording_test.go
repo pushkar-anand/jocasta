@@ -21,9 +21,8 @@ func TestPhrase(t *testing.T) {
 	assert.Equal(t, "started listening on", Phrase(dbtype.EventPortOpened))
 	assert.Equal(t, "stopped listening on", Phrase(dbtype.EventPortClosed))
 
-	// events.kind carries no CHECK, so a kind added in Go without a phrase here
-	// still has to render as something, and its own name is the most truthful
-	// fallback.
+	// events.kind has no CHECK. So a kind added in Go without a phrase here
+	// must still render. Its own name is the most true fallback.
 	assert.Equal(t, "group assigned", Phrase(dbtype.EventKind("GROUP_ASSIGNED")))
 }
 
@@ -34,17 +33,17 @@ func TestChange(t *testing.T) {
 	assert.Equal(t, "192.0.2.10", (&Event{NewValue: "192.0.2.10"}).Change())
 	assert.Equal(t, "device 2 folded into 1", (&Event{Detail: "device 2 folded into 1"}).Change())
 
-	// A discovery changed nothing; it is the thing that happened.
+	// A discovery changed nothing. It is the event itself.
 	assert.Empty(t, (&Event{}).Change())
 
-	// A port event names the port and, where the port is a familiar one, the
-	// service, from whichever value the flip wrote.
+	// A port event names the port. If the port is a known port, it also names
+	// the service, from the value that the change wrote.
 	assert.Equal(t, "port 22 (ssh)",
 		(&Event{Kind: dbtype.EventPortOpened, NewValue: "22", Detail: "ssh"}).Change())
 	assert.Equal(t, "port 44321",
 		(&Event{Kind: dbtype.EventPortClosed, OldValue: "44321"}).Change())
 
-	// An edit names the field, since the user owns several of them.
+	// An edit names the field, because the user owns several fields.
 	edit := &Event{Kind: dbtype.EventDeviceEdited, Detail: "label"}
 
 	edit.NewValue = "Office printer"
@@ -53,29 +52,30 @@ func TestChange(t *testing.T) {
 	edit.OldValue = "Printer"
 	assert.Equal(t, "label: Printer → Office printer", edit.Change())
 
-	// Emptying a field shows as a change to nothing.
+	// An emptied field shows as a change to nothing.
 	edit.NewValue = ""
 	assert.Equal(t, "label: Printer → cleared", edit.Change())
 
-	// A type the user set shows the class's name, as a reclassification does.
+	// A type that the user set shows the name of the class, as a new
+	// classification does.
 	typed := &Event{Kind: dbtype.EventDeviceEdited, Detail: "type", NewValue: "game_console"}
 	assert.Equal(t, "type: Game console", typed.Change())
 
 	typed.OldValue, typed.NewValue = "game_console", ""
 	assert.Equal(t, "type: Game console → cleared", typed.Change())
 
-	// A released address is named on its own.
+	// A released address has its own name.
 	assert.Equal(t, "192.0.2.55",
 		(&Event{Kind: dbtype.EventAddressReleased, OldValue: "192.0.2.55", Detail: "unanswered"}).Change())
 
-	// A reclassification shows the names the device page uses.
+	// A new classification shows the names from the device page.
 	assert.Equal(t, "Smart-home hub → Camera",
 		(&Event{Kind: dbtype.EventDeviceClassified, OldValue: "iot_hub", NewValue: "camera"}).Change())
 }
 
-// Every kind the schema knows is worded for both the log and the settings
-// page. The fallbacks are for kinds added in Go and not yet worded, and none
-// should ship.
+// Every kind that the schema knows has text for the log and for the settings
+// page. The fallbacks are for kinds added in Go with no text yet. No release
+// must use them.
 func TestEveryKindIsWorded(t *testing.T) {
 	t.Parallel()
 

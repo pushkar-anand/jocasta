@@ -10,11 +10,12 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
 
-// OnScanFinished has the store call fn with the id of every scan that
-// finishes successfully, once its changes and the classify pass after it are
-// committed. fn runs on the scanning goroutine, so it must return at once.
+// OnScanFinished makes the store call fn with the id of every successful scan.
+// The call comes after its changes and the next classify pass committed. fn
+// runs on the scanning goroutine, so it must return at once.
 //
-// Call it before any scan is recorded: the store reads fn without a lock.
+// Call it before the store records a scan. The store reads fn without a
+// lock.
 func (s *Store) OnScanFinished(fn func(ctx context.Context, scanID int64)) {
 	s.onScan = fn
 }
@@ -26,13 +27,13 @@ type ScanChanges struct {
 	Network string // empty for a scan that covered no single network
 	Found   int
 
-	// First reports whether this is the first scan of its source, kind and
-	// network to succeed. Devices another source already recorded can be
-	// among the ones it found.
+	// First reports whether this is the first successful scan of its source,
+	// kind and network. It can find devices that a different source already
+	// recorded.
 	First bool
 
-	// Events are the changes, oldest first. Events about a device the owner
-	// ignores are left out.
+	// Events are the changes, oldest first. It leaves out events about a
+	// device that the owner ignores.
 	Events []*Event
 }
 
@@ -74,9 +75,10 @@ func (s *Store) ScanChanges(ctx context.Context, scanID int64) (*ScanChanges, er
 	return c, nil
 }
 
-// spokenName names a device in a message read away from the inventory, where
-// a hardware address means little: the owner's label, the hostname, then the
-// vendor ("Espressif device"), and only then the address or id.
+// spokenName names a device in a message that a person reads outside the
+// inventory. There, a hardware address means little. The order is the label of
+// the owner, the hostname, then the vendor ("Espressif device"), and only then
+// the address or id.
 func spokenName(label, hostname, vendor, mac string, id int64) string {
 	if label == "" && hostname == "" && vendor != "" {
 		return vendor + " device"

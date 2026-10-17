@@ -10,7 +10,8 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
 
-// listen has the store record the ids of the scans it reports finished.
+// listen makes the store record the ids of the scans that it reports as
+// finished.
 func listen(s *Store) *[]int64 {
 	var ids []int64
 

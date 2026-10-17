@@ -12,10 +12,10 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/models"
 )
 
-// The longest each free-text curation field may be. The API, the web form and
-// the MCP tool all hold an edit to these; the first two spell them out in
-// validate tags, since a tag cannot name a constant, and tests keep the two in
-// step.
+// The maximum length of each free-text curation field. The API, the web form
+// and the MCP tool all limit an edit to these. The first two copy them in
+// validate tags, because a tag cannot name a constant. Tests keep the two
+// equal.
 const (
 	LabelMaxLength = 200
 	GroupMaxLength = 100
@@ -23,10 +23,11 @@ const (
 )
 
 // Curation is what the user owns on a device. No scan or plugin writes any of
-// it, which is why it survives the device moving address or being re-identified.
+// it. So it stays when the device moves to a new address or gets a new
+// identity.
 //
-// Every field is applied as given: a form submits all of them, so a field left
-// empty means cleared.
+// The store applies every field as it is. A form sends all of them. So an
+// empty field means cleared.
 type Curation struct {
 	Label   string
 	Notes   string
@@ -35,12 +36,12 @@ type Curation struct {
 	Ignored bool
 }
 
-// clean trims each field. Surrounding whitespace is never meant, and a label of
-// only spaces would otherwise be a name that renders as nothing.
+// clean trims each field. Whitespace at the ends is never intended. Without the
+// trim, a label of only spaces would be a name that renders as nothing.
 //
-// Type is one of the classifier's classes or nothing: it overrides the guess
-// that drives the device icon, so a value that names no class is dropped.
-// Stored, it could never take effect.
+// Type is one of the classes of the classifier, or nothing. It overrides the
+// guess that sets the device icon. So clean drops a value that names no
+// class. A stored value of that kind could never have an effect.
 func (c Curation) clean() Curation {
 	kind := strings.TrimSpace(c.Type)
 	if !classify.Class(kind).Valid() {
@@ -56,8 +57,8 @@ func (c Curation) clean() Curation {
 	}
 }
 
-// CurationPatch is an edit to some of a device's curation. A nil field keeps
-// its value; a field set to "" clears it.
+// CurationPatch is an edit to some of the curation of a device. A nil field
+// keeps its value. A field set to "" clears it.
 type CurationPatch struct {
 	Label   *string
 	Notes   *string
@@ -66,7 +67,7 @@ type CurationPatch struct {
 	Ignored *bool
 }
 
-// onto returns c with the fields p carries replaced.
+// onto returns c, with the fields of p replaced.
 func (p CurationPatch) onto(c Curation) Curation {
 	if p.Label != nil {
 		c.Label = *p.Label
@@ -91,26 +92,26 @@ func (p CurationPatch) onto(c Curation) Curation {
 	return c
 }
 
-// UpdateCuration applies c to a device and records what it changed.
+// UpdateCuration applies c to a device, and records what it changed.
 //
-// The row and its events are written in one transaction: a change that is not
-// in the log did not happen as far as the log is concerned, and the log is the
-// only account of how a device came to look the way it does.
+// The row and its events go in one transaction. For the log, a change that is
+// not in the log did not happen. The log is the only record of how a device
+// got its current state.
 func (s *Store) UpdateCuration(ctx context.Context, id int64, c Curation) (*Device, error) {
 	return s.curate(ctx, id, func(Curation) Curation { return c })
 }
 
-// PatchCuration applies the fields p carries to a device, keeps the rest, and
+// PatchCuration applies the fields of p to a device, and keeps the rest. It
 // records what it changed, as [Store.UpdateCuration] does.
 //
-// The current curation is read in the same transaction as the write, so two
+// It reads the current curation in the same transaction as the write. So two
 // patches to different fields cannot undo each other.
 func (s *Store) PatchCuration(ctx context.Context, id int64, p CurationPatch) (*Device, error) {
 	return s.curate(ctx, id, p.onto)
 }
 
-// curate writes the curation that change derives from the device's current one,
-// and an event for each field that moved.
+// curate writes the curation that change makes from the current curation of
+// the device. It writes an event for each field that changed.
 func (s *Store) curate(ctx context.Context, id int64, change func(Curation) Curation) (*Device, error) {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {
@@ -150,8 +151,8 @@ func (s *Store) curate(ctx context.Context, id int64, change func(Curation) Cura
 		return nil, fmt.Errorf("curate device %d: %w", id, err)
 	}
 
-	// One event per field that moved, so the log says which one and to what.
-	// An edit that changed nothing writes nothing.
+	// One event for each changed field. So the log tells which field, and the
+	// new value. An edit that changed nothing writes nothing.
 	at := s.stamp()
 
 	for _, e := range edits(before, after) {
@@ -173,9 +174,9 @@ func (s *Store) curate(ctx context.Context, id int64, change func(Curation) Cura
 		return nil, fmt.Errorf("commit curation: %w", err)
 	}
 
-	// Re-read the device: the updated row lacks the addresses a device
-	// carries, and a caller re-rendering one from here would otherwise show
-	// a device that holds none.
+	// Read the device again. The updated row does not have the addresses of
+	// the device. A caller that renders it from here would show a device with
+	// no addresses.
 	return s.Device(ctx, id)
 }
 
@@ -186,9 +187,9 @@ type edit struct {
 	to    string
 }
 
-// edits reports which user-owned fields differ between two versions of a
-// device. Nothing else is compared: a scan's columns are not the user's to
-// change, so a difference in one is not an edit.
+// edits reports which fields of the user are different between two versions of
+// a device. It compares nothing else. The user cannot change the columns of a
+// scan. So a difference in one is not an edit.
 func edits(before, after *models.Device) []edit {
 	candidates := []edit{
 		{field: "label", from: before.Label.String, to: after.Label.String},

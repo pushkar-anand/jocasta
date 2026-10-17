@@ -22,7 +22,7 @@ func countRows(t *testing.T, conn *sql.DB, q string, args ...any) int64 {
 	return n
 }
 
-// A sweep older than the window goes with its events; a recent one stays.
+// A sweep older than the window goes with its events. A recent sweep stays.
 func TestPruneDeletesEventsAndScansPastRetention(t *testing.T) {
 	t.Parallel()
 
@@ -48,11 +48,13 @@ func TestPruneDeletesEventsAndScansPastRetention(t *testing.T) {
 	assert.Equal(t, int64(1), countRows(t, conn, `SELECT COUNT(*) FROM scans WHERE id = ?`, recent.ScanID))
 	assert.Equal(t, recentEvents, countRows(t, conn, `SELECT COUNT(*) FROM events`))
 
-	// With no device window, the device the old sweep found is still there.
+	// With no device window, the device that the old sweep found is still
+	// there.
 	assert.NotZero(t, deviceIDByMAC(t, conn, macA))
 }
 
-// A scan left RUNNING is kept however old, since it is not finished history.
+// The prune keeps a scan that is still RUNNING at any age, because it is not
+// finished history.
 func TestPruneKeepsARunningScan(t *testing.T) {
 	t.Parallel()
 
@@ -73,7 +75,7 @@ func TestPruneKeepsARunningScan(t *testing.T) {
 	assert.Equal(t, int64(1), countRows(t, conn, `SELECT COUNT(*) FROM scans WHERE id = ?`, old.ScanID))
 }
 
-// The cutoff is exclusive: an event stamped exactly at it is kept.
+// The cutoff is exclusive. The prune keeps an event at exactly the cutoff.
 func TestPruneKeepsAnEventAtTheCutoff(t *testing.T) {
 	t.Parallel()
 
@@ -97,8 +99,8 @@ func TestPruneKeepsAnEventAtTheCutoff(t *testing.T) {
 	assert.Equal(t, int64(2), countRows(t, conn, `SELECT COUNT(*) FROM events`))
 }
 
-// A device away longer than the window goes when nobody curated it, and stays
-// when its owner set any one field or marked it ignored.
+// A device away for longer than the window goes when nobody curated it. It
+// stays when its owner set one field, or ignored it.
 func TestPruneDeletesOnlyUncuratedStaleDevices(t *testing.T) {
 	t.Parallel()
 
@@ -169,7 +171,8 @@ func TestPruneDeletesOnlyUncuratedStaleDevices(t *testing.T) {
 		assert.Zero(t, countRows(t, conn, `SELECT COUNT(*) FROM devices WHERE id = ?`, stale))
 		assert.Equal(t, int64(1), countRows(t, conn, `SELECT COUNT(*) FROM devices WHERE id = ?`, recent))
 
-		// Its addresses and claims go with it; its events stay, unattached.
+		// Its addresses and claims go with it. Its events stay, without a
+		// device.
 		assert.Zero(t, countRows(t, conn, `SELECT COUNT(*) FROM addresses WHERE device_id = ?`, stale))
 		assert.Zero(t, countRows(t, conn, `SELECT COUNT(*) FROM device_sources WHERE device_id = ?`, stale))
 		assert.Zero(t, countRows(t, conn, `SELECT COUNT(*) FROM events WHERE device_id = ?`, stale))
@@ -193,8 +196,8 @@ func TestPruneDeletesOnlyUncuratedStaleDevices(t *testing.T) {
 	})
 }
 
-// A pruned device's conversations with a kept device are the kept device's
-// history too, so they stay, with the address in place of the device.
+// The conversations of a pruned device with a kept device are also history of
+// the kept device. So they stay, with the address instead of the device.
 func TestPruningADeviceKeepsTheTrafficOthersHadWithIt(t *testing.T) {
 	t.Parallel()
 

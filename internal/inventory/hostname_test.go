@@ -9,7 +9,7 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
 
-// at renders a claim's sighting, later for a larger n.
+// at renders the sighting of a claim. A larger n gives a later time.
 func at(n int) dbtype.Time {
 	return dbtype.NewTime(time.Date(2026, 1, 1, 0, 0, n, 0, time.UTC))
 }
@@ -152,7 +152,7 @@ func TestSameName(t *testing.T) {
 		{a: "gateway.example.com", b: "host-a.example.com", want: false},
 		{a: "", b: "", want: true},
 
-		// A source retracting a name is a change.
+		// A source that removes a name is a change.
 		{a: "host-a", b: "", want: false},
 		{a: "", b: "host-a", want: false},
 	}

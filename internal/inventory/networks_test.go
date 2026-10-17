@@ -11,8 +11,8 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/plugin"
 )
 
-// segment builds what a source claims one prefix is. A malformed argument is a
-// broken test.
+// segment builds what a source claims about one prefix. A malformed argument
+// means a broken test.
 func segment(cidr, name string, vlan int) plugin.Network {
 	return plugin.Network{Prefix: netip.MustParsePrefix(cidr), Name: name, VLAN: vlan}
 }
@@ -34,8 +34,8 @@ func TestRecordNetworksNamesAndTagsASegment(t *testing.T) {
 	assert.Equal(t, 10, networks[0].VLAN)
 }
 
-// A sweep records the prefix and a source records what it is called. They must
-// meet on the same row, or the overview lists every segment twice.
+// A sweep records the prefix, and a source records its name. They must go on
+// the same row. If not, the overview lists every segment twice.
 func TestRecordNetworksFillsInTheRowASweepOpened(t *testing.T) {
 	t.Parallel()
 
@@ -57,7 +57,7 @@ func TestRecordNetworksFillsInTheRowASweepOpened(t *testing.T) {
 	assert.Equal(t, 1, networks[0].Total, "the devices on it are untouched")
 }
 
-// A later sweep must not clear what the router said the segment is.
+// A later sweep must not clear what the router said about the segment.
 func TestASweepDoesNotUnnameASegment(t *testing.T) {
 	t.Parallel()
 
@@ -76,8 +76,9 @@ func TestASweepDoesNotUnnameASegment(t *testing.T) {
 	assert.Equal(t, 10, networks[0].VLAN)
 }
 
-// The router is the authority on what its segments are, so a segment renamed
-// there is renamed here, and one that loses its tag loses it here.
+// The router is the authority on its segments. So a segment with a new name
+// there gets the new name here. A segment that loses its tag there loses it
+// here.
 func TestRecordNetworksFollowsTheRouter(t *testing.T) {
 	t.Parallel()
 
@@ -96,8 +97,8 @@ func TestRecordNetworksFollowsTheRouter(t *testing.T) {
 	assert.Zero(t, networks[0].VLAN)
 }
 
-// An address on a segment no sweep covers still belongs to it, which is the
-// reason the segments are recorded before the devices are.
+// An address on a segment that no sweep covers still belongs to it. For this
+// reason, the segments go in before the devices.
 func TestASegmentTheRouterDescribedCatchesItsAddresses(t *testing.T) {
 	t.Parallel()
 
@@ -120,8 +121,8 @@ func TestASegmentTheRouterDescribedCatchesItsAddresses(t *testing.T) {
 		"198.51.100.5"))
 }
 
-// A device the user ignored is left off the network page's list, so it must be
-// left out of the count above it too.
+// The list of the network page leaves out a device that the user ignored. So
+// the count above the list must also leave it out.
 func TestListNetworksLeavesOutIgnoredDevices(t *testing.T) {
 	t.Parallel()
 
@@ -151,8 +152,8 @@ func TestRecordNetworksAcceptsNothingToRecord(t *testing.T) {
 	assert.Zero(t, queryInt(t, conn, `SELECT COUNT(*) FROM networks`))
 }
 
-// A zero prefix names nothing, and writing it would put a row in the table
-// that no address can ever match.
+// A zero prefix names nothing. Its write would put a row in the table that no
+// address can ever match.
 func TestRecordNetworksSkipsAPrefixThatIsNotOne(t *testing.T) {
 	t.Parallel()
 
@@ -165,8 +166,8 @@ func TestRecordNetworksSkipsAPrefixThatIsNotOne(t *testing.T) {
 	assert.Equal(t, "Home", queryString(t, conn, `SELECT name FROM networks`))
 }
 
-// Nothing has named the segment, so it holds a null. An empty string reads the
-// same from Go but would claim a name was given.
+// Nothing named the segment, so it holds a null. An empty string reads the same
+// from Go, but would claim that a name was given.
 func TestAnUnnamedSegmentHoldsNoName(t *testing.T) {
 	t.Parallel()
 

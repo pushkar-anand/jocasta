@@ -29,8 +29,8 @@ var (
 	}
 )
 
-// A sweep records what a device advertised, and the device page reads it back
-// by type and instance.
+// A sweep records what a device advertised. The device page reads it back by
+// type and instance.
 func TestASweepRecordsAdvertisedServices(t *testing.T) {
 	t.Parallel()
 
@@ -51,8 +51,8 @@ func TestASweepRecordsAdvertisedServices(t *testing.T) {
 	assert.Equal(t, "Chromecast HD", d.Services[1].Model)
 }
 
-// A later sweep updates what changed and keeps first_seen. One that does not
-// hear a service leaves its row, since mDNS can drop an answer.
+// A later sweep updates what changed, and keeps first_seen. A sweep that does
+// not hear a service keeps its row, because mDNS can lose an answer.
 func TestASweepUpdatesAndKeepsServices(t *testing.T) {
 	t.Parallel()
 
@@ -74,8 +74,8 @@ func TestASweepUpdatesAndKeepsServices(t *testing.T) {
 }
 
 // The device page lists only what the latest sweep heard. A phone advertises
-// under a new name and port each time, and the rows it leaves behind stay in
-// the table until the prune.
+// with a new name and port each time. Its old rows stay in the table until the
+// prune.
 func TestADeviceListsTheLatestSweepsServices(t *testing.T) {
 	t.Parallel()
 
@@ -97,8 +97,8 @@ func TestADeviceListsTheLatestSweepsServices(t *testing.T) {
 	assert.Equal(t, 2, queryInt(t, conn, `SELECT COUNT(*) FROM device_services WHERE device_id = ?`, id))
 }
 
-// The classifier reads every service within the history window, so a sweep
-// that misses the TV remote service leaves the device a TV.
+// The classifier reads every service within the history window. So if a sweep
+// misses the TV remote service, the device stays a TV.
 func TestAServiceMissingFromTheLatestSweepStillClassifies(t *testing.T) {
 	t.Parallel()
 
@@ -115,7 +115,7 @@ func TestAServiceMissingFromTheLatestSweepStillClassifies(t *testing.T) {
 	assert.Equal(t, []string{"_androidtvremote2._tcp", "_googlecast._tcp"}, why.Facts.Services)
 }
 
-// A service no sweep has heard within the history window goes with the prune.
+// The prune removes a service that no sweep heard within the history window.
 func TestPruneDeletesServicesPastRetention(t *testing.T) {
 	t.Parallel()
 
@@ -132,7 +132,7 @@ func TestPruneDeletesServicesPastRetention(t *testing.T) {
 	assert.Equal(t, []string{tvCast.Type}, queryStrings(t, conn, `SELECT type FROM device_services`))
 }
 
-// The classifier reads what a device advertises, so the Android TV remote
+// The classifier reads what a device advertises. So the Android TV remote
 // service makes a TV of a device whose cast port alone says streaming.
 func TestServicesClassifyADevice(t *testing.T) {
 	t.Parallel()

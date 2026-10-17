@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// walkEvents pages the change log one page at a time and returns the ids it saw
-// in order, which is what says whether the walk repeated or dropped anything.
+// walkEvents pages the change log one page at a time. It returns the ids that
+// it saw, in order. These tell whether the walk repeated or dropped something.
 func walkEvents(t *testing.T, s *Store, limit int) []int64 {
 	t.Helper()
 
@@ -55,14 +55,14 @@ func TestEventPagesWalkTheWholeLog(t *testing.T) {
 		want = append(want, e.ID)
 	}
 
-	// Every page size divides the log differently, and none of them may change
-	// which rows come back or in what order.
+	// Each page size divides the log differently. None of them can change
+	// which rows come back, or their order.
 	for _, limit := range []int{1, 2, 3} {
 		assert.Equal(t, want, walkEvents(t, s, limit), "walking %d at a time", limit)
 	}
 }
 
-// The last page says there is nothing after it, which is what stops a client.
+// The last page says that there is nothing after it. This stops a client.
 func TestLastPageHasNoCursor(t *testing.T) {
 	t.Parallel()
 
@@ -72,8 +72,8 @@ func TestLastPageHasNoCursor(t *testing.T) {
 	whole, err := s.ListEvents(t.Context(), Page{Limit: 100})
 	require.NoError(t, err)
 
-	// A page holding exactly the whole log still has to report the end, which
-	// is what reading one row more than the page holds is for.
+	// A page that holds exactly the whole log must still report the end. The
+	// read of one more row than the page holds exists for this.
 	exact, err := s.ListEvents(t.Context(), Page{Limit: len(whole.Events)})
 	require.NoError(t, err)
 
@@ -81,9 +81,9 @@ func TestLastPageHasNoCursor(t *testing.T) {
 	assert.True(t, exact.Next.IsZero(), "the log ended, so there is no page after it")
 }
 
-// This is the reason the log is not paged by offset. Rows arrive at the top
-// while a client is part way down, and an offset counts from a top that has
-// moved: the row on the boundary is served twice and the one after it never.
+// For this reason, the log does not page by offset. Rows arrive at the top
+// while a client is in the middle. An offset counts from a top that moved. So
+// the row on the boundary comes twice, and the next row never comes.
 func TestPagingIsStableWhileTheLogGrows(t *testing.T) {
 	t.Parallel()
 
@@ -95,7 +95,7 @@ func TestPagingIsStableWhileTheLogGrows(t *testing.T) {
 	require.Len(t, first.Events, 2)
 	require.False(t, first.Next.IsZero())
 
-	// A second sweep writes newer events, which sort ahead of everything the
+	// A second sweep writes newer events. They sort before everything that the
 	// first page returned.
 	sweep(t, s, host("192.0.2.11", macB, "renamed.local"))
 
@@ -152,8 +152,8 @@ func TestScanPagesWalkTheWholeHistory(t *testing.T) {
 	assert.Equal(t, want, ids)
 }
 
-// Every event one sweep writes carries the same timestamp, so a cursor that
-// held only the timestamp would resume before rows it had already returned.
+// Every event of one sweep has the same timestamp. So a cursor with only the
+// timestamp would continue before rows that it already returned.
 func TestCursorBreaksTiesWithinOneSweep(t *testing.T) {
 	t.Parallel()
 
@@ -164,7 +164,7 @@ func TestCursorBreaksTiesWithinOneSweep(t *testing.T) {
 	require.NoError(t, err)
 	require.Greater(t, len(whole.Events), 1)
 
-	// The premise: the rows the walk has to separate share a timestamp.
+	// The premise: the rows that the walk must separate share a timestamp.
 	assert.Equal(t, whole.Events[0].At, whole.Events[1].At,
 		"one sweep stamps every event it writes alike")
 

@@ -12,7 +12,7 @@ import (
 )
 
 // LastRun returns when the poller task named task last finished a run. It
-// returns ErrNotFound when the task has never finished one.
+// returns ErrNotFound when the task never finished one.
 func (s *Store) LastRun(ctx context.Context, task string) (time.Time, error) {
 	at, err := s.q.LastTaskRun(ctx, task)
 
@@ -26,9 +26,9 @@ func (s *Store) LastRun(ctx context.Context, task string) (time.Time, error) {
 	return at.Time, nil
 }
 
-// RecordRun stores at as when the poller task named task last finished a run,
-// and runErr as why that run failed. A nil runErr clears the error a failed
-// run left.
+// RecordRun stores at as the time when the poller task named task last
+// finished a run. It stores runErr as the reason of a failure. A nil runErr
+// clears the error of a failed run.
 func (s *Store) RecordRun(ctx context.Context, task string, at time.Time, runErr error) error {
 	var msg sql.NullString
 	if runErr != nil {

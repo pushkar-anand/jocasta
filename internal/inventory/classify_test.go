@@ -9,9 +9,9 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
 
-// deviceClass reads the classifier's guess and its confidence straight from the
-// row, since the reader resolves the user override on top and this wants the
-// stored guess itself.
+// deviceClass reads the guess of the classifier and its confidence directly
+// from the row. The reader applies the user override on top, but this needs
+// the stored guess itself.
 func deviceClass(t *testing.T, s *Store, id int64) (class, confidence string) {
 	t.Helper()
 
@@ -36,7 +36,8 @@ func TestDiscoveryClassifiesFromTheName(t *testing.T) {
 	assert.Equal(t, "printer", class)
 	assert.Equal(t, "medium", confidence)
 
-	// The first guess is part of discovering the device, so it is not logged.
+	// The first guess is part of the discovery of the device. So it is not
+	// logged.
 	assert.Equal(t,
 		[]dbtype.EventKind{dbtype.EventDeviceDiscovered, dbtype.EventAddressAdded},
 		eventKinds(t, conn, id))
@@ -67,9 +68,9 @@ func TestReclassificationBetweenKnownClassesIsLogged(t *testing.T) {
 	sweep(t, s, host("192.0.2.10", macA, "printer"))
 	id := deviceIDByMAC(t, conn, macA)
 
-	// The device is renamed to something the classifier reads as a streaming
-	// box. The guess moves printer -> streaming, and that is a change worth a
-	// line in the history.
+	// The device gets a new name that the classifier reads as a streaming
+	// box. The guess changes printer -> streaming. That change is worth a line
+	// in the history.
 	sweep(t, s, host("192.0.2.10", macA, "nvidia-shield"))
 
 	class, _ := deviceClass(t, s, id)
@@ -97,7 +98,7 @@ func TestUserTypeOverridesTheGuess(t *testing.T) {
 	assert.Equal(t, "camera", string(d.Class), "the user's answer wins")
 	assert.Equal(t, "printer", string(d.ClassGuess), "the guess is still shown for what it is")
 
-	// The guess column is untouched: a later scan still maintains it.
+	// The guess column does not change. A later scan still updates it.
 	class, _ := deviceClass(t, s, id)
 	assert.Equal(t, "printer", class)
 }

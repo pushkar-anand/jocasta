@@ -8,23 +8,24 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
 
-// Retention says how long each kind of record is kept. A window of zero keeps
-// that kind forever.
+// Retention tells how long the store keeps each kind of record. A window of
+// zero keeps that kind forever.
 type Retention struct {
-	// History bounds the event log, the scan log, topology sightings and the
-	// services a device has stopped advertising.
+	// History limits the event log, the scan log, topology sightings, and the
+	// services that a device stopped advertising.
 	History time.Duration
 
-	// Traffic bounds hourly traffic totals and attempt, broadcast and probe
+	// Traffic limits hourly traffic totals, and attempt, broadcast and probe
 	// counts.
 	Traffic time.Duration
 
-	// DNS bounds hourly lookup counts and the addresses lookups were
-	// answered with.
+	// DNS limits hourly lookup counts, and the addresses in the answers to
+	// lookups.
 	DNS time.Duration
 
-	// Devices bounds how long a device its owner never curated is kept after
-	// it was last seen. A curated device is kept forever.
+	// Devices limits how long the store keeps a device that its owner never
+	// curated, after it was last seen. The store keeps a curated device
+	// forever.
 	Devices time.Duration
 }
 
@@ -43,20 +44,20 @@ type Pruned struct {
 	Devices    int64
 }
 
-// Prune deletes every record older than its window in r.
+// Prune deletes every record that is older than its window in r.
 //
-// Events go first and in the same transaction, so a reader never sees an event
-// whose scan has gone while the event stays. A scan's events are stamped at or
-// after its start, so only a scan straddling the cutoff can leave a newer event
-// behind, and that event keeps its row with scan_id set to null.
+// Events go first, in the same transaction. So a reader never sees an event
+// whose scan is gone. The events of a scan have a time at or after its start.
+// So only a scan across the cutoff can leave a newer event. That event keeps
+// its row, with scan_id set to null.
 //
-// A poller asking when its last successful scan ran loses the answer only when
-// no scan of its kind succeeded within the window, and then running at once is
-// what it would do anyway.
+// A poller that asks when its last successful scan ran loses the answer only
+// when no scan of its kind succeeded within the window. It would then run at
+// once in any case.
 //
-// A device is deleted only when its owner gave it no label, notes, group or
-// type and did not mark it ignored. A deleted device seen again comes back as
-// a new one.
+// Prune deletes a device only when its owner gave it no label, notes, group or
+// type, and did not ignore or watch it. A deleted device that a source sees
+// again comes back as a new device.
 func (s *Store) Prune(ctx context.Context, r Retention) (*Pruned, error) {
 	now := s.now()
 
@@ -92,8 +93,9 @@ func (s *Store) Prune(ctx context.Context, r Retention) (*Pruned, error) {
 	}
 
 	if r.Traffic > 0 {
-		// Whole hours only: an hour is kept while any of it is inside the
-		// window, so a view of the last N days never starts mid-hour.
+		// Whole hours only. An hour stays while a part of it is in the window.
+		// So a view of the last N days never starts in the middle of an
+		// hour.
 		cutoff := hourOf(now.Add(-r.Traffic))
 
 		if res.Traffic, err = q.DeleteTrafficBefore(ctx, cutoff); err != nil {

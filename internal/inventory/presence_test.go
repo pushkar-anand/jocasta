@@ -10,14 +10,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// presentSince reads a device's present_since, empty while it is quiet.
+// presentSince reads the present_since of a device. It is empty while the
+// device is quiet.
 func presentSince(t *testing.T, conn *sql.DB, id int64) string {
 	t.Helper()
 
 	return queryString(t, conn, `SELECT present_since FROM devices WHERE id = ?`, id)
 }
 
-// watch has the owner watch the device with the given hardware address.
+// watch makes the owner watch the device with the given hardware address.
 func watch(t *testing.T, s *Store, conn *sql.DB, mac string) int64 {
 	t.Helper()
 
@@ -29,8 +30,8 @@ func watch(t *testing.T, s *Store, conn *sql.DB, mac string) int64 {
 	return id
 }
 
-// A device's first sighting makes it present. Discovering it is the event, so
-// it does not also come back.
+// The first sighting of a device makes it present. The discovery is the event.
+// So it does not also come back.
 func TestAFirstSightingIsPresentWithoutComingBack(t *testing.T) {
 	t.Parallel()
 
@@ -46,8 +47,8 @@ func TestAFirstSightingIsPresentWithoutComingBack(t *testing.T) {
 	assert.Equal(t, []dbtype.EventKind{dbtype.EventDeviceDiscovered, dbtype.EventAddressAdded}, eventKinds(t, conn, id))
 }
 
-// Missing a sweep inside the online window is not going quiet: the window is
-// what absorbs a dropped reply.
+// A missed sweep within the online window does not make a device quiet. The
+// window covers a lost reply.
 func TestStaysPresentThroughAMissInsideTheWindow(t *testing.T) {
 	t.Parallel()
 
@@ -65,8 +66,8 @@ func TestStaysPresentThroughAMissInsideTheWindow(t *testing.T) {
 	assert.NotContains(t, eventKinds(t, conn, id), dbtype.EventDeviceQuiet)
 }
 
-// Past the window every device goes quiet, and only a watched one says so in
-// the log, quoting the sighting it went quiet after.
+// After the window, every device goes quiet. Only a watched device writes this
+// in the log, with the sighting after which it went quiet.
 func TestGoesQuietPastTheWindowAndLogsOnlyWhenWatched(t *testing.T) {
 	t.Parallel()
 
@@ -97,8 +98,8 @@ func TestGoesQuietPastTheWindowAndLogsOnlyWhenWatched(t *testing.T) {
 	assert.Equal(t, at.Format(time.RFC3339), old)
 }
 
-// A quiet device seen again is present from that sighting, and a watched one
-// logs how long it was away.
+// A quiet device that a sweep sees again is present from that sighting. A
+// watched device logs how long it was away.
 func TestComesBackAndLogsTheGapWhenWatched(t *testing.T) {
 	t.Parallel()
 
@@ -124,7 +125,7 @@ func TestComesBackAndLogsTheGapWhenWatched(t *testing.T) {
 	assert.Equal(t, "after 2 hours quiet", events.Events[0].Change())
 }
 
-// A sweep says nothing about a device it had no address of to probe.
+// A sweep tells nothing about a device whose address it did not probe.
 func TestASweepJudgesOnlyDevicesInItsPrefix(t *testing.T) {
 	t.Parallel()
 
@@ -139,7 +140,7 @@ func TestASweepJudgesOnlyDevicesInItsPrefix(t *testing.T) {
 	assert.NotEmpty(t, presentSince(t, conn, deviceIDByMAC(t, conn, macA)))
 }
 
-// The window is judged by the last sighting from any source, so a device the
+// The window uses the last sighting from any source. So a device that the
 // router saw a moment ago stays present through a sweep that missed it.
 func TestARouterSightingKeepsADevicePresentThroughAMissedSweep(t *testing.T) {
 	t.Parallel()
@@ -156,8 +157,8 @@ func TestARouterSightingKeepsADevicePresentThroughAMissedSweep(t *testing.T) {
 	assert.NotEmpty(t, presentSince(t, conn, deviceIDByMAC(t, conn, macA)))
 }
 
-// A source reading every network judges the devices it holds a claim for and
-// no others.
+// A source that reads every network decides only for the devices of its
+// claims.
 func TestARouterReadJudgesOnlyDevicesItClaims(t *testing.T) {
 	t.Parallel()
 
@@ -174,8 +175,8 @@ func TestARouterReadJudgesOnlyDevicesItClaims(t *testing.T) {
 	assert.Empty(t, presentSince(t, conn, deviceIDByMAC(t, conn, macB)))
 }
 
-// After downtime nothing judged the devices, so one still answering on the
-// first sweep back never went quiet and does not come back.
+// During downtime, nothing checked the devices. So a device that still answers
+// on the first sweep after it never went quiet, and does not come back.
 func TestARestartLogsNothingForDevicesStillAnswering(t *testing.T) {
 	t.Parallel()
 
@@ -194,8 +195,9 @@ func TestARestartLogsNothingForDevicesStillAnswering(t *testing.T) {
 	assert.NotContains(t, eventKinds(t, conn, id), dbtype.EventDeviceBack)
 }
 
-// A device recorded before presence was has no present_since. Seen within the
-// window, it was never quiet, so it is marked present without coming back.
+// A device from before presence tracking has no present_since. If a sweep sees
+// it within the window, it was never quiet. So it is marked present, without a
+// return event.
 func TestADeviceFromBeforePresenceIsMarkedPresentQuietly(t *testing.T) {
 	t.Parallel()
 
@@ -216,7 +218,7 @@ func TestADeviceFromBeforePresenceIsMarkedPresentQuietly(t *testing.T) {
 	assert.NotContains(t, eventKinds(t, conn, id), dbtype.EventDeviceBack)
 }
 
-// Watching is an edit the owner makes, logged once per change, and the device
+// A watch is an edit of the owner, logged once for each change. The device
 // reads it back.
 func TestWatchIsLoggedAsAnEdit(t *testing.T) {
 	t.Parallel()

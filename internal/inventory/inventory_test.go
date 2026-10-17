@@ -18,8 +18,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Addresses come from RFC 5737 and hardware addresses from RFC 7042, both
-// reserved for documentation, so nothing here names a real device.
+// Addresses come from RFC 5737, and hardware addresses from RFC 7042. Both are
+// for documentation. So nothing here names a real device.
 const (
 	prefix = "192.0.2.0/24"
 
@@ -27,8 +27,8 @@ const (
 	macB = "00:00:5e:00:53:02"
 )
 
-// newStore opens an empty inventory with a clock that advances a second per
-// call, so rows written by different sweeps are ordered and comparable.
+// newStore opens an empty inventory with a clock that moves one second on each
+// call. So rows from different sweeps have an order and compare.
 func newStore(t *testing.T) (*Store, *sql.DB) {
 	t.Helper()
 
@@ -48,9 +48,9 @@ func newStore(t *testing.T) (*Store, *sql.DB) {
 	return s, d
 }
 
-// clockStore is newStore with a clock the test can jump forward, for asserting
-// behaviour that turns on how much time has passed between one sweep and the
-// next, address retirement above all.
+// clockStore is newStore with a clock that the test can move forward. Use it to
+// assert behaviour that depends on the time between two sweeps. Address
+// retirement is the main example.
 func clockStore(t *testing.T) (*Store, *sql.DB, func(time.Duration)) {
 	t.Helper()
 
@@ -71,7 +71,7 @@ func clockStore(t *testing.T) (*Store, *sql.DB, func(time.Duration)) {
 }
 
 // sweepPrefix records a sweep of a named prefix, for the retirement tests that
-// need more than one.
+// need more than one prefix.
 func sweepPrefix(t *testing.T, s *Store, cidr string, hosts ...scanner.Host) *Result {
 	t.Helper()
 
@@ -81,8 +81,9 @@ func sweepPrefix(t *testing.T, s *Store, cidr string, hosts ...scanner.Host) *Re
 	return res
 }
 
-// host builds a swept host the way a sweep does, so the ingest sees the same
-// enrichment here as in production. A malformed argument is a broken test.
+// host builds a swept host as a sweep does. So the ingest sees the same
+// enrichment here as in production. A malformed argument means a broken
+// test.
 func host(ip, mac, hostname string) scanner.Host {
 	h, err := hosts.BuildHost(context.Background(), hosts.HostInput{IP: ip, MAC: mac, Hostname: hostname})
 	if err != nil {
@@ -101,8 +102,8 @@ func sweep(t *testing.T, s *Store, hosts ...scanner.Host) *Result {
 	return res
 }
 
-// fact builds one source's claim about one address the way a plugin does. A
-// malformed argument is a broken test.
+// fact builds the claim of one source about one address, as a plugin does. A
+// malformed argument means a broken test.
 func fact(ip, mac, hostname string, present bool, standing dbtype.HostnameSource) plugin.Fact {
 	h, err := hosts.BuildHost(context.Background(), hosts.HostInput{IP: ip, MAC: mac, Hostname: hostname})
 	if err != nil {
@@ -112,8 +113,8 @@ func fact(ip, mac, hostname string, present bool, standing dbtype.HostnameSource
 	return plugin.Fact{Host: h, Present: present, HostnameSource: standing}
 }
 
-// report records facts from a source that names no network of its own, the way
-// a plugin reading every VLAN at once does.
+// report records facts from a source that names no network, as a plugin that
+// reads every VLAN at once does.
 func report(t *testing.T, s *Store, facts ...plugin.Fact) *Result {
 	t.Helper()
 
@@ -225,7 +226,7 @@ func TestRecordSweepDiscovers(t *testing.T) {
 	assert.Equal(t, []string{"192.0.2.10"}, currentIPs(t, conn, id))
 	assert.Equal(t, []dbtype.EventKind{dbtype.EventDeviceDiscovered, dbtype.EventAddressAdded}, eventKinds(t, conn, id))
 
-	// The unidentified host is a device too, just a weaker one.
+	// The unidentified host is also a device, but a weaker one.
 	assert.Equal(t, 1, queryInt(t, conn,
 		`SELECT count(*) FROM devices WHERE mac IS NULL AND identity_source = 'IP'`))
 
@@ -251,7 +252,7 @@ func TestRecordSweepStoresHostname(t *testing.T) {
 	assert.Equal(t, dbtype.HostnameFromDNS, source)
 }
 
-// A repeated sweep of an unchanged network must not grow the inventory.
+// A second sweep of an unchanged network must not make the inventory larger.
 func TestRecordSweepIsIdempotent(t *testing.T) {
 	t.Parallel()
 
@@ -273,7 +274,7 @@ func TestRecordSweepIsIdempotent(t *testing.T) {
 }
 
 // An address seen before its hardware address must become the identified
-// device. A second row beside it would count the device twice.
+// device. A second row next to it would count the device twice.
 func TestRecordSweepIdentifiesLateMAC(t *testing.T) {
 	t.Parallel()
 
@@ -297,9 +298,10 @@ func TestRecordSweepIdentifiesLateMAC(t *testing.T) {
 	assert.Contains(t, eventKinds(t, conn, before), dbtype.EventDeviceIdentified)
 }
 
-// A sighting records the vendor the OUI table gives now, so a device recorded
-// before a table refresh, or before the registered name was kept, catches up.
-// A sighting with no hardware address has no vendor to give and leaves both.
+// A sighting records the current vendor from the OUI table. So a device
+// recorded before a table refresh, or before the store kept the registered
+// name, gets the current vendor. A sighting with no hardware address has no
+// vendor, and changes neither.
 func TestRecordSweepRefreshesTheVendor(t *testing.T) {
 	t.Parallel()
 
@@ -320,8 +322,9 @@ func TestRecordSweepRefreshesTheVendor(t *testing.T) {
 	assert.Equal(t, "ICANN, IANA Department|ICANNIANADep", queryString(t, conn, vendor))
 }
 
-// A device already known by its hardware address on one address, met again on
-// a second where a weaker row had been standing in for it, absorbs that row.
+// A device is known by its hardware address on one address. A sweep then finds
+// it on a second address, where a weaker row stood for it. The device takes
+// that row.
 func TestRecordSweepFoldsDuplicate(t *testing.T) {
 	t.Parallel()
 
@@ -330,7 +333,7 @@ func TestRecordSweepFoldsDuplicate(t *testing.T) {
 	sweep(t, s, host("192.0.2.10", macA, ""))
 	sweep(t, s, host("192.0.2.20", "", ""))
 
-	// Curation applied before anyone knew the two rows were one device.
+	// Curation from before anybody knew that the two rows were one device.
 	_, err := conn.ExecContext(t.Context(), `UPDATE devices SET label = 'printer' WHERE mac IS NULL`)
 	require.NoError(t, err)
 
@@ -350,13 +353,13 @@ func TestRecordSweepFoldsDuplicate(t *testing.T) {
 	assert.Contains(t, eventKinds(t, conn, id), dbtype.EventDevicesMerged)
 	assertNoRowSeenBeforeItExisted(t, conn)
 
-	// The folded row's own history follows it.
+	// The history of the merged row goes with it.
 	assert.Zero(t, queryInt(t, conn, `SELECT count(*) FROM events WHERE device_id = ?`, ghost))
 	assert.Zero(t, queryInt(t, conn, `SELECT count(*) FROM events WHERE device_id IS NULL`))
 }
 
-// Every field the owner can set on the weaker row survives the fold. Where both
-// rows carry a type, the identified device keeps its own.
+// Every field that the owner can set on the weaker row stays after the merge.
+// If both rows have a type, the identified device keeps its own type.
 func TestRecordSweepFoldKeepsEveryCurationField(t *testing.T) {
 	t.Parallel()
 
@@ -396,9 +399,9 @@ func TestRecordSweepFoldKeepsEveryCurationField(t *testing.T) {
 	}
 }
 
-// A watched weaker row folded into a device that had gone quiet does not bring
-// that device back: the weaker row was being seen all along, so the device's
-// present run is the one the weaker row began.
+// A watched weaker row that merges into a quiet device does not bring that
+// device back. Sweeps saw the weaker row all the time. So the present run of
+// the device is the run that the weaker row began.
 func TestRecordSweepFoldOfAWatchedRowIsNotABack(t *testing.T) {
 	t.Parallel()
 
@@ -424,10 +427,10 @@ func TestRecordSweepFoldOfAWatchedRowIsNotABack(t *testing.T) {
 	assert.NotContains(t, eventKinds(t, conn, id), dbtype.EventDeviceBack)
 }
 
-// What was recorded against the weaker row follows it into the identified
-// device. Where both rows hold the same key, counts add up and the newer
-// reading of a port or service stands. Other devices' rows that name the
-// weaker row as their peer name the identified device instead.
+// What was recorded against the weaker row goes with it into the identified
+// device. If both rows have the same key, the counts add up, and the newer
+// reading of a port or service stays. The rows of other devices that name the
+// weaker row as their peer then name the identified device.
 func TestRecordSweepFoldMovesWhatWasRecordedAgainstTheWeakerRow(t *testing.T) {
 	t.Parallel()
 
@@ -572,8 +575,8 @@ func TestRecordSweepFoldMovesWhatWasRecordedAgainstTheWeakerRow(t *testing.T) {
 	})
 }
 
-// A lease handed to another device moves the address: only one device may hold
-// an address as current.
+// A lease that goes to a different device moves the address. Only one device
+// can hold an address as current.
 func TestRecordSweepMovesAddressBetweenDevices(t *testing.T) {
 	t.Parallel()
 
@@ -588,7 +591,7 @@ func TestRecordSweepMovesAddressBetweenDevices(t *testing.T) {
 	assert.Empty(t, currentIPs(t, conn, first))
 	assert.Equal(t, []string{"192.0.2.10"}, currentIPs(t, conn, second))
 
-	// The old holder keeps the row, so where it used to live is still readable.
+	// The old holder keeps the row. So its old place is still readable.
 	assert.Equal(t, 1, queryInt(t, conn,
 		`SELECT count(*) FROM addresses WHERE device_id = ? AND is_current = 0`, first))
 }
@@ -616,9 +619,9 @@ func TestRecordSweepRecordsHostnameChange(t *testing.T) {
 	assert.Equal(t, "two.example", to)
 }
 
-// A device answering on two addresses whose reverse names differ is named after
-// the lower address on every sweep, and logs no rename. Taking each address's
-// name in turn renamed it twice in every sweep.
+// A device can answer on two addresses with different reverse names. It gets
+// the name of the lower address on every sweep, and logs no rename. If it took
+// the name of each address in turn, it would get two renames in every sweep.
 func TestRecordSweepKeepsOneNameForADeviceOnTwoAddresses(t *testing.T) {
 	t.Parallel()
 
@@ -641,8 +644,8 @@ func TestRecordSweepMarksRandomisedAddress(t *testing.T) {
 
 	s, conn := newStore(t)
 
-	// The locally administered bit is set on this address, so the flag is
-	// derived from it.
+	// The locally administered bit is set on this address. So the flag comes
+	// from it.
 	sweep(t, s, host("192.0.2.10", "02:00:5e:00:53:01", ""))
 
 	assert.Equal(t, 1, queryInt(t, conn, `SELECT is_randomised FROM devices`))
@@ -661,8 +664,8 @@ func TestRecordSweepEmptyIsNotAnError(t *testing.T) {
 	assert.Zero(t, queryInt(t, conn, `SELECT count(*) FROM devices`))
 }
 
-// Every row a sweep writes carries the one timestamp for that sweep, so no
-// device is stamped as last seen before it was first seen.
+// Every row that a sweep writes has the one timestamp of that sweep. So no
+// device has a last seen time before its first seen time.
 func TestRecordSweepTimestampsAreOrdered(t *testing.T) {
 	t.Parallel()
 
@@ -680,7 +683,7 @@ func TestRecordSweepTimestampsAreOrdered(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, first, last)
 
-	// A sweep can open and close inside one second, so the invariant is only
+	// A sweep can open and close within one second. So the invariant is only
 	// that it does not finish before it started.
 	var started, finished string
 
@@ -688,7 +691,8 @@ func TestRecordSweepTimestampsAreOrdered(t *testing.T) {
 	require.NoError(t, err)
 	assert.LessOrEqual(t, started, finished)
 
-	// A later sweep moves last_seen forward and leaves first_seen where it was.
+	// A later sweep moves last_seen forward, and does not change
+	// first_seen.
 	sweep(t, s, host("192.0.2.10", macA, ""))
 
 	var secondFirst, secondLast string
@@ -702,7 +706,7 @@ func TestRecordSweepTimestampsAreOrdered(t *testing.T) {
 	assertNoRowSeenBeforeItExisted(t, conn)
 }
 
-// assertNoRowSeenBeforeItExisted checks the invariant across every row in the
+// assertNoRowSeenBeforeItExisted checks the invariant across every row of the
 // database.
 func assertNoRowSeenBeforeItExisted(t *testing.T, conn *sql.DB) {
 	t.Helper()
@@ -716,15 +720,15 @@ func assertNoRowSeenBeforeItExisted(t *testing.T, conn *sql.DB) {
 	assert.Zero(t, n, "scans finished before they started")
 }
 
-// A sweep that cannot be stored still has to leave a record that it was tried,
-// which is the whole reason the scan row is closed outside the ingest.
+// A sweep that cannot be stored must still leave a record of the attempt. For
+// this reason, the scan row closes outside the ingest.
 func TestRecordSweepRecordsAFailedIngest(t *testing.T) {
 	t.Parallel()
 
 	s, conn := newStore(t)
 
-	// The zero address is refused on the way to the column, so the ingest gives
-	// up partway and rolls back the host ahead of it.
+	// The column refuses the zero address. So the ingest stops in the middle,
+	// and rolls back the host before it.
 	res, err := s.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix(prefix),
 		[]scanner.Host{host("192.0.2.10", macA, ""), host("", "", "")})
 	require.Error(t, err)
@@ -734,16 +738,17 @@ func TestRecordSweepRecordsAFailedIngest(t *testing.T) {
 		queryStrings(t, conn, `SELECT status FROM scans`)[0])
 	assert.NotEmpty(t, queryStrings(t, conn, `SELECT error FROM scans`)[0])
 
-	// Nothing the ingest counted survived it, so the scan must not claim any.
+	// Nothing that the ingest counted stayed. So the scan must not claim
+	// anything.
 	assert.Equal(t, 0, queryInt(t, conn, `SELECT found_count FROM scans`))
 	assert.Equal(t, 0, queryInt(t, conn, `SELECT count(*) FROM devices`))
 	assert.Equal(t, 0, queryInt(t, conn, `SELECT count(*) FROM events`))
 }
 
-// A source reporting a device it has not seen may say what is already known
-// about that device, and may not put a device nothing has ever met into the
-// inventory: the device list is what is on the network, and a static lease for
-// something unplugged is configuration.
+// A source that reports a device that it did not see can say what is already
+// known about it. It cannot put a device that nothing ever saw into the
+// inventory. The device list is what is on the network. A static lease for a
+// disconnected device is configuration.
 func TestReportDoesNotCreateADeviceItHasNotSeen(t *testing.T) {
 	t.Parallel()
 
@@ -757,8 +762,8 @@ func TestReportDoesNotCreateADeviceItHasNotSeen(t *testing.T) {
 	assert.Equal(t, 0, queryInt(t, conn, `SELECT COUNT(*) FROM addresses`))
 }
 
-// An address a source could not resolve names nothing at all: it identifies no
-// device and does not say one is answering.
+// An address that a source could not resolve names nothing. It identifies no
+// device, and does not say that a device answers.
 func TestReportRecordsNothingForAnAddressItCannotResolve(t *testing.T) {
 	t.Parallel()
 
@@ -770,8 +775,8 @@ func TestReportRecordsNothingForAnAddressItCannotResolve(t *testing.T) {
 	assert.Equal(t, 0, queryInt(t, conn, `SELECT COUNT(*) FROM devices`))
 }
 
-// The same fact against a device already known is worth recording: the source
-// knows its name, which is the half a sweep cannot supply.
+// The same fact about a known device is worth a record. The source knows its
+// name, which is the half that a sweep cannot give.
 func TestReportNamesAKnownDeviceItHasNotSeen(t *testing.T) {
 	t.Parallel()
 
@@ -786,15 +791,15 @@ func TestReportNamesAKnownDeviceItHasNotSeen(t *testing.T) {
 	assert.Equal(t, 1, res.Seen)
 	assert.Equal(t, "printer", queryString(t, conn, `SELECT hostname FROM devices WHERE id = ?`, id))
 
-	// Naming a device is not seeing it, and the address it was named at is not
-	// one it is holding.
+	// A name for a device is not a sighting. The address of the name is not
+	// an address that the device holds.
 	assert.Equal(t, seen, queryString(t, conn, `SELECT last_seen FROM devices WHERE id = ?`, id),
 		"a source that did not see the device must not mark it seen")
 	assert.Equal(t, []string{"192.0.2.10"}, currentIPs(t, conn, id))
 }
 
-// The standing a source claims for a name is stored as given. Recording every
-// name as DNS would leave nothing to weigh two sources by.
+// The store keeps the standing that a source claims for a name, as it is. If
+// every name were DNS, nothing could compare two sources.
 func TestReportKeepsTheStandingOfTheNameItCarries(t *testing.T) {
 	t.Parallel()
 
@@ -808,9 +813,9 @@ func TestReportKeepsTheStandingOfTheNameItCarries(t *testing.T) {
 		queryString(t, conn, `SELECT hostname_source FROM devices WHERE id = ?`, id))
 }
 
-// A source that has not seen a device must not take an address from whatever is
-// answering on it: a stale lease pointing at a reused address would otherwise
-// move it to a device that is not there.
+// A source that did not see a device must not take an address from the device
+// that answers on it. If not, an old lease on a reused address would move the
+// address to a device that is not there.
 func TestReportDoesNotTakeAnAddressFromItsHolder(t *testing.T) {
 	t.Parallel()
 
@@ -827,14 +832,14 @@ func TestReportDoesNotTakeAnAddressFromItsHolder(t *testing.T) {
 	assert.Equal(t, []string{"192.0.2.11"}, currentIPs(t, conn, other))
 }
 
-// A source covering many networks names none of them, so each address is
-// matched to the network holding it.
+// A source that covers many networks names none of them. So the store matches
+// each address to its network.
 func TestReportMatchesEachAddressToItsOwnNetwork(t *testing.T) {
 	t.Parallel()
 
 	s, conn := newStore(t)
 
-	// Two sweeps, so both prefixes are recorded.
+	// Two sweeps, so both prefixes are in the store.
 	sweep(t, s, host("192.0.2.10", macA, ""))
 
 	_, err := s.RecordSweep(t.Context(), "test-sweep", netip.MustParsePrefix("198.51.100.0/24"),
@@ -852,7 +857,8 @@ func TestReportMatchesEachAddressToItsOwnNetwork(t *testing.T) {
 		`SELECT n.cidr FROM addresses a JOIN networks n ON n.id = a.network_id WHERE a.ip = ?`, "198.51.100.20"))
 }
 
-// An address on no recorded network is still recorded, without one.
+// The store still records an address on no recorded network, without a
+// network.
 func TestReportRecordsAnAddressOnNoKnownNetwork(t *testing.T) {
 	t.Parallel()
 
@@ -866,11 +872,11 @@ func TestReportRecordsAnAddressOnNoKnownNetwork(t *testing.T) {
 		`SELECT COUNT(*) FROM addresses WHERE ip = ? AND network_id IS NULL`, "203.0.113.10"))
 }
 
-// RefreshAddress coalesces the network, so a source that cannot say
-// which network an address is on leaves the one a sweep established. The store
-// path cannot reach this, since an address is matched against every recorded
-// network and a prefix a sweep recorded still matches, so the guard is
-// asserted against the query itself.
+// RefreshAddress coalesces the network. So a source that cannot tell the
+// network of an address keeps the network from a sweep. The store path cannot
+// reach this. The store matches an address against every recorded network, and
+// a prefix from a sweep still matches. So the test asserts the guard against
+// the query itself.
 func TestRefreshAddressKeepsTheNetworkASweepEstablished(t *testing.T) {
 	t.Parallel()
 
@@ -893,7 +899,8 @@ func TestRefreshAddressKeepsTheNetworkASweepEstablished(t *testing.T) {
 		`SELECT n.cidr FROM addresses a JOIN networks n ON n.id = a.network_id WHERE a.id = ?`, id))
 }
 
-// claimOf reads what one source says about a device, by the source's name.
+// claimOf reads what one source says about a device, by the name of the
+// source.
 func claimOf(t *testing.T, conn *sql.DB, deviceID int64, source string) (name, standing string) {
 	t.Helper()
 
@@ -930,8 +937,8 @@ func TestEachSourceKeepsItsOwnClaim(t *testing.T) {
 	assert.Equal(t, 2, queryInt(t, conn, `SELECT count(*) FROM device_sources WHERE device_id = ?`, id))
 }
 
-// The name the list shows is elected from every claim, so a lease name does not
-// displace the one that resolves just by being written later.
+// The name in the list comes from an election over every claim. So a lease
+// name does not replace the name that resolves only because it came later.
 func TestElectedNamePrefersTheNameThatResolves(t *testing.T) {
 	t.Parallel()
 
@@ -944,8 +951,8 @@ func TestElectedNamePrefersTheNameThatResolves(t *testing.T) {
 	assert.Equal(t, string(dbtype.HostnameFromDNS), queryString(t, conn, `SELECT hostname_source FROM devices`))
 }
 
-// The row takes the fuller spelling, but an operator is not told the device was
-// renamed when only the domain arrived.
+// The row takes the longer spelling. But when only the domain arrived, the
+// store does not tell an operator that the device got a new name.
 func TestTwoSpellingsOfOneNameAreNotARename(t *testing.T) {
 	t.Parallel()
 
@@ -962,9 +969,9 @@ func TestTwoSpellingsOfOneNameAreNotARename(t *testing.T) {
 	assert.NotContains(t, eventKinds(t, conn, id), dbtype.EventHostnameChanged)
 }
 
-// A device whose claims carry no name, as after 000022 dropped the names it
-// could not place, keeps the one it has. Electing from nameless claims cleared
-// it, and the classifier lost what the name told it.
+// A device whose claims have no name keeps its name. This happens after 000022
+// dropped the names that it could not place. An election from claims with no
+// name cleared it, and the classifier lost what the name told it.
 func TestADeviceKeepsItsNameWhenNoClaimGivesOne(t *testing.T) {
 	t.Parallel()
 
@@ -982,8 +989,8 @@ func TestADeviceKeepsItsNameWhenNoClaimGivesOne(t *testing.T) {
 	assert.NotContains(t, eventKinds(t, conn, id), dbtype.EventHostnameChanged)
 }
 
-// A sweep that once resolved a name and now resolves nothing has not renamed
-// the device: the claim keeps the last name, and the elected name does not fall
+// A sweep that resolved a name before, and now resolves nothing, did not rename
+// the device. The claim keeps the last name. The elected name does not go
 // back to a lower source.
 func TestASilentSourceKeepsItsLastName(t *testing.T) {
 	t.Parallel()
@@ -996,7 +1003,7 @@ func TestASilentSourceKeepsItsLastName(t *testing.T) {
 	id := deviceIDByMAC(t, conn, macA)
 	require.Equal(t, "host-a.example.com", queryString(t, conn, `SELECT hostname FROM devices`))
 
-	// The resolver has no record for the address any more.
+	// The resolver no longer has a record for the address.
 	sweep(t, s, host("192.0.2.10", macA, ""))
 
 	name, standing := claimOf(t, conn, id, "test-sweep")
@@ -1007,8 +1014,8 @@ func TestASilentSourceKeepsItsLastName(t *testing.T) {
 	assert.Equal(t, string(dbtype.HostnameFromDNS), queryString(t, conn, `SELECT hostname_source FROM devices`))
 }
 
-// A device whose only source of a name goes quiet keeps that name. last_seen
-// on the claim ages, which is where staleness shows.
+// If the only name source of a device goes quiet, the device keeps that name.
+// last_seen on the claim gets older. This shows the age.
 func TestADeviceKeepsItsNameWhenTheResolverGoesQuiet(t *testing.T) {
 	t.Parallel()
 
@@ -1021,10 +1028,10 @@ func TestADeviceKeepsItsNameWhenTheResolverGoesQuiet(t *testing.T) {
 	assert.Equal(t, string(dbtype.HostnameFromDNS), queryString(t, conn, `SELECT hostname_source FROM devices`))
 }
 
-// A multi-homed host answers a sweep on every address it holds, and the reverse
-// lookup succeeds for one and not the other. The address with no PTR must not
-// clear the name the other resolved, and repeating the sweep must not log a
-// rename every pass.
+// A host with several addresses answers a sweep on each of them. The reverse
+// lookup succeeds for one, and not for the other. The address with no PTR must
+// not clear the name from the other. A second sweep must not log a rename on
+// every pass.
 func TestAMultiHomedHostKeepsAResolvedNameAcrossAllItsAddresses(t *testing.T) {
 	t.Parallel()
 
@@ -1080,19 +1087,19 @@ func TestFoldCarriesClaimsToTheSurvivingDevice(t *testing.T) {
 
 	assert.Zero(t, queryInt(t, conn, `SELECT count(*) FROM device_sources WHERE device_id = ?`, ghost))
 
-	// The claim it kept is the one the surviving row is now named by.
+	// The kept claim now gives the name of the row that stays.
 	assert.Equal(t, "printer", queryString(t, conn, `SELECT hostname FROM devices`))
 }
 
-// A router reporting its own address folds the row a sweep across the router
-// left for that address, and the name the row carried names the router.
+// A router that reports its own address merges the row that a sweep across the
+// router left for that address. The name of that row then names the router.
 func TestRouterOwnAddressFoldsTheAddressOnlyRow(t *testing.T) {
 	t.Parallel()
 
 	s, conn := newStore(t)
 
-	// A sweep of the router's own segment, where its hardware address shows,
-	// then a later sweep that reaches it from another segment.
+	// A sweep of the own segment of the router, where its hardware address
+	// shows. Then a later sweep that reaches it from a different segment.
 	sweep(t, s, host("192.0.2.1", macA, ""))
 	sweep(t, s, host("192.0.2.20", "", "gateway.example.test"))
 
@@ -1105,9 +1112,9 @@ func TestRouterOwnAddressFoldsTheAddressOnlyRow(t *testing.T) {
 	assert.Equal(t, "gateway.example.test", queryString(t, conn, `SELECT hostname FROM devices`))
 }
 
-// A source that filed against both rows at different addresses keeps a claim
-// for each, and the device keeps the name it had. The fold is driven by a
-// different source here, or this source's own upsert would mask the merge.
+// A source with claims on both rows, at different addresses, keeps a claim for
+// each. The device keeps its name. A different source starts the merge here.
+// If not, the upsert of this source would hide the merge.
 func TestFoldKeepsEachAddressesClaimFromOneSource(t *testing.T) {
 	t.Parallel()
 
@@ -1130,13 +1137,13 @@ func TestFoldKeepsEachAddressesClaimFromOneSource(t *testing.T) {
 		                       JOIN sources s ON s.id = ds.source_id
 		                       WHERE ds.device_id = ? AND s.name = 'test-sweep' ORDER BY ds.address`, id))
 
-	// Both names are reverse DNS; the one the device already carried stays.
+	// Both names are reverse DNS. The current name of the device stays.
 	assert.Equal(t, "first.example.com", queryString(t, conn, `SELECT hostname FROM devices WHERE id = ?`, id))
 }
 
-// A source that filed against both rows at one address collides on the primary
-// key. The merged claim keeps a name when the newer reading had none, or the
-// fold would clear the device's name.
+// A source with claims on both rows at one address collides on the primary key.
+// The merged claim keeps a name when the newer reading had none. If not, the
+// merge would clear the name of the device.
 func TestFoldKeepsANameTheNewerClaimLacks(t *testing.T) {
 	t.Parallel()
 
@@ -1148,7 +1155,7 @@ func TestFoldKeepsANameTheNewerClaimLacks(t *testing.T) {
 	ghost := queryInt(t, conn, `SELECT id FROM devices WHERE mac IS NULL`)
 	id := deviceIDByMAC(t, conn, macA)
 
-	// Both claims about one address, the unnamed one heard later.
+	// Both claims about one address. The claim with no name came later.
 	_, err := conn.ExecContext(t.Context(),
 		`UPDATE device_sources SET address = '192.0.2.10' WHERE device_id = ?`, ghost)
 	require.NoError(t, err)
@@ -1163,7 +1170,7 @@ func TestFoldKeepsANameTheNewerClaimLacks(t *testing.T) {
 }
 
 // A device on two swept networks is two readings from one source, each with a
-// different reverse DNS name. The name it was first given stays across cycles.
+// different reverse DNS name. Its first name stays across cycles.
 func TestTwoNetworksNamingOneDeviceDoNotRenameIt(t *testing.T) {
 	t.Parallel()
 
@@ -1178,7 +1185,7 @@ func TestTwoNetworksNamingOneDeviceDoNotRenameIt(t *testing.T) {
 	assert.Equal(t, "host-a.example", queryString(t, conn, `SELECT hostname FROM devices WHERE id = ?`, id))
 	assert.NotContains(t, eventKinds(t, conn, id), dbtype.EventHostnameChanged)
 
-	// Renaming the address that gives the name is one rename.
+	// A new name on the address that gives the name is one rename.
 	sweepPrefix(t, s, "192.0.2.0/24", host("192.0.2.1", macA, "host-c.example"))
 	sweepPrefix(t, s, "198.51.100.0/24", host("198.51.100.1", macA, "gw.example"))
 
@@ -1188,8 +1195,8 @@ func TestTwoNetworksNamingOneDeviceDoNotRenameIt(t *testing.T) {
 }
 
 // After the claims backfill, a device with several addresses has claims with no
-// name. A sweep cycle names it from the address that has a PTR, not from a
-// name no claim gives any more.
+// name. A sweep cycle names it from the address that has a PTR. It does not
+// use a name that no claim gives now.
 func TestABackfilledDeviceTakesItsNameFromTheAddressThatHasOne(t *testing.T) {
 	t.Parallel()
 
@@ -1212,7 +1219,8 @@ func TestABackfilledDeviceTakesItsNameFromTheAddressThatHasOne(t *testing.T) {
 		id, dbtype.EventHostnameChanged), "one rename, with no step through no name")
 }
 
-// Detail is stored verbatim for the device page and never merged into devices.
+// The store keeps Detail exactly, for the device page. It never merges it into
+// devices.
 func TestAClaimStoresWhatOnlyItsSourceKnows(t *testing.T) {
 	t.Parallel()
 
@@ -1238,7 +1246,7 @@ func TestAClaimWithoutDetailStoresNull(t *testing.T) {
 	assert.Equal(t, 1, queryInt(t, conn, `SELECT count(*) FROM device_sources WHERE detail IS NULL`))
 }
 
-// A fact nothing can be recorded against is counted in Dropped.
+// Dropped counts a fact with no device to record against.
 func TestReportCountsWhatItDropped(t *testing.T) {
 	t.Parallel()
 
@@ -1251,7 +1259,7 @@ func TestReportCountsWhatItDropped(t *testing.T) {
 	assert.Zero(t, res.Discovered)
 }
 
-// RecordFacts is the exported form the plugin path uses; a sweep reaches the
+// RecordFacts is the exported form for the plugin path. A sweep reaches the
 // same ingest through RecordSweep.
 func TestRecordFactsFilesUnderTheNamedSource(t *testing.T) {
 	t.Parallel()
@@ -1304,14 +1312,14 @@ func TestDeviceSourcesReportsEveryClaim(t *testing.T) {
 	assert.Equal(t, dbtype.HostnameFromDHCPStatic, router.HostnameSource)
 	assert.Equal(t, dbtype.SourceRouter, router.Kind)
 
-	// Detail is sorted by key, so a page renders it the same way twice.
+	// Detail is sorted by key. So a page renders it in the same way twice.
 	assert.Equal(t, []Field{
 		{Key: "dhcp_comment", Value: "bench unit"},
 		{Key: "interface", Value: "vlan10"},
 	}, router.Detail)
 }
 
-// Detail that will not decode costs the page only that aside.
+// If Detail does not decode, the page loses only that aside.
 func TestDeviceSourcesSurvivesUnreadableDetail(t *testing.T) {
 	t.Parallel()
 
@@ -1343,8 +1351,8 @@ func TestDeviceSourcesOfAnUnknownDeviceIsEmpty(t *testing.T) {
 	assert.Empty(t, claims)
 }
 
-// mdnsHost builds a swept host named over mDNS, as a sweep names a host that
-// reverse DNS gives no name.
+// mdnsHost builds a swept host with a name from mDNS. A sweep names a host in
+// this way when reverse DNS gives no name.
 func mdnsHost(ip, mac, hostname string) scanner.Host {
 	h := host(ip, mac, hostname)
 	h.NameSource = dbtype.HostnameFromMDNS
@@ -1352,8 +1360,8 @@ func mdnsHost(ip, mac, hostname string) scanner.Host {
 	return h
 }
 
-// ssdpHost builds a swept host named after its UPnP friendlyName, as a sweep
-// names a host that no other lookup gives a name.
+// ssdpHost builds a swept host with its UPnP friendlyName as name. A sweep
+// names a host in this way when no other lookup gives a name.
 func ssdpHost(ip, mac, label string) scanner.Host {
 	h := host(ip, mac, label)
 	h.NameSource = dbtype.HostnameFromSSDP
@@ -1361,9 +1369,9 @@ func ssdpHost(ip, mac, label string) scanner.Host {
 	return h
 }
 
-// dnssdHost builds a swept host named after the name it gives the services it
-// advertises, as a sweep names a host that reverse DNS, mDNS and NetBIOS give
-// no name.
+// dnssdHost builds a swept host with the name that it gives its services. A
+// sweep names a host in this way when reverse DNS, mDNS and NetBIOS give no
+// name.
 func dnssdHost(ip, mac, label string) scanner.Host {
 	h := host(ip, mac, label)
 	h.NameSource = dbtype.HostnameFromDNSSD
@@ -1371,8 +1379,8 @@ func dnssdHost(ip, mac, label string) scanner.Host {
 	return h
 }
 
-// netbiosHost builds a swept host named over NetBIOS, as a sweep names a host
-// that neither reverse DNS nor mDNS gives a name.
+// netbiosHost builds a swept host with a name from NetBIOS. A sweep names a
+// host in this way when reverse DNS and mDNS give no name.
 func netbiosHost(ip, mac, hostname string) scanner.Host {
 	h := host(ip, mac, hostname)
 	h.NameSource = dbtype.HostnameFromNetBIOS
@@ -1380,9 +1388,10 @@ func netbiosHost(ip, mac, hostname string) scanner.Host {
 	return h
 }
 
-// A reverse lookup that times out leaves a host nameless, so the sweep asks it
-// over mDNS. That answer must not replace the DNS name the sweep holds, or the
-// device would be renamed now and renamed back on the next sweep.
+// A reverse lookup that times out leaves a host with no name. So the sweep asks
+// it over mDNS. That answer must not replace the DNS name of the sweep. If it
+// did, the device would get a new name now, and the old name on the next
+// sweep.
 func TestAnMDNSNameDoesNotReplaceTheSweepsDNSName(t *testing.T) {
 	t.Parallel()
 
@@ -1402,8 +1411,8 @@ func TestAnMDNSNameDoesNotReplaceTheSweepsDNSName(t *testing.T) {
 	assert.NotContains(t, eventKinds(t, conn, id), dbtype.EventHostnameChanged)
 }
 
-// Once reverse DNS names a host the sweep only knew over mDNS, the DNS name
-// takes the claim.
+// When reverse DNS names a host that the sweep only knew over mDNS, the DNS
+// name takes the claim.
 func TestADNSNameReplacesTheSweepsMDNSName(t *testing.T) {
 	t.Parallel()
 
@@ -1417,7 +1426,8 @@ func TestADNSNameReplacesTheSweepsMDNSName(t *testing.T) {
 	assert.Equal(t, string(dbtype.HostnameFromDNS), standing)
 }
 
-// A device that renames itself over mDNS is renamed on the claim.
+// A device that gives itself a new name over mDNS gets the new name on the
+// claim.
 func TestAnMDNSNameReplacesAnEarlierMDNSName(t *testing.T) {
 	t.Parallel()
 
@@ -1431,8 +1441,8 @@ func TestAnMDNSNameReplacesAnEarlierMDNSName(t *testing.T) {
 	assert.Equal(t, string(dbtype.HostnameFromMDNS), standing)
 }
 
-// An mDNS query that goes unanswered for one sweep sends the host to NetBIOS.
-// That answer must not replace the mDNS name the sweep holds.
+// If an mDNS query gets no answer for one sweep, the sweep asks the host over
+// NetBIOS. That answer must not replace the mDNS name of the sweep.
 func TestANetBIOSNameDoesNotReplaceTheSweepsMDNSName(t *testing.T) {
 	t.Parallel()
 
@@ -1450,7 +1460,7 @@ func TestANetBIOSNameDoesNotReplaceTheSweepsMDNSName(t *testing.T) {
 	assert.NotContains(t, eventKinds(t, conn, id), dbtype.EventHostnameChanged)
 }
 
-// Once a host the sweep only knew over NetBIOS answers mDNS, the mDNS name
+// When a host that the sweep only knew over NetBIOS answers mDNS, the mDNS name
 // takes the claim.
 func TestAnMDNSNameReplacesTheSweepsNetBIOSName(t *testing.T) {
 	t.Parallel()
@@ -1465,8 +1475,8 @@ func TestAnMDNSNameReplacesTheSweepsNetBIOSName(t *testing.T) {
 	assert.Equal(t, string(dbtype.HostnameFromMDNS), standing)
 }
 
-// A router's claim holds no swept name, so a dynamic lease still replaces the
-// static lease it held.
+// The claim of a router holds no swept name. So a dynamic lease still replaces
+// its static lease.
 func TestARouterClaimTakesALowerRankedName(t *testing.T) {
 	t.Parallel()
 
@@ -1480,8 +1490,8 @@ func TestARouterClaimTakesALowerRankedName(t *testing.T) {
 	assert.Equal(t, string(dbtype.HostnameFromDHCPLease), standing)
 }
 
-// A friendlyName names a device nothing else names, spaces and all, and ranks
-// below a NetBIOS name on the sweep's claim.
+// A friendlyName names a device that nothing else names, with its spaces. It
+// ranks below a NetBIOS name on the claim of the sweep.
 func TestAnSSDPLabelNamesADeviceBelowNetBIOS(t *testing.T) {
 	t.Parallel()
 
@@ -1500,8 +1510,8 @@ func TestAnSSDPLabelNamesADeviceBelowNetBIOS(t *testing.T) {
 	assert.Equal(t, string(dbtype.HostnameFromNetBIOS), standing)
 }
 
-// A DNS-SD name ranks below a NetBIOS name and above an SSDP friendlyName on
-// the sweep's claim.
+// A DNS-SD name ranks below a NetBIOS name and above an SSDP friendlyName, on
+// the claim of the sweep.
 func TestADNSSDNameRanksBetweenNetBIOSAndSSDP(t *testing.T) {
 	t.Parallel()
 
