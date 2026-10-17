@@ -16,8 +16,8 @@ func TestAddrValue(t *testing.T) {
 	assert.Equal(t, "192.0.2.10", v)
 }
 
-// A UNIQUE constraint over a spelling is only worth what the spelling is, so
-// the forms that name one address have to reach the column as one string.
+// A UNIQUE constraint on a spelling works only if the spelling is fixed. So the
+// forms of one address must reach the column as one string.
 func TestAddrCanonicalises(t *testing.T) {
 	t.Parallel()
 
@@ -63,8 +63,8 @@ func TestAddrRejectsInvalid(t *testing.T) {
 func TestPrefixMasksToItsBase(t *testing.T) {
 	t.Parallel()
 
-	// A host address inside the network names the same network, and the column
-	// is UNIQUE, so it has to arrive as the base either way.
+	// A host address in the network names the same network. The column is
+	// UNIQUE. So in both cases, the network must arrive as the base.
 	v, err := NewPrefix(netip.MustParsePrefix("192.0.2.5/24")).Value()
 	require.NoError(t, err)
 	assert.Equal(t, "192.0.2.0/24", v)
@@ -125,7 +125,7 @@ func TestParseMACRejects(t *testing.T) {
 	}{
 		{"empty", ""},
 		{"not a mac", "not-a-mac"},
-		// The column holds 6-byte addresses; anything wider has nowhere to go.
+		// The column holds 6-byte addresses. A wider address does not fit.
 		{"eui-64", "00:00:5e:00:53:01:02:03"},
 		{"infiniband", "00:00:5e:00:53:01:02:03:04:05:06:07:08:09:0a:0b:0c:0d:0e:0f"},
 	}
@@ -141,8 +141,8 @@ func TestParseMACRejects(t *testing.T) {
 	}
 }
 
-// The zero MAC is the null one: a device has no hardware address until
-// something learns it, and that needs no separate type.
+// The zero MAC is null. A device has no hardware address until a source learns
+// it. This needs no separate type.
 func TestMACZeroValueIsNull(t *testing.T) {
 	t.Parallel()
 

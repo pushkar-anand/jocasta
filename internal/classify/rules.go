@@ -7,13 +7,13 @@ import (
 	"strings"
 )
 
-// Cond is the set of facts a rule needs to see. A rule fires when every field
-// that is set here holds; an unset field is not tested. HostNot is the
-// exception: it is a veto, and does not count towards how specific the rule
-// is.
+// Cond is the set of facts that a rule needs. A rule matches when every field
+// that is set here is true. An unset field is not tested. HostNot is the
+// exception. It is a veto, and it does not count for the specificity of the
+// rule.
 //
-// The number of set condition fields is a rule's specificity, which is how
-// [Device] breaks the tie when several rules match: the pickier rule wins.
+// The number of set condition fields is the specificity of a rule. [Device]
+// uses it when several rules match. The more specific rule wins.
 type Cond struct {
 	Vendor  string // prefix of the normalised OUI name (letters and digits, lowercased)
 	Host    string // regexp, matched against the lowercased elected name
@@ -30,8 +30,8 @@ type Cond struct {
 	Randomised *bool // the address is (or is not) locally administered
 	FirstHost  bool  // holds the .1 of its subnet, where a gateway lives
 
-	// MinServer fires when at least this many service ports (see serverPorts)
-	// are open at once, which marks a host that runs services.
+	// MinServer matches when at least this number of service ports are open
+	// at once. This marks a host that runs services. See serverPorts.
 	MinServer int
 
 	When func(Facts) bool // escape hatch for the rare rule the fields cannot express
@@ -44,13 +44,13 @@ type Rule struct {
 	Class  Class
 	Reason string // the phrase shown to a person; ReasonFn wins if set
 
-	// ReasonFn builds the phrase from the facts, for a rule whose reason names
-	// something it matched (which ports, how many).
+	// ReasonFn builds the phrase from the facts. Use it for a rule whose
+	// reason names something that it matched, such as ports or a count.
 	ReasonFn func(Facts) string
 
-	// Weak marks a loose fallback, such as a broad vendor or a port a dozen
-	// classes share. A weak rule that fires alone yields a Low-confidence
-	// guess.
+	// Weak marks a loose fallback, such as a broad vendor or a port that
+	// many classes share. A weak rule that matches alone gives a guess with
+	// Low confidence.
 	Weak bool
 }
 
@@ -62,8 +62,8 @@ func (r Rule) reason(f Facts) string {
 	return r.Reason
 }
 
-// serverPorts are ports that say little alone but, several at once, describe a
-// host that runs services.
+// serverPorts are ports that tell little alone. Several at once describe a host
+// that runs services.
 var serverPorts = map[uint16]string{
 	22:    "ssh",
 	3306:  "mysql",
@@ -84,7 +84,8 @@ var serverPorts = map[uint16]string{
 	873:   "rsync",
 }
 
-// serviceReason names the service ports a host has open, for the MinServer rule.
+// serviceReason names the open service ports of a host, for the MinServer
+// rule.
 func serviceReason(f Facts) string {
 	var names []string
 
@@ -97,7 +98,8 @@ func serviceReason(f Facts) string {
 	return fmt.Sprintf("%d service ports open at once (%s)", len(names), strings.Join(names, ", "))
 }
 
-// compiled caches every Host / HostNot pattern in the ruleset, compiled once.
+// compiled caches every Host and HostNot pattern in the ruleset. It compiles
+// each pattern once.
 var compiled = map[string]*regexp.Regexp{}
 
 func init() {
@@ -112,8 +114,9 @@ func init() {
 	}
 }
 
-// match reports whether c holds for f, and how many condition fields it tested
-// (its specificity). A Cond with no positive condition never matches.
+// match reports whether c is true for f. It also returns the number of
+// condition fields that it tested, which is the specificity. A Cond with no
+// positive condition never matches.
 func match(c Cond, f Facts) (conds int, ok bool) {
 	if c.HostNot != "" && compiled[c.HostNot].MatchString(f.Hostname) {
 		return 0, false
@@ -176,9 +179,9 @@ func countServer(f Facts) int {
 	return len(seen)
 }
 
-// normVendor reduces a vendor name to lowercase letters and digits, so a prefix
-// match lands the same way on the registered name and on the truncated form the
-// OUI table often carries ("HewlettPacka", "BrotherIndus").
+// normVendor changes a vendor name to lowercase letters and digits. So a prefix
+// matches the registered name and the cut form in the OUI table in the same
+// way ("HewlettPacka", "BrotherIndus").
 func normVendor(s string) string {
 	var b strings.Builder
 
@@ -206,48 +209,49 @@ func port(p uint16, reason string, c Class, weak bool) Rule {
 	return Rule{Cond: Cond{Port: p}, Class: c, Reason: reason, Weak: weak}
 }
 
-// svc is a shorthand for a rule that any of types being advertised fires. The
-// reason names the first.
+// svc is a shorthand for a rule that matches when the device advertises one of
+// types. The reason names the first type.
 func svc(types []string, reason string, c Class, weak bool) Rule {
 	return Rule{Cond: Cond{AnyService: types}, Class: c, Reason: "advertises " + reason, Weak: weak}
 }
 
-// castModel reports whether a Google Cast model the device gives matches re.
+// castModel reports whether a Google Cast model of the device matches re.
 func castModel(re *regexp.Regexp) func(Facts) bool {
 	return func(f Facts) bool { return slices.ContainsFunc(f.Models, re.MatchString) }
 }
 
-// googleSpeaker matches the models of Google's smart speakers, which advertise
-// Google Cast as a Chromecast does.
+// googleSpeaker matches the models of the Google smart speakers. They advertise
+// Google Cast, as a Chromecast does.
 var googleSpeaker = regexp.MustCompile(`nest (?:mini|audio)|google home`)
 
-// net is a shorthand for a network-name rule. Always weak: a VLAN name is a
-// hint about what belongs there, and proves nothing about any one device.
+// net is a shorthand for a network-name rule. It is always weak. A VLAN name is
+// a hint about what is there, but it proves nothing about one device.
 func net(sub, reason string, c Class) Rule {
 	return Rule{Cond: Cond{Network: sub}, Class: c, Reason: reason, Weak: true}
 }
 
-// ruleset is the whole classifier, ordered from the most telling rules to the
-// weakest. That order is the tie-breaker when several equally specific rules
-// match, so a rule's place in the list is part of what it means.
+// ruleset is the whole classifier, from the strongest rules to the weakest.
+// When several rules with the same specificity match, this order breaks the
+// tie. So the position of a rule in the list is part of its meaning.
 var ruleset = []Rule{
-	// Combinations: pickier than any single-fact rule, so they win by
-	// specificity wherever they apply.
+	// Combinations: more specific than any single-fact rule. So they win by
+	// specificity when they match.
 
-	// Home Assistant on a general-purpose box: the port says what it is, the
-	// vendor only says it is a VM.
+	// Home Assistant on a general-purpose box. The port tells what it is. The
+	// vendor tells only that it is a VM.
 	{Cond: Cond{Port: 8123}, Class: IoTHub, Reason: "port 8123 (Home Assistant)"},
 
-	// A Chromecast port on something that is clearly a computer is a cast
-	// receiver running on a desktop.
+	// A Chromecast port on a device that is clearly a computer is a cast
+	// receiver on a desktop.
 	{
 		Cond:   Cond{AnyPort: []uint16{8008, 8009}, HostNot: `nest|chromecast|shield|fire-?tv`, MinServer: 2},
 		Class:  Server,
 		Reason: "cast port beside a stack of service ports",
 	},
 
-	// A Google speaker advertises Google Cast as a Chromecast does. Its model
-	// names it, and so does the speaker-group service a Chromecast lacks.
+	// A Google speaker advertises Google Cast, as a Chromecast does. Its
+	// model names it. The speaker-group service also names it, because a
+	// Chromecast does not have that service.
 	{
 		Cond:   Cond{Service: "_googlecast._tcp", When: castModel(googleSpeaker)},
 		Class:  Speaker,
@@ -260,9 +264,9 @@ var ruleset = []Rule{
 	},
 
 	// Definitive: a manufacturer that makes one kind of thing, a name that
-	// spells the product out, or a service only one kind of device offers.
-	// The services lead, so they beat a name or vendor rule as specific as
-	// they are: the device announced them itself.
+	// spells the product, or a service that only one kind of device offers.
+	// The services come first. So they win over a name or vendor rule with
+	// the same specificity, because the device announced them itself.
 
 	svc([]string{"_ipp._tcp", "_ipps._tcp", "_printer._tcp", "_pdl-datastream._tcp"}, "a print service", Printer, false),
 	svc([]string{"_androidtvremote2._tcp"}, "the Android TV remote service", TV, false),
@@ -276,8 +280,9 @@ var ruleset = []Rule{
 	host(`mac-?mini`, "the name says Mac mini", Desktop, false),
 	host(`apple-?tv|appletv`, "the name says Apple TV", Streaming, false),
 	host(`home-?pod`, "the name says HomePod", Speaker, false),
-	// Every Google speaker also answers the Chromecast ports below, so name it
-	// here, above them, or the ports would carry it to the streaming class.
+	// Every Google speaker also answers the Chromecast ports below. So name
+	// it here, above them. If not, the ports would give it the streaming
+	// class.
 	host(`nest-?(?:mini|audio)|google-?home`, "the name is a Google smart speaker", Speaker, false),
 	host(`(?:\b|_)(?:echo|alexa|echodot)(?:\b|_)`, "the name says Echo/Alexa", VoiceAssistant, false),
 	host(`fire-?tv|firetv|nvidia-?shield|(?:\b|_)shield(?:\b|_)`, "the name is a streaming box", Streaming, false),
@@ -334,7 +339,7 @@ var ruleset = []Rule{
 	port(8006, "port 8006 (Proxmox VE)", Hypervisor, false),
 	port(32400, "port 32400 (Plex media server)", Server, false),
 
-	// Characteristic: points somewhere, with honest alternatives.
+	// Characteristic: a clear signal, but other classes are possible.
 
 	host(`ipod`, "the name says iPod", Phone, false),
 	host(`(?:\b|_)(?:pixel|galaxy|oneplus|nexus|redmi|poco|moto-?g)(?:\b|_)`, "the name is a phone model", Phone, false),
@@ -375,16 +380,16 @@ var ruleset = []Rule{
 	{Cond: Cond{MinServer: 2}, Class: Server, ReasonFn: serviceReason},
 
 	// A resolver and an admin page, at the .1 of the subnet: a home gateway.
-	// Without the .1 this is just as likely a Pi-hole or AdGuard box, so the
-	// bare port-53 hint below carries those. Two rules because the
-	// admin page is on 80 as often as 443.
+	// Without the .1, a Pi-hole or AdGuard box is just as likely. So the
+	// port-53 hint below covers those. There are two rules, because the admin
+	// page is on 80 as often as on 443.
 	{Cond: Cond{AllPort: []uint16{53, 443}, FirstHost: true}, Class: Router, Reason: "a resolver and an admin page at the gateway address"},
 	{Cond: Cond{AllPort: []uint16{53, 80}, FirstHost: true}, Class: Router, Reason: "a resolver and an admin page at the gateway address"},
 
 	port(631, "port 631 (IPP print service)", Printer, false),
-	// The cast ports: every Chromecast has them, but so does every Google
-	// speaker and every Android TV, so they are only a hint. The name rules
-	// above tell the three apart.
+	// The cast ports. Every Chromecast has them, but every Google speaker and
+	// every Android TV also has them. So they are only a hint. The name rules
+	// above separate the three.
 	port(8009, "port 8009 (Chromecast)", Streaming, false),
 	port(8008, "port 8008 (Chromecast)", Streaming, false),
 	port(554, "port 554 (RTSP video stream)", Camera, false),
@@ -406,7 +411,7 @@ var ruleset = []Rule{
 	net("surveillance", `on a surveillance segment`, Camera),
 	net("voip", `on a VoIP segment`, VoIP),
 
-	// Weak: a hint that needs corroboration to mean much.
+	// Weak: a hint that needs other support to be useful.
 
 	svc([]string{"_googlecast._tcp", "_airplay._tcp"}, "a casting service (Google Cast or AirPlay)", Streaming, true),
 	svc([]string{"_spotify-connect._tcp", "_sonos._tcp"}, "a speaker service (Spotify Connect or Sonos)", Speaker, true),
@@ -465,8 +470,8 @@ var ruleset = []Rule{
 	net("dmz", `on the DMZ`, Server),
 	net("lab", `on a lab segment`, Server),
 
-	// A self-assigned address is a modern phone or laptop OS; on a home network
-	// the phone is the safer guess, and any real evidence of a laptop, listed
-	// above, outweighs it.
+	// A self-assigned address comes from a modern phone or laptop OS. On a
+	// home network, a phone is the safer guess. Any real signal of a laptop,
+	// in the rules above, wins over it.
 	{Cond: Cond{Randomised: new(true)}, Class: Phone, Reason: "randomised hardware address, typical of a phone or laptop", Weak: true},
 }

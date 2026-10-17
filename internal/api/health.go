@@ -9,7 +9,7 @@ import (
 )
 
 // healthHandler serves the build version and server time. It does not check
-// the database or collectors.
+// the database or the collectors.
 func (h *Handler) healthHandler() response.HandlerFunc {
 	type healthResponse struct {
 		Version string    `json:"version"`

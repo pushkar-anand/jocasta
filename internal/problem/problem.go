@@ -1,7 +1,6 @@
 // Package problem describes a failed request as an RFC 9457 problem document.
-// The JSON API and the MCP server both answer with one, built from the same
-// mapping, so a caller sees one failure described the same way whichever
-// surface it asked through.
+// The JSON API and the MCP server both answer with one, from the same
+// mapping. So a caller sees the same description of a failure on both.
 package problem
 
 import (
@@ -14,8 +13,8 @@ import (
 	"github.com/pushkar-anand/jocasta/internal/inventory"
 )
 
-// For maps recognised inventory errors to HTTP problems. It returns nil for
-// unexpected errors, whose details belong in the server log.
+// For maps known inventory errors to HTTP problems. It returns nil for
+// unexpected errors. Their details go only in the server log.
 func For(err error) response.Problem {
 	if errors.Is(err, inventory.ErrNotFound) {
 		return response.NewProblem().
@@ -28,10 +27,10 @@ func For(err error) response.Problem {
 	return nil
 }
 
-// Resolve is the whole of the decision response.JSONWriter makes about an
-// error: For's mapping first, then a Problem the error already is. It reports
-// false for an error neither describes, which the caller logs and answers with
-// Internal.
+// Resolve is the full decision that response.JSONWriter makes about an error.
+// It tries the mapping of For first, then a Problem that the error already
+// is. It reports false for an error that neither describes. The caller logs
+// that error and answers with Internal.
 func Resolve(err error) (response.Problem, bool) {
 	if p := For(err); p != nil {
 		return p, true
@@ -44,15 +43,15 @@ func Resolve(err error) (response.Problem, bool) {
 	return nil, false
 }
 
-// Internal is the problem an unexpected error is answered with. It says only
-// that something failed, and the cause goes to the server log.
+// Internal is the answer to an unexpected error. It tells only that something
+// failed. The cause goes to the server log.
 func Internal() response.Problem {
 	return response.NewProblem().Build()
 }
 
-// Document lays p out with the members response.JSONWriter writes, for a
-// surface that carries the document somewhere other than an HTTP response
-// body. instance names what failed, where the API names the request path.
+// Document lays out p with the members that response.JSONWriter writes. Use
+// it where the document does not go in an HTTP response body. instance names
+// what failed. The API uses the request path there.
 func Document(p response.Problem, instance string) map[string]any {
 	doc := map[string]any{
 		"title":    p.Title(),
@@ -61,8 +60,8 @@ func Document(p response.Problem, instance string) map[string]any {
 		"instance": instance,
 	}
 
-	// RFC 9457: with no type of its own, a problem is about:blank and its title
-	// is the status text.
+	// RFC 9457: a problem with no type is about:blank, and its title is the
+	// status text.
 	if t := p.Type(); t == "" || strings.EqualFold(t, "about:blank") {
 		doc["type"] = "about:blank"
 		doc["title"] = http.StatusText(p.Status())

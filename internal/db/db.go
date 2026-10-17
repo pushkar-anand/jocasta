@@ -7,25 +7,25 @@ import (
 	"net/url"
 	"path"
 
-	// Registers the pure-Go "sqlite" driver. Imported here as well as by the
-	// migrate driver, so swapping that driver out later cannot silently
-	// unregister the one the application opens with.
+	// Registers the pure-Go "sqlite" driver. The migrate driver also imports
+	// it. This import stays here, so a later change of the migrate driver
+	// cannot remove the driver that the application opens.
 	_ "modernc.org/sqlite"
 )
 
 const dbVersion = 24
 
-// pragmas travel in the DSN so the pool applies them to every connection it
-// opens. foreign_keys is the reason this matters: it is per-connection, so
-// setting it once after Open leaves every later pooled connection with
-// constraint enforcement quietly switched off.
+// pragmas go in the DSN, so the pool applies them to every connection that it
+// opens. This is important for foreign_keys, which applies to one connection
+// only. If you set it once after Open, every later connection in the pool has
+// no constraint enforcement, and nothing warns you.
 var pragmas = []string{
 	"foreign_keys(1)",
 	"journal_mode(WAL)",
 	"busy_timeout(5000)",
 }
 
-// pragmaString is the pragmas rendered as DSN query parameters, built once.
+// pragmaString is the pragmas as DSN query parameters. It is built once.
 var pragmaString = encodePragmas()
 
 func encodePragmas() string {
@@ -37,14 +37,14 @@ func encodePragmas() string {
 	return q.Encode()
 }
 
-// Config names where the database file lives.
+// Config names the location of the database file.
 type Config struct {
 	Name string
 	Path string
 }
 
-// New opens (creating if needed) and migrates the database described by cfg,
-// returning the pool to read and write it through.
+// New opens and migrates the database that cfg describes. If the database does
+// not exist, New creates it. New returns the pool for reads and writes.
 func New(cfg *Config) (*sql.DB, error) {
 	n := path.Join(cfg.Path, cfg.Name)
 
@@ -60,7 +60,7 @@ func New(cfg *Config) (*sql.DB, error) {
 	return conn, nil
 }
 
-// dsn builds a file DSN carrying the pragmas above.
+// dsn builds a file DSN with the pragmas above.
 func dsn(file string) string {
 	u := &url.URL{
 		Scheme:   "file",

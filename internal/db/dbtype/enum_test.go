@@ -27,9 +27,9 @@ func TestEnumValueRenders(t *testing.T) {
 	assert.Equal(t, "open", v)
 }
 
-// The zero value is not a member of any of these sets: a column reached
-// without its constant set is a bug worth an error, which an empty string
-// sitting in the table would hide.
+// The zero value is not a member of any of these sets. A column without its
+// constant is a bug that needs an error. An empty string in the table would
+// hide it.
 func TestEnumValueRejectsZero(t *testing.T) {
 	t.Parallel()
 
@@ -64,7 +64,7 @@ func TestEnumScanRoundTrips(t *testing.T) {
 	require.NoError(t, k.Scan("SWEEP"))
 	assert.Equal(t, SourceSweep, k)
 
-	// The driver may hand back either form for a TEXT column.
+	// The driver can return either form for a TEXT column.
 	require.NoError(t, k.Scan([]byte("MANUAL")))
 	assert.Equal(t, SourceManual, k)
 
@@ -74,9 +74,9 @@ func TestEnumScanRoundTrips(t *testing.T) {
 	assert.Equal(t, PortClosed, ps)
 }
 
-// Where the schema carries a CHECK it has already refused these; where it does
-// not, this is the only thing standing between a hand-edited row and code that
-// switches on the value.
+// If the schema has a CHECK, it already refused these values. If it does not,
+// only this check stops a hand-edited row from reaching code that switches on
+// the value.
 func TestEnumScanRejectsUnknown(t *testing.T) {
 	t.Parallel()
 
@@ -135,8 +135,8 @@ func TestEnumValid(t *testing.T) {
 func TestUserRoleAtLeast(t *testing.T) {
 	t.Parallel()
 
-	// The ladder: admin reaches every role, read_write reaches read and itself,
-	// read reaches only read.
+	// The ladder: admin reaches every role. read_write reaches read and
+	// itself. read reaches only read.
 	assert.True(t, RoleAdmin.AtLeast(RoleAdmin))
 	assert.True(t, RoleAdmin.AtLeast(RoleReadWrite))
 	assert.True(t, RoleAdmin.AtLeast(RoleRead))
@@ -148,7 +148,7 @@ func TestUserRoleAtLeast(t *testing.T) {
 	assert.False(t, RoleRead.AtLeast(RoleReadWrite))
 	assert.True(t, RoleRead.AtLeast(RoleRead))
 
-	// An unset role clears no gate, the read gate included.
+	// An unset role passes no gate, also not the read gate.
 	assert.False(t, UserRole("").AtLeast(RoleRead))
 }
 

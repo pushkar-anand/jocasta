@@ -1,15 +1,15 @@
-// Package dbtype carries the column types the SQLite schema stores, each one
-// controlling how a value is rendered to text and read back.
+// Package dbtype holds the column types of the SQLite schema. Each type sets
+// how a value is written as text and read back.
 //
-// The schema keeps timestamps and addresses as TEXT and compares them as TEXT,
-// so what a UNIQUE constraint, a partial index or an ORDER BY is worth depends
-// entirely on every writer agreeing on one spelling. Left to itself the driver
-// does not: it stores a [time.Time] in Go's String form and has no conversion
-// at all from a TEXT column into one.
+// The schema keeps timestamps and addresses as TEXT, and compares them as
+// TEXT. So a UNIQUE constraint, a partial index or an ORDER BY works only if
+// every writer uses one spelling. The driver alone does not do this. It
+// stores a [time.Time] in the String form of Go. It cannot convert a TEXT
+// column into a [time.Time] at all.
 //
-// The enum columns store their values in upper case, so that query output
-// tells a token the schema constrains apart from free text at a glance. Go has
-// no convention for the string a constant holds (MixedCaps governs the
-// identifier), so the identifiers stay MixedCaps over upper-case values, as
-// [net/http.MethodGet] does for "GET".
+// The enum columns store their values in upper case. So in query output, you
+// can see at once which tokens the schema constrains. Go has no convention for
+// the string in a constant. MixedCaps applies only to the identifier. So the
+// identifiers stay MixedCaps, with upper-case values, as [net/http.MethodGet]
+// does for "GET".
 package dbtype

@@ -21,15 +21,15 @@ func TestValueIsTheSchemaFormat(t *testing.T) {
 	assert.Equal(t, rendered, v)
 }
 
-// Comparison is lexicographic, so every value has to render to the same width
-// whatever the clock hands over.
+// The comparison is lexicographic. So every value must render to the same
+// width, for any time from the clock.
 func TestValueIsFixedWidth(t *testing.T) {
 	t.Parallel()
 
 	for _, in := range []time.Time{
 		sample,
-		// Exactly on the second, and a fraction ending in zeros: the two cases
-		// a layout built from nines renders short.
+		// Exactly on the second, and a fraction that ends in zeros. A layout
+		// with nines renders these two cases short.
 		sample.Truncate(time.Second),
 		sample.Truncate(time.Second).Add(500 * time.Millisecond),
 		time.Date(2026, 1, 2, 3, 4, 5, 6_000_000, time.UTC),
@@ -76,8 +76,8 @@ func TestScanAcceptsBytes(t *testing.T) {
 	assert.True(t, got.Equal(sample))
 }
 
-// Ordering is what the fixed width buys, so a rendering that drops the
-// fraction sorts wrongly against its neighbours.
+// The fixed width gives the right order. A rendering without the fraction
+// sorts in the wrong order against its neighbours.
 func TestScanRejectsAVariableWidthRendering(t *testing.T) {
 	t.Parallel()
 
@@ -86,8 +86,8 @@ func TestScanRejectsAVariableWidthRendering(t *testing.T) {
 	assert.Error(t, got.Scan(sample.Truncate(time.Second).Format(time.RFC3339Nano)))
 }
 
-// One accepted rendering is one sort order. Anything else has to fail loudly:
-// read back, it would order wrongly against its neighbours.
+// One accepted rendering gives one sort order. Any other rendering must fail
+// with an error. If it was read, it would sort in the wrong order.
 func TestScanRejectsOtherFormats(t *testing.T) {
 	t.Parallel()
 

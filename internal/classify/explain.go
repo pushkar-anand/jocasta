@@ -1,15 +1,15 @@
 package classify
 
-// This file reports every rule that matched an input and which one [Device]
-// picked: the case the explain_device MCP tool shows, and a way to tune the
-// rules against real data.
+// This file reports every rule that matched an input, and the rule that
+// [Device] picked. The explain_device MCP tool shows this case. It is also a
+// way to tune the rules against real data.
 
 import (
 	"cmp"
 	"slices"
 )
 
-// RuleMatch is one rule that fired for an input.
+// RuleMatch is one rule that matched an input.
 type RuleMatch struct {
 	Class  Class
 	Reason string
@@ -18,15 +18,15 @@ type RuleMatch struct {
 	Winner bool
 }
 
-// Explanation is the full case behind a [Device] call.
+// Explanation is the full case of a [Device] call.
 type Explanation struct {
 	Facts   Facts
 	Result  Result
 	Matches []RuleMatch // every rule that fired, most specific first
 }
 
-// Explain runs the same pipeline as [Device] and returns every rule that
-// matched, along with the winner.
+// Explain runs the same pipeline as [Device]. It returns every rule that
+// matched, and the winner.
 func Explain(in Input) Explanation {
 	f := facts(in)
 	res := Device(in)

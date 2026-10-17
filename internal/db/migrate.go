@@ -12,11 +12,11 @@ import (
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
 
-// migrationDir is the path the migrations are embedded under, below.
+// migrationDir is the path of the embedded migrations below.
 const migrationDir = "migrations"
 
-// migrationFiles carries the schema history in the binary, so a fresh database
-// is brought up to dbVersion with no files on disk.
+// migrationFiles holds the schema history in the binary. So a new database
+// gets to dbVersion with no files on disk.
 //
 //go:embed migrations/*.sql
 var migrationFiles embed.FS
@@ -26,16 +26,17 @@ func migrateDB(conn *sql.DB) error {
 	return migrateTo(conn, dbVersion)
 }
 
-// migrateTo brings conn to version, up or down, using the embedded migrations.
-// An already matching schema succeeds, and conn remains open for the caller.
+// migrateTo brings conn to version, up or down, with the embedded migrations.
+// If the schema already matches, it succeeds. conn stays open for the
+// caller.
 func migrateTo(conn *sql.DB, version uint) error {
 	td, err := sqlite.WithInstance(conn, &sqlite.Config{})
 	if err != nil {
 		return fmt.Errorf("failed to init sqlite migration target: %w", err)
 	}
 
-	// td is deliberately not closed: the sqlite driver's Close closes the
-	// *sql.DB it was handed, which is the connection the caller goes on using.
+	// Do not close td. Close of the sqlite driver closes the *sql.DB that it
+	// got. The caller still uses that connection.
 
 	sd, err := iofs.New(migrationFiles, migrationDir)
 	if err != nil {

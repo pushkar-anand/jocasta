@@ -145,8 +145,9 @@ func TestDevice(t *testing.T) {
 	}
 }
 
-// TestDeviceIsDeterministic guards the tie-breaking: the same input, classified
-// repeatedly, must give the same class and the same reasons in the same order.
+// TestDeviceIsDeterministic guards the tie-breaker. If the classifier runs
+// again on the same input, it must give the same class, and the same reasons
+// in the same order.
 func TestDeviceIsDeterministic(t *testing.T) {
 	t.Parallel()
 
@@ -166,8 +167,8 @@ func TestDeviceIsDeterministic(t *testing.T) {
 	}
 }
 
-// TestDeviceIgnoresPortOrderAndDuplicates checks the input is normalised before
-// the rules see it.
+// TestDeviceIgnoresPortOrderAndDuplicates checks that the classifier
+// normalises the input before the rules see it.
 func TestDeviceIgnoresPortOrderAndDuplicates(t *testing.T) {
 	t.Parallel()
 
@@ -193,8 +194,8 @@ func TestDeviceReasonsNameTheWinningSignals(t *testing.T) {
 }
 
 // TestDeviceMatchesTruncatedVendorNames checks the vendor rule against the forms
-// the OUI table actually stores: the registered name, and the truncated
-// Wireshark form. It also checks a prefix does not bleed into an unrelated name.
+// that the OUI table stores: the registered name, and the cut Wireshark form.
+// It also checks that a prefix does not match a different name.
 func TestDeviceMatchesTruncatedVendorNames(t *testing.T) {
 	t.Parallel()
 

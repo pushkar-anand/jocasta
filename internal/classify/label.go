@@ -1,9 +1,9 @@
 package classify
 
-// Label returns the name a reader sees for c, such as "Access point". It is
-// empty for Unknown and for a class it does not know. The class values are
-// lower-snake identifiers the storage layer keeps; this is the only place they
-// are spelled for a person.
+// Label returns the name of c for a reader, such as "Access point". It is
+// empty for Unknown and for a class that it does not know. The class values
+// are lower-snake identifiers in the storage layer. Only this function spells
+// them for a person.
 func (c Class) Label() string {
 	switch c {
 	case Router:

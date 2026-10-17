@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// newTestDB opens a database in a directory scoped to the test.
+// newTestDB opens a database in a directory for the test only.
 func newTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 
@@ -49,7 +49,7 @@ func TestNewFailsOnUnwritablePath(t *testing.T) {
 }
 
 // TestNewRunsMigrations checks that New leaves the schema at dbVersion, with
-// the tables the queries expect.
+// the tables that the queries expect.
 func TestNewRunsMigrations(t *testing.T) {
 	t.Parallel()
 
@@ -79,8 +79,8 @@ func TestNewRunsMigrations(t *testing.T) {
 	}
 }
 
-// TestNewIsIdempotent covers reopening an already-migrated database, which is
-// what every restart after the first one does.
+// TestNewIsIdempotent covers a second open of a migrated database. Every
+// restart after the first does this.
 func TestNewIsIdempotent(t *testing.T) {
 	t.Parallel()
 
@@ -103,12 +103,12 @@ func TestMigrateDBIsIdempotent(t *testing.T) {
 
 	db := newTestDB(t)
 
-	// New already migrated; running it again must be a no-op.
+	// New already migrated. A second run must do nothing.
 	require.NoError(t, migrateDB(db))
 }
 
 // TestCreateUser exercises the generated queries against a real migrated
-// schema, which is the only place the two are checked against each other.
+// schema. Only this test checks the two against each other.
 func TestCreateUser(t *testing.T) {
 	t.Parallel()
 
@@ -125,8 +125,8 @@ func TestCreateUser(t *testing.T) {
 	assert.NotZero(t, user.ID)
 	assert.Equal(t, "ada", user.Username)
 	assert.Equal(t, "hash", user.PasswordHash)
-	// Reading this back also proves the column default is written in a form
-	// dbtype parses, which is the whole point of the two matching.
+	// This read also proves that the column default has a form that dbtype
+	// parses. The two must match for this reason.
 	assert.False(t, user.CreatedAt.IsZero(), "created_at default was not applied")
 	assert.WithinDuration(t, time.Now(), user.CreatedAt.Time, time.Minute)
 }
@@ -147,8 +147,8 @@ func TestCreateUserRejectsDuplicateUsername(t *testing.T) {
 	assert.Contains(t, err.Error(), "UNIQUE constraint failed")
 }
 
-// TestCreateUserRefusesASecondAdmin checks the schema itself holds an
-// instance to one admin, whichever code path inserts the account.
+// TestCreateUserRefusesASecondAdmin checks that the schema itself limits an
+// instance to one admin, for every code path that inserts the account.
 func TestCreateUserRefusesASecondAdmin(t *testing.T) {
 	t.Parallel()
 
@@ -166,8 +166,8 @@ func TestCreateUserRefusesASecondAdmin(t *testing.T) {
 	assert.NoError(t, err, "other roles have no limit")
 }
 
-// TestCreateFirstUserOnlyIntoAnEmptyTable checks the setup insert writes
-// nothing once any account exists.
+// TestCreateFirstUserOnlyIntoAnEmptyTable checks that the setup insert writes
+// nothing when an account exists.
 func TestCreateFirstUserOnlyIntoAnEmptyTable(t *testing.T) {
 	t.Parallel()
 
@@ -182,9 +182,9 @@ func TestCreateFirstUserOnlyIntoAnEmptyTable(t *testing.T) {
 	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
-// TestMigrationKeepsTheOldestAdmin covers a database that already holds more
-// than one admin: the migration that limits it to one keeps the oldest and
-// makes the others editors, so it cannot fail and stop startup.
+// TestMigrationKeepsTheOldestAdmin covers a database with more than one admin.
+// The migration that limits it to one keeps the oldest admin. It makes the
+// others editors. So it cannot fail and stop startup.
 func TestMigrationKeepsTheOldestAdmin(t *testing.T) {
 	t.Parallel()
 
@@ -223,7 +223,7 @@ func TestMigrationKeepsTheOldestAdmin(t *testing.T) {
 }
 
 // TestTOTPSecretIsFixedOnceEnabled checks the guard on the two enrollment
-// writes: neither touches an account whose 2FA is already on.
+// writes. Neither write changes an account whose 2FA is already on.
 func TestTOTPSecretIsFixedOnceEnabled(t *testing.T) {
 	t.Parallel()
 
@@ -259,9 +259,9 @@ func TestTOTPSecretIsFixedOnceEnabled(t *testing.T) {
 	assert.Equal(t, "FIRSTSECRET", got.TOTPSecret.String)
 }
 
-// TestNewAppliesPragmas checks the DSN pragmas actually reach the connection.
-// foreign_keys is the one that matters: without it every REFERENCES clause in
-// the schema is decorative.
+// TestNewAppliesPragmas checks that the DSN pragmas reach the connection. The
+// important pragma is foreign_keys. Without it, no REFERENCES clause in the
+// schema has an effect.
 func TestNewAppliesPragmas(t *testing.T) {
 	t.Parallel()
 
@@ -276,9 +276,9 @@ func TestNewAppliesPragmas(t *testing.T) {
 	assert.Equal(t, "wal", strings.ToLower(journalMode))
 }
 
-// TestPragmasApplyToEveryPooledConnection is the reason the pragmas live in the
-// DSN. A PRAGMA issued once after Open binds to whichever connection served it,
-// leaving the rest of the pool unconfigured.
+// TestPragmasApplyToEveryPooledConnection shows why the pragmas are in the DSN.
+// A PRAGMA sent once after Open applies only to the connection that ran it.
+// The other connections in the pool do not get it.
 func TestPragmasApplyToEveryPooledConnection(t *testing.T) {
 	t.Parallel()
 
@@ -289,8 +289,8 @@ func TestPragmasApplyToEveryPooledConnection(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = first.Close() })
 
-	// Held at the same time as the first, so the pool has to open a second
-	// connection.
+	// The test holds this connection at the same time as the first. So the
+	// pool must open a second connection.
 	second, err := db.Conn(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = second.Close() })
@@ -302,9 +302,9 @@ func TestPragmasApplyToEveryPooledConnection(t *testing.T) {
 	}
 }
 
-// TestDSNEscapesPath covers a file name holding a character that means
-// something in a URL. Left unescaped, the ? would start the query string
-// early and the pragmas would no longer be read as pragmas.
+// TestDSNEscapesPath covers a file name with a character that has a meaning in
+// a URL. Without an escape, the ? would start the query string too early. The
+// pragmas would then not be read as pragmas.
 func TestDSNEscapesPath(t *testing.T) {
 	t.Parallel()
 
@@ -322,7 +322,8 @@ func BenchmarkDSN(b *testing.B) {
 	}
 }
 
-// queryRows returns every row q selects, each as its column values in order.
+// queryRows returns every row that q selects, each as its column values in
+// order.
 func queryRows(t *testing.T, conn *sql.DB, q string) [][]any {
 	t.Helper()
 
@@ -354,7 +355,8 @@ func queryRows(t *testing.T, conn *sql.DB, q string) [][]any {
 	return out
 }
 
-// peerOnDelete returns what deleting the peer device does to table's rows.
+// peerOnDelete returns what a delete of the peer device does to the rows of
+// table.
 func peerOnDelete(t *testing.T, conn *sql.DB, table string) string {
 	t.Helper()
 
@@ -367,9 +369,10 @@ func peerOnDelete(t *testing.T, conn *sql.DB, table string) string {
 }
 
 // TestPeerSetNullRebuildKeepsEveryColumn covers migration 16, which rebuilds
-// the traffic and attempt tables. Every column of a row survives the copy, a
-// row whose peer device is gone keeps its address with no peer device, and a
-// row whose own device is gone is dropped. Going back down keeps the rows.
+// the traffic and attempt tables. Every column of a row stays after the copy.
+// If the peer device of a row is gone, the row keeps its address with no peer
+// device. If the own device of a row is gone, the migration deletes the row.
+// The down migration keeps the rows.
 func TestPeerSetNullRebuildKeepsEveryColumn(t *testing.T) {
 	t.Parallel()
 
@@ -381,7 +384,7 @@ func TestPeerSetNullRebuildKeepsEveryColumn(t *testing.T) {
 
 	require.NoError(t, migrateTo(conn, 15))
 
-	// The orphans below cannot be written while foreign keys are enforced.
+	// The test cannot write the orphans below while foreign keys are on.
 	seed, err := conn.Conn(ctx)
 	require.NoError(t, err)
 
@@ -447,10 +450,10 @@ func TestPeerSetNullRebuildKeepsEveryColumn(t *testing.T) {
 }
 
 // TestClaimsPerAddressBackfillsTheAddress covers migration 22, which keys
-// device_sources by address. An existing claim takes the device's lowest
-// current address, or its latest when none is current, and a claim about a
-// device with no address is dropped. Going back down keeps one claim per
-// device and source.
+// device_sources by address. An existing claim takes the lowest current
+// address of the device. If no address is current, it takes the latest. The
+// migration deletes a claim about a device with no address. The down
+// migration keeps one claim for each device and source.
 func TestClaimsPerAddressBackfillsTheAddress(t *testing.T) {
 	t.Parallel()
 
@@ -488,8 +491,9 @@ func TestClaimsPerAddressBackfillsTheAddress(t *testing.T) {
 
 	require.NoError(t, migrateTo(conn, 22))
 
-	// Only a device that has held one address says which address its claim was
-	// about; the others keep no name or detail until each is read again.
+	// Only a device that had one address tells which address its claim was
+	// about. The others keep no name or detail until a source reads each one
+	// again.
 	assert.Equal(t, [][]any{
 		{int64(1), "192.0.2.10", nil, nil, nil},
 		{int64(2), "192.0.2.31", nil, nil, nil},
@@ -516,9 +520,9 @@ func TestClaimsPerAddressBackfillsTheAddress(t *testing.T) {
 }
 
 // TestTimestampWritersAgreeOnOrdering covers the two writers of a timestamp
-// column: SQLite's own default and a Go value through dbtype. They are
-// compared as TEXT, so a disagreement over separator or width would order rows
-// by which writer produced them.
+// column: the SQLite default and a Go value through dbtype. SQLite compares
+// them as TEXT. So if they used a different separator or width, the order of
+// rows would depend on the writer.
 func TestTimestampWritersAgreeOnOrdering(t *testing.T) {
 	t.Parallel()
 
