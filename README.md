@@ -139,6 +139,14 @@ The same pages are in [`docs/`](docs/):
 Report bugs and ask questions in
 [GitHub issues](https://github.com/pushkar-anand/jocasta/issues).
 
+## The name
+
+Jocasta is named after Jocasta Nu, the chief librarian of the Jedi Archives.
+She keeps the records of the Jedi. Jocasta keeps the records of the devices on
+your network.
+
+> If an item does not appear in Jocasta's records, it does not exist.
+
 ## License
 
 Jocasta is released under the [GNU AGPL-3.0](LICENSE).
