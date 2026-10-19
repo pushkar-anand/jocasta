@@ -1845,8 +1845,14 @@
 
 
 <h1 id="check-a-webhooks-signature">Check a webhook's signature<a class="headerlink" href="#check-a-webhooks-signature" title="Permanent link">&para;</a></h1>
-<p>A webhook request is a POST. Its JSON body has <code>title</code>, <code>message</code>,
-<code>scan_id</code> and <code>events</code>. The request has two headers:</p>
+<p>A webhook request is a POST. Its JSON body has these fields:</p>
+<ul>
+<li><code>title</code> and <code>message</code>: the text of the notification.</li>
+<li><code>scan_id</code>: the scan the changes came from. It can be missing.</li>
+<li><code>events</code>: the changes. Each change has a <code>kind</code>. It can also have
+  <code>device_id</code>, <code>device</code> and <code>change</code>.</li>
+</ul>
+<p>The request has two headers:</p>
 <ul>
 <li><code>X-Jocasta-Signature-256</code>: <code>sha256=</code>, then the hex HMAC-SHA256 of the raw
   body. The key is the <code>secret</code> of the destination.</li>

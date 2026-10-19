@@ -953,7 +953,13 @@ inventory:
 
 # Check a webhook's signature
 
-A webhook request is a POST. Its JSON body has `title`, `message`, `scan_id` and `events`. The request has two headers:
+A webhook request is a POST. Its JSON body has these fields:
+
+- `title` and `message`: the text of the notification.
+- `scan_id`: the scan the changes came from. It can be missing.
+- `events`: the changes. Each change has a `kind`. It can also have `device_id`, `device` and `change`.
+
+The request has two headers:
 
 - `X-Jocasta-Signature-256`: `sha256=`, then the hex HMAC-SHA256 of the raw body. The key is the `secret` of the destination.
 - `X-Jocasta-Delivery`: a random ID for this request. Log it. If you already handled a delivery with this ID, discard the request.
