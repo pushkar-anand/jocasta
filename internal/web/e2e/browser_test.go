@@ -15,12 +15,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/emulation"
 	cdplog "github.com/chromedp/cdproto/log"
 	"github.com/chromedp/cdproto/network"
 	cdppage "github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
+	"github.com/chromedp/chromedp/remote"
 	"github.com/pushkar-anand/jocasta/internal/db/dbtype"
 )
 
@@ -94,7 +96,7 @@ func newBrowser(ctx context.Context) (*browser, error) {
 	)
 
 	if u := os.Getenv("E2E_CHROME_URL"); u != "" {
-		alloc, cancel = chromedp.NewRemoteAllocator(ctx, u)
+		alloc, cancel = remote.NewAllocator(ctx, u)
 	} else {
 		opts := append(chromedp.DefaultExecAllocatorOptions[:],
 			chromedp.Flag("hide-scrollbars", true),
@@ -109,7 +111,7 @@ func newBrowser(ctx context.Context) (*browser, error) {
 	}
 
 	bctx, bcancel := chromedp.NewContext(alloc, chromedp.WithErrorf(quietErrorf))
-	if err := chromedp.Run(bctx); err != nil {
+	if err := chromedp.Do(bctx); err != nil {
 		bcancel()
 		cancel()
 
@@ -142,46 +144,63 @@ func (b *browser) newTab(cookies []*http.Cookie, origin string) (*tab, func(), e
 	ctx, cancel := chromedp.NewContext(b.ctx)
 	t := &tab{ctx: ctx}
 
-	chromedp.ListenTarget(ctx, func(ev any) {
-		t.mu.Lock()
-		defer t.mu.Unlock()
+	listen(ctx, t, runtime.ExceptionThrown, func(e runtime.EventExceptionThrown) *problem {
+		// The text that cdproto gave the exception before it dropped Error.
+		// The known findings match on it.
+		d := e.ExceptionDetails
 
-		switch e := ev.(type) {
-		case *runtime.EventExceptionThrown:
-			t.errors = append(t.errors, problem{Check: "script-error", Detail: e.ExceptionDetails.Error()})
-		case *runtime.EventConsoleAPICalled:
-			if e.Type == runtime.APITypeError {
-				var parts []string
-				for _, a := range e.Args {
-					parts = append(parts, strings.Trim(string(a.Value), `"`))
-				}
-
-				t.errors = append(t.errors, problem{Check: "console-error", Detail: strings.Join(parts, " ")})
-			}
-		case *cdplog.EventEntryAdded:
-			if e.Entry.Level == cdplog.LevelError {
-				t.errors = append(t.errors, problem{Check: "console-error", Detail: e.Entry.Text + " " + e.Entry.URL})
-			}
-		case *network.EventResponseReceived:
-			if e.Response.Status >= 400 {
-				t.errors = append(t.errors, problem{Check: "http-error", Detail: fmt.Sprintf("%d %s", e.Response.Status, e.Response.URL)})
-			}
-		case *network.EventLoadingFailed:
-			if !e.Canceled {
-				t.errors = append(t.errors, problem{Check: "request-failed", Detail: e.ErrorText})
-			}
+		detail := fmt.Sprintf("exception %q (%d:%d)", d.Text, d.LineNumber, d.ColumnNumber)
+		if d.Exception != nil {
+			detail += ": " + d.Exception.Description
 		}
+
+		return &problem{Check: "script-error", Detail: detail}
+	})
+	listen(ctx, t, runtime.ConsoleAPICalled, func(e runtime.EventConsoleAPICalled) *problem {
+		if e.Type != runtime.ConsoleAPICalledTypeError {
+			return nil
+		}
+
+		var parts []string
+		for _, a := range e.Args {
+			parts = append(parts, strings.Trim(string(a.Value), `"`))
+		}
+
+		return &problem{Check: "console-error", Detail: strings.Join(parts, " ")}
+	})
+	listen(ctx, t, cdplog.EntryAdded, func(e cdplog.EventEntryAdded) *problem {
+		if e.Entry.Level != cdplog.EntryLevelError {
+			return nil
+		}
+
+		return &problem{Check: "console-error", Detail: e.Entry.Text + " " + e.Entry.URL}
+	})
+	listen(ctx, t, network.ResponseReceived, func(e network.EventResponseReceived) *problem {
+		if e.Response.Status < 400 {
+			return nil
+		}
+
+		return &problem{Check: "http-error", Detail: fmt.Sprintf("%d %s", e.Response.Status, e.Response.URL)}
+	})
+	listen(ctx, t, network.LoadingFailed, func(e network.EventLoadingFailed) *problem {
+		if e.Canceled {
+			return nil
+		}
+
+		return &problem{Check: "request-failed", Detail: e.ErrorText}
 	})
 
-	err := chromedp.Run(ctx,
-		network.Enable(),
-		cdplog.Enable(),
+	err := chromedp.Do(ctx,
+		cmd(network.Enable, network.EnableParams{}),
+		cmd(cdplog.Enable, cdp.Empty{}),
 		// Tabs in one Chrome share its cookies. So a signed-out page drawn
 		// after a signed-in page would still find the session.
-		network.ClearBrowserCookies(),
-		chromedp.ActionFunc(func(ctx context.Context) error {
+		cmd(network.ClearBrowserCookies, cdp.Empty{}),
+		chromedp.Func(func(ctx context.Context, _ *chromedp.Target) error {
 			for _, c := range cookies {
-				err := network.SetCookie(c.Name, c.Value).WithURL(origin).WithHTTPOnly(c.HttpOnly).Do(ctx)
+				_, err := chromedp.Call(ctx, network.SetCookie, network.SetCookieParams{
+					Name: c.Name, Value: c.Value, URL: origin, HTTPOnly: &c.HttpOnly,
+				})
 				if err != nil {
 					return err
 				}
@@ -199,6 +218,34 @@ func (b *browser) newTab(cookies []*http.Cookie, origin string) (*tab, func(), e
 	return t, cancel, nil
 }
 
+// listen adds a problem to the tab for each event that report turns into one.
+func listen[E any](ctx context.Context, t *tab, ev cdp.Event[E], report func(E) *problem) {
+	events := chromedp.Events(ctx, ev)
+
+	go func() {
+		for e, err := range events {
+			if err != nil {
+				return
+			}
+
+			if p := report(e); p != nil {
+				t.mu.Lock()
+				t.errors = append(t.errors, *p)
+				t.mu.Unlock()
+			}
+		}
+	}()
+}
+
+// cmd makes an action that sends one protocol command.
+func cmd[P, R any](c cdp.Command[P, R], params P) chromedp.Action[chromedp.Void] {
+	return chromedp.Func(func(ctx context.Context, _ *chromedp.Target) error {
+		_, err := chromedp.Call(ctx, c, params)
+
+		return err
+	})
+}
+
 func (t *tab) drain() []problem {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -211,40 +258,40 @@ func (t *tab) drain() []problem {
 
 // emulate sets the screen and the colour scheme, with reduced motion. So a
 // screenshot never catches a transition in the middle.
-func emulate(v viewport, theme string) chromedp.Action {
+func emulate(v viewport, theme string) chromedp.Action[chromedp.Void] {
 	opts := []chromedp.EmulateViewportOption{chromedp.EmulateScale(v.dpr)}
 	if v.touch {
 		opts = append(opts, chromedp.EmulateMobile, chromedp.EmulateTouch)
 	}
 
-	return chromedp.Tasks{
+	return chromedp.Steps(
 		chromedp.EmulateViewport(v.w, v.h, opts...),
-		emulation.SetEmulatedMedia().WithFeatures([]*emulation.MediaFeature{
+		cmd(emulation.SetEmulatedMedia, emulation.SetEmulatedMediaParams{Features: []*emulation.MediaFeature{
 			{Name: "prefers-color-scheme", Value: theme},
 			{Name: "prefers-reduced-motion", Value: "reduce"},
-		}),
-	}
+		}}),
+	)
 }
 
 // settle waits for the fonts, and for htmx to finish what the page load
 // started.
-func settle() chromedp.Action {
-	return chromedp.ActionFunc(func(ctx context.Context) error {
+func settle() chromedp.Action[chromedp.Void] {
+	return chromedp.Func(func(ctx context.Context, t *chromedp.Target) error {
 		deadline := time.Now().Add(10 * time.Second)
 
 		for time.Now().Before(deadline) {
-			var done bool
-
-			err := chromedp.Evaluate(`document.readyState === 'complete' && document.fonts.status === 'loaded' && !document.querySelector('.htmx-request, .htmx-settling, .htmx-swapping')`, &done).Do(ctx)
+			done, err := chromedp.Evaluate[bool](`document.readyState === 'complete' && document.fonts.status === 'loaded' && !document.querySelector('.htmx-request, .htmx-settling, .htmx-swapping')`)(ctx, t)
 			if err != nil {
 				return err
 			}
 
 			if done {
-				return chromedp.Sleep(150 * time.Millisecond).Do(ctx)
+				_, err := chromedp.Sleep(150*time.Millisecond)(ctx, t)
+
+				return err
 			}
 
-			if err := chromedp.Sleep(50 * time.Millisecond).Do(ctx); err != nil {
+			if _, err := chromedp.Sleep(50*time.Millisecond)(ctx, t); err != nil {
 				return err
 			}
 		}
@@ -255,24 +302,22 @@ func settle() chromedp.Action {
 
 // check runs the layout checks and the WCAG AA rules of axe against the
 // current page.
-func check(v viewport, out *[]problem) chromedp.Action {
-	return chromedp.ActionFunc(func(ctx context.Context) error {
-		var layout []problem
-
+func check(v viewport, out *[]problem) chromedp.Action[chromedp.Void] {
+	return chromedp.Func(func(ctx context.Context, t *chromedp.Target) error {
 		expr := fmt.Sprintf("(%s)({touch: %t})", strings.TrimSpace(invariantsJS), v.touch)
-		if err := chromedp.Evaluate(expr, &layout).Do(ctx); err != nil {
+
+		layout, err := chromedp.Evaluate[[]problem](expr)(ctx, t)
+		if err != nil {
 			return fmt.Errorf("invariants: %w", err)
 		}
 
 		*out = append(*out, layout...)
 
-		if err := chromedp.Evaluate(axeJS, nil).Do(ctx); err != nil {
+		if _, err := chromedp.Evaluate[chromedp.Void](axeJS)(ctx, t); err != nil {
 			return fmt.Errorf("load axe: %w", err)
 		}
 
-		var axe []problem
-
-		err := chromedp.Evaluate(`(async () => {
+		axe, err := chromedp.Evaluate[[]problem](`(async () => {
 			const modal = [...document.querySelectorAll('dialog[open]')].find((d) => d.matches(':modal'));
 			const r = await axe.run(modal || document, {
 				runOnly: {type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']},
@@ -283,7 +328,7 @@ func check(v viewport, out *[]problem) chromedp.Action {
 				out.push({check: 'axe:' + v.id, el: n.target.join(' '), detail: (n.failureSummary || v.help).replace(/\s+/g, ' ').slice(0, 300)});
 			}
 			return out;
-		})()`, &axe, func(p *runtime.EvaluateParams) *runtime.EvaluateParams { return p.WithAwaitPromise(true) }).Do(ctx)
+		})()`, chromedp.EvalAwaitPromise)(ctx, t)
 		if err != nil {
 			return fmt.Errorf("axe: %w", err)
 		}
@@ -310,9 +355,9 @@ func capture(b *browser, a *app, r role, cookies []*http.Cookie, v viewport, the
 		Page: p.name, State: s.name, URL: p.path, Problems: []problem{},
 	}
 
-	tasks := chromedp.Tasks{
+	tasks := []chromedp.Action[chromedp.Void]{
 		// A background tab gets no frames. A screenshot waits for one.
-		cdppage.BringToFront(),
+		cmd(cdppage.BringToFront, cdp.Empty{}),
 		emulate(v, theme),
 		chromedp.Navigate(a.srv.URL + p.path),
 		settle(),
@@ -332,11 +377,11 @@ func capture(b *browser, a *app, r role, cookies []*http.Cookie, v viewport, the
 	}
 
 	if os.Getenv("E2E_TIMING") != "" {
-		timed := make(chromedp.Tasks, 0, len(tasks))
+		timed := make([]chromedp.Action[chromedp.Void], 0, len(tasks))
 		for i, a := range tasks {
-			timed = append(timed, chromedp.ActionFunc(func(ctx context.Context) error {
+			timed = append(timed, chromedp.Func(func(ctx context.Context, t *chromedp.Target) error {
 				start := time.Now()
-				err := a.Do(ctx)
+				_, err := a(ctx, t)
 
 				fmt.Printf("%s/%s step %d: %s\n", p.name, s.name, i, time.Since(start))
 
@@ -347,7 +392,7 @@ func capture(b *browser, a *app, r role, cookies []*http.Cookie, v viewport, the
 		tasks = timed
 	}
 
-	if err := chromedp.Run(ctx, tasks); err != nil {
+	if err := chromedp.Do(ctx, tasks...); err != nil {
 		return nil, fmt.Errorf("%s %s: %w", p.name, s.name, err)
 	}
 
@@ -377,33 +422,34 @@ const maxShotPixels = 16000
 
 // screenshot captures the page from the top, as far down as maxShotPixels
 // allows.
-func screenshot(v viewport, out *[]byte) chromedp.Action {
-	return chromedp.ActionFunc(func(ctx context.Context) error {
-		var h float64
-		if err := chromedp.Evaluate(`document.documentElement.scrollHeight`, &h).Do(ctx); err != nil {
+func screenshot(v viewport, out *[]byte) chromedp.Action[chromedp.Void] {
+	return chromedp.Func(func(ctx context.Context, t *chromedp.Target) error {
+		h, err := chromedp.Evaluate[float64](`document.documentElement.scrollHeight`)(ctx, t)
+		if err != nil {
 			return err
 		}
 
 		if h*v.dpr <= maxShotPixels {
-			return chromedp.FullScreenshot(out, 100).Do(ctx)
+			*out, err = chromedp.FullScreenshot(100)(ctx, t)
+
+			return err
 		}
 
 		// Too tall at this density. Draw it again at 1x. This keeps the whole
 		// page on most pages.
-		if err := chromedp.EmulateViewport(v.w, v.h, chromedp.EmulateScale(1)).Do(ctx); err != nil {
+		if _, err := chromedp.EmulateViewport(v.w, v.h, chromedp.EmulateScale(1))(ctx, t); err != nil {
 			return err
 		}
 
-		clip := &cdppage.Viewport{Width: float64(v.w), Height: min(h, maxShotPixels), Scale: 1}
+		yes := true
 
-		var err error
-
-		*out, err = cdppage.CaptureScreenshot().
-			WithFormat(cdppage.CaptureScreenshotFormatPng).
-			WithCaptureBeyondViewport(true).
-			WithFromSurface(true).
-			WithClip(clip).
-			Do(ctx)
+		r, err := chromedp.Call(ctx, cdppage.CaptureScreenshot, cdppage.CaptureScreenshotParams{
+			Format:                cdppage.CaptureScreenshotFormatPng,
+			CaptureBeyondViewport: &yes,
+			FromSurface:           &yes,
+			Clip:                  &cdppage.Viewport{Width: float64(v.w), Height: min(h, maxShotPixels), Scale: 1},
+		})
+		*out = r.Data
 
 		return err
 	})
@@ -411,28 +457,33 @@ func screenshot(v viewport, out *[]byte) chromedp.Action {
 
 // firstScreen captures what a reader sees before a scroll, at 1x. So a stored
 // picture stays small. It hides the text caret, because the caret blinks.
-func firstScreen(v viewport, out *[]byte) chromedp.Action {
-	return chromedp.ActionFunc(func(ctx context.Context) error {
+func firstScreen(v viewport, out *[]byte) chromedp.Action[chromedp.Void] {
+	return chromedp.Func(func(ctx context.Context, t *chromedp.Target) error {
 		opts := []chromedp.EmulateViewportOption{chromedp.EmulateScale(1)}
 		if v.touch {
 			opts = append(opts, chromedp.EmulateMobile, chromedp.EmulateTouch)
 		}
 
-		err := chromedp.Tasks{
+		_, err := chromedp.Steps(
 			chromedp.EmulateViewport(v.w, v.h, opts...),
 			// Through the CSSOM. The content security policy refuses a
 			// <style> element, and a test must not need to remove it.
-			chromedp.Evaluate(`(() => {
+			chromedp.Evaluate[chromedp.Void](`(() => {
 				if (document.activeElement) document.activeElement.style.caretColor = 'transparent';
 				window.scrollTo(0, 0);
-			})()`, nil),
-			chromedp.Sleep(100 * time.Millisecond),
-		}.Do(ctx)
+			})()`),
+			chromedp.Sleep(100*time.Millisecond),
+		)(ctx, t)
 		if err != nil {
 			return err
 		}
 
-		*out, err = cdppage.CaptureScreenshot().WithFormat(cdppage.CaptureScreenshotFormatPng).WithFromSurface(true).Do(ctx)
+		yes := true
+
+		r, err := chromedp.Call(ctx, cdppage.CaptureScreenshot, cdppage.CaptureScreenshotParams{
+			Format: cdppage.CaptureScreenshotFormatPng, FromSurface: &yes,
+		})
+		*out = r.Data
 
 		return err
 	})

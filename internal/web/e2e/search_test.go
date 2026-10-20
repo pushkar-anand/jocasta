@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chromedp/cdproto/cdp"
 	cdppage "github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 	"github.com/chromedp/chromedp/kb"
@@ -57,25 +58,25 @@ func TestSearchKeepsFocus(t *testing.T) {
 				reqs    int
 			)
 
-			err = chromedp.Run(tctx,
-				cdppage.BringToFront(),
+			err = chromedp.Do(tctx,
+				cmd(cdppage.BringToFront, cdp.Empty{}),
 				emulate(laptop, "light"),
 				chromedp.Navigate(a.srv.URL+c.path),
 				settle(),
-				chromedp.Evaluate(`window.__reqs = 0; document.addEventListener('htmx:beforeRequest', () => window.__reqs++)`, nil),
-				chromedp.Click(c.input, chromedp.ByQuery),
+				chromedp.Evaluate[chromedp.Void](`window.__reqs = 0; document.addEventListener('htmx:beforeRequest', () => window.__reqs++)`),
+				chromedp.Click(chromedp.CSS(c.input)),
 				// Type with pauses longer than the debounce. So a request is
 				// active when the next key arrives.
-				chromedp.SendKeys(c.input, "l", chromedp.ByQuery),
+				chromedp.SendKeys(chromedp.CSS(c.input), "l"),
 				chromedp.Sleep(400*time.Millisecond),
-				chromedp.SendKeys(c.input, "a", chromedp.ByQuery),
+				chromedp.SendKeys(chromedp.CSS(c.input), "a"),
 				chromedp.Sleep(400*time.Millisecond),
-				chromedp.SendKeys(c.input, "p", chromedp.ByQuery),
+				chromedp.SendKeys(chromedp.CSS(c.input), "p"),
 				chromedp.Sleep(time.Second),
 				settle(),
-				chromedp.Evaluate(`document.activeElement === document.querySelector(`+"`"+c.input+"`"+`)`, &focused),
-				chromedp.Evaluate(`document.querySelector(`+"`"+c.input+"`"+`).value`, &value),
-				chromedp.Evaluate(`window.__reqs`, &reqs),
+				into(&focused, chromedp.Evaluate[bool](`document.activeElement === document.querySelector(`+"`"+c.input+"`"+`)`)),
+				into(&value, chromedp.Evaluate[string](`document.querySelector(`+"`"+c.input+"`"+`).value`)),
+				into(&reqs, chromedp.Evaluate[int](`window.__reqs`)),
 			)
 			if err != nil {
 				t.Fatal(err)
@@ -100,20 +101,20 @@ func TestSearchKeepsFocus(t *testing.T) {
 
 			var selFocused bool
 
-			err = chromedp.Run(tctx,
-				chromedp.SendKeys(c.input, kb.Backspace+kb.Backspace+kb.Backspace, chromedp.ByQuery),
+			err = chromedp.Do(tctx,
+				chromedp.SendKeys(chromedp.CSS(c.input), kb.Backspace+kb.Backspace+kb.Backspace),
 				chromedp.Sleep(time.Second),
 				settle(),
-				chromedp.Evaluate(`window.__reqs`, &reqs),
-				chromedp.Evaluate(`(() => {
+				into(&reqs, chromedp.Evaluate[int](`window.__reqs`)),
+				chromedp.Evaluate[chromedp.Void](`(() => {
 					const el = document.querySelector(`+"`"+c.sel+"`"+`);
 					el.focus();
 					el.value = el.options[1].value;
 					el.dispatchEvent(new Event('change', {bubbles: true}));
-				})()`, nil),
+				})()`),
 				chromedp.Sleep(500*time.Millisecond),
 				settle(),
-				chromedp.Evaluate(`document.activeElement === document.querySelector(`+"`"+c.sel+"`"+`)`, &selFocused),
+				into(&selFocused, chromedp.Evaluate[bool](`document.activeElement === document.querySelector(`+"`"+c.sel+"`"+`)`)),
 			)
 			if err != nil {
 				t.Fatal(err)
@@ -128,4 +129,16 @@ func TestSearchKeepsFocus(t *testing.T) {
 			}
 		})
 	}
+}
+
+// into makes an action that stores the value of a in v. So a value can come
+// out of a list of steps.
+func into[T any](v *T, a chromedp.Action[T]) chromedp.Action[chromedp.Void] {
+	return chromedp.Func(func(ctx context.Context, t *chromedp.Target) error {
+		var err error
+
+		*v, err = a(ctx, t)
+
+		return err
+	})
 }
