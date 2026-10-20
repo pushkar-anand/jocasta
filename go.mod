@@ -1,6 +1,6 @@
 module github.com/pushkar-anand/jocasta
 
-go 1.27.2
+go 1.27.3
 
 require (
 	github.com/Masterminds/squirrel v1.5.4
