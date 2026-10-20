@@ -1,5 +1,11 @@
 # jocasta
 
+[![CI](https://github.com/pushkar-anand/jocasta/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/pushkar-anand/jocasta/actions/workflows/ci.yaml)
+[![Release](https://img.shields.io/github/v/release/pushkar-anand/jocasta)](https://github.com/pushkar-anand/jocasta/releases/latest)
+[![Docs](https://img.shields.io/badge/docs-site-blue)](https://pushkar-anand.github.io/jocasta/)
+[![Go](https://img.shields.io/github/go-mod/go-version/pushkar-anand/jocasta)](go.mod)
+[![License: AGPL-3.0](https://img.shields.io/github/license/pushkar-anand/jocasta)](LICENSE)
+
 Jocasta keeps an inventory of the devices on your network. It recognises each
 device by its hardware address, so a device keeps its label and notes when its
 IP changes, and it logs every change it sees. Connect your router and Jocasta
