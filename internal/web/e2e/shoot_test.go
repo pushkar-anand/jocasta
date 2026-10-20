@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chromedp/cdproto/cdp"
 	cdppage "github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 )
@@ -134,34 +135,34 @@ func shoot(b *browser, a *app, s shotSpec, file string) error {
 
 	var png []byte
 
-	err = chromedp.Run(ctx,
-		cdppage.BringToFront(),
+	err = chromedp.Do(ctx,
+		cmd(cdppage.BringToFront, cdp.Empty{}),
 		emulate(v, theme),
 		chromedp.Navigate(a.srv.URL+s.Path),
 		settle(),
-		chromedp.ActionFunc(func(ctx context.Context) error {
+		chromedp.Func(func(ctx context.Context, t *chromedp.Target) error {
 			if s.Do == "" {
 				return nil
 			}
 
-			if err := chromedp.Evaluate(s.Do, nil).Do(ctx); err != nil {
+			if _, err := chromedp.Evaluate[chromedp.Void](s.Do)(ctx, t); err != nil {
 				return err
 			}
 
-			return settle().Do(ctx)
+			_, err := settle()(ctx, t)
+
+			return err
 		}),
-		chromedp.ActionFunc(func(ctx context.Context) error {
+		chromedp.Func(func(ctx context.Context, t *chromedp.Target) error {
 			clip := &cdppage.Viewport{Width: float64(v.w), Height: float64(v.h), Scale: 1}
 
 			if s.Selector != "" {
-				var box struct{ X, Y, W, H float64 }
-
-				err := chromedp.Evaluate(fmt.Sprintf(`(() => {
+				box, err := chromedp.Evaluate[struct{ X, Y, W, H float64 }](fmt.Sprintf(`(() => {
 					const el = document.querySelector(%q);
 					if (!el) return null;
 					const r = el.getBoundingClientRect();
 					return {X: r.left + scrollX, Y: r.top + scrollY, W: r.width, H: r.height};
-				})()`, s.Selector), &box).Do(ctx)
+				})()`, s.Selector))(ctx, t)
 				if err != nil {
 					return err
 				}
@@ -177,14 +178,15 @@ func shoot(b *browser, a *app, s shotSpec, file string) error {
 				clip.Height = min(box.H+2*pad, maxShotPixels/v.dpr)
 			}
 
-			var err error
+			yes := true
 
-			png, err = cdppage.CaptureScreenshot().
-				WithFormat(cdppage.CaptureScreenshotFormatPng).
-				WithCaptureBeyondViewport(true).
-				WithFromSurface(true).
-				WithClip(clip).
-				Do(ctx)
+			r, err := chromedp.Call(ctx, cdppage.CaptureScreenshot, cdppage.CaptureScreenshotParams{
+				Format:                cdppage.CaptureScreenshotFormatPng,
+				CaptureBeyondViewport: &yes,
+				FromSurface:           &yes,
+				Clip:                  clip,
+			})
+			png = r.Data
 
 			return err
 		}),

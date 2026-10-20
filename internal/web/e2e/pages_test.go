@@ -31,7 +31,7 @@ type page struct {
 // opened menu, or a row in edit.
 type state struct {
 	name string
-	do   chromedp.Action
+	do   chromedp.Action[chromedp.Void]
 
 	// status is the intended response of this state, when it is an error page
 	// on purpose.
@@ -44,16 +44,14 @@ var base = state{name: "base"}
 // an edit of a row of an empty list.
 var errNotApplicable = errors.New("state does not apply")
 
-func click(sel string) chromedp.Action {
-	return chromedp.ActionFunc(func(ctx context.Context) error {
-		var found bool
-
-		err := chromedp.Evaluate(fmt.Sprintf(`(() => {
+func click(sel string) chromedp.Action[chromedp.Void] {
+	return chromedp.Func(func(ctx context.Context, t *chromedp.Target) error {
+		found, err := chromedp.Evaluate[bool](fmt.Sprintf(`(() => {
 			const el = document.querySelector(%q);
 			if (!el) return false;
 			el.click();
 			return true;
-		})()`, sel), &found).Do(ctx)
+		})()`, sel))(ctx, t)
 		if err != nil {
 			return err
 		}
@@ -67,19 +65,17 @@ func click(sel string) chromedp.Action {
 }
 
 var (
-	openDetails = state{name: "details-open", do: chromedp.Evaluate(
-		`document.querySelectorAll('details:not(.usermenu)').forEach((d) => { d.open = true; })`, nil)}
+	openDetails = state{name: "details-open", do: chromedp.Evaluate[chromedp.Void](
+		`document.querySelectorAll('details:not(.usermenu)').forEach((d) => { d.open = true; })`)}
 	openUserMenu = state{name: "user-menu", do: click("details.usermenu > summary")}
 	editRow      = state{name: "row-edit", do: click(`[hx-get$="/edit"]`)}
 
 	// openDrawer applies only where the menu button shows: below 60rem.
-	openDrawer = state{name: "drawer", do: chromedp.ActionFunc(func(ctx context.Context) error {
-		var shown bool
-
-		err := chromedp.Evaluate(`(() => {
+	openDrawer = state{name: "drawer", do: chromedp.Func(func(ctx context.Context, t *chromedp.Target) error {
+		shown, err := chromedp.Evaluate[bool](`(() => {
 			const el = document.querySelector('.topbar__menu');
 			return !!el && getComputedStyle(el).display !== 'none';
-		})()`, &shown).Do(ctx)
+		})()`)(ctx, t)
 		if err != nil {
 			return err
 		}
@@ -88,7 +84,9 @@ var (
 			return errNotApplicable
 		}
 
-		return click(".topbar__menu").Do(ctx)
+		_, err = click(".topbar__menu")(ctx, t)
+
+		return err
 	})}
 )
 
@@ -101,11 +99,11 @@ func dialog(id string) state {
 // ids from the writes of the fixture.
 func pages(ctx context.Context, a *app) ([]page, error) {
 	ps := []page{
-		{name: "login", path: "/login", signedOut: true, states: []state{base, {name: "failed", do: chromedp.Tasks{
-			chromedp.SetValue(`input[name=username]`, "nobody", chromedp.ByQuery),
-			chromedp.SetValue(`input[name=password]`, "wrong-password", chromedp.ByQuery),
+		{name: "login", path: "/login", signedOut: true, states: []state{base, {name: "failed", do: chromedp.Steps(
+			chromedp.SetValue(chromedp.CSS(`input[name=username]`), "nobody"),
+			chromedp.SetValue(chromedp.CSS(`input[name=password]`), "wrong-password"),
 			click(`form button[type=submit]`),
-		}, status: 401}}},
+		), status: 401}}},
 		{name: "overview", path: "/", states: []state{base, openUserMenu, openDrawer}},
 		{name: "devices", path: "/devices", states: []state{base, editRow}},
 		{name: "devices-page2", path: "/devices?page=2", states: []state{base}},
