@@ -120,10 +120,12 @@ commit_preprocessors = [
   # Squash merges end the subject with the PR number; link it.
   { pattern = '^([^\n]*) \(#(\d+)\)', replace = "${1} ([#${2}](https://github.com/pushkar-anand/jocasta/pull/${2}))" },
 ]
-# Only features and fixes are listed. Every other commit lands in Other, which
-# the templates leave out, so its breaking change or upgrade note still shows.
+# Features, fixes and chores are listed. Every other commit lands in Other,
+# which the templates leave out, so its breaking change or upgrade note
+# still shows.
 commit_parsers = [
   { message = "^feat", group = "<!-- 0 -->Features" },
   { message = "^fix", group = "<!-- 1 -->Fixes" },
+  { message = "^chore", group = "<!-- 2 -->Maintenance" },
   { message = ".*", group = "Other" },
 ]
