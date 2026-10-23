@@ -38,9 +38,10 @@ Jocasta identifies a device by its hardware (MAC) address. An IP address is
 treated as a lease the device holds for now, so the label, group and notes you
 give a device stay with it when the address changes.
 
-On its own, Jocasta sweeps the networks you list. It takes each device's name
-from reverse DNS, or asks the device itself over mDNS, NetBIOS, DNS-SD or
-SSDP. Connect your router and it also reads the router's ARP and DHCP tables.
+On its own, Jocasta sweeps the networks you list, or the network of the host
+if you list none. It takes each device's name from reverse DNS, or asks the
+device itself over mDNS, NetBIOS, DNS-SD or SSDP. Connect your router and it
+also reads the router's ARP and DHCP tables.
 The router sees every segment, so devices a single machine cannot reach still
 get a vendor and a name.
 
@@ -85,29 +86,24 @@ More screenshots: [docs/ui.md](docs/ui.md).
 
 ## Quick start
 
-1. Write a minimal `jocasta.yaml` naming the networks to sweep:
-
-   ```yaml
-   networks:
-     - "192.0.2.0/24"
-
-   server:
-     auth:
-       cookie_secure: false   # only while you reach it over plain HTTP
-   ```
-
-2. Run the container on the host network, so it can read hardware addresses:
+1. Run the container on the host network, so it can read hardware addresses:
 
    ```bash
    docker run -d --name jocasta --network host \
      -v jocasta-data:/data \
-     -v ./jocasta.yaml:/data/jocasta.yaml:ro \
+     -e JOCASTA_SERVER__AUTH__COOKIE_SECURE=false \
      ghcr.io/pushkar-anand/jocasta:latest
    ```
 
-3. Open `http://<host>:8080`.
-4. Create the admin account. The first sweep runs straight away and then
+   The `COOKIE_SECURE` setting lets you sign in over plain HTTP. Remove it
+   when you serve Jocasta over HTTPS.
+
+2. Open `http://<host>:8080`.
+3. Create the admin account. The first sweep runs straight away and then
    every five minutes.
+
+Jocasta sweeps the network of the host. To sweep other networks, list them
+under `networks` in `jocasta.yaml`.
 
 For the same steps with what to expect after each, see
 [Your first inventory](docs/tutorial.md). Every other setting, with its

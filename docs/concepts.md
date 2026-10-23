@@ -24,7 +24,8 @@ hours.
 ## Networks
 
 A network is an IP prefix, such as `192.0.2.0/24`. Jocasta sweeps the
-prefixes under `networks`. A [router plugin](plugins/index.md) adds the
+prefixes under `networks`. If you list none, it sweeps the network of the
+host. A [router plugin](plugins/index.md) adds the
 segments that the router serves, with their names and VLAN tags.
 
 ## Scans

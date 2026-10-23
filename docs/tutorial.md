@@ -4,22 +4,20 @@ In this tutorial, you run Jocasta in a container and sweep your network.
 Then you name a device and get a message on your phone when it goes quiet.
 It takes about 10 minutes.
 
-You need a Linux machine with Docker on the network. You also need the
-network's prefix. To find it, run `ip -4 addr`. For example,
-`inet 192.0.2.20/24` means `192.0.2.0/24`.
+You need a Linux machine with Docker on the network.
 
 ## 1. Write the config
 
 Create `jocasta.yaml` in an empty directory:
 
 ```yaml
-networks:
-  - "192.0.2.0/24"
-
 server:
   auth:
     cookie_secure: false   # sign in over plain HTTP
 ```
+
+Jocasta sweeps the network of the host. To sweep other networks, list them
+under `networks`. See [Configure](configuration.md).
 
 ## 2. Start Jocasta
 

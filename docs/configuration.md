@@ -1,7 +1,8 @@
 # Configure
 
-You must set only `networks`, the prefixes to sweep. All other settings have
-a default.
+No setting is required. If `networks` is empty, Jocasta sweeps the network
+of the host's default route. It does this only if the network is a `/22` or
+smaller. All other settings have a default.
 [`jocasta.example.yaml`](https://github.com/pushkar-anand/jocasta/blob/main/jocasta.example.yaml)
 lists every setting, with its default and a line about what it does. The
 [configuration reference](reference/configuration.md) gives the type,
