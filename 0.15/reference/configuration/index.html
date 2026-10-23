@@ -1,0 +1,3373 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A network inventory that keys each device by its hardware address.">
+      
+      
+      
+        <link rel="canonical" href="https://pushkar-anand.github.io/jocasta/0.15/reference/configuration/">
+      
+      
+        <link rel="prev" href="../../operate/troubleshooting/">
+      
+      
+        <link rel="next" href="../../cli/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.69">
+    
+    
+      
+        <title>Configuration reference - Jocasta</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../assets/stylesheets/modern/main.e15858d4.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/modern/palette.b27955a4.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-hidden="true"></label>
+    <div data-md-component="skip">
+      <a href="#__skip" class="md-skip">
+        Skip to content
+      </a>
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Jocasta" class="md-header__button md-logo" aria-label="Jocasta" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Jocasta
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Configuration reference
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+        <a href="https://github.com/pushkar-anand/jocasta" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    pushkar-anand/jocasta
+  </div>
+</a>
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Jocasta" class="md-nav__button md-logo" aria-label="Jocasta" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    Jocasta
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/pushkar-anand/jocasta" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    pushkar-anand/jocasta
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Jocasta
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Get started
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_2">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Get started
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Your first inventory
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  How Jocasta works
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Tour the web UI
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Install
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Configure
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Devices
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_3">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Devices
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../devices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Label, group and ignore devices
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../naming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  How names are chosen
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../classification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  How a device gets its type
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../plugins/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Plugins
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Plugins
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+              
+                
+                  
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Routers
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_2">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Routers
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../plugins/routeros/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  MikroTik RouterOS
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../plugins/openwrt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  OpenWrt
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../plugins/topology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Show what is plugged in where
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../plugins/netflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  NetFlow
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  DNS resolvers
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_4">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  DNS resolvers
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../plugins/dns/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Record what devices look up
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../plugins/technitium/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Technitium
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../plugins/pihole/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Pi-hole
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../plugins/adguard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  AdGuard Home
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../notifications/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Notifications
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_5">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Notifications
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notifications/watch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Get told when a device goes quiet
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notifications/webhook/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Check a webhook's signature
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../notifications/other-services/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Send to another service
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Integrations
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_6">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Integrations
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integrations/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  MCP server
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integrations/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  JSON API
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Operate
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_7">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Operate
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operate/users/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Manage users and sign-in
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operate/https/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Serve over HTTPS
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operate/backup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Back up and upgrade
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operate/upgrading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Upgrade notes
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operate/troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Fix common problems
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Reference
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+            <label class="md-nav__title" for="__nav_8">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Reference
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Configuration reference
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Configuration reference
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#server" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        server
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#db" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        db
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logger" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        logger
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inventory" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        inventory
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#retention" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        retention
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#location" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        location
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#networks" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        networks
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scan" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        scan
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        plugins
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="plugins">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pluginsrouteros" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        plugins.routeros
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pluginsopenwrt" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        plugins.openwrt
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pluginsnetflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        plugins.netflow
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pluginstechnitium" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        plugins.technitium
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pluginspihole" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        plugins.pihole
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pluginsadguard" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        plugins.adguard
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notify" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        notify
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="notify">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ntfy" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        ntfy
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#webhook" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        webhook
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#http" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        http
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  CLI
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Changelog
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Development
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#server" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        server
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#db" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        db
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logger" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        logger
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inventory" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        inventory
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#retention" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        retention
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#location" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        location
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#networks" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        networks
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scan" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        scan
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        plugins
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="plugins">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pluginsrouteros" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        plugins.routeros
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pluginsopenwrt" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        plugins.openwrt
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pluginsnetflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        plugins.netflow
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pluginstechnitium" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        plugins.technitium
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pluginspihole" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        plugins.pihole
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pluginsadguard" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        plugins.adguard
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notify" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        notify
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="notify">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ntfy" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        ntfy
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#webhook" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        webhook
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#http" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        http
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  
+  <span class="md-ellipsis">
+    Jocasta
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+      <li class="md-path__item">
+        <a href="././" class="md-path__link">
+          
+  
+  <span class="md-ellipsis">
+    Reference
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                <a id="__skip" tabindex="-1"></a>
+                
+                  
+  <button type="button" title="Copy as Markdown" aria-label="Copy as Markdown" class="md-content__button md-icon" data-md-copy-url="./index.md">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 21H8V7h11m0-2H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m-3-4H4a2 2 0 0 0-2 2v14h2V3h12z"/></svg>
+  </button>
+
+
+  
+    <a href="https://github.com/pushkar-anand/jocasta/edit/main/docs/reference/configuration.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-file-pen" viewBox="0 0 24 24"><path d="M12.659 22H18a2 2 0 0 0 2-2V8a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 14 2H6a2 2 0 0 0-2 2v9.34"/><path d="M14 2v5a1 1 0 0 0 1 1h5M10.378 12.622a1 1 0 0 1 3 3.003L8.36 20.637a2 2 0 0 1-.854.506l-2.867.837a.5.5 0 0 1-.62-.62l.836-2.869a2 2 0 0 1 .506-.853z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="configuration-reference">Configuration reference<a class="headerlink" href="#configuration-reference" title="Permanent link">&para;</a></h1>
+<p>This page lists every setting that Jocasta reads, with its type, default and
+allowed values. <a href="../../configuration/">Configure</a> tells how Jocasta reads and
+overrides settings. <a href="https://github.com/pushkar-anand/jocasta/blob/main/jocasta.example.yaml"><code>jocasta.example.yaml</code></a>
+has the same settings, in a file that you can copy.</p>
+<p>Each setting can also come from an environment variable. The name is
+<code>JOCASTA_</code>, then the path of the setting in capitals, with a double
+underscore between levels. A single underscore stays part of the key. For
+example, <code>scan.devices.resolve_mdns</code> is <code>JOCASTA_SCAN__DEVICES__RESOLVE_MDNS</code>.
+For a plugin or notification setting, the instance or destination name is
+one level of the path. For example, <code>plugins.routeros.gateway.password</code> is
+<code>JOCASTA_PLUGINS__ROUTEROS__GATEWAY__PASSWORD</code>.</p>
+<p>Types:</p>
+<ul>
+<li><strong>duration</strong>: a number and a unit, such as <code>90s</code>, <code>15m</code> or <code>6h</code>. The units
+  are <code>s</code>, <code>m</code> and <code>h</code>. There is no unit for days, so 30 days is <code>720h</code>.</li>
+<li><strong>list</strong>: a YAML list.</li>
+<li><strong>map</strong>: YAML keys and values.</li>
+</ul>
+<h2 id="server">server<a class="headerlink" href="#server" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Allowed values</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>server.host</code></td>
+<td>string</td>
+<td><code>localhost</code></td>
+<td>An address or host name</td>
+<td>Where the web server listens. <code>0.0.0.0</code> listens on every interface. The container image sets <code>0.0.0.0</code>.</td>
+</tr>
+<tr>
+<td><code>server.port</code></td>
+<td>int</td>
+<td><code>8080</code></td>
+<td>1 to 65535</td>
+<td>The port the web server listens on.</td>
+</tr>
+<tr>
+<td><code>server.trusted_proxies</code></td>
+<td>list</td>
+<td>empty</td>
+<td>Addresses or CIDR prefixes, such as <code>192.0.2.1</code> or <code>10.0.0.0/8</code></td>
+<td>Reverse proxy addresses whose forwarding headers the server trusts to identify the client. Empty reads the client address from the connection directly.</td>
+</tr>
+<tr>
+<td><code>server.cors.allowed_origins</code></td>
+<td>list</td>
+<td>empty</td>
+<td>Origins as <code>scheme://host[:port]</code></td>
+<td>Browser origins besides the server's own that may read <code>/api</code>. Empty sends no CORS headers.</td>
+</tr>
+<tr>
+<td><code>server.auth.session_lifetime</code></td>
+<td>duration</td>
+<td><code>168h</code></td>
+<td>A duration</td>
+<td>The longest a sign-in lasts, whatever the activity.</td>
+</tr>
+<tr>
+<td><code>server.auth.idle_timeout</code></td>
+<td>duration</td>
+<td><code>24h</code></td>
+<td>A duration</td>
+<td>How long a session survives with no requests.</td>
+</tr>
+<tr>
+<td><code>server.auth.cookie_secure</code></td>
+<td>bool</td>
+<td><code>true</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Sends the session cookie over HTTPS only. Set <code>false</code> to sign in over plain HTTP from anywhere but <code>localhost</code>.</td>
+</tr>
+<tr>
+<td><code>server.mcp.enabled</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Serves the <a href="../../integrations/mcp/">MCP endpoint</a> at <code>/mcp</code>. While off, <code>/mcp</code> answers 404.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="db">db<a class="headerlink" href="#db" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Allowed values</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>db.path</code></td>
+<td>string</td>
+<td><code>.</code></td>
+<td>A directory</td>
+<td>Where the SQLite file lives. The container image sets <code>/data</code>.</td>
+</tr>
+<tr>
+<td><code>db.name</code></td>
+<td>string</td>
+<td><code>jocasta.db</code></td>
+<td>A file name</td>
+<td>The SQLite file's name.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="logger">logger<a class="headerlink" href="#logger" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Allowed values</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>logger.level</code></td>
+<td>string</td>
+<td><code>info</code></td>
+<td><code>debug</code>, <code>info</code>, <code>warn</code>, <code>error</code></td>
+<td>The lowest level logged. Any other value logs at <code>info</code>.</td>
+</tr>
+<tr>
+<td><code>logger.format</code></td>
+<td>string</td>
+<td><code>json</code></td>
+<td><code>json</code>, <code>text</code></td>
+<td>How each log line is written. Any value but <code>text</code> writes JSON.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="inventory">inventory<a class="headerlink" href="#inventory" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Allowed values</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>inventory.online_window</code></td>
+<td>duration</td>
+<td><code>15m</code></td>
+<td>A duration</td>
+<td>How long after its last sighting a device counts as online. Past it, a <a href="../../notifications/watch/">watched device</a> goes quiet.</td>
+</tr>
+<tr>
+<td><code>inventory.address_grace</code></td>
+<td>duration</td>
+<td><code>6h</code></td>
+<td>A duration</td>
+<td>How long an address can go unseen before a later sweep that finds the device elsewhere retires it. Raise it on a network with long DHCP leases.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="retention">retention<a class="headerlink" href="#retention" title="Permanent link">&para;</a></h2>
+<p>Once an hour, Jocasta deletes the records that are older than their window.
+<code>0s</code> keeps that kind of record forever.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Allowed values</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>retention.history</code></td>
+<td>duration</td>
+<td><code>2160h</code> (90 days)</td>
+<td>A duration; <code>0s</code> keeps forever</td>
+<td>How long Jocasta keeps the change log and the scan log.</td>
+</tr>
+<tr>
+<td><code>retention.traffic</code></td>
+<td>duration</td>
+<td><code>720h</code> (30 days)</td>
+<td>A duration; <code>0s</code> keeps forever</td>
+<td>How long Jocasta keeps the hourly traffic totals.</td>
+</tr>
+<tr>
+<td><code>retention.dns</code></td>
+<td>duration</td>
+<td><code>720h</code> (30 days)</td>
+<td>A duration; <code>0s</code> keeps forever</td>
+<td>How long Jocasta keeps the hourly lookup counts, and the addresses in the answers to lookups.</td>
+</tr>
+<tr>
+<td><code>retention.devices</code></td>
+<td>duration</td>
+<td><code>2160h</code> (90 days)</td>
+<td>A duration; <code>0s</code> keeps forever</td>
+<td>How long Jocasta keeps a device after a scan last saw it. Jocasta keeps a device that you labelled, grouped, typed, noted, ignored or watched.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="location">location<a class="headerlink" href="#location" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Allowed values</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>location.country</code></td>
+<td>string</td>
+<td>empty</td>
+<td>A two-letter country code, such as <code>AU</code></td>
+<td>The country from which the world map draws its lines. If empty, Jocasta uses the outside address of the router. This address cannot find the country of a network behind carrier-grade NAT. See <a href="../../plugins/netflow/">NetFlow</a>.</td>
+</tr>
+<tr>
+<td><code>location.timezone</code></td>
+<td>string</td>
+<td>empty</td>
+<td>An IANA zone name, such as <code>Australia/Sydney</code></td>
+<td>The zone in which Jocasta shows times. If empty, Jocasta uses <code>TZ</code> or the zone of the system, which is UTC in a container. Jocasta always stores times in UTC.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="networks">networks<a class="headerlink" href="#networks" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Allowed values</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>networks</code></td>
+<td>list</td>
+<td>the host's network</td>
+<td>Prefixes, such as <code>192.0.2.0/24</code></td>
+<td>The prefixes that the sweep covers at each interval. Jocasta records each address that it finds under the network that contains it. If the list is empty, Jocasta sweeps the network of the host's default route. It does this only if the network is a <code>/22</code> or smaller.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="scan">scan<a class="headerlink" href="#scan" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Allowed values</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scan.source</code></td>
+<td>string</td>
+<td><code>sweep:&lt;hostname&gt;</code></td>
+<td>Any name</td>
+<td>The source name of the sweeps that run at each interval. Set it in a container, where the host name changes on every run. A new name starts a new source. Past scans stay under the old name.</td>
+</tr>
+<tr>
+<td><code>scan.devices.enabled</code></td>
+<td>bool</td>
+<td><code>true</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Sweeps <code>networks</code> on a timer.</td>
+</tr>
+<tr>
+<td><code>scan.devices.interval</code></td>
+<td>duration</td>
+<td><code>5m</code></td>
+<td>A duration</td>
+<td>How often the sweep runs.</td>
+</tr>
+<tr>
+<td><code>scan.devices.rate</code></td>
+<td>int</td>
+<td><code>1000</code></td>
+<td>A whole number</td>
+<td>The most ICMP probes sent per second.</td>
+</tr>
+<tr>
+<td><code>scan.devices.rounds</code></td>
+<td>int</td>
+<td><code>2</code></td>
+<td>A whole number</td>
+<td>The number of probes to each address before Jocasta counts the address as down.</td>
+</tr>
+<tr>
+<td><code>scan.devices.wait</code></td>
+<td>duration</td>
+<td><code>2s</code></td>
+<td>A duration</td>
+<td>How long to wait for replies after the last probe.</td>
+</tr>
+<tr>
+<td><code>scan.devices.resolve_names</code></td>
+<td>bool</td>
+<td><code>true</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Looks up reverse DNS for each address that answered. See <a href="../../naming/">Name devices</a>.</td>
+</tr>
+<tr>
+<td><code>scan.devices.resolve_macs</code></td>
+<td>bool</td>
+<td><code>true</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Reads the neighbour table for hardware addresses.</td>
+</tr>
+<tr>
+<td><code>scan.devices.resolve_mdns</code></td>
+<td>bool</td>
+<td><code>true</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Asks each device without a reverse DNS name for its name over mDNS.</td>
+</tr>
+<tr>
+<td><code>scan.devices.resolve_netbios</code></td>
+<td>bool</td>
+<td><code>true</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Asks each device still without a name over NetBIOS.</td>
+</tr>
+<tr>
+<td><code>scan.devices.resolve_dnssd</code></td>
+<td>bool</td>
+<td><code>true</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Asks for the services that devices advertise. Names each device that still has no name after the name that it gives its services. Needs host networking.</td>
+</tr>
+<tr>
+<td><code>scan.devices.resolve_ssdp</code></td>
+<td>bool</td>
+<td><code>true</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Searches over SSDP. Names each device that still has no name after its UPnP <code>friendlyName</code>. Needs host networking.</td>
+</tr>
+<tr>
+<td><code>scan.ports.enabled</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Probes every known address for open TCP ports on a timer.</td>
+</tr>
+<tr>
+<td><code>scan.ports.interval</code></td>
+<td>duration</td>
+<td><code>6h</code></td>
+<td>A duration</td>
+<td>How often the port scan runs.</td>
+</tr>
+<tr>
+<td><code>scan.ports.custom</code></td>
+<td>string</td>
+<td>empty</td>
+<td>Ports and ranges, such as <code>22,80,443,8000-8100</code>; <code>1-65535</code> for every port</td>
+<td>The ports to probe. If empty, Jocasta uses a preset. Jocasta also probes each address on the ports that its device advertises.</td>
+</tr>
+<tr>
+<td><code>scan.ports.concurrency</code></td>
+<td>int</td>
+<td><code>64</code></td>
+<td>A whole number</td>
+<td>The most connections a scan opens at once. Lower it on a router with a small connection table.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="plugins">plugins<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h2>
+<p>By default, plugins are off. Each instance is under its kind, with a name
+that you choose as its key. An instance is off, unless it has
+<code>enabled: true</code>. See
+<a href="../../plugins/">Plugins</a>.</p>
+<h3 id="pluginsrouteros">plugins.routeros<a class="headerlink" href="#pluginsrouteros" title="Permanent link">&para;</a></h3>
+<p>A <a href="../../plugins/routeros/">MikroTik RouterOS</a> router, switch or access point.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Allowed values</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>plugins.routeros.&lt;instance&gt;.enabled</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Reads this source.</td>
+</tr>
+<tr>
+<td><code>plugins.routeros.&lt;instance&gt;.host</code></td>
+<td>string</td>
+<td>none, required</td>
+<td>An address or host name, without a port</td>
+<td>Where the REST API is.</td>
+</tr>
+<tr>
+<td><code>plugins.routeros.&lt;instance&gt;.port</code></td>
+<td>int</td>
+<td><code>80</code>, or <code>443</code> with <code>ssl</code></td>
+<td>1 to 65535</td>
+<td>The REST API's port.</td>
+</tr>
+<tr>
+<td><code>plugins.routeros.&lt;instance&gt;.user</code></td>
+<td>string</td>
+<td>empty</td>
+<td>A RouterOS user</td>
+<td>A read-only user is enough.</td>
+</tr>
+<tr>
+<td><code>plugins.routeros.&lt;instance&gt;.password</code></td>
+<td>string</td>
+<td>empty</td>
+<td>Any</td>
+<td>The user's password.</td>
+</tr>
+<tr>
+<td><code>plugins.routeros.&lt;instance&gt;.ssl</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Uses HTTPS. Without it, the password goes over the network as plain text, and Jocasta logs a warning.</td>
+</tr>
+<tr>
+<td><code>plugins.routeros.&lt;instance&gt;.insecure</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Skips certificate checks, for RouterOS's self-signed certificate.</td>
+</tr>
+<tr>
+<td><code>plugins.routeros.&lt;instance&gt;.timeout</code></td>
+<td>duration</td>
+<td><code>10s</code></td>
+<td>A duration</td>
+<td>The longest one read may take.</td>
+</tr>
+<tr>
+<td><code>plugins.routeros.&lt;instance&gt;.topology_only</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Reads only what is connected to this switch or access point. The router lists its devices. See <a href="../../plugins/topology/">Show what is plugged in where</a>.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="pluginsopenwrt">plugins.openwrt<a class="headerlink" href="#pluginsopenwrt" title="Permanent link">&para;</a></h3>
+<p>An <a href="../../plugins/openwrt/">OpenWrt</a> router or access point.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Allowed values</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>plugins.openwrt.&lt;instance&gt;.enabled</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Reads this source.</td>
+</tr>
+<tr>
+<td><code>plugins.openwrt.&lt;instance&gt;.host</code></td>
+<td>string</td>
+<td>none, required</td>
+<td>An address or host name, without a port</td>
+<td>Where ubus is served.</td>
+</tr>
+<tr>
+<td><code>plugins.openwrt.&lt;instance&gt;.port</code></td>
+<td>int</td>
+<td><code>80</code>, or <code>443</code> with <code>ssl</code></td>
+<td>1 to 65535</td>
+<td>uhttpd's port.</td>
+</tr>
+<tr>
+<td><code>plugins.openwrt.&lt;instance&gt;.user</code></td>
+<td>string</td>
+<td>empty</td>
+<td>An rpcd login</td>
+<td>A login with the Jocasta ACL.</td>
+</tr>
+<tr>
+<td><code>plugins.openwrt.&lt;instance&gt;.password</code></td>
+<td>string</td>
+<td>empty</td>
+<td>Any</td>
+<td>The login's password.</td>
+</tr>
+<tr>
+<td><code>plugins.openwrt.&lt;instance&gt;.ssl</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Uses HTTPS. Needs <code>luci-ssl</code>. Without it, the password goes over the network as plain text, and Jocasta logs a warning.</td>
+</tr>
+<tr>
+<td><code>plugins.openwrt.&lt;instance&gt;.insecure</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Skips certificate checks, for uhttpd's self-signed certificate.</td>
+</tr>
+<tr>
+<td><code>plugins.openwrt.&lt;instance&gt;.timeout</code></td>
+<td>duration</td>
+<td><code>10s</code></td>
+<td>A duration</td>
+<td>The longest one read may take.</td>
+</tr>
+<tr>
+<td><code>plugins.openwrt.&lt;instance&gt;.topology_only</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Reads only what is connected to this access point. The router lists its devices. See <a href="../../plugins/topology/">Show what is plugged in where</a>.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="pluginsnetflow">plugins.netflow<a class="headerlink" href="#pluginsnetflow" title="Permanent link">&para;</a></h3>
+<p>A <a href="../../plugins/netflow/">NetFlow</a> listener for a router's flow exports.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Allowed values</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>plugins.netflow.&lt;instance&gt;.enabled</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Runs this listener.</td>
+</tr>
+<tr>
+<td><code>plugins.netflow.&lt;instance&gt;.listen</code></td>
+<td>string</td>
+<td><code>:2055</code></td>
+<td>A UDP address, such as <code>:2055</code> or <code>192.0.2.10:2055</code></td>
+<td>Where the listener binds.</td>
+</tr>
+<tr>
+<td><code>plugins.netflow.&lt;instance&gt;.exporters</code></td>
+<td>list</td>
+<td>none, required</td>
+<td>IP addresses</td>
+<td>The routers that can send. Jocasta discards datagrams from all other addresses.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="pluginstechnitium">plugins.technitium<a class="headerlink" href="#pluginstechnitium" title="Permanent link">&para;</a></h3>
+<p>A <a href="../../plugins/technitium/">Technitium DNS Server</a> node.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Allowed values</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>plugins.technitium.&lt;instance&gt;.enabled</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Reads this server's query log.</td>
+</tr>
+<tr>
+<td><code>plugins.technitium.&lt;instance&gt;.host</code></td>
+<td>string</td>
+<td>none, required</td>
+<td>An address or host name, without a port</td>
+<td>The address of this node. Do not use a virtual address that the nodes share. It reaches only one node at a time.</td>
+</tr>
+<tr>
+<td><code>plugins.technitium.&lt;instance&gt;.port</code></td>
+<td>int</td>
+<td><code>5380</code>, or <code>53443</code> with <code>ssl</code></td>
+<td>1 to 65535</td>
+<td>The web service's port.</td>
+</tr>
+<tr>
+<td><code>plugins.technitium.&lt;instance&gt;.token</code></td>
+<td>string</td>
+<td>empty</td>
+<td>An API token</td>
+<td>A token for a user granted Logs: View.</td>
+</tr>
+<tr>
+<td><code>plugins.technitium.&lt;instance&gt;.ssl</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Uses HTTPS. Without it, the token goes over the network as plain text, and Jocasta logs a warning.</td>
+</tr>
+<tr>
+<td><code>plugins.technitium.&lt;instance&gt;.insecure</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Skips certificate checks, for a self-signed certificate.</td>
+</tr>
+<tr>
+<td><code>plugins.technitium.&lt;instance&gt;.log_app</code></td>
+<td>string</td>
+<td>empty</td>
+<td>An app name, as the Apps page lists it</td>
+<td>The app whose log Jocasta reads. Necessary only if more than one installed app logs queries.</td>
+</tr>
+<tr>
+<td><code>plugins.technitium.&lt;instance&gt;.timeout</code></td>
+<td>duration</td>
+<td><code>10s</code></td>
+<td>A duration</td>
+<td>The longest one read may take.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="pluginspihole">plugins.pihole<a class="headerlink" href="#pluginspihole" title="Permanent link">&para;</a></h3>
+<p>A <a href="../../plugins/pihole/">Pi-hole</a> v6.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Allowed values</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>plugins.pihole.&lt;instance&gt;.enabled</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Reads this server's query log.</td>
+</tr>
+<tr>
+<td><code>plugins.pihole.&lt;instance&gt;.host</code></td>
+<td>string</td>
+<td>none, required</td>
+<td>An address or host name, without a port</td>
+<td>Where Pi-hole's web server is.</td>
+</tr>
+<tr>
+<td><code>plugins.pihole.&lt;instance&gt;.port</code></td>
+<td>int</td>
+<td><code>80</code>, or <code>443</code> with <code>ssl</code></td>
+<td>1 to 65535</td>
+<td>The web server's port.</td>
+</tr>
+<tr>
+<td><code>plugins.pihole.&lt;instance&gt;.password</code></td>
+<td>string</td>
+<td>empty</td>
+<td>An app password</td>
+<td>Empty reads a Pi-hole with no password set.</td>
+</tr>
+<tr>
+<td><code>plugins.pihole.&lt;instance&gt;.ssl</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Uses HTTPS. Without it, the password goes over the network as plain text, and Jocasta logs a warning.</td>
+</tr>
+<tr>
+<td><code>plugins.pihole.&lt;instance&gt;.insecure</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Skips certificate checks, for Pi-hole's self-signed certificate.</td>
+</tr>
+<tr>
+<td><code>plugins.pihole.&lt;instance&gt;.timeout</code></td>
+<td>duration</td>
+<td><code>10s</code></td>
+<td>A duration</td>
+<td>The longest one read may take.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="pluginsadguard">plugins.adguard<a class="headerlink" href="#pluginsadguard" title="Permanent link">&para;</a></h3>
+<p>An <a href="../../plugins/adguard/">AdGuard Home</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Allowed values</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>plugins.adguard.&lt;instance&gt;.enabled</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Reads this server's query log.</td>
+</tr>
+<tr>
+<td><code>plugins.adguard.&lt;instance&gt;.host</code></td>
+<td>string</td>
+<td>none, required</td>
+<td>An address or host name, without a port</td>
+<td>Where the web interface is.</td>
+</tr>
+<tr>
+<td><code>plugins.adguard.&lt;instance&gt;.port</code></td>
+<td>int</td>
+<td><code>80</code>, or <code>443</code> with <code>ssl</code></td>
+<td>1 to 65535</td>
+<td>The web interface's port.</td>
+</tr>
+<tr>
+<td><code>plugins.adguard.&lt;instance&gt;.user</code></td>
+<td>string</td>
+<td>empty</td>
+<td>The web interface login</td>
+<td>Empty reads a server with no login set.</td>
+</tr>
+<tr>
+<td><code>plugins.adguard.&lt;instance&gt;.password</code></td>
+<td>string</td>
+<td>empty</td>
+<td>Any</td>
+<td>The login's password.</td>
+</tr>
+<tr>
+<td><code>plugins.adguard.&lt;instance&gt;.ssl</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Uses HTTPS. Without it, the password goes over the network as plain text, and Jocasta logs a warning.</td>
+</tr>
+<tr>
+<td><code>plugins.adguard.&lt;instance&gt;.insecure</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Skips certificate checks, for a self-signed certificate.</td>
+</tr>
+<tr>
+<td><code>plugins.adguard.&lt;instance&gt;.timeout</code></td>
+<td>duration</td>
+<td><code>10s</code></td>
+<td>A duration</td>
+<td>The longest one read may take.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="notify">notify<a class="headerlink" href="#notify" title="Permanent link">&para;</a></h2>
+<p>Each destination is under <code>notify</code>, with a name that you choose as its key.
+It has exactly one service block: <code>ntfy</code>, <code>webhook</code> or <code>http</code>. To select the
+changes that a destination gets, use the Notifications page in the account
+menu. See
+<a href="../../notifications/">Notifications</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Allowed values</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>notify.&lt;name&gt;.enabled</code></td>
+<td>bool</td>
+<td><code>true</code></td>
+<td><code>true</code>, <code>false</code></td>
+<td>Sends to this destination. A destination is on unless it says <code>false</code>.</td>
+</tr>
+<tr>
+<td><code>notify.&lt;name&gt;.timeout</code></td>
+<td>duration</td>
+<td><code>10s</code></td>
+<td>A duration</td>
+<td>The longest one send may take.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ntfy">ntfy<a class="headerlink" href="#ntfy" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Allowed values</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>notify.&lt;name&gt;.ntfy.url</code></td>
+<td>string</td>
+<td>none, required</td>
+<td>The topic's URL, as ntfy shows it</td>
+<td>Where Jocasta publishes messages, such as <code>https://ntfy.example.com/jocasta</code>.</td>
+</tr>
+<tr>
+<td><code>notify.&lt;name&gt;.ntfy.token</code></td>
+<td>string</td>
+<td>empty</td>
+<td>An ntfy access token</td>
+<td>For a server that requires one.</td>
+</tr>
+<tr>
+<td><code>notify.&lt;name&gt;.ntfy.priority</code></td>
+<td>int</td>
+<td><code>0</code></td>
+<td><code>0</code> to <code>5</code></td>
+<td>ntfy's priority, from 1 (min) to 5 (max). <code>0</code> leaves it to the server.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="webhook">webhook<a class="headerlink" href="#webhook" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Allowed values</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>notify.&lt;name&gt;.webhook.url</code></td>
+<td>string</td>
+<td>none, required</td>
+<td>An HTTP or HTTPS URL</td>
+<td>Where the signed JSON POST goes.</td>
+</tr>
+<tr>
+<td><code>notify.&lt;name&gt;.webhook.secret</code></td>
+<td>string</td>
+<td>none, required</td>
+<td>Any</td>
+<td>Keys the signature on each request. See <a href="../../notifications/webhook/">Check a webhook's signature</a>.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="http">http<a class="headerlink" href="#http" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Allowed values</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>notify.&lt;name&gt;.http.url</code></td>
+<td>string</td>
+<td>none, required</td>
+<td>An HTTP or HTTPS URL</td>
+<td>Where the request goes. It can contain the token of the service. Jocasta never logs or shows it.</td>
+</tr>
+<tr>
+<td><code>notify.&lt;name&gt;.http.headers</code></td>
+<td>map</td>
+<td>empty</td>
+<td>Header names and values</td>
+<td>Sent with every request, such as <code>Authorization</code>. A <code>Content-Type</code> here replaces <code>application/json</code>.</td>
+</tr>
+<tr>
+<td><code>notify.&lt;name&gt;.http.body</code></td>
+<td>string</td>
+<td>none, required</td>
+<td>A Go template</td>
+<td>The request body. See <a href="../../notifications/other-services/">Send to another service</a> for recipes.</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-circle-arrow-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4M12 16V8"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../../operate/troubleshooting/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Fix common problems">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Fix common problems
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../../cli/" class="md-footer__link md-footer__link--next" aria-label="Next: CLI">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                CLI
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog" role="status" aria-atomic="true">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      
+        
+        
+          
+        
+      <script id="__config" type="application/json">{"annotate":null,"base":"../..","features":["content.action.copy","content.action.edit","content.code.copy","content.tabs.link","navigation.footer","navigation.indexes","navigation.instant","navigation.path","navigation.sections","navigation.top","search.highlight","toc.follow"],"redirect":"../../redirect.json","search":"../../assets/javascripts/workers/search.7d14d953.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","clipboard.error":"Could not copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":{"default":"latest","provider":"mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.8b1c90bd.min.js"></script>
+      
+    
+  </body>
+</html>
