@@ -1917,8 +1917,9 @@
 
 
 <h1 id="configure">Configure<a class="headerlink" href="#configure" title="Permanent link">&para;</a></h1>
-<p>You must set only <code>networks</code>, the prefixes to sweep. All other settings have
-a default.
+<p>No setting is required. If <code>networks</code> is empty, Jocasta sweeps the network
+of the host's default route. It does this only if the network is a <code>/22</code> or
+smaller. All other settings have a default.
 <a href="https://github.com/pushkar-anand/jocasta/blob/main/jocasta.example.yaml"><code>jocasta.example.yaml</code></a>
 lists every setting, with its default and a line about what it does. The
 <a href="../reference/configuration/">configuration reference</a> gives the type,

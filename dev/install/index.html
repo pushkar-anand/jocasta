@@ -2018,6 +2018,9 @@ database in <code>/data</code>, and reads <code>/data/jocasta.yaml</code>.</p>
 hosts but not their hardware addresses. Also, mDNS, DNS-SD and SSDP names do
 not arrive. A <a href="../plugins/">router plugin</a> can supply the hardware
 addresses. Neither mode needs extra capabilities.</p>
+<p>Host networking reaches your network only on Linux. On macOS and Windows,
+Docker runs containers in a VM, so use the
+<a href="#prebuilt-binaries">prebuilt binary</a>.</p>
 <h2 id="prebuilt-binaries">Prebuilt binaries<a class="headerlink" href="#prebuilt-binaries" title="Permanent link">&para;</a></h2>
 <p>Archives for Linux, macOS and Windows, on amd64 and arm64, are on the
 <a href="https://github.com/pushkar-anand/jocasta/releases">releases page</a>. A <code>checksums.txt</code> file is with them.</p>

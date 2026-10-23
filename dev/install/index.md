@@ -29,6 +29,8 @@ volumes:
 
 Use host networking. On a bridge network (`-p 8080:8080`), the sweep finds hosts but not their hardware addresses. Also, mDNS, DNS-SD and SSDP names do not arrive. A [router plugin](<https://pushkar-anand.github.io/jocasta/dev/plugins/index.md>) can supply the hardware addresses. Neither mode needs extra capabilities.
 
+Host networking reaches your network only on Linux. On macOS and Windows, Docker runs containers in a VM, so use the [prebuilt binary](<#prebuilt-binaries>).
+
 ## Prebuilt binaries
 
 Archives for Linux, macOS and Windows, on amd64 and arm64, are on the [releases page](<https://github.com/pushkar-anand/jocasta/releases>). A `checksums.txt` file is with them.

@@ -2592,9 +2592,9 @@ one level of the path. For example, <code>plugins.routeros.gateway.password</cod
 <tr>
 <td><code>networks</code></td>
 <td>list</td>
-<td>empty</td>
+<td>the host's network</td>
 <td>Prefixes, such as <code>192.0.2.0/24</code></td>
-<td>The prefixes that the sweep covers at each interval. Jocasta records each address that it finds under the network that contains it.</td>
+<td>The prefixes that the sweep covers at each interval. Jocasta records each address that it finds under the network that contains it. If the list is empty, Jocasta sweeps the network of the host's default route. It does this only if the network is a <code>/22</code> or smaller.</td>
 </tr>
 </tbody>
 </table>

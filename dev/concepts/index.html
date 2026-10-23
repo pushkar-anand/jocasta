@@ -2111,7 +2111,8 @@ after the device answers on a different address in the same network for 6
 hours.</p>
 <h2 id="networks">Networks<a class="headerlink" href="#networks" title="Permanent link">&para;</a></h2>
 <p>A network is an IP prefix, such as <code>192.0.2.0/24</code>. Jocasta sweeps the
-prefixes under <code>networks</code>. A <a href="../plugins/">router plugin</a> adds the
+prefixes under <code>networks</code>. If you list none, it sweeps the network of the
+host. A <a href="../plugins/">router plugin</a> adds the
 segments that the router serves, with their names and VLAN tags.</p>
 <h2 id="scans">Scans<a class="headerlink" href="#scans" title="Permanent link">&para;</a></h2>
 <p>A scan is one recorded reading:</p>
