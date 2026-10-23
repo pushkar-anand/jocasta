@@ -14,7 +14,8 @@ change. It is one binary, with a web UI, a JSON API and an MCP server.
 
 ## How it works
 
-1. Jocasta sweeps the networks you list, every 5 minutes.
+1. Jocasta sweeps the networks you list, or the network of the host, every
+   5 minutes.
 2. It records each device under its hardware address, because an IP address
    is only a lease.
 3. It logs what changed.

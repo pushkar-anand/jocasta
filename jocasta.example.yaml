@@ -49,6 +49,7 @@ location:
 
 # Segments the poller sweeps on a timer. Also used to match each discovered
 # address to the network that contains it. Empty by default; this is an example.
+# Empty sweeps the network of the host's default route, if it is /22 or smaller.
 networks:
   - "192.0.2.0/24"
 

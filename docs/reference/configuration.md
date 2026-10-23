@@ -77,7 +77,7 @@ Once an hour, Jocasta deletes the records that are older than their window.
 
 | Key | Type | Default | Allowed values | Description |
 |---|---|---|---|---|
-| `networks` | list | empty | Prefixes, such as `192.0.2.0/24` | The prefixes that the sweep covers at each interval. Jocasta records each address that it finds under the network that contains it. |
+| `networks` | list | the host's network | Prefixes, such as `192.0.2.0/24` | The prefixes that the sweep covers at each interval. Jocasta records each address that it finds under the network that contains it. If the list is empty, Jocasta sweeps the network of the host's default route. It does this only if the network is a `/22` or smaller. |
 
 ## scan
 

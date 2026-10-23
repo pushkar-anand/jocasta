@@ -10,11 +10,13 @@ import (
 	"strings"
 
 	"github.com/pushkar-anand/build-with-go/http/clientip"
+	"github.com/pushkar-anand/build-with-go/logger"
 	"github.com/pushkar-anand/build-with-go/validator"
 	"github.com/pushkar-anand/jocasta/internal/auth"
 	"github.com/pushkar-anand/jocasta/internal/config"
 	"github.com/pushkar-anand/jocasta/internal/hosts"
 	"github.com/pushkar-anand/jocasta/internal/inventory"
+	"github.com/pushkar-anand/jocasta/internal/localnet"
 	"github.com/pushkar-anand/jocasta/internal/notify"
 	"github.com/pushkar-anand/jocasta/internal/plugin"
 	"github.com/pushkar-anand/jocasta/internal/poller"
@@ -82,6 +84,10 @@ func (s *ServeCmd) Run(
 		}
 
 		deviceOpts = append(deviceOpts, poller.WithPortScan(pp))
+	}
+
+	if len(cfg.Networks) == 0 {
+		cfg.Networks = currentNetwork(ctx, log)
 	}
 
 	pd, err := poller.NewDevice(
@@ -202,6 +208,38 @@ func (s *ServeCmd) Run(
 	}
 
 	return nil
+}
+
+// currentNetworkMinBits is the shortest prefix that currentNetwork sweeps. A
+// larger network takes a long time to sweep. So the operator must list it.
+const currentNetworkMinBits = 22
+
+// currentNetwork returns the network of the host, for use when the config
+// lists no networks. It returns nil if Jocasta cannot find the network, or if
+// the network is larger than a /22.
+func currentNetwork(ctx context.Context, log *slog.Logger) []string {
+	n, err := localnet.Current(ctx)
+	if err != nil {
+		log.WarnContext(ctx, "no networks configured, and the host's network was not found; sweeping none",
+			logger.Err(err),
+		)
+
+		return nil
+	}
+
+	if n.Bits() < currentNetworkMinBits {
+		log.WarnContext(ctx, "no networks configured, and the host's network is larger than a /22; list it under networks to sweep it",
+			slog.String("network", n.String()),
+		)
+
+		return nil
+	}
+
+	log.InfoContext(ctx, "no networks configured; sweeping the host's network",
+		slog.String("network", n.String()),
+	)
+
+	return []string{n.String()}
 }
 
 // portsPoller builds the port-scan task. A blank scan.ports.custom keeps the
