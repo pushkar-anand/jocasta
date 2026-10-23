@@ -42,7 +42,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 RUN install -d -m 0755 -o 65532 -g 65532 /out/data
 
 # ---- runtime ----------------------------------------------------------------
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian13:nonroot
 
 COPY --from=build /out/jocasta /usr/local/bin/jocasta
 COPY --from=build --chown=65532:65532 /out/data /data
