@@ -39,6 +39,10 @@ hosts but not their hardware addresses. Also, mDNS, DNS-SD and SSDP names do
 not arrive. A [router plugin](plugins/index.md) can supply the hardware
 addresses. Neither mode needs extra capabilities.
 
+Host networking reaches your network only on Linux. On macOS and Windows,
+Docker runs containers in a VM, so use the
+[prebuilt binary](#prebuilt-binaries).
+
 ## Prebuilt binaries
 
 Archives for Linux, macOS and Windows, on amd64 and arm64, are on the

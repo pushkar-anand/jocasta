@@ -4,7 +4,10 @@ In this tutorial, you run Jocasta in a container and sweep your network.
 Then you name a device and get a message on your phone when it goes quiet.
 It takes about 10 minutes.
 
-You need a Linux machine with Docker on the network.
+This tutorial runs Jocasta in Docker on a Linux machine on your network. On
+macOS or Windows, run the [binary](install.md#prebuilt-binaries) instead.
+Docker there runs containers in a VM, so the sweep does not reach your
+network.
 
 ## 1. Write the config
 
