@@ -460,6 +460,8 @@ If two names of the same rank are different, the device keeps its current name w
 
 A device can have several addresses, such as a router with an address on each VLAN. Each address can give a name. The device keeps one of these names. It does not change to the name of the address that Jocasta read last. The device page lists the name that each source gives for each address.
 
+When a device leaves an address, Jocasta stops using the names at that address. The device page stops listing them. The address stays in the history of the device.
+
 Jocasta does not use the reverse DNS names that systemd-resolved makes up, such as `_gateway`.
 
 When a sweep has a name for a device, a lookup with a lower rank does not replace it. The device keeps that name until a lookup with the same or a higher rank gives a different name.
@@ -1332,6 +1334,16 @@ Restore the backup from before the upgrade. If you start an older release on a n
 # Upgrade notes
 
 What to change or expect when moving to a release, newest first. Read every section after the release you run, and [back up](<https://pushkar-anand.github.io/jocasta/0.15/operate/backup/#back-up>) first. A release not listed here needs only the [usual steps](<https://pushkar-anand.github.io/jocasta/0.15/operate/backup/#upgrade>).
+
+## 0.15.2
+
+Released 2026-11-01.
+
+### Upgrade notes
+
+- inventory: Stop using claims at addresses a device has left ([\#512](<https://github.com/pushkar-anand/jocasta/pull/512>))
+
+  The first scan after the upgrade can rename devices that moved to a new address. Each rename logs a HOSTNAME\_CHANGED event.
 
 ## 0.4.0
 
