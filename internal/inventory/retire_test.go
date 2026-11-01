@@ -40,6 +40,48 @@ func TestRetiresAnAddressADeviceMovedOff(t *testing.T) {
 	assert.Equal(t, "192.0.2.10", old)
 }
 
+// A device that moves takes the name at its new address, even when the name at
+// the old address has a higher standing. Its old address leaves the claims too.
+func TestAMovedDeviceTakesTheNameOfItsNewAddress(t *testing.T) {
+	t.Parallel()
+
+	s, conn, advance := clockStore(t)
+
+	sweep(t, s, host("192.0.2.10", macA, "old.example.com"))
+	advance(7 * time.Hour)
+	sweep(t, s, mdnsHost("192.0.2.11", macA, "new.local"))
+	advance(time.Minute)
+	sweep(t, s, mdnsHost("192.0.2.11", macA, "new.local"))
+
+	id := deviceIDByMAC(t, conn, macA)
+
+	assert.Equal(t, "new.local", queryString(t, conn, `SELECT hostname FROM devices`))
+	assert.Contains(t, eventKinds(t, conn, id), dbtype.EventHostnameChanged)
+
+	claims, err := s.DeviceSources(t.Context(), id)
+	require.NoError(t, err)
+	require.Len(t, claims, 1)
+	assert.Equal(t, "192.0.2.11", claims[0].Address.String())
+}
+
+// A device that returns to an address it left gets the claim at that address
+// back, with the name it held.
+func TestADeviceBackOnAnOldAddressGetsItsClaimBack(t *testing.T) {
+	t.Parallel()
+
+	s, conn, advance := clockStore(t)
+
+	sweep(t, s, host("192.0.2.10", macA, "old.example.com"))
+	advance(7 * time.Hour)
+	sweep(t, s, mdnsHost("192.0.2.11", macA, "new.local"))
+	advance(time.Minute)
+	sweep(t, s, mdnsHost("192.0.2.11", macA, "new.local"))
+	advance(time.Minute)
+	sweep(t, s, mdnsHost("192.0.2.10", macA, "new.local"))
+
+	assert.Equal(t, "old.example.com", queryString(t, conn, `SELECT hostname FROM devices`))
+}
+
 // Within the grace window, a device with two addresses in the prefix keeps
 // both. One silent sweep does not prove that a lease is gone.
 func TestKeepsAnAddressSilentOnlyBrieflyWithinGrace(t *testing.T) {

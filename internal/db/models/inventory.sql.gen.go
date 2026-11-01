@@ -1392,7 +1392,9 @@ const listDeviceSources = `-- name: ListDeviceSources :many
 SELECT ds.device_id, ds.source_id, ds.address, ds.hostname, ds.hostname_source, ds.detail, ds.first_seen, ds.last_seen, s.name AS source_name, s.kind AS source_kind
 FROM device_sources ds
          JOIN sources s ON s.id = ds.source_id
+         LEFT JOIN addresses a ON a.device_id = ds.device_id AND a.ip = ds.address
 WHERE ds.device_id = ?
+  AND COALESCE(a.is_current, 1) = 1
 ORDER BY s.name, ds.address
 `
 
@@ -1405,10 +1407,18 @@ type ListDeviceSourcesRow struct {
 // Election reads this to pick the name the device list shows and searches on;
 // the device page reads it to show the claims that lost.
 //
+// It leaves out a claim at an address the device has left. Otherwise a name
+// from the old address can outrank the name at the new one for good. A claim
+// at an address the device never held stays, such as a static lease for a
+// device that is not connected. The row stays too, so a device that returns to
+// the address gets its claim back.
+//
 //	SELECT ds.device_id, ds.source_id, ds.address, ds.hostname, ds.hostname_source, ds.detail, ds.first_seen, ds.last_seen, s.name AS source_name, s.kind AS source_kind
 //	FROM device_sources ds
 //	         JOIN sources s ON s.id = ds.source_id
+//	         LEFT JOIN addresses a ON a.device_id = ds.device_id AND a.ip = ds.address
 //	WHERE ds.device_id = ?
+//	  AND COALESCE(a.is_current, 1) = 1
 //	ORDER BY s.name, ds.address
 func (q *Queries) ListDeviceSources(ctx context.Context, deviceID int64) ([]*ListDeviceSourcesRow, error) {
 	rows, err := q.query(ctx, q.listDeviceSourcesStmt, listDeviceSources, deviceID)
