@@ -2003,6 +2003,9 @@ takes the name that Jocasta heard last.</p>
 each VLAN. Each address can give a name. The device keeps one of these
 names. It does not change to the name of the address that Jocasta read last.
 The device page lists the name that each source gives for each address.</p>
+<p>When a device leaves an address, Jocasta stops using the names at that
+address. The device page stops listing them. The address stays in the history
+of the device.</p>
 <p>Jocasta does not use the reverse DNS names that systemd-resolved makes up,
 such as <code>_gateway</code>.</p>
 <p>When a sweep has a name for a device, a lookup with a lower rank does not
