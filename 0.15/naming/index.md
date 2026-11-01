@@ -14,6 +14,8 @@ If two names of the same rank are different, the device keeps its current name w
 
 A device can have several addresses, such as a router with an address on each VLAN. Each address can give a name. The device keeps one of these names. It does not change to the name of the address that Jocasta read last. The device page lists the name that each source gives for each address.
 
+When a device leaves an address, Jocasta stops using the names at that address. The device page stops listing them. The address stays in the history of the device.
+
 Jocasta does not use the reverse DNS names that systemd-resolved makes up, such as `_gateway`.
 
 When a sweep has a name for a device, a lookup with a lower rank does not replace it. The device keeps that name until a lookup with the same or a higher rank gives a different name.

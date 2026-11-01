@@ -2,6 +2,16 @@
 
 What to change or expect when moving to a release, newest first. Read every section after the release you run, and [back up](<https://pushkar-anand.github.io/jocasta/0.15/operate/backup/#back-up>) first. A release not listed here needs only the [usual steps](<https://pushkar-anand.github.io/jocasta/0.15/operate/backup/#upgrade>).
 
+## 0.15.2
+
+Released 2026-11-01.
+
+### Upgrade notes
+
+- inventory: Stop using claims at addresses a device has left ([\#512](<https://github.com/pushkar-anand/jocasta/pull/512>))
+
+  The first scan after the upgrade can rename devices that moved to a new address. Each rename logs a HOSTNAME\_CHANGED event.
+
 ## 0.4.0
 
 Released 2026-09-25.
