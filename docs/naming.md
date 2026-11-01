@@ -26,6 +26,10 @@ each VLAN. Each address can give a name. The device keeps one of these
 names. It does not change to the name of the address that Jocasta read last.
 The device page lists the name that each source gives for each address.
 
+When a device leaves an address, Jocasta stops using the names at that
+address. The device page stops listing them. The address stays in the history
+of the device.
+
 Jocasta does not use the reverse DNS names that systemd-resolved makes up,
 such as `_gateway`.
 

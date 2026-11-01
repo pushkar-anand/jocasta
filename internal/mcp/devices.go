@@ -127,7 +127,7 @@ func getDevice(store *inventory.Store) func(*mcpsdk.Server, *slog.Logger) {
 			"its classification, every address it has held and when, and every TCP port a scan has recorded open, " +
 			"with when each opened or closed, and the services it advertised over DNS-SD in the latest sweep that heard it, with the port and name it gave each. Also returns what each discovery source (a network sweep, a router's " +
 			"ARP or DHCP table) claims about the device and when that source last saw it, one claim per address the source " +
-			"reported it at; sources, and one source's claims about two addresses, can disagree. " +
+			"reported it at, leaving out addresses the device has left; sources, and one source's claims about two addresses, can disagree. " +
 			"Where a router, switch or access point is read, it also says where the device is plugged in: the path " +
 			"down from the router, the port or Wi-Fi network, the VLAN, and how fast the link runs or how strong the " +
 			"Wi-Fi signal is. " +
